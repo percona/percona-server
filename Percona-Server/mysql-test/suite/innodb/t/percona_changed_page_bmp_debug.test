@@ -3,6 +3,7 @@
 #
 --source include/have_debug.inc
 --source include/have_innodb.inc
+--source include/count_sessions.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -55,3 +56,79 @@ INSERT INTO t1 SELECT x FROM t1;
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
+
+#
+# Test for bug 1217002 (RENAME/DROP crashes with innodb_track_changed_pages)
+#
+CREATE TABLE t1 (x INT NOT NULL UNIQUE KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(5);
+
+# 1. Pause the log tracking thread
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+
+# 2. Rename a table to log a MLOG_FILE_RENAME operation
+RENAME TABLE t1 TO t2;
+
+# 3. Start an ALTER TABLE and stop it after the table -> temp table rename
+--connect (con2,localhost,root,,)
+--connection default
+
+SET DEBUG_SYNC="row_merge_rename_tables_between_renames SIGNAL alter_table_ready WAIT_FOR finish_alter_table";
+
+send ALTER TABLE t2 ADD PRIMARY KEY(x);
+
+# 4. Force a checkpoint and resume the log tracker thread, so that it misapplies the t1 > t2 rename.
+--connection con2
+
+SET DEBUG_SYNC="now WAIT_FOR alter_table_ready";
+
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+
+# 5. Force the log tracker to catch up.
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+# 6. Finish the ALTER TABLE, which then crashes if the bug is present.
+SET DEBUG_SYNC="now SIGNAL finish_alter_table";
+
+--connection default
+reap;
+
+#
+# Test for
+# - bug 1191580 (InnoDB: Failing assertion: bitmap_files->files[0].seq_num
+#   == first_file_seq_num in file log0online.cc line 1423 | abort in
+#   log_online_setup_bitmap_file_range)
+# - bug 1191589 (mysqld-debug: .../sql/protocol.cc:518: void
+#   Protocol::end_statement(): Assertion `0' failed on a
+#   INFORMATION_SCHEMA.INNODB_CHANGED_PAGES query)
+#
+
+SET DEBUG_SYNC="setup_bitmap_range_middle SIGNAL changed_pages_query_ready WAIT_FOR finish_changed_pages_query";
+
+send SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+
+--connection con2
+
+SET DEBUG_SYNC="now WAIT_FOR changed_pages_query_ready";
+
+# Remove the first bitmap file in the range after it has been enumerated 
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log_1_*.xdb;
+
+call mtr.add_suppression("InnoDB: Warning: inconsistent bitmap file directory");
+
+SET DEBUG_SYNC="now SIGNAL finish_changed_pages_query";
+
+--connection default
+
+--error ER_CANT_FIND_SYSTEM_REC
+reap;
+
+SET DEBUG_SYNC="RESET";
+
+disconnect con2;
+
+DROP TABLE t2;
+
+--source include/wait_until_count_sessions.inc

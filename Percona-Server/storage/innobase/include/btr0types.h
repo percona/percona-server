@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -41,22 +41,21 @@ typedef struct btr_search_struct	btr_search_t;
 
 #ifndef UNIV_HOTBACKUP
 
-/** @brief The latch protecting the adaptive search system
+/** @brief The array of latches protecting the adaptive search partitions
 
-This latch protects the
-(1) hash index;
+These latches protect the
+(1) hash index from the corresponding AHI partition;
 (2) columns of a record to which we have a pointer in the hash index;
 
-but does NOT protect:
+but do NOT protect:
 
 (3) next record offset field in a record;
 (4) next or previous records on the same page.
 
-Bear in mind (3) and (4) when using the hash index.
+Bear in mind (3) and (4) when using the hash indexes.
 */
-//extern rw_lock_t*	btr_search_latch_temp;
 
-extern rw_lock_t**	btr_search_latch_part;
+extern rw_lock_t*	btr_search_latch_arr;
 
 #endif /* UNIV_HOTBACKUP */
 

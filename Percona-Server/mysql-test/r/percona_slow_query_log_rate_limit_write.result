@@ -1,0 +1,38 @@
+SET @old_log_slow_rate_type=@@global.log_slow_rate_type;
+SET @old_long_query_time=@@global.long_query_time;
+SET @old_log_slow_rate_limit=@@global.log_slow_rate_limit;
+SET @old_slow_query_log_always_write_time=@@global.slow_query_log_always_write_time;
+SET GLOBAL log_slow_rate_type='session';
+SET GLOBAL long_query_time=10.0;
+SET GLOBAL log_slow_rate_limit=999;
+SET GLOBAL slow_query_log_always_write_time=17.0;
+[log_start.inc] percona.slow_extended.percona_slow_query_log_rate_limit_write_1
+SET SESSION query_exec_time=20.0;
+SELECT 'this-should-be-logged';
+this-should-be-logged
+this-should-be-logged
+SET SESSION query_exec_time=12.0;
+SELECT 'this-should-not-be-logged';
+this-should-not-be-logged
+this-should-not-be-logged
+[log_stop.inc] percona.slow_extended.percona_slow_query_log_rate_limit_write_1
+[log_grep.inc] file: percona.slow_extended.percona_slow_query_log_rate_limit_write_1 pattern: ^# Log_slow_rate_type:
+[log_grep.inc] lines:   1
+SET GLOBAL log_slow_rate_type='query';
+[log_start.inc] percona.slow_extended.percona_slow_query_log_rate_limit_write_2
+SET SESSION query_exec_time=20.0;
+SELECT 'this-should-be-logged';
+this-should-be-logged
+this-should-be-logged
+SET SESSION query_exec_time=12.0;
+SELECT 'this-should-not-be-logged';
+this-should-not-be-logged
+this-should-not-be-logged
+[log_stop.inc] percona.slow_extended.percona_slow_query_log_rate_limit_write_2
+[log_grep.inc] file: percona.slow_extended.percona_slow_query_log_rate_limit_write_2 pattern: ^# Log_slow_rate_type:
+[log_grep.inc] lines:   1
+SET GLOBAL long_query_time=0;
+SET GLOBAL log_slow_rate_type=@old_log_slow_rate_type;
+SET GLOBAL log_slow_rate_limit=@old_log_slow_rate_limit;
+SET GLOBAL slow_query_log_always_write_time=@old_slow_query_log_always_write_time;
+SET GLOBAL long_query_time=@old_long_query_time;

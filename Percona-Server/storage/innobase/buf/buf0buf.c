@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -989,7 +989,6 @@ buf_block_init(
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
-	block->btr_search_latch = NULL;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -1468,7 +1467,7 @@ buf_pool_clear_hash_index(void)
 	ulint	j;
 
 	for (j = 0; j < btr_search_index_num; j++) {
-		ut_ad(rw_lock_own(btr_search_latch_part[j], RW_LOCK_EX));
+		ut_ad(rw_lock_own(&btr_search_latch_arr[j], RW_LOCK_EX));
 	}
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!btr_search_enabled);
@@ -2147,7 +2146,6 @@ buf_block_init_low(
 {
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
-	block->btr_search_latch	= NULL;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
@@ -4054,10 +4052,10 @@ corrupt:
 	if (io_type == BUF_IO_WRITE
 	    && (
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		/* to keep consistency at buf_LRU_insert_zip_clean() */
 		buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)) {
-		/* to keep consistency at buf_LRU_insert_zip_clean() */
 		have_LRU_mutex = TRUE; /* optimistic */
 	}
 retry_mutex:
@@ -4065,10 +4063,15 @@ retry_mutex:
 		mutex_enter(&buf_pool->LRU_list_mutex);
 	block_mutex = buf_page_get_mutex_enter(bpage);
 	ut_a(block_mutex);
-	if (io_type == BUF_IO_WRITE
-	    && (buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
-		|| buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
-	    && !have_LRU_mutex) {
+	if (UNIV_UNLIKELY(io_type == BUF_IO_WRITE
+			  && (
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+			      buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
+			      ||
+#endif
+			      buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
+			  && !have_LRU_mutex)) {
+
 		mutex_exit(block_mutex);
 		have_LRU_mutex = TRUE;
 		goto retry_mutex;

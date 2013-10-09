@@ -1,6 +1,7 @@
 # Tests for innodb_track_changed_pages variable
 
 --source include/have_innodb.inc
+--source include/have_nodebug.inc
 
 SELECT COUNT(@@GLOBAL.innodb_track_changed_pages);
 

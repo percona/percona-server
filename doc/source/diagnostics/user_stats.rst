@@ -136,6 +136,9 @@ Example: ::
   | mysql        | tables_priv           | PRIMARY            |         2 |
   +--------------+-----------------------+--------------------+-----------+
 
+.. note:: 
+
+   Current implementation of index statistics doesn't support partitioned tables.
 
 
 .. table:: INFORMATION_SCHEMA.TABLE_STATISTICS
@@ -158,6 +161,9 @@ Example: ::
   | mysql        | tables_priv                   |         2 |            0 |                      0 | 
   +--------------+-------------------------------+-----------+--------------+------------------------+
 
+.. note:: 
+
+   Current implementation of table statistics doesn't support partitioned tables.
 
 .. table:: INFORMATION_SCHEMA.THREAD_STATISTICS
 

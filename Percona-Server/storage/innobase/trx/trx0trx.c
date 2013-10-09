@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -386,27 +386,6 @@ trx_allocate_for_background(void)
 }
 
 /********************************************************************//**
-Releases the search latch if trx has reserved it. */
-UNIV_INTERN
-void
-trx_search_latch_release_if_reserved(
-/*=================================*/
-	trx_t*	   trx) /*!< in: transaction */
-{
-	ulint	i;
-
-	if (trx->has_search_latch) {
-		for (i = 0; i < btr_search_index_num; i++) {
-			if (trx->has_search_latch & ((ulint)1 << i)) {
-				rw_lock_s_unlock(btr_search_latch_part[i]);
-			}
-		}
-
-		trx->has_search_latch = FALSE;
-	}
-}
-
-/********************************************************************//**
 Frees a transaction object. */
 UNIV_INTERN
 void
@@ -468,6 +447,9 @@ trx_free(
 	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 
 	ut_a(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
+#endif
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 
@@ -527,6 +509,9 @@ trx_free_prepared(
 	ut_a(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 
 	ut_a(!trx->has_search_latch);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
+#endif
 
 	ut_a(trx->dict_operation_lock_mode == 0);
 

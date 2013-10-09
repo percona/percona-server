@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,18 +117,19 @@ static void getopt_constraint_free(struct my_option_constraint *moc)
   my_free(moc);
 }
 
+static HASH my_option_constraints;
+static my_bool my_option_constraints_inited= FALSE;
+ 
 static HASH *getopt_constraint_init(my_bool create)
 {
-  static HASH my_option_constraints;
-  static int my_option_constraints_inited= 0;
-  
+ 
   if (!my_option_constraints_inited && create)
   {
     my_hash_init(&my_option_constraints, &my_charset_utf8_general_ci,
                  20, 0, 0,
                  (my_hash_get_key) getopt_constraint_get_name,
                  (void (*)(void *))getopt_constraint_free, HASH_UNIQUE);
-    my_option_constraints_inited= 1;
+    my_option_constraints_inited= TRUE;
     return &my_option_constraints;
   }
   else if (my_option_constraints_inited)
@@ -144,6 +145,8 @@ static struct my_option_constraint *getopt_constraint_find(const char *name,
 {
   HASH *opts;
   struct my_option_constraint *moc;
+  char* pos;
+  char *normalized_name;
 
   opts= getopt_constraint_init(create);
   if (!opts)
@@ -151,27 +154,32 @@ static struct my_option_constraint *getopt_constraint_find(const char *name,
   
   if (length == 0)
     length= strlen(name);
- 
+
+  normalized_name= my_strdup(name, MYF(MY_WME));
+  for (pos= normalized_name; *pos; pos++)
+  {
+    if (*pos == '-')
+      *pos= '_';
+  } 
+
   moc= (struct my_option_constraint *) my_hash_search(opts,
-                                                      (const uchar*) name,
+                                                      (const uchar*) normalized_name,
                                                       length);
 
   if (!moc && create)
   {
-    char* pos;
     moc= (struct my_option_constraint *) my_malloc(
                                    sizeof(struct my_option_constraint),
                                    MYF(MY_WME | MY_ZEROFILL));
 
-    moc->name= my_strdup(name, MYF(MY_WME));
-    for (pos= moc->name; *pos; pos++)
-    {
-       if (*pos == '-')
-         *pos= '_';
-    } 
+    moc->name= normalized_name; 
     moc->length= length;
-    
+
     my_hash_insert(opts, (uchar*) moc);
+  }
+  else
+  {
+    my_free(normalized_name);
   }
   return moc;
 }
@@ -187,7 +195,7 @@ void *getopt_constraint_get_min_value(const char *name, size_t length,
     moc->min_value= my_malloc(create, MYF(MY_WME | MY_ZEROFILL));
 
   if (moc && moc->min_value)
-    return &moc->min_value;
+    return moc->min_value;
 
   return NULL;
 }
@@ -203,7 +211,7 @@ void *getopt_constraint_get_max_value(const char *name, size_t length,
     moc->max_value= my_malloc(create, MYF(MY_WME | MY_ZEROFILL));
 
   if (moc && moc->max_value)
-    return &moc->max_value;
+    return moc->max_value;
 
   return NULL;
 }
@@ -273,6 +281,35 @@ static my_getopt_value getopt_get_addr;
 void my_getopt_register_get_addr(my_getopt_value func_addr)
 {
   getopt_get_addr= func_addr;
+}
+
+union ull_dbl
+{
+  ulonglong ull;
+  double dbl;
+};
+
+/**
+  Returns an ulonglong value containing a raw
+  representation of the given double value.
+*/
+ulonglong getopt_double2ulonglong(double v)
+{
+  union ull_dbl u;
+  u.dbl= v;
+  compile_time_assert(sizeof(ulonglong) >= sizeof(double));
+  return u.ull;
+}
+
+/**
+  Returns the double value which corresponds to
+  the given raw representation.
+*/
+double getopt_ulonglong2double(ulonglong v)
+{
+  union ull_dbl u;
+  u.ull= v;
+  return u.dbl;
 }
 
 /**
@@ -755,6 +792,19 @@ int handle_options(int *argc, char ***argv,
 
 
 /*
+  Clean up any allocations made during handle_options on shutdown.
+*/
+void handle_options_end()
+{
+  if (my_option_constraints_inited)
+  {
+    my_hash_free(&my_option_constraints);
+    my_option_constraints_inited= FALSE;
+  }
+}
+
+
+/*
   function: check_struct_option
 
   Arguments: Current argument under processing from argv and a variable
@@ -1070,6 +1120,7 @@ static int findopt(char *optpat, uint length,
 {
   uint count;
   const struct my_option *opt= *opt_res;
+  my_bool is_prefix= FALSE;
 
   for (count= 0; opt->name; opt++)
   {
@@ -1078,11 +1129,14 @@ static int findopt(char *optpat, uint length,
       (*opt_res)= opt;
       if (!opt->name[length])		/* Exact match */
 	return 1;
+
       if (!count)
       {
         /* We only need to know one prev */
 	count= 1;
 	*ffname= opt->name;
+        if (opt->name[length])
+          is_prefix= TRUE;
       }
       else if (strcmp(*ffname, opt->name))
       {
@@ -1094,6 +1148,12 @@ static int findopt(char *optpat, uint length,
       }
     }
   }
+  if (is_prefix && count == 1)
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "Using unique option prefix %.*s instead of %s "
+                             "is deprecated and will be removed in a future "
+                             "release. Please use the full name instead.",
+                             length, optpat, *ffname);
   return count;
 }
 
@@ -1314,14 +1374,18 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
 {
   my_bool adjusted= FALSE;
   double old= num;
-  if (optp->max_value && num > (double) optp->max_value)
+  double min, max;
+
+  max= getopt_ulonglong2double(optp->max_value);
+  min= getopt_ulonglong2double(optp->min_value);
+  if (max && num > max)
   {
-    num= (double) optp->max_value;
+    num= max;
     adjusted= TRUE;
   }
-  if (num < (double) optp->min_value)
+  if (num < min)
   {
-    num= (double) optp->min_value;
+    num= min;
     adjusted= TRUE;
   }
   if (fix)
@@ -1404,7 +1468,7 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
-    *((double*) variable)= ulonglong2double(value);
+    *((double*) variable)= getopt_ulonglong2double(value);
     break;
   case GET_STR:
     /*

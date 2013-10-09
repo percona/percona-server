@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -62,6 +62,14 @@ Completed by Sunny Bains and Marko Makela
 #if defined __WIN__
 # define posix_fadvise(fd, offset, len, advice) /* nothing */
 #endif /* __WIN__ */
+
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
 
 #ifdef UNIV_DEBUG
 /** Set these in order ot enable debug printout. */
@@ -2593,14 +2601,21 @@ row_merge_rename_tables(
 	/* The following calls will also rename the .ibd data files if
 	the tables are stored in a single-table tablespace */
 
-	if (!dict_table_rename_in_cache(old_table, tmp_name, FALSE)
-	    || !dict_table_rename_in_cache(new_table, old_name, FALSE)) {
+	if (!dict_table_rename_in_cache(old_table, tmp_name, FALSE)) {
 
 		err = DB_ERROR;
 		goto err_exit;
 	}
 
-	err = dict_load_foreigns(old_name, FALSE, TRUE);
+	DEBUG_SYNC_C("row_merge_rename_tables_between_renames");
+
+	if (!dict_table_rename_in_cache(new_table, old_name, FALSE)) {
+
+		err = DB_ERROR;
+		goto err_exit;
+	}
+
+	err = dict_load_foreigns(old_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
 
 	if (err != DB_SUCCESS) {
 err_exit:

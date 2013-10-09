@@ -22,3 +22,23 @@ INSERT INTO t1 SELECT x FROM t1;
 INSERT INTO t1 SELECT x FROM t1;
 3rd restart
 DROP TABLE t1;
+CREATE TABLE t1 (x INT NOT NULL UNIQUE KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(5);
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+RENAME TABLE t1 TO t2;
+SET DEBUG_SYNC="row_merge_rename_tables_between_renames SIGNAL alter_table_ready WAIT_FOR finish_alter_table";
+ALTER TABLE t2 ADD PRIMARY KEY(x);
+SET DEBUG_SYNC="now WAIT_FOR alter_table_ready";
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+SET DEBUG_SYNC="now SIGNAL finish_alter_table";
+SET DEBUG_SYNC="setup_bitmap_range_middle SIGNAL changed_pages_query_ready WAIT_FOR finish_changed_pages_query";
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+SET DEBUG_SYNC="now WAIT_FOR changed_pages_query_ready";
+call mtr.add_suppression("InnoDB: Warning: inconsistent bitmap file directory");
+SET DEBUG_SYNC="now SIGNAL finish_changed_pages_query";
+ERROR HY000: Can't read record in system table
+SET DEBUG_SYNC="RESET";
+DROP TABLE t2;

@@ -52,7 +52,10 @@ const char *globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d)",
   "Can't change permissions of the file '%s' (Errcode: %d)",
-  "Can't seek in file '%s' (Errcode: %d)"
+  "Can't seek in file '%s' (Errcode: %d)",
+  "Can't create socket '%s' (Errcode: %d)",
+  "Can't connect to '%s' (Errcode: %d)",
+  "File name '%s' is too long (max: %d)"
 };
 
 void init_glob_errs(void)
@@ -96,6 +99,9 @@ void init_glob_errs()
   EE(EE_CHANGE_OWNERSHIP)   = "Can't change ownership of the file '%s' (Errcode: %d)";
   EE(EE_CHANGE_PERMISSIONS) = "Can't change permissions of the file '%s' (Errcode: %d)";
   EE(EE_CANT_SEEK)      = "Can't seek in file '%s' (Errcode: %d)";
+  EE(EE_SOCKET) = "Can't create socket '%s' (Errcode: %d)";
+  EE(EE_CONNECT) = "Can't connect to '%s' (Errcode: %d)";
+  EE(EE_TOOLONGFILENAME) = "File name '%s' is too long (max: %d)";
 }
 #endif
 

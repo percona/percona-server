@@ -25,10 +25,10 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.32
+%define mysql_version   5.5.33
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 31
-%define minorversion 0
+%define minorversion 1
 %define distribution  rhel%{redhatversion}
 %define percona_server_version	rel%{majorversion}.%{minorversion}
 
@@ -392,6 +392,16 @@ export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-const
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
+
+# "Fix" cmake directories in case we're crosscompiling.
+# We detect crosscompiles to i686 if uname is x86_64 however _libdir does not
+# contain lib64.
+# In this case, we cannot instruct cmake to change CMAKE_SYSTEM_PROCESSOR, so
+# we need to alter the directories in cmake/install_layout.cmake manually.
+if test "x$(uname -m)" = "xx86_64" && echo "%{_libdir}" | fgrep -vq lib64
+then
+    sed -i 's/lib64/lib/' "cmake/install_layout.cmake"
+fi
 
 # Build debug mysqld and libmysqld.a
 mkdir debug

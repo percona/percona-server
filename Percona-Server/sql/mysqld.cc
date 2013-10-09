@@ -364,6 +364,7 @@ static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log;
+ulonglong slow_query_log_always_write_time= 10000000;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
@@ -668,6 +669,10 @@ char* enforce_storage_engine= NULL;
 char* utility_user= NULL;
 char* utility_user_password= NULL;
 char* utility_user_schema_access= NULL;
+
+/* Plucking this from sql/sql_acl.cc for an array of privilege names */
+extern TYPELIB utility_user_privileges_typelib;
+ulonglong utility_user_privileges= 0;
 
 /* Thread specific variables */
 
@@ -1588,6 +1593,7 @@ void clean_up(bool print_message)
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
   sys_var_end();
+  handle_options_end();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -4076,7 +4082,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   /*
     Validate any enforced storage engine
   */
-  if (enforce_storage_engine)
+  if (enforce_storage_engine && !opt_bootstrap && !opt_noacl)
   {
     LEX_STRING name= { enforce_storage_engine,
       strlen(enforce_storage_engine) };
@@ -4099,6 +4105,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
             enforce_storage_engine);
         }
       }
+      plugin_unlock(0, defplugin);
+      plugin_unlock(0, plugin);
     }
     else
     {
@@ -6262,6 +6270,11 @@ struct my_option my_long_options[]=
    "utility user.",
    &utility_user_password, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"utility_user_privileges", 0, "Specifies the privileges that the utility "
+   "user will have in a comma delimited list. See the manual for a complete "
+   "list of privileges.",
+   &utility_user_privileges, 0, &utility_user_privileges_typelib,
+   GET_SET, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"utility_user_schema_access", 0, "Specifies the schemas that the utility "
    "user has access to in a comma delimited list.",
    &utility_user_schema_access, 0, 0, GET_STR, REQUIRED_ARG,

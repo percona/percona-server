@@ -10,6 +10,7 @@ Priority refill for the buffer pool free list
 =============================================
 
 In highly-concurrent I/O-bound workloads the following situation may happen: 
+
  1) Buffer pool free lists are used faster than they are refilled by the LRU cleaner thread.
  2) Buffer pool free lists become empty and more and more query and utility (i.e. purge) thread stall, checking whether a free list has became non-empty, sleeping, performing single-page LRU flushes.
  3) The number of free list mutex waiters increases.

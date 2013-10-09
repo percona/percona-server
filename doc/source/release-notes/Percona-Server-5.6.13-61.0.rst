@@ -11,7 +11,7 @@ Based on `MySQL 5.6.13 <http://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-
 New Features
 ============
  
- |Percona Server| has implemented a number of :ref:`xtradb_performance_improvements` for high-concurrency scenarios.
+ |Percona Server| has implemented a number of :ref:`xtradb_performance_improvements` for high-concurrency scenarios. This feature fixes the upstream bug: :mysqlbug:`68555` (:bug:`1236884`).
 
  |Percona Server| has implemented a number of performance improvements for :ref:`page_cleaner_tuning`. This feature fixes the upstream bugs: :mysqlbug:`69170` (:bug:`1231918`), :mysqlbug:`70453` (:bug:`1232101`) and :mysqlbug:`68481` (:bug:`1232406`).
 
@@ -56,4 +56,4 @@ Bugs Fixed
 
  Fixed the upstream bug :mysqlbug:`64556` which could cause an unrelated warning to be raised if a query inside |InnoDB| was interrupted. Bug fixed :bug:`1115158`.
  
-Other bugs fixed: bug fixed :bug:`1131949`, bug fixed :bug:`1191589`, bug fixed :bug:`1229583`, upstream bug fixed :mysqlbug:`70490` bug fixed :bug:`1205196`,upstream bug fixed :mysqlbug:`70417` bug fixed :bug:`1230220`.
+Other bugs fixed:  bug fixed :bug:`1131949`, bug fixed :bug:`1191589`, bug fixed :bug:`1229583`, upstream bug fixed :mysqlbug:`70490` bug fixed :bug:`1205196`,upstream bug fixed :mysqlbug:`70417` bug fixed :bug:`1230220`.

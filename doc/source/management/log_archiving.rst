@@ -6,7 +6,7 @@
 
 .. note::
 
- This feature implementation is considered ALPHA quality.
+ This feature implementation is considered BETA quality.
 
 |XtraDB| and |InnoDB| write to the redo log files in a cyclic manner, so that the oldest log data is overwritten with the newest one. This feature makes copies of the old log files before they are overwritten, thus saving all the redo log for a write workload.
 

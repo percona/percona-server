@@ -41,7 +41,8 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_libwrap.h my_stacktrace.h  welcome_copyright_notice.h \
                        my_atomic.h atomic/gcc_builtins.h atomic/generic-msvc.h \
 			atomic/nolock.h atomic/rwlock.h atomic/solaris.h \
-			atomic/x86-gcc.h
+			atomic/x86-gcc.h \
+			flashcache_ioctl.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
 

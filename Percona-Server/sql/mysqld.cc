@@ -1915,6 +1915,8 @@ void clean_up(bool print_message)
   if (THR_MALLOC)
     (void) pthread_key_delete(THR_MALLOC);
 
+  my_handle_options_end();
+
   /*
     The following lines may never be executed as the main thread may have
     killed us

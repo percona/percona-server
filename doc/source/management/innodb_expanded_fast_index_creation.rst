@@ -4,6 +4,10 @@
 Expanded Fast Index Creation
 ============================
 
+.. note::
+
+ This feature implementation is considered BETA quality.
+
 Percona has implemented several changes related to |MySQL|'s fast index creation feature. This feature expands the ``ALTER TABLE`` command by adding a new clause that provides online index renaming capability, that is renaming indexes without rebuilding the whole table.
 
 Enabling Expanded Fast Index Creation

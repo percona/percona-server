@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Execute this tool to setup the environment and build binary releases
 # for Percona-Server starting from a fresh tree.
@@ -97,7 +97,7 @@ fi
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/Makefile" || exit 2
+test -e "$SOURCEDIR/Makefile-ps" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -107,11 +107,11 @@ else
     PROCESSORS=4
 fi
 
-# Extract version from the Makefile
-MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile" \
+# Extract version from the Makefile-ps
+MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile-ps" \
     | cut -d = -f 2)"
 PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
-    "$SOURCEDIR/Makefile" | cut -d = -f 2)"
+    "$SOURCEDIR/Makefile-ps" | cut -d = -f 2)"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
@@ -150,9 +150,8 @@ fi
     cd "$SOURCEDIR"
  
     # Execute clean and download mysql, apply patches
-    make clean all
+    make -f Makefile-ps all
 
-    cd "$PRODUCT"
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
         -DWITH_EMBEDDED_SERVER=OFF \
@@ -171,8 +170,8 @@ fi
     (
         cd "storage/HandlerSocket-Plugin-for-MySQL"
         ./autogen.sh
-        CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR/$PRODUCT" \
-            --with-mysql-bindir="$SOURCEDIR/$PRODUCT/scripts" \
+        CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR" \
+            --with-mysql-bindir="$SOURCEDIR/scripts" \
             --with-mysql-plugindir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
             --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/plugin" \
             --prefix="/usr/local/$PRODUCT_FULL"
@@ -184,7 +183,7 @@ fi
     # Build UDF
     (
         cd "UDF"
-        CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/$PRODUCT/include" \
+        CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/include" \
             --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
         make $MAKE_JFLAG
         make DESTDIR="$INSTALLDIR" install

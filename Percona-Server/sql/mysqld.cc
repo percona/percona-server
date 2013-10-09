@@ -4081,7 +4081,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   /*
     Validate any enforced storage engine
   */
-  if (enforce_storage_engine)
+  if (enforce_storage_engine && !opt_bootstrap && !opt_noacl)
   {
     LEX_STRING name= { enforce_storage_engine,
       strlen(enforce_storage_engine) };
@@ -4104,6 +4104,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
             enforce_storage_engine);
         }
       }
+      plugin_unlock(0, defplugin);
+      plugin_unlock(0, plugin);
     }
     else
     {

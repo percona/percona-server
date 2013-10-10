@@ -275,7 +275,7 @@ UNIV_INTERN ulint	srv_cleaner_max_flush_time = 1000;
 
 /** Page cleaner flush list flush batches are further divided into this chunk
 size  */
-UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 200;
+UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 100;
 
 /** Page cleaner LRU list flush batches are further divided into this chunk
 size  */

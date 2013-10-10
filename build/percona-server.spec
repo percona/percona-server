@@ -541,6 +541,10 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
+# Delete the symlinks to the libraries from the libdir. These are created by
+# ldconfig(8) afterwards.
+rm -f $RBR%{_libdir}/libmysqlclient*.so.18
+
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
 ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
@@ -1171,11 +1175,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/libhsclient.la
 %{_libdir}/*.so
 
-# ----------------------------------------------------------------------------
-%files -n Percona-Server-shared%{product_suffix}
-%defattr(-, root, root, 0755)
-# Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libmysql*.so.*
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la
@@ -1183,6 +1182,12 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/plugin/libfnv_udf.la
 %{_libdir}/mysql/plugin/libmurmur_udf.a
 %{_libdir}/mysql/plugin/libmurmur_udf.la
+
+# ----------------------------------------------------------------------------
+%files -n Percona-Server-shared%{product_suffix}
+%defattr(-, root, root, 0755)
+# Shared libraries (omit for architectures that don't support them)
+%{_libdir}/libmysql*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
 /sbin/ldconfig

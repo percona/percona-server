@@ -41,7 +41,7 @@ AC_DEFUN([CONFIG_OPTION_MYSQL],[
         AC_SUBST(MYSQL_INC)
         if test -f "$ac_mysql_source_dir/VERSION"; then
           source "$ac_mysql_source_dir/VERSION"
-          MYSQL_SOURCE_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
+          MYSQL_SOURCE_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH$MYSQL_VERSION_EXTRA"
         else
           if test -f "$ac_mysql_source_dir/configure.in"; then
             MYSQL_SOURCE_VERSION=`cat $ac_mysql_source_dir/configure.in | grep "\[[\(MariaDB\|MySQL\) Server\]]" | sed -e "s|.*\([[0-9]]\+\.[[0-9]]\+\.[[0-9]]\+[[0-9a-zA-Z\_\-]]*\).*|\1|"`

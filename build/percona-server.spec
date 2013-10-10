@@ -27,16 +27,16 @@
 
 %define mysql_version   5.6.13
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 60
-%define minorversion 6
+%define majorversion 61
+%define minorversion 0
 %define distribution  rhel%{redhatversion}
-%define percona_server_version	rc%{majorversion}.%{minorversion}
+%define percona_server_version	rel%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rc%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
 #
 # Macros we use which are not available in all supported versions of RPM

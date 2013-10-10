@@ -20,7 +20,7 @@ CONFIGURE=CFLAGS="-O2 -g -fmessage-length=0 -D_FORTIFY_SOURCE=2" CXXFLAGS="-O2 -
 REVS = $(shell bzr log | grep rev | head -1   )
 REV  = $(word 2, $(REVS) )
 
-all: main maatkit-udf
+all: maatkit-udf
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -33,11 +33,10 @@ all: main maatkit-udf
 	@echo ""
 
 maatkit-udf:
-	cp -R UDF "$(PERCONA_SERVER)"
-	cd "$(PERCONA_SERVER)"/UDF && autoreconf --install
+	cd UDF && autoreconf --install
 
 configure: all
-	(cd $(PERCONA_SERVER); bash BUILD/autorun.sh; $(CONFIGURE))
+	(bash BUILD/autorun.sh; $(CONFIGURE))
 
 cmake: cmake_release cmake_debug
 
@@ -50,21 +49,10 @@ cmake_debug:
 	(mkdir -p $(DEBUG_DIR); cd $(DEBUG_DIR); CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" $(CMAKE) -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=ON -DMYSQL_MAINTAINER_MODE=OFF ../$(PERCONA_SERVER))
 
 binary:
-	(cd $(PERCONA_SERVER); CFLAGS="$(CFLAGS_RELEASE)" CXXFLAGS="$(CXXFLAGS_RELEASE)" ${CMAKE} . -DBUILD_CONFIG=mysql_release  \
+	(CFLAGS="$(CFLAGS_RELEASE)" CXXFLAGS="$(CXXFLAGS_RELEASE)" ${CMAKE} . -DBUILD_CONFIG=mysql_release  \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DCMAKE_INSTALL_PREFIX="/usr/local/$(PERCONA_SERVER)-$(MYSQL_VERSION)-$(REV)" \
            -DFEATURE_SET="community" \
 	   -DWITH_EMBEDDED_SERVER=OFF \
            -DCOMPILATION_COMMENT="Percona-Server" \
            -DMYSQL_SERVER_SUFFIX="-$(REV)" )
-
-prepare:
-	@echo "Prepare Percona Server sources"
-	rm -rf $(PERCONA_SERVER) $(PERCONA_SERVER_SHORT_1)
-	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER)
-	ln -s $(PERCONA_SERVER_SHORT_2) $(PERCONA_SERVER_SHORT_1)
-
-main: prepare
-
-clean:
-	rm -rf $(RELEASE_DIR) $(DEBUG_DIR)

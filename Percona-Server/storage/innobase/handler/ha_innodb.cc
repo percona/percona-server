@@ -1123,8 +1123,11 @@ innobase_release_temporary_latches(
 
 	trx = thd_to_trx(thd);
 
-	/* No-op in XtraDB */
-	trx_search_latch_release_if_reserved(trx);
+	if (trx != NULL) {
+
+		/* No-op in XtraDB */
+		trx_search_latch_release_if_reserved(trx);
+	}
 
 	return(0);
 }

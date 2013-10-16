@@ -2507,7 +2507,6 @@ buf_page_get_gen(
 	ibool		must_read;
 	prio_rw_lock_t*	hash_lock;
 	ib_mutex_t*	block_mutex;
-	buf_page_t*	hash_bpage;
 	ulint		retries = 0;
 	trx_t*		trx = NULL;
 	ulint		sec;
@@ -2720,6 +2719,11 @@ wait_until_unfixed:
 			goto loop;
 		}
 
+		/* Buffer-fix the block so that it cannot be evicted
+		or relocated while we are attempting to allocate an
+		uncompressed page. */
+		bpage->buf_fix_count++;
+
 		/* Allocate an uncompressed page. */
 		mutex_exit(&buf_pool->zip_mutex);
 		block = buf_LRU_get_free_block(buf_pool);
@@ -2727,39 +2731,31 @@ wait_until_unfixed:
 
 		mutex_enter(&buf_pool->LRU_list_mutex);
 
-		/* As we have released the page_hash lock and the
-		block_mutex to allocate an uncompressed page it is
-		possible that page_hash might have changed. We do
-		another lookup here while holding the hash_lock
-		to verify that bpage is indeed still a part of
-		page_hash. */
 		rw_lock_x_lock(hash_lock);
-		hash_bpage = buf_page_hash_get_low(buf_pool, space,
-						   offset, fold);
+		/* Buffer-fixing prevents the page_hash from changing. */
+		ut_ad(bpage == buf_page_hash_get_low(
+			      buf_pool, space, offset, fold));
 
 		mutex_enter(&block->mutex);
 		mutex_enter(&buf_pool->zip_mutex);
 
-		if (bpage != hash_bpage
-		    || bpage->buf_fix_count
+		if (--bpage->buf_fix_count
 		    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+
+			mutex_exit(&buf_pool->zip_mutex);
+			/* The block was buffer-fixed or I/O-fixed while
+			buf_pool->mutex was not held by this thread.
+			Free the block that was allocated and retry.
+			This should be extremely unlikely, for example,
+			if buf_page_get_zip() was invoked. */
+
 			buf_LRU_block_free_non_file_page(block);
 			mutex_exit(&buf_pool->LRU_list_mutex);
 			mutex_exit(&buf_pool->zip_mutex);
 			rw_lock_x_unlock(hash_lock);
 			mutex_exit(&block->mutex);
 
-			if (bpage != hash_bpage) {
-				/* The buf_pool->page_hash was modified
-				while buf_pool->LRU_list_mutex was not held
-				by this thread. */
-				goto loop;
-			} else {
-				/* The block was buffer-fixed or
-				I/O-fixed while buf_pool->LRU_list_mutex was
-				not held by this thread. */
-				goto wait_until_unfixed;
-			}
+			goto wait_until_unfixed;
 		}
 
 		/* Move the compressed page from bpage to block,

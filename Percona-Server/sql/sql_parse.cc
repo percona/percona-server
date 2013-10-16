@@ -2514,6 +2514,8 @@ mysql_execute_command(THD *thd)
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
 #endif
+  struct system_variables *per_query_variables_backup;
+
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
 
@@ -2813,6 +2815,22 @@ mysql_execute_command(THD *thd)
       goto error;
   }
 
+  if (lex->set_statement && !lex->var_list.is_empty()) {
+    per_query_variables_backup= copy_system_variables(&thd->variables,
+                                                      thd->m_enable_plugins);
+    if ((res= sql_set_variables(thd, &lex->var_list)))
+    {
+      /*
+         We encountered some sort of error, but no message was sent.
+         Send something semi-generic here since we don't know which
+         assignment in the list caused the error.
+      */
+      if (!thd->is_error())
+        my_error(ER_WRONG_ARGUMENTS, MYF(0), "SET");
+      goto error;
+    }
+  }
+
   switch (lex->sql_command) {
 
   case SQLCOM_SHOW_STATUS:
@@ -2875,6 +2893,12 @@ case SQLCOM_PREPARE:
   }
   case SQLCOM_EXECUTE:
   {
+    /*
+      Deallocate free_list here to avoid assertion failure later in
+      Prepared_statement::execute_loop
+    */
+    free_items(thd->free_list);
+    thd->free_list= NULL;
     mysql_sql_stmt_execute(thd);
     break;
   }
@@ -5307,6 +5331,29 @@ finish:
 
   if (reset_timer)
     reset_statement_timer(thd);
+
+  if (lex->set_statement && !lex->var_list.is_empty()) {
+    List_iterator_fast<set_var_base> it(thd->lex->var_list);
+    set_var *var;
+
+    free_system_variables(&thd->variables, thd->m_enable_plugins);
+    thd->variables= *per_query_variables_backup;
+    my_free(per_query_variables_backup);
+    /*
+       When variables are restored after "SET STATEMENT ... FOR ..." statement
+       execution an update callback must be invoked for the system variables
+       to save special logic if it is. set_var_base class does not contain
+       refference to variable as it is just an interface class. But only
+       system variables are allowed to be used in "SET STATEMENT ... FOR ..."
+       statement, so cast from set_var_base* to set_var* can be used here.
+    */
+    while ((var=(set_var *)it++))
+    {
+      var->var->stmt_update(thd);
+    }
+
+    thd->lex->set_statement= false;
+  }
 
   if (! thd->in_sub_stmt)
   {

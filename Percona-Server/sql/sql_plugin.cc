@@ -3924,3 +3924,69 @@ int unlock_plugin_data()
   DBUG_ENTER("unlock_plugin_data");
   DBUG_RETURN(mysql_mutex_unlock(&LOCK_plugin));
 }
+
+/**
+  Create deep copy of system_variables instance.
+*/
+struct system_variables *
+copy_system_variables(const struct system_variables *src,
+                      bool enable_plugins)
+{
+  struct system_variables *dst;
+
+  DBUG_ASSERT(src);
+
+  dst= (struct system_variables *)
+    my_malloc(sizeof(struct system_variables), MYF(MY_WME | MY_FAE));
+  *dst = *src;
+
+  if (dst->dynamic_variables_ptr)
+  {
+    dst->dynamic_variables_ptr=
+      (char *)my_malloc(dst->dynamic_variables_size, MYF(MY_WME | MY_FAE));
+    memcpy(dst->dynamic_variables_ptr,
+           src->dynamic_variables_ptr,
+           src->dynamic_variables_size);
+  }
+
+  dst->dynamic_variables_allocs= 0;
+
+  for (LIST *i= src->dynamic_variables_allocs; i; i= i->next)
+  {
+    const char *src_value= (const char *)(i + 1);
+    size_t src_length= strlen(src_value) + 1;
+    LIST *dst_el= (LIST *) my_malloc(sizeof(LIST) + src_length, MYF(MY_WME | MY_FAE));
+    memcpy(dst_el + 1, src_value, src_length);
+    dst->dynamic_variables_allocs= list_add(dst->dynamic_variables_allocs,
+                                             dst_el);
+  }
+
+  if (enable_plugins)
+  {
+    mysql_mutex_lock(&LOCK_plugin);
+    dst->table_plugin=
+      my_intern_plugin_lock(NULL, src->table_plugin);
+    dst->temp_table_plugin=
+      my_intern_plugin_lock(NULL, src->temp_table_plugin);
+    mysql_mutex_unlock(&LOCK_plugin);
+  }
+
+  return dst;
+}
+
+void free_system_variables(struct system_variables *v, bool enable_plugins)
+{
+  DBUG_ASSERT(v);
+
+  if (enable_plugins)
+  {
+    mysql_mutex_lock(&LOCK_plugin);
+    intern_plugin_unlock(NULL, v->table_plugin);
+    intern_plugin_unlock(NULL, v->temp_table_plugin);
+    mysql_mutex_unlock(&LOCK_plugin);
+  }
+
+  plugin_var_memalloc_free(v);
+
+  my_free(v->dynamic_variables_ptr);
+}

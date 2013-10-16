@@ -2333,7 +2333,8 @@ struct LEX: public Query_tables_list
     required a local context, the parser pops the top-most context.
   */
   List<Name_resolution_context> context_stack;
-
+  /* true if SET STATEMENT ... FOR ... statement is use, false otherwise */
+  bool set_statement;
   /**
     Argument values for PROCEDURE ANALYSE(); is NULL for other queries
   */

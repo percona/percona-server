@@ -25,7 +25,8 @@ connect (fail,localhost,u2,password);
 --error ER_PLUGIN_IS_NOT_LOADED
 change_user u1;
 
---error 2006
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
 change_user u2;
 --enable_reconnect
 

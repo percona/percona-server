@@ -14,7 +14,7 @@ ERROR 28000: Access denied for user 'u2'@'localhost' (using password: NO)
 connect(localhost,u2,password,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'u2'@'localhost' (using password: YES)
 ERROR HY000: Plugin 'bar' is not loaded
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 ERROR 28000: Access denied for user 'u2'@'localhost' (using password: YES)
 delete from mysql.user where plugin = 'bar';
 flush privileges;

@@ -1483,7 +1483,7 @@ lock_rec_has_expl(
 	const buf_block_t*	block,	/*!< in: buffer block containing
 					the record */
 	ulint			heap_no,/*!< in: heap number of the record */
-	const trx_t*		trx)	/*!< in: transaction */
+	trx_id_t		trx_id)	/*!< in: transaction id */
 {
 	lock_t*	lock;
 
@@ -1496,7 +1496,7 @@ lock_rec_has_expl(
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
-		if (lock->trx == trx
+		if (lock->trx->id == trx_id
 		    && !lock_rec_get_insert_intention(lock)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
@@ -1521,7 +1521,7 @@ lock_rec_has_expl(
 /*********************************************************************//**
 Checks if some other transaction has a lock request in the queue.
 @return	lock or NULL */
-static
+static __attribute__((nonnull, warn_unused_result))
 const lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
@@ -1535,9 +1535,7 @@ lock_rec_other_has_expl_req(
 	const buf_block_t*	block,	/*!< in: buffer block containing
 					the record */
 	ulint			heap_no,/*!< in: heap number of the record */
-	const trx_t*		trx)	/*!< in: transaction, or NULL if
-					requests by all transactions
-					are taken into account */
+	trx_id_t		trx_id)	/*!< in: transaction */
 {
 	const lock_t*	lock;
 
@@ -1550,7 +1548,7 @@ lock_rec_other_has_expl_req(
 	     lock != NULL;
 	     lock = lock_rec_get_next_const(heap_no, lock)) {
 
-		if (lock->trx != trx
+		if (lock->trx->id != trx_id
 		    && (gap
 			|| !(lock_rec_get_gap(lock)
 			     || heap_no == PAGE_HEAP_NO_SUPREMUM))
@@ -2068,7 +2066,7 @@ lock_rec_add_to_queue(
 			: LOCK_S;
 		const lock_t*	other_lock
 			= lock_rec_other_has_expl_req(mode, 0, LOCK_WAIT,
-						      block, heap_no, trx);
+						      block, heap_no, trx->id);
 		ut_a(!other_lock);
 	}
 #endif /* UNIV_DEBUG */
@@ -2259,7 +2257,7 @@ lock_rec_lock_slow(
 	trx = thr_get_trx(thr);
 	trx_mutex_enter(trx);
 
-	if (lock_rec_has_expl(mode, block, heap_no, trx)) {
+	if (lock_rec_has_expl(mode, block, heap_no, trx->id)) {
 
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
@@ -4436,7 +4434,7 @@ lock_table(
 
 	trx = thr_get_trx(thr);
 
-	if (trx->fake_changes && mode == LOCK_IX) {
+	if (UNIV_UNLIKELY(trx->fake_changes && mode == LOCK_IX)) {
 		mode = LOCK_IS;
 	}
 
@@ -5586,7 +5584,6 @@ lock_rec_queue_validate(
 	const dict_index_t*	index,	/*!< in: index, or NULL if not known */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	const trx_t*	impl_trx;
 	const lock_t*	lock;
 	ulint		heap_no;
 
@@ -5672,7 +5669,8 @@ lock_rec_queue_validate(
 				mode = LOCK_S;
 			}
 			ut_a(!lock_rec_other_has_expl_req(
-				     mode, 0, 0, block, heap_no, lock->trx));
+				     mode, 0, 0, block, heap_no,
+				     lock->trx->id));
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 
@@ -5982,6 +5980,7 @@ lock_rec_insert_check_and_lock(
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
+	ut_ad((flags & BTR_NO_LOCKING_FLAG) || thr);
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
@@ -5990,7 +5989,7 @@ lock_rec_insert_check_and_lock(
 
 	trx = thr_get_trx(thr);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		return(DB_SUCCESS);
 	}
 
@@ -6203,7 +6202,7 @@ lock_clust_rec_modify_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		return(DB_SUCCESS);
 	}
 
@@ -6269,7 +6268,7 @@ lock_sec_rec_modify_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		return(DB_SUCCESS);
 	}
 

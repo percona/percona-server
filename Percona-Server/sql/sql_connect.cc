@@ -56,9 +56,6 @@
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
-// Increments connection count for user.
-static int increment_connection_count(THD* thd, bool use_lock);
-
 // Uses the THD to update the global stats by user name and client IP
 void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
@@ -79,6 +76,10 @@ extern mysql_mutex_t LOCK_global_index_stats;
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+// Increments connection count for user.
+static int increment_connection_count(THD* thd, bool use_lock);
+
 static HASH hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,

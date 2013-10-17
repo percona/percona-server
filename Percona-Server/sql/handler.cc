@@ -1367,7 +1367,7 @@ int ha_commit_trans(THD *thd, bool all)
           and committing the transaction in other engines.
         */
         if (! hi->is_trx_read_write()
-            && !(ht->is_fake_change && ht->is_fake_change(ht, thd)))
+            && likely(!(ht->is_fake_change && ht->is_fake_change(ht, thd))))
           continue;
         /*
           Sic: we know that prepare() is not NULL since otherwise

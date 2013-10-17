@@ -1190,7 +1190,7 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1428,7 +1428,7 @@ fail_err:
 		goto fail_err;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		*big_rec = big_rec_vec;
 		return(err); /* == DB_SUCCESS */
@@ -1642,7 +1642,7 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		if (n_extents > 0) {
 			fil_space_release_free_extents(index->space,
@@ -1708,7 +1708,7 @@ btr_cur_upd_lock_and_undo(
 
 	ut_ad(cursor && update && thr && roll_ptr);
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1915,7 +1915,7 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	if (trx && trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx && trx->fake_changes)) {
 	    /* Don't call page_zip_compress_write_log_no_data as that has
 	    assert which would fail. Assume there won't be a compression
 	    failure. */
@@ -2022,7 +2022,7 @@ btr_cur_update_in_place(
 		return(err);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* skip CHANGE, LOG */
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
@@ -2257,7 +2257,7 @@ any_extern:
 		goto err_exit;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		goto err_exit; /* == DB_SUCCESS */
 	}
@@ -2495,7 +2495,7 @@ btr_cur_pessimistic_update(
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap);
-	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && UNIV_LIKELY(!trx->fake_changes)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -2553,7 +2553,7 @@ make_external:
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* skip CHANGE, LOG */
 		err = DB_SUCCESS;
 		goto return_after_reservations;
@@ -2889,7 +2889,7 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO, CHANGE, LOG */
 		return(DB_SUCCESS);
 	}
@@ -3028,7 +3028,7 @@ btr_cur_del_mark_set_sec_rec(
 	rec_t*		rec;
 	ulint		err;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, CHANGE, LOG */
 		return(DB_SUCCESS);
 	}

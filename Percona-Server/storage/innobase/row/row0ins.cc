@@ -2361,11 +2361,6 @@ row_ins_clust_index_entry_low(
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
-	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
-		mode = (mode & BTR_MODIFY_TREE)
-			? BTR_SEARCH_TREE : BTR_SEARCH_LEAF;
-	}
-
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, mode,
 				    &cursor, 0, __FILE__, __LINE__, &mtr);
 

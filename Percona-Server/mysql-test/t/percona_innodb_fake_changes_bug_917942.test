@@ -7,6 +7,8 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
+SET @@GLOBAL.userstat=ON;
+
 #
 # Confirm that cursor->tree_height is initialized when calling btr_cur_pessimistic_update
 # for transactions with innodb_fake_changes set
@@ -16,30 +18,25 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
 
 INSERT INTO t1 VALUES(NULL, LPAD("v", 2, "b"), LPAD("a", 100, "b"));
-let $t1_checksum_1= `CHECKSUM TABLE t1 EXTENDED`;
 
-SET innodb_fake_changes=1;
+--let $fake_changes_table=t1
+--source include/start_fake_changes.inc
 
 --error 1180
 INSERT INTO t1 VALUES(1, "foo", LPAD("a", 4600, "b")) ON DUPLICATE KEY UPDATE T = VALUES(T);
 --error 1180
 UPDATE t1 SET T = LPAD("A", 4600, "b");
 
-SET innodb_fake_changes=0;
-CHECK TABLE t1;
-let $t1_checksum_2= `CHECKSUM TABLE t1 EXTENDED`;
---disable_query_log
-eval SELECT "$t1_checksum_1" LIKE "$t1_checksum_2" AS should_be_1;
---enable_query_log
+--source include/stop_fake_changes.inc
+
 DROP TABLE t1;
 
 --echo Test for uncompressed
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES(NULL, LPAD("v", 2, "b"), LPAD("a", 100, "b"));
-let $t1_checksum_1= `CHECKSUM TABLE t1 EXTENDED`;
 
-SET innodb_fake_changes=1;
+--source include/start_fake_changes.inc
 
 --disable_query_log
 let $x = 50;
@@ -53,12 +50,8 @@ while ($x)
 }
 --enable_query_log
 
-SET innodb_fake_changes=0;
-CHECK TABLE t1;
-let $t1_checksum_2= `CHECKSUM TABLE t1 EXTENDED`;
---disable_query_log
-eval SELECT "$t1_checksum_1" LIKE "$t1_checksum_2" AS should_be_1;
---enable_query_log
+--source include/stop_fake_changes.inc
+
 DROP TABLE t1;
 
 #
@@ -69,19 +62,14 @@ DROP TABLE t1;
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB KEY_BLOCK_SIZE=8;
 
 INSERT INTO t1 VALUES(2, LPAD("v", 2, "b"), LPAD("a", 200, "b")); 
-let $t1_checksum_1= `CHECKSUM TABLE t1 EXTENDED`;
 
-SET innodb_fake_changes=1;
+--source include/start_fake_changes.inc
 
 --error 1180
 INSERT INTO t1 VALUES (3, "foo", LPAD("a", 4600, "b"));
 
-SET innodb_fake_changes=0;
-CHECK TABLE t1;
-let $t1_checksum_2= `CHECKSUM TABLE t1 EXTENDED`;
---disable_query_log
-eval SELECT "$t1_checksum_1" LIKE "$t1_checksum_2" AS should_be_1;
---enable_query_log
+--source include/stop_fake_changes.inc
+
 DROP TABLE t1;
 
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, v VARCHAR(200), t TEXT) ENGINE=INNODB;
@@ -101,3 +89,5 @@ let $t1_checksum_2= `CHECKSUM TABLE t1 EXTENDED`;
 eval SELECT "$t1_checksum_1" LIKE "$t1_checksum_2" AS should_be_1;
 --enable_query_log
 DROP TABLE t1;
+
+SET @@GLOBAL.userstat=default;

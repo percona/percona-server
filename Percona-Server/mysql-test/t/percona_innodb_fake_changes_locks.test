@@ -16,6 +16,7 @@ let $t2_checksum_1= `CHECKSUM TABLE t2 EXTENDED`;
 --connection conn1
 --echo # Verifying that X_LOCK not acquired
 SET autocommit=0;
+# Cannot use start_fake_changes.inc as conn2 issues real workload before reverting
 SET innodb_fake_changes=1;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;

@@ -2430,7 +2430,7 @@ err_exit:
 
 		rec_t*		rec		= btr_cur_get_rec(&cursor);
 
-		if (big_rec) {
+		if (big_rec && UNIV_LIKELY(!thr_get_trx(thr)->fake_changes)) {
 			ut_a(err == DB_SUCCESS);
 			/* Write out the externally stored
 			columns while still x-latching

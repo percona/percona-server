@@ -1562,13 +1562,24 @@ static void close_connections(void)
   DBUG_VOID_RETURN;
 }
 
+#ifdef HAVE_CLOSE_SERVER_SOCK
+static void close_socket(MYSQL_SOCKET sock, const char *info)
+{
+  DBUG_ENTER("close_socket");
+
+  if (mysql_socket_getfd(sock) != INVALID_SOCKET)
+  {
+    DBUG_PRINT("info", ("calling shutdown on %s socket", info));
+    (void) mysql_socket_shutdown(sock, SHUT_RDWR);
+  }
+  DBUG_VOID_RETURN;
+}
+#endif
 
 static void close_server_sock()
 {
 #ifdef HAVE_CLOSE_SERVER_SOCK
   DBUG_ENTER("close_server_sock");
-  MYSQL_SOCKET tmp_sock;
-  tmp_sock=ip_sock;
 
   close_socket(base_ip_sock, "TCP/IP");
   close_socket(extra_ip_sock, "TCP/IP");

@@ -2757,8 +2757,9 @@ row_ins_sec_index_entry_low(
 
 		btr_cur_search_to_nth_level(
 			index, 0, entry, PAGE_CUR_LE,
-			thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF :
-			(btr_latch_mode)
+			UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)
+			? BTR_SEARCH_LEAF
+			: (btr_latch_mode)
 			(search_mode & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE)),
 			&cursor, 0, __FILE__, __LINE__, &mtr);
 	}

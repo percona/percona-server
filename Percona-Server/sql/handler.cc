@@ -2121,7 +2121,7 @@ int ha_prepare_low(THD *thd, bool all)
         and committing the transaction in other engines.
       */
       if (!ha_info->is_trx_read_write()
-          && !(ht->is_fake_change && ht->is_fake_change(ht, thd)))
+          && likely(!(ht->is_fake_change && ht->is_fake_change(ht, thd))))
         continue;
       if ((err= ht->prepare(ht, thd, all)))
       {

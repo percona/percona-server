@@ -1252,7 +1252,7 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1514,7 +1514,7 @@ fail_err:
 		goto fail_err;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		*big_rec = big_rec_vec;
 		return(err); /* == DB_SUCCESS */
@@ -1719,7 +1719,7 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		if (n_reserved > 0) {
 			fil_space_release_free_extents(index->space,
@@ -1785,7 +1785,7 @@ btr_cur_upd_lock_and_undo(
 
 	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -2253,7 +2253,8 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(thr_get_trx(thr)->fake_changes
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -2398,7 +2399,7 @@ any_extern:
 		goto func_exit;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		ut_ad(err == DB_SUCCESS);
 		return(DB_SUCCESS);
@@ -2555,9 +2556,11 @@ btr_cur_pessimistic_update(
 	page_zip = buf_block_get_page_zip(block);
 	index = cursor->index;
 
-	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
-	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(thr_get_trx(thr)->fake_changes
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_X_LOCK));
+	ut_ad(thr_get_trx(thr)->fake_changes
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2614,7 +2617,7 @@ btr_cur_pessimistic_update(
 		if (UNIV_UNLIKELY(cursor->tree_height == ULINT_UNDEFINED)) {
 			/* When the tree height is uninitialized due to fake
 			changes, reserve some hardcoded number of extents.  */
-			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			ut_a(thr_get_trx(thr)->fake_changes);
 			n_extents = 3;
 		}
 		else {
@@ -2653,7 +2656,7 @@ btr_cur_pessimistic_update(
 
 	trx = thr_get_trx(thr);
 
-	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && UNIV_LIKELY(!trx->fake_changes)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -2725,7 +2728,7 @@ make_external:
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* skip CHANGE, LOG */
 		err = DB_SUCCESS;
 		goto return_after_reservations;
@@ -3057,9 +3060,9 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
-	    /* skip LOCK, UNDO, CHANGE, LOG */
-	    return(DB_SUCCESS);
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		/* skip LOCK, UNDO, CHANGE, LOG */
+		return(DB_SUCCESS);
 	}
 
 	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,
@@ -3200,7 +3203,7 @@ btr_cur_del_mark_set_sec_rec(
 	rec_t*		rec;
 	dberr_t		err;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, CHANGE, LOG */
 		return(DB_SUCCESS);
 	}

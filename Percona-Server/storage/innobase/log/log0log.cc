@@ -79,6 +79,10 @@ reduce the size of the log.
 /* Global log system variable */
 UNIV_INTERN log_t*	log_sys	= NULL;
 
+/** Pointer to the log checksum calculation function */
+UNIV_INTERN log_checksum_func_t log_checksum_algorithm_ptr	=
+	log_block_calc_checksum_innodb;
+
 #ifdef UNIV_PFS_RWLOCK
 UNIV_INTERN mysql_pfs_key_t	checkpoint_lock_key;
 # ifdef UNIV_LOG_ARCHIVE

@@ -62,6 +62,15 @@ extern	ibool	log_debug_writes;
 # define log_do_write TRUE
 #endif /* UNIV_DEBUG */
 
+/** Magic value to use instead of log checksums when they are disabled */
+#define LOG_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+
+typedef ulint (*log_checksum_func_t)(const byte* log_block);
+
+/** Pointer to the log checksum calculation function. Protected with
+log_sys->mutex. */
+extern log_checksum_func_t log_checksum_algorithm_ptr;
+
 /** Wait modes for log_write_up_to @{ */
 #define LOG_NO_WAIT		91
 #define LOG_WAIT_ONE_GROUP	92

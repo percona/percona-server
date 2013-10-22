@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -422,6 +422,7 @@ extern const LEX_STRING Diag_condition_item_names[];
 
 #include "sql_lex.h"				/* Must be here */
 
+extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 class Delayed_insert;
 class select_result;
 class Time_zone;
@@ -950,6 +951,11 @@ void xid_cache_delete(XID_STATE *xid_state);
 */
 
 class Security_context {
+private:
+
+String host;
+String ip;
+String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
   /*
@@ -959,13 +965,11 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *ip;
+  char   *user;
   char   priv_user[USERNAME_LENGTH];
   char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
-  /* The external user (if available) */
-  char   *external_user;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
@@ -980,7 +984,13 @@ public:
   }
   
   bool set_user(char *user_arg);
-
+  String *get_host();
+  String *get_ip();
+  String *get_external_user();
+  void set_host(const char *p);
+  void set_ip(const char *p);
+  void set_external_user(const char *p);
+  void set_host(const char *str, size_t len);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
@@ -1728,6 +1738,16 @@ public:
 
   /* Do not set socket timeouts for wait_timeout (used with threadpool) */
   bool skip_wait_timeout;
+
+  /**
+    Used by fill_status() to avoid acquiring LOCK_status mutex twice
+    when this function is called recursively (e.g. queries 
+    that contains SELECT on I_S.GLOBAL_STATUS with subquery on the 
+    same I_S table).
+    Incremented each time fill_status() function is entered and 
+    decremented each time before it returns from the function.
+  */
+  uint fill_status_recursion_level;
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
@@ -2841,6 +2861,12 @@ public:
   */
   bool set_db(const char *new_db, size_t new_db_len)
   {
+    /*
+      Acquiring mutex LOCK_thd_data as we either free the memory allocated
+      for the database and reallocating the memory for the new db or memcpy
+      the new_db to the db.
+    */
+    mysql_mutex_lock(&LOCK_thd_data);
     /* Do not reallocate memory if current chunk is big enough. */
     if (db && new_db && db_length >= new_db_len)
       memcpy(db, new_db, new_db_len+1);
@@ -2853,6 +2879,7 @@ public:
         db= NULL;
     }
     db_length= db ? new_db_len : 0;
+    mysql_mutex_unlock(&LOCK_thd_data);
     return new_db && !db;
   }
 

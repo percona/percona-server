@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -29,7 +38,7 @@ mysqladmin \- client for administering a MySQL server
 .SH "DESCRIPTION"
 .PP
 \fBmysqladmin\fR
-is a client for performing administrative operations\&. You can use it to check the server\'s configuration and current status, to create and drop databases, and more\&.
+is a client for performing administrative operations\&. You can use it to check the server\*(Aqs configuration and current status, to create and drop databases, and more\&.
 .PP
 Invoke
 \fBmysqladmin\fR
@@ -72,10 +81,10 @@ Create a new database named
 .\}
 debug
 .sp
-Tell the server to write debug information to the error log\&.
+Tell the server to write debug information to the error log\&. Format and content of this information is subject to change\&.
 .sp
 This includes information about the Event Scheduler\&. See
-Section\ \&18.4.5, \(lqEvent Scheduler Status\(rq\&.
+Section\ \&19.4.5, \(lqEvent Scheduler Status\(rq\&.
 .RE
 .sp
 .RS 4
@@ -211,7 +220,7 @@ old\-password \fInew\-password\fR
 This is like the
 password
 command but stores the password using the old (pre\-4\&.1) password\-hashing format\&. (See
-Section\ \&5.3.2.3, \(lqPassword Hashing in MySQL\(rq\&.)
+Section\ \&6.1.2.4, \(lqPassword Hashing in MySQL\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -314,7 +323,7 @@ statement\&. If the
 \fB\-\-verbose\fR
 option is given, the output is like that of
 SHOW FULL PROCESSLIST\&. (See
-Section\ \&12.7.5.30, \(lqSHOW PROCESSLIST Syntax\(rq\&.)
+Section\ \&13.7.5.30, \(lqSHOW PROCESSLIST Syntax\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -589,7 +598,7 @@ If you execute
 \fBmysqladmin shutdown\fR
 when connecting to a local server using a Unix socket file,
 \fBmysqladmin\fR
-waits until the server\'s process ID file has been removed, to ensure that the server has stopped properly\&.
+waits until the server\*(Aqs process ID file has been removed, to ensure that the server has stopped properly\&.
 .\" mysqladmin command options
 .\" command options: mysqladmin
 .\" options: command-line: mysqladmin
@@ -603,7 +612,7 @@ and
 groups of an option file\&.
 \fBmysqladmin\fR
 also supports the options for processing option files described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -653,7 +662,7 @@ that is supplied with MySQL Cluster\&. It is not available in standard MySQL Ser
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -706,8 +715,8 @@ option is given\&.
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
-\'d:t:o,\fIfile_name\fR\'\&. The default is
-\'d:t:o,/tmp/mysqladmin\&.trace\'\&.
+\*(Aqd:t:o,\fIfile_name\fR\*(Aq\&. The default is
+\*(Aqd:t:o,/tmp/mysqladmin\&.trace\*(Aq\&.
 .RE
 .sp
 .RS 4
@@ -753,7 +762,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 The client\-side authentication plugin to use\&. See
-Section\ \&5.5.6, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.6, \(lqPluggable Authentication\(rq\&.
 .sp
 This option was added in MySQL 5\&.5\&.9\&.
 .RE
@@ -773,7 +782,25 @@ This option was added in MySQL 5\&.5\&.9\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqladmin: enable-cleartext-plugin option
+.\" enable-cleartext-plugin option: mysqladmin
+\fB\-\-enable\-cleartext\-plugin\fR
+.sp
+Enable the
+mysql_clear_password
+cleartext authentication plugin\&. (See
+Section\ \&6.3.6.6, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.) This option was added in MySQL 5\&.5\&.27\&.
 .RE
 .sp
 .RS 4
@@ -852,7 +879,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -888,7 +915,7 @@ The directory in which to look for plugins\&. It may be necessary to specify thi
 option is used to specify an authentication plugin but
 \fBmysqladmin\fR
 does not find it\&. See
-Section\ \&5.5.6, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.6, \(lqPluggable Authentication\(rq\&.
 .sp
 This option was added in MySQL 5\&.5\&.9\&.
 .RE
@@ -1017,7 +1044,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.8.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.8.4, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1141,7 +1168,7 @@ The maximum number of seconds to wait for server shutdown\&. The default value i
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

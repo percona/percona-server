@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -32,9 +41,7 @@ mysql \- the MySQL command\-line tool
 .SH "DESCRIPTION"
 .PP
 \fBmysql\fR
-is a simple SQL shell (with GNU
-readline
-capabilities)\&. It supports interactive and noninteractive use\&. When used interactively, query results are presented in an ASCII\-table format\&. When used noninteractively (for example, as a filter), the result is presented in tab\-separated format\&. The output format can be changed using command options\&.
+is a simple SQL shell with input line editing capabilities\&. It supports interactive and noninteractive use\&. When used interactively, query results are presented in an ASCII\-table format\&. When used noninteractively (for example, as a filter), the result is presented in tab\-separated format\&. The output format can be changed using command options\&.
 .PP
 If you have problems due to insufficient memory for large result sets, use the
 \fB\-\-quick\fR
@@ -77,13 +84,15 @@ Then type an SQL statement, end it with
 \eG
 and press Enter\&.
 .PP
-Typing Control+C causes
+Typing
+Control+C
+causes
 \fBmysql\fR
-to attempt to kill the current statement\&. If this cannot be done, or Control+C is typed again before the statement is killed,
+to attempt to kill the current statement\&. If this cannot be done, or
+Control+C
+is typed again before the statement is killed,
 \fBmysql\fR
-exits\&. Previously, Control+C caused
-\fBmysql\fR
-to exit in all cases\&.
+exits\&.
 .PP
 You can execute SQL statements in a script file (batch file) like this:
 .sp
@@ -99,8 +108,8 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 .PP
 On Unix, the
 \fBmysql\fR
-client writes a record of executed statements to a history file\&. See
-the section called \(lqMYSQL HISTORY FILE\(rq\&.
+client logs statements executed interactively to a history file\&. See
+the section called \(lqMYSQL LOGGING\(rq\&.
 .SH "MYSQL OPTIONS"
 .\" mysql command options
 .\" command options: mysql
@@ -115,7 +124,7 @@ and
 groups of an option file\&.
 \fBmysql\fR
 also supports the options for processing option files described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -230,7 +239,7 @@ client that is supplied with MySQL Cluster\&. It is not available in standard My
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -328,8 +337,8 @@ The database to use\&. This is useful primarily in an option file\&.
 Write a debugging log\&. A typical
 \fIdebug_options\fR
 string is
-\'d:t:o,\fIfile_name\fR\'\&. The default is
-\'d:t:o,/tmp/mysql\&.trace\'\&.
+\*(Aqd:t:o,\fIfile_name\fR\*(Aq\&. The default is
+\*(Aqd:t:o,/tmp/mysql\&.trace\*(Aq\&.
 .RE
 .sp
 .RS 4
@@ -376,7 +385,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 The client\-side authentication plugin to use\&. See
-Section\ \&5.5.6, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.6, \(lqPluggable Authentication\(rq\&.
 .sp
 This option was added in MySQL 5\&.5\&.7\&.
 .RE
@@ -406,7 +415,7 @@ latin1
 character set by default\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 See
-Section\ \&9.5, \(lqCharacter Set Configuration\(rq, for more information\&.
+Section\ \&10.5, \(lqCharacter Set Configuration\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -444,6 +453,24 @@ starts with this option
 \fIenabled\fR
 by default\&. However, even with this option, long\-format commands still work from the first line\&. See
 the section called \(lqMYSQL COMMANDS\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: enable-cleartext-plugin option
+.\" enable-cleartext-plugin option: mysql
+\fB\-\-enable\-cleartext\-plugin\fR
+.sp
+Enable the
+mysql_clear_password
+cleartext authentication plugin\&. (See
+Section\ \&6.3.6.6, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.) This option was added in MySQL 5\&.5\&.27\&.
 .RE
 .sp
 .RS 4
@@ -530,7 +557,22 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.6, \(lqServer SQL Modes\(rq)\&.
+Section\ \&5.1.7, \(lqServer SQL Modes\(rq)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql: init-command option
+.\" init-command option: mysql
+\fB\-\-init\-command=str\fR
+.sp
+SQL statement to execute after connecting to the server\&. If auto\-reconnect is enabled, the statement is executed again after reconnection occurs\&.
 .RE
 .sp
 .RS 4
@@ -846,7 +888,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -882,7 +924,7 @@ The directory in which to look for plugins\&. It may be necessary to specify thi
 option is used to specify an authentication plugin but
 \fBmysql\fR
 does not find it\&. See
-Section\ \&5.5.6, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.6, \(lqPluggable Authentication\(rq\&.
 .sp
 This option was added in MySQL 5\&.5\&.7\&.
 .RE
@@ -897,6 +939,7 @@ This option was added in MySQL 5\&.5\&.7\&.
 .\}
 .\" mysql: port option
 .\" port option: mysql
+.\" TCP/IP
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
@@ -1063,7 +1106,22 @@ the section called \(lqMYSQL TIPS\(rq, for more information about this option\&.
 .\" secure-auth option: mysql
 \fB\-\-secure\-auth\fR
 .sp
-Do not send passwords to the server in old (pre\-4\&.1\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
+Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -1095,7 +1153,8 @@ Cause warnings to be shown after each statement if there are any\&. This option 
 .sp
 Ignore
 SIGINT
-signals (typically the result of typing Control+C)\&.
+signals (typically the result of typing
+Control+C)\&.
 .RE
 .sp
 .RS 4
@@ -1182,7 +1241,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.8.3, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.8.4, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1356,9 +1415,9 @@ The XML output also uses an XML namespace, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \'version%\'"\fR
+shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \*(Aqversion%\*(Aq"\fR
 <?xml version="1\&.0"?>
-<resultset statement="SHOW VARIABLES LIKE \'version%\'" xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
+<resultset statement="SHOW VARIABLES LIKE \*(Aqversion%\*(Aq" xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
 <row>
 <field name="Variable_name">version</field>
 <field name="Value">5\&.0\&.40\-debug</field>
@@ -1416,7 +1475,7 @@ The number of seconds before connection timeout\&. (Default value is
 .\" max_allowed_packet variable
 max_allowed_packet
 .sp
-The maximum packet length to send to or receive from the server\&. (Default value is 16MB\&.)
+The maximum size of the buffer for client/server communication\&. The default is 16MB, the maximum is 1GB\&.
 .RE
 .sp
 .RS 4
@@ -1484,8 +1543,8 @@ prompt:
 .nf
 mysql> \fBhelp\fR
 List of all MySQL commands:
-Note that all text commands must be first on line and end with \';\'
-?         (\e?) Synonym for `help\'\&.
+Note that all text commands must be first on line and end with \*(Aq;\*(Aq
+?         (\e?) Synonym for `help\*(Aq\&.
 clear     (\ec) Clear command\&.
 connect   (\er) Reconnect to the server\&. Optional arguments are db and host\&.
 delimiter (\ed) Set statement delimiter\&.
@@ -1495,7 +1554,7 @@ exit      (\eq) Exit mysql\&. Same as quit\&.
 go        (\eg) Send command to mysql server\&.
 help      (\eh) Display this help\&.
 nopager   (\en) Disable pager, print to stdout\&.
-notee     (\et) Don\'t write into outfile\&.
+notee     (\et) Don\*(Aqt write into outfile\&.
 pager     (\eP) Set PAGER [to_pager]\&. Print the query results via PAGER\&.
 print     (\ep) Print current command\&.
 prompt    (\eR) Change your mysql prompt\&.
@@ -1510,8 +1569,8 @@ use       (\eu) Use another database\&. Takes database name as argument\&.
 charset   (\eC) Switch to another charset\&. Might be needed for processing
                binlog with multi\-byte charsets\&.
 warnings  (\eW) Show warnings after every statement\&.
-nowarning (\ew) Don\'t show warnings after every statement\&.
-For server side help, type \'help contents\'
+nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
+For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
 .RE
@@ -1621,7 +1680,7 @@ interprets as the separator between SQL statements\&. The default is the semicol
 .sp
 The delimiter string can be specified as an unquoted or quoted argument on the
 delimiter
-command line\&. Quoting can be done with either single quote (\'), double quote ("), or backtick (`) characters\&. To include a quote within a quoted string, either quote the string with a different quote character or escape the quote with a backslash (\(lq\e\(rq) character\&. Backslash should be avoided outside of quoted strings because it is the escape character for MySQL\&. For an unquoted argument, the delimiter is read up to the first space or end of line\&. For a quoted argument, the delimiter is read up to the matching quote on the line\&.
+command line\&. Quoting can be done with either single quote (\*(Aq), double quote ("), or backtick (`) characters\&. To include a quote within a quoted string, either quote the string with a different quote character or escape the quote with a backslash (\(lq\e\(rq) character\&. Backslash should be avoided outside of quoted strings because it is the escape character for MySQL\&. For an unquoted argument, the delimiter is read up to the first space or end of line\&. For a quoted argument, the delimiter is read up to the matching quote on the line\&.
 .sp
 \fBmysql\fR
 interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
@@ -1640,8 +1699,8 @@ is set to something other than the default of
 \(lq;\(rq, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 \(lq;\(rq
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&21.9.13, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&18.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&22.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&19.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -2343,7 +2402,7 @@ T}:T{
 A space (a space follows the backslash)
 T}
 T{
-\e\'
+\e\*(Aq
 T}:T{
 Single quote
 T}
@@ -2490,7 +2549,7 @@ prompt
 .\}
 .nf
 mysql> \fBprompt (\eu@\eh) [\ed]>\e_\fR
-PROMPT set to \'(\eu@\eh) [\ed]>\e_\'
+PROMPT set to \*(Aq(\eu@\eh) [\ed]>\e_\*(Aq
 (\fIuser\fR@\fIhost\fR) [\fIdatabase\fR]>
 (\fIuser\fR@\fIhost\fR) [\fIdatabase\fR]> prompt
 Returning to default PROMPT of mysql>
@@ -2500,7 +2559,7 @@ mysql>
 .RE
 .\}
 .RE
-.SH "MYSQL HISTORY FILE"
+.SH "MYSQL LOGGING"
 .\" MYSQL_HISTFILE environment variable
 .\" environment variable: MYSQL_HISTFILE
 .\" HOME environment variable
@@ -2511,26 +2570,109 @@ mysql>
 .PP
 On Unix, the
 \fBmysql\fR
-client writes a record of executed statements to a history file\&. By default, this file is named
+client logs statements executed interactively to a history file\&. By default, this file is named
 \&.mysql_history
-and is created in your home directory\&. To specify a different file, set the value of the
+in your home directory\&. To specify a different file, set the value of the
 MYSQL_HISTFILE
 environment variable\&.
+        How Logging Occurs
 .PP
-The
-\&.mysql_history
-should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
-Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
-.PP
-It is possible to suppress logging of statements to the history file by using the
+Statement logging occurs as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Statements are logged only when executed interactively\&. Statements are noninteractive, for example, when read from a file or a pipe\&. It is also possible to suppress statement logging by using the
 \fB\-\-batch\fR
 or
 \fB\-\-execute\fR
 option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmysql\fR
+logs each nonempty statement line individually\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If a statement spans multiple lines (not including the terminating delimiter),
+\fBmysql\fR
+concatenates the lines to form the complete statement, maps newlines to spaces, and logs the result, plus a delimiter\&.
+.RE
+.PP
+Consequently, an input statement that spans multiple lines can be logged twice\&. Consider this input:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBSELECT\fR
+    \-> \fB\*(AqToday is\*(Aq\fR
+    \-> \fB,\fR
+    \-> \fBCONCAT()\fR
+    \-> \fB;\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In this case,
+\fBmysql\fR
+logs the
+\(lqSELECT\(rq,
+\(lq\*(AqToday is\*(Aq\(rq,
+\(lq,\(rq,
+\(lqCONCAT()\(rq, and
+\(lq;\(rq
+lines as it reads them\&. It also logs the complete statement, after mapping
+SELECT\en\*(AqToday is\*(Aq\en,\enCURDATE()
+to
+SELECT \*(AqToday is\*(Aq , CURDATE(), plus a delimiter\&. Thus, these lines appear in logged output:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+SELECT
+\*(AqToday is\*(Aq
+,
+CURDATE()
+;
+SELECT \*(AqToday is\*(Aq , CURDATE();
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+        Controlling the History File
+.PP
+The
+\&.mysql_history
+file should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .PP
 If you do not want to maintain a history file, first remove
 \&.mysql_history
-if it exists, and then use either of the following techniques:
+if it exists\&. Then use either of the following techniques to prevent it from being created again:
 .sp
 .RS 4
 .ie n \{\
@@ -2542,8 +2684,8 @@ if it exists, and then use either of the following techniques:
 .\}
 Set the
 MYSQL_HISTFILE
-variable to
-/dev/null\&. To cause this setting to take effect each time you log in, put the setting in one of your shell\'s startup files\&.
+environment variable to
+/dev/null\&. To cause this setting to take effect each time you log in, put it in one of your shell\*(Aqs startup files\&.
 .RE
 .sp
 .RS 4
@@ -2557,7 +2699,7 @@ variable to
 Create
 \&.mysql_history
 as a symbolic link to
-/dev/null:
+/dev/null; this need be done only once:
 .sp
 .if n \{\
 .RS 4
@@ -2568,8 +2710,6 @@ shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
 .if n \{\
 .RE
 .\}
-.sp
-You need do this only once\&.
 .RE
 .SH "MYSQL SERVER-SIDE HELP"
 .sp
@@ -2590,7 +2730,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.8, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.10, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -2600,7 +2740,7 @@ If there is no match for the search string, the search fails:
 .nf
 mysql> \fBhelp me\fR
 Nothing found
-Please try to run \'help contents\' for a list of all accessible topics
+Please try to run \*(Aqhelp contents\*(Aq for a list of all accessible topics
 .fi
 .if n \{\
 .RE
@@ -2616,7 +2756,7 @@ to see a list of the help categories:
 .nf
 mysql> \fBhelp contents\fR
 You asked for help about help category: "Contents"
-For more information, type \'help <item>\', where <item> is one of the
+For more information, type \*(Aqhelp <item>\*(Aq, where <item> is one of the
 following categories:
    Account Management
    Administration
@@ -2648,7 +2788,7 @@ shows a list of matching topics:
 .nf
 mysql> \fBhelp logs\fR
 Many help items for your request exist\&.
-To make a more specific request, please type \'help <item>\',
+To make a more specific request, please type \*(Aqhelp <item>\*(Aq,
 where <item> is one of the following topics:
    SHOW
    SHOW BINARY LOGS
@@ -2666,7 +2806,7 @@ Use a topic as the search string to see the help entry for that topic:
 .\}
 .nf
 mysql> \fBhelp show binary logs\fR
-Name: \'SHOW BINARY LOGS\'
+Name: \*(AqSHOW BINARY LOGS\*(Aq
 Description:
 Syntax:
 SHOW BINARY LOGS
@@ -2681,6 +2821,35 @@ mysql> SHOW BINARY LOGS;
 | binlog\&.000015 |    724935 |
 | binlog\&.000016 |    733481 |
 +\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The search string can contain the the wildcard characters
+\(lq%\(rq
+and
+\(lq_\(rq\&. These have the same meaning as for pattern\-matching operations performed with the
+LIKE
+operator\&. For example,
+HELP rep%
+returns a list of topics that begin with
+rep:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql> \fBHELP rep%\fR
+Many help items for your request exist\&.
+To make a more specific request, please type \*(Aqhelp <item>\*(Aq,
+where <item> is one of the following
+topics:
+   REPAIR TABLE
+   REPEAT FUNCTION
+   REPEAT LOOP
+   REPLACE
+   REPLACE FUNCTION
 .fi
 .if n \{\
 .RE
@@ -2766,7 +2935,7 @@ Sometimes you may want your script to display progress information to the user\&
 .RS 4
 .\}
 .nf
-SELECT \'<info_to_display>\' AS \' \';
+SELECT \*(Aq<info_to_display>\*(Aq AS \*(Aq \*(Aq;
 .fi
 .if n \{\
 .RE
@@ -2796,6 +2965,79 @@ Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
 This section describes some techniques that can help you use
 \fBmysql\fR
 more effectively\&.
+.SS "Input\-Line Editing"
+.PP
+\fBmysql\fR
+supports input\-line editing, which enables you to modify the current input line in place or recall previous input lines\&. For example, the
+left\-arrow
+and
+right\-arrow
+keys move horizontally within the current input line, and the
+up\-arror
+and
+down\-arrow
+keys move up and down through the set of previously entered lines\&.
+Backspace
+deletes the character before the cursor and typing new characters enters them at the cursor position\&. To enter the line, press
+Enter\&.
+.PP
+On Windows, the editing key sequences are the same as supported for command editing in console windows\&. On Unix, the key sequences depend on the input library used to build
+\fBmysql\fR
+(for example, the
+libedit
+or
+readline
+library)\&.
+.PP
+Documentation for the
+libedit
+and
+readline
+libraries is available online\&. To change the set of key sequences permitted by a given input library, define key bindings in the library startup file\&. This is a file in your home directory:
+\&.editrc
+for
+libedit
+and
+\&.inputrc
+for
+readline\&.
+.PP
+For example, in
+libedit,
+Control+W
+deletes everything before the current cursor position and
+Control+U
+deletes the entire line\&. In
+readline,
+Control+W
+deletes the word before the cursor and
+Control+U
+deletes everything before the current cursor position\&. If
+\fBmysql\fR
+was built using
+libedit, a user who prefers the
+readline
+behavior for these two keys can put the following lines in the
+\&.editrc
+file (creating the file if necessary):
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+bind "^W" ed\-delete\-prev\-word
+bind "^U" vi\-kill\-line\-prev
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To see the current set of key bindings, temporarily put a line that says only
+bind
+at the end of
+\&.editrc\&.
+\fBmysql\fR
+will show the bindings when it starts\&.
 .SS "Displaying Query Results Vertically"
 .PP
 Some query results are much more readable when displayed vertically, instead of in the usual horizontal table format\&. Queries can be displayed vertically by terminating the query with \eG instead of a semicolon\&. For example, longer text values that include newlines often are much easier to read with vertical output:
@@ -2815,7 +3057,7 @@ mail_from: Monty
       sbj: UTF\-8
       txt: >>>>> "Thimble" == Thimble Smith writes:
 Thimble> Hi\&.  I think this is a good idea\&.  Is anyone familiar
-Thimble> with UTF\-8 or Unicode? Otherwise, I\'ll put this on my
+Thimble> with UTF\-8 or Unicode? Otherwise, I\*(Aqll put this on my
 Thimble> TODO list and see what happens\&.
 Yes, please do that\&.
 Regards,
@@ -2857,7 +3099,7 @@ SET sql_safe_updates=1, sql_select_limit=1000, sql_max_join_size=1000000;
 .\}
 .PP
 See
-Section\ \&5.1.3, \(lqServer System Variables\(rq\&.
+Section\ \&5.1.4, \(lqServer System Variables\(rq\&.
 .PP
 The
 SET
@@ -2979,11 +3221,11 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&21.9.12, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&22.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

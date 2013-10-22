@@ -1167,7 +1167,8 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_system_charset(
@@ -12872,7 +12873,8 @@ test_innobase_convert_name()
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_filename_charset(

@@ -490,7 +490,7 @@ sync_array_cell_print(
 		if (type == SYNC_PRIO_MUTEX) {
 
 			fprintf(file,
-				"high-priority waiters flag %lu\n",
+				"high-priority waiters count %lu\n",
 				(ulong) prio_mutex->high_priority_waiters);
 		}
 
@@ -547,8 +547,8 @@ sync_array_cell_print(
 			rwlock->last_x_file_name,
 			(ulong) rwlock->last_x_line);
 		if (prio_rwlock) {
-			fprintf(file, "high priority S waiters flag %lu, "
-				"high priority X waiters flag %lu, "
+			fprintf(file, "high priority S waiters count %lu, "
+				"high priority X waiters count %lu, "
 				"wait-exclusive waiter is "
 				"high priority if exists: %lu\n",
 				prio_rwlock->high_priority_s_waiters,

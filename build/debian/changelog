@@ -1,3 +1,23 @@
+percona-server-5.6 (5.6.14-rel62.0) unstable; urgency=low
+
+  * Merged MySQL 5.6.14 
+  * Added more efficient log block checksums
+  * Added per query variable statement
+  * Fixed bug #1188168: Fake changes assertion fail in row_ins_clust_index_entry_by_modify() | btr_store_big_rec_extern_fields ()
+  * Fixed bug #1167487: Enhanced option modifiers do not deallocate memory
+  * Fixed bug #1188172: Incorrectly ported fake changes support in row_ins_clust_index_entry_low()
+  * Fixed bug #1203567: close_socket() is not declared in -DHAVE_PURIFY builds
+  * Fixed bug #1233294: certain option modifiers do not have effect
+  * Fixed bug #1233354: enforce-storage-engine causes mysqld to error on shutdown
+  * Fixed bug #1236938: enforce-storage-engine should not apply when server started in bootstrap or skip-grant-tables
+  * Fixed bug #1238008: srv_cleaner_flush_chunk_size different default for regular and UNIV_PERF_DEBUG binaries; wrong default for regular ones
+  * Fixed bug #1239418: Installing Percona Server 5.6 GA release shows RC instead GA on Debian-based systems
+  * Fixed bug #1190604: Missing branch predictor annotations for fake changes
+  * Fixed bug #1200162: Missing MTR tests for fake changes with BLOBs and secondary indexes
+  * Fixed bug #1214727: Intermittent change_user_notembedded and failed_auth_3909 Jenkins failures
+
+ -- Hrvoje Matijakovic <hrvoje.matijakovic@percona.com>  Tue,  22 Oct 2013 10:00:00 +0200
+
 percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
 
   * Added --error-handler=: to dh_installinit in order to

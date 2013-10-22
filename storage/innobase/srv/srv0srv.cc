@@ -359,6 +359,9 @@ UNIV_INTERN ulong	srv_flushing_avg_loops		= 30;
 /* The tid of the cleaner thread */
 UNIV_INTERN os_tid_t	srv_cleaner_tid;
 
+/* The tid of the LRU manager thread */
+UNIV_INTERN os_tid_t	srv_lru_manager_tid;
+
 /* The tids of the purge threads */
 UNIV_INTERN os_tid_t	srv_purge_tids[SRV_MAX_N_PURGE_THREADS];
 
@@ -368,7 +371,7 @@ UNIV_INTERN os_tid_t	srv_io_tids[SRV_MAX_N_IO_THREADS];
 /* The tid of the master thread */
 UNIV_INTERN os_tid_t	srv_master_tid;
 
-/* The relative scheduling priority of the cleaner thread */
+/* The relative scheduling priority of the cleaner and LRU manager threads */
 UNIV_INTERN ulint	srv_sched_priority_cleaner	= 19;
 
 /* The relative scheduling priority of the purge threads */

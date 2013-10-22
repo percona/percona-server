@@ -36,6 +36,9 @@ Created 11/5/1995 Heikki Tuuri
 /** Flag indicating if the page_cleaner is in active state. */
 extern ibool buf_page_cleaner_is_active;
 
+/** Flag indicating if the lru_manager is in active state. */
+extern bool buf_lru_manager_is_active;
+
 /********************************************************************//**
 Remove a block from the flush list of modified blocks.  */
 UNIV_INTERN
@@ -175,12 +178,23 @@ buf_flush_ready_for_replace(
 				buf_page_in_file(bpage) and in the LRU list */
 /******************************************************************//**
 page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one instance of this thread.
+pool flush lists. As of now we'll have only one instance of this thread.
 @return a dummy parameter */
 extern "C" UNIV_INTERN
 os_thread_ret_t
 DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 /*==========================================*/
+	void*	arg);		/*!< in: a dummy parameter required by
+				os_thread_create */
+/******************************************************************//**
+lru_manager thread tasked with performing LRU flushes and evictions to refill
+the buffer pool free lists.  As of now we'll have only one instance of this
+thread.
+@return a dummy parameter */
+extern "C" UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(buf_flush_lru_manager_thread)(
+/*=========================================*/
 	void*	arg);		/*!< in: a dummy parameter required by
 				os_thread_create */
 /*********************************************************************//**
@@ -232,9 +246,10 @@ buf_flush_free_flush_rbt(void);
 Writes a flushable page asynchronously from the buffer pool to a file.
 NOTE: in simulated aio we must call
 os_aio_simulated_wake_handler_threads after we have posted a batch of
-writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
-held upon entering this function, and they will be released by this
-function if it returns true.
+writes! NOTE: buf_page_get_mutex(bpage) must be held upon entering this
+function, and they will be released by this function if it returns true.
+LRU_list_mutex must be held iff performing a single page flush and will be
+released by the function if it returns true.
 @return TRUE if the page was flushed */
 UNIV_INTERN
 bool

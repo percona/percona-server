@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -28,6 +37,10 @@ mysql_install_db \- initialize MySQL data directory
 .PP
 \fBmysql_install_db\fR
 initializes the MySQL data directory and creates the system tables that it contains, if they do not exist\&.
+\fBmysql_install_db\fR
+is a shell script and is available only on Unix platforms\&. (As of MySQL 5\&.6,
+\fBmysql_install_db\fR
+is a Perl script and can be used on any system with Perl installed\&.)
 .PP
 To invoke
 \fBmysql_install_db\fR, use the following syntax:
@@ -45,7 +58,7 @@ shell> \fBmysql_install_db [\fR\fB\fIoptions\fR\fR\fB]\fR
 Because the MySQL server,
 \fBmysqld\fR, needs to access the data directory when it runs later, you should either run
 \fBmysql_install_db\fR
-from the same account that will be used for running
+from the same system account that will be used for running
 \fBmysqld\fR
 or run it as
 root
@@ -80,18 +93,7 @@ with the
 \fB\-\-bootstrap\fR
 and
 \fB\-\-skip\-grant\-tables\fR
-options\&. If MySQL was configured with the
-\fBDISABLE_GRANT_OPTIONS\fR
-compiler flag,
-\fB\-\-bootstrap\fR
-and
-\fB\-\-skip\-grant\-tables\fR
-will be disabled (see
-Section\ \&2.9.4, \(lqMySQL Source-Configuration Options\(rq)\&. To handle this, set the
-MYSQLD_BOOTSTRAP
-environment variable to the full path name of a server that has all options enabled\&.
-\fBmysql_install_db\fR
-will use that server\&.
+options\&.
 .if n \{\
 .sp
 .\}
@@ -107,10 +109,11 @@ will use that server\&.
 .PP
 If you have set a custom
 TMPDIR
-variable when performing the installation, and the specified directory is not accessible, the execution of
+environment variable when performing the installation, and the specified directory is not accessible,
 \fBmysql_install_db\fR
-may fail\&. You should unset
-TMPDIR, or set
+may fail\&. If so, unset
+TMPDIR
+or set
 TMPDIR
 to point to the system temporary directory (usually
 /tmp)\&.
@@ -120,15 +123,16 @@ to point to the system temporary directory (usually
 \fBmysql_install_db\fR
 supports the following options, which can be specified on the command line or in the
 [mysql_install_db]
-and (if they are common to
-\fBmysqld\fR)
+group of an option file\&. (Options that are common to
+\fBmysqld\fR
+can also be specified in the
 [mysqld]
-groups of an option file\&. Other options are passed to
+group\&.) Other options are passed to
 \fBmysqld\fR\&. For information about option files, see
 Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
 \fBmysql_install_db\fR
 also supports the options for processing option files described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -143,23 +147,6 @@ Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\
 \fB\-\-basedir=\fR\fB\fIpath\fR\fR
 .sp
 The path to the MySQL installation directory\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-.\" mysql_install_db: force option
-.\" force option: mysql_install_db
-\fB\-\-force\fR
-.sp
-Cause
-\fBmysql_install_db\fR
-to run even if DNS does not work\&. In that case, grant table entries that normally use host names will use IP addresses\&.
 .RE
 .sp
 .RS 4
@@ -188,11 +175,28 @@ The path to the MySQL data directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql_install_db: force option
+.\" force option: mysql_install_db
+\fB\-\-force\fR
+.sp
+Cause
+\fBmysql_install_db\fR
+to run even if DNS does not work\&. Grant table entries that normally use host names will use IP addresses\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql_install_db: rpm option
 .\" rpm option: mysql_install_db
 \fB\-\-rpm\fR
 .sp
-For internal use\&. This option is used by RPM files during the MySQL installation process\&.
+For internal use\&. This option is used during the MySQL installation process for install operations performed using RPM packages\&.
 .RE
 .sp
 .RS 4
@@ -222,7 +226,7 @@ Use IP addresses rather than host names when creating grant table entries\&. Thi
 .\" srcdir option: mysql_install_db
 \fB\-\-srcdir=\fR\fB\fIpath\fR\fR
 .sp
-For internal use\&. The directory under which
+For internal use\&. This option specifies the directory under which
 \fBmysql_install_db\fR
 looks for support files such as the error message file and the file for populating the help tables\&.
 .RE
@@ -239,7 +243,7 @@ looks for support files such as the error message file and the file for populati
 .\" user option: mysql_install_db
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
-The login user name to use for running
+The system (login) user name to use for running
 \fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
 will be owned by this user\&. You must be
@@ -281,7 +285,7 @@ For internal use\&. This option is used for creating Windows distributions\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

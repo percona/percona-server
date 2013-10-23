@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -42,8 +51,159 @@ processes cooperate in handling data\&. These processes can execute on the same 
 .\" MySQL Cluster: ndbd process
 .PP
 The following table includes command options specific to the MySQL Cluster data node program
-\fBndbd\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
-Section\ \&16.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
+\fBndbd\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndbd\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.10.\ \&ndbd Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--initial
+T}:T{
+Perform initial start of ndbd, including cleaning the file system\&.
+            Consult the documentation before using this option
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--nostart,
+.PP
+-n
+T}:T{
+Don\*(Aqt start ndbd immediately; ndbd waits for command to start from
+            ndb_mgmd
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--daemon,
+.PP
+-d
+T}:T{
+Start ndbd as daemon (default); override with \-\-nodaemon
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--nodaemon
+T}:T{
+Do not start ndbd as daemon; provided for testing purposes
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--foreground
+T}:T{
+Run ndbd in foreground, provided for debugging purposes (implies
+            \-\-nodaemon)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--nowait-nodes=list
+T}:T{
+Do not wait for these data nodes to start (takes comma\-separated list of
+            node IDs)\&. Also requires \-\-ndb\-nodeid to be used\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--initial-start
+T}:T{
+Perform partial initial start (requires \-\-nowait\-nodes)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--bind-address=name
+T}:T{
+Local bind address
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--install[=name]
+T}:T{
+Used to install the data node process as a Windows service\&. Does not
+            apply on non\-Windows platforms\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--remove[=name]
+T}:T{
+Used to remove a data node process that was previously installed as a
+            Windows service\&. Does not apply on non\-Windows platforms\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--connect-retries=#
+T}:T{
+Number of times to try contacting the management server; set to \-1 to
+            keep trying indefinitely
+T}:T{
+.PP
+ADDED: NDB 7\&.2\&.9
+T}
+T{
+.PP
+--connect-delay=#
+T}:T{
+Time to wait between attempts to contact a management server, in seconds
+T}:T{
+.PP
+ADDED: NDB 7\&.2\&.9
+T}
+.TE
+.sp 1
 .if n \{\
 .sp
 .\}
@@ -64,11 +224,6 @@ for
 wherever the latter occurs in this section\&.
 .sp .5v
 .RE
-.PP
-For options common to all
-NDBCLUSTER
-programs, see
-Section\ \&16.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -93,7 +248,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -134,13 +289,14 @@ T}:T{
 \-\-daemon
 T}
 T{
+\ \&
 T}:T{
 \-d
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -183,9 +339,6 @@ allbox tab(:);
 l l s s
 l l s s
 ^ l l s
-^ l l s
-l l s s
-^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -195,7 +348,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -206,21 +359,6 @@ T}
 \fBDefault\fR
 T}:T{
 FALSE
-T}
-T{
-\ \&
-T}:T{
-\fBPermitted Values \fR
-T}
-:T{
-\fBType\fR (windows)
-T}:T{
-boolean
-T}
-:T{
-\fBDefault\fR
-T}:T{
-TRUE
 T}
 .TE
 .sp 1
@@ -262,7 +400,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -299,8 +437,8 @@ on Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --initial option (ndbd)
-.\" --initial option (ndbmtd)
+.\" initial option (ndbd)
+.\" initial option (ndbmtd)
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
@@ -316,7 +454,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -376,7 +514,7 @@ When restarting the node with a new version of
 .\}
 As a measure of last resort when for some reason the node restart or system restart repeatedly fails\&. In this case, be aware that this node can no longer be used to restore data due to the destruction of the data files\&.
 .RE
-.RS 4
+.sp
 Use of this option prevents the
 StartPartialTimeout
 and
@@ -418,9 +556,9 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 MySQL Cluster Disk Data files (see
-Section\ \&16.5.11, \(lqMySQL Cluster Disk Data Tables\(rq)\&.
+Section\ \&17.5.12, \(lqMySQL Cluster Disk Data Tables\(rq)\&.
 .RE
-.RS 4
+.sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in a MySQL Cluster that is running normally\&.
 .sp .5v
 .RE
@@ -437,8 +575,8 @@ necessary to do so\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --initial-start option (ndbd)
-.\" --initial-start option (ndbmtd)
+.\" initial-start option (ndbd)
+.\" initial-start option (ndbmtd)
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
@@ -454,7 +592,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -516,8 +654,8 @@ option for
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --nowait-nodes option (ndbd)
-.\" --nowait-nodes option (ndbmtd)
+.\" nowait-nodes option (ndbd)
+.\" nowait-nodes option (ndbmtd)
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
@@ -533,7 +671,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -571,9 +709,9 @@ If you wanted to start up the same cluster as in the previous example without on
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --nostart option (ndbd)
+.\" nostart option (ndbd)
 .\" -n option (ndbd)
-.\" --nostart option (ndbmtd)
+.\" nostart option (ndbmtd)
 .\" -n option (ndbmtd)
 \fB\-\-nostart\fR,
 \fB\-n\fR
@@ -590,13 +728,14 @@ T}:T{
 \-\-nostart
 T}
 T{
+\ \&
 T}:T{
 \-n
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -617,7 +756,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&16.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
+Section\ \&17.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -628,8 +767,8 @@ Section\ \&16.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --install option (ndbd)
-.\" --install option (ndbmtd)
+.\" install option (ndbd)
+.\" install option (ndbmtd)
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -645,10 +784,10 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
-\fBType\fR (windows)
+\fBType\fR
 T}:T{
 string
 T}
@@ -696,8 +835,8 @@ option has no effect on non\-Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --remove option (ndbd)
-.\" --remove option (ndbmtd)
+.\" remove option (ndbd)
+.\" remove option (ndbmtd)
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -713,10 +852,10 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
-\fBType\fR (windows)
+\fBType\fR
 T}:T{
 string
 T}
@@ -736,6 +875,122 @@ The
 \fB\-\-remove\fR
 option has no effect on non\-Windows platforms\&.
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" connect-retries option (ndbd)
+.\" connect-retries option (ndbmtd)
+\fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.5\&.27\-ndb\-7\&.2\&.9
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-connect\-retries=#
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
+T}
+:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+12
+T}
+:T{
+\fBRange\fR
+T}:T{
+\-1 \&.\&. 65535
+T}
+.TE
+.sp 1
+Determines the number of times that the data node attempts to contact a management server when starting\&. Setting this option to \-1 causes the data node to keep trying to make contact indefinitely\&. The default is 12 attempts\&. The time to wait between attempts is controlled by the
+\fB\-\-connect\-delay\fR
+option\&.
+.sp
+This option was added in MySQL Cluster NDB 7\&.2\&.9\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" connect-delay option (ndbd)
+.\" connect-delay option (ndbmtd)
+\fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.5\&.27\-ndb\-7\&.2\&.9
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-connect\-delay=#
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
+T}
+:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+5
+T}
+:T{
+\fBRange\fR
+T}:T{
+0 \&.\&. 3600
+T}
+.TE
+.sp 1
+Determines the time to wait between attempts to contact a management server when starting (the time between attempts is controlled by the
+\fB\-\-connect\-retries\fR
+option)\&. The default is 5 attempts\&.
+.sp
+This option was added in MySQL Cluster NDB 7\&.2\&.9\&.
+.RE
 .\" MySQL Cluster: log files
 .\" log files (MySQL Cluster)
 .PP
@@ -748,9 +1003,9 @@ configuration file\&.
 .PP
 These log files are listed below\&.
 \fInode_id\fR
-is the node\'s unique identifier\&. Note that
+is the node\*(Aqs unique identifier\&. Note that
 \fInode_id\fR
-represents the node\'s unique identifier\&. For example,
+represents the node\*(Aqs unique identifier\&. For example,
 ndb_2_error\&.log
 is the error log generated by the data node whose node ID is
 2\&.
@@ -908,7 +1163,7 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&16.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, for additional information about this issue\&.
+Section\ \&17.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for additional information about this issue\&.
 \fBndbd\fR(8), describes other options for
 \fBndbd\fR\&.
 .PP
@@ -934,11 +1189,11 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 5\&.5 in a production setting\&. See
-Section\ \&16.1.6, \(lqKnown Limitations of MySQL Cluster\(rq\&.
+Section\ \&17.1.6, \(lqKnown Limitations of MySQL Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmyisamlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYISAMLOG\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYISAMLOG\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -19,7 +28,6 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .\" myisamlog
-.\" isamlog
 .SH "NAME"
 myisamlog \- display MyISAM log file contents
 .SH "SYNOPSIS"
@@ -30,7 +38,9 @@ myisamlog \- display MyISAM log file contents
 \fBmyisamlog\fR
 processes the contents of a
 MyISAM
-log file\&.
+log file\&. To create such a file, start the server with a
+\fB\-\-log\-isam=\fR\fBlog_file\fR
+option\&.
 .PP
 Invoke
 \fBmyisamlog\fR
@@ -40,8 +50,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamlog [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB] \&.\&.\&.]\fR
-shell> \fBisamlog [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB] \&.\&.\&.]\fR
+shell> \fBmyisamlog [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIfile_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB] \&.\&.\&.]\fR
 .fi
 .if n \{\
 .RE
@@ -49,12 +58,6 @@ shell> \fBisamlog [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB [\fR\f
 .PP
 The default operation is update (\fB\-u\fR)\&. If a recovery is done (\fB\-r\fR), all writes and possibly updates and deletes are done and errors are only counted\&. The default log file name is
 myisam\&.log
-for
-\fBmyisamlog\fR
-and
-isam\&.log
-for
-\fBisamlog\fR
 if no
 \fIlog_file\fR
 argument is given\&. If tables are named on the command line, only those tables are updated\&.
@@ -225,7 +228,7 @@ Display version information\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

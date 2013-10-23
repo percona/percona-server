@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -35,7 +44,7 @@ file\&. By default, the management node is the source for the configuration data
 or
 \fB\-\-mycnf\fR
 option\&. It is also possible to use a data node as the source by specifying its node ID with
-\fB\-\-config_from_node=\fR\fB\fInode_id\fR\fR\-
+\fB\-\-config_from_node=\fR\fB\fInode_id\fR\fR\&.
 .PP
 \fBndb_config\fR
 can also provide an offline dump of all configuration parameters which can be used, along with their default, maximum, and minimum values and other information\&. The dump can be produced in either text or XML format; for more information, see the discussion of the
@@ -52,8 +61,193 @@ CONNECTIONS) using one of the options
 \fB\-\-connections\fR\&.
 .PP
 The following table includes options that are specific to
-\fBndb_config\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
-Section\ \&16.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
+\fBndb_config\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_config\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.15.\ \&ndb_config Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--nodes
+T}:T{
+Print node information (DB section) only\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--connections
+T}:T{
+Print CONNECTIONS section information only\&. Cannot be used with \-\-nodes
+            or \-\-system option\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--query=string,
+.PP
+-q
+T}:T{
+One or more query options (attributes)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--host=name
+T}:T{
+Specify host
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--type=name
+T}:T{
+Specify node type
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--nodeid,
+.PP
+--id
+T}:T{
+Get configuration of node with this ID
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--fields=string,
+.PP
+-f
+T}:T{
+Field separator
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--rows=string,
+.PP
+-r
+T}:T{
+Row separator
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--config-file=path
+T}:T{
+Set the path to config\&.ini file
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--mycnf
+T}:T{
+Read configuration data from my\&.cnf file
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+-c
+T}:T{
+Short form for \-\-ndb\-connectstring
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--configinfo
+T}:T{
+Dumps information about all NDB configuration parameters in text format
+            with default, maximum, and minimum values\&. Use with \-\-xml to
+            obtain XML output\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--configinfo --xml
+T}:T{
+Use \-\-xml with \-\-configinfo to obtain a dump of all NDB configuration
+            parameters in XML format with default, maximum, and minimum
+            values\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--system
+T}:T{
+Print SYSTEM section information only\&. Cannot be used with \-\-nodes or
+            \-\-connections option\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--config_from_node=#
+T}:T{
+Obtain configuration data from the node having this ID (must be a data
+            node)\&.
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+.TE
+.sp 1
 .sp
 .RS 4
 .ie n \{\
@@ -79,10 +273,12 @@ T}:T{
 \-\-help
 T}
 T{
+\ \&
 T}:T{
 \-\-usage
 T}
 T{
+\ \&
 T}:T{
 \-?
 T}
@@ -119,7 +315,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -138,7 +334,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Obtain the cluster\'s configuration data from the data node that has this ID\&.
+Obtain the cluster\*(Aqs configuration data from the data node that has this ID\&.
 .sp
 If the node having this ID is not a data node,
 \fBndb_config\fR
@@ -167,6 +363,7 @@ T}:T{
 \-\-version
 T}
 T{
+\ \&
 T}:T{
 \-V
 T}
@@ -189,9 +386,48 @@ to print a version information string, and then exit\&.
 .\" ndb-connectstring option: ndb_config
 \fB\-\-ndb\-connectstring=\fR\fB\fIconnect_string\fR\fR,
 \fB\-c \fR\fB\fIconnect_string\fR\fR
-.sp
-Specifies the connectstring to use in connecting to the management server\&. The format for the connectstring is the same as described in
-Section\ \&16.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, and defaults to
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-ndb\-connectstring=connectstring
+T}
+T{
+\ \&
+T}:T{
+\-\-connect\-string=connectstring
+T}
+T{
+\ \&
+T}:T{
+\-c
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
+T}
+:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+localhost:1186
+T}
+.TE
+.sp 1
+Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
+Section\ \&17.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
 .RE
 .sp
@@ -220,7 +456,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -233,7 +469,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Gives the path to the management server\'s configuration file (config\&.ini)\&. This may be a relative or absolute path\&. If the management node resides on a different host from the one on which
+Gives the path to the management server\*(Aqs configuration file (config\&.ini)\&. This may be a relative or absolute path\&. If the management node resides on a different host from the one on which
 \fBndb_config\fR
 is invoked, then an absolute path must be used\&.
 .RE
@@ -263,7 +499,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -308,13 +544,14 @@ T}:T{
 \-\-query=string
 T}
 T{
+\ \&
 T}:T{
 \-q
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -385,7 +622,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -446,7 +683,34 @@ in the same fashion\&.
 .\" ndb_config: nodeid option
 .\" nodeid option: ndb_config
 \fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
-.sp
+.TS
+allbox tab(:);
+l l s s
+l l s s
+^ l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-ndb\-nodeid=#
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
+T}
+:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+0
+T}
+.TE
+.sp 1
 Either of these options can be used to specify the node ID of the node for which configuration information is to be obtained\&.
 \fB\-\-nodeid\fR
 is the preferred form\&.
@@ -477,7 +741,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -526,7 +790,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -575,7 +839,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -619,7 +883,9 @@ l l s s
 l l s s
 ^ l l s
 ^ l l s
-^ l l s.
+^ lt l s
+^ ^ l s
+^ ^ l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -628,7 +894,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -643,9 +909,11 @@ T}
 \fBValid Values\fR
 T}:T{
 ndbd
-.sp
+T}
+::T{
 mysqld
-.sp
+T}
+::T{
 ndb_mgmd
 T}
 .TE
@@ -683,13 +951,14 @@ T}:T{
 \-\-fields=string
 T}
 T{
+\ \&
 T}:T{
 \-f
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -754,13 +1023,14 @@ T}:T{
 \-\-rows=string
 T}
 T{
+\ \&
 T}:T{
 \-r
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -825,7 +1095,7 @@ is a part, including the following information:
 .sp -1
 .IP \(bu 2.3
 .\}
-A brief description of each parameter\'s purpose, effects, and usage
+A brief description of each parameter\*(Aqs purpose, effects, and usage
 .RE
 .sp
 .RS 4
@@ -849,7 +1119,7 @@ file where the parameter may be used
 .sp -1
 .IP \(bu 2.3
 .\}
-The parameter\'s data type or unit of measurement
+The parameter\*(Aqs data type or unit of measurement
 .RE
 .sp
 .RS 4
@@ -860,7 +1130,7 @@ The parameter\'s data type or unit of measurement
 .sp -1
 .IP \(bu 2.3
 .\}
-Where applicable, the parameter\'s default, minimum, and maximum values
+Where applicable, the parameter\*(Aqs default, minimum, and maximum values
 .RE
 .sp
 .RS 4
@@ -871,7 +1141,7 @@ Where applicable, the parameter\'s default, minimum, and maximum values
 .sp -1
 .IP \(bu 2.3
 .\}
-A brief description of the parameter\'s purpose, effects, and usage
+A brief description of the parameter\*(Aqs purpose, effects, and usage
 .RE
 .sp
 .RS 4
@@ -884,7 +1154,7 @@ A brief description of the parameter\'s purpose, effects, and usage
 .\}
 MySQL Cluster release version and build information
 .RE
-.RS 4
+.sp
 By default, this output is in text format\&. Part of this output is shown here:
 .sp
 .if n \{\
@@ -933,7 +1203,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -959,7 +1229,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="mysql\-5\&.1\&.34 ndb\-7\&.0\&.6"
+<configvariables protocolversion="1" ndbversionstring="5\&.5\&.33\-ndb\-7\&.2\&.14"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -971,9 +1241,11 @@ shell> \fBndb_config \-\-configinfo \-\-xml\fR
               type="unsigned" default="0" min="0" max="4294967039"/>
   </section>
   <section name="NDBD">
-    <param name="MaxNoOfSubscriptions" comment="Max no of subscriptions (default 0 == MaxNoOfTables)"
+    <param name="MaxNoOfSubscriptions" 
+              comment="Max no of subscriptions (default 0 == MaxNoOfTables)"
               type="unsigned" default="0" min="0" max="4294967039"/>
-    <param name="MaxNoOfSubscribers" comment="Max no of subscribers (default 0 == 2 * MaxNoOfTables)"
+    <param name="MaxNoOfSubscribers" 
+              comment="Max no of subscribers (default 0 == 2 * MaxNoOfTables)"
               type="unsigned" default="0" min="0" max="4294967039"/>
     \&...
   </section>
@@ -1111,7 +1383,7 @@ with
 \fB\-\-configinfo\fR
 serves no purpose\&.
 .RE
-          Examples
+        Examples
 .sp
 .RS 4
 .ie n \{\
@@ -1127,7 +1399,7 @@ To obtain the node ID and type of each node in the cluster:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-query=id,type \-\-fields=\':\' \-\-rows=\'\en\'\fR
+shell> \fB\&./ndb_config \-\-query=id,type \-\-fields=\*(Aq:\*(Aq \-\-rows=\*(Aq\en\*(Aq\fR
 1:ndbd
 2:ndbd
 3:ndbd
@@ -1157,13 +1429,14 @@ options to place the values for each node on a new line in the output\&.
 .sp -1
 .IP "  2." 4.2
 .\}
-To produce a connectstring that can be used by data, SQL, and API nodes to connect to the management server:
+To produce a connection string that can be used by data, SQL, and API nodes to connect to the management server:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
+shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e 
+\-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
 192\&.168\&.0\&.179:1186
 .fi
 .if n \{\
@@ -1183,7 +1456,7 @@ This invocation of
 \fBndb_config\fR
 checks only data nodes (using the
 \fB\-\-type\fR
-option), and shows the values for each node\'s ID and host name, as well as the values set for its
+option), and shows the values for each node\*(Aqs ID and host name, as well as the values set for its
 DataMemory,
 IndexMemory, and
 DataDir
@@ -1193,7 +1466,7 @@ parameters:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=id,host,datamemory,indexmemory,datadir \-f \' : \' \-r \'\en\'\fR
+shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=id,host,datamemory,indexmemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
 1 : 192\&.168\&.0\&.193 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
 2 : 192\&.168\&.0\&.112 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
 3 : 192\&.168\&.0\&.176 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
@@ -1226,7 +1499,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-host=192\&.168\&.0\&.176 \-f : \-r \'\en\' \-q id,type\fR
+shell> \fB\&./ndb_config \-\-host=192\&.168\&.0\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
 3:ndbd
 5:ndb_mgmd
 .fi
@@ -1247,7 +1520,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

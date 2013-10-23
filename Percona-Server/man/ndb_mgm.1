@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -34,7 +43,7 @@ ndb_mgm \- the MySQL Cluster management client
 .PP
 The
 \fBndb_mgm\fR
-management client process is actually not needed to run the cluster\&. Its value lies in providing a set of commands for checking the cluster\'s status, starting backups, and performing other administrative functions\&. The management client accesses the management server using a C API\&. Advanced users can also employ this API for programming dedicated management processes to perform tasks similar to those performed by
+management client process is actually not needed to run the cluster\&. Its value lies in providing a set of commands for checking the cluster\*(Aqs status, starting backups, and performing other administrative functions\&. The management client accesses the management server using a C API\&. Advanced users can also employ this API for programming dedicated management processes to perform tasks similar to those performed by
 \fBndb_mgm\fR\&.
 .PP
 To start the management client, it is necessary to supply the host name and port number of the management server:
@@ -70,8 +79,52 @@ and 1186, respectively\&.
 .\" MySQL Cluster: mgm process
 .PP
 The following table includes options that are specific to the MySQL Cluster management client program
-\fBndb_mgm\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
-Section\ \&16.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
+\fBndb_mgm\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_mgm\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.13.\ \&ndb_mgm Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l
+l l l.
+T{
+.PP
+--try-reconnect=#,
+.PP
+-t
+T}:T{
+Specify number of tries for connecting to ndb_mgmd (0 = infinite)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--execute=name,
+.PP
+-e
+T}:T{
+Execute command and exit
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+.TE
+.sp 1
 .sp
 .RS 4
 .ie n \{\
@@ -81,7 +134,7 @@ Section\ \&16.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" --execute option (ndb_mgm)
+.\" execute option (ndb_mgm)
 .\" -e option (ndb_mgm)
 \fB\-\-execute=\fR\fBcommand\fR,
 \fB\-e \fR\fBcommand\fR
@@ -95,6 +148,7 @@ T}:T{
 \-\-execute=name
 T}
 T{
+\ \&
 T}:T{
 \-e
 T}
@@ -164,13 +218,14 @@ T}:T{
 \-\-try\-reconnect=#
 T}
 T{
+\ \&
 T}:T{
 \-t
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -192,11 +247,11 @@ before giving up and reporting an error instead\&.
 Additional information about using
 \fBndb_mgm\fR
 can be found in
-Section\ \&16.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq\&.
+Section\ \&17.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

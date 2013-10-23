@@ -38,6 +38,7 @@
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
 
+
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -474,8 +475,9 @@ static int increment_count_by_name(const char *name, const char *role_name,
                                                    (uchar*) name,
                                                    strlen(name))))
   {
-    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-                            thd->security_ctx->ip))
+    if (acl_is_utility_user(thd->security_ctx->user,
+                            thd->security_ctx->get_host()->ptr(),
+                            thd->security_ctx->get_ip()->ptr()))
       return 0;
 
     // First connection for this user or client
@@ -518,8 +520,9 @@ static int increment_count_by_id(my_thread_id id,
                                                        (uchar*) &id,
                                                        sizeof(my_thread_id))))
   {
-    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-        thd->security_ctx->ip))
+    if (acl_is_utility_user(thd->security_ctx->user,
+                            thd->security_ctx->get_host()->ptr(),
+                            thd->security_ctx->get_ip()->ptr()))
       return 0;
 
     // First connection for this user or client
@@ -563,8 +566,9 @@ static int increment_connection_count(THD* thd, bool use_lock)
   const char* client_string= get_client_host(thd);
   int return_value=          0;
 
-  if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-      thd->security_ctx->ip))
+  if (acl_is_utility_user(thd->security_ctx->user,
+                          thd->security_ctx->get_host()->ptr(),
+                          thd->security_ctx->get_ip()->ptr()))
     return return_value;
 
   if (use_lock)
@@ -660,8 +664,9 @@ void update_global_user_stats(THD* thd, bool create_user, time_t now)
     USER_STATS* user_stats;
     THREAD_STATS* thread_stats;
 
-    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-        thd->security_ctx->ip))
+    if (acl_is_utility_user(thd->security_ctx->user,
+                            thd->security_ctx->get_host()->ptr(),
+                            thd->security_ctx->get_ip()->ptr()))
       return;
 
     mysql_mutex_lock(&LOCK_global_user_client_stats);
@@ -1112,7 +1117,7 @@ static int check_connection(THD *thd)
   thd->set_active_vio(net->vio);
 #endif
 
-  if (!thd->main_security_ctx.host)         // If TCP/IP connection
+  if (!thd->main_security_ctx.get_host()->length())     // If TCP/IP connection
   {
     char ip[NI_MAXHOST];
 
@@ -1134,25 +1139,30 @@ static int check_connection(THD *thd)
                     };);
     /* END   : DEBUG */
 
-    if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
+    thd->main_security_ctx.set_ip(my_strdup(ip, MYF(MY_WME)));
+    if (!(thd->main_security_ctx.get_ip()->length()))
       return 1; /* The error is set by my_strdup(). */
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_ip()->ptr();
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
-                         &thd->main_security_ctx.host, &connect_errors))
+      char *host= (char *) thd->main_security_ctx.get_host()->ptr();
+      if (ip_to_hostname(&net->vio->remote,
+                         thd->main_security_ctx.get_ip()->ptr(),
+                         &host, &connect_errors))
       {
         my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
-
+      thd->main_security_ctx.set_host(host);
       /* Cut very long hostnames to avoid possible overflows */
-      if (thd->main_security_ctx.host)
+      if (thd->main_security_ctx.get_host()->length())
       {
-        if (thd->main_security_ctx.host != my_localhost)
-          thd->main_security_ctx.host[min(strlen(thd->main_security_ctx.host),
-                                          HOSTNAME_LENGTH)]= 0;
-        thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
+        if (thd->main_security_ctx.get_host()->ptr() != my_localhost)
+          thd->main_security_ctx.set_host(thd->main_security_ctx.get_host()->ptr(),
+                               min(thd->main_security_ctx.get_host()->length(),
+                               HOSTNAME_LENGTH));
+        thd->main_security_ctx.host_or_ip=
+                        thd->main_security_ctx.get_host()->ptr();
       }
       if (connect_errors > max_connect_errors)
       {
@@ -1161,11 +1171,14 @@ static int check_connection(THD *thd)
       }
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
-		       (thd->main_security_ctx.host ?
-                        thd->main_security_ctx.host : "unknown host"),
-		       (thd->main_security_ctx.ip ?
-                        thd->main_security_ctx.ip : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
+		       (thd->main_security_ctx.get_host()->length() ?
+                        thd->main_security_ctx.get_host()->ptr() : 
+                        "unknown host"),
+		       (thd->main_security_ctx.get_ip()->length() ?
+                        thd->main_security_ctx.get_ip()->ptr()
+                        : "unknown ip")));
+    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(),
+                       thd->main_security_ctx.get_ip()->ptr()))
     {
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
                thd->main_security_ctx.host_or_ip);
@@ -1174,9 +1187,9 @@ static int check_connection(THD *thd)
   }
   else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.host));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
-    thd->main_security_ctx.ip= 0;
+    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
+    thd->main_security_ctx.set_ip("");
     /* Reset sin_addr */
     bzero((char*) &net->vio->remote, sizeof(net->vio->remote));
   }

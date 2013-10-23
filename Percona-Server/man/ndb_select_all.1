@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_ALL\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_SELECT_ALL\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -31,7 +40,7 @@ prints all rows from an
 NDB
 table to
 stdout\&.
-          Usage
+        Usage
 .sp
 .if n \{\
 .RS 4
@@ -42,8 +51,212 @@ ndb_select_all \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR [> \fIf
 .if n \{\
 .RE
 .\}
+.PP
+The following table includes options that are specific to the MySQL Cluster native backup restoration program
+\fBndb_select_all\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_select_all\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
 .sp
-          Additional Options
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.24.\ \&ndb_select_all Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--database=dbname,
+.PP
+-d
+T}:T{
+Name of the database in which the table is found
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--parallelism=#,
+.PP
+-p
+T}:T{
+Degree of parallelism
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--lock=#,
+.PP
+-l
+T}:T{
+Lock type
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--order=index,
+.PP
+-o
+T}:T{
+Sort resultset according to index whose name is supplied
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--descending,
+.PP
+-z
+T}:T{
+Sort resultset in descending order (requires order flag)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--header,
+.PP
+-h
+T}:T{
+Print header (set to 0|FALSE to disable headers in output)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--useHexFormat,
+.PP
+-x
+T}:T{
+Output numbers in hexadecimal format
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--delimiter=char,
+.PP
+-D
+T}:T{
+Set a column delimiter
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--disk
+T}:T{
+Print disk references (useful only for Disk Data tables having
+            nonindexed columns)
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--rowid
+T}:T{
+Print rowid
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--gci
+T}:T{
+Include GCI in output
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--tup,
+.PP
+-t
+T}:T{
+Scan in tup order
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--nodata
+T}:T{
+Do not print table column data
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+.TE
+.sp 1
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_select_all: database option
+\fB\-\-database=\fR\fB\fIdbname\fR\fR,
+\fB\-d\fR
+\fIdbname\fR
+.sp
+Name of the database in which the table is found\&. The default value is
+TEST_DB\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_select_all: parallelism option
+\fBparallelism=\fR\fB\fI#\fR\fR,
+\fB\-p\fR
+\fI#\fR
+.sp
+Specifies the degree of parallelism\&.
+.RE
 .sp
 .RS 4
 .ie n \{\
@@ -94,7 +307,7 @@ are:
 .\}
 2: Exclusive read lock
 .RE
-.RS 4
+.sp
 There is no default value for this option\&.
 .RE
 .sp
@@ -229,8 +442,8 @@ column providing information about the fragments in which rows are stored\&.
 \fB\-\-gci\fR
 .sp
 Adds a column to the output showing the global checkpoint at which each row was last updated\&. See
-Section\ \&16.1, \(lqMySQL Cluster Overview\(rq, and
-Section\ \&16.5.5.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
+Section\ \&17.1, \(lqMySQL Cluster Overview\(rq, and
+Section\ \&17.5.6.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
 .RE
 .sp
 .RS 4
@@ -263,8 +476,8 @@ Scan the table in the order of the tuples\&.
 .sp
 Causes any table data to be omitted\&.
 .RE
-          Sample Output
-        .PP
+        Sample Output
+.PP
 Output from a MySQL
 SELECT
 statement:
@@ -329,10 +542,10 @@ CREATE TABLE dogs (
 TABLESPACE ts STORAGE DISK
 ENGINE=NDBCLUSTER;
 INSERT INTO dogs VALUES
-    (\'\', \'Lassie\', \'collie\'),
-    (\'\', \'Scooby\-Doo\', \'Great Dane\'),
-    (\'\', \'Rin\-Tin\-Tin\', \'Alsatian\'),
-    (\'\', \'Rosscoe\', \'Mutt\');
+    (\*(Aq\*(Aq, \*(AqLassie\*(Aq, \*(Aqcollie\*(Aq),
+    (\*(Aq\*(Aq, \*(AqScooby\-Doo\*(Aq, \*(AqGreat Dane\*(Aq),
+    (\*(Aq\*(Aq, \*(AqRin\-Tin\-Tin\*(Aq, \*(AqAlsatian\*(Aq),
+    (\*(Aq\*(Aq, \*(AqRosscoe\*(Aq, \*(AqMutt\*(Aq);
 .fi
 .if n \{\
 .RE
@@ -361,7 +574,7 @@ NDBT_ProgramExit: 0 \- OK
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

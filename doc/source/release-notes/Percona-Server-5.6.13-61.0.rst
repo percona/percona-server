@@ -6,12 +6,12 @@
 
 Percona is glad to announce the first GA (Generally Available) release of |Percona Server| 5.6.13-61.0 on October 7th, 2013 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.13-61.0/>`_ and from the :doc:`Percona Software Repositories </installation>`.
 
-Based on `MySQL 5.6.13 <http://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-13.html>`_, including all the bug fixes in it, |Percona Server| 5.6.13-61.0 is the first GA release in the |Percona Server| 5.6 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.6.13-60.6 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.6.13-61.0>`_.
+Based on `MySQL 5.6.13 <http://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-13.html>`_, including all the bug fixes in it, |Percona Server| 5.6.13-61.0 is the first GA release in the |Percona Server| 5.6 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.6.13-61.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.6.13-61.0>`_.
 
 New Features
 ============
  
- |Percona Server| has implemented a number of :ref:`xtradb_performance_improvements` for high-concurrency scenarios. This feature fixes the upstream bug: :mysqlbug:`68555` (:bug:`1236884`).
+ |Percona Server| has implemented a number of :ref:`XtraDB performance improvements for I/O-bound high-concurrency workloads <xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads>`. This feature fixes the upstream bug: :mysqlbug:`68555` (:bug:`1236884`).
 
  |Percona Server| has implemented a number of performance improvements for :ref:`page_cleaner_tuning`. This feature fixes the upstream bugs: :mysqlbug:`69170` (:bug:`1231918`), :mysqlbug:`70453` (:bug:`1232101`) and :mysqlbug:`68481` (:bug:`1232406`).
 

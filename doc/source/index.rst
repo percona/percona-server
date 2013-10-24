@@ -73,7 +73,7 @@ Performance Improvements
    performance/innodb_opt_lru_count
    performance/threadpool
    performance/page_cleaner_tuning
-   performance/xtradb_performance_improvements
+   performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
 
 Flexibility Improvements
 ========================
@@ -88,6 +88,7 @@ Flexibility Improvements
    flexibility/mysqldump_ignore_create_error
    flexibility/buff_read_ahead_area
    flexibility/extended_select_into_outfile
+   flexibility/per_query_variable_statement
 
 Reliability Improvements
 ========================

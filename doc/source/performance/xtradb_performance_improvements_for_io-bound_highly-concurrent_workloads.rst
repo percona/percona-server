@@ -1,8 +1,8 @@
-.. _xtradb_performance_improvements:
+.. _xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads:
 
-=================================
- XtraDB Performance Improvements
-=================================
+===============================================================================
+ XtraDB Performance Improvements for I/O-Bound Highly-Concurrent Workloads
+===============================================================================
 
 In |Percona Server| :rn:`5.6.13-61.0` a number of |XtraDB| performance improvements have been implemented for high-concurrency scenarios.
 

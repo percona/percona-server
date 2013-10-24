@@ -12,6 +12,10 @@ Version Specific Information
   * :rn:`5.6.11-60.3`
 
     * Feature ported from |Percona Server| 5.5
+   
+  * :rn:`5.6.14-62.0` 
+    
+    * New :variable:`innodb_log_checksum_algorithm` variable introduced. 
 
 System Variables
 ================
@@ -76,6 +80,34 @@ The following values are allowed:
 
   * ``ALL_O_DIRECT``: 
     use O_DIRECT to open both data and log files, and use ``fsync()`` to flush the data files but not the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable :variable:`innodb_log_block_size` should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
+
+
+.. variable:: innodb_log_checksum_algorithm
+
+   :Version Info: - :rn:`5.6.14-62.0` - Variable introduced
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :Dyn: No
+   :vartype: Enumeration
+   :default: ``innodb``
+   :allowed: ``none``, ``innodb``, ``crc32``, ``strict_none``, ``strict_innodb``, ``strict_crc32``
+
+This variable is used to specify how log checksums are generated and verified. Behavior of :variable:`innodb_log_checksum_algorithm` depending on its value is mostly identical to :variable:`innodb_checksum_algorithm`, except that the former applies to log rather than page checksums. **NOTE**: this feature is currently considered experimental.
+
+The following values are allowed:
+
+  * ``none``:
+    means that a constant value will be written to log blocks instead of calculated checksum values and no checksum validation will be performed on InnoDB/XtraBackup recovery, or changed page tracking (if enabled).
+
+  * ``innodb``:
+    (the default) means the default |InnoDB| behavior -- a custom and inefficient algorithm is used to calculate log checksums, but logs created with this option are compatible with upstream |MySQL| and earlier |Percona Server| or |Percona XtraBackup| versions that do not support other log checksum algorithms.
+
+  * ``crc32``:
+    will use CRC32 for log block checksums. Checksums will also benefit from hardware acceleration provided by recent Intel CPUs.
+
+  * ``strict_*``:
+    Normally, |XtraDB| or |Percona XtraBackup| will tolerate checksums created with other algorithms than is currently specified with the :variable:`innodb_log_checksum_algorithm` option. That is, if checksums don't match when reading the redo log on recovery, the block is considered corrupted only if no algorithm produces the value matching the checksum stored in the log block header. This can be disabled by prepending the value with the ``strict_`` suffix, e.g. ``strict_none``, ``strict_crc32`` or ``strict_innodb`` will only accept checksums created using the corresponding algorithms, but not the other ones.
 
 Status Variables
 ----------------

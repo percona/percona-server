@@ -695,6 +695,7 @@ struct handlerton
                            class Item *cond);
    my_bool (*flush_changed_page_bitmaps)(void);
    my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
+   my_bool (*is_fake_change)(handlerton *hton, THD *thd);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler

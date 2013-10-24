@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 03/05/2013
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "03/05/2013" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "09/09/2013" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -46,6 +46,18 @@ tables\&.
 .\}
 .nf
 ndb_desc \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR [\-p]
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+(\fIMySQL Cluster NDB 7\&.0\&.36 and later; MySQL Cluster NDB 7\&.1\&.25 and later:\fR)
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndb_desc \-c \fIconnect_string\fR \fIindex_name\fR \-d \fIdb_name\fR \-t \fItbl_name\fR
 .fi
 .if n \{\
 .RE
@@ -127,6 +139,61 @@ NDBT_ProgramExit: 0 \- OK
 Information about multiple tables can be obtained in a single invocation of
 \fBndb_desc\fR
 by using their names, separated by spaces\&. All of the tables must be in the same database\&.
+.PP
+Beginning with MySQL Cluster NDB 7\&.0\&.36 and MySQL Cluster NDB 7\&.1\&.25, it is possible to obtain additional information about a specific index using the
+\fB\-\-table\fR
+(short form:
+\fB\-t\fR) option introduced in these versions and supplying the name of the index as the first argument to
+\fBndb_desc\fR, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fB\&./ndb_desc uk \-d test \-t fish\fR
+\-\- uk \-\-
+Version: 3
+Base table: fish
+Number of attributes: 1
+Logging: 0
+Index type: OrderedIndex
+Index status: Retrieved
+\-\- Attributes \-\-
+name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+\-\- IndexTable 10/uk \-\-
+Version: 3
+Fragment type: FragUndefined
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: yes
+Number of attributes: 2
+Number of primary keys: 1
+Length of frm data: 0
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 2
+ForceVarPart: 0
+FragmentCount: 4
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+\-\- Attributes \-\-
+name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
+NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+\-\- Indexes \-\- 
+PRIMARY KEY(NDB$TNODE) \- UniqueHashIndex
+NDBT_ProgramExit: 0 \- OK
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+When an index is specified in this way, the
+\fB\-\-extra\-partition\-info\fR
+and
+\fB\-\-extra\-node\-info\fR
+options have no effect\&.
 .PP
 The
 Version
@@ -267,7 +334,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&17.16.\ \&ndb_desc Options: MySQL 5.1, MySQL Cluster NDB 6.3-7.1
+.B Table\ \&17.17.\ \&ndb_desc Options and Variables: MySQL 5.1, MySQL Cluster NDB 6.3-7.1
 .TS
 allbox tab(:);
 lB lB lB.
@@ -284,51 +351,8 @@ l l l
 l l l
 l l l
 l l l
+l l l
 l l l.
-T{
-.PP
-\-\-database=dbname,
-.PP
-\-d
-T}:T{
-Name of database containing table
-T}:T{
-.PP
-All MySQL 5\&.1 based releases
-T}
-T{
-.PP
-\-\-unqualified,
-.PP
-\-u
-T}:T{
-Use unqualified table names
-T}:T{
-.PP
-All MySQL 5\&.1 based releases
-T}
-T{
-.PP
---extra-partition-info,
-.PP
--p
-T}:T{
-Display information about partitions
-T}:T{
-.PP
-All MySQL 5\&.1 based releases
-T}
-T{
-.PP
-\-\-retries=#,
-.PP
-\-r
-T}:T{
-Number of times to retry the connection (once per second)
-T}:T{
-.PP
-All MySQL 5\&.1 based releases
-T}
 T{
 .PP
 --blob-info,
@@ -343,6 +367,17 @@ ADDED: NDB 6\&.3\&.32, NDB 7\&.0\&.13, NDB 7\&.1\&.2
 T}
 T{
 .PP
+--database=dbname,
+.PP
+-d
+T}:T{
+Name of database containing table
+T}:T{
+.PP
+All MySQL 5\&.1 based releases
+T}
+T{
+.PP
 --extra-node-info,
 .PP
 -n
@@ -353,24 +388,53 @@ T}:T{
 .PP
 ADDED: NDB 6\&.2\&.19, NDB 6\&.3\&.33, NDB 7\&.0\&.14, NDB 7\&.1\&.2
 T}
+T{
+.PP
+--extra-partition-info,
+.PP
+-p
+T}:T{
+Display information about partitions
+T}:T{
+.PP
+All MySQL 5\&.1 based releases
+T}
+T{
+.PP
+--retries=#,
+.PP
+-r
+T}:T{
+Number of times to retry the connection (once per second)
+T}:T{
+.PP
+All MySQL 5\&.1 based releases
+T}
+T{
+.PP
+--table=tbl_name,
+.PP
+-t
+T}:T{
+Specify the table in which to find an index\&. When this option is used,
+            \-p and \-n have no effect and are ignored\&.
+T}:T{
+.PP
+ADDED: NDB 7\&.0\&.36, NDB 7\&.1\&.25
+T}
+T{
+.PP
+--unqualified,
+.PP
+-u
+T}:T{
+Use unqualified table names
+T}:T{
+.PP
+All MySQL 5\&.1 based releases
+T}
 .TE
 .sp 1
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-.\" ndb_desc: extra-partition-info option
-.\" extra-partition-info option: ndb_desc
-\fB\-\-extra\-partition\-info\fR,
-\fB\-p\fR
-.sp
-Print additional information about the table\*(Aqs partitions\&.
-.RE
 .sp
 .RS 4
 .ie n \{\
@@ -406,6 +470,22 @@ This option was added in MySQL Cluster NDB 6\&.3\&.32, MySQL Cluster NDB 7\&.0\&
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" ndb_desc: database option
+.\" database option: ndb_desc
+\fB\-\-database=\fR\fB\fIdb_name\fR\fR,
+\fB\-d\fR
+.sp
+Specify the database in which the table should be found\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" ndb_desc: extra-node-info option
 .\" extra-node-info option: ndb_desc
 \fB\-\-extra\-node\-info\fR,
@@ -419,45 +499,82 @@ Use of this option also requires the use of the
 .sp
 This option was added in MySQL Cluster NDB 6\&.2\&.19, MySQL Cluster NDB 6\&.3\&.33, MySQL Cluster NDB 7\&.0\&.14, and MySQL Cluster NDB 7\&.1\&.2\&.
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: extra-partition-info option
+.\" extra-partition-info option: ndb_desc
+\fB\-\-extra\-partition\-info\fR,
+\fB\-p\fR
+.sp
+Print additional information about the table\*(Aqs partitions\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: retries option
+.\" retries option: ndb_desc
+\fB\-\-retries=\fR\fB\fI#\fR\fR,
+\fB\-r\fR
+.sp
+Try to connect this many times before giving up\&. One connect attempt is made per second\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: table option
+.\" table option: ndb_desc
+\fB\-\-table=\fR\fB\fItbl_name\fR\fR,
+\fB\-t\fR
+.sp
+Specify the table in which to look for an index\&.
+.sp
+This option was added in MySQL Cluster NDB 7\&.0\&.36 and MySQL Cluster NDB 7\&.1\&.25\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_desc: unqualified option
+.\" unqualified option: ndb_desc
+\fB\-\-unqualified\fR,
+\fB\-u\fR
+.sp
+Use unqualified table names\&.
+.RE
 .SH "COPYRIGHT"
 .br
 .PP
 Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
-The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
-.PP
-U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
-.PP
-This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
-.PP
-Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
-.PP
-This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
-.PP
-This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
-.PP
-This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
-.PP
-You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
-.PP
-For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
-\m[blue]\fBMySQL Contact & Questions\fR\m[].
-.PP
-For additional licensing information, including licenses for third-party libraries used by MySQL products, see
-Preface and Legal Notices.
-.PP
-For help with using MySQL, please visit either the
-\m[blue]\fBMySQL Forums\fR\m[]
-or
-\m[blue]\fBMySQL Mailing Lists\fR\m[]
-where you can discuss your issues with other MySQL users.
-.PP
-For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
-\m[blue]\fBMySQL Documentation Library\fR\m[].
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
 .SH "NOTES"
 .IP " 1." 4

@@ -38,7 +38,10 @@ UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
-	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	ibool		have_flush_list_mutex);	/*!< in: TRUE if
+						flush_list_mutex is held */
+
 /********************************************************************//**
 Relocates a buffer control block on the flush_list.
 Note that it is assumed that the contents of bpage has already been

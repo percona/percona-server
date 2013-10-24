@@ -9,7 +9,7 @@ include /usr/share/dpatch/dpatch.make
 TMP=$(CURDIR)/debian/tmp/
 
 major_version_default=14
-minor_version_default=8
+minor_version_default=9
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -302,7 +302,7 @@ binary-arch: build install
 	dh_installlogrotate -a --name percona-server-server
 	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
 	# started which might depend on a running database server.
-	dh_installinit -a --name=mysql -- defaults 19 21
+	dh_installinit -a --name=mysql --error-handler=: -- defaults 19 21
 	dh_installcron -a --name percona-server-server
 	dh_installman -a
 	dh_installinfo -a

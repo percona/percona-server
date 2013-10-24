@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.70
+%define mysqlversion 5.1.71
 %define majorversion 14
-%define minorversion 8
+%define minorversion 9
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -483,6 +483,11 @@ install -m644 $MBD/support-files/mysql-log-rotate \
         $RBR%{_sysconfdir}/logrotate.d/mysql
 install -m755 $MBD/support-files/mysql.server \
         $RBR%{_sysconfdir}/init.d/mysql
+
+# Delete the symlinks to the libraries from the libdir. These are created by
+# ldconfig(8) afterwards.
+rm -f $RBR%{_libdir}/libmysqlclient*.so.16 \
+      $RBR%{_libdir}/mysql/libmysqlclient*.so.16
 
 # in RPMs, it is unlikely that anybody should use "sql-bench"
 rm -fr $RBR%{_datadir}/sql-bench

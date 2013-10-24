@@ -15,6 +15,8 @@ set -ue
 # Examine parameters
 TARGET="$(uname -m)"
 TARGET_CFLAGS=''
+WITH_SSL='/usr'
+TAG=''
 
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -22,7 +24,7 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="i" --longoptions=i686 \
+    go_out="$(getopt --options="it" --longoptions=with-ssl:,tag:,i686 \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -36,6 +38,16 @@ do
         shift
         TARGET="i686"
         TARGET_CFLAGS="-m32 -march=i686"
+        ;;
+    --with-ssl )
+        shift
+        WITH_SSL="$1"
+        shift
+        ;;
+    -t | --tag )
+        shift
+        TAG="$1"
+        shift
         ;;
     esac
 done
@@ -97,7 +109,7 @@ PRODUCT="Percona-Server-$MYSQL_VERSION"
 # Build information
 REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
-PRODUCT_FULL="$PRODUCT_FULL-$REVISION.$(uname -s).$TARGET"
+PRODUCT_FULL="$PRODUCT_FULL-$REVISION$TAG.$(uname -s).$TARGET"
 COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
 COMMENT="$COMMENT, Revision $REVISION"
 
@@ -133,7 +145,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         --with-unix-socket-path=/var/lib/mysql/mysql.sock \
         --with-pic \
         --with-extra-charsets=complex \
-        --with-ssl=/usr \
+        --with-ssl="$WITH_SSL" \
         --enable-thread-safe-client \
         --enable-profiling \
         --with-readline 

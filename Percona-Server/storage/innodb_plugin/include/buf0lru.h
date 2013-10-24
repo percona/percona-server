@@ -79,7 +79,8 @@ void
 buf_LRU_mark_space_was_deleted(
 /*===========================*/
 	ulint	id);	/*!< in: space id */
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#if 0
+/* Disabled for XtraDB, see buf_flush_remove(). */
 /********************************************************************//**
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
 UNIV_INTERN
@@ -87,7 +88,7 @@ void
 buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif
 
 /******************************************************************//**
 Try to free a block.  If bpage is a descriptor of a compressed-only

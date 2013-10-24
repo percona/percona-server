@@ -24,7 +24,7 @@ New Features
 Bugs Fixed
 ==========
 
- Due to an incompatible upstream change that went in unnoticed, the page cleaner thread would attempt to replay any file operations it encountered. In most cases this were a no-op, but there were race conditions for certain DDL operations that would have resulted in server crash. Bug fixed :bug:`1217002`.
+ Due to an incompatible upstream change that went in unnoticed, the log tracker thread would attempt to replay any file operations it encountered. In most cases this were a no-op, but there were race conditions for certain DDL operations that would have resulted in server crash. Bug fixed :bug:`1217002`.
 
  ``apt-get upgrade`` of |Percona Server| would fail in post-installation step if server failed to start. Bug fixed :bug:`1002500`.
 

@@ -1,4 +1,4 @@
-percona-server-5.1 (5.1.72-rel14.10) unstable; urgency=low
+percona-server-5.1 (5.1.72-rel14.10-1) unstable; urgency=low
 
   * Added --error-handler=: to dh_installinit in order to
     avoid an error when the server wouldn't start for any

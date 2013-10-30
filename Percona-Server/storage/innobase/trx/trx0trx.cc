@@ -1493,8 +1493,6 @@ trx_commit_in_memory(
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
-	ut_ad(trx_sys->descr_n_used <= UT_LIST_GET_LEN(trx_sys->rw_trx_list));
-
 	trx->error_state = DB_SUCCESS;
 
 	/* trx->in_mysql_trx_list would hold between

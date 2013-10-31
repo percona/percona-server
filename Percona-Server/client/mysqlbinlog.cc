@@ -44,6 +44,7 @@
 
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
+#include <sslopt-vars.h>
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
@@ -298,7 +299,7 @@ public:
                                   Create_file_log_event *ce);
 };
 
-
+static my_bool opt_compress=0;
 /**
   Creates and opens a new temporary file in the directory specified by previous call to init_by_dir_name() or init_by_cur_dir().
 
@@ -1090,6 +1091,9 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"compress", 'C', "Use compression in server/client protocol.",
+   &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
   {"database", 'd', "List entries for just this database (local log only).",
    &database, &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -1173,6 +1177,7 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
+#include <sslopt-longopts.h>
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
    "posterior to the argument; the argument must be a date and time "
@@ -1356,6 +1361,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
 #endif
+#include <sslopt-case.h>
   case 'd':
     one_database = 1;
     break;
@@ -1457,7 +1463,17 @@ static Exit_status safe_connect()
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
-
+  if (opt_compress)
+    mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+  {
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+                  opt_ssl_capath, opt_ssl_cipher);
+  }
+  mysql_options(mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                (char*)&opt_ssl_verify_server_cert);
+#endif
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 #ifdef HAVE_SMEM

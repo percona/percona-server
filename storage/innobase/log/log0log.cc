@@ -330,6 +330,7 @@ log_open(
 	ulint	dummy;
 #endif /* UNIV_LOG_ARCHIVE */
 	ulint	count			= 0;
+	ulint	tcount			= 0;
 
 	if (len >= log->buf_size / 2) {
 		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
@@ -384,21 +385,6 @@ loop:
 		goto loop;
 	}
 
-	if (log_check_tracking_margin(len_upper_limit) && (++count < 50)) {
-
-		/* This log write would violate the untracked LSN free space
-		margin.  Limit this to 50 retries as there might be situations
-		where we have no choice but to proceed anyway, i.e. if the log
-		is about to be overflown, log tracking or not. */
-		mutex_exit(&(log->mutex));
-
-		os_thread_sleep(10000);
-
-		mutex_enter(&(log->mutex));
-
-		goto loop;
-	}
-
 #ifdef UNIV_LOG_ARCHIVE
 	if (log->archiving_state != LOG_ARCH_OFF) {
 
@@ -422,6 +408,22 @@ loop:
 		}
 	}
 #endif /* UNIV_LOG_ARCHIVE */
+
+	if (log_check_tracking_margin(len_upper_limit) &&
+		(++tcount + count < 50)) {
+
+		/* This log write would violate the untracked LSN free space
+		margin.  Limit this to 50 retries as there might be situations
+		where we have no choice but to proceed anyway, i.e. if the log
+		is about to be overflown, log tracking or not. */
+		mutex_exit(&(log->mutex));
+
+		os_thread_sleep(10000);
+
+		mutex_enter(&(log->mutex));
+
+		goto loop;
+	}
 
 #ifdef UNIV_LOG_DEBUG
 	log->old_buf_free = log->buf_free;

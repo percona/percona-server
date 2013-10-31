@@ -3842,6 +3842,9 @@ static int init_server_components()
   init_slave_list();
 #endif
 
+  init_global_table_stats();
+  init_global_index_stats();
+
   /* Setup logs */
 
   /*
@@ -4058,9 +4061,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
   /* We have to initialize the storage engines before CSV logging */
   TC_init();
-
-  init_global_table_stats();
-  init_global_index_stats();
 
   if (ha_init())
   {

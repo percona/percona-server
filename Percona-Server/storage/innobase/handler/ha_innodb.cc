@@ -2409,6 +2409,62 @@ trx_is_started(
 	return(trx->state != TRX_STATE_NOT_STARTED);
 }
 
+/****************************************************************//**
+Update log_checksum_algorithm_ptr with a pointer to the function corresponding
+to a given checksum algorithm. */
+static
+void
+innodb_log_checksum_func_update(
+/*============================*/
+	ulint	algorithm)	/*!< in: algorithm */
+{
+	switch (algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		log_checksum_algorithm_ptr=log_block_calc_checksum_innodb;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		log_checksum_algorithm_ptr=log_block_calc_checksum_crc32;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		log_checksum_algorithm_ptr=log_block_calc_checksum_none;
+		break;
+	default:
+		ut_a(0);
+	}
+}
+
+/****************************************************************//**
+On update hook for the innodb_log_checksum_algorithm variable. */
+static
+void
+innodb_log_checksum_algorithm_update(
+/*=================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	srv_checksum_algorithm_t	algorithm;
+
+	algorithm = (srv_checksum_algorithm_t)
+		(*static_cast<const ulong*>(save));
+
+	/* Make sure we are the only log user */
+	mutex_enter(&log_sys->mutex);
+
+	innodb_log_checksum_func_update(algorithm);
+
+	srv_log_checksum_algorithm = algorithm;
+
+	mutex_exit(&log_sys->mutex);
+}
+
 /*********************************************************************//**
 Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
@@ -3486,6 +3542,8 @@ innobase_change_buffering_inited_ok:
 			"instead.\n");
 		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
 	}
+
+	innodb_log_checksum_func_update(srv_log_checksum_algorithm);
 
 #ifdef HAVE_LARGE_PAGES
 	if ((os_use_large_pages = (ibool) my_use_large_pages)) {
@@ -15756,51 +15814,6 @@ innodb_reset_all_monitor_update(
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE,
 			      TRUE);
-}
-
-/****************************************************************//**
-Update log_checksum_algorithm_ptr with a pointer to the function corresponding
-to a given checksum algorithm. */
-static
-void
-innodb_log_checksum_algorithm_update(
-/*=================================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	srv_checksum_algorithm_t	algorithm;
-
-	algorithm = (srv_checksum_algorithm_t)
-		(*static_cast<const ulong*>(save));
-
-	/* Make sure we are the only log user */
-	mutex_enter(&log_sys->mutex);
-
-	switch (algorithm) {
-	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-		log_checksum_algorithm_ptr=log_block_calc_checksum_innodb;
-		break;
-	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-		log_checksum_algorithm_ptr=log_block_calc_checksum_crc32;
-		break;
-	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-		log_checksum_algorithm_ptr=log_block_calc_checksum_none;
-		break;
-	default:
-		ut_a(0);
-	}
-
-	srv_log_checksum_algorithm = algorithm;
-
-	mutex_exit(&log_sys->mutex);
 }
 
 /****************************************************************//**

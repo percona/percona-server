@@ -3,37 +3,37 @@
 export DH_VERBOSE=1
 
 PACKAGE=percona-server-5.1
-
-include /usr/share/dpatch/dpatch.make
+PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
 
 TMP=$(CURDIR)/debian/tmp/
-
-major_version_default=14
-minor_version_default=7
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
 DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEBVERSION = $(shell echo "rel`if test -z \"$(major_version)\"; then echo ${major_version_default}; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo ${minor_version_default}; else echo $(minor_version); fi`" )
+DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
+
+ifneq (,$(filter $(ARCH), i386 kfreebsd-i386 hurd-i386))
+    USE_THIS_GCC_VERSION:=-4.4
+endif
+
+export MYSQL_BUILD_CC=$(DEB_HOST_GNU_TYPE)-gcc$(USE_THIS_GCC_VERSION)
+export MYSQL_BUILD_CXX=$(DEB_HOST_GNU_TYPE)-g++$(USE_THIS_GCC_VERSION)
 
 DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
 DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
 DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
 DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
 DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
+EXPORTED_SOURCE_TARBALL = debian/percona-server-source-5.1.tar.gz
 
-DISTRIBUTION = $(shell echo "Percona Server (GPL), `if test -z \"$(major_version)\"; then echo ${major_version_default}; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo ${minor_version_default}; else echo $(minor_version); fi``if ! test -z \"$(BB_PERCONA_REVISION)\"; then echo \", Revision $(BB_PERCONA_REVISION)\"; fi`")
+DISTRIBUTION = $(shell lsb_release -i -s)
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)
-  MAKE_J = -j4
-endif
-ifeq ($(MYSQL_BUILD_MAKE_JFLAG),)
-  MAKE_JFLAG = $(MAKE_J)
-else
-  MAKE_JFLAG = $(MYSQL_BUILD_MAKE_JFLAG)
+  MAKE_J = -j1
 endif
 
 MYSQL_SRC = $(shell pwd)
@@ -89,7 +89,7 @@ endif
 	        --mandir=/usr/share/man \
 		\
 		--with-server-suffix="-$(DEBVERSION)" \
-		--with-comment="($(DISTRIBUTION))" \
+		--with-comment="($(PS_VERSION_EXTRA))" \
 		--with-system-type="debian-linux-gnu" \
 		\
 		--enable-shared \
@@ -112,11 +112,6 @@ endif
 		\
 		--without-embedded-server \
 		--with-embedded-privilege-control'
-		
-	#       --sysconfdir=/etc/mysql  -- Appends /etc/mysql after ~/ in the my.cnf search patch!
-	#
-	#	--with-debug
-	
 	touch configure-stamp
 
 
@@ -134,7 +129,6 @@ endif
 	touch testsuite-stamp
 
 	touch build-stamp
-	
 
 clean: clean-patched unpatch
 	rm -rf debian/patched
@@ -145,7 +139,7 @@ clean-patched:
 	rm -f configure-stamp
 	rm -f build-stamp
 	rm -f testsuite-stamp
-	
+
 	[ ! -f Makefile ] || $(MAKE) clean
 	[ ! -d mysql-test/var ] || rm -rf mysql-test/var
 
@@ -173,7 +167,6 @@ clean-patched:
 	debconf-updatepo
 	dh_clean -v
 
-	
 install:
 install: build
 	@echo "RULES.install"
@@ -199,13 +192,13 @@ install: build
 	./autogen.sh && \
 	CXX="$${HS_CXX:-g++}" ./configure --with-mysql-source="$(MYSQL_SRC)" \
 	--with-mysql-bindir="$(MYSQL_SRC)/scripts" \
-	--with-mysql-plugindir="/usr/lib/mysql/plugin" \
+	--with-mysql-plugindir="/usr/lib/percona-server/plugin" \
 	--libdir="/usr/lib" \
 	--prefix="/usr" && \
 	$(MAKE) $(MAKE_JFLAG)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 	# build Maatkit UDF
-	cd UDF/ && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/mysql/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
+	cd UDF/ && autoreconf --install && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/percona-server/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \
@@ -216,8 +209,11 @@ install: build
 		| xargs --no-run-if-empty chrpath -d; \
 	set -e
 
+	# move the test dir
+	mv $(TMP)/usr/mysql-test $(TMP)/usr/share/percona-server-test
+
 	# libperconaserverclient: move shared libraries (but not the rest like libheap.a & co)
-	mv $(TMP)/usr/lib/mysql/libperconaserverclient* $(TMP)/usr/lib
+	mv $(TMP)/usr/lib/percona-server/libperconaserverclient* $(TMP)/usr/lib
 	perl -pi -e 's#/usr/lib/mysql#/usr/lib#' $(TMP)/usr/lib/libperconaserverclient.la
 	perl -pi -e 's#/usr/lib/mysql#/usr/lib#' $(TMP)/usr/lib/libperconaserverclient_r.la
 	# Check if our beloved versioned symbols are really there
@@ -227,8 +223,8 @@ install: build
 	fi     
 
 	# libperconaserverclient-dev: forgotten header file since 3.23.25?
-	cp include/my_config.h $(TMP)/usr/include/mysql/
-	cp include/my_dir.h $(TMP)/usr/include/mysql/
+	cp include/my_config.h $(TMP)/usr/include/percona-server/
+	cp include/my_dir.h $(TMP)/usr/include/percona-server/
 
 	# percona-server-common: We now provide our own config file.
 	install -d $(TMP)/etc/mysql
@@ -240,15 +236,15 @@ install: build
 	# percona-server-server
 	install -m 0755 scripts/mysqld_safe $(TMP)/usr/bin/mysqld_safe
 	mkdir -p $(TMP)/usr/share/doc/percona-server-server-5.1/examples
-	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-server-5.1/examples/
-	rm -vf $(TMP)/usr/share/mysql/mi_test_all* \
-	       $(TMP)/usr/share/mysql/mysql-log-rotate \
-	       $(TMP)/usr/share/mysql/mysql.server \
-	       $(TMP)/usr/share/mysql/binary-configure
+	mv $(TMP)/usr/share/percona-server/*cnf 	    $(TMP)/usr/share/doc/percona-server-server-5.1/examples/
+	rm -vf $(TMP)/usr/share/percona-server/mi_test_all* \
+	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
+	       $(TMP)/usr/share/percona-server/mysql.server \
+	       $(TMP)/usr/share/percona-server/binary-configure
 	nm -n sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-server-5.1/mysqld.sym.gz
-	install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
+	install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/percona-server/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
-	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/percona-server/
 	# lintian overrides
 	mkdir -p $(TMP)/usr/share/lintian/overrides/
 	cp debian/percona-server-common-5.1.lintian-overrides     $(TMP)/usr/share/lintian/overrides/percona-server-common-5.1
@@ -325,18 +321,6 @@ source diff:
 	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
 
 binary:	binary-indep binary-arch
-
-get-orig-source:
-	@wget -nv -T10 -t3 \
-	  -O /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz \
-	  http://ftp.gwdg.de/pub/misc/mysql/Downloads/MySQL-$(DEB_UPSTREAM_VERSION_MAJOR_MINOR)/mysql-$(DEB_UPSTREAM_VERSION).tar.gz
-	@tar xfz /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz -C /tmp
-	@rm -rf /tmp/mysql-$(DEB_UPSTREAM_VERSION)/Docs
-	@rm -rf /tmp/mysql-$(DEB_UPSTREAM_VERSION)/debian
-	@mv /tmp/mysql-$(DEB_UPSTREAM_VERSION) /tmp/$(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
-	@cd /tmp ; tar czf $(DEB_SOURCE_PACKAGE)_$(DEB_UPSTREAM_VERSION).orig.tar.gz $(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
-	@rm -f /tmp/mysql-$(DEB_UPSTREAM_VERSION).tar.gz
-	@rm -rf /tmp/$(DEB_SOURCE_PACKAGE)-$(DEB_UPSTREAM_VERSION).orig
 
 .PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch unpatch
 

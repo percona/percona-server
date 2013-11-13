@@ -1,4 +1,4 @@
-usr/lib/mysql/*so*
+usr/lib/percona-server/*so*
 etc/mysql/debian-start
 etc/mysql/conf.d/mysqld_safe_syslog.cnf
 usr/bin/innochecksum
@@ -52,6 +52,6 @@ usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man1/innochecksum.1
 usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man8/mysqld.8
-usr/share/mysql/
-usr/share/mysql-test/
-usr/lib/mysql/plugin/*
+usr/share/percona-server/
+usr/share/percona-server-test/
+usr/lib/percona-server/plugin/*

@@ -168,16 +168,16 @@ BUILD_PS_EXTRA_DIST = \
 	build-ps/debian/changelog \
 	build-ps/debian/compat \
 	build-ps/debian/copyright \
-	build-ps/debian/libmysqlclient16-dev.docs \
-	build-ps/debian/libmysqlclient16.docs \
-	build-ps/debian/libmysqlclient16.dirs \
-	build-ps/debian/libmysqlclient16.files \
-	build-ps/debian/libmysqlclient16.postinst \
-	build-ps/debian/libmysqlclient16-dev.dirs \
-	build-ps/debian/libmysqlclient16-dev.examples \
-	build-ps/debian/libmysqlclient16-dev.files \
-	build-ps/debian/libmysqlclient16-dev.links \
-	build-ps/debian/libmysqlclient16-dev.README.Maintainer \
+	build-ps/debian/libperconaserverclient16-dev.docs \
+	build-ps/debian/libperconaserverclient16.docs \
+	build-ps/debian/libperconaserverclient16.dirs \
+	build-ps/debian/libperconaserverclient16.files \
+	build-ps/debian/libperconaserverclient16.postinst \
+	build-ps/debian/libperconaserverclient16-dev.dirs \
+	build-ps/debian/libperconaserverclient16-dev.examples \
+	build-ps/debian/libperconaserverclient16-dev.files \
+	build-ps/debian/libperconaserverclient16-dev.links \
+	build-ps/debian/libperconaserverclient16-dev.README.Maintainer \
 	build-ps/debian/percona-server-server-5.1.docs \
 	build-ps/debian/percona-server-client-5.1.README.Debian \
 	build-ps/debian/percona-server-client-5.1.dirs \
@@ -277,6 +277,7 @@ BUILD_PS_EXTRA_DIST = \
 	build-ps/debian/po/tr.po \
 	build-ps/debian/control \
 	build-ps/debian/rules \
+	build-ps/debian/source/format \
 	build-ps/percona-server.spec \
 	build-ps/percona-shared-compat.spec \
 	build-ps/build-binary.sh
@@ -286,7 +287,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README.MySQL COPYING CMakeLists.txt \
 			COPYING.innodb_fast_shutdown \
 			COPYING.show_temp_51 \
-			README.txt \
+			README \
 			README.HandlerSocket \
 			Makefile-ps \
 			$(HANDLERSOCKET_EXTRA_DIST) \

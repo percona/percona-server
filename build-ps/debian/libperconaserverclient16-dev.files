@@ -1,0 +1,10 @@
+usr/bin/mysql_config
+usr/include/percona-server/*.h
+usr/lib/libperconaserverclient.a
+usr/lib/libperconaserverclient.la
+usr/lib/percona-server/*.a
+usr/lib/percona-server/*.la
+usr/share/man/man1/mysql_config.1
+usr/lib/libhsclient.a
+usr/lib/libhsclient.la
+usr/include/handlersocket/*

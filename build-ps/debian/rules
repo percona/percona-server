@@ -167,7 +167,7 @@ build-stamp-pic: configure-pic
 	
 	touch $@
 
-clean: clean-patched unpatch
+clean: clean-patched
 	rm -rf debian/patched
 clean-patched:
 	@echo "RULES.clean-patched"
@@ -201,3 +201,4 @@ override_dh_auto_install:
 	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
 	cd UDF && make DESTDIR=$(TMP) install
 
+.PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch

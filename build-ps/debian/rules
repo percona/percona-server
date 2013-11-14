@@ -1,103 +1,203 @@
 #!/usr/bin/make -f
 
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
+export DEB_BUILD_HARDENING=1
 
-include /usr/share/dpatch/dpatch.make
+PACKAGE=percona-server-5.5
+PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
 
-CMAKE=cmake
 TMP=$(CURDIR)/debian/tmp/
 
-feature_set="community"
-major_version=31
-minor_version=0
-compilation_comment_release="Percona Server (GPL), Release $(major_version).$(minor_version)"
-server_suffix="-$(major_version).$(minor_version)"
-prefix="/usr"
+ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
+
+ifneq (,$(filter $(ARCH), i386 kfreebsd-i386 hurd-i386))
+    USE_THIS_GCC_VERSION:=-4.4
+endif
+
+export MYSQL_BUILD_CC=$(DEB_HOST_GNU_TYPE)-gcc$(USE_THIS_GCC_VERSION)
+export MYSQL_BUILD_CXX=$(DEB_HOST_GNU_TYPE)-g++$(USE_THIS_GCC_VERSION)
+
+
+DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
+DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
+DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
+DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
+DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+EXPORTED_SOURCE_TARBALL = debian/percona-server-source-5.5.tar.gz
+
+DISTRIBUTION = $(shell lsb_release -i -s)
+
+MYSQL_SRC = $(shell pwd)
+
+MAKE_TEST_TARGET=test-force
+ifneq ($(findstring fulltest,$(DEB_BUILD_OPTIONS)),)
+# make test-bt is the testsuite run by the MySQL build team 
+# before a release, but it is long
+    MAKE_TEST_TARGET=test-bt
+endif
+
+USE_ASSEMBLER=--enable-assembler 
+
+ifneq (,$(filter $(ARCH), amd64 i386))
+    TESTSUITE_FAIL_CMD=exit 1
+else
+    TESTSUITE_FAIL_CMD=true
+endif
+
+BUILDDIR = builddir
+BUILDDIR_PIC = builddir-pic
+builddir = $(if $(findstring -pic,$@),$(BUILDDIR_PIC),$(BUILDDIR))
+
+# This causes seg11 crashes if LDAP is used for groups in /etc/nsswitch.conf
+# so it is disabled by default although, according to MySQL, it brings >10%
+# performance gain if enabled. See #299382.
+ifeq ($(STATIC_MYSQLD), 1)
+    USE_STATIC_MYSQLD=--with-mysqld-ldflags=-all-static
+endif
+
+# See http://blogs.innodb.com/wp/2010/04/innodb-performance-aio-linux/
+# Also #659565
+ifneq (,$(findstring linux-gnu,$(DEB_HOST_GNU_TYPE)))
+    USE_LINUX_NATIVE_AIO:=-DLINUX_NATIVE_AIO=ON
+endif
+
+configure-stamp-pic: FORCE_FPIC_CFLAGS=-fPIC
+configure-stamp-pic: FORCE_FPIC=-DWITH_PIC=On -DINSTALL_LIBDIR=lib/mysql
+
+configure: patch configure-stamp
+configure-pic: patch configure-stamp-pic
+configure-stamp configure-stamp-pic:
+	@echo "RULES.$@"
+	dh_testdir
+
+ifneq ($(ARCH_OS),hurd)
+	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
+endif
+
+	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
+	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
+	    	CC=$${MYSQL_BUILD_CC:-gcc} \
+	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O3 -DBIG_JOINS=1 ${FORCE_FPIC_CFLAGS}"} \
+	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -DBIG_JOINS=1 -felide-constructors -fno-exceptions -fno-rtti ${FORCE_FPIC_CFLAGS}"} \
+	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
+		\
+		$(FORCE_FPIC) \
+		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+	       	-DMYSQL_USER=mysql \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+		-DWITH_LIBWRAP=ON \
+		-DWITH_READLINE=OFF \
+		-DWITH_LIBEDIT=OFF \
+		$(USE_STATIC_MYSQLD) \
+		$(USE_LINUX_NATIVE_AIO) \
+		-DWITH_SSL=bundled \
+	    -DCOMPILATION_COMMENT="($(DISTRIBUTION))" \
+	    -DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
+	    -DSYSTEM_TYPE="debian-linux-gnu" \
+	    -DINSTALL_LAYOUT=RPM \
+	    -DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+	    -DINSTALL_PLUGINDIR=lib/mysql/plugin \
+        -DWITH_EMBEDDED_SERVER=OFF \
+	    -DWITH_ARCHIVE_STORAGE_ENGINE=ON \
+	    -DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
+	    -DWITH_FEDERATED_STORAGE_ENGINE=ON \
+		-DWITH_EXTRA_CHARSETS=all ..'
+		
+	#       --sysconfdir=/etc/mysql  -- Appends /etc/mysql after ~/ in the my.cnf search patch!
+	#
+	#	--with-debug
+	
+	touch $@
+
+
+build: build-stamp build-stamp-pic
+
+build-stamp: configure
+	@echo "RULES.$@"
+	dh_testdir
+	
+	[ -f $(EXPORTED_SOURCE_TARBALL) ] || tar -zcf $(EXPORTED_SOURCE_TARBALL) \
+	--exclude=debian . \
+	--transform="s,^\./,mysql-5.5/,"
+
+	cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
+
+ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
+	# Don't know why the following is necessary...
+	cp unittest/unit.pl $(builddir)/unittest/
+	cp -r mysql-test/* $(builddir)/mysql-test/
+	cp -r sql/share/* $(builddir)/sql/share/
+	cp -r scripts/*sql $(builddir)/scripts/
+	if [ ! -f testsuite-stamp ] ; then \
+	  cd $(builddir) && $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
+	fi
+endif
+
+	touch testsuite-stamp
+
+	touch build-stamp
+
+MAKE_PIC = cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
+
+build-stamp-pic: configure-pic
+	@echo "RULES.$@"
+	# Build libmysqld dependencies
+	#(MAKE_PIC) -C include
+	#(MAKE_PIC) -C sql link_sources
+	#(MAKE_PIC) -C libmysql link_sources
+	#(MAKE_PIC) -C strings
+	#(MAKE_PIC) -C regex
+	#(MAKE_PIC) -C mysys
+	#(MAKE_PIC) -C dbug
+	#(MAKE_PIC) -C vio
+	#(MAKE_PIC) -C storage
+	#(MAKE_PIC) -C extra/yassl
+	#(MAKE_PIC) -C cmd-line-utils
+	#(MAKE_PIC) -C sql lex_hash.h
+	$(MAKE_PIC) -C scripts
+	# Build libmysqld itself
+	$(MAKE_PIC) -C libmysqld
+	
+	touch $@
 
 clean: clean-patched unpatch
-
+	rm -rf debian/patched
 clean-patched:
-	dh clean
-	rm -rf CMakeFiles
-
-override_dh_auto_configure: patch
-ifeq ($(SKIP_DEBUG_BINARY),)
-	# Make a debug binary
-	mkdir debug
-	cd debug && \
-	$(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
-	   -DINSTALL_LAYOUT=DEB \
-	   -DCMAKE_BUILD_TYPE=Debug \
-	   -DWITH_SSL=system \
-	   -DWITH_EMBEDDED_SERVER=OFF \
-	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-	   -DFEATURE_SET=$(feature_set) \
-	   -DCOMPILATION_COMMENT=$(compilation_comment_debug) \
-	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
-	   -DWITH_PAM=ON
-endif
-
-	mkdir release
-	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
-	   -DINSTALL_LAYOUT=DEB \
-	   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	   -DWITH_SSL=system \
-	   -DWITH_EMBEDDED_SERVER=OFF \
-	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-	   -DFEATURE_SET=$(feature_set) \
-	   -DCOMPILATION_COMMENT=$(compilation_comment_release) \
-	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
-	   -DWITH_PAM=ON
-
-override_dh_auto_build:
-ifeq ($(SKIP_DEBUG_BINARY),)
-	cd debug && make $(MAKE_JFLAG)
-endif
-
-	cd release && make $(MAKE_JFLAG)
+	@echo "RULES.clean-patched"
+	dh_testdir 
+	dh_testroot
+	rm -f configure-stamp*
+	rm -f build-stamp*
+	rm -f testsuite-stamp
 	
-	# Build HandlerSocket
-	echo "Configuring HandlerSocket"
-	cd storage/HandlerSocket-Plugin-for-MySQL && \
-	bash -x autogen.sh && \
-	CXX="$${HS_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
-		./configure --with-mysql-source=$(CURDIR) \
-			--with-mysql-bindir=$(CURDIR)/release/scripts \
-			--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
-			--libdir=$(prefix)/lib \
-			--prefix=$(prefix) && \
-	make $(MAKE_JFLAG)
+	[ ! -f Makefile ] || $(MAKE) clean
+	[ ! -d mysql-test/var ] || rm -rf mysql-test/var
 	
-	# Build UDF
-	cd UDF && \
-	CXX="$${UDF_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
-		./configure --includedir=$(CURDIR)/include \
-			--libdir=$(prefix)/lib/mysql/plugin && \
-	make $(MAKE_JFLAG)
-	
-build:
-	dh build
+	rm -rf $(BUILDDIR) $(BUILDDIR_PIC)
 
-binary:
-	dh -Brelease binary
+	debconf-updatepo
+	rm -f $(EXPORTED_SOURCE_TARBALL)
+	dh_clean -v
 
-binary-arch:
-	dh -Brelease binary-arch
-
-binary-indep:
-	dh -Brelease binary-indep
 
 install:
-	dh install
+install install-pic: build
+	@echo "RULES.$@"
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
+
 
 override_dh_auto_install:
 	dh_auto_install
 	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
 	cd UDF && make DESTDIR=$(TMP) install
-
-override_dh_installinit:
-	dh_installinit --name=mysql
-
-override_dh_strip:
-	dh_strip --dbg-package=percona-server-5.5-dbg
 

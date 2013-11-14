@@ -82,7 +82,7 @@ ELSE()
 ENDIF()
 
 
-SET(MTR_FORCE perl ./mysql-test-run.pl --force)
+SET(MTR_FORCE perl ./mysql-test-run.pl --force --parallel=auto )
 IF(EXISTS ${CMAKE_SOURCE_DIR}/mysql-test/suite/nist)
   SET(TEST_NIST ${MTR_FORCE} --comment=nist suite=nist ${EXP} && 
     ${MTR_FORCE} --comment=nist --force --suite=nist+ps ${EXP})

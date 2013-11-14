@@ -148,23 +148,6 @@ MAKE_PIC = cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
 
 build-stamp-pic: configure-pic
 	@echo "RULES.$@"
-	# Build libmysqld dependencies
-	#(MAKE_PIC) -C include
-	#(MAKE_PIC) -C sql link_sources
-	#(MAKE_PIC) -C libmysql link_sources
-	#(MAKE_PIC) -C strings
-	#(MAKE_PIC) -C regex
-	#(MAKE_PIC) -C mysys
-	#(MAKE_PIC) -C dbug
-	#(MAKE_PIC) -C vio
-	#(MAKE_PIC) -C storage
-	#(MAKE_PIC) -C extra/yassl
-	#(MAKE_PIC) -C cmd-line-utils
-	#(MAKE_PIC) -C sql lex_hash.h
-	$(MAKE_PIC) -C scripts
-	# Build libmysqld itself
-	$(MAKE_PIC) -C libmysqld
-	
 	touch $@
 
 clean: clean-patched

@@ -196,7 +196,7 @@ install: build
 	#install -m 0755 -o root -g root $(BUILDDIR_PIC)/scripts/mysql_config $(TMP)/usr/bin/mysql_config_pic
 
 	# mysql-common: We now provide our own config file.
-	#install -d $(TMP)/etc/mysql
+	install -d $(TMP)/etc/mysql
 	#install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
 
 	# mysql-client

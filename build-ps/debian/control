@@ -2,9 +2,9 @@ Source: percona-server-5.6
 Section: database
 Priority: extra
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
-Uploaders: Ignacio Nin <ignacio.nin@percona.com>
-Build-Depends: debhelper (>= 7.0.50), cmake, libtool, autoconf, libncurses5-dev, perl, bison, fakeroot, devscripts, libaio-dev, libpam-dev, dpatch, automake, libssl-dev
-Standards-Version: 7.0.0
+Uploaders: Stewart Smith <stewart.smith@percona.com>, Alexey Bychko <alexey.bychko@percona.com>
+Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper (>= 8.1.3~), file (>= 3.28), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), libreadline-dev, psmisc, po-debconf, chrpath, doxygen-latex, ghostscript,  gawk, bison, lsb-release, hardening-wrapper, cmake, dh-apparmor, gcc-4.4 [any-i386], g++-4.4 [any-i386], libaio-dev[linux-any], libpam-dev, libssl-dev
+Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Bzr: lp:percona-server/5.6
 
@@ -48,7 +48,6 @@ Package: percona-server-common-5.6
 Section: database
 Architecture: any
 Depends: ${misc:Depends}
-Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common, percona-server-common-5.1, percona-server-common-5.5
 Provides: mysql-common
 Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common, percona-server-common-5.1, percona-server-common-5.5
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)

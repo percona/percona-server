@@ -1,92 +1,300 @@
 #!/usr/bin/make -f
 
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
+export DEB_BUILD_HARDENING=1
 
-include /usr/share/dpatch/dpatch.make
+PACKAGE=percona-server-5.6
+PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
 
-CMAKE=cmake
 TMP=$(CURDIR)/debian/tmp/
 
-feature_set="community"
-major_version=60
-minor_version=6
-compilation_comment_release="Percona Server (GPL), Release $(major_version).$(minor_version)"
-server_suffix="-rc$(major_version).$(minor_version)"
-prefix="/usr"
+ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
 
-clean: clean-patched unpatch
+ifneq (,$(filter $(ARCH), i386 kfreebsd-i386 hurd-i386))
+    USE_THIS_GCC_VERSION:=-4.4
+endif
+
+export MYSQL_BUILD_CC=$(DEB_HOST_GNU_TYPE)-gcc$(USE_THIS_GCC_VERSION)
+export MYSQL_BUILD_CXX=$(DEB_HOST_GNU_TYPE)-g++$(USE_THIS_GCC_VERSION)
+
+
+DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
+DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
+DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
+DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
+DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+EXPORTED_SOURCE_TARBALL = debian/percona-server-source-5.5.tar.gz
+
+DISTRIBUTION = $(shell lsb_release -i -s)
+
+MYSQL_SRC = $(shell pwd)
+
+MAKE_TEST_TARGET=test-force
+ifneq ($(findstring fulltest,$(DEB_BUILD_OPTIONS)),)
+# make test-bt is the testsuite run by the MySQL build team 
+# before a release, but it is long
+    MAKE_TEST_TARGET=test-bt
+endif
+
+USE_ASSEMBLER=--enable-assembler 
+
+ifneq (,$(filter $(ARCH), amd64 i386))
+    TESTSUITE_FAIL_CMD=exit 1
+else
+    TESTSUITE_FAIL_CMD=true
+endif
+
+builddir = builddir
+
+# This causes seg11 crashes if LDAP is used for groups in /etc/nsswitch.conf
+# so it is disabled by default although, according to MySQL, it brings >10%
+# performance gain if enabled. See #299382.
+ifeq ($(STATIC_MYSQLD), 1)
+    USE_STATIC_MYSQLD=--with-mysqld-ldflags=-all-static
+endif
+
+# See http://blogs.innodb.com/wp/2010/04/innodb-performance-aio-linux/
+# Also #659565
+ifneq (,$(findstring linux-gnu,$(DEB_HOST_GNU_TYPE)))
+    USE_LINUX_NATIVE_AIO:=-DLINUX_NATIVE_AIO=ON
+endif
+
+configure: patch configure-stamp
+
+configure-stamp:
+	@echo "RULES.$@"
+	dh_testdir
+
+ifneq ($(ARCH_OS),hurd)
+	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
+endif
+
+	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
+	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
+	    	CC=$${MYSQL_BUILD_CC:-gcc} \
+	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O3 -DBIG_JOINS=1"} \
+	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -DBIG_JOINS=1 -felide-constructors -fno-exceptions -fno-rtti"} \
+	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
+		\
+		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+	       	-DMYSQL_USER=mysql \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+		-DWITH_LIBWRAP=ON \
+		-DWITH_READLINE=OFF \
+		-DWITH_LIBEDIT=OFF \
+		$(USE_STATIC_MYSQLD) \
+		$(USE_LINUX_NATIVE_AIO) \
+		-DWITH_SSL=bundled \
+	    -DCOMPILATION_COMMENT="($(DISTRIBUTION))" \
+	    -DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
+	    -DSYSTEM_TYPE="debian-linux-gnu" \
+	    -DINSTALL_LAYOUT=RPM \
+	    -DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+	    -DINSTALL_PLUGINDIR=lib/mysql/plugin \
+        -DWITH_EMBEDDED_SERVER=OFF \
+	    -DWITH_ARCHIVE_STORAGE_ENGINE=ON \
+	    -DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
+	    -DWITH_FEDERATED_STORAGE_ENGINE=ON \
+		-DWITH_EXTRA_CHARSETS=all ..'
+		
+	#       --sysconfdir=/etc/mysql  -- Appends /etc/mysql after ~/ in the my.cnf search patch!
+	#
+	#	--with-debug
+	
+	touch $@
+
+
+build: build-stamp
+
+build-stamp: configure
+	@echo "RULES.$@"
+	dh_testdir
+	
+	[ -f $(EXPORTED_SOURCE_TARBALL) ] || tar -zcf $(EXPORTED_SOURCE_TARBALL) \
+	--exclude=debian . \
+	--transform="s,^\./,mysql-5.5/,"
+
+	cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
+
+ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
+	# Don't know why the following is necessary...
+	cp unittest/unit.pl $(builddir)/unittest/
+	cp -r mysql-test/* $(builddir)/mysql-test/
+	cp -r sql/share/* $(builddir)/sql/share/
+	cp -r scripts/*sql $(builddir)/scripts/
+	if [ ! -f testsuite-stamp ] ; then \
+	  cd $(builddir) && $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
+	fi
+endif
+
+	touch testsuite-stamp
+
+	touch build-stamp
+
+clean: clean-patched
+	rm -rf debian/patched
 
 clean-patched:
-	dh clean
-	rm -rf CMakeFiles
-
-override_dh_auto_configure: patch
-ifeq ($(SKIP_DEBUG_BINARY),)
-	# Make a debug binary
-	mkdir debug
-	cd debug && \
-	$(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
-	   -DINSTALL_LAYOUT=DEB \
-	   -DCMAKE_BUILD_TYPE=Debug \
-	   -DWITH_SSL=system \
-	   -DWITH_EMBEDDED_SERVER=OFF \
-	   -DWITH_INNODB_MEMCACHED=ON \
-	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-	   -DFEATURE_SET=$(feature_set) \
-	   -DCOMPILATION_COMMENT=$(compilation_comment_debug) \
-	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
-	   -DWITH_PAM=ON
-endif
-
-	mkdir release
-	cd release && $(CMAKE) ../ -DBUILD_CONFIG=mysql_release \
-	   -DINSTALL_LAYOUT=DEB \
-	   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	   -DWITH_SSL=system \
-	   -DWITH_EMBEDDED_SERVER=OFF \
-	   -DWITH_INNODB_MEMCACHED=ON \
-	   -DMYSQL_UNIX_ADDR="/var/run/mysqld/mysqld.sock" \
-	   -DFEATURE_SET=$(feature_set) \
-	   -DCOMPILATION_COMMENT=$(compilation_comment_release) \
-	   -DMYSQL_SERVER_SUFFIX=$(server_suffix) \
-	   -DWITH_PAM=ON
-
-override_dh_auto_build:
-ifeq ($(SKIP_DEBUG_BINARY),)
-	cd debug && make $(MAKE_JFLAG)
-endif
-
-	cd release && make $(MAKE_JFLAG)
-
-	# Build UDF
-	cd UDF && \
-	CXX="$${UDF_CXX:-g++}" CXXFLAGS="$(CXXFLAGS) -I$(CURDIR)/release/include" \
-		./configure --includedir=$(CURDIR)/include \
-			--libdir=$(prefix)/lib/mysql/plugin && \
-	make $(MAKE_JFLAG)
+	@echo "RULES.clean-patched"
+	dh_testdir 
+	dh_testroot
+	rm -f configure-stamp*
+	rm -f build-stamp*
+	rm -f testsuite-stamp
 	
-build:
-	dh build
+	[ ! -f Makefile ] || $(MAKE) clean
+	[ ! -d mysql-test/var ] || rm -rf mysql-test/var
+	
+	rm -rf $(builddir)
 
-binary:
-	dh -Brelease binary
+	debconf-updatepo
+	rm -f $(EXPORTED_SOURCE_TARBALL)
+	dh_clean -v
 
-binary-arch:
-	dh -Brelease binary-arch
 
-binary-indep:
-	dh -Brelease binary-indep
+install: build
+	@echo "RULES.$@"
+	dh_testdir
+	dh_testroot
+	dh_prep
+	dh_installdirs
 
-install:
-	dh install
+	# make install (trailing slash needed for innobase)
+	cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/
+		
+	# After installing, remove rpath to make lintian happy.
+	set +e; \
+	find ./debian/tmp/ -type f -print0 \
+		| xargs -0 --no-run-if-empty chrpath -k 2>/dev/null \
+		| fgrep RPATH= \
+		| cut -d: -f 1 \
+		| xargs --no-run-if-empty chrpath -d; \
+	set -e
+
+	# libperconaserverclient: move shared libraries (but not the rest like libheap.a & co)
+	# libmysqlclient_r is now a symlink to libmysqlclient. But it is
+	# created wrong by the cmake build system and points at
+	# libmysqlclient.so instead of the corresponding versioned lib.
+	for i in `ls $(TMP)/usr/lib/$(DEB_HOST_MULTIARCH)/libperconaserverclient.so*` ; do \
+		rlib=`basename $$i | sed -e 's/libperconaserverclient\./libperconaserverclient_r./'` ;\
+		ln -sf `basename $$i` $(TMP)/usr/lib/$(DEB_HOST_MULTIARCH)/$$rlib ;\
+	done
+
+	# libmysqlclient-dev: forgotten header file since 3.23.25?
+	#cp $(BUILDDIR)/include/my_config.h $(TMP)/usr/include/mysql/
+	#cp include/my_dir.h $(TMP)/usr/include/mysql/
+	# install libmysqld built with -FPIC
+	install -d -m 0755 -o root -g root $(TMP)/usr/lib/percona-server
+	#install -m 0644 -o root -g root $(BUILDDIR_PIC)/libmysqld/libmysqld.a $(TMP)/usr/lib/mysql/libmysqld_pic.a
+	# mysql_config won't report the -fPIC, so give libmysqld-pic users a way to get their flags
+	#install -m 0755 -o root -g root $(BUILDDIR_PIC)/scripts/mysql_config $(TMP)/usr/bin/mysql_config_pic
+
+	# mysql-common: We now provide our own config file.
+	install -d $(TMP)/etc/mysql
+	#install -m 0644 debian/additions/my.cnf $(TMP)/etc/mysql/my.cnf
+
+	# mysql-client
+	#FIXME install -m 0755 debian/additions/mysqlreport $(TMP)/usr/bin/
+	#FIXME install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
+	#FIXME install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
+
+	# mysql-5.5-testsuite
+	mkdir -p $(TMP)/usr/lib/percona-server-testsuite
+	cp -rp $(TMP)/usr/share/mysql-test/* $(TMP)/usr/lib/percona-server-testsuite
+
+	# mysql-server
+	mkdir -p $(TMP)/usr/share/doc/percona-server-5.5/examples
+	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.5/examples/
+	rm -vf $(TMP)/usr/share/percona-server/mi_test_all* \
+	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
+	       $(TMP)/usr/share/percona-server/mysql.server \
+	       $(TMP)/usr/share/percona-server/binary-configure
+	nm -n $(BUILDDIR)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.5/mysqld.sym.gz
+	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
+	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
+	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+
+	# install AppArmor profile
+	# FIXME install -D -m 644 debian/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
+	# install Apport hook
+	# FIXME install -D -m 644 debian/mysql-server-5.5.py $(TMP)/usr/share/apport/package-hooks/source_mysql-5.5.py
+
+	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
+
+	dh_movefiles
+
+# Build architecture-independent files here.
+binary-indep: build install
+	@echo "RULES.binary-indep"
+	dh_testdir -i
+	dh_testroot -i
+	dh_installdebconf -i
+	dh_installdocs -i
+	dh_installexamples -i
+	dh_installmenu -i
+	dh_installlogrotate -i
+	dh_installinit -i
+	dh_installcron -i 
+	dh_installman -i
+	dh_installinfo -i
+	dh_installlogcheck -i
+	dh_installchangelogs -i
+	dh_link -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_perl -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+
+binary-arch: build install
+	@echo "RULES.binary-arch"
+	dh_testdir 
+	dh_testroot
+
+	dh_installdebconf -a
+	dh_installdocs -a
+	dh_installexamples -a
+	dh_installmenu -a
+	dh_installlogrotate -a --name mysql-server
+	if [ "$(DISTRIBUTION)" = "Ubuntu" ]; then \
+	  dh_apparmor -pmysql-server-5.5 --profile-name=usr.sbin.mysqld; \
+	fi
+	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
+	# started which might depend on a running database server.
+	dh_installinit -a --name=mysql -- defaults 19 21
+	dh_installcron -a --name mysql-server
+	dh_installman -a
+	dh_installinfo -a
+	dh_installlogcheck -a
+	dh_installchangelogs -a
+	dh_strip -a
+	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
+	dh_compress -a
+	dh_fixperms -a
+	#dh_makeshlibs -a
+	dh_makeshlibs -plibmysqlclient18 -V'libmysqlclient18 (>= 5.5.13-1)'
+	dh_installdeb -a
+	dh_perl -a
+	#dh_shlibdeps -a -l debian/libmysqlclient16/usr/lib -L libmysqlclient16
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+binary:	binary-indep binary-arch
 
 override_dh_auto_install:
 	dh_auto_install
 	cd UDF && make DESTDIR=$(TMP) install
 
-override_dh_installinit:
-	dh_installinit --name=mysql --error-handler=:
-
-override_dh_strip:
-	dh_strip --dbg-package=percona-server-5.6-dbg
+.PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch
 

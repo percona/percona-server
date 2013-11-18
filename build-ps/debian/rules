@@ -35,7 +35,7 @@ DISTRIBUTION = $(shell lsb_release -i -s)
 
 MYSQL_SRC = $(shell pwd)
 
-MAKE_TEST_TARGET=test-force
+MAKE_TEST_TARGET=test-mtr
 ifneq ($(findstring fulltest,$(DEB_BUILD_OPTIONS)),)
 # make test-bt is the testsuite run by the MySQL build team 
 # before a release, but it is long
@@ -130,6 +130,7 @@ ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
 	cp -r sql/share/* $(builddir)/sql/share/
 	cp -r scripts/*sql $(builddir)/scripts/
 	if [ ! -f testsuite-stamp ] ; then \
+	  (cd $(builddir) && $(MAKE) test-unit) || $(TESTSUITE_FAIL_CMD) ; \
 	  cd $(builddir) && $(MAKE) $(MAKE_TEST_TARGET) || $(TESTSUITE_FAIL_CMD) ; \
 	fi
 endif

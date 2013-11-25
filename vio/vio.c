@@ -467,3 +467,4 @@ void get_vio_type_name(enum enum_vio_type vio_type, const char ** str, int * len
   *len= vio_type_names[index].m_len;
   return;
 }
+

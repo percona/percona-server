@@ -271,5 +271,32 @@ CREATE TABLE `t1` (
 
 DROP TABLE t1;
 
+#############################################################################
+# Bug #1233841: mysqldump --innodb-optimize-keys produces incorrect
+#               CREATE TABLE statement for partitioned tables
+#############################################################################
+
+CREATE TABLE `t1` (
+   `id` int(11) NOT NULL AUTO_INCREMENT,
+   `c1` int(11) DEFAULT NULL,
+   PRIMARY KEY (`id`),
+   KEY `c1` (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+/*!50100 PARTITION BY HASH (id)
+PARTITIONS 2*/;
+
+--exec $MYSQL_DUMP --skip-comments --innodb-optimize-keys test t1 >$file
+
+--echo ######################################
+--cat_file $file
+--echo ######################################
+
+# Check that the resulting dump can be imported back
+
+--exec $MYSQL test < $file
+
+--remove_file $file
+
+DROP TABLE t1;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

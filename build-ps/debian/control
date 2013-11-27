@@ -87,6 +87,7 @@ Description: Percona Server database server binaries
 Package: percona-server-5.1-dbg
 Architecture: any
 Section: debug
+Priority: extra
 Depends: percona-server-server-5.1 (= ${binary:Version}), ${misc:Depends}
 Description: Debugging package for Percona Server
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL

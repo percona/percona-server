@@ -54,4 +54,4 @@ usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man8/mysqld.8
 usr/share/percona-server/
 usr/share/percona-server-test/
-usr/lib/percona-server/plugin/*
+usr/lib/percona-server/plugin/*.so

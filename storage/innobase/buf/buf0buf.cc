@@ -2571,7 +2571,7 @@ Wait for the block to be read in.
 @param trx	Transaction to account the I/Os to */
 static
 void
-buf_wait_for_read(buf_block_t* block, trx_t* trx __attribute__((unused)))
+buf_wait_for_read(buf_block_t* block, trx_t* trx)
 {
 	/* Note: For the PAGE_ATOMIC_REF_COUNT case:
 
@@ -2581,11 +2581,23 @@ buf_wait_for_read(buf_block_t* block, trx_t* trx __attribute__((unused)))
 	access the block (and check for IO state) after the block has been
 	added to the page hashtable. */
 
-	if (buf_block_get_io_fix(block) == BUF_IO_READ) {
+	if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
+
+		ib_uint64_t	start_time;
+		ulint		sec;
+		ulint		ms;
 
 		/* Wait until the read operation completes */
 
 		ib_mutex_t*	mutex = buf_page_get_mutex(&block->page);
+
+		if (UNIV_UNLIKELY(trx && trx->take_stats))
+		{
+			ut_usectime(&sec, &ms);
+			start_time = (ib_uint64_t)sec * 1000000 + ms;
+		} else {
+			start_time = 0;
+		}
 
 		for (;;) {
 			buf_io_fix	io_fix;
@@ -2604,6 +2616,16 @@ buf_wait_for_read(buf_block_t* block, trx_t* trx __attribute__((unused)))
 				break;
 			}
 		}
+
+		if (UNIV_UNLIKELY(start_time != 0))
+		{
+			ut_usectime(&sec, &ms);
+			ib_uint64_t finish_time
+				= (ib_uint64_t)sec * 1000000 + ms;
+			trx->io_reads_wait_timer
+				+= (ulint)(finish_time - start_time);
+		}
+
 	}
 }
 
@@ -2956,7 +2978,7 @@ got_block:
 
 		rw_lock_x_unlock(hash_lock);
 
-		++buf_pool->n_pend_unzip;
+		os_atomic_increment_ulint(&buf_pool->n_pend_unzip, 1);
 
 		mutex_exit(&buf_pool->zip_mutex);
 
@@ -2995,7 +3017,7 @@ got_block:
 
 		buf_block_mutex_exit(fix_block);
 
-		--buf_pool->n_pend_unzip;
+		os_atomic_decrement_ulint(&buf_pool->n_pend_unzip, 1);
 
 		rw_lock_x_unlock(&block->lock);
 
@@ -3081,6 +3103,8 @@ got_block:
 			guess = fix_block;
 			goto loop;
 		}
+
+		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		buf_block_mutex_exit(fix_block);
 
@@ -3581,9 +3605,12 @@ buf_page_init(
 	if (hash_page == NULL) {
 		/* Block not found in the hash table */
 	} else if (buf_pool_watch_is_sentinel(buf_pool, hash_page)) {
+
+		mutex_enter(&buf_pool->zip_mutex);
+
 		ib_uint32_t	buf_fix_count = hash_page->buf_fix_count;
 
-	ut_a(buf_fix_count > 0);
+		ut_a(buf_fix_count > 0);
 
 #ifdef PAGE_ATOMIC_REF_COUNT
 		os_atomic_increment_uint32(
@@ -3655,7 +3682,7 @@ buf_page_init_for_read(
 	prio_rw_lock_t*	hash_lock;
 	mtr_t		mtr;
 	ulint		fold;
-	ibool		lru	= FALSE;
+	ibool		lru;
 	void*		data;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
@@ -3741,7 +3768,6 @@ err_exit:
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
 		mutex_exit(&buf_pool->LRU_list_mutex);
-		lru = TRUE;
 
 		/* We set a pass-type x-lock on the frame because then
 		the same thread which called for the read operation
@@ -3797,28 +3823,24 @@ err_exit:
 
 		rw_lock_x_lock(hash_lock);
 
-		/* If buf_buddy_alloc() allocated storage from the LRU list,
-		it released and reacquired buf_pool->LRU_list_mutex.  Thus, we
-		must check the page_hash again, as it may have been
+		/* We must check the page_hash again, as it may have been
 		modified. */
-		if (UNIV_UNLIKELY(lru)) {
 
-			watch_page = buf_page_hash_get_low(
+		watch_page = buf_page_hash_get_low(
 				buf_pool, space, offset, fold);
 
-			if (UNIV_UNLIKELY(watch_page
+		if (UNIV_UNLIKELY(watch_page
 			    && !buf_pool_watch_is_sentinel(buf_pool,
 							   watch_page))) {
 
-				/* The block was added by some other thread. */
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				rw_lock_x_unlock(hash_lock);
-				watch_page = NULL;
-				buf_buddy_free(buf_pool, data, zip_size);
+			/* The block was added by some other thread. */
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			rw_lock_x_unlock(hash_lock);
+			watch_page = NULL;
+			buf_buddy_free(buf_pool, data, zip_size);
 
-				bpage = NULL;
-				goto func_exit;
-			}
+			bpage = NULL;
+			goto func_exit;
 		}
 
 		bpage = buf_page_alloc_descriptor();
@@ -3858,6 +3880,8 @@ err_exit:
 			buf_fix_count = watch_page->buf_fix_count;
 
 			ut_a(buf_fix_count > 0);
+
+			ut_ad(buf_own_zip_mutex_for_page(bpage));
 
 #ifdef PAGE_ATOMIC_REF_COUNT
 			os_atomic_increment_uint32(

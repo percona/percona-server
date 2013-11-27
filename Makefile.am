@@ -221,7 +221,6 @@ BUILD_PS_EXTRA_DIST = \
 	build-ps/debian/percona-server-client-5.1.files \
 	build-ps/debian/percona-server-client-5.1.links \
 	build-ps/debian/percona-server-client-5.1.lintian-overrides \
-	build-ps/debian/percona-server-client-5.1.menu \
 	build-ps/debian/percona-server-common-5.1.dirs \
 	build-ps/debian/percona-server-common-5.1.files \
 	build-ps/debian/percona-server-common-5.1.lintian-overrides \

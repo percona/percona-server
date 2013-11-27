@@ -68,7 +68,6 @@ configure-stamp:
 ifneq ($(ARCH_OS),hurd)
 	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
 endif
-	sh -c "./BUILD/autorun.sh"
 
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
@@ -189,7 +188,6 @@ install: build
 	$(MAKE) install DESTDIR=$(TMP)/
 	# build HandlerSockect
 	cd storage/HandlerSocket-Plugin-for-MySQL && \
-	./autogen.sh && \
 	CXX="$${HS_CXX:-g++}" ./configure --with-mysql-source="$(MYSQL_SRC)" \
 	--with-mysql-bindir="$(MYSQL_SRC)/scripts" \
 	--with-mysql-plugindir="/usr/lib/percona-server/plugin" \
@@ -198,7 +196,7 @@ install: build
 	$(MAKE) $(MAKE_JFLAG)
 	cd storage/HandlerSocket-Plugin-for-MySQL && $(MAKE) install DESTDIR=$(TMP)/
 	# build Maatkit UDF
-	cd UDF/ && autoreconf --install && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/percona-server/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
+	cd UDF/ && CXX="$${UDF_CXX:-g++}" ./configure --includedir=$(MYSQL_SRC)/include --libdir=/usr/lib/percona-server/plugin && $(MAKE) all && $(MAKE) install DESTDIR=$(TMP)/
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

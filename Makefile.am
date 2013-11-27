@@ -149,7 +149,29 @@ HANDLERSOCKET_EXTRA_DIST = \
 	storage/HandlerSocket-Plugin-for-MySQL/regtest/test_01_lib/test23.pl \
 	storage/HandlerSocket-Plugin-for-MySQL/regtest/test_01_lib/test24.expected \
 	storage/HandlerSocket-Plugin-for-MySQL/regtest/test_01_lib/test24.pl \
-	storage/HandlerSocket-Plugin-for-MySQL/configure.ac
+	storage/HandlerSocket-Plugin-for-MySQL/configure.ac \
+	storage/HandlerSocket-Plugin-for-MySQL/configure \
+	storage/HandlerSocket-Plugin-for-MySQL/install-sh \
+	storage/HandlerSocket-Plugin-for-MySQL/config.sub \
+	storage/HandlerSocket-Plugin-for-MySQL/config.guess \
+	storage/HandlerSocket-Plugin-for-MySQL/Makefile.in \
+	storage/HandlerSocket-Plugin-for-MySQL/client/Makefile.in \
+	storage/HandlerSocket-Plugin-for-MySQL/handlersocket/Makefile.in \
+	storage/HandlerSocket-Plugin-for-MySQL/libhsclient/Makefile.in \
+	storage/HandlerSocket-Plugin-for-MySQL/config.h.in \
+	storage/HandlerSocket-Plugin-for-MySQL/m4/libtool.m4 \
+	storage/HandlerSocket-Plugin-for-MySQL/m4/ltoptions.m4 \
+	storage/HandlerSocket-Plugin-for-MySQL/m4/ltsugar.m4 \
+	storage/HandlerSocket-Plugin-for-MySQL/m4/ltversion.m4 \
+	storage/HandlerSocket-Plugin-for-MySQL/m4/lt~obsolete.m4 \
+	storage/HandlerSocket-Plugin-for-MySQL/missing \
+	storage/HandlerSocket-Plugin-for-MySQL/ltmain.sh \
+	storage/HandlerSocket-Plugin-for-MySQL/depcomp
+
+
+
+storage/HandlerSocket-Plugin-for-MySQL/configure: storage/HandlerSocket-Plugin-for-MySQL/autogen.sh
+	(cd storage/HandlerSocket-Plugin-for-MySQL/; ./autogen.sh)
 
 UDF_EXTRA_DIST = \
 	UDF/Makefile.am \
@@ -157,7 +179,21 @@ UDF_EXTRA_DIST = \
 	UDF/src/fnv_udf.cc \
 	UDF/src/Makefile.am \
 	UDF/src/murmur_udf.cc \
-	UDF/configure.ac
+	UDF/configure.ac \
+	UDF/configure \
+	UDF/config.h.in \
+	UDF/Makefile.in \
+	UDF/src/Makefile.in \
+	UDF/m4/libtool.m4 \
+	UDF/m4/ltoptions.m4 \
+	UDF/m4/ltsugar.m4 \
+	UDF/m4/ltversion.m4 \
+	UDF/m4/lt~obsolete.m4
+
+
+
+UDF/configure: UDF/configure.ac
+	(cd UDF/; autoreconf --install)
 
 BUILD_PS_EXTRA_DIST = \
 	build-ps/build-dpkg.sh \

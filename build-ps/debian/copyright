@@ -29,7 +29,7 @@ Comments: Modified from original MySQL 5.5 debian/copyright file by
  > .
  > Updated July 1, 2010
  > .
- > What is the FOSS License Exception?  Oracle¿s Free and Open Source
+ > What is the FOSS License Exception?  Oracle's Free and Open Source
  > Software ("FOSS") License Exception (formerly known as the FLOSS
  > License Exception) allows developers of FOSS applications to include
  > Oracle's MySQL Client Libraries (also referred to as "MySQL Drivers"

@@ -1,0 +1,4 @@
+# We are libmysqlclient, so of course we look like it.
+embedded-library usr/lib/libperconaserverclient.so.16.0.0: libmysqlclient
+embedded-library usr/lib/libperconaserverclient_r.so.16.0.0: libmysqlclient
+

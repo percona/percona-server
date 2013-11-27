@@ -13,13 +13,13 @@
 connection default;
 let $default_id = `select connection_id()`;
 send SELECT sleep(50000);
---sleep  1 
+--sleep 2.5
 
 connect(con2,localhost,root,,);
 connection con2;
 let $con2_id = `select connection_id()`;
 send SELECT sleep(50000);
---sleep  0.5
+--sleep  2.5
 
 --disable_abort_on_error
 --disable_result_log

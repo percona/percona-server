@@ -1,4 +1,20 @@
+percona-server-server-5.1: embedded-library usr/sbin/mysqld: libmysqlclient
 percona-server-server-5.1: possible-bashism-in-maintainer-script postinst:81 'p{("a".."z","A".."Z",0..9)[int(rand(62))]}'
 percona-server-server-5.1: possible-bashism-in-maintainer-script preinst:33 '${cmd/ */}'
 percona-server-server-5.1: statically-linked-binary ./usr/bin/mysql_tzinfo_to_sql
 percona-server-server-5.1: statically-linked-binary ./usr/sbin/mysqld
+percona-server-server-5.1: command-with-path-in-maintainer-script postinst:141 /bin/bash
+percona-server-server-5.1: command-with-path-in-maintainer-script postinst:195 /bin/echo
+percona-server-server-5.1: command-with-path-in-maintainer-script postinst:207 /bin/echo
+percona-server-server-5.1: command-with-path-in-maintainer-script postinst:216 /bin/echo
+percona-server-server-5.1: command-with-path-in-maintainer-script postinst:228 /bin/echo
+percona-server-server-5.1: command-with-path-in-maintainer-script preinst:53 /bin/echo
+percona-server-server-5.1: command-with-path-in-maintainer-script preinst:54 /bin/echo
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/lib/v1/mysql-test-run.pl
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/std_data/checkDBI_DBD-mysql.pl
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/suite/engines/rr_trx/run_stress_tx_rr.pl
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/suite/funcs_1/lib/DataGen_local.pl
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/suite/funcs_1/lib/DataGen_modify.pl
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/suite/funcs_2/lib/gen_charset_utf8.pl
+percona-server-server-5.1: script-not-executable usr/share/percona-server-test/t/backup-master.sh
+

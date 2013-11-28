@@ -215,6 +215,7 @@ BUILD_PS_EXTRA_DIST = \
 	build-ps/debian/libperconaserverclient16-dev.examples \
 	build-ps/debian/libperconaserverclient16-dev.files \
 	build-ps/debian/libperconaserverclient16-dev.links \
+	build-ps/debian/libperconaserverclient16.lintian-overrides \
 	build-ps/debian/libperconaserverclient16-dev.README.Maintainer \
 	build-ps/debian/percona-server-server-5.1.docs \
 	build-ps/debian/percona-server-client-5.1.README.Debian \

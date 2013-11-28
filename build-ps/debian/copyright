@@ -120,7 +120,7 @@ Comments: Modified from original MySQL 5.5 debian/copyright file by
  > Terms and Conditions.
  .
  The above text is subject to this copyright notice:
- © 2010, Oracle and/or its affiliats.
+ (C) 2010, Oracle and/or its affiliats.
 
 Files: *
 Copyright: 2009-2013 Percona LLC

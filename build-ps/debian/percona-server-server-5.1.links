@@ -1,2 +1,3 @@
 usr/share/percona-server-test/mysql-test-run.pl usr/share/percona-server-test/mysql-test-run
 usr/share/percona-server-test/mysql-test-run.pl usr/share/percona-server-test/mtr
+usr/share/percona-server usr/share/mysql

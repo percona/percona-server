@@ -165,6 +165,7 @@ HANDLERSOCKET_EXTRA_DIST = \
 	storage/HandlerSocket-Plugin-for-MySQL/m4/ltversion.m4 \
 	storage/HandlerSocket-Plugin-for-MySQL/m4/lt~obsolete.m4 \
 	storage/HandlerSocket-Plugin-for-MySQL/missing \
+	storage/HandlerSocket-Plugin-for-MySQL/aclocal.m4 \
 	storage/HandlerSocket-Plugin-for-MySQL/ltmain.sh \
 	storage/HandlerSocket-Plugin-for-MySQL/depcomp
 
@@ -183,6 +184,7 @@ UDF_EXTRA_DIST = \
 	UDF/configure \
 	UDF/config.h.in \
 	UDF/Makefile.in \
+	UDF/aclocal.m4 \
 	UDF/src/Makefile.in \
 	UDF/m4/libtool.m4 \
 	UDF/m4/ltoptions.m4 \

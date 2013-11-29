@@ -51,7 +51,7 @@ Depends: ${misc:Depends}
 Provides: mysql-common
 Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common, percona-server-common-5.1, percona-server-common-5.5
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
- Percona Server is a fast, stable and true multi-user, multi-threaded SQL 
+ Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database
  query language in the world. The main goals of Percona Server are speed, 
  robustness and ease of use.
@@ -133,7 +133,7 @@ Description: Percona Server database test suite
 
 Package: percona-server-5.6-dbg
 Architecture: any
-Section: debug
+Section: extra
 Depends: percona-server-server-5.6 (= ${binary:Version}), ${misc:Depends}
 Description: Debugging package for Percona Server
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL

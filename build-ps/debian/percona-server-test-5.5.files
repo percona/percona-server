@@ -1,1 +1,2 @@
-usr/share/percona-server-testsuite
+usr/share/mysql-test
+usr/lib/percona-server-testsuite

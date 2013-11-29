@@ -19,7 +19,7 @@ Archived log file name format is ``ib_log_archive_<startlsn>``. The start LSN ma
 
 The oldest archived logs can be removed automatically by setting up the :variable:`innodb_log_arch_expire_sec` variable.
 
-This feature can be used to create incremental backups with |Percona XtraBackup| as described in this :ref:`guide <xtrabackup:xb_incremental_ps_56>`.
+This feature can be used to create incremental backups with |Percona XtraBackup| as described in this :ref:`guide <xb21:xb_incremental_ps_56>`.
 
 User statements for handling the XtraDB log archiving
 ======================================================

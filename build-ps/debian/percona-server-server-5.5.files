@@ -1,4 +1,4 @@
-usr/lib/mysql/plugin
+usr/lib/percona-server/plugin
 usr/bin/innochecksum
 usr/bin/msql2mysql
 usr/bin/my_print_defaults
@@ -51,6 +51,6 @@ usr/share/man/man1/mysql.server.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/mysqlman.1
 usr/share/man/man8/mysqld.8
-usr/share/mysql/
+usr/share/percona-server
 debian/additions/debian-start etc/mysql/
 debian/additions/debian-start.inc.sh usr/share/mysql

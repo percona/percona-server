@@ -4,14 +4,13 @@
  Multiple Rollback Segments
 ============================
 
-In Percona Server 5.1, an improvement was provided for write-intensive
-workloads that allowed multiple rollback segments to be used. It has
-been removed from |Percona Server| 5.5.11-20.2 because an equivalent
-variable, ``innodb_rollback_segment``, has been implemented in |MySQL|
-5.5, and so the MySQL 5.5 implementation is available in Percona
-Server 5.5.
+.. warning:: 
 
-Percona Server, in addition to the upstream multiple rollback segment implementation, provides the additonal Information Schema table: INFORMATION_SCHEMA.INNODB_RSEG.
+   This feature has been removed in |Percona Server| :rn:`5.5.11-20.2` because an equivalent variable, `innodb_rollback_segments <http://dev.mysql.com/doc/refman/5.5/en/innodb-parameters.html#sysvar_innodb_rollback_segments>`_, has been implemented in the upstream version. 
+
+In |Percona Server| 5.1, an improvement was provided for write-intensive workloads that allowed multiple rollback segments to be used. 
+
+|Percona Server|, in addition to the upstream multiple rollback segment implementation, provides the additional Information Schema table: :table:`INNODB_RSEG`.
 
 ``INFORMATION_SCHEMA`` Tables
 =============================

@@ -12,6 +12,7 @@ Package: libperconaserverclient18
 Section: libs
 Architecture: any
 Replaces: libpercona-server-client18
+Pre-Depends: multiarch-support
 Depends: ${misc:Depends}
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 

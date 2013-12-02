@@ -560,6 +560,8 @@ typedef struct system_variables
 
   my_bool expand_fast_index_creation;
   my_bool pseudo_slave_mode;
+
+  uint threadpool_high_prio_tickets;
 } SV;
 
 

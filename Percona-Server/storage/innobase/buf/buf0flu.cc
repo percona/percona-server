@@ -2645,6 +2645,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
+	ulint	last_activity_time = ut_time_ms();
 
 	ut_ad(!srv_read_only_mode);
 
@@ -2666,6 +2667,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		ulint	page_cleaner_sleep_time;
+		ibool	server_active;
 
 		srv_current_thread_priority = srv_cleaner_thread_priority;
 
@@ -2683,8 +2685,15 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 		next_loop_time = ut_time_ms() + page_cleaner_sleep_time;
 
-		if (srv_check_activity(last_activity)) {
-			last_activity = srv_get_activity_count();
+		server_active = srv_check_activity(last_activity);
+		if (server_active
+		    || ut_time_ms() - last_activity_time < 1000) {
+
+			if (server_active) {
+
+				last_activity = srv_get_activity_count();
+				last_activity_time = ut_time_ms();
+			}
 
 			/* Flush pages from flush_list if required */
 			n_flushed += page_cleaner_flush_pages_if_needed();

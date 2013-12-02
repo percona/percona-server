@@ -722,7 +722,7 @@ static connection_t * listener(worker_thread_t *current_thread,
       }
       else
       {
-        c->tickets= threadpool_high_prio_tickets;
+        c->tickets= c->thd->variables.threadpool_high_prio_tickets;
         thread_group->queue.push_back(c);
       }
     }
@@ -1019,7 +1019,7 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
   DBUG_ENTER("queue_put");
 
   mysql_mutex_lock(&thread_group->mutex);
-  connection->tickets= threadpool_high_prio_tickets;
+  connection->tickets= connection->thd->variables.threadpool_high_prio_tickets;
   thread_group->queue.push_back(connection);
 
   if (thread_group->active_thread_count == 0)

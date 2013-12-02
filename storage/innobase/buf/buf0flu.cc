@@ -981,9 +981,10 @@ buf_flush_write_block_low(
 Writes a flushable page asynchronously from the buffer pool to a file.
 NOTE: in simulated aio we must call
 os_aio_simulated_wake_handler_threads after we have posted a batch of
-writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
-held upon entering this function, and they will be released by this
-function if it returns true.
+writes! NOTE: buf_page_get_mutex(bpage) must be held upon entering this
+function, and it will be released by this function if it returns true.
+LRU_list_mutex must be held iff performing a single page flush and will be
+released by the function if it returns true.
 @return TRUE if the page was flushed */
 UNIV_INTERN
 bool
@@ -1059,7 +1060,12 @@ buf_flush_page(
 
 		++buf_pool->n_flush[flush_type];
 
+		mutex_exit(&buf_pool->flush_state_mutex);
+
 		mutex_exit(block_mutex);
+
+		if (flush_type == BUF_FLUSH_SINGLE_PAGE)
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 		if (flush_type == BUF_FLUSH_LIST
 		    && is_uncompressed
@@ -1099,13 +1105,14 @@ buf_flush_page_try(
 {
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(mutex_own(&block->mutex));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 	if (!buf_flush_ready_for_flush(&block->page, BUF_FLUSH_SINGLE_PAGE)) {
 		return(FALSE);
 	}
 
-	/* The following call will release the buffer pool and
-	block mutex. */
+	/* The following call will release the LRU list and
+	block mutex if successful. */
 	return(buf_flush_page(
 			buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE, true));
 }
@@ -1288,10 +1295,6 @@ buf_flush_try_neighbors(
 		    || i == offset
 		    || buf_page_is_old(bpage)) {
 
-			ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
-
-			mutex_enter(block_mutex);
-
 			if (buf_flush_ready_for_flush(bpage, flush_type)
 			    && (i == offset || bpage->buf_fix_count == 0)
 			    && buf_flush_page(
@@ -1340,7 +1343,7 @@ buf_flush_page_and_try_neighbors(
 					flushed */
 {
 	ibool		flushed;
-	ib_mutex_t*	block_mutex;
+	ib_mutex_t*	block_mutex = NULL;
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 #endif /* UNIV_DEBUG */
@@ -1578,12 +1581,11 @@ buf_flush_LRU_list_batch(
 				offset = ULINT_UNDEFINED;
 			}
 
-			if (!buf_flush_page_and_try_neighbors(
-				bpage, BUF_FLUSH_LRU, max, &n->flushed)) {
+			if (buf_flush_page_and_try_neighbors(
+				bpage,
+				BUF_FLUSH_LRU, max, &n->flushed)) {
 
-				bpage = prev_bpage;
-			} else {
-				/* buf_pool->mutex was released.
+				/* LRU list mutex was released.
 				reposition the iterator. Note: the
 				prev block could have been repositioned
 				too but that should be rare. */
@@ -1596,9 +1598,9 @@ buf_flush_LRU_list_batch(
 					prev_bpage = buf_page_hash_get(
 						buf_pool, space, offset);
 				}
-
-				bpage = prev_bpage;
 			}
+
+			bpage = prev_bpage;
 		}
 
 		free_len = UT_LIST_GET_LEN(buf_pool->free);
@@ -2114,11 +2116,11 @@ buf_flush_single_page_from_LRU(
 
 		if (buf_flush_ready_for_flush(bpage, BUF_FLUSH_SINGLE_PAGE)) {
 
-			/* The following call will release the buffer pool
+			/* The following call will release the LRU list
 			and block mutex. */
 
-			ibool	flushed = buf_flush_page(
-				buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, true);
+			flushed = buf_flush_page(buf_pool, bpage,
+						 BUF_FLUSH_SINGLE_PAGE, true);
 
 			if (flushed) {
 				/* buf_flush_page() will release the
@@ -2165,8 +2167,6 @@ buf_flush_single_page_from_LRU(
 		mutex_enter(block_mutex);
 
 		ibool	ready = buf_flush_ready_for_replace(bpage);
-
-		mutex_exit(block_mutex);
 
 		if (ready) {
 			bool	evict_zip;
@@ -2654,6 +2654,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
+	ulint	last_activity_time = ut_time_ms();
 
 	ut_ad(!srv_read_only_mode);
 
@@ -2675,6 +2676,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		ulint	page_cleaner_sleep_time;
+		ibool	server_active;
 
 		srv_current_thread_priority = srv_cleaner_thread_priority;
 
@@ -2692,8 +2694,15 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 
 		next_loop_time = ut_time_ms() + page_cleaner_sleep_time;
 
-		if (srv_check_activity(last_activity)) {
-			last_activity = srv_get_activity_count();
+		server_active = srv_check_activity(last_activity);
+		if (server_active
+		    || ut_time_ms() - last_activity_time < 1000) {
+
+			if (server_active) {
+
+				last_activity = srv_get_activity_count();
+				last_activity_time = ut_time_ms();
+			}
 
 			/* Flush pages from flush_list if required */
 			n_flushed += page_cleaner_flush_pages_if_needed();

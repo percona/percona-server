@@ -166,7 +166,7 @@ install: build
 	dh_installdirs
 
 	# make install (trailing slash needed for innobase)
-	cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/
+	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

@@ -1365,8 +1365,9 @@ loop:
 	}
 
 	if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF
-	    && buf_page_cleaner_is_active
-	    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	    && buf_lru_manager_is_active
+	    && (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		|| srv_shutdown_state == SRV_SHUTDOWN_CLEANUP)) {
 
 		/* Backoff to minimize the free list mutex contention while the
 		free list is empty */
@@ -1408,12 +1409,13 @@ loop:
 		goto loop;
 	} else {
 
-		/* The cleaner is not running or Oracle MySQL 5.6 algorithm was
-		requested, will perform a single page flush  */
+		/* The LRU manager is not running or Oracle MySQL 5.6 algorithm
+		was requested, will perform a single page flush  */
 		ut_ad((srv_empty_free_list_algorithm
 		       == SRV_EMPTY_FREE_LIST_LEGACY)
-		      || !buf_page_cleaner_is_active
-		      || (srv_shutdown_state != SRV_SHUTDOWN_NONE));
+		      || !buf_lru_manager_is_active
+		      || (srv_shutdown_state != SRV_SHUTDOWN_NONE
+			  && srv_shutdown_state != SRV_SHUTDOWN_CLEANUP));
 	}
 
 	mutex_enter(&buf_pool->flush_state_mutex);

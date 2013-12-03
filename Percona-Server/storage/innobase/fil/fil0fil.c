@@ -4967,6 +4967,7 @@ fil_extend_space_to_desired_size(
 			space->size += (size_after_extend - start_page_no);
 			os_has_said_disk_full = FALSE;
 		}
+		fil_node_complete_io(node, fil_system, OS_FILE_READ);
 		goto complete_io;
 	}
 #endif

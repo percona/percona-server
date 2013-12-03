@@ -2,5 +2,12 @@ percona-server-server-5.5: possible-bashism-in-maintainer-script postinst:81 'p{
 percona-server-server-5.5: possible-bashism-in-maintainer-script preinst:33 '${cmd/ */}'
 percona-server-server-5.5: statically-linked-binary ./usr/bin/mysql_tzinfo_to_sql
 percona-server-server-5.5: statically-linked-binary ./usr/sbin/mysqld
+
+# we are mysqld, we are going to look like libmysqlclient
 embedded-library usr/bin/mysqltest: libmysqlclient
 embedded-library usr/sbin/mysqld: libmysqlclient
+
+extra-license-file usr/share/doc/percona-server-server-5.5/COPYING.gz
+extra-license-file usr/share/doc/percona-server-server-5.5/COPYING.innodb-deadlock-count-patch
+extra-license-file usr/share/doc/percona-server-server-5.5/COPYING.show_temp_51
+

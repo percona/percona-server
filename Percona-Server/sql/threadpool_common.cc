@@ -34,9 +34,6 @@ uint threadpool_size;
 uint threadpool_stall_limit;
 uint threadpool_max_threads;
 uint threadpool_oversubscribe;
-#ifndef _WIN32
-uint threadpool_high_prio_tickets;
-#endif
 
 /* Stats */
 TP_STATISTICS tp_stats;

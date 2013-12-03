@@ -3149,8 +3149,8 @@ static Sys_var_uint Sys_threadpool_high_prio_tickets(
   "thread_pool_high_prio_tickets",
   "Number of tickets to enter the high priority event queue for each "
   "transaction.",
-  GLOBAL_VAR(threadpool_high_prio_tickets), CMD_LINE(REQUIRED_ARG),
-  VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1)
+  SESSION_VAR(threadpool_high_prio_tickets), CMD_LINE(REQUIRED_ARG),
+  VALID_RANGE(0, UINT_MAX), DEFAULT(UINT_MAX), BLOCK_SIZE(1)
 );
 #endif /* !WIN32 */
 static Sys_var_uint Sys_threadpool_max_threads(

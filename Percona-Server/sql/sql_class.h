@@ -609,6 +609,8 @@ typedef struct system_variables
   Gtid_set_or_null gtid_next_list;
 
   my_bool expand_fast_index_creation;
+
+  uint threadpool_high_prio_tickets;
 } SV;
 
 

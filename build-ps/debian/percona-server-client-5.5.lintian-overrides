@@ -1,1 +1,8 @@
 percona-server-client-5.5: package-has-a-duplicate-relation
+embedded-library *: libmysqlclient
+
+# We should get man pages for these binaries.
+binary-without-manpage usr/bin/mysqlanalyze
+binary-without-manpage usr/bin/mysqloptimize
+binary-without-manpage usr/bin/mysqlrepair
+

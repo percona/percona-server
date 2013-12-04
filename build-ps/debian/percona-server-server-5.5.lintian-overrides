@@ -5,6 +5,9 @@ statically-linked-binary ./usr/sbin/mysqld
 
 # we are mysqld, we are going to look like libmysqlclient
 embedded-library *: libmysqlclient
+percona-server-server-5.5: embedded-library usr/bin/mysqlbinlog: libmysqlclient
+percona-server-server-5.5: embedded-library usr/bin/mysqltest: libmysqlclient
+percona-server-server-5.5: embedded-library usr/sbin/mysqld: libmysqlclient
 
 extra-license-file usr/share/doc/percona-server-server-5.5/COPYING.gz
 extra-license-file usr/share/doc/percona-server-server-5.5/COPYING.innodb-deadlock-count-patch

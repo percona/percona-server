@@ -119,7 +119,7 @@ build-stamp: configure
 	
 	[ -f $(EXPORTED_SOURCE_TARBALL) ] || tar -zcf $(EXPORTED_SOURCE_TARBALL) \
 	--exclude=debian . \
-	--transform="s,^\./,mysql-5.5/,"
+	--transform="s,^\./,percona-server-5.5/,"
 
 	cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
 

@@ -6463,6 +6463,11 @@ ha_innobase::records_in_range(
 
 	index = dict_table_get_index_noninline(prebuilt->table, key->name);
 
+	if (prebuilt->table->ibd_file_missing) {
+		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
+
 	range_start = dtuple_create_for_mysql(&heap1, key->key_parts);
 	dict_index_copy_types(range_start, index, key->key_parts);
 
@@ -6511,6 +6516,8 @@ ha_innobase::records_in_range(
 	dtuple_free_for_mysql(heap2);
 
 	my_free(key_val_buff2, MYF(0));
+
+func_exit:
 
 	prebuilt->trx->op_info = (char*)"";
 

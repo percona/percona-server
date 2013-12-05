@@ -207,10 +207,6 @@ install: build
 	#FIXME install -m 0755 debian/additions/innotop/innotop $(TMP)/usr/bin/
 	#FIXME install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
 
-	# mysql-5.5-testsuite
-	mkdir -p $(TMP)/usr/lib/percona-server-testsuite
-	cp -rp $(TMP)/usr/share/mysql-test/* $(TMP)/usr/lib/percona-server-testsuite
-
 	# mysql-server
 	mkdir -p $(TMP)/usr/share/doc/percona-server-5.5/examples
 	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.5/examples/

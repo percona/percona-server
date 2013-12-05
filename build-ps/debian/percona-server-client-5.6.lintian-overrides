@@ -1,1 +1,18 @@
 percona-server-client-5.6: package-has-a-duplicate-relation
+
+# we are MySQL, so we're going to hit false-positives
+embedded-library *: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysql: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysql_client_test: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysqladmin: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysqlcheck: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysqldump: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysqlimport: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysqlshow: libmysqlclient
+percona-server-client-5.6: embedded-library usr/bin/mysqlslap: libmysqlclient
+
+# We should get man pages for these binaries.
+binary-without-manpage usr/bin/mysqlanalyze
+binary-without-manpage usr/bin/mysqloptimize
+binary-without-manpage usr/bin/mysqlrepair
+

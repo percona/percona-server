@@ -12,7 +12,8 @@ Package: libperconaserverclient18
 Section: libs
 Architecture: any
 Replaces: libpercona-server-client18
-Depends: ${misc:Depends}
+Pre-Depends: multiarch-support
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
  multi-threaded SQL database server. SQL (Structured Query Language) 
@@ -131,15 +132,9 @@ Description: Percona Server database test suite
  a means for verifying that Percona Server and its client programs 
  operate according to expectations
 
-Package: percona-server-5.6-dbg
+Package: percona-server-source-5.6
 Architecture: any
-Section: extra
-Depends: percona-server-server-5.6 (= ${binary:Version}), ${misc:Depends}
-Description: Debugging package for Percona Server
- Percona Server is a fast, stable and true multi-user, multi-threaded SQL
- database server. SQL (Structured Query Language) is the most popular database
- query language in the world. The main goals of Percona Server are speed,
- robustness and ease of use.
- .
- This package contains the debugging symbols for the Percona Server binaries.
-
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: Percona Server 5.6 source
+ This package includes the source code to Percona Server as configured before
+ building.

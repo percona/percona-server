@@ -119,7 +119,7 @@ build-stamp: configure
 	
 	[ -f $(EXPORTED_SOURCE_TARBALL) ] || tar -zcf $(EXPORTED_SOURCE_TARBALL) \
 	--exclude=debian . \
-	--transform="s,^\./,mysql-5.5/,"
+	--transform="s,^\./,percona-server-5.5/,"
 
 	cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
 
@@ -168,7 +168,7 @@ install: build
 	dh_installdirs
 
 	# make install (trailing slash needed for innobase)
-	cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/
+	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \
@@ -217,7 +217,7 @@ install: build
 	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
 	       $(TMP)/usr/share/percona-server/mysql.server \
 	       $(TMP)/usr/share/percona-server/binary-configure
-	nm -n $(BUILDDIR)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.5/mysqld.sym.gz
+	nm -n $(builddir)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.5/mysqld.sym.gz
 	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
 	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/

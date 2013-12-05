@@ -5,6 +5,8 @@
 
 #DEBHELPER#
 
+ldconfig
+
 exit 0
 
 # vim: ts=4

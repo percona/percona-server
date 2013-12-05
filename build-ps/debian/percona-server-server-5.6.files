@@ -23,7 +23,6 @@ usr/bin/replace
 usr/bin/resolve_stack_dump
 usr/bin/resolveip
 usr/sbin/mysqld
-usr/sbin/mysqld-debug
 usr/share/man/man1/msql2mysql.1
 usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
@@ -51,6 +50,6 @@ usr/share/man/man1/mysql.server.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/mysqlman.1
 usr/share/man/man8/mysqld.8
-usr/share/mysql/
-debian/additions/debian-start etc/mysql/
-debian/additions/debian-start.inc.sh usr/share/mysql
+usr/share/mysql
+etc/mysql/debian-start
+usr/share/mysql/debian-start.inc.sh

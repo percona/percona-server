@@ -605,7 +605,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
   {
     if (seg->null_bit)
     {
-      int found_null=test(rec[seg->null_pos] & seg->null_bit);
+      int found_null=MY_TEST(rec[seg->null_pos] & seg->null_bit);
       if (found_null != (int) *key++)
 	return 1;
       if (found_null)
@@ -721,7 +721,7 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
     uint char_length= seg->length;
     const uchar *pos= rec + seg->start;
     if (seg->null_bit)
-      *key++= test(rec[seg->null_pos] & seg->null_bit);
+      *key++= MY_TEST(rec[seg->null_pos] & seg->null_bit);
 
     if (seg->flag & HA_BLOB_PART)
     {
@@ -773,7 +773,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
     uint char_length;
     if (seg->null_bit)
     {
-      if (!(*key++= 1 - test(rec[seg->null_pos] & seg->null_bit)))
+      if (!(*key++= 1 - MY_TEST(rec[seg->null_pos] & seg->null_bit)))
         continue;
     }
     if (seg->flag & HA_SWAP_KEY)

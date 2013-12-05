@@ -14,14 +14,14 @@ change_user foo,bar;
 --error 2006,2013
 change_user foo;
 --enable_reconnect
---error ER_BAD_DB_ERROR
+--error ER_ACCESS_DENIED_ERROR
+change_user foo,bar;
+--enable_reconnect
 change_user;
 --error ER_ACCESS_DENIED_ERROR
 change_user foo,bar;
 --error ER_ACCESS_DENIED_ERROR
 change_user foo,bar;
---error ER_BAD_DB_ERROR
 change_user;
 disconnect test;
 connection default;
-

@@ -2564,7 +2564,7 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
       Check only the first (for PRIMARY KEY) or the second (for secondary keys)
       quoted identifier.
     */
-    if ((idnum == 1 + test(type != KEY_TYPE_PRIMARY)))
+    if ((idnum == 1 + MY_TEST(type != KEY_TYPE_PRIMARY)))
       break;
 
     keydef= to + 1;

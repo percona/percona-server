@@ -1,4 +1,4 @@
-percona-server-server-5.1: embedded-library usr/sbin/mysqld: libmysqlclient
+embedded-library binary: usr/sbin/mysqld
 percona-server-server-5.1: possible-bashism-in-maintainer-script postinst:81 'p{("a".."z","A".."Z",0..9)[int(rand(62))]}'
 percona-server-server-5.1: possible-bashism-in-maintainer-script preinst:33 '${cmd/ */}'
 percona-server-server-5.1: statically-linked-binary ./usr/bin/mysql_tzinfo_to_sql
@@ -17,4 +17,7 @@ percona-server-server-5.1: script-not-executable usr/share/percona-server-test/s
 percona-server-server-5.1: script-not-executable usr/share/percona-server-test/suite/funcs_1/lib/DataGen_modify.pl
 percona-server-server-5.1: script-not-executable usr/share/percona-server-test/suite/funcs_2/lib/gen_charset_utf8.pl
 percona-server-server-5.1: script-not-executable usr/share/percona-server-test/t/backup-master.sh
+extra-license-file usr/share/doc/percona-server-server-5.1/COPYING.gz
+extra-license-file usr/share/doc/percona-server-server-5.1/COPYING.innodb-deadlock-count-patch
+extra-license-file usr/share/doc/percona-server-server-5.1/COPYING.show_temp_51
 

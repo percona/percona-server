@@ -1,4 +1,4 @@
-percona-server-client-5.1: embedded-library usr/sbin/mysqlmanager: libmysqlclient
+embedded-library binary: usr/sbin/mysqlmanager
 percona-server-client-5.1: package-has-a-duplicate-relation
 percona-server-client-5.1: wrong-name-for-upstream-changelog usr/share/doc/percona-server-client-5.1/changelog.innotop.gz
 percona-server-client-5.1: pkg-not-in-package-test innotop

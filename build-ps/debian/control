@@ -11,7 +11,7 @@ Vcs-Bzr: lp:percona-server/5.1
 Package: libperconaserverclient16
 Section: libs
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Replaces: libpercona-server-client16
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
@@ -24,7 +24,7 @@ Description: Percona Server database client library
 Package: libperconaserverclient16-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient16 (>= ${source:Version}), zlib1g-dev, , ${shlibs:Depends}
+Depends: ${misc:Depends}, libperconaserverclient16 (>= ${source:Version}), zlib1g-dev, , ${shlibs:Depends}
 Conflicts: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libmysqlclient16-dev
 Replaces: libmysqlclient14-dev, libmysqlclient12-dev, libmysqlclient10-dev, libmysqlclient15-dev, libpercona-xtradb-client-dev
 Provides: libmysqlclient-dev, libmysqlclient15-dev, libmysqlclient16-dev

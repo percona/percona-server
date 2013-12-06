@@ -113,8 +113,10 @@ endif
 		--with-embedded-privilege-control'
 	touch configure-stamp
 
+build: build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
 
-build: build-stamp
 build-stamp: configure
 	dh_testdir
 

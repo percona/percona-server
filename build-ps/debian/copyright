@@ -131,6 +131,7 @@ Copyright: Copyright (c) 2010 DeNA Co.,Ltd.
 License: BSD (3 clause)
 
 Files: UDF/src/*.cc
+Copyright: None, Public Domain
 License: PD
 
 Files: cmd-line-utils/libedit/config.h
@@ -695,6 +696,9 @@ License: BSD-like
  .
  3. Altered versions must be plainly marked as such, and must not
     be misrepresented as being the original software.
+
+License: PD
+ This software is in the Public Domain.
 
 License: GPL-2
  This program is free software; you can redistribute it and/or modify

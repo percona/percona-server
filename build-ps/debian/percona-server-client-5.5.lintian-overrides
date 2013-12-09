@@ -15,3 +15,5 @@ binary-without-manpage usr/bin/mysqlanalyze
 binary-without-manpage usr/bin/mysqloptimize
 binary-without-manpage usr/bin/mysqlrepair
 
+manpage-has-errors-from-man binary: usr/share/man/man1/mysqladmin.1.gz
+manpage-has-errors-from-man binary: usr/share/man/man1/mysqldump.1.gz

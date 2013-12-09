@@ -62,7 +62,7 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
 
 Package: percona-server-client-5.5
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.5 (>= ${source:Version}), libperconaserverclient18 (>= ${source:Version}), ${shlib:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.5 (>= ${source:Version}), libperconaserverclient18 (>= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
 Provides: mysql-client, mysql-client-core, mysql-client-5.5, mysql-client-core-5.5, virtual-mysql-client
 Conflicts: mysql-client, mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, mysql-client-5.5, mysql-client-core-5.5, percona-xtradb-client-5.0, percona-server-client-5.1
 Replaces: mysql-client, mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, mysql-client-5.5, mysql-client-core-5.5, percona-xtradb-client-5.0, percona-server-client-5.1
@@ -78,7 +78,8 @@ Description: Percona Server database client binaries
 Package: percona-server-server-5.5
 Architecture: any
 Suggests: tinyca
-Depends: percona-server-client-5.5 (>= ${source:Version}), libdbi-perl, libdbd-mysql-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), percona-server-common-5.5 (>= ${source:Version}), adduser (>= 3.40), debconf
+Pre-Depends: percona-server-common-5.5 (>= ${source:Version}), adduser (>= 3.4.0), debconf
+Depends: percona-server-client-5.5 (>= ${source:Version}), libdbi-perl, libdbd-mysql-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10)
 Conflicts: mysql-server, mysql-server-4.1, mysql-server-5.1, mysql-server-5.5, mysql-server-core-5.1, mysql-server-core-5.5, percona-xtradb-server-5.0, percona-server-server-5.1
 Provides: mysql-server, mysql-server-core, mysql-server-5.5, mysql-server-core-5.5
 Replaces: mysql-server, mysql-server-5.0, mysql-server-core-5.1, mysql-server-core-5.5, mysql-server-5.5, percona-xtradb-server-5.0, percona-server-server-5.1

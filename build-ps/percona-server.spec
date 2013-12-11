@@ -27,16 +27,16 @@
 
 %define mysql_version   5.6.13
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 60
-%define minorversion 6
+%define majorversion 61
+%define minorversion 0
 %define distribution  rhel%{redhatversion}
-%define percona_server_version	rc%{majorversion}.%{minorversion}
+%define percona_server_version	rel%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rc%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -323,7 +323,6 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-shared mysql-libs
-Conflicts:	Percona-Server-shared-55
 Obsoletes:	mysql-libs
 
 %description -n Percona-Server-shared%{product_suffix}
@@ -534,6 +533,10 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+
+# Delete the symlinks to the libraries from the libdir. These are created by
+# ldconfig(8) afterwards.
+rm -f $RBR%{_libdir}/libmysqlclient*.so.18
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -1112,12 +1115,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libperconaserverclient.a
 %{_libdir}/mysql/libperconaserverclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
+%{_libdir}/*.so
 
-# ----------------------------------------------------------------------------
-%files -n Percona-Server-shared%{product_suffix}
-%defattr(-, root, root, 0755)
-# Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libmysql*.so*
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la
@@ -1125,6 +1124,12 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/plugin/libfnv_udf.la
 %{_libdir}/mysql/plugin/libmurmur_udf.a
 %{_libdir}/mysql/plugin/libmurmur_udf.la
+
+# ----------------------------------------------------------------------------
+%files -n Percona-Server-shared%{product_suffix}
+%defattr(-, root, root, 0755)
+# Shared libraries (omit for architectures that don't support them)
+%{_libdir}/libmysql*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
 /sbin/ldconfig

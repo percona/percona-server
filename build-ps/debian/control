@@ -8,12 +8,12 @@ Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Bzr: lp:percona-server/5.6
 
-Package: libperconaserverclient18
+Package: libperconaserverclient18.1
 Section: libs
 Architecture: any
 Pre-Depends: multiarch-support
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Replaces: libpercona-server-client16
+Replaces: libpercona-server-client16, libperconaserverclient18
 Description: Percona Server database client library
  Percona Server is a fast, stable and true multi-user, 
  multi-threaded SQL database server. SQL (Structured Query Language) 
@@ -22,7 +22,7 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libperconaserverclient18-dev
+Package: libperconaserverclient18.1-dev
 Architecture: any
 Section: libdevel
 Depends: libperconaserverclient-dev (= ${binary:Version}), ${misc:Depends}
@@ -31,12 +31,12 @@ Description: Percona Server database development files - empty transitional
  to ease the transition for packages with versioned build-deps on
  libperconaserverclient18-dev.
 
-Package: libmysqlclient-dev
+Package: libperconaserverclient-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient18 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
-Conflicts: libperconaserverclient14-dev, libperconaserverclient12-dev, libperconaserverclient10-dev, libperconaserverclient15-dev, libperconaserverclient16-dev, libmysqlclient-dev
-Replaces: libperconaserverclient14-dev, libperconaserverclient12-dev, libperconaserverclient10-dev, libperconaserverclient15-dev, libperconaserverclient16-dev, libpercona-xtradb-client-dev
+Depends: libperconaserverclient18.1 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
+Conflicts: libperconaserverclient14-dev, libperconaserverclient12-dev, libperconaserverclient10-dev, libperconaserverclient15-dev, libperconaserverclient16-dev, libmysqlclient-dev, libmysqlclient18-dev, libperconaserverclient18-dev
+Replaces: libperconaserverclient14-dev, libperconaserverclient12-dev, libperconaserverclient10-dev, libperconaserverclient15-dev, libperconaserverclient16-dev, libpercona-xtradb-client-dev, libperconaserverclient18-dev
 Description: Percona Server database development files
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL 
  database server. SQL (Structured Query Language) is the most popular 
@@ -62,7 +62,7 @@ Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
 
 Package: percona-server-client-5.6
 Architecture: any
-Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.6 (>= ${source:Version}), libperconaserverclient18 (>= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: debianutils (>=1.6), libdbi-perl, percona-server-common-5.6 (>= ${source:Version}), libperconaserverclient18.1 (>= ${source:Version}), ${shlibs:Depends}, ${misc:Depends}
 Provides: mysql-client, virtual-mysql-client
 Conflicts: mysql-client, mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, percona-xtradb-client-5.0, percona-server-client-5.1, percona-server-client-5.5
 Replaces: mysql-client, mysql-client-5.0, mysql-client-5.1, mysql-client-core-5.1, percona-xtradb-client-5.0, percona-server-client-5.1, percona-server-client-5.5

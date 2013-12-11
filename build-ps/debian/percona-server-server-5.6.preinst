@@ -12,10 +12,8 @@
 if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
 ${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
 
-PERCONA_PREFIX=/usr
-export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin:$PERCONA_PREFIX/bin
-
-MYADMIN="${PERCONA_PREFIX}/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
+export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin
+MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
 DATADIR=/var/lib/mysql
 LOGDIR=/var/log/mysql
 UPGRADEDIR=/var/lib/mysql-upgrade
@@ -24,13 +22,13 @@ UPGRADEDIR=/var/lib/mysql-upgrade
 # do it himself. No database directories should be removed while the server
 # is running! Another mysqld in e.g. a different chroot is fine for us.
 stop_server() {
-    if [ ! -x /etc/init.d/percona-server ]; then return; fi
+    if [ ! -x /etc/init.d/mysql ]; then return; fi
 
     set +e
     if [ -x /usr/sbin/invoke-rc.d ]; then
-      cmd="invoke-rc.d percona-server stop"
+      cmd="invoke-rc.d mysql stop"
     else
-      cmd="/etc/init.d/percona-server stop"
+      cmd="/etc/init.d/mysql stop"
     fi
     $cmd
     errno=$?
@@ -50,21 +48,17 @@ stop_server() {
 
 this_version=5.6
 
-# Check kernel version
-if dpkg --compare-versions `uname -r` lt 2.6; then
-  /bin/echo -e "\nPROBLEM: MySQL-5.x is currently incompatible with kernel 2.4. Aborting.";
-  /bin/echo -e "See http://bugs.debian.org/416841 for more information.\n"
-  exit 1
-fi
-
 # Abort if an NDB cluster is in use.
-if test -d /etc/mysql/ && egrep -q -r '^[^#]*ndb.connectstring' /etc/mysql/; then
+if egrep -qi -r '^[^#]*ndb.connectstring|^[[:space:]]*\[[[:space:]]*ndb_mgmd' /etc/mysql/; then
   db_fset percona-server-server/no_upgrade_when_using_ndb seen false || true
   db_input high percona-server-server/no_upgrade_when_using_ndb || true
   db_go
   db_stop
   exit 1
 fi
+
+# Abort if skip-bdb option is enabled, required for 5.0 -> 5.1 upgrades.
+#TODO
 
 # Safe the user from stupidities.
 show_downgrade_warning=0
@@ -104,7 +98,7 @@ fi
 
 #
 # Now we have to ensure the following state:
-# /etc/passwd: mysql:x:100:101:MySQL Server:/var/lib/mysql:/bin/false
+# /etc/passwd: mysql:x:100:101:MySQL Server:/nonexistent:/bin/false
 # /etc/group:  mysql:x:101:
 # 
 # Sadly there could any state be present on the system so we have to
@@ -125,7 +119,8 @@ if ! getent passwd mysql >/dev/null; then
 	  --system \
           --disabled-login \
 	  --ingroup mysql \
-	  --home $DATADIR \
+	  --no-create-home \
+	  --home /nonexistent \
 	  --gecos "MySQL Server" \
 	  --shell /bin/false \
 	  mysql  >/dev/null

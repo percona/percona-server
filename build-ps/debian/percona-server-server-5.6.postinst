@@ -4,9 +4,8 @@
 
 if [ -n "$DEBIAN_SCRIPT_DEBUG" ]; then set -v -x; DEBIAN_SCRIPT_TRACE=1; fi
 ${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
-
-PERCONA_PREFIX=/usr
-export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin:$PERCONA_PREFIX/bin
+ 
+export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin
 
 # This command can be used as pipe to syslog. With "-s" it also logs to stderr.
 ERR_LOGGER="logger -p daemon.err -t mysqld_safe -i"
@@ -19,7 +18,7 @@ invoke() {
   fi
 }
 
-MYSQL_BOOTSTRAP="${PERCONA_PREFIX}/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables"
+MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables"
 
 test_mysql_access() {
        mysql --no-defaults -u root -h localhost </dev/null >/dev/null 2>&1
@@ -29,6 +28,7 @@ test_mysql_access() {
 set_mysql_rootpw() {
        # forget we ever saw the password.  don't use reset to keep the seen status
        db_set percona-server-server/root_password ""
+       db_set percona-server-server/root_password_again ""
 
        tfile=`mktemp`
        if [ ! -f "$tfile" ]; then
@@ -62,7 +62,7 @@ set +e; invoke stop; set -e
     
 case "$1" in
   configure)
-    mysql_datadir=${PERCONA_PREFIX}/share/mysql
+    mysql_datadir=/usr/share/mysql
     mysql_statedir=/var/lib/mysql
     mysql_rundir=/var/run/mysqld
     mysql_logdir=/var/log
@@ -118,6 +118,8 @@ EOF
     set +e
     chown -R 0:0 $mysql_datadir
     chown -R mysql $mysql_statedir
+    chmod 700 $mysql_statedir $mysql_statedir/mysql
+    if [ ! -d "$mysql_rundir" ]; then mkdir "$mysql_rundir"; fi
     chown -R mysql $mysql_rundir
     chown -R mysql:adm $mysql_newlogdir;	chmod 2750 $mysql_newlogdir;
     for i in log err; do
@@ -139,7 +141,7 @@ EOF
     # Debian: beware of the bashisms... 
     # Debian: can safely run on upgrades with existing databases 
     set +e
-    ${PERCONA_PREFIX}/bin/mysql_install_db --user=mysql --rpm 2>&1 |
+    /usr//bin/mysql_install_db --user=mysql --rpm 2>&1 |
         $ERR_LOGGER
     if [ "$?" != "0" ]; then
       echo "ATTENTION: An error has occured. More info is in the syslog!"
@@ -170,30 +172,32 @@ EOF
     else
 	pass=`perl -e 'print map{("a".."z","A".."Z",0..9)[int(rand(62))]}(1..16)'`;
         if [ ! -d "$mysql_cfgdir" ]; then install -o 0 -g 0 -m 0755 -d $mysql_cfgdir; fi
+        umask 066
         cat /dev/null > $dc
+        umask 022
         echo "# Automatically generated for Debian scripts. DO NOT TOUCH!" >>$dc
         echo "[client]"                                                    >>$dc
         echo "host     = localhost"                                        >>$dc
         echo "user     = debian-sys-maint"                                 >>$dc
         echo "password = $pass"                                            >>$dc
-        echo "socket   = /var/run/mysqld/mysqld.sock"                      >>$dc
+        echo "socket   = $mysql_rundir/mysqld.sock"                        >>$dc
         echo "[mysql_upgrade]"                                             >>$dc
         echo "host     = localhost"                                        >>$dc
         echo "user     = debian-sys-maint"                                 >>$dc
         echo "password = $pass"                                            >>$dc
-        echo "socket   = /var/run/mysqld/mysqld.sock"                      >>$dc
-        echo "basedir  = ${PERCONA_PREFIX}"                                >>$dc
+        echo "socket   = $mysql_rundir/mysqld.sock"                        >>$dc
+        echo "basedir  = /usr"                                             >>$dc
     fi
     # If this dir chmod go+w then the admin did it. But this file should not.
     chown 0:0 $dc
     chmod 0600 $dc
 
     # update privilege tables
-    password_column_fix_query=`/bin/echo -e \
+    password_column_fix_query=`echo -e \
         "USE mysql\n" \
         "ALTER TABLE user CHANGE Password Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL"`;
-    replace_query=`/bin/echo -e \
-        "USE mysql;\n" \
+    replace_query=`echo -e \
+        "USE mysql\n" \
         "REPLACE INTO user SET " \
         "  host='localhost', user='debian-sys-maint', password=password('$pass'), " \
         "  Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', " \
@@ -203,9 +207,9 @@ EOF
         "  Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', "\
         "  Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', "\
         "  Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', "\
-        "  Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', "\
+        "  Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' "`;
         "  ssl_cipher='', x509_issuer='', x509_subject=''; "`
-    fix_privs=`/bin/echo -e \
+    fix_privs=`echo -e \
         "USE mysql;\n" \
         "ALTER TABLE user ADD column Create_view_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " \
         "ALTER TABLE user ADD column Show_view_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " \

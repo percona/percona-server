@@ -111,8 +111,9 @@ endif
 	
 	touch $@
 
-
-build: build-stamp
+build: build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
 
 build-stamp: configure
 	@echo "RULES.$@"
@@ -225,6 +226,13 @@ install: build
 	# FIXME install -D -m 644 debian/mysql-server-5.5.py $(TMP)/usr/share/apport/package-hooks/source_mysql-5.5.py
 
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
+
+	# Work around MySQL bug 71113, x bit set on example configs
+	chmod -x $(TMP)/usr/share/mysql/config.medium.ini
+	chmod -x $(TMP)/usr/share/mysql/ndb-config-2-node.ini
+	chmod -x $(TMP)/usr/share/mysql/config.huge.ini
+	chmod -x $(TMP)/usr/share/mysql/mysql-log-rotate
+	chmod -x $(TMP)/usr/share/mysql/config.small.ini
 
 	dh_movefiles
 

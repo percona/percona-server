@@ -3515,6 +3515,7 @@ public:
   }
 
   virtual int is_killed() { return killed; }
+  virtual bool is_timedout() const { return killed == KILL_TIMEOUT; }
   virtual THD* get_thd() { return this; }
 
   /**

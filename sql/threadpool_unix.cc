@@ -1175,8 +1175,7 @@ connection_t *get_event(worker_thread_t *current_thread,
           must either have a high priority ticket, or there must be not too many
           busy threads (as if it was coming from a low priority queue).
         */
-        if (connection->tickets > 0 &&
-            thd_is_transaction_active(connection->thd))
+        if (connection_is_high_prio(connection))
           connection->tickets--;
         else if (too_many_busy_threads(thread_group))
         {

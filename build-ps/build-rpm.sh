@@ -111,8 +111,8 @@ PERCONA_INNODB_VERSION="$(echo "$PERCONA_SERVER_VERSION" |
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
-    cut -d ' ' -f 2)"
+DISTRO_NAME="$(lsb_release -is)"
+REDHAT_RELEASE="$(lsb_release -rs)"
 PATCHSET="$(grep ^PATCHSET= "$SOURCEDIR/Makefile" | cut -d = -f 2)"
 REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 

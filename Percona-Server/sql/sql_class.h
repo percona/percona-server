@@ -610,7 +610,8 @@ typedef struct system_variables
 
   my_bool expand_fast_index_creation;
 
-  uint threadpool_high_prio_tickets;
+  uint  threadpool_high_prio_tickets;
+  ulong thread_pool_high_prio_mode;
 } SV;
 
 

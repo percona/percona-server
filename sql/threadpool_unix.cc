@@ -1098,19 +1098,6 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
   DBUG_VOID_RETURN;
 }
 
-
-/* 
-  Prevent too many threads executing at the same time,if the workload is 
-  not CPU bound.
-*/
-
-static bool too_many_threads(thread_group_t *thread_group)
-{
-  return (thread_group->active_thread_count >= 1+(int)threadpool_oversubscribe 
-   && !thread_group->stalled);
-}
-
-
 /**
   Retrieve a connection with pending event.
   
@@ -1180,7 +1167,35 @@ connection_t *get_event(worker_thread_t *current_thread,
       {
         thread_group->io_event_count++;
         connection = (connection_t *)native_event_get_userdata(&nev);
-        break;
+
+        /*
+          Since we are going to perform an out-of-order event processing for the
+          connection, first check whether it is eligible for high priority
+          processing. We can get here even if there are queued events, so it
+          must either have a high priority ticket, or there must be not too many
+          busy threads (as if it was coming from a low priority queue).
+        */
+        if (connection->tickets > 0 &&
+            thd_is_transaction_active(connection->thd))
+          connection->tickets--;
+        else if (too_many_busy_threads(thread_group))
+        {
+          /*
+            Not eligible for high priority processing. Restore tickets and put
+            it into the low priority queue.
+          */
+
+          connection->tickets=
+            connection->thd->variables.threadpool_high_prio_tickets;
+          thread_group->queue.push_back(connection);
+          connection= NULL;
+        }
+
+        if (connection)
+        {
+          thread_group->queue_event_count++;
+          break;
+        }
       }
     }
 

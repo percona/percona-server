@@ -396,29 +396,30 @@ test-unit:
 
 test-ps:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=mixed
+	    @PERL@ ./mysql-test-run.pl $(force) --ps-protocol --mysqld=--binlog-format=mixed --parallel=auto
 
 test-nr:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=row
+	    @PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=row --parallel=auto
 
 test-pr:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol --mysqld=--binlog-format=row --parallel=auto
 
 test-ns:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed --parallel=auto
 
 test-binlog-statement:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement
+	    @PERL@ ./mysql-test-run.pl $(force) --mysqld=--binlog-format=statement --parallel=auto
 
 # This code is duplicated in "test-bt", see the Changeset comment of 2007-Dec-07
 test-embedded:
 	if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+		  --parallel=auto \
 	          --embedded-server --skip-rpl --skip-ndbcluster ; \
 	else \
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
@@ -427,13 +428,14 @@ test-embedded:
 test-reprepare:
 	cd mysql-test ; \
 	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol \
+		--parallel=auto \
 		--mysqld=--debug=+d,reprepare_each_statement
 
 test:	test-unit test-ns test-pr
 
 smoke:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --do-test=s
+	    @PERL@ ./mysql-test-run.pl --do-test=s --parallel=auto
 
 test-full:	test test-nr test-ps
 
@@ -450,42 +452,47 @@ test-force-mem:
 test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=normal --force --timer \
+		--parallel=auto \
 	        --skip-ndbcluster --report-features
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
+		--parallel=auto \
 	        --skip-ndbcluster --ps-protocol
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb+ps --force --timer \
+		  --parallel=auto \
 	          --ps-protocol --mysqld=--binlog-format=row --suite=ndb ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
+		  --parallel=auto \
 	          --with-ndbcluster-only ; \
 	else \
 	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
 	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1 --parallel=auto
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2  --parallel=auto
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts
+	    @PERL@ ./mysql-test-run.pl --force --comment=partitions --suite=parts --parallel=auto
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress --parallel=auto
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp
+	    @PERL@ ./mysql-test-run.pl --force --comment=jp --suite=jp --parallel=auto
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist ; \
+	      @PERL@ ./mysql-test-run.pl --comment=nist --force --suite=nist  --parallel=auto; \
 	fi
 	-if [ -d mysql-test/suite/nist ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	      @PERL@ ./mysql-test-run.pl --comment=nist+ps --force --suite=nist --ps-protocol ; \
+	      @PERL@ ./mysql-test-run.pl --comment=nist+ps --force --suite=nist --ps-protocol  --parallel=auto; \
 	fi
 	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
+		  --parallel=auto \
 	          --embedded-server --skip-rpl --skip-ndbcluster ; \
 	else \
 	  echo "no program found for 'embedded' tests - skipped testing" ; \
@@ -494,21 +501,25 @@ test-bt:
 test-bt-fast:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl  --comment=ps    --force --timer \
+		--parallel=auto \
 	        --skip-ndbcluster --ps-protocol --report-features
 	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
 	  cd mysql-test ; \
 	    MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=ndb --force --timer \
+		  --parallel=auto \
 	          --with-ndbcluster-only ; \
 	else \
 	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
 	fi
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress
+	    @PERL@ ./mysql-test-run.pl --force --comment=stress --suite=stress \
+		  --parallel=auto
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=debug  --force --timer \
+		--parallel=auto \
 	        --skip-ndbcluster --skip-rpl --report-features
 
 test-bt-debug-fast:
@@ -524,32 +535,32 @@ test-force-full-pl: test-force-full
 
 test-ext-funcs:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --force --reorder --suite=funcs_1 ; \
-	    @PERL@ ./mysql-test-run.pl --force --suite=funcs_2
+	    @PERL@ ./mysql-test-run.pl --force --reorder --suite=funcs_1 --parallel=auto; \
+	    @PERL@ ./mysql-test-run.pl --force --suite=funcs_2 --parallel=auto
 
 test-ext-rpl:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --force --suite=rpl
+	    @PERL@ ./mysql-test-run.pl --force --suite=rpl --parallel=auto
 
 test-ext-partitions:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --force --suite=parts
+	    @PERL@ ./mysql-test-run.pl --force --suite=parts --parallel=auto
 
 test-ext-jp:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --force --suite=jp
+	    @PERL@ ./mysql-test-run.pl --force --suite=jp --parallel=auto
 
 test-ext-stress:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl --force --big-test --suite=stress
+	    @PERL@ ./mysql-test-run.pl --force --big-test --suite=stress --parallel=auto
 
 test-ext:	test-ext-funcs test-ext-rpl test-ext-partitions test-ext-jp test-ext-stress
 
 test-fast:
 	cd mysql-test ; \
-	    @PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
-	    @PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam ; \
-	    @PERL@ ./mysql-test-run.pl $(subset) --force --suite=stress --do-test=ddl_myisam 
+	    @PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl  --parallel=auto; \
+	    @PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam  --parallel=auto; \
+	    @PERL@ ./mysql-test-run.pl $(subset) --force --suite=stress --do-test=ddl_myisam  --parallel=auto
 
 test-fast-view:
 	$(MAKE) subset=--view-protocol test-fast

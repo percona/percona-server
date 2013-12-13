@@ -48,6 +48,10 @@ typedef port_event_t native_event;
 for stall detection to kick in */
 #define THREADPOOL_CREATE_THREADS_ON_WAIT
 
+/* Possible values for thread_pool_high_prio_mode */
+const char *thread_pool_high_prio_mode_names[]= {"transactions", "statements",
+                                                 "none", NullS};
+
 /** Indicates that threadpool was initialized*/
 static bool threadpool_started= false; 
 
@@ -428,6 +432,21 @@ inline bool too_many_busy_threads(thread_group_t *thread_group)
           > 1 + (int) threadpool_oversubscribe);
 }
 
+/*
+   Checks if a given connection is eligible to enter the high priority queue
+   based on its current thread_pool_high_prio_mode value, available high
+   priority tickets and transactional state.
+*/
+
+inline bool connection_is_high_prio(connection_t *c)
+{
+  const ulong mode= c->thd->variables.thread_pool_high_prio_mode;
+
+  return (mode == TP_HIGH_PRIO_MODE_STATEMENTS) ||
+    (mode == TP_HIGH_PRIO_MODE_TRANSACTIONS &&
+     c->tickets > 0 && thd_is_transaction_active(c->thd));
+}
+
 } // namespace
 
 /* Dequeue element from a workqueue */
@@ -761,7 +780,7 @@ static connection_t * listener(worker_thread_t *current_thread,
     for(int i=(listener_picks_event)?1:0; i < cnt ; i++)
     {
       connection_t *c= (connection_t *)native_event_get_userdata(&ev[i]);
-      if (c->tickets > 0 && thd_is_transaction_active(c->thd))
+      if (connection_is_high_prio(c))
       {
         c->tickets--;
         thread_group->high_prio_queue.push_back(c);
@@ -1153,8 +1172,7 @@ connection_t *get_event(worker_thread_t *current_thread,
           must either have a high priority ticket, or there must be not too many
           busy threads (as if it was coming from a low priority queue).
         */
-        if (connection->tickets > 0 &&
-            thd_is_transaction_active(connection->thd))
+        if (connection_is_high_prio(connection))
           connection->tickets--;
         else if (too_many_busy_threads(thread_group))
         {

@@ -487,7 +487,7 @@ mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/%{src_dir}
+MBD=$RPM_BUILD_DIR/percona-server-%{mysqlversion}%{server_suffix}
 
 # Move back the libdir from BUILD dir to BUILDROOT
 mkdir -p "$(dirname $RBR%{_libdir})"
@@ -819,31 +819,6 @@ chmod -R og-rw $mysql_datadir/mysql
 SETARGETDIR=/etc/selinux/targeted/src/policy
 SEDOMPROG=$SETARGETDIR/domains/program
 SECONPROG=$SETARGETDIR/file_contexts/program
-if [ -f /etc/redhat-release ] \
- && (grep -q "Red Hat Enterprise Linux .. release 4" /etc/redhat-release \
- || grep -q "CentOS release 4" /etc/redhat-release) ; then
-  echo
-  echo
-  echo 'Notes regarding SELinux on this platform:'
-  echo '========================================='
-  echo
-  echo 'The default policy might cause server startup to fail because it is'
-  echo 'not allowed to access critical files.  In this case, please update'
-  echo 'your installation.'
-  echo
-  echo 'The default policy might also cause inavailability of SSL related'
-  echo 'features because the server is not allowed to access /dev/random'
-  echo 'and /dev/urandom. If this is a problem, please do the following:'
-  echo
-  echo '  1) install selinux-policy-targeted-sources from your OS vendor'
-  echo '  2) add the following two lines to '$SEDOMPROG/mysqld.te':'
-  echo '       allow mysqld_t random_device_t:chr_file read;'
-  echo '       allow mysqld_t urandom_device_t:chr_file read;'
-  echo '  3) cd to '$SETARGETDIR' and issue the following command:'
-  echo '       make load'
-  echo
-  echo
-fi
 
 if [ -x sbin/restorecon ] ; then
   sbin/restorecon -R var/lib/mysql
@@ -1050,6 +1025,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
+
 %attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
@@ -1193,11 +1169,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
-##############################################################################
-# The spec file changelog only includes changes made to the spec file
-# itself - note that they must be ordered by date (important when
-# merging BK trees)
-##############################################################################
 %changelog
 * Thu Feb 10 2011 Ignacio Nin <ignacio.nin@percona.com>
 

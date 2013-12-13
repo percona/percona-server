@@ -4,7 +4,7 @@
 --source include/have_innodb.inc
 
 # Delete any existing bitmaps
---source include/restart_mysqld.inc
+
 RESET CHANGED_PAGE_BITMAPS;
 
 --source include/count_sessions.inc
@@ -57,8 +57,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 list_files $MYSQLD_DATADIR ib_modified_log*;
 
 #
-# Test that PURGE CHANGED_PAGE_BITMAPS BEFORE works.  We don't test partial PURGE
-# because it's hard to extract good LSN value for that.
+# Test that PURGE CHANGED_PAGE_BITMAPS BEFORE works.
 #
 
 # PURGE that deletes nothing
@@ -67,7 +66,7 @@ PURGE CHANGED_PAGE_BITMAPS BEFORE 1;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 
-# PURGE that deletes everything
+# PURGE that deletes everything but the last file
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 # Test consecutive PURGE
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
@@ -155,7 +154,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 
---echo After the PURGE that deletes everything:
+--echo After the PURGE that deletes everything but the last file:
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 
@@ -166,7 +165,7 @@ PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 list_files $MYSQLD_DATADIR ib_modified_log*;
 
 #
-# Test RESET request with log tracking disabled
+# Test requests with log tracking disabled
 #
 
 # Generate some bitmap data again
@@ -190,6 +189,35 @@ RESET CHANGED_PAGE_BITMAPS;
 --echo After the RESET with tracking disabled:
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
+
+#
+# Bug 1260035: test PURGE with a range end in a middle of a file. 
+#
+
+# Create some dummy bitmaps
+write_file $MYSQLD_DATADIR/ib_modified_log_1_0.xdb;
+EOF
+write_file $MYSQLD_DATADIR/ib_modified_log_2_100.xdb;
+EOF
+write_file $MYSQLD_DATADIR/ib_modified_log_3_200.xdb;
+EOF
+write_file $MYSQLD_DATADIR/ib_modified_log_4_300.xdb;
+EOF
+
+--echo Created dummy bitmap files
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+PURGE CHANGED_PAGE_BITMAPS BEFORE 99;
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+PURGE CHANGED_PAGE_BITMAPS BEFORE 200;
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+PURGE CHANGED_PAGE_BITMAPS BEFORE 500;
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+# Cleanup
+remove_file $MYSQLD_DATADIR/ib_modified_log_4_300.xdb;
 
 DROP TABLE t1;
 

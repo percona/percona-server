@@ -8,44 +8,19 @@
 # Some common macro definitions
 ##############################################################################
 
-# Required arguments
-# gotrevision - Revision in BZR branch
-
 %define mysql_vendor  Percona, Inc
-%define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
+%define distrodescription %(lsb_release -ds)
 %define community 1
-%define mysqlversion 5.1.69
+%define mysqlversion 5.1.70
 %define majorversion 14
 %define minorversion 7
-%define distribution  rhel%{redhatversion}
-%define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define psrelease %{majorversion}.%{minorversion}
 
 %define mysqld_user	mysql
 %define mysqld_group	mysql
 %define mysqldatadir	/var/lib/mysql
 %define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
 
-# ------------------------------------------------------------------------------
-# Meta information, don't remove!
-# ------------------------------------------------------------------------------
-# norootforbuild
-
-# ------------------------------------------------------------------------------
-# On SuSE 9 no separate "debuginfo" package is built. To enable basic
-# debugging on that platform, we don't strip binaries on SuSE 9. We
-# disable the strip of binaries by redefining the RPM macro
-# "__os_install_post" leaving out the script calls that normally does
-# this. We do this in all cases, as on platforms where "debuginfo" is
-# created, a script "find-debuginfo.sh" will be called that will do
-# the strip anyway, part of separating the executable and debug
-# information into separate files put into separate packages.
-#
-# Some references (shows more advanced conditional usage):
-# http://www.redhat.com/archives/rpm-list/2001-November/msg00257.html
-# http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
-# http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
-# http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
-# ------------------------------------------------------------------------------
 %define __os_install_post /usr/lib/rpm/brp-compress
 
 # ------------------------------------------------------------------------------
@@ -87,24 +62,9 @@
 %{?_without_libgcc:%define WITH_LIBGCC 0}
 
 
-# On SuSE 9 no separate "debuginfo" package is built. To enable basic
-# debugging on that platform, we don't strip binaries on SuSE 9. We
-# disable the strip of binaries by redefining the RPM macro
-# "__os_install_post" leaving out the script calls that normally does
-# this. We do this in all cases, as on platforms where "debuginfo" is
-# created, a script "find-debuginfo.sh" will be called that will do
-# the strip anyway, part of separating the executable and debug
-# information into separate files put into separate packages.
-#
-# Some references (shows more advanced conditional usage):
-# http://www.redhat.com/archives/rpm-list/2001-November/msg00257.html
-# http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
-# http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
-# http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
-
 %define __os_install_post /usr/lib/rpm/brp-compress
 
-%define server_suffix  -rel%{majorversion}.%{minorversion}
+%define server_suffix  -%{psrelease}
 %define package_suffix -51
 %define ndbug_comment Percona Server (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
 %define debug_comment Percona Server - Debug (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
@@ -113,27 +73,33 @@
 
 %define BUILD_DEBUG 0
 
-%define lic_type GNU GPL v2
 %define lic_files COPYING README
-%define src_dir Percona-Server-%{mysqlversion}%{server_suffix}
 
 ##############################################################################
 # Main spec file section
 ##############################################################################
 
-Name:		Percona-Server%{package_suffix}
-Summary:	Percona-Server: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Version:	%{mysqlversion}
-Release:	%{release}
-Distribution:	Red Hat Enterprise Linux %{redhatversion}
-License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
-Source:		Percona-Server-%{mysqlversion}%{server_suffix}.tar.gz
-URL:		http://www.percona.com/
-Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
-Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server Percona-XtraDB-server
-BuildRequires:  gperf perl gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time bison
+Name:	  Percona-Server%{package_suffix}
+Summary:  Drop-in MySQL replacement: fast and reliable
+Group:	  Applications/Databases
+Version:  %{mysqlversion}
+Release:  %{psrelease}.1%{?dist}
+License:  GPLv2
+Source:	  http://www.percona.com/downloads/Percona-Server-5.1/Percona-Server-%{mysqlversion}%{server_suffix}/source/percona-server-%{mysqlversion}%{server_suffix}.tar.gz
+URL:      http://www.percona.com/
+Provides: msqlormysql MySQL-server Percona-XtraDB-server
+BuildRequires: automake
+BuildRequires: autoconf
+BuildRequires: bison
+BuildRequires: gcc-c++
+BuildRequires: gperf
+BuildRequires: libtool
+BuildRequires: ncurses-devel
+BuildRequires: perl
+BuildRequires: time
+BuildRequires: openssl-devel
+BuildRequires: procps-ng
+BuildRequires: zlib-devel
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -154,7 +120,7 @@ be eligible for hot fixes, and boost your team's productivity.
 ##############################################################################
 
 %package -n Percona-Server-server%{package_suffix}
-Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
+Summary:	%{ndbug_comment}
 Group:		Applications/Databases
 Requires:	Percona-Server-shared%{package_suffix} Percona-Server-client%{package_suffix} chkconfig coreutils shadow-utils grep procps
 Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
@@ -239,7 +205,7 @@ languages and applications need to dynamically load and use MySQL.
 
 %prep
 
-%setup -n %{src_dir}
+%setup -n percona-server-%{mysqlversion}%{server_suffix}
 
 
 ##############################################################################
@@ -269,14 +235,6 @@ fi
 
 echo "BUILD =================="
 echo $*
-
-MAKE_J=-j`if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi`
-if [ $MAKE_J = -j0 ]
-then
-  MAKE_J=-j4
-fi
-
-MAKE_JFLAG="${MAKE_JFLAG:-$MAKE_J}"
 
 # The --enable-assembler simply does nothing on systems that does not
 # support assembler speedups.
@@ -311,26 +269,27 @@ sh -c  "CFLAGS=\"$CFLAGS\" \
 %endif
 	    $OPT_DEBUG \
 	    --with-readline \
-	    ; make $MAKE_JFLAG"
+	    ; make %{?_smp_mflags}"
 }
 # end of function definition "BuildMySQL"
 
 BuildHandlerSocket() {
 cd storage/HandlerSocket-Plugin-for-MySQL
 ./autogen.sh
-CXX=${HS_CXX:-g++} ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
-	--with-mysql-bindir=$RPM_BUILD_DIR/%{src_dir}/scripts \
-	--with-mysql-plugindir=%{_libdir}/mysql/plugin \
+CXX=${HS_CXX:-g++} ./configure --with-mysql-source=../../ \
+	--with-mysql-bindir=../../scripts \
+	--with-mysql-plugindir=%{_libdir}/percona-server/plugin \
 	--libdir=%{_libdir} \
 	--prefix=%{_prefix}
-make $MAKE_JFLAG
+make %{?_smp_mflags}
 cd -
 }
 
 BuildUDF() {
+MYSQL_SOURCE=`pwd`
 cd UDF
-CXX=${UDF_CXX:-g++} ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include --libdir=%{_libdir}/mysql/plugin
-make $MAKE_JFLAG all
+CXX=${UDF_CXX:-g++} ./configure --includedir=$MYSQL_SOURCE/include --libdir=%{_libdir}/percona-server/plugin
+make %{?_smp_mflags} all
 cd -
 }
 # end of function definition "BuildHandlerSocket"
@@ -366,7 +325,7 @@ do
 done
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/%{src_dir}
+MBD=$RPM_BUILD_DIR/
 
 # Move the test suite to /usr/share/mysql
 sed -i 's@[$][(]prefix[)]@\0/share@' mysql-test/Makefile.am \
@@ -395,7 +354,8 @@ cp -av libmysql_r/.libs/*.so* $RBR/%{_libdir}
 # Include libgcc.a in the devel subpackage (BUG 4921)
 %if %{WITH_LIBGCC}
 libgcc=`$CC $CFLAGS --print-libgcc-file`
-install -m 644 "$libgcc" $RBR%{_libdir}/mysql/libmygcc.a
+mkdir -p $RBR%{_libdir}/percona-server/
+install -m 644 "$libgcc" $RBR%{_libdir}/percona-server/libmygcc.a
 %endif
 
 ##############################################################################
@@ -408,7 +368,7 @@ make clean
 ( BuildServer )   # subshell, so that CFLAGS + CXXFLAGS are modified only locally
 
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{DEBUG_TEST_MODE}
+	MTR_BUILD_THREAD=auto make %{?_smp_mflags} %{DEBUG_TEST_MODE}
 fi
 
 # Get the debug server and its .sym file from the build tree
@@ -417,8 +377,8 @@ fi
 #else
 #	cp sql/mysqld       $RBR%{_sbindir}/mysqld-debug
 #fi
-#cp libmysqld/libmysqld.a    $RBR%{_libdir}/mysql/libmysqld-debug.a
-#cp sql/mysqld.sym           $RBR%{_libdir}/mysql/mysqld-debug.sym
+#cp libmysqld/libmysqld.a    $RBR%{_libdir}/percona-server/libmysqld-debug.a
+#cp sql/mysqld.sym           $RBR%{_libdir}/percona-server/mysqld-debug.sym
 
 %endif
 
@@ -430,7 +390,7 @@ BuildServer
 BuildHandlerSocket
 BuildUDF
 if [ "$MYSQL_RPMBUILD_TEST" != "no" ] ; then
-	MTR_BUILD_THREAD=auto make $MAKE_JFLAG %{NORMAL_TEST_MODE}
+	MTR_BUILD_THREAD=auto make %{?_smp_mflags} %{NORMAL_TEST_MODE}
 fi
 
 # Now, build plugin 
@@ -450,7 +410,7 @@ mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
 
 %install
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/%{src_dir}
+MBD=$RPM_BUILD_DIR/percona-server-%{mysqlversion}%{server_suffix}
 
 # Move back the libdir from BUILD dir to BUILDROOT
 mkdir -p "$(dirname $RBR%{_libdir})"
@@ -460,12 +420,12 @@ mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/mysql-test
-install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
+install -d $RBR%{_datadir}/percona-server/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
-install -d $RBR%{_libdir}/mysql/plugin
+install -d $RBR%{_libdir}/percona-server/plugin
 
 make DESTDIR=$RBR benchdir_root=%{_datadir} install
 cd storage/HandlerSocket-Plugin-for-MySQL
@@ -476,7 +436,7 @@ make DESTDIR=$RBR benchdir_root=%{_datadir} install
 cd -
 
 # install symbol files ( for stack trace resolution)
-#install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/mysql/mysqld.sym
+#install -m644 $MBD/sql/mysqld.sym $RBR%{_libdir}/percona-server/mysqld.sym
 
 # Install logrotate and autostart
 install -m644 $MBD/support-files/mysql-log-rotate \
@@ -499,7 +459,7 @@ touch $RBR%{_sysconfdir}/mysqlmanager.passwd
 
 # Install SELinux files in datadir
 install -m600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
-	$RBR%{_datadir}/mysql/SELinux/RHEL4
+	$RBR%{_datadir}/percona-server/SELinux/RHEL4
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -643,31 +603,6 @@ chmod -R og-rw $mysql_datadir/mysql
 SETARGETDIR=/etc/selinux/targeted/src/policy
 SEDOMPROG=$SETARGETDIR/domains/program
 SECONPROG=$SETARGETDIR/file_contexts/program
-if [ -f /etc/redhat-release ] && \
-   (grep -q "Red Hat Enterprise Linux .. release 4" /etc/redhat-release \
-    || grep -q "CentOS release 4" /etc/redhat-release) ; then
-   echo
-   echo
-   echo 'Notes regarding SELinux on this platform:'
-   echo '========================================='
-   echo
-   echo 'The default policy might cause server startup to fail because it is '
-   echo 'not allowed to access critical files. In this case, please update '
-   echo 'your installation. '
-   echo
-   echo 'The default policy might also cause inavailability of SSL related '
-   echo 'features because the server is not allowed to access /dev/random '
-   echo 'and /dev/urandom. If this is a problem, please do the following: '
-   echo 
-   echo '  1) install selinux-policy-targeted-sources from your OS vendor'
-   echo '  2) add the following two lines to '$SEDOMPROG/mysqld.te':'
-   echo '       allow mysqld_t random_device_t:chr_file read;'
-   echo '       allow mysqld_t urandom_device_t:chr_file read;'
-   echo '  3) cd to '$SETARGETDIR' and issue the following command:'
-   echo '       make load'
-   echo
-   echo
-fi
 
 if [ -x sbin/restorecon ] ; then
 	sbin/restorecon -R var/lib/mysql
@@ -785,17 +720,17 @@ fi
 %endif
 %attr(755, root, root) %{_sbindir}/mysqlmanager
 %attr(755, root, root) %{_sbindir}/rcmysql
-#%attr(644, root, root) %{_libdir}/mysql/mysqld.sym
+#%attr(644, root, root) %{_libdir}/percona-server/mysqld.sym
 %if %{BUILD_DEBUG}
-#%attr(644, root, root) %{_libdir}/mysql/mysqld-debug.sym
+#%attr(644, root, root) %{_libdir}/percona-server/mysqld-debug.sym
 %endif
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
-%attr(755, root, root) %{_datadir}/mysql/
+%attr(755, root, root) %{_datadir}/percona-server/
 
-%attr(644, root, root) %{_libdir}/mysql/plugin/*
+%attr(644, root, root) %{_libdir}/percona-server/plugin/*
 
 %files -n Percona-Server-client%{package_suffix}
 %defattr(-, root, root, 0755)
@@ -841,36 +776,36 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %dir %attr(755, root, root) %{_libdir}/mysql
-%{_includedir}/mysql
+%{_includedir}/percona-server
 %{_includedir}/handlersocket
 %{_datadir}/aclocal/mysql.m4
-%{_libdir}/mysql/libdbug.a
-%{_libdir}/mysql/libheap.a
+%{_libdir}/percona-server/libdbug.a
+%{_libdir}/percona-server/libheap.a
 %if %{WITH_LIBGCC}
-%{_libdir}/mysql/libmygcc.a
+%{_libdir}/percona-server/libmygcc.a
 %endif
-%{_libdir}/mysql/libmyisam.a
-%{_libdir}/mysql/libmyisammrg.a
-%{_libdir}/mysql/libperconaserverclient.a
-%{_libdir}/mysql/libperconaserverclient.la
-%{_libdir}/mysql/libperconaserverclient_r.a
-%{_libdir}/mysql/libperconaserverclient_r.la
-%{_libdir}/mysql/libmystrings.a
-%{_libdir}/mysql/libmysys.a
-%{_libdir}/mysql/libvio.a
-%{_libdir}/mysql/libz.a
-%{_libdir}/mysql/libz.la
+%{_libdir}/percona-server/libmyisam.a
+%{_libdir}/percona-server/libmyisammrg.a
+%{_libdir}/percona-server/libperconaserverclient.a
+%{_libdir}/percona-server/libperconaserverclient.la
+%{_libdir}/percona-server/libperconaserverclient_r.a
+%{_libdir}/percona-server/libperconaserverclient_r.la
+%{_libdir}/percona-server/libmystrings.a
+%{_libdir}/percona-server/libmysys.a
+%{_libdir}/percona-server/libvio.a
+%{_libdir}/percona-server/libz.a
+%{_libdir}/percona-server/libz.la
 %{_libdir}/libhsclient.a
 %{_libdir}/libhsclient.la
 
 %{_libdir}/*.so
-%{_libdir}/mysql/*.so
+%{_libdir}/percona-server/*.so
 
 %files -n Percona-Server-shared%{package_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/*.so.*
-%{_libdir}/mysql/*.so.*
+%{_libdir}/percona-server/*.so.*
 
 %files -n Percona-Server-test%{package_suffix}
 %defattr(-, root, root, 0755)
@@ -880,33 +815,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
 
-##############################################################################
-# The spec file changelog only includes changes made to the spec file
-# itself - note that they must be ordered by date (important when
-# merging BK trees)
-##############################################################################
 %changelog
 * Thu Dec 12 2013 Stewart Smith <stewart.smith@percona.com>
 
 Percona Server 5.1.70-14.8
 
-* Wed May 22 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
-
-Percona Server Release 11.0
-
-* Mon Mar 22 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
-
-XtraDB Release 10
-
-* Thu Feb 11 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
-
-Package name changed to Percona-XtraDB
-
-* Tue Jan 05 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
-
-- Corrected emails
-- -m64 is removed from CFLAGS
-
-* Tue Apr 21 2009 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
-
-- Adoption for XtraDB Storage Engine

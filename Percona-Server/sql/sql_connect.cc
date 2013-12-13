@@ -138,7 +138,7 @@ end:
 extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
                          my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(user_stats->user);
+  *length= user_stats->user_len;
   return (uchar*) user_stats->user;
 }
 
@@ -190,6 +190,9 @@ void init_user_stats(USER_STATS *user_stats,
               user, priv_user));
   strncpy(user_stats->user, user, sizeof(user_stats->user));
   strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+
+  user_stats->user_len=               strlen(user_stats->user);
+  user_stats->priv_user_len=          strlen(user_stats->priv_user);
 
   user_stats->total_connections=      total_connections;
   user_stats->total_ssl_connections=  total_ssl_connections;
@@ -303,7 +306,7 @@ void init_global_thread_stats(void)
 extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
                                      my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(table_stats->table);
+  *length= table_stats->table_len;
   return (uchar*) table_stats->table;
 }
 
@@ -325,7 +328,7 @@ void init_global_table_stats(void)
 extern "C" uchar *get_key_index_stats(INDEX_STATS *index_stats, size_t *length,
                                      my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(index_stats->index);
+  *length= index_stats->index_len;
   return (uchar*) index_stats->index;
 }
 
@@ -570,88 +573,81 @@ static void update_global_thread_stats_with_thread(THD* thd,
 // Updates the global stats of a user or client
 void update_global_user_stats(THD* thd, bool create_user, time_t now)
 {
-  if (opt_userstat)
+  char* user_string=         get_valid_user_string(thd->main_security_ctx.user);
+  const char* client_string= get_client_host(thd);
+
+  USER_STATS* user_stats;
+  THREAD_STATS* thread_stats;
+
+  if (acl_is_utility_user(thd->security_ctx->user,
+                          thd->security_ctx->get_host()->ptr(),
+                          thd->security_ctx->get_ip()->ptr()))
+    return;
+
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
+
+  // Update by user name
+  if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
+                                                  (uchar *) user_string,
+                                                  strlen(user_string))))
   {
-    char* user_string=         get_valid_user_string(thd->main_security_ctx.user);
-    const char* client_string= get_client_host(thd);
-
-    USER_STATS* user_stats;
-    THREAD_STATS* thread_stats;
-
-    if (acl_is_utility_user(thd->security_ctx->user,
-                            thd->security_ctx->get_host()->ptr(),
-                            thd->security_ctx->get_ip()->ptr()))
-      return;
-
-    mysql_mutex_lock(&LOCK_global_user_client_stats);
-
-    // Update by user name
-    if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
-                                                    (uchar *) user_string,
-                                                    strlen(user_string))))
-    {
-      // Found user.
-      update_global_user_stats_with_user(thd, user_stats, now);
-    }
-    else
-    {
-      // Create the entry
-      if (create_user)
-      {
-        increment_count_by_name(user_string, user_string,
-                                &global_user_stats, thd);
-      }
-    }
-
-    // Update by client IP
-    if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
-                                                    (uchar *) client_string,
-                                                    strlen(client_string))))
-    {
-      // Found by client IP
-      update_global_user_stats_with_user(thd, user_stats, now);
-    }
-    else
-    {
-      // Create the entry
-      if (create_user)
-      {
-        increment_count_by_name(client_string,
-                                user_string,
-                                &global_client_stats, thd);
-      }
-    }
-
-    if (opt_thread_statistics)
-    {
-      // Update by thread ID
-      if ((thread_stats = (THREAD_STATS *) my_hash_search(&global_thread_stats,
-                                                          (uchar *) &(thd->thread_id),
-                                                          sizeof(my_thread_id))))
-      {
-        // Found by thread ID
-        update_global_thread_stats_with_thread(thd, thread_stats, now);
-      }
-      else
-      {
-        // Create the entry
-        if (create_user)
-        {
-          increment_count_by_id(thd->thread_id,
-                                &global_thread_stats, thd);
-        }
-      }
-    }
-
-    thd->last_global_update_time = now;
-    thd->reset_diff_stats();
-
-    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+    // Found user.
+    update_global_user_stats_with_user(thd, user_stats, now);
   }
   else
   {
-    thd->reset_diff_stats();
+    // Create the entry
+    if (create_user)
+    {
+      increment_count_by_name(user_string, user_string,
+                              &global_user_stats, thd);
+    }
   }
+
+  // Update by client IP
+  if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
+                                                  (uchar *) client_string,
+                                                  strlen(client_string))))
+  {
+    // Found by client IP
+    update_global_user_stats_with_user(thd, user_stats, now);
+  }
+  else
+  {
+    // Create the entry
+    if (create_user)
+    {
+      increment_count_by_name(client_string,
+                              user_string,
+                              &global_client_stats, thd);
+    }
+  }
+
+  if (opt_thread_statistics)
+  {
+    // Update by thread ID
+    if ((thread_stats = (THREAD_STATS *) my_hash_search(&global_thread_stats,
+                                                        (uchar *) &(thd->thread_id),
+                                                        sizeof(my_thread_id))))
+    {
+      // Found by thread ID
+      update_global_thread_stats_with_thread(thd, thread_stats, now);
+    }
+    else
+    {
+      // Create the entry
+      if (create_user)
+      {
+        increment_count_by_id(thd->thread_id,
+                              &global_thread_stats, thd);
+      }
+    }
+  }
+
+  thd->last_global_update_time = now;
+  thd->reset_diff_stats();
+
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
 }
 
 /*

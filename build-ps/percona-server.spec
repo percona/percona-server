@@ -29,14 +29,13 @@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 31
 %define minorversion 0
-%define distribution  rhel%{redhatversion}
-%define percona_server_version	rel%{majorversion}.%{minorversion}
+%define percona_server_version	%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rel%{majorversion}.%{minorversion}.1%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -84,7 +83,7 @@
 # Source name
 # ----------------------------------------------------------------------------
 %if %{undefined src_base}
-%define src_base Percona-Server
+%define src_base percona-server
 %endif
 %define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}
 
@@ -340,7 +339,6 @@ set -uex
 
 BuildHandlerSocket() {
     cd storage/HandlerSocket-Plugin-for-MySQL
-    bash -x ./autogen.sh
     echo "Configuring HandlerSocket"
     CXX="${HS_CXX:-g++}" \
         MYSQL_CFLAGS="-I $RPM_BUILD_DIR/%{src_dir}/release/include" \
@@ -349,7 +347,7 @@ BuildHandlerSocket() {
         --with-mysql-plugindir=%{_libdir}/mysql/plugin \
         --libdir=%{_libdir} \
         --prefix=%{_prefix}
-    make ${MAKE_JFLAG}
+    make %{?_smp_mflags}
     cd -
 }
 
@@ -359,7 +357,7 @@ BuildUDF() {
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
         ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
         --libdir=%{_libdir}/mysql/plugin
-    make ${MAKE_JFLAG} all
+    make %{?_smp_mflags} all
     cd -
 }
 
@@ -391,7 +389,6 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
-export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
@@ -422,7 +419,7 @@ mkdir debug
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
 	   -DWITH_PAM=ON
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
-  make ${MAKE_JFLAG}
+  make %{?_smp_mflags}
 )
 # Build full release
 mkdir release
@@ -440,7 +437,7 @@ mkdir release
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
            -DWITH_PAM=ON
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make ${MAKE_JFLAG}
+  make %{?_smp_mflags}
   cd ../
   d="`pwd`"
   BuildHandlerSocket
@@ -487,7 +484,7 @@ mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/percona-server-%{mysqlversion}%{server_suffix}
+MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}%{server_suffix}
 
 # Move back the libdir from BUILD dir to BUILDROOT
 mkdir -p "$(dirname $RBR%{_libdir})"
@@ -1141,7 +1138,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %files -n Percona-Server-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libmysql*.so.*
+%{_libdir}/libperconaserver*.so.*
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la

@@ -114,8 +114,8 @@ PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REDHAT_RELEASE="$(grep -o 'release [0-9][0-9]*' /etc/redhat-release | \
-    cut -d ' ' -f 2)"
+DISTRO_NAME="$(lsb_release -is)"
+REDHAT_RELEASE="$(lsb_release -rs)"
 REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 
 # Compilation flags

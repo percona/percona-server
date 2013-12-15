@@ -29,14 +29,13 @@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define majorversion 61
 %define minorversion 0
-%define distribution  rhel%{redhatversion}
-%define percona_server_version	rel%{majorversion}.%{minorversion}
+%define percona_server_version	%{majorversion}.%{minorversion}
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
+%define release         rel%{majorversion}.%{minorversion}.1%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -84,7 +83,7 @@
 # Source name
 # ----------------------------------------------------------------------------
 %if %{undefined src_base}
-%define src_base Percona-Server
+%define src_base percona-server
 %endif
 %define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}
 
@@ -347,7 +346,7 @@ BuildUDF() {
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
         ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
         --libdir=%{_libdir}/mysql/plugin
-    make ${MAKE_JFLAG} all
+    make %{?_smp_mflags} all
     cd -
 }
 
@@ -379,7 +378,6 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
-export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-${MAKE_JFLAG:-}}
 
 # "Fix" cmake directories in case we're crosscompiling.
 # We detect crosscompiles to i686 if uname is x86_64 however _libdir does not
@@ -421,7 +419,7 @@ mkdir debug
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
-  make ${MAKE_JFLAG}
+  make %{?_smp_mflags}
 )
 # Build full release
 mkdir release
@@ -440,7 +438,7 @@ mkdir release
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
-  make ${MAKE_JFLAG}
+  make %{?_smp_mflags}
   cd ../
   d="`pwd`"
   BuildUDF
@@ -493,7 +491,7 @@ mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/%{src_dir}
+MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}%{server_suffix}
 
 # Move back the libdir from BUILD dir to BUILDROOT
 mkdir -p "$(dirname $RBR%{_libdir})"
@@ -822,31 +820,6 @@ chmod -R og-rw $mysql_datadir/mysql
 SETARGETDIR=/etc/selinux/targeted/src/policy
 SEDOMPROG=$SETARGETDIR/domains/program
 SECONPROG=$SETARGETDIR/file_contexts/program
-if [ -f /etc/redhat-release ] \
- && (grep -q "Red Hat Enterprise Linux .. release 4" /etc/redhat-release \
- || grep -q "CentOS release 4" /etc/redhat-release) ; then
-  echo
-  echo
-  echo 'Notes regarding SELinux on this platform:'
-  echo '========================================='
-  echo
-  echo 'The default policy might cause server startup to fail because it is'
-  echo 'not allowed to access critical files.  In this case, please update'
-  echo 'your installation.'
-  echo
-  echo 'The default policy might also cause inavailability of SSL related'
-  echo 'features because the server is not allowed to access /dev/random'
-  echo 'and /dev/urandom. If this is a problem, please do the following:'
-  echo
-  echo '  1) install selinux-policy-targeted-sources from your OS vendor'
-  echo '  2) add the following two lines to '$SEDOMPROG/mysqld.te':'
-  echo '       allow mysqld_t random_device_t:chr_file read;'
-  echo '       allow mysqld_t urandom_device_t:chr_file read;'
-  echo '  3) cd to '$SETARGETDIR' and issue the following command:'
-  echo '       make load'
-  echo
-  echo
-fi
 
 if [ -x sbin/restorecon ] ; then
   sbin/restorecon -R var/lib/mysql
@@ -1150,11 +1123,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
-##############################################################################
-# The spec file changelog only includes changes made to the spec file
-# itself - note that they must be ordered by date (important when
-# merging BK trees)
-##############################################################################
 %changelog
 * Thu Feb 10 2011 Ignacio Nin <ignacio.nin@percona.com>
 

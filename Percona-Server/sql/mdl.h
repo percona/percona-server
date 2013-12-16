@@ -104,6 +104,11 @@ public:
   virtual int  is_killed() = 0;
 
   /**
+     Has the owner thread been timed out?
+   */
+  virtual bool is_timedout() const = 0;
+
+  /**
      This one is only used for DEBUG_SYNC.
      (Do not use it to peek/poke into other parts of THD.)
    */

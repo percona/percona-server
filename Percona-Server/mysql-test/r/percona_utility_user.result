@@ -1,4 +1,5 @@
 DROP DATABASE IF EXISTS mysqltest;
+call mtr.add_suppression("Did not write failed .* ");
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 user
 CREATE USER 'frank'@'localhost' IDENTIFIED BY 'password';

@@ -3164,8 +3164,8 @@ static Sys_var_enum Sys_threadpool_high_prio_mode(
   "the current transaction state and high priority tickets. "
   "'none' is the opposite of 'statements', i.e. disables the high priority queue "
   "completely.",
-  SESSION_VAR(thread_pool_high_prio_mode), CMD_LINE(REQUIRED_ARG),
-  thread_pool_high_prio_mode_names, DEFAULT(TP_HIGH_PRIO_MODE_TRANSACTIONS));
+  SESSION_VAR(threadpool_high_prio_mode), CMD_LINE(REQUIRED_ARG),
+  threadpool_high_prio_mode_names, DEFAULT(TP_HIGH_PRIO_MODE_TRANSACTIONS));
 
 #endif /* !WIN32 */
 static Sys_var_uint Sys_threadpool_max_threads(

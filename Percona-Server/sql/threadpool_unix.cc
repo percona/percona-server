@@ -49,7 +49,7 @@ for stall detection to kick in */
 #define THREADPOOL_CREATE_THREADS_ON_WAIT
 
 /* Possible values for thread_pool_high_prio_mode */
-const char *thread_pool_high_prio_mode_names[]= {"transactions", "statements",
+const char *threadpool_high_prio_mode_names[]= {"transactions", "statements",
                                                  "none", NullS};
 
 /** Indicates that threadpool was initialized*/
@@ -440,7 +440,7 @@ inline bool too_many_busy_threads(thread_group_t *thread_group)
 
 inline bool connection_is_high_prio(connection_t *c)
 {
-  const ulong mode= c->thd->variables.thread_pool_high_prio_mode;
+  const ulong mode= c->thd->variables.threadpool_high_prio_mode;
 
   return (mode == TP_HIGH_PRIO_MODE_STATEMENTS) ||
     (mode == TP_HIGH_PRIO_MODE_TRANSACTIONS &&

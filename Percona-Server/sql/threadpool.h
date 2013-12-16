@@ -30,7 +30,7 @@ extern uint threadpool_max_threads;  /* Maximum threads in pool */
 extern uint threadpool_oversubscribe;  /* Maximum active threads in group */
 
 /* Possible values for thread_pool_high_prio_mode */
-extern const char *thread_pool_high_prio_mode_names[];
+extern const char *threadpool_high_prio_mode_names[];
 
 /* Common thread pool routines, suitable for different implementations */
 extern void threadpool_remove_connection(THD *thd);

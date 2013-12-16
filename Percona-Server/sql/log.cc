@@ -1144,12 +1144,6 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 
   current_time= my_time(0);
 
-  mysql_audit_general_log(thd, current_time,
-                          user_host_buff, user_host_len,
-                          command_name[(uint) command].str,
-                          command_name[(uint) command].length,
-                          query, query_length);
-                        
   while (*current_handler)
     error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
@@ -1175,6 +1169,12 @@ bool LOGGER::general_log_print(THD *thd, enum enum_server_command command,
                                    format, args);
   else
     message_buff[0]= '\0';
+
+  mysql_audit_general_log(thd, command, message_buff, message_buff_len);
+
+  /* Print the message to the buffer if we want to log this kind of commands */
+  if (! logger.log_command(thd, command))
+    return FALSE;
 
   return general_log_write(thd, command, message_buff, message_buff_len);
 }
@@ -2233,10 +2233,6 @@ bool general_log_print(THD *thd, enum enum_server_command command,
   va_list args;
   uint error= 0;
 
-  /* Print the message to the buffer if we want to log this king of commands */
-  if (! logger.log_command(thd, command))
-    return FALSE;
-
   va_start(args, format);
   error= logger.general_log_print(thd, command, format, args);
   va_end(args);
@@ -2247,6 +2243,8 @@ bool general_log_print(THD *thd, enum enum_server_command command,
 bool general_log_write(THD *thd, enum enum_server_command command,
                        const char *query, uint query_length)
 {
+  mysql_audit_general_log(thd, command, query, query_length);
+
   /* Write the message to the log if we want to log this king of commands */
   if (logger.log_command(thd, command))
     return logger.general_log_write(thd, command, query, query_length);

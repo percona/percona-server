@@ -22,6 +22,7 @@
 #include <mysql/plugin_audit.h>
 #include "sql_class.h"
 #include "sql_rewrite.h"
+#include "sql_parse.h"                          // command_name
 
 extern unsigned long mysql_global_audit_mask[];
 
@@ -55,6 +56,45 @@ static inline uint make_user_name(THD *thd, char *buf)
                   "", "]", NullS) - buf;
 }
 
+static inline
+void set_audit_mask(unsigned long *mask, uint event_class)
+{
+  mask[0]= 1;
+  mask[0]<<= event_class;
+}
+
+static inline
+void add_audit_mask(unsigned long *mask, const unsigned long *rhs)
+{
+  mask[0]|= rhs[0];
+}
+
+static inline
+bool check_audit_mask(const unsigned long *lhs,
+                      const unsigned long *rhs)
+{
+  return !(lhs[0] & rhs[0]);
+}
+
+/**
+  @brief Check if audit logging enables for specified class
+
+  @param[in]   thd              MySQL thread handle
+  @param[in]   event_class      Audit event class
+*/
+static inline
+bool mysql_audit_enabled(THD *thd, uint event_class)
+{
+#ifndef EMBEDDED_LIBRARY
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  set_audit_mask(event_class_mask, event_class);
+  if (thd && !check_audit_mask(mysql_global_audit_mask, event_class_mask) &&
+      check_audit_mask(thd->audit_class_mask, event_class_mask))
+    return true;
+#endif
+  return false;
+}
+
 /**
   Call audit plugins of GENERAL audit class, MYSQL_AUDIT_GENERAL_LOG subtype.
   
@@ -69,14 +109,20 @@ static inline uint make_user_name(THD *thd, char *buf)
 */
  
 static inline
-void mysql_audit_general_log(THD *thd, time_t time,
-                             const char *user, uint userlen,
-                             const char *cmd, uint cmdlen,
+void mysql_audit_general_log(THD *thd,
+                             enum enum_server_command command,
                              const char *query, uint querylen)
 {
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
+    time_t time;
+    char user[MAX_USER_HOST_SIZE + 1];
+    uint userlen;
+
+    userlen= make_user_name(thd, user);
+    time= my_time(0);
+
     MYSQL_LEX_STRING sql_command, ip, host, external_user;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
 
@@ -102,7 +148,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query, querylen,
+                       0, time, user, userlen, command_name[(uint) command].str,
+                       command_name[(uint) command].length, query, querylen,
                        clientcs, 0, sql_command, host, external_user, ip);
   }
 #endif

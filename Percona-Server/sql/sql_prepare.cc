@@ -309,12 +309,12 @@ static inline void log_execute_line(THD *thd)
     return;
 
   if (thd->rewritten_query.length())
-    logger.general_log_write(thd, COM_STMT_EXECUTE,
-                             thd->rewritten_query.c_ptr_safe(),
-                             thd->rewritten_query.length());
+    general_log_write(thd, COM_STMT_EXECUTE,
+                      thd->rewritten_query.c_ptr_safe(),
+                      thd->rewritten_query.length());
   else
-    logger.general_log_write(thd, COM_STMT_EXECUTE,
-                             thd->query(), thd->query_length());
+    general_log_write(thd, COM_STMT_EXECUTE,
+                      thd->query(), thd->query_length());
 }
 
 
@@ -3843,12 +3843,12 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     if (thd->sp_runtime_ctx == NULL)
     {
       if (thd->rewritten_query.length())
-        logger.general_log_write(thd, COM_STMT_PREPARE,
-                                 thd->rewritten_query.c_ptr_safe(),
-                                 thd->rewritten_query.length());
+        general_log_write(thd, COM_STMT_PREPARE,
+                          thd->rewritten_query.c_ptr_safe(),
+                          thd->rewritten_query.length());
       else
-        logger.general_log_write(thd, COM_STMT_PREPARE,
-                                 query(), query_length());
+        general_log_write(thd, COM_STMT_PREPARE,
+                          query(), query_length());
     }
   }
   DBUG_RETURN(error);

@@ -6572,9 +6572,10 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         no logging happens at all. If rewriting does not happen here,
         thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      bool general= (opt_log && ! (opt_log_raw || thd->slave_thread));
+      bool audit= mysql_audit_enabled(thd, MYSQL_AUDIT_GENERAL_CLASS);
+      bool general= ((opt_log || audit) && !(opt_log_raw || thd->slave_thread));
 
-      if (general || opt_slow_log || opt_bin_log)
+      if (general || audit || opt_slow_log || opt_bin_log)
       {
         mysql_rewrite_query(thd);
 

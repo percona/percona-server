@@ -1,0 +1,48 @@
+#########################################################################
+# Test for bug 1182535 (upstream bug 60782)
+# No MYSQL_AUDIT_GENERAL_LOG notifications with general log off
+#
+# Load audit_null plugin to check that it notified about
+# general log events with general log turned off
+#########################################################################
+
+--source include/have_null_audit_plugin.inc
+--source include/not_embedded.inc
+
+SET @general_log_save = @@general_log;
+SET GLOBAL general_log=OFF;
+
+DELIMITER //;
+
+CREATE PROCEDURE simpleproc (OUT param1 INT)
+BEGIN
+  SELECT 1 INTO param1;
+END//
+
+DELIMITER ;//
+
+# load audit plugin
+--replace_result $AUDIT_NULL AUDIT_NULL
+--eval INSTALL PLUGIN NULL_AUDIT SONAME '$AUDIT_NULL'
+
+# status variable should show 8 general log events
+# Query SELECT 1
+# Query CALL simpleproc(@a)
+# Query SELECT 1 INTO param1          ; will not be emitted
+#                                     ; this is OK for scalability metrcis
+# Query PREPARE stmt1 FROM 'SELECT 1'
+# Prepare SELECT 1
+# Query EXECUTE stmt1
+# Execute SELECT 1
+# Query SHOW STATUS LIKE 'Audit_null_general_log';
+SELECT 1;
+CALL simpleproc(@a);
+PREPARE stmt1 FROM 'SELECT 1';
+EXECUTE stmt1;
+SHOW STATUS LIKE 'Audit_null_general_log';
+
+DEALLOCATE PREPARE stmt1;
+DROP PROCEDURE simpleproc;
+UNINSTALL PLUGIN NULL_AUDIT;
+
+SET GLOBAL general_log=@general_log_save;

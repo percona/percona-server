@@ -562,7 +562,7 @@ typedef struct system_variables
   my_bool pseudo_slave_mode;
 
   uint  threadpool_high_prio_tickets;
-  ulong thread_pool_high_prio_mode;
+  ulong threadpool_high_prio_mode;
 } SV;
 
 

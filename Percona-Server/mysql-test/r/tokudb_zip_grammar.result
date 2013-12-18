@@ -1,0 +1,37 @@
+CREATE TABLE t1 (a INT) ENGINE=InnoDB ROW_FORMAT=TOKUDB_UNCOMPRESSED;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_ZLIB;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_QUICKLZ;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_LZMA;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_FAST;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_SMALL;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_UNDEFINED;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TOKUDB_UNDEFINED' at line 1
+SET @@SESSION.innodb_strict_mode=ON;
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_ZLIB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_QUICKLZ;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_LZMA;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_FAST;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+ALTER TABLE t1 ROW_FORMAT=TOKUDB_SMALL;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+SET @@SESSION.innodb_strict_mode=DEFAULT;
+CREATE TABLE t2 (a INT) ENGINE=MyISAM ROW_FORMAT=TOKUDB_ZLIB;
+CREATE TABLE t3 (a INT) ENGINE=MEMORY ROW_FORMAT=TOKUDB_QUICKLZ;
+DROP TABLE t1, t2, t3;
+CREATE TABLE TOKUDB_UNCOMPRESSED(TOKUDB_ZLIB INT, TOKUDB_QUICKLZ INT, TOKUDB_LZMA INT, TOKUDB_FAST INT, TOKUDB_SMALL INT);
+DROP TABLE TOKUDB_UNCOMPRESSED;

@@ -1,3 +1,9 @@
+percona-server-5.1 (5.1.73-rel14.11) unstable; urgency=low
+
+  * Percona Server 5.1 release 14.11
+
+ -- Alexey Bychko <alexey.bychko@percona.com> Thu, 19 Dec 2013 12:30:00 +0700
+
 percona-server-5.1 (5.1.72-rel14.10) unstable; urgency=low
 
   * Added --error-handler=: to dh_installinit in order to

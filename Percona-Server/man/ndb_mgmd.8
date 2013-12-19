@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 03/05/2013
+.\"      Date: 11/04/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "03/05/2013" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "11/04/2013" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&17.12.\ \&ndb_mgmd Options: MySQL 5.1, MySQL Cluster NDB 6.3-7.1
+.B Table\ \&17.12.\ \&ndb_mgmd Options and Variables: MySQL 5.1, MySQL Cluster NDB 6.3-7.1
 .TS
 allbox tab(:);
 lB lB lB.
@@ -99,7 +99,9 @@ All MySQL 5\&.1 based releases
 T}
 T{
 .PP
---configdir=directory
+--configdir=directory,
+.PP
+--config-dir=directory
 T}:T{
 Specify the cluster management server\*(Aqs configuration cache directory
 T}:T{
@@ -216,9 +218,9 @@ ADDED: NDB 7\&.0\&.10, NDB 7\&.1\&.0
 T}
 T{
 .PP
---config-cache=value
+--config-cache[=TRUE|FALSE]
 T}:T{
-Enable the management server configuration cache; ON by default\&.
+Enable the management server configuration cache; TRUE by default\&.
 T}:T{
 .PP
 ADDED: NDB 7\&.0\&.15, NDB 7\&.1\&.4
@@ -266,7 +268,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.22\-ndb\-6\&.3\&.2
 T}
@@ -278,7 +280,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -326,7 +328,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -357,11 +359,12 @@ Do not perform any checks of node IDs\&.
 allbox tab(:);
 l l s s
 l l s s
+l l l s
 l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.30\-ndb\-6\&.4\&.0
 T}
@@ -373,7 +376,14 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\-\-config\-dir=directory
+T}:T{
+from 5\&.1\&.37\-ndb\-7\&.0\&.8
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -401,6 +411,41 @@ is accepted as an alias for this option\&.
 .IP \(bu 2.3
 .\}
 .\" config-cache option (ndb_mgmd)
+\fB\-\-config\-cache\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l s s
+^ l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.1\&.44\-ndb\-7\&.1\&.4
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-config\-cache[=TRUE|FALSE]
+T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
+T}
+:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+TRUE
+T}
+.TE
+.sp 1
 This option, whose default value is
 1
 (or
@@ -538,6 +583,8 @@ allbox tab(:);
 l l s s
 l l s s
 l l s s
+^ l l s
+^ l l s
 l l s s
 ^ l l s
 ^ l l s.
@@ -547,17 +594,14 @@ T}:T{
 \-\-config\-file=file
 T}
 T{
+\ \&
 T}:T{
 \-f
 T}
 T{
-T}:T{
-\-c
-T}
-T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -569,6 +613,21 @@ T}
 T}:T{
 \&./config\&.ini
 T}
+T{
+\ \&
+T}:T{
+\fBPermitted Values\fR
+T}
+:T{
+\fBType\fR
+T}:T{
+file name
+T}
+:T{
+\fBDefault\fR
+T}:T{
+[none]
+T}
 .TE
 .sp 1
 Instructs the management server as to which file it should use for its configuration file\&. By default, the management server looks for a file named
@@ -577,7 +636,7 @@ in the same directory as the
 \fBndb_mgmd\fR
 executable; otherwise the file name and location must be specified explicitly\&.
 .sp
-Beginning with MySQL Cluster NDB 6\&.4\&.0, this option is ignored unless the management server is forced to read the configuration file, either because
+Beginning with MySQL Cluster NDB 6\&.4\&.0, this option has no default value, and is ignored unless the management server is forced to read the configuration file, either because
 \fBndb_mgmd\fR
 was started with the
 \fB\-\-reload\fR
@@ -588,6 +647,10 @@ option, or because the management server could not find any configuration cache\
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
 Section\ \&17.3.2, \(lqMySQL Cluster Configuration Files\(rq, for more information\&.
+.sp
+Formerly, using this option together with
+\fB\-\-initial\fR
+caused removal of the configuration cache even if the file was not found\&. This issue was resolved in MySQL Cluster NDB 7\&.0\&.38 and MySQL Cluster NDB 7\&.1\&.27\&. (Bug #1299289)
 .RE
 .sp
 .RS 4
@@ -615,7 +678,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -659,13 +722,14 @@ T}:T{
 \-\-daemon
 T}
 T{
+\ \&
 T}:T{
 \-d
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -712,7 +776,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -751,7 +815,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.30\-ndb\-6\&.4\&.0
 T}
@@ -763,7 +827,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -801,6 +865,10 @@ ignores
 unless it is the only management server running\&. This behavior has implications when performing a rolling restart of a MySQL Cluster with multiple management nodes\&. See
 Section\ \&17.5.5, \(lqPerforming a Rolling Restart of a MySQL Cluster\(rq, for more information\&.
 .sp
+Formerly, using this option together with the
+\fB\-\-config\-file\fR
+option caused removal of the configuration cache even if the file was not found\&. Starting with MySQL Cluster NDB 7\&.0\&.38 and MySQL Cluster NDB 7\&.1\&.27, the cache is cleared in such cases only if the configuration file is actually found\&. (Bug #1299289)
+.sp
 This option was introduced in MySQL Cluster NDB 6\&.4\&.0\&.
 .RE
 .sp
@@ -822,7 +890,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.37\-ndb\-7\&.0\&.8
 T}
@@ -834,7 +902,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -871,7 +939,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.37\-ndb\-7\&.0\&.8
 T}
@@ -883,7 +951,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -931,13 +999,14 @@ T}:T{
 \-\-print\-full\-config
 T}
 T{
+\ \&
 T}:T{
 \-P
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -976,7 +1045,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.30\-ndb\-6\&.4\&.0
 T}
@@ -988,7 +1057,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -1046,7 +1115,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.39\-ndb\-7\&.1\&.0
 T}
@@ -1058,7 +1127,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -1140,7 +1209,7 @@ option to specify the node ID of this
 \fBndb_mgmd\fR
 process\&.
 .sp
-You can then start each of the cluster\*(Aqs data nodes in the usual way\&. If you wish to start and use the second management server in addition to the first management server at a later time without restarting the data nodes, you must start each data node with a connectstring that references both management servers, like this:
+You can then start each of the cluster\*(Aqs data nodes in the usual way\&. If you wish to start and use the second management server in addition to the first management server at a later time without restarting the data nodes, you must start each data node with a connection string that references both management servers, like this:
 .sp
 .if n \{\
 .RS 4
@@ -1152,10 +1221,10 @@ shell> \fBndbd \-c 192\&.168\&.0\&.150,192\&.168\&.0\&.151\fR
 .RE
 .\}
 .sp
-The same is true with regard to the connectstring used with any
+The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as MySQL Cluster SQL nodes connected to this cluster\&. See
-Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, for more information\&.
+Section\ \&17.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1187,10 +1256,10 @@ management server, its configuration must match that of the management server th
 This option was introduced in MySQL Cluster NDB 7\&.0\&.10 and MySQL Cluster NDB 7\&.1\&.0\&.
 .RE
 .PP
-It is not strictly necessary to specify a connectstring when starting the management server\&. However, if you are using more than one management server, a connectstring should be provided and each node in the cluster should specify its node ID explicitly\&.
+It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, for information about using connectstrings\&.
+Section\ \&17.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for information about using connection strings\&.
 \fBndb_mgmd\fR(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
@@ -1217,7 +1286,7 @@ is the unique node identifier\&.
 .\" config.ini (MySQL Cluster)
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&17.3, \(lqMySQL Cluster Configuration\(rq, discusses how to set up this file\&.
+Section\ \&17.3, \(lqConfiguration of MySQL Cluster NDB 6.1-7.1\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -1285,7 +1354,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.47\-ndb\-7\&.1\&.5
 T}
@@ -1297,7 +1366,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -1356,7 +1425,7 @@ l l s s
 ^ l l s
 ^ l l s.
 T{
-\fBVersion Introduced\fR
+\fBIntroduced\fR
 T}:T{
 5\&.1\&.47\-ndb\-7\&.1\&.5
 T}
@@ -1368,7 +1437,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -1398,40 +1467,11 @@ This option became available in MySQL Cluster NDB 7\&.0\&.16 and MySQL Cluster N
 .PP
 Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
-The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
-.PP
-U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
-.PP
-This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
-.PP
-Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
-.PP
-This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
-.PP
-This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
-.PP
-This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
-.PP
-You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
-.PP
-For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
-\m[blue]\fBMySQL Contact & Questions\fR\m[].
-.PP
-For additional licensing information, including licenses for third-party libraries used by MySQL products, see
-Preface and Legal Notices.
-.PP
-For help with using MySQL, please visit either the
-\m[blue]\fBMySQL Forums\fR\m[]
-or
-\m[blue]\fBMySQL Mailing Lists\fR\m[]
-where you can discuss your issues with other MySQL users.
-.PP
-For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
-\m[blue]\fBMySQL Documentation Library\fR\m[].
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

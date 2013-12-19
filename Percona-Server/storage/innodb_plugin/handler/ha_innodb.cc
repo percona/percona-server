@@ -1167,7 +1167,8 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_system_charset(
@@ -8202,6 +8203,10 @@ ha_innobase::records_in_range(
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innobase_get_index() */
+	if (prebuilt->table->ibd_file_missing) {
+		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
 	if (UNIV_UNLIKELY(!index)) {
 		n_rows = HA_POS_ERROR;
 		goto func_exit;
@@ -12872,7 +12877,8 @@ test_innobase_convert_name()
 #endif /* UNIV_COMPILE_TEST_FUNCS */
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 extern "C"
 uint
 innobase_convert_to_filename_charset(

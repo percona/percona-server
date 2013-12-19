@@ -89,6 +89,7 @@ Flexibility Improvements
    flexibility/buff_read_ahead_area
    flexibility/extended_select_into_outfile
    flexibility/per_query_variable_statement
+   flexibility/extended_mysqlbinlog
 
 Reliability Improvements
 ========================

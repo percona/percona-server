@@ -1,8 +1,8 @@
 .. _upgrading_guide:
 
-=========================================================
- Percona Sever In-Place Upgrading Guide: From 5.1 to 5.5
-=========================================================
+==========================================================
+ Percona Server In-Place Upgrading Guide: From 5.1 to 5.5
+==========================================================
 
 In-place upgrades are those which are done using the existing data in the server. Generally speaking, this is stopping the server, installing the new server and starting it with the same data files. While they may not be suitable for high-complexity environments, they may be adequate for many scenarios.
 

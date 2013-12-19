@@ -208,6 +208,9 @@ List of features available in |Percona Server| releases
    * - Feature not implemented
      - Feature not implemented
      - :ref:`Per-query variable statement <ps56:per_query_variable_statement>`
+   * - Feature not implemented
+     - :ref:`Extended mysqlbinlog <ps55:extended_mysqlbinlog>`
+     - :ref:`Extended mysqlbinlog <ps56:extended_mysqlbinlog>`
    
 
 Other Reading

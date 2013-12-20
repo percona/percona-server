@@ -75,4 +75,4 @@ Bug Fixes
 
  Suboptimal code for :ref:`user_stats` feature has been optimized to make sure no additional work is done when :variable:`userstat` is disabled. Bug fixed :bug:`1128066` (*Alexey Kopytov*).
 
-Other bug fixes: bug fixed :bug:`1146621` (*Laurynas Biveinis*), bug fixed :bug:`1050536` (*Alexey Bychko*), bug fixed :bug:`1144059` (*Roel Van de Paar*), bug fixed :bug:`1154962` (*Hrvoje Matijakovic*), bug fixed :bug:`1154959` (*Hrvoje Matijakovic*), bug fixed :bug:`1154957` (*Hrvoje Matijakovic*), bug fixed :bug:`1154954` (*Hrvoje Matijakovic*).
+Other bug fixes: bug fixed :bug:`1103850` (*Laurynas Biveinis*), bug fixed :bug:`1146621` (*Laurynas Biveinis*), bug fixed :bug:`1050536` (*Alexey Bychko*), bug fixed :bug:`1144059` (*Roel Van de Paar*), bug fixed :bug:`1154962` (*Hrvoje Matijakovic*), bug fixed :bug:`1154959` (*Hrvoje Matijakovic*), bug fixed :bug:`1154957` (*Hrvoje Matijakovic*), bug fixed :bug:`1154954` (*Hrvoje Matijakovic*).

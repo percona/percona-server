@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_print_backup_file\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_PRINT_BACKUP_" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_PRINT_BACKUP_" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -28,7 +37,7 @@ ndb_print_backup_file \- print NDB backup file contents
 .PP
 \fBndb_print_backup_file\fR
 obtains diagnostic information from a cluster backup file\&.
-          Usage
+        Usage
 .sp
 .if n \{\
 .RS 4
@@ -44,11 +53,11 @@ ndb_print_backup_file \fIfile_name\fR
 is the name of a cluster backup file\&. This can be any of the files (\&.Data,
 \&.ctl, or
 \&.log
-file) found in a cluster backup directory\&. These files are found in the data node\'s backup directory under the subdirectory
+file) found in a cluster backup directory\&. These files are found in the data node\*(Aqs backup directory under the subdirectory
 BACKUP\-\fI#\fR, where
 \fI#\fR
 is the sequence number for the backup\&. For more information about cluster backup files and their contents, see
-Section\ \&16.5.3.1, \(lqMySQL Cluster Backup Concepts\(rq\&.
+Section\ \&17.5.3.1, \(lqMySQL Cluster Backup Concepts\(rq\&.
 .PP
 Like
 \fBndb_print_schema_file\fR
@@ -59,13 +68,13 @@ NDB
 utilities that are intended to be run on a management server host or to connect to a management server)
 \fBndb_print_backup_file\fR
 must be run on a cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
-          Additional Options
-        .PP
+        Additional Options
+.PP
 None\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

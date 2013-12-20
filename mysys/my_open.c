@@ -17,6 +17,9 @@
 #include "mysys_err.h"
 #include <my_dir.h>
 #include <errno.h>
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
 
 
 /*
@@ -52,6 +55,56 @@ File my_open(const char *FileName, int Flags, myf MyFlags)
   DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_OPEN,
 				   EE_FILENOTFOUND, MyFlags));
 } /* my_open */
+
+
+/*
+  Connect to unix domain socket
+
+  SYNOPSIS
+    my_unix_socket_connect()
+      FileName  Fully qualified file name
+      MyFlags Special flags
+
+  RETURN VALUE
+    File descriptor
+*/
+
+#ifndef __WIN__
+File my_unix_socket_connect(const char *FileName, myf MyFlags)
+        /* Path-name of file */
+        /* Read | write .. */
+        /* Special flags */
+{
+  my_socket sd;
+  struct sockaddr_un addr;
+  DBUG_ENTER("my_unix_socket_connect");
+  DBUG_PRINT("my",("Name: '%s'  MyFlags: %d",
+       FileName, MyFlags));
+
+  if (strlen(FileName) > (sizeof(addr.sun_path) - 1))
+  {
+    if (MyFlags & (MY_FAE | MY_WME))
+      my_error(EE_TOOLONGFILENAME, MYF(0), FileName, sizeof(addr.sun_path) - 1);
+    DBUG_RETURN(-1);
+  }
+  if ((sd= socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
+  {
+    if (MyFlags & (MY_FAE | MY_WME))
+      my_error(EE_SOCKET, MYF(0), FileName, errno);
+    DBUG_RETURN(-1);
+  }
+  memset(&addr, 0, sizeof(addr));
+  addr.sun_family = AF_UNIX;
+  strcpy(addr.sun_path, FileName);
+  if (connect(sd, (struct sockaddr *)&addr, sizeof(addr)) == -1) {
+    close(sd);
+    sd= -1;
+  }
+
+  DBUG_RETURN(my_register_filename((File) sd, FileName, FILE_BY_OPEN,
+           EE_FILENOTFOUND, MyFlags));
+} /* my_unix_socket_connect */
+#endif
 
 
 /*

@@ -1180,6 +1180,18 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
   {
     if (ha_info->is_trx_read_write())
       ++rw_ha_count;
+    else
+    {
+      /*
+        If we have any fake changes handlertons, they will not be marked as
+        read-write, potentially skipping 2PC and causing the fake transaction
+        to be binlogged.  Force using 2PC in this case by bumping rw_ha_count
+        for each fake changes handlerton.
+       */
+      handlerton *ht= ha_info->ht();
+      if (unlikely(ht->is_fake_change && ht->is_fake_change(ht, thd)))
+        ++rw_ha_count;
+    }
 
     if (! all)
     {
@@ -1348,7 +1360,14 @@ int ha_commit_trans(THD *thd, bool all)
           transaction is read-only. This allows for simpler
           implementation in engines that are always read-only.
         */
-        if (! hi->is_trx_read_write())
+        /*
+          But do call two-phase commit if the handlerton has fake changes
+          enabled even if it's not marked as read-write.  This will ensure that
+          the fake changes handlerton prepare will fail, preventing binlogging
+          and committing the transaction in other engines.
+        */
+        if (! hi->is_trx_read_write()
+            && likely(!(ht->is_fake_change && ht->is_fake_change(ht, thd))))
           continue;
         /*
           Sic: we know that prepare() is not NULL since otherwise
@@ -1550,10 +1569,16 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request &&
-        thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
   }
+
+  /*
+    Thanks to possibility of MDL deadlock rollback request can come even if
+    transaction hasn't been started in any transactional storage engine.
+  */
+  if (is_real_trans && thd->transaction_rollback_request &&
+      thd->transaction.xid_state.xa_state != XA_NOTR)
+    thd->transaction.xid_state.rm_error= thd->stmt_da->sql_errno();
+
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
     thd->transaction.cleanup();
@@ -3895,6 +3920,7 @@ void handler::update_global_table_stats()
       goto end;
     }
     strncpy(table_stats->table, key, sizeof(table_stats->table));
+    table_stats->table_len=              strlen(table_stats->table);
     table_stats->rows_read=              0;
     table_stats->rows_changed=           0;
     table_stats->rows_changed_x_indexes= 0;
@@ -3955,6 +3981,7 @@ void handler::update_global_index_stats()
           goto end;
         }
         strncpy(index_stats->index, key, sizeof(index_stats->index));
+        index_stats->index_len= strlen(index_stats->index);
         index_stats->rows_read= 0;
 
         if (my_hash_insert(&global_index_stats, (uchar *) index_stats))

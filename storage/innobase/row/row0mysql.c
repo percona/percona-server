@@ -2010,7 +2010,7 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_get_low(table->name)) {
+		if (dict_table_get_low(table->name, DICT_ERR_IGNORE_NONE)) {
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 			trx_commit_for_mysql(trx);
@@ -2092,7 +2092,7 @@ row_create_index_for_mysql(
 	que_run_threads()) and thus index->table_name is not available. */
 	table_name = mem_strdup(index->table_name);
 
-	table = dict_table_get_low(table_name);
+	table = dict_table_get_low(table_name, DICT_ERR_IGNORE_NONE);
 
 	trx_start_if_not_started(trx);
 
@@ -2266,7 +2266,8 @@ row_table_add_foreign_constraints(
 					      name, reject_fks);
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, FALSE, TRUE);
+		err = dict_load_foreigns(name, FALSE, TRUE,
+					 DICT_ERR_IGNORE_NONE);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -2368,7 +2369,7 @@ loop:
 	}
 
 	mutex_enter(&(dict_sys->mutex));
-	table = dict_table_get_low(drop->table_name);
+	table = dict_table_get_low(drop->table_name, DICT_ERR_IGNORE_NONE);
 	mutex_exit(&(dict_sys->mutex));
 
 	if (table == NULL) {
@@ -2536,7 +2537,7 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -2663,7 +2664,9 @@ row_discard_tablespace_for_mysql(
 			/* check adaptive hash entries */
 			index = dict_table_get_first_index(table);
 			while (index) {
-				ulint ref_count = btr_search_info_get_ref_count(index->search_info, index->id);
+				ulint ref_count =
+					btr_search_info_get_ref_count(
+						index->search_info, index);
 				if (ref_count) {
 					fprintf(stderr, "InnoDB: Warning:"
 						" hash index ref_count (%lu) is not zero"
@@ -2750,7 +2753,7 @@ row_import_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_get_low(name);
+	table = dict_table_get_low(name, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		ut_print_timestamp(stderr);
@@ -3024,7 +3027,9 @@ row_truncate_table_for_mysql(
 			table->space = space;
 			index = dict_table_get_first_index(table);
 			do {
-				ulint ref_count = btr_search_info_get_ref_count(index->search_info, index->id);
+				ulint ref_count =
+					btr_search_info_get_ref_count(
+						index->search_info, index);
 				/* check adaptive hash entries */
 				if (ref_count) {
 					fprintf(stderr, "InnoDB: Warning:"
@@ -3290,7 +3295,7 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_get_low_ignore_err(
+	table = dict_table_get_low(
 		name, DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT);
 
 	if (!table) {
@@ -3706,7 +3711,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_table_get_low(table_name);
+		table = dict_table_get_low(table_name, DICT_ERR_IGNORE_ALL);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);
@@ -3812,7 +3817,7 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_get_low(table_name);
+		table = dict_table_get_low(table_name, DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
 
@@ -4001,7 +4006,7 @@ row_rename_table_for_mysql(
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);
 
-	table = dict_table_get_low(old_name);
+	table = dict_table_get_low(old_name, DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -4092,12 +4097,28 @@ row_rename_table_for_mysql(
 	} else if (!new_is_tmp) {
 		/* Rename all constraints. */
 		char	new_table_name[MAX_TABLE_NAME_LEN] = "";
+		char	old_table_utf8[MAX_TABLE_NAME_LEN] = "";
 		uint	errors = 0;
+
+		strncpy(old_table_utf8, old_name, MAX_TABLE_NAME_LEN);
+		innobase_convert_to_system_charset(
+			strchr(old_table_utf8, '/') + 1,
+			strchr(old_name, '/') +1,
+			MAX_TABLE_NAME_LEN, &errors);
+
+		if (errors) {
+			/* Table name could not be converted from charset
+			my_charset_filename to UTF-8. This means that the
+			table name is already in UTF-8 (#mysql#50). */
+			strncpy(old_table_utf8, old_name, MAX_TABLE_NAME_LEN);
+		}
 
 		info = pars_info_create();
 
 		pars_info_add_str_literal(info, "new_table_name", new_name);
 		pars_info_add_str_literal(info, "old_table_name", old_name);
+		pars_info_add_str_literal(info, "old_table_name_utf8",
+					  old_table_utf8);
 
 		strncpy(new_table_name, new_name, MAX_TABLE_NAME_LEN);
 		innobase_convert_to_system_charset(
@@ -4134,6 +4155,8 @@ row_rename_table_for_mysql(
 			"new_db_name := SUBSTR(:new_table_name, 0,\n"
 			"                      new_db_name_len);\n"
 			"old_t_name_len := LENGTH(:old_table_name);\n"
+			"gen_constr_prefix := CONCAT(:old_table_name_utf8,\n"
+			"			     '_ibfk_');\n"
 			"WHILE found = 1 LOOP\n"
 			"       SELECT ID INTO foreign_id\n"
 			"        FROM SYS_FOREIGN\n"
@@ -4150,7 +4173,7 @@ row_rename_table_for_mysql(
 			"        id_len := LENGTH(foreign_id);\n"
 			"        IF (INSTR(foreign_id, '/') > 0) THEN\n"
 			"               IF (INSTR(foreign_id,\n"
-			"                         '_ibfk_') > 0)\n"
+			"                         gen_constr_prefix) > 0)\n"
 			"               THEN\n"
                         "                offset := INSTR(foreign_id, '_ibfk_') - 1;\n"
 			"                new_foreign_id :=\n"
@@ -4256,7 +4279,8 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
+			new_name, FALSE, !old_is_tmp || trx->check_foreigns,
+			DICT_ERR_IGNORE_NONE);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);

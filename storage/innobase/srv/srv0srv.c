@@ -26,8 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -1275,8 +1275,10 @@ retry:
 		os_thread_yield();
 		goto retry;
 	}
-	if (trx->has_search_latch
-	    || NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
+
+	ut_ad(!trx->has_search_latch);
+
+	if (NULL != UT_LIST_GET_FIRST(trx->trx_locks)) {
 
 		conc_n_threads = os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		enter_innodb_with_tickets(trx);
@@ -1319,7 +1321,9 @@ srv_conc_enter_innodb(
 	ulint                   sec;
 	ulint                   ms;
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1379,7 +1383,9 @@ retry:
 	/* If the transaction is not holding resources, let it sleep
 	for SRV_THREAD_SLEEP_DELAY microseconds, and try again then */
 
-	if (!has_slept && !trx->has_search_latch
+	ut_ad(!trx->has_search_latch);
+
+	if (!has_slept
 	    && NULL == UT_LIST_GET_FIRST(trx->trx_locks)) {
 
 		has_slept = TRUE; /* We let it sleep only once to avoid
@@ -1434,10 +1440,8 @@ retry:
 		return;
 	}
 
-	/* Release possible search system latch this thread has */
-	if (trx->has_search_latch) {
-		trx_search_latch_release_if_reserved(trx);
-	}
+	/* No-op for XtraDB. */
+	trx_search_latch_release_if_reserved(trx);
 
 	/* Add to the queue */
 	slot->reserved = TRUE;
@@ -1456,6 +1460,7 @@ retry:
 
 	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1507,7 +1512,9 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1598,7 +1605,9 @@ srv_conc_force_exit_innodb(
 		os_event_set(slot->event);
 	}
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 }
@@ -1612,7 +1621,9 @@ srv_conc_exit_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1885,7 +1896,9 @@ srv_suspend_mysql_thread(
 	os_event_wait(event);
 	thd_wait_end(trx->mysql_thd);
 
+	ut_ad(!trx->has_search_latch);
 #ifdef UNIV_SYNC_DEBUG
+	ut_ad(!btr_search_own_any());
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -2047,7 +2060,8 @@ srv_printf_innodb_monitor(
 	ulint	n_reserved;
 	ibool	ret;
 
-	ulint	btr_search_sys_subtotal;
+	ulong	btr_search_sys_constant;
+	ulong	btr_search_sys_variable;
 	ulint	lock_sys_subtotal;
 	ulint	recv_sys_subtotal;
 
@@ -2113,7 +2127,7 @@ srv_printf_innodb_monitor(
 	ibuf_print(file);
 
 	for (i = 0; i < btr_search_index_num; i++) {
-		ha_print_info(file, btr_search_get_hash_index((index_id_t)i));
+		ha_print_info(file, btr_search_sys->hash_tables[i]);
 	}
 
 	fprintf(file,
@@ -2141,16 +2155,28 @@ srv_printf_innodb_monitor(
 	fprintf(file,
 		"Total memory allocated by read views " ULINTPF "\n",
 		srv_read_views_memory);
-	/* Calcurate reserved memories */
-	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
-		btr_search_sys_subtotal = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
-	} else {
-		btr_search_sys_subtotal = 0;
-		for (i=0; i < btr_search_sys->hash_index[0]->n_mutexes; i++) {
-			btr_search_sys_subtotal += mem_heap_get_size(btr_search_sys->hash_index[0]->heaps[i]);
-		}
+
+	/* Calculate AHI constant and variable memory allocations */
+
+	btr_search_sys_constant = 0;
+	btr_search_sys_variable = 0;
+
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		hash_table_t* ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_mutexes);
+		ut_ad(!ht->heaps);
+
+		btr_search_sys_variable += mem_heap_get_size(ht->heap);
+		btr_search_sys_constant += ht->n_cells * sizeof(hash_cell_t);
 	}
-	btr_search_sys_subtotal *= btr_search_index_num;
 
 	lock_sys_subtotal = 0;
 	if (trx_sys) {
@@ -2175,12 +2201,9 @@ srv_printf_innodb_monitor(
 			"    Lock system         %lu \t(%lu + %lu)\n"
 			"    Recovery system     %lu \t(%lu + %lu)\n",
 
-			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t)) : 0)
-			+ btr_search_sys_subtotal,
-			(ulong) (btr_search_sys
-				? (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t)) : 0),
-			(ulong) btr_search_sys_subtotal,
+			btr_search_sys_constant + btr_search_sys_variable,
+			btr_search_sys_constant,
+			btr_search_sys_variable,
 
 			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),
 
@@ -2342,17 +2365,22 @@ srv_export_innodb_status(void)
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
-	if (btr_search_sys && btr_search_sys->hash_index[0]->heap) {
-		mem_adaptive_hash = mem_heap_get_size(btr_search_sys->hash_index[0]->heap);
-	} else {
-		mem_adaptive_hash = 0;
-		for (i=0; i < btr_search_sys->hash_index[0]->n_mutexes; i++) {
-			mem_adaptive_hash += mem_heap_get_size(btr_search_sys->hash_index[0]->heaps[i]);
-		}
-	}
-	mem_adaptive_hash *= btr_search_index_num;
-	if (btr_search_sys) {
-		mem_adaptive_hash += (btr_search_sys->hash_index[0]->n_cells * btr_search_index_num * sizeof(hash_cell_t));
+	mem_adaptive_hash = 0;
+
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (i = 0; i < btr_search_index_num; i++) {
+		hash_table_t*	ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_mutexes);
+		ut_ad(!ht->heaps);
+
+		mem_adaptive_hash += mem_heap_get_size(ht->heap);
+		mem_adaptive_hash += ht->n_cells * sizeof(hash_cell_t);
 	}
 
 	mem_dictionary = (dict_sys ? ((dict_sys->table_hash->n_cells
@@ -2365,7 +2393,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_adaptive_hash_cells = 0;
 	export_vars.innodb_adaptive_hash_heap_buffers = 0;
 	for (i = 0; i < btr_search_index_num; i++) {
-		hash_table_t*	table = btr_search_get_hash_index((index_id_t)i);
+		hash_table_t*	table = btr_search_sys->hash_tables[i];
 
 		export_vars.innodb_adaptive_hash_cells
 			+= hash_get_n_cells(table);
@@ -3156,6 +3184,12 @@ srv_redo_log_follow_thread(
 		os_event_wait(srv_checkpoint_completed_event);
 		os_event_reset(srv_checkpoint_completed_event);
 
+#ifdef UNIV_DEBUG
+		if (!srv_track_changed_pages) {
+			continue;
+		}
+#endif
+
 		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 			if (!log_online_follow_redo_log()) {
 				/* TODO: sync with I_S log tracking status? */
@@ -3932,14 +3966,18 @@ background_loop:
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
-	if (srv_fast_shutdown < 2) {
+	if (srv_fast_shutdown < 2 || srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		n_pages_flushed = buf_flush_list(
 			  PCT_IO(100), IB_ULONGLONG_MAX);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
+		ut_ad(srv_fast_shutdown == 2);
+		ut_ad(srv_shutdown_state > 0);
 
 		n_pages_flushed = 0;
+
+		DBUG_PRINT("master", ("doing very fast shutdown"));
 	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
@@ -3961,7 +3999,12 @@ flush_loop:
 
 	log_checkpoint(TRUE, FALSE);
 
-	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
+	if (!(srv_fast_shutdown == 2 && srv_shutdown_state > 0)
+	    && (buf_get_modified_ratio_pct()
+		> srv_max_buf_pool_modified_pct)) {
+
+		/* If the server is doing a very fast shutdown, then
+		we will not come here. */
 
 		/* Try to keep the number of modified pages in the
 		buffer pool under the limit wished by the user */

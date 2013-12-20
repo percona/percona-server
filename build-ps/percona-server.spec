@@ -25,9 +25,9 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.32
+%define mysql_version   5.5.34
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 31
+%define majorversion 32
 %define minorversion 0
 %define percona_server_version	%{majorversion}.%{minorversion}
 
@@ -390,6 +390,16 @@ export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-const
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 
+# "Fix" cmake directories in case we're crosscompiling.
+# We detect crosscompiles to i686 if uname is x86_64 however _libdir does not
+# contain lib64.
+# In this case, we cannot instruct cmake to change CMAKE_SYSTEM_PROCESSOR, so
+# we need to alter the directories in cmake/install_layout.cmake manually.
+if test "x$(uname -m)" = "xx86_64" && echo "%{_libdir}" | fgrep -vq lib64
+then
+    sed -i 's/lib64/lib/' "cmake/install_layout.cmake"
+fi
+
 # Build debug mysqld and libmysqld.a
 mkdir debug
 (
@@ -527,6 +537,10 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+
+# Delete the symlinks to the libraries from the libdir. These are created by
+# ldconfig(8) afterwards.
+rm -f $RBR%{_libdir}/libmysqlclient*.so.18
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -1134,11 +1148,14 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/libhsclient.la
 %{_libdir}/*.so
 
+<<<<<<< TREE
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libperconaserver*.so.*
+=======
+>>>>>>> MERGE-SOURCE
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la
@@ -1146,6 +1163,12 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/plugin/libfnv_udf.la
 %{_libdir}/mysql/plugin/libmurmur_udf.a
 %{_libdir}/mysql/plugin/libmurmur_udf.la
+
+# ----------------------------------------------------------------------------
+%files -n Percona-Server-shared%{product_suffix}
+%defattr(-, root, root, 0755)
+# Shared libraries (omit for architectures that don't support them)
+%{_libdir}/libmysql*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
 /sbin/ldconfig

@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -4019,7 +4019,7 @@ lock_table(
 
 	trx = thr_get_trx(thr);
 
-	if (trx->fake_changes && mode == LOCK_IX) {
+	if (UNIV_UNLIKELY(trx->fake_changes && mode == LOCK_IX)) {
 		mode = LOCK_IS;
 	}
 
@@ -5268,7 +5268,7 @@ lock_rec_insert_check_and_lock(
 
 	trx = thr_get_trx(thr);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		return(DB_SUCCESS);
 	}
 
@@ -5453,7 +5453,7 @@ lock_clust_rec_modify_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		return(DB_SUCCESS);
 	}
 
@@ -5515,7 +5515,7 @@ lock_sec_rec_modify_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		return(DB_SUCCESS);
 	}
 
@@ -5606,7 +5606,7 @@ lock_sec_rec_read_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (UNIV_UNLIKELY((thr && thr_get_trx(thr)->fake_changes))) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		if (!srv_fake_changes_locks) {
 			return(DB_SUCCESS);
 		}
@@ -5691,7 +5691,7 @@ lock_clust_rec_read_check_and_lock(
 		return(DB_SUCCESS);
 	}
 
-	if (UNIV_UNLIKELY((thr && thr_get_trx(thr)->fake_changes))) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		if (!srv_fake_changes_locks) {
 			return(DB_SUCCESS);
 		}

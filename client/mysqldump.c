@@ -91,14 +91,6 @@ typedef enum {
   KEY_TYPE_NON_UNIQUE
 } key_type_t;
 
-/* general_log or slow_log tables under mysql database */
-static inline my_bool general_log_or_slow_log_tables(const char *db, 
-                                                     const char *table)
-{
-  return (strcmp(db, "mysql") == 0) &&
-         ((strcmp(table, "general_log") == 0) ||
-          (strcmp(table, "slow_log") == 0));
-}
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
@@ -2447,6 +2439,15 @@ static uint dump_routines_for_db(char *db)
   DBUG_RETURN(0);
 }
 
+/* general_log or slow_log tables under mysql database */
+static inline my_bool general_log_or_slow_log_tables(const char *db,
+                                                     const char *table)
+{
+  return (!my_strcasecmp(charset_info, db, "mysql")) &&
+          (!my_strcasecmp(charset_info, table, "general_log") ||
+           !my_strcasecmp(charset_info, table, "slow_log"));
+}
+
 /*
   Find the first occurrence of a quoted identifier in a given string. Returns
   the pointer to the opening quote, and stores the pointer to the closing quote
@@ -2606,11 +2607,12 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
   const char *constr_from;
   const char *constr_to;
   LIST *keydef_node;
+  my_bool keys_processed= FALSE;
 
   strend= create_str + strlen(create_str);
 
   ptr= create_str;
-  while (*ptr)
+  while (*ptr && !keys_processed)
   {
     char *tmp, *orig_ptr, c;
 
@@ -2694,7 +2696,11 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
     {
       char *end;
 
-      if (last_comma != NULL && *ptr != ')')
+      if (last_comma != NULL && *ptr == ')')
+      {
+        keys_processed= TRUE;
+      }
+      else if (last_comma != NULL && !keys_processed)
       {
         /*
           It's not the last line of CREATE TABLE, so we have skipped a key
@@ -2868,7 +2874,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
   len= my_snprintf(query_buff, sizeof(query_buff),
-                   "SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+                   "SET SQL_QUOTE_SHOW_CREATE=%d",
                    (opt_quoted || opt_keywords));
   if (!create_options)
     strmov(query_buff+len,
@@ -4733,7 +4739,8 @@ static int dump_all_tables_in_db(char *database)
   char table_buff[NAME_LEN*2+3];
   char hash_key[2*NAME_LEN+2];  /* "db.tablename" */
   char *afterdot;
-  int using_mysql_db= my_strcasecmp(&my_charset_latin1, database, "mysql");
+  my_bool general_log_table_exists= 0, slow_log_table_exists=0;
+  int using_mysql_db= !my_strcasecmp(charset_info, database, "mysql");
   DBUG_ENTER("dump_all_tables_in_db");
 
   afterdot= strmov(hash_key, database);
@@ -4744,22 +4751,6 @@ static int dump_all_tables_in_db(char *database)
   if (opt_xml)
     print_xml_tag(md_result_file, "", "\n", "database", "name=", database, NullS);
 
-  if (strcmp(database, "mysql") == 0)
-  {
-    char table_type[NAME_LEN];
-    char ignore_flag;
-    uint num_fields;
-    num_fields= get_table_structure((char *) "general_log", 
-                                    database, table_type, &ignore_flag);
-    if (num_fields == 0)
-      verbose_msg("-- Warning: get_table_structure() failed with some internal "
-                  "error for 'general_log' table\n");
-    num_fields= get_table_structure((char *) "slow_log", 
-                                    database, table_type, &ignore_flag);
-    if (num_fields == 0)
-      verbose_msg("-- Warning: get_table_structure() failed with some internal "
-                  "error for 'slow_log' table\n");
-  }
   if (lock_tables)
   {
     DYNAMIC_STRING query;
@@ -4805,6 +4796,26 @@ static int dump_all_tables_in_db(char *database)
         }
       }
     }
+    else
+    {
+      /*
+        If general_log and slow_log exists in the 'mysql' database,
+         we should dump the table structure. But we cannot
+         call get_table_structure() here as 'LOCK TABLES' query got executed
+         above on the session and that 'LOCK TABLES' query does not contain
+         'general_log' and 'slow_log' tables. (you cannot acquire lock
+         on log tables). Hence mark the existence of these log tables here and
+         after 'UNLOCK TABLES' query is executed on the session, get the table
+         structure from server and dump it in the file.
+      */
+      if (using_mysql_db)
+      {
+        if (!my_strcasecmp(charset_info, table, "general_log"))
+          general_log_table_exists= 1;
+        else if (!my_strcasecmp(charset_info, table, "slow_log"))
+          slow_log_table_exists= 1;
+      }
+    }
   }
   if (opt_events && mysql_get_server_version(mysql) >= 50106)
   {
@@ -4823,7 +4834,26 @@ static int dump_all_tables_in_db(char *database)
   }
   if (lock_tables)
     (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
-  if (flush_privileges && using_mysql_db == 0)
+  if (using_mysql_db)
+  {
+    char table_type[NAME_LEN];
+    char ignore_flag;
+    if (general_log_table_exists)
+    {
+      if (!get_table_structure((char *) "general_log",
+                               database, table_type, &ignore_flag) )
+        verbose_msg("-- Warning: get_table_structure() failed with some internal "
+                    "error for 'general_log' table\n");
+    }
+    if (slow_log_table_exists)
+    {
+      if (!get_table_structure((char *) "slow_log",
+                               database, table_type, &ignore_flag) )
+        verbose_msg("-- Warning: get_table_structure() failed with some internal "
+                    "error for 'slow_log' table\n");
+    }
+  }
+  if (flush_privileges && using_mysql_db)
   {
     fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
     fprintf(md_result_file,"\n/*! FLUSH PRIVILEGES */;\n");
@@ -5647,7 +5677,7 @@ static my_bool get_view_structure(char *table, char* db)
   verbose_msg("-- Retrieving view structure for table %s...\n", table);
 
 #ifdef NOT_REALLY_USED_YET
-  sprintf(insert_pat,"SET OPTION SQL_QUOTE_SHOW_CREATE=%d",
+  sprintf(insert_pat, "SET SQL_QUOTE_SHOW_CREATE=%d",
           (opt_quoted || opt_keywords));
 #endif
 

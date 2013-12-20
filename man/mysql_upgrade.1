@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -22,7 +31,7 @@
 .\" upgrading MySQL
 .\" MySQL: upgrading
 .SH "NAME"
-mysql_upgrade \- check tables for MySQL upgrade
+mysql_upgrade \- check and upgrade MySQL tables
 .SH "SYNOPSIS"
 .HP \w'\fBmysql_upgrade\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
@@ -34,14 +43,12 @@ examines all tables in all databases for incompatibilities with the current vers
 also upgrades the system tables so that you can take advantage of new privileges or capabilities that might have been added\&.
 .PP
 \fBmysql_upgrade\fR
-should be executed each time you upgrade MySQL\&. It supersedes the older
-\fBmysql_fix_privilege_tables\fR
-script, which has been removed in MySQL 5\&.5\&.
+should be executed each time you upgrade MySQL\&.
 .PP
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.11.4, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.12.4, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
 .if n \{\
 .sp
@@ -77,11 +84,11 @@ with administrator privileges\&. You can do this by running a Command Prompt as 
 You should always back up your current MySQL installation
 \fIbefore\fR
 performing an upgrade\&. See
-Section\ \&6.2, \(lqDatabase Backup Methods\(rq\&.
+Section\ \&7.2, \(lqDatabase Backup Methods\(rq\&.
 .PP
 Some upgrade incompatibilities may require special handling before you upgrade your MySQL installation and run
 \fBmysql_upgrade\fR\&. See
-Section\ \&2.11.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
+Section\ \&2.12.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
 .PP
@@ -150,7 +157,7 @@ FOR UPGRADE
 option of the
 CHECK TABLE
 statement (see
-Section\ \&12.7.2.2, \(lqCHECK TABLE Syntax\(rq)\&.
+Section\ \&13.7.2.2, \(lqCHECK TABLE Syntax\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -186,11 +193,11 @@ If you install MySQL from RPM packages on Linux, you must install the server and
 \fBmysql_upgrade\fR
 is included in the server RPM but requires the client RPM because the latter includes
 \fBmysqlcheck\fR\&. (See
-Section\ \&2.5.1, \(lqInstalling MySQL from RPM Packages on Linux\(rq\&.)
+Section\ \&2.5.1, \(lqInstalling MySQL on Linux Using RPM Packages\(rq\&.)
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.8, \(lqServer-Side Help\(rq\&.
+Section\ \&5.1.10, \(lqServer-Side Help\(rq\&.
 .PP
 \fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
@@ -203,7 +210,7 @@ groups of an option file\&. Other options are passed to
 option\&.
 \fBmysql_upgrade\fR
 also supports the options for processing option files described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -232,7 +239,7 @@ Display a short help message and exit\&.
 .\" basedir option: mysql_upgrade
 \fB\-\-basedir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL installation directory\&. This option is accepted for backward compatibility but ignored\&.
+The path to the MySQL installation directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
 .RE
 .sp
 .RS 4
@@ -247,7 +254,7 @@ The path to the MySQL installation directory\&. This option is accepted for back
 .\" datadir option: mysql_upgrade
 \fB\-\-datadir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the data directory\&. This option is accepted for backward compatibility but ignored\&.
+The path to the data directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
 .RE
 .sp
 .RS 4
@@ -294,7 +301,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 The client\-side authentication plugin to use\&. See
-Section\ \&5.5.6, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.6, \(lqPluggable Authentication\(rq\&.
 .sp
 This option was added in MySQL 5\&.5\&.10\&.
 .RE
@@ -337,7 +344,7 @@ The directory in which to look for plugins\&. It may be necessary to specify thi
 option is used to specify an authentication plugin but
 \fBmysql_upgrade\fR
 does not find it\&. See
-Section\ \&5.5.6, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.6, \(lqPluggable Authentication\(rq\&.
 .sp
 This option was added in MySQL 5\&.5\&.10\&.
 .RE
@@ -414,6 +421,29 @@ Verbose mode\&. Print more information about what the program does\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql_upgrade: version-check option
+.\" version-check option: mysql_upgrade
+\fB\-\-version\-check\fR,
+\fB\-k\fR
+.sp
+Check the version of the server to which
+\fBmysql_upgrade\fR
+is connecting to verify that it is the same as the version for which
+\fBmysql_upgrade\fR
+was built\&. If not,
+\fBmysql_upgrade\fR
+exits\&. This option is enabled by default; to disable the check, use
+\fB\-\-skip\-version\-check\fR\&. This option was added in MySQL 5\&.5\&.32\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql_upgrade: write-binlog option
 .\" write-binlog option: mysql_upgrade
 \fB\-\-write\-binlog\fR
@@ -426,7 +456,7 @@ runs\&. This is the default behavior; to disable binary logging during the upgra
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

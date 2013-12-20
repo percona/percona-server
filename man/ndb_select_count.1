@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_select_count\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_COUNT\" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_SELECT_COUNT\" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -31,7 +40,7 @@ prints the number of rows in one or more
 NDB
 tables\&. With a single table, the result is equivalent to that obtained by using the MySQL statement
 SELECT COUNT(*) FROM \fItbl_name\fR\&.
-          Usage
+        Usage
 .sp
 .if n \{\
 .RS 4
@@ -42,12 +51,70 @@ ndb_select_count [\-c \fIconnect_string\fR] \-d\fIdb_name\fR \fItbl_name\fR[, \f
 .if n \{\
 .RE
 .\}
+.PP
+The following table includes options that are specific to the MySQL Cluster native backup restoration program
+\fBndb_select_count\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_select_count\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
 .sp
-          Additional Options
-        .PP
-None that are specific to this application\&. However, you can obtain row counts from multiple tables in the same database by listing the table names separated by spaces when invoking this command, as shown under
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.25.\ \&ndb_select_count Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l
+l l l
+l l l.
+T{
+.PP
+\-\-database=dbname,
+.PP
+\-d
+T}:T{
+Name of the database in which the table is found
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+\-\-parallelism=#,
+.PP
+\-p
+T}:T{
+Degree of parallelism
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+\-\-lock=#,
+.PP
+\-l
+T}:T{
+Lock type
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+.TE
+.sp 1
+.PP
+You can obtain row counts from multiple tables in the same database by listing the table names separated by spaces when invoking this command, as shown under
 \fBSample Output\fR\&.
-          Sample Output
+        Sample Output
 .sp
 .if n \{\
 .RS 4
@@ -64,7 +131,7 @@ NDBT_ProgramExit: 0 \- OK
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

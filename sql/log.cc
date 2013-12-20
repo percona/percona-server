@@ -1235,9 +1235,10 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                              sctx->priv_user ? sctx->priv_user : "", "[",
                              sctx->user ? sctx->user : (thd->slave_thread ? "SQL_SLAVE" : ""), "] @ ",
-                             sctx->host ? sctx->host : "", " [",
-                             sctx->ip ? sctx->ip : "", "]", NullS) -
-                    user_host_buff);
+                             sctx->get_host()->length() ?
+                             sctx->get_host()->ptr() : "", " [",
+                             sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
+                             "", "]", NullS) - user_host_buff);
 
     if (thd->start_utime)
     {
@@ -2840,6 +2841,14 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
       if ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_INNODB)) &&
           my_b_printf(&log_file,"# No InnoDB statistics available for this query\n") == (uint) -1)
         tmp_errno=errno;
+    }
+    if (thd->variables.log_slow_rate_limit > 1)
+    {
+      my_b_printf(&log_file,
+                  "# Log_slow_rate_type: %s  Log_slow_rate_limit: %lu\n",
+                  opt_slow_query_log_rate_type == SLOG_RT_SESSION ?
+                                                  "session" : "query",
+                  thd->variables.log_slow_rate_limit);
     }
 
     if (thd->db && strcmp(thd->db, db))

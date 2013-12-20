@@ -18,8 +18,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc., 
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
 
 *****************************************************************************/
 
@@ -989,7 +989,6 @@ buf_block_init(
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
-	block->btr_search_latch = NULL;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -1468,7 +1467,7 @@ buf_pool_clear_hash_index(void)
 	ulint	j;
 
 	for (j = 0; j < btr_search_index_num; j++) {
-		ut_ad(rw_lock_own(btr_search_latch_part[j], RW_LOCK_EX));
+		ut_ad(rw_lock_own(&btr_search_latch_arr[j], RW_LOCK_EX));
 	}
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!btr_search_enabled);
@@ -2147,7 +2146,6 @@ buf_block_init_low(
 {
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
-	block->btr_search_latch	= NULL;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
@@ -2656,6 +2654,11 @@ wait_until_unfixed:
 			goto loop;
 		}
 
+		/* Buffer-fix the block so that it cannot be evicted
+		or relocated while we are attempting to allocate an
+		uncompressed page. */
+		bpage->buf_fix_count++;
+
 		/* Allocate an uncompressed page. */
 		//buf_pool_mutex_exit(buf_pool);
 		//mutex_exit(&buf_pool->zip_mutex);
@@ -2665,47 +2668,24 @@ wait_until_unfixed:
 		ut_a(block);
 		block_mutex = &block->mutex;
 
-		//buf_pool_mutex_enter(buf_pool);
 		mutex_enter(&buf_pool->LRU_list_mutex);
 		rw_lock_x_lock(&buf_pool->page_hash_latch);
-		mutex_enter(block_mutex);
-
-		{
-			buf_page_t*	hash_bpage;
-
-			hash_bpage = buf_page_hash_get_low(
-				buf_pool, space, offset, fold);
-
-			if (UNIV_UNLIKELY(bpage != hash_bpage)) {
-				/* The buf_pool->page_hash was modified
-				while buf_pool->mutex was released.
-				Free the block that was allocated. */
-
-				buf_LRU_block_free_non_file_page(block, TRUE);
-				mutex_exit(block_mutex);
-
-				block = (buf_block_t*) hash_bpage;
-				if (block) {
-					block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
-					ut_a(block_mutex);
-				}
-				rw_lock_x_unlock(&buf_pool->page_hash_latch);
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				goto loop2;
-			}
-		}
-
+		mutex_enter(&block->mutex);
 		mutex_enter(&buf_pool->zip_mutex);
+		/* Buffer-fixing prevents the page_hash from changing. */
+		ut_ad(bpage == buf_page_hash_get_low(buf_pool,
+						     space, offset, fold));
 
 		if (UNIV_UNLIKELY
-		    (bpage->buf_fix_count
+		    (--bpage->buf_fix_count
 		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
 
 			mutex_exit(&buf_pool->zip_mutex);
-			/* The block was buffer-fixed or I/O-fixed
-			while buf_pool->mutex was not held by this thread.
-			Free the block that was allocated and try again.
-			This should be extremely unlikely. */
+			/* The block was buffer-fixed or I/O-fixed while
+			buf_pool->mutex was not held by this thread.
+			Free the block that was allocated and retry.
+			This should be extremely unlikely, for example,
+			if buf_page_get_zip() was invoked. */
 
 			buf_LRU_block_free_non_file_page(block, TRUE);
 			//mutex_exit(&block->mutex);
@@ -4054,10 +4034,10 @@ corrupt:
 	if (io_type == BUF_IO_WRITE
 	    && (
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+		/* to keep consistency at buf_LRU_insert_zip_clean() */
 		buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)) {
-		/* to keep consistency at buf_LRU_insert_zip_clean() */
 		have_LRU_mutex = TRUE; /* optimistic */
 	}
 retry_mutex:
@@ -4065,10 +4045,15 @@ retry_mutex:
 		mutex_enter(&buf_pool->LRU_list_mutex);
 	block_mutex = buf_page_get_mutex_enter(bpage);
 	ut_a(block_mutex);
-	if (io_type == BUF_IO_WRITE
-	    && (buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
-		|| buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
-	    && !have_LRU_mutex) {
+	if (UNIV_UNLIKELY(io_type == BUF_IO_WRITE
+			  && (
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+			      buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
+			      ||
+#endif
+			      buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU)
+			  && !have_LRU_mutex)) {
+
 		mutex_exit(block_mutex);
 		have_LRU_mutex = TRUE;
 		goto retry_mutex;
@@ -4769,12 +4754,16 @@ buf_get_latched_pages_number_instance(
 		case BUF_BLOCK_FILE_PAGE:
 			/* uncompressed page */
 			break;
+		case BUF_BLOCK_REMOVE_HASH:
+			/* We hold flush list but not LRU list mutex here.
+			Thus encountering BUF_BLOCK_REMOVE_HASH pages is
+			possible.  */
+			break;
 		case BUF_BLOCK_ZIP_FREE:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:
 		case BUF_BLOCK_MEMORY:
-		case BUF_BLOCK_REMOVE_HASH:
 			ut_error;
 			break;
 		}

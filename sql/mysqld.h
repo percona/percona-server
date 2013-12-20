@@ -90,6 +90,7 @@ extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
+extern ulonglong slow_query_log_always_write_time;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
 extern my_bool opt_query_cache_strip_comments;
@@ -243,6 +244,7 @@ extern I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
+void init_sql_statement_names();
 
 extern ulonglong opt_log_warnings_suppress;
 
@@ -251,6 +253,7 @@ extern char* enforce_storage_engine;
 extern char* utility_user;
 extern char* utility_user_password;
 extern char* utility_user_schema_access;
+extern ulonglong utility_user_privileges;
 
 extern uint mysqld_extra_port;
 

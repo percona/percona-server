@@ -34,8 +34,9 @@ Introduction
    :maxdepth: 1
    :glob:
 
-   feature_comparison
    percona_xtradb
+   ps-versions-comparison
+   feature_comparison
 
 Installation
 ============
@@ -59,7 +60,6 @@ Scalability Improvements
    scalability/innodb_insert_buffer
    scalability/innodb_io_55
    scalability/innodb_adaptive_hash_index_partitions
-   scalability/innodb_extra_rseg
 
 Performance Improvements
 ========================
@@ -96,6 +96,7 @@ Flexibility Improvements
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
+   flexibility/extended_select_into_outfile
 
 Reliability Improvements
 ========================
@@ -161,6 +162,7 @@ Obsolete and Removed Features
    :glob:
 
    management/innodb_buffer_pool_shm
+   scalability/innodb_extra_rseg
 
 Reference
 =========
@@ -169,10 +171,10 @@ Reference
    :maxdepth: 1
    :glob:
 
-   development
-   trademark-policy
    upstream-bug-fixes
    ps-variables
+   development
+   trademark-policy
    index_info_schema_tables
    faq
    copyright

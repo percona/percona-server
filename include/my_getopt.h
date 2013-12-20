@@ -107,6 +107,7 @@ extern my_error_reporter my_getopt_error_reporter;
 
 extern int handle_options (int *argc, char ***argv, 
 			   const struct my_option *longopts, my_get_one_option);
+extern void handle_options_end();
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
@@ -133,6 +134,8 @@ extern my_bool* getopt_constraint_get_hidden_value(const char *name,
 extern my_bool* getopt_constraint_get_readonly_value(const char *name,
                                              size_t length, my_bool create);
 
+ulonglong getopt_double2ulonglong(double);
+double getopt_ulonglong2double(ulonglong);
 
 C_MODE_END
 

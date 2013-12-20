@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\F" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\F" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -34,10 +43,100 @@ NDB
 system tables, but
 NDB\-specific indexes, internal triggers, and MySQL Cluster Disk Data objects as well\&.
 .PP
-The following table includes options that are specific to the MySQL Cluster program
-\fBndb_show_tables\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
-Section\ \&16.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
-          Usage
+The following table includes options that are specific to the MySQL Cluster native backup restoration program
+\fBndb_show_tables\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_show_tables\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.26.\ \&ndb_show_tables Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--database=string,
+.PP
+-d
+T}:T{
+Specifies the database in which the table is found
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--loops=#,
+.PP
+-l
+T}:T{
+Number of times to repeat output
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--type=#,
+.PP
+-t
+T}:T{
+Limit output to objects of this type
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--unqualified,
+.PP
+-u
+T}:T{
+Do not qualify table names
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--parsable,
+.PP
+-p
+T}:T{
+Return output suitable for MySQL LOAD DATA INFILE statement
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--show-temp-status
+T}:T{
+Show table temporary flag
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+.TE
+.sp 1
+        Usage
 .sp
 .if n \{\
 .RS 4
@@ -160,7 +259,7 @@ Can be used to restrict the output to one type of object, specified by an intege
 .\}
 3: Unique hash index
 .RE
-.RS 4
+.sp
 Any other value causes all
 NDB
 database objects to be listed (the default)\&.
@@ -208,7 +307,7 @@ API applications such as
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

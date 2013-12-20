@@ -35,8 +35,6 @@ DROP USER 'frank'@'localhost';
 ERROR HY000: Operation DROP USER failed for 'frank'@'localhost'
 DROP USER 'frank'@'%';
 ERROR HY000: Operation DROP USER failed for 'frank'@'%'
-CREATE DATABASE mysqltest;
-CREATE TABLE mysqltest.t1 (a INT, b INT);
 CREATE USER 'mysqltest_1'@'localhost';
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 user
@@ -49,19 +47,27 @@ frank@%
 SHOW DATABASES;
 Database
 information_schema
+mtr
 mysql
 performance_schema
+test
 CREATE USER 'frankjr'@'localhost' IDENTIFIED BY 'password';
 GRANT ALL ON mysql.* TO 'frankjr'@'localhost';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'frankjr'@'localhost';
 SET PASSWORD FOR 'frankjr'@'localhost' = PASSWORD('');
 DROP USER 'frankjr'@'localhost';
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (a INT, b INT);
 SHOW TABLES IN mysqltest;
-ERROR 42000: Access denied for user 'frank'@'%' to database 'mysqltest'
-CREATE DATABASE foobar;
-ERROR 42000: Access denied for user 'frank'@'%' to database 'foobar'
+Tables_in_mysqltest
+t1
+INSERT INTO mysqltest.t1(a, b) VALUES (1, 1);
+ERROR 42000: INSERT command denied to user 'frank'@'localhost' for table 't1'
+SELECT * FROM mysqltest.t1;
+ERROR 42000: SELECT command denied to user 'frank'@'localhost' for table 't1'
+ALTER TABLE mysqltest.t1 DROP COLUMN b;
+ERROR 42000: ALTER command denied to user 'frank'@'localhost' for table 't1'
 DROP DATABASE mysqltest;
-ERROR 42000: Access denied for user 'frank'@'%' to database 'mysqltest'
 SET PASSWORD FOR 'mysqltest_1'@'localhost' = PASSWORD('newpass');
 SET @testtemp= @@global.profiling;
 SET @@global.profiling=1;
@@ -84,7 +90,6 @@ SELECT @@global.innodb_lazy_drop_table;
 0
 SET @@global.innodb_lazy_drop_table= @testtemp;
 DROP USER 'mysqltest_1'@'localhost';
-DROP DATABASE mysqltest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'frank';
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
 plugin	authentication_string

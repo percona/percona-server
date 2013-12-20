@@ -52,6 +52,7 @@
 #include "sql_show.h"
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
+#include "mysql.h"			// in_bootstrap & opt_noacl
 
 #ifdef __WIN__
 #include <io.h>
@@ -385,7 +386,8 @@ uint filename_to_tablename(const char *from, char *to, uint to_length
   DBUG_ENTER("filename_to_tablename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if (!memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
+  if (strlen(from) >= tmp_file_prefix_length &&
+      !memcmp(from, tmp_file_prefix, tmp_file_prefix_length))
   {
     /* Temporary table name. */
     res= (strnmov(to, from, to_length) - to);
@@ -2007,6 +2009,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool non_tmp_error= 0;
   bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
   bool non_tmp_table_deleted= 0;
+  bool is_drop_tmp_if_exists_added= 0;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   DBUG_ENTER("mysql_rm_table_no_locks");
@@ -2035,6 +2038,15 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     table stems from the fact that such drop does not commit an ongoing
     transaction and changes to non-transactional tables must be written
     ahead of the transaction in some circumstances.
+
+    6- Slave SQL thread ignores all replicate-* filter rules
+    for temporary tables with 'IF EXISTS' clause. (See sql/sql_parse.cc:
+    mysql_execute_command() for details). These commands will be binlogged
+    as they are, even if the default database (from USE `db`) is not present
+    on the Slave. This can cause point in time recovery failures later
+    when user uses the slave's binlog to re-apply. Hence at the time of binary
+    logging, these commands will be written with fully qualified table names
+    and use `db` will be suppressed.
   */
   if (!dont_log_query)
   {
@@ -2049,6 +2061,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     if (thd->is_current_stmt_binlog_format_row() || if_exists)
     {
+      is_drop_tmp_if_exists_added= true;
       built_trans_tmp_query.set_charset(system_charset_info);
       built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
       built_non_trans_tmp_query.set_charset(system_charset_info);
@@ -2126,10 +2139,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         String *built_ptr_query=
           (is_trans ? &built_trans_tmp_query : &built_non_trans_tmp_query);
         /*
-          Don't write the database name if it is the current one (or if
-          thd->db is NULL).
+          Write the database name if it is not the current one or if
+          thd->db is NULL or 'IF EXISTS' clause is present in 'DROP TEMPORARY'
+          query.
         */
-        if (thd->db == NULL || strcmp(db,thd->db) != 0)
+        if (thd->db == NULL || strcmp(db,thd->db) != 0
+            || is_drop_tmp_if_exists_added )
         {
           append_identifier(thd, built_ptr_query, db, db_length);
           built_ptr_query->append(".");
@@ -2323,7 +2338,9 @@ err:
           error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
                                      built_non_trans_tmp_query.ptr(),
                                      built_non_trans_tmp_query.length(),
-                                     FALSE, FALSE, FALSE, 0);
+                                     FALSE, FALSE,
+                                     is_drop_tmp_if_exists_added,
+                                     0);
       }
       if (trans_tmp_table_deleted)
       {
@@ -2333,7 +2350,9 @@ err:
           error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
                                      built_trans_tmp_query.ptr(),
                                      built_trans_tmp_query.length(),
-                                     TRUE, FALSE, FALSE, 0);
+                                     TRUE, FALSE,
+                                     is_drop_tmp_if_exists_added,
+                                     0);
       }
       if (non_tmp_table_deleted)
       {
@@ -4504,6 +4523,8 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
                                 FN_TO_IS_TMP   new_name is temporary.
                                 NO_FRM_RENAME  Don't rename the FRM file
                                 but only the table in the storage engine.
+                                NO_FK_CHECKS   Don't check FK constraints
+                                during rename.
 
   RETURN
     FALSE   OK
@@ -4522,9 +4543,14 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char tmp_name[NAME_LEN+1];
   handler *file;
   int error=0;
+  ulonglong save_bits= thd->variables.option_bits;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
+  
+  // Temporarily disable foreign key checks
+  if (flags & NO_FK_CHECKS) 
+    thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
 
   file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base));
@@ -4570,6 +4596,10 @@ mysql_rename_table(handlerton *base, const char *old_db,
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER TABLE");
   else if (error)
     my_error(ER_ERROR_ON_RENAME, MYF(0), from, to, error);
+  
+  // Restore options bits to the original value
+  thd->variables.option_bits= save_bits;
+
   DBUG_RETURN(error != 0);
 }
 
@@ -4803,7 +4833,6 @@ mysql_discard_or_import_tablespace(THD *thd,
   error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
 
 err:
-  trans_rollback_stmt(thd);
   thd->tablespace_op=FALSE;
 
   if (error == 0)
@@ -6231,7 +6260,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                         new_db, new_alias))
         {
           (void) mysql_rename_table(old_db_type, new_db, new_alias, db,
-                                    table_name, 0);
+                                    table_name, NO_FK_CHECKS);
           error= -1;
         }
       }
@@ -6977,7 +7006,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     error= 1;
     (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
     (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
-                            FN_FROM_IS_TMP);
+                            FN_FROM_IS_TMP | NO_FK_CHECKS);
   }
   else if (new_name != table_name || new_db != db)
   {
@@ -6989,7 +7018,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= 1;
       (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
       (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
-                                FN_FROM_IS_TMP);
+                                FN_FROM_IS_TMP | NO_FK_CHECKS);
     }
     else if (Table_triggers_list::change_table_name(thd, db, alias, 
                                                     table_name, new_db, 
@@ -6999,7 +7028,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       error= 1;
       (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
       (void) mysql_rename_table(old_db_type, db, old_name, db,
-                                alias, FN_FROM_IS_TMP);
+                                alias, FN_FROM_IS_TMP | NO_FK_CHECKS);
       /*
         If we were performing "fast"/in-place ALTER TABLE we also need
         to restore old name of table in storage engine as a separate
@@ -7008,7 +7037,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       {
         (void) mysql_rename_table(save_old_db_type, new_db, new_alias,
-                                  db, table_name, NO_FRM_RENAME); 
+                                  db, table_name, 
+                                  NO_FRM_RENAME | NO_FK_CHECKS); 
       }
     }
   }
@@ -7493,6 +7523,12 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysql_checksum_table");
 
+  /*
+    CHECKSUM TABLE returns results and rollbacks statement transaction,
+    so it should not be used in stored function or trigger.
+  */
+  DBUG_ASSERT(! thd->in_sub_stmt);
+
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;
   field_list.push_back(item= new Item_int("Checksum", (longlong) 1,
@@ -7511,7 +7547,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     strxmov(table_name, table->db ,".", table->table_name, NullS);
 
     t= table->table= open_n_lock_single_table(thd, table, TL_READ, 0);
-    thd->clear_error();			// these errors shouldn't get client
 
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -7520,7 +7555,6 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     {
       /* Table didn't exist */
       protocol->store_null();
-      thd->clear_error();
     }
     else
     {
@@ -7605,9 +7639,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
           t->file->ha_rnd_end();
 	}
       }
-      thd->clear_error();
-      if (! thd->in_sub_stmt)
-        trans_rollback_stmt(thd);
+      trans_rollback_stmt(thd);
       close_thread_tables(thd);
       /*
         Don't release metadata locks, this will be done at
@@ -7615,6 +7647,21 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
       */
       table->table=0;				// For query cache
     }
+
+    if (thd->transaction_rollback_request)
+    {
+      /*
+        If transaction rollback was requested we honor it. To do this we
+        abort statement and return error as not only CHECKSUM TABLE is
+        rolled back but the whole transaction in which it was used.
+      */
+      thd->protocol->remove_last_row();
+      goto err;
+    }
+
+    /* Hide errors from client. Return NULL for problematic tables instead. */
+    thd->clear_error();
+
     if (protocol->write())
       goto err;
   }
@@ -7647,10 +7694,13 @@ static bool check_engine(THD *thd, const char *db_name,
   DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
-  handlerton *enf_engine= ha_enforce_handlerton(thd);
+  handlerton *enf_engine= NULL;
 
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+
+  if (!in_bootstrap && !opt_noacl)
+    enf_engine= ha_enforce_handlerton(thd);
 
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))

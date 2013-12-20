@@ -10,7 +10,7 @@ This user has a mixed and special scope of abilities and protection:
 
   * Utility user will not appear in the mysql.user table and can not be modified by any other user, including root.
 
-  * Utility user will not appear in USER_STATISTICS, CLIENT_STATISTICS or THREAD_STATISTICS tables.
+  * Utility user will not appear in :table:`USER_STATISTICS`, :table:`CLIENT_STATISTICS` or :table:`THREAD_STATISTICS` tables.
 
   * Utility user's queries may appear in the general and slow logs.
 
@@ -45,6 +45,10 @@ Option :variable:`utility_user_password` specifies the password for the utility 
 Option :variable:`utility_user_schema_access` specifies the name(s) of the schema(s) that the utility user will have access to read write and modify. If a particular schema named here does not exist on start up it will be ignored. If a schema by the name of any of those listed in this option is created after the server is started, the utility user will have full access to it.
 
  Example: :option:`--utility_user_schema_access` =schema1,schema2,schema3 ;
+
+Option :variable:`utility_user_privileges` allows a comma-separated list of extra access privileges to grant to the utility user.
+
+ Example: :option:`--utility-user-privileges` ="CREATE, DROP, LOCK TABLES"
 
 System Variables
 ================
@@ -84,3 +88,15 @@ Specifies the password required for the utility user.
      :default: NULL
 
 Specifies the schemas that the utility user has access to in a comma delimited list.
+
+.. variable:: utility_user_privileges
+
+   :version 5.5.34-32.0: Implemented
+   :cli: Yes
+   :conf: utility_user_privileges=<privilege1>,<privilege2>,<privilege3>
+   :scope: Global
+   :dyn: No
+   :vartype: String
+   :default: NULL
+
+This variable can be used to specify a comma-separated list of extra access privileges to grant to the utility user. Supported values for the privileges list are: ``SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS,FILE, GRANT, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES,EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE``

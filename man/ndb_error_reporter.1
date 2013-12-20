@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndb_error_reporter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_ERROR_REPORTE" "1" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_ERROR_REPORTE" "1" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -30,7 +39,42 @@ ndb_error_reporter \- NDB error\-reporting utility
 \fBndb_error_reporter\fR
 creates an archive from data node and management node log files that can be used to help diagnose bugs or other problems with a cluster\&.
 \fIIt is highly recommended that you make use of this utility when filing reports of bugs in MySQL Cluster\fR\&.
-          Usage
+.PP
+The following table includes command options specific to the MySQL Cluster program
+\fBndb_error_reporter\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_error_reporter\fR), see
+Options Common to MySQL Cluster Programs(1)\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&17.20.\ \&ndb_error_reporter Options and Variables: MySQL Cluster NDB 7.2
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added / Removed
+T}
+.T&
+l l l.
+T{
+.PP
+--fs
+T}:T{
+Include file system data in error report; can use a large amount of disk
+            space
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+.TE
+.sp 1
+        Usage
 .sp
 .if n \{\
 .RS 4
@@ -42,7 +86,7 @@ ndb_error_reporter \fIpath/to/config\-file\fR [\fIusername\fR] [\-\-fs]
 .RE
 .\}
 .PP
-This utility is intended for use on a management node host, and requires the path to the management host configuration file (config\&.ini)\&. Optionally, you can supply the name of a user that is able to access the cluster\'s data nodes using SSH, to copy the data node log files\&. ndb_error_reporter then includes all of these files in archive that is created in the same directory in which it is run\&. The archive is named
+This utility is intended for use on a management node host, and requires the path to the management host configuration file (config\&.ini)\&. Optionally, you can supply the name of a user that is able to access the cluster\*(Aqs data nodes using SSH, to copy the data node log files\&. ndb_error_reporter then includes all of these files in archive that is created in the same directory in which it is run\&. The archive is named
 ndb_error_report_\fIYYYYMMDDHHMMSS\fR\&.tar\&.bz2, where
 \fIYYYYMMDDHHMMSS\fR
 is a datetime string\&.
@@ -66,7 +110,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -83,7 +127,7 @@ T}
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

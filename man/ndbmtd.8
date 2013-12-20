@@ -1,13 +1,22 @@
 '\" t
 .\"     Title: \fBndbmtd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 03/02/2012
+.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
+.\"      Date: 09/09/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDBMTD\FR" "8" "03/02/2012" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDBMTD\FR" "8" "09/09/2013" "MySQL 5\&.5" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -50,7 +59,7 @@ Command\-line options and configuration parameters used with
 also apply to
 \fBndbmtd\fR\&. For more information about these options and parameters, see
 \fBndbd\fR(8), and
-Section\ \&16.3.2.6, \(lqDefining MySQL Cluster Data Nodes\(rq, respectively\&.
+Section\ \&17.3.2.6, \(lqDefining MySQL Cluster Data Nodes\(rq, respectively\&.
 .PP
 \fBndbmtd\fR
 is also file system\-compatible with
@@ -133,7 +142,7 @@ configuration file\&. Except for trace files, these are generated in the same wa
 .PP
 In the event of a critical error,
 \fBndbmtd\fR
-generates trace files describing what happened just prior to the error\' occurrence\&. These files, which can be found in the data node\'s
+generates trace files describing what happened just prior to the error\*(Aq occurrence\&. These files, which can be found in the data node\*(Aqs
 DataDir, are useful for analysis of problems by the MySQL Cluster Development and Support teams\&. One trace file is generated for each
 \fBndbmtd\fR
 thread\&. The names of these files have the following pattern:
@@ -150,7 +159,7 @@ thread\&. The names of these files have the following pattern:
 .PP
 In this pattern,
 \fInode_id\fR
-stands for the data node\'s unique node ID in the cluster,
+stands for the data node\*(Aqs unique node ID in the cluster,
 \fItrace_id\fR
 is a trace sequence number, and
 \fIthread_id\fR
@@ -158,7 +167,7 @@ is the thread ID\&. For example, in the event of the failure of an
 \fBndbmtd\fR
 process running as a MySQL Cluster data node having the node ID 3 and with
 MaxNoOfExecutionThreads
-equal to 4, four trace files are generated in the data node\'s data directory\&. If the is the first time this node has failed, then these files are named
+equal to 4, four trace files are generated in the data node\*(Aqs data directory\&. If the is the first time this node has failed, then these files are named
 ndb_3_trace\&.log\&.1_t1,
 ndb_3_trace\&.log\&.1_t2,
 ndb_3_trace\&.log\&.1_t3, and
@@ -188,13 +197,13 @@ It is possible to use
 \fBndbd\fR
 and
 \fBndbmtd\fR
-concurrently on different data nodes in the same MySQL Cluster\&. However, such configurations have not been tested extensively; thus, we cannot not recommend doing so in a production setting at this time\&.
+concurrently on different data nodes in the same MySQL Cluster\&. However, such configurations have not been tested extensively; thus, we cannot recommend doing so in a production setting at this time\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

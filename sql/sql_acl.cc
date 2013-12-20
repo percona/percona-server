@@ -564,8 +564,10 @@ enum enum_acl_lists
 };
 
 static ACL_USER acl_utility_user;
+static bool acl_utility_user_initialized= false;
 static DYNAMIC_ARRAY acl_utility_user_schema_access;
 static my_bool acl_init_utility_user(my_bool check_no_resolve);
+static void acl_free_utility_user();
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -1082,6 +1084,7 @@ end:
 
 void acl_free(bool end)
 {
+  acl_free_utility_user();
   free_root(&mem,MYF(0));
   delete_dynamic(&acl_hosts);
   delete_dynamic(&acl_users);
@@ -1213,9 +1216,16 @@ acl_init_utility_user(my_bool check_no_resolve)
   if (!utility_user)
     goto end;
 
-  /* parse out the option to its component user and host name parts */
+  acl_free_utility_user();
+
+  /* Allocate all initial resources necessary */
   acl_user_name.str= (char *) my_malloc(USERNAME_LENGTH+1, MY_ZEROFILL);
   acl_host_name.str= (char *) my_malloc(HOSTNAME_LENGTH+1, MY_ZEROFILL);
+  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
+                               5, 10);
+  acl_utility_user_initialized= true;
+
+  /* parse out the option to its component user and host name parts */
   parse_user(utility_user, strlen(utility_user),
              acl_user_name.str, &acl_user_name.length,
              acl_host_name.str, &acl_host_name.length);
@@ -1303,16 +1313,32 @@ acl_init_utility_user(my_bool check_no_resolve)
   {
     goto cleanup;
   }
-  acl_utility_user.access= 0; 
+
+  DBUG_ASSERT(utility_user_privileges <= UINT_MAX32);
+  acl_utility_user.access= utility_user_privileges & UINT_MAX32;
+  if (acl_utility_user.access)
+  {
+    char privilege_desc[512];
+    get_privilege_desc(privilege_desc, array_elements(privilege_desc), acl_utility_user.access);
+    sql_print_information("Utility user '%s'@'%s' in use with access rights "
+                          "'%s'.",
+                          acl_utility_user.user,
+                          acl_utility_user.host.hostname,
+                          privilege_desc);
+  }
+  else
+  {
+    sql_print_information("Utility user '%s'@'%s' in use with basic "
+                          "access rights.",
+                          acl_utility_user.user,
+                          acl_utility_user.host.hostname);
+  }
 
   acl_utility_user.ssl_type= SSL_TYPE_NONE;
 
   (void) push_dynamic(&acl_users,(uchar*) &acl_utility_user);
         
   /* initialize the schema access list if specified */
-  (void) my_init_dynamic_array(&acl_utility_user_schema_access, sizeof(char *),
-                               5, 10);
-
   if (utility_user_schema_access)
   {
     char *cur_pos= utility_user_schema_access;
@@ -1346,12 +1372,35 @@ acl_init_utility_user(my_bool check_no_resolve)
   goto end;
 
 cleanup:
-  my_free(acl_utility_user.user);
-  my_free(acl_utility_user.host.hostname);
-  bzero(&acl_utility_user, sizeof(acl_utility_user));
+  acl_free_utility_user();
 
 end:
   return ret;
+}
+
+/*
+  Free up any resources allocated during acl_init_utility_user.
+*/
+static
+void
+acl_free_utility_user()
+{
+  if (acl_utility_user_initialized)
+  {
+    uint i;
+    for (i=0 ; i < acl_utility_user_schema_access.elements ; i++)
+    {
+      char** dbname= dynamic_element(&acl_utility_user_schema_access, i, char**);
+      if (*dbname)
+        my_free(*dbname);
+    }
+    delete_dynamic(&acl_utility_user_schema_access);
+
+    my_free(acl_utility_user.user);
+    my_free(acl_utility_user.host.hostname);
+    bzero(&acl_utility_user, sizeof(acl_utility_user));
+    acl_utility_user_initialized= false;
+  }
 }
 
 /*
@@ -1490,8 +1539,8 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
                        (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
                        user, (db ? db : "(NULL)")));
   sctx->user= user;
-  sctx->host= host;
-  sctx->ip= ip;
+  sctx->set_host(host);
+  sctx->set_ip(ip);
   sctx->host_or_ip= host ? host : (ip ? ip : "");
 
   if (!initialized)
@@ -2411,7 +2460,7 @@ static bool test_if_create_new_users(THD *thd)
                       C_STRING_WITH_LEN("user"), "user", TL_WRITE);
     create_new_users= 1;
 
-    db_access=acl_get(sctx->host, sctx->ip,
+    db_access=acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
 		      sctx->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
     {
@@ -4843,7 +4892,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       }
       continue;
     }
-    GRANT_TABLE *grant_table= table_hash_search(sctx->host, sctx->ip,
+    GRANT_TABLE *grant_table= table_hash_search(sctx->get_host()->ptr(),
+                                                sctx->get_ip()->ptr(),
                                                 tl->get_db_name(),
                                                 sctx->priv_user,
                                                 tl->get_table_name(),
@@ -4933,10 +4983,10 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   if (grant->version != grant_version)
   {
     grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db_name,
-			sctx->priv_user,
+      table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                        db_name, sctx->priv_user,
 			table_name, 0);         /* purecov: inspected */
-    grant->version= grant_version;		/* purecov: inspected */
+    grant->version= grant_version;	        /* purecov: inspected */
   }
   if (!(grant_table= grant->grant_table))
     goto err;					/* purecov: deadcode */
@@ -5083,8 +5133,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
         if (grant->version != grant_version)
         {
           grant->grant_table=
-            table_hash_search(sctx->host, sctx->ip, db_name,
-                              sctx->priv_user,
+            table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                              db_name, sctx->priv_user,
                               table_name, 0);	/* purecov: inspected */
           grant->version= grant_version;	/* purecov: inspected */
         }
@@ -5142,7 +5192,8 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 
     if (strcmp(item->user, sctx->priv_user) == 0 &&
         strcmp(item->db, db) == 0 &&
-        compare_hostname(&item->host, sctx->host, sctx->ip))
+        compare_hostname(&item->host, sctx->get_host()->ptr(),
+                         sctx->get_ip()->ptr()))
     {
       return FALSE;
     }
@@ -5186,7 +5237,8 @@ bool check_grant_db(THD *thd,const char *db)
                       idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-        compare_hostname(&grant_table->host, sctx->host, sctx->ip))
+        compare_hostname(&grant_table->host, sctx->get_host()->ptr(),
+                         sctx->get_ip()->ptr()))
     {
       error= FALSE; /* Found match. */
       break;
@@ -5237,8 +5289,8 @@ bool check_grant_routine(THD *thd, ulong want_access,
   for (table= procs; table; table= table->next_global)
   {
     GRANT_NAME *grant_proc;
-    if ((grant_proc= routine_hash_search(host, sctx->ip, table->db, user,
-					 table->table_name, is_proc, 0)))
+    if ((grant_proc= routine_hash_search(host, sctx->get_ip()->ptr(), table->db,
+                                         user, table->table_name, is_proc, 0)))
       table->grant.privilege|= grant_proc->privs;
 
     if (want_access & ~table->grant.privilege)
@@ -5293,7 +5345,7 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
   Security_context *sctx= thd->security_ctx;
   mysql_rwlock_rdlock(&LOCK_grant);
   if ((grant_proc= routine_hash_search(sctx->priv_host,
-                                       sctx->ip, db,
+                                       sctx->get_ip()->ptr(), db,
                                        sctx->priv_user,
                                        name, is_proc, 0)))
     no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
@@ -5317,8 +5369,8 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
 #ifdef EMBEDDED_LIBRARY
   grant_table= NULL;
 #else
-  grant_table= table_hash_search(sctx->host, sctx->ip, db, sctx->priv_user,
-				 table->table_name, 0);
+  grant_table= table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                                 db, sctx->priv_user, table->table_name, 0);
 #endif
   table->grant.grant_table=grant_table; // Remember for column test
   table->grant.version=grant_version;
@@ -5362,7 +5414,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   {
     Security_context *sctx= thd->security_ctx;
     grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip,
+      table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
                         db_name, sctx->priv_user,
 			table_name, 0);	        /* purecov: inspected */
     grant->version= grant_version;              /* purecov: inspected */
@@ -5399,20 +5451,28 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
-static const char *command_array[]=
+const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
   "SHUTDOWN", "PROCESS","FILE", "GRANT", "REFERENCES", "INDEX",
   "ALTER", "SHOW DATABASES", "SUPER", "CREATE TEMPORARY TABLES",
   "LOCK TABLES", "EXECUTE", "REPLICATION SLAVE", "REPLICATION CLIENT",
   "CREATE VIEW", "SHOW VIEW", "CREATE ROUTINE", "ALTER ROUTINE",
-  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE"
+  "CREATE USER", "EVENT", "TRIGGER", "CREATE TABLESPACE", 0
 };
 
-static uint command_lengths[]=
+TYPELIB utility_user_privileges_typelib=
+{
+  array_elements(command_array) - 1,
+  "utility_user_privileges_typelib",
+  command_array,
+  NULL
+};
+
+uint command_lengths[]=
 {
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
-  14, 13, 11, 5, 7, 17
+  14, 13, 11, 5, 7, 17, 0
 };
 
 
@@ -7355,9 +7415,11 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   if ((au= find_acl_user(combo->host.str=(char*)sctx->host_or_ip,combo->user.str,FALSE)))
     goto found_acl;
-  if ((au= find_acl_user(combo->host.str=(char*)sctx->host, combo->user.str,FALSE)))
+  if ((au= find_acl_user(combo->host.str=(char*)sctx->get_host()->ptr(),
+                         combo->user.str,FALSE)))
     goto found_acl;
-  if ((au= find_acl_user(combo->host.str=(char*)sctx->ip, combo->user.str,FALSE)))
+  if ((au= find_acl_user(combo->host.str=(char*)sctx->get_ip()->ptr(),
+                         combo->user.str,FALSE)))
     goto found_acl;
   if((au= find_acl_user(combo->host.str=(char*)"%", combo->user.str, FALSE)))
     goto found_acl;
@@ -7532,9 +7594,9 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   {
     ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
                                            ACL_PROXY_USER *);
-    if (proxy->matches(thd->security_ctx->host,
+    if (proxy->matches(thd->security_ctx->get_host()->ptr(),
                        thd->security_ctx->user,
-                       thd->security_ctx->ip,
+                       thd->security_ctx->get_ip()->ptr(),
                        user) &&
         proxy->get_with_grant())
     {
@@ -7990,7 +8052,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("fill_effective_table_privileges");
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', table: `%s`.`%s`",
-                       sctx->priv_host, (sctx->ip ? sctx->ip : "(NULL)"),
+                       sctx->priv_host, (sctx->get_ip()->length() ?
+                       sctx->get_ip()->ptr() : "(NULL)"),
                        (sctx->priv_user ? sctx->priv_user : "(NULL)"),
                        db, table));
   /* --skip-grants */
@@ -8012,14 +8075,15 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   }
 
   /* db privileges */
-  grant->privilege|= acl_get(sctx->host, sctx->ip, sctx->priv_user, db, 0);
+  grant->privilege|= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                             sctx->priv_user, db, 0);
 
   /* table privileges */
   mysql_rwlock_rdlock(&LOCK_grant);
   if (grant->version != grant_version)
   {
     grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db,
+      table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(), db,
 			sctx->priv_user,
 			table, 0);              /* purecov: inspected */
     grant->version= grant_version;              /* purecov: inspected */
@@ -9648,8 +9712,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio, uint connect_errors,
   mpvio->thread_id= thd->thread_id;
   mpvio->server_status= &thd->server_status;
   mpvio->net= &thd->net;
-  mpvio->ip= thd->security_ctx->ip;
-  mpvio->host= thd->security_ctx->host;
+  mpvio->ip= (char *) thd->security_ctx->get_ip()->ptr();
+  mpvio->host= (char *) thd->security_ctx->get_host()->ptr();
   mpvio->charset_adapter= charset_adapter;
 }
 
@@ -9798,9 +9862,10 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    proxy_user= acl_find_proxy_user(auth_user, sctx->host, sctx->ip,
+    proxy_user= acl_find_proxy_user(auth_user, sctx->get_host()->ptr(),
+                                    sctx->get_ip()->ptr(),
                                     mpvio.auth_info.authenticated_as,
-                                          &is_proxy_user);
+                                    &is_proxy_user);
     if (is_proxy_user)
     {
       ACL_USER *acl_proxy_user;
@@ -9935,7 +10000,7 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   }
 
   if (mpvio.auth_info.external_user[0])
-    sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
+    sctx->set_external_user(my_strdup(mpvio.auth_info.external_user, MYF(0)));
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
     thd->stmt_da->disable_status();

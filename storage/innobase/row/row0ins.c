@@ -1512,7 +1512,7 @@ exit_func:
 		mem_heap_free(heap);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		err = DB_SUCCESS;
 	}
 
@@ -1549,7 +1549,8 @@ row_ins_check_foreign_constraints(
 
 			if (foreign->referenced_table == NULL) {
 				dict_table_get(foreign->referenced_table_name_lookup,
-					       FALSE);
+					       FALSE,
+					       DICT_ERR_IGNORE_NONE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
@@ -2092,11 +2093,11 @@ row_ins_index_entry_low(
 			transaction. Let us now reposition the cursor and
 			continue the insertion. */
 
-			btr_cur_search_to_nth_level(index, 0, entry,
-						    PAGE_CUR_LE,
-						    thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : (mode | BTR_INSERT),
-						    &cursor, 0,
-						    __FILE__, __LINE__, &mtr);
+			btr_cur_search_to_nth_level(
+				index, 0, entry, PAGE_CUR_LE,
+				(UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)
+				 ? BTR_SEARCH_LEAF : (mode | BTR_INSERT)),
+				&cursor, 0, __FILE__, __LINE__, &mtr);
 		}
 	}
 
@@ -2121,6 +2122,11 @@ row_ins_index_entry_low(
 
 			if (big_rec) {
 				ut_a(err == DB_SUCCESS);
+				if (UNIV_UNLIKELY(thr_get_trx(thr)->
+						  fake_changes)) {
+					goto stored_big_rec;
+				}
+
 				/* Write out the externally stored
 				columns while still x-latching
 				index->lock and block->lock. Allocate
@@ -2214,7 +2220,7 @@ function_exit:
 		rec_t*	rec;
 		ulint*	offsets;
 
-		if (thr_get_trx(thr)->fake_changes) {
+		if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 			/* skip store extern */
 			if (modify) {
 				dtuple_big_rec_free(big_rec);

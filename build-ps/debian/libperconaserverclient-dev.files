@@ -1,9 +1,0 @@
-usr/bin/mysql_config
-usr/include
-usr/lib/*/libperconaserverclient.so
-usr/lib/*/libperconaserverclient_r.so
-usr/lib/*/libperconaserverclient.a
-usr/lib/*/libperconaserverclient_r.a
-usr/lib/*/libmysqlservices.a
-usr/lib/*/libhsclient.a
-usr/share/man/man1/mysql_config.1

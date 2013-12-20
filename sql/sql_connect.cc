@@ -38,6 +38,7 @@
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
 
+
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /*
   Without SSL the handshake consists of one packet. This packet
@@ -55,9 +56,6 @@
 #else
 #define MIN_HANDSHAKE_SIZE      6
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
-
-// Increments connection count for user.
-static int increment_connection_count(THD* thd, bool use_lock);
 
 // Uses the THD to update the global stats by user name and client IP
 void update_global_user_stats(THD* thd, bool create_user, time_t now);
@@ -79,6 +77,10 @@ extern mysql_mutex_t LOCK_global_index_stats;
 */
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+// Increments connection count for user.
+static int increment_connection_count(THD* thd, bool use_lock);
+
 static HASH hash_user_connections;
 
 int get_or_create_user_conn(THD *thd, const char *user,
@@ -134,7 +136,7 @@ end:
 extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
                          my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(user_stats->user);
+  *length= user_stats->user_len;
   return (uchar*) user_stats->user;
 }
 
@@ -186,6 +188,9 @@ void init_user_stats(USER_STATS *user_stats,
               user, priv_user));
   strncpy(user_stats->user, user, sizeof(user_stats->user));
   strncpy(user_stats->priv_user, priv_user, sizeof(user_stats->priv_user));
+
+  user_stats->user_len=               strlen(user_stats->user);
+  user_stats->priv_user_len=          strlen(user_stats->priv_user);
 
   user_stats->total_connections=      total_connections;
   user_stats->total_ssl_connections=  total_ssl_connections;
@@ -265,94 +270,6 @@ void init_thread_stats(THREAD_STATS *thread_stats,
   DBUG_VOID_RETURN;
 }
 
-void add_user_stats(USER_STATS *user_stats,
-                    uint total_connections,
-                    uint concurrent_connections,
-                    time_t connected_time,
-                    double busy_time,
-                    double cpu_time,
-                    ulonglong bytes_received,
-                    ulonglong bytes_sent,
-                    ulonglong binlog_bytes_written,
-                    ha_rows rows_fetched,
-                    ha_rows rows_updated,
-                    ha_rows rows_read,
-                    ulonglong select_commands,
-                    ulonglong update_commands,
-                    ulonglong other_commands,
-                    ulonglong commit_trans,
-                    ulonglong rollback_trans,
-                    ulonglong denied_connections,
-                    ulonglong lost_connections,
-                    ulonglong access_denied_errors,
-                    ulonglong empty_queries)
-{
-  user_stats->total_connections+=      total_connections;
-  user_stats->concurrent_connections+= concurrent_connections;
-  user_stats->connected_time+=         connected_time;
-  user_stats->busy_time+=              busy_time;
-  user_stats->cpu_time+=               cpu_time;
-  user_stats->bytes_received+=         bytes_received;
-  user_stats->bytes_sent+=             bytes_sent;
-  user_stats->binlog_bytes_written+=   binlog_bytes_written;
-  user_stats->rows_fetched+=           rows_fetched;
-  user_stats->rows_updated+=           rows_updated;
-  user_stats->rows_read+=              rows_read;
-  user_stats->select_commands+=        select_commands;
-  user_stats->update_commands+=        update_commands;
-  user_stats->other_commands+=         other_commands;
-  user_stats->commit_trans+=           commit_trans;
-  user_stats->rollback_trans+=         rollback_trans;
-  user_stats->denied_connections+=     denied_connections;
-  user_stats->lost_connections+=       lost_connections;
-  user_stats->access_denied_errors+=   access_denied_errors;
-  user_stats->empty_queries+=          empty_queries;
-}
-
-void add_thread_stats(THREAD_STATS *thread_stats,
-                    uint total_connections,
-                    uint concurrent_connections,
-                    time_t connected_time,
-                    double busy_time,
-                    double cpu_time,
-                    ulonglong bytes_received,
-                    ulonglong bytes_sent,
-                    ulonglong binlog_bytes_written,
-                    ha_rows rows_fetched,
-                    ha_rows rows_updated,
-                    ha_rows rows_read,
-                    ulonglong select_commands,
-                    ulonglong update_commands,
-                    ulonglong other_commands,
-                    ulonglong commit_trans,
-                    ulonglong rollback_trans,
-                    ulonglong denied_connections,
-                    ulonglong lost_connections,
-                    ulonglong access_denied_errors,
-                    ulonglong empty_queries)
-{
-  thread_stats->total_connections+=      total_connections;
-  thread_stats->concurrent_connections+= concurrent_connections;
-  thread_stats->connected_time+=         connected_time;
-  thread_stats->busy_time+=              busy_time;
-  thread_stats->cpu_time+=               cpu_time;
-  thread_stats->bytes_received+=         bytes_received;
-  thread_stats->bytes_sent+=             bytes_sent;
-  thread_stats->binlog_bytes_written+=   binlog_bytes_written;
-  thread_stats->rows_fetched+=           rows_fetched;
-  thread_stats->rows_updated+=           rows_updated;
-  thread_stats->rows_read+=              rows_read;
-  thread_stats->select_commands+=        select_commands;
-  thread_stats->update_commands+=        update_commands;
-  thread_stats->other_commands+=         other_commands;
-  thread_stats->commit_trans+=           commit_trans;
-  thread_stats->rollback_trans+=         rollback_trans;
-  thread_stats->denied_connections+=     denied_connections;
-  thread_stats->lost_connections+=       lost_connections;
-  thread_stats->access_denied_errors+=   access_denied_errors;
-  thread_stats->empty_queries+=          empty_queries;
-}
-
 void init_global_user_stats(void)
 {
   if (my_hash_init(&global_user_stats, system_charset_info, max_connections,
@@ -387,7 +304,7 @@ void init_global_thread_stats(void)
 extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
                                      my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(table_stats->table);
+  *length= table_stats->table_len;
   return (uchar*) table_stats->table;
 }
 
@@ -409,7 +326,7 @@ void init_global_table_stats(void)
 extern "C" uchar *get_key_index_stats(INDEX_STATS *index_stats, size_t *length,
                                      my_bool not_used __attribute__((unused)))
 {
-  *length= strlen(index_stats->index);
+  *length= index_stats->index_len;
   return (uchar*) index_stats->index;
 }
 
@@ -473,8 +390,9 @@ static int increment_count_by_name(const char *name, const char *role_name,
                                                    (uchar*) name,
                                                    strlen(name))))
   {
-    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-                            thd->security_ctx->ip))
+    if (acl_is_utility_user(thd->security_ctx->user,
+                            thd->security_ctx->get_host()->ptr(),
+                            thd->security_ctx->get_ip()->ptr()))
       return 0;
 
     // First connection for this user or client
@@ -517,8 +435,9 @@ static int increment_count_by_id(my_thread_id id,
                                                        (uchar*) &id,
                                                        sizeof(my_thread_id))))
   {
-    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-        thd->security_ctx->ip))
+    if (acl_is_utility_user(thd->security_ctx->user,
+                            thd->security_ctx->get_host()->ptr(),
+                            thd->security_ctx->get_ip()->ptr()))
       return 0;
 
     // First connection for this user or client
@@ -562,8 +481,9 @@ static int increment_connection_count(THD* thd, bool use_lock)
   const char* client_string= get_client_host(thd);
   int return_value=          0;
 
-  if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-      thd->security_ctx->ip))
+  if (acl_is_utility_user(thd->security_ctx->user,
+                          thd->security_ctx->get_host()->ptr(),
+                          thd->security_ctx->get_ip()->ptr()))
     return return_value;
 
   if (use_lock)
@@ -651,87 +571,81 @@ static void update_global_thread_stats_with_thread(THD* thd,
 // Updates the global stats of a user or client
 void update_global_user_stats(THD* thd, bool create_user, time_t now)
 {
-  if (opt_userstat)
+  char* user_string=         get_valid_user_string(thd->main_security_ctx.user);
+  const char* client_string= get_client_host(thd);
+
+  USER_STATS* user_stats;
+  THREAD_STATS* thread_stats;
+
+  if (acl_is_utility_user(thd->security_ctx->user,
+                          thd->security_ctx->get_host()->ptr(),
+                          thd->security_ctx->get_ip()->ptr()))
+    return;
+
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
+
+  // Update by user name
+  if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
+                                                  (uchar *) user_string,
+                                                  strlen(user_string))))
   {
-    char* user_string=         get_valid_user_string(thd->main_security_ctx.user);
-    const char* client_string= get_client_host(thd);
-
-    USER_STATS* user_stats;
-    THREAD_STATS* thread_stats;
-
-    if (acl_is_utility_user(thd->security_ctx->user, thd->security_ctx->host,
-        thd->security_ctx->ip))
-      return;
-
-    mysql_mutex_lock(&LOCK_global_user_client_stats);
-
-    // Update by user name
-    if ((user_stats = (USER_STATS *) my_hash_search(&global_user_stats,
-                                                    (uchar *) user_string,
-                                                    strlen(user_string))))
-    {
-      // Found user.
-      update_global_user_stats_with_user(thd, user_stats, now);
-    }
-    else
-    {
-      // Create the entry
-      if (create_user)
-      {
-        increment_count_by_name(user_string, user_string,
-                                &global_user_stats, thd);
-      }
-    }
-
-    // Update by client IP
-    if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
-                                                    (uchar *) client_string,
-                                                    strlen(client_string))))
-    {
-      // Found by client IP
-      update_global_user_stats_with_user(thd, user_stats, now);
-    }
-    else
-    {
-      // Create the entry
-      if (create_user)
-      {
-        increment_count_by_name(client_string,
-                                user_string,
-                                &global_client_stats, thd);
-      }
-    }
-
-    if (opt_thread_statistics)
-    {
-      // Update by thread ID
-      if ((thread_stats = (THREAD_STATS *) my_hash_search(&global_thread_stats,
-                                                          (uchar *) &(thd->thread_id),
-                                                          sizeof(my_thread_id))))
-      {
-        // Found by thread ID
-        update_global_thread_stats_with_thread(thd, thread_stats, now);
-      }
-      else
-      {
-        // Create the entry
-        if (create_user)
-        {
-          increment_count_by_id(thd->thread_id,
-                                &global_thread_stats, thd);
-        }
-      }
-    }
-
-    thd->last_global_update_time = now;
-    thd->reset_diff_stats();
-
-    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+    // Found user.
+    update_global_user_stats_with_user(thd, user_stats, now);
   }
   else
   {
-    thd->reset_diff_stats();
+    // Create the entry
+    if (create_user)
+    {
+      increment_count_by_name(user_string, user_string,
+                              &global_user_stats, thd);
+    }
   }
+
+  // Update by client IP
+  if ((user_stats = (USER_STATS *) my_hash_search(&global_client_stats,
+                                                  (uchar *) client_string,
+                                                  strlen(client_string))))
+  {
+    // Found by client IP
+    update_global_user_stats_with_user(thd, user_stats, now);
+  }
+  else
+  {
+    // Create the entry
+    if (create_user)
+    {
+      increment_count_by_name(client_string,
+                              user_string,
+                              &global_client_stats, thd);
+    }
+  }
+
+  if (opt_thread_statistics)
+  {
+    // Update by thread ID
+    if ((thread_stats = (THREAD_STATS *) my_hash_search(&global_thread_stats,
+                                                        (uchar *) &(thd->thread_id),
+                                                        sizeof(my_thread_id))))
+    {
+      // Found by thread ID
+      update_global_thread_stats_with_thread(thd, thread_stats, now);
+    }
+    else
+    {
+      // Create the entry
+      if (create_user)
+      {
+        increment_count_by_id(thd->thread_id,
+                              &global_thread_stats, thd);
+      }
+    }
+  }
+
+  thd->last_global_update_time = now;
+  thd->reset_diff_stats();
+
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
 }
 
 /*
@@ -1111,7 +1025,7 @@ static int check_connection(THD *thd)
   thd->set_active_vio(net->vio);
 #endif
 
-  if (!thd->main_security_ctx.host)         // If TCP/IP connection
+  if (!thd->main_security_ctx.get_host()->length())     // If TCP/IP connection
   {
     char ip[NI_MAXHOST];
 
@@ -1133,25 +1047,30 @@ static int check_connection(THD *thd)
                     };);
     /* END   : DEBUG */
 
-    if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
+    thd->main_security_ctx.set_ip(my_strdup(ip, MYF(MY_WME)));
+    if (!(thd->main_security_ctx.get_ip()->length()))
       return 1; /* The error is set by my_strdup(). */
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_ip()->ptr();
     if (!(specialflag & SPECIAL_NO_RESOLVE))
     {
-      if (ip_to_hostname(&net->vio->remote, thd->main_security_ctx.ip,
-                         &thd->main_security_ctx.host, &connect_errors))
+      char *host= (char *) thd->main_security_ctx.get_host()->ptr();
+      if (ip_to_hostname(&net->vio->remote,
+                         thd->main_security_ctx.get_ip()->ptr(),
+                         &host, &connect_errors))
       {
         my_error(ER_BAD_HOST_ERROR, MYF(0));
         return 1;
       }
-
+      thd->main_security_ctx.set_host(host);
       /* Cut very long hostnames to avoid possible overflows */
-      if (thd->main_security_ctx.host)
+      if (thd->main_security_ctx.get_host()->length())
       {
-        if (thd->main_security_ctx.host != my_localhost)
-          thd->main_security_ctx.host[min(strlen(thd->main_security_ctx.host),
-                                          HOSTNAME_LENGTH)]= 0;
-        thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
+        if (thd->main_security_ctx.get_host()->ptr() != my_localhost)
+          thd->main_security_ctx.set_host(thd->main_security_ctx.get_host()->ptr(),
+                               min(thd->main_security_ctx.get_host()->length(),
+                               HOSTNAME_LENGTH));
+        thd->main_security_ctx.host_or_ip=
+                        thd->main_security_ctx.get_host()->ptr();
       }
       if (connect_errors > max_connect_errors)
       {
@@ -1160,11 +1079,14 @@ static int check_connection(THD *thd)
       }
     }
     DBUG_PRINT("info",("Host: %s  ip: %s",
-		       (thd->main_security_ctx.host ?
-                        thd->main_security_ctx.host : "unknown host"),
-		       (thd->main_security_ctx.ip ?
-                        thd->main_security_ctx.ip : "unknown ip")));
-    if (acl_check_host(thd->main_security_ctx.host, thd->main_security_ctx.ip))
+		       (thd->main_security_ctx.get_host()->length() ?
+                        thd->main_security_ctx.get_host()->ptr() : 
+                        "unknown host"),
+		       (thd->main_security_ctx.get_ip()->length() ?
+                        thd->main_security_ctx.get_ip()->ptr()
+                        : "unknown ip")));
+    if (acl_check_host(thd->main_security_ctx.get_host()->ptr(),
+                       thd->main_security_ctx.get_ip()->ptr()))
     {
       my_error(ER_HOST_NOT_PRIVILEGED, MYF(0),
                thd->main_security_ctx.host_or_ip);
@@ -1173,9 +1095,9 @@ static int check_connection(THD *thd)
   }
   else /* Hostname given means that the connection was on a socket */
   {
-    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.host));
-    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.host;
-    thd->main_security_ctx.ip= 0;
+    DBUG_PRINT("info",("Host: %s", thd->main_security_ctx.get_host()->ptr()));
+    thd->main_security_ctx.host_or_ip= thd->main_security_ctx.get_host()->ptr();
+    thd->main_security_ctx.set_ip("");
     /* Reset sin_addr */
     bzero((char*) &net->vio->remote, sizeof(net->vio->remote));
   }

@@ -457,6 +457,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	{&srv_master_thread_key, "srv_master_thread", 0},
 	{&srv_purge_thread_key, "srv_purge_thread", 0},
 	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0},
+	{&buf_lru_manager_thread_key, "lru_manager_thread", 0},
 	{&recv_writer_thread_key, "recv_writer_thread", 0},
 	{&srv_log_tracking_thread_key, "srv_redo_log_follow_thread", 0}
 };
@@ -15846,7 +15847,7 @@ innodb_enable_monitor_at_startup(
 
 /****************************************************************//**
 Update the innodb_sched_priority_cleaner variable and set the thread
-priority accordingly.  */
+priorities accordingly.  */
 static
 void
 innodb_sched_priority_cleaner_update(
@@ -15862,6 +15863,24 @@ innodb_sched_priority_cleaner_update(
 	ulint	priority = *static_cast<const ulint *>(save);
 	ulint	actual_priority;
 
+	/* Set the priority for the LRU manager thread */
+	ut_ad(buf_lru_manager_is_active);
+	actual_priority = os_thread_set_priority(srv_lru_manager_tid,
+						 priority);
+	if (UNIV_UNLIKELY(actual_priority != priority)) {
+
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Failed to set the LRU manager thread "
+				    "priority to %lu,  "
+				    "the current priority is %lu", priority,
+				    actual_priority);
+	} else {
+
+		srv_sched_priority_cleaner = priority;
+	}
+
+	/* Set the priority for the page cleaner thread */
 	if (srv_read_only_mode) {
 
 		return;
@@ -15877,9 +15896,6 @@ innodb_sched_priority_cleaner_update(
 				    "priority to %lu,  "
 				    "the current priority is %lu", priority,
 				    actual_priority);
-	} else {
-
-		srv_sched_priority_cleaner = priority;
 	}
 }
 
@@ -16873,7 +16889,7 @@ static MYSQL_SYSVAR_ENUM(foreground_preflush, srv_foreground_preflush,
 
 static MYSQL_SYSVAR_ULONG(sched_priority_cleaner, srv_sched_priority_cleaner,
   PLUGIN_VAR_RQCMDARG,
-  "Nice value for the cleaner thread scheduling",
+  "Nice value for the cleaner and LRU manager thread scheduling",
   NULL, innodb_sched_priority_cleaner_update, 19, 0, 39, 0);
 
 #endif /* UNIV_LINUX */
@@ -16918,7 +16934,8 @@ static MYSQL_SYSVAR_BOOL(priority_io, srv_io_thread_priority,
 
 static MYSQL_SYSVAR_BOOL(priority_cleaner, srv_cleaner_thread_priority,
   PLUGIN_VAR_OPCMDARG,
-  "Make buffer pool cleaner thread acquire shared resources with priority",
+  "Make buffer pool cleaner and LRU manager threads acquire shared resources "
+  "with priority",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(priority_master, srv_master_thread_priority,

@@ -228,9 +228,6 @@ Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{majorversion}.%{minorversion}/source/%{src_dir}.tar.gz
-#TODO
-Patch1:         mysql-dubious-exports.patch
-#TODO
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -331,9 +328,6 @@ and applications need to dynamically load and use Percona Server.
 ##############################################################################
 %prep
 %setup -n %{src_dir}
-#TODO
-%patch1 -p1 
-#TODO
 ##############################################################################
 %build
 
@@ -484,7 +478,7 @@ fi
 
 # Move temporarily the saved files to the BUILD directory since the BUILDROOT
 # dir will be cleaned at the start of the install phase
-mkdir -p "$(dirname $RPM_BUILD_DIR/%{_libdir})"
+mkdir -p "$RPM_BUILD_DIR/%{_libdir}"
 mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
 
 ##############################################################################
@@ -494,7 +488,7 @@ RBR=$RPM_BUILD_ROOT
 MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}%{server_suffix}
 
 # Move back the libdir from BUILD dir to BUILDROOT
-mkdir -p "$(dirname $RBR%{_libdir})"
+mkdir -p "$RBR%{_libdir}"
 mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
 
 # Ensure that needed directories exists

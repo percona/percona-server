@@ -233,6 +233,7 @@ SET(TESTS
   my_bitmap
   my_error
   my_fileutils
+  my_murmur3
   my_regex
   mysys_base64
   mysys_lf
@@ -244,6 +245,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  strtoll
   thread_utils
   )
 
@@ -260,6 +262,7 @@ SET(SERVER_TESTS
   item_func_now_local
   item_timefunc
   join_tab_sort
+  log_throttle
   make_sortkey
   my_decimal
   opt_range

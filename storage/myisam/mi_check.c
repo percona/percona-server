@@ -1159,7 +1159,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
 	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len,
-                              test(info->s->calc_checksum)))
+                              MY_TEST(info->s->calc_checksum)))
 	    {
 	      mi_check_print_error(param,"Found wrong packed record at %s",
 			  llstr(start_recpos,llbuff));
@@ -2386,7 +2386,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       if (keyseg[i].flag & HA_SPACE_PACK)
 	sort_param.key_length+=get_pack_length(keyseg[i].length);
       if (keyseg[i].flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
-	sort_param.key_length+=2 + test(keyseg[i].length >= 127);
+	sort_param.key_length+=2 + MY_TEST(keyseg[i].length >= 127);
       if (keyseg[i].flag & HA_NULL_PART)
 	sort_param.key_length++;
     }
@@ -2654,6 +2654,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   ulonglong UNINIT_VAR(key_map);
   pthread_attr_t thr_attr;
   ulong max_pack_reclength;
+  int error;
   DBUG_ENTER("mi_repair_parallel");
 
   start_records=info->state->records;
@@ -2877,7 +2878,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
       if (keyseg->flag & HA_SPACE_PACK)
         sort_param[i].key_length+=get_pack_length(keyseg->length);
       if (keyseg->flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
-        sort_param[i].key_length+=2 + test(keyseg->length >= 127);
+        sort_param[i].key_length+=2 + MY_TEST(keyseg->length >= 127);
       if (keyseg->flag & HA_NULL_PART)
         sort_param[i].key_length++;
     }
@@ -2894,7 +2895,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   sort_info.total_keys=i;
   sort_param[0].master= 1;
   sort_param[0].fix_datafile= (my_bool)(! rep_quick);
-  sort_param[0].calc_checksum= test(param->testflag & T_CALC_CHECKSUM);
+  sort_param[0].calc_checksum= MY_TEST(param->testflag & T_CALC_CHECKSUM);
 
   if (!ftparser_alloc_param(info))
     goto err;
@@ -2948,12 +2949,13 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 #else
       param->sort_buffer_length*sort_param[i].key_length/total_key_length;
 #endif
-    if (mysql_thread_create(mi_key_thread_find_all_keys,
-                            &sort_param[i].thr, &thr_attr,
-                            thr_find_all_keys,
-                            (void *) (sort_param+i)))
+    if ((error= mysql_thread_create(mi_key_thread_find_all_keys,
+                                    &sort_param[i].thr, &thr_attr,
+                                    thr_find_all_keys,
+                                    (void *) (sort_param+i))))
     {
-      mi_check_print_error(param,"Cannot start a repair thread");
+      mi_check_print_error(param,"Cannot start a repair thread (errno= %d)",
+                           error);
       /* Cleanup: Detach from the share. Avoid others to be blocked. */
       if (io_share.total_threads)
         remove_io_thread(&sort_param[i].read_cache);
@@ -3564,7 +3566,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
                             sort_param->find_length,
                             (param->testflag & T_QUICK) &&
                             sort_param->calc_checksum &&
-                            test(info->s->calc_checksum)))
+                            MY_TEST(info->s->calc_checksum)))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
 				llstr(sort_param->start_recpos,llbuff));
@@ -3722,7 +3724,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 
       do
       {
-	block_length=reclength+ 3 + test(reclength >= (65520-3));
+	block_length=reclength+ 3 + MY_TEST(reclength >= (65520-3));
 	if (block_length < share->base.min_block_length)
 	  block_length=share->base.min_block_length;
 	info->update|=HA_STATE_WRITE_AT_END;
@@ -4641,7 +4643,7 @@ static ha_checksum mi_byte_checksum(const uchar *buf, uint length)
   const uchar *end=buf+length;
   for (crc=0; buf != end; buf++)
     crc=((crc << 1) + *((uchar*) buf)) +
-      test(crc & (((ha_checksum) 1) << (8*sizeof(ha_checksum)-1)));
+      MY_TEST(crc & (((ha_checksum) 1) << (8*sizeof(ha_checksum)-1)));
   return crc;
 }
 

@@ -131,6 +131,13 @@ mysql_server_end
 mysql_set_character_set
 mysql_get_character_set_info
 mysql_stmt_next_result
+my_init
+mysql_client_find_plugin
+mysql_client_register_plugin
+mysql_load_plugin
+mysql_load_plugin_v
+mysql_options4
+mysql_plugin_options
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -176,8 +183,10 @@ ENDIF()
 MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
+INSTALL_DEBUG_SYMBOLS(clientlib)
 IF(MSVC)
  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
+ INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
 MACRO(GET_TARGET_NAME target out_name)

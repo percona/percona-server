@@ -3,12 +3,13 @@
 --source include/not_embedded.inc
 SET @start_global_value = @@global.thread_pool_high_prio_tickets;
 
-#
-# exists as global only
-#
+# Test the default value
+set @@global.thread_pool_high_prio_tickets=default;
 select @@global.thread_pool_high_prio_tickets;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+
+set @@session.thread_pool_high_prio_tickets=default;
 select @@session.thread_pool_high_prio_tickets;
+
 show global variables like 'thread_pool_high_prio_tickets';
 show session variables like 'thread_pool_high_prio_tickets';
 select * from information_schema.global_variables where variable_name='thread_pool_high_prio_tickets';
@@ -21,8 +22,8 @@ set global thread_pool_high_prio_tickets=60;
 select @@global.thread_pool_high_prio_tickets;
 set global thread_pool_high_prio_tickets=4294967295;
 select @@global.thread_pool_high_prio_tickets;
---error ER_GLOBAL_VARIABLE
 set session thread_pool_high_prio_tickets=1;
+select @@session.thread_pool_high_prio_tickets;
 
 #
 # incorrect types

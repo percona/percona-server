@@ -1252,7 +1252,7 @@ btr_cur_ins_lock_and_undo(
 	rec_t*		rec;
 	roll_ptr_t	roll_ptr;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1514,7 +1514,7 @@ fail_err:
 		goto fail_err;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		*big_rec = big_rec_vec;
 		return(err); /* == DB_SUCCESS */
@@ -1719,7 +1719,7 @@ btr_cur_pessimistic_insert(
 		}
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		if (n_reserved > 0) {
 			fil_space_release_free_extents(index->space,
@@ -1785,7 +1785,7 @@ btr_cur_upd_lock_and_undo(
 
 	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr && thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, UNDO */
 		return(DB_SUCCESS);
 	}
@@ -1828,7 +1828,7 @@ btr_cur_upd_lock_and_undo(
 
 /***********************************************************//**
 Writes a redo log record of updating a record in-place. */
-UNIV_INLINE __attribute__((nonnull))
+UNIV_INTERN
 void
 btr_cur_update_in_place_log(
 /*========================*/
@@ -1856,18 +1856,29 @@ btr_cur_update_in_place_log(
 		return;
 	}
 
-	/* The code below assumes index is a clustered index: change index to
-	the clustered index if we are updating a secondary index record (or we
-	could as well skip writing the sys col values to the log in this case
-	because they are not needed for a secondary index record update) */
-
-	index = dict_table_get_first_index(index->table);
-
+	/* For secondary indexes, we could skip writing the dummy system fields
+	to the redo log but we have to change redo log parsing of
+	MLOG_REC_UPDATE_IN_PLACE/MLOG_COMP_REC_UPDATE_IN_PLACE or we have to add
+	new redo log record. For now, just write dummy sys fields to the redo
+	log if we are updating a secondary index record.
+	*/
 	mach_write_to_1(log_ptr, flags);
 	log_ptr++;
 
-	log_ptr = row_upd_write_sys_vals_to_log(
-		index, trx_id, roll_ptr, log_ptr, mtr);
+	if (dict_index_is_clust(index)) {
+		log_ptr = row_upd_write_sys_vals_to_log(
+				index, trx_id, roll_ptr, log_ptr, mtr);
+	} else {
+		/* Dummy system fields for a secondary index */
+		/* TRX_ID Position */
+		log_ptr += mach_write_compressed(log_ptr, 0);
+		/* ROLL_PTR */
+		trx_write_roll_ptr(log_ptr, 0);
+		log_ptr += DATA_ROLL_PTR_LEN;
+		/* TRX_ID */
+		log_ptr += mach_ull_write_compressed(log_ptr, 0);
+	}
+
 	mach_write_to_2(log_ptr, page_offset(rec));
 	log_ptr += 2;
 
@@ -2253,7 +2264,8 @@ btr_cur_optimistic_update(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(thr_get_trx(thr)->fake_changes
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -2398,7 +2410,7 @@ any_extern:
 		goto func_exit;
 	}
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		/* skip CHANGE, LOG */
 		ut_ad(err == DB_SUCCESS);
 		return(DB_SUCCESS);
@@ -2555,9 +2567,11 @@ btr_cur_pessimistic_update(
 	page_zip = buf_block_get_page_zip(block);
 	index = cursor->index;
 
-	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
-	ut_ad((thr && thr_get_trx(thr)->fake_changes) || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(thr_get_trx(thr)->fake_changes
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_X_LOCK));
+	ut_ad(thr_get_trx(thr)->fake_changes
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2614,7 +2628,7 @@ btr_cur_pessimistic_update(
 		if (UNIV_UNLIKELY(cursor->tree_height == ULINT_UNDEFINED)) {
 			/* When the tree height is uninitialized due to fake
 			changes, reserve some hardcoded number of extents.  */
-			ut_a(thr && thr_get_trx(thr)->fake_changes);
+			ut_a(thr_get_trx(thr)->fake_changes);
 			n_extents = 3;
 		}
 		else {
@@ -2653,7 +2667,7 @@ btr_cur_pessimistic_update(
 
 	trx = thr_get_trx(thr);
 
-	if (!(flags & BTR_KEEP_SYS_FLAG) && !trx->fake_changes) {
+	if (!(flags & BTR_KEEP_SYS_FLAG) && UNIV_LIKELY(!trx->fake_changes)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
 		row_upd_index_entry_sys_field(new_entry, index, DATA_TRX_ID,
@@ -2725,7 +2739,7 @@ make_external:
 		ut_ad(flags & BTR_KEEP_POS_FLAG);
 	}
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		/* skip CHANGE, LOG */
 		err = DB_SUCCESS;
 		goto return_after_reservations;
@@ -3057,9 +3071,9 @@ btr_cur_del_mark_set_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
-	    /* skip LOCK, UNDO, CHANGE, LOG */
-	    return(DB_SUCCESS);
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		/* skip LOCK, UNDO, CHANGE, LOG */
+		return(DB_SUCCESS);
 	}
 
 	err = lock_clust_rec_modify_check_and_lock(BTR_NO_LOCKING_FLAG, block,
@@ -3200,7 +3214,7 @@ btr_cur_del_mark_set_sec_rec(
 	rec_t*		rec;
 	dberr_t		err;
 
-	if (thr && thr_get_trx(thr)->fake_changes) {
+	if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 		/* skip LOCK, CHANGE, LOG */
 		return(DB_SUCCESS);
 	}
@@ -4990,6 +5004,10 @@ next_zip_page:
 				}
 			}
 		}
+
+		DBUG_EXECUTE_IF("btr_store_big_rec_extern",
+				error = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;);
 	}
 
 func_exit:
@@ -5022,9 +5040,11 @@ func_exit:
 
 		field_ref = btr_rec_get_field_ref(rec, offsets, i);
 
-		/* The pointer must not be zero. */
+		/* The pointer must not be zero if the operation
+		succeeded. */
 		ut_a(0 != memcmp(field_ref, field_ref_zero,
-				 BTR_EXTERN_FIELD_REF_SIZE));
+				 BTR_EXTERN_FIELD_REF_SIZE)
+		     || error != DB_SUCCESS);
 		/* The column must not be disowned by this record. */
 		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 	}
@@ -5123,10 +5143,10 @@ btr_free_externally_stored_field(
 
 	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
-		/* In the rollback of uncommitted transactions, we may
-		encounter a clustered index record whose BLOBs have
-		not been written.  There is nothing to free then. */
-		ut_a(rb_ctx == RB_RECOVERY || rb_ctx == RB_RECOVERY_PURGE_REC);
+		/* In the rollback, we may encounter a clustered index
+		record with some unwritten off-page columns. There is
+		nothing to free then. */
+		ut_a(rb_ctx != RB_NONE);
 		return;
 	}
 

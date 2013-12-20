@@ -651,26 +651,13 @@ os_file_handle_error_cond_exit(
 		to the log. */
 
 		if (should_exit || !on_error_silent) {
-			if (name) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: File name %s\n", name);
-			}
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: File operation call: "
-				"'%s' returned OS error " ULINTPF ".\n",
-				operation, err);
+			ib_logf(IB_LOG_LEVEL_ERROR, "File %s: '%s' returned OS "
+				"error " ULINTPF ".%s", name ? name : "(unknown)",
+				operation, err, should_exit
+				? " Cannot continue operation" : "");
 		}
 
 		if (should_exit) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Cannot continue "
-				"operation.\n");
-
-			fflush(stderr);
-
-			ut_ad(0);  /* Report call stack, etc only in debug code. */
 			exit(1);
 		}
 	}
@@ -1142,6 +1129,7 @@ os_file_create_simple_func(
 	os_file_t	file;
 	ibool		retry;
 
+	*success = FALSE;
 #ifdef __WIN__
 	DWORD		access;
 	DWORD		create_flag;
@@ -1336,6 +1324,7 @@ os_file_create_simple_no_error_handling_func(
 {
 	os_file_t	file;
 
+	*success = FALSE;
 #ifdef __WIN__
 	DWORD		access;
 	DWORD		create_flag;
@@ -1486,18 +1475,32 @@ os_file_set_nocache(
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
-		int	errno_save = errno;
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Failed to set O_DIRECT on file %s: %s: %s, "
-			"continuing anyway",
-			file_name, operation_name, strerror(errno_save));
-
+		int		errno_save = errno;
+		static bool	warning_message_printed = false;
 		if (errno_save == EINVAL) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"O_DIRECT is known to result in 'Invalid "
-				"argument' on Linux on tmpfs, see MySQL "
-				"Bug#26662");
+			if (!warning_message_printed) {
+				warning_message_printed = true;
+# ifdef UNIV_LINUX
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Failed to set O_DIRECT on file "
+					"%s: %s: %s, continuing anyway. "
+					"O_DIRECT is known to result "
+					"in 'Invalid argument' on Linux on "
+					"tmpfs, see MySQL Bug#26662.",
+					file_name, operation_name,
+					strerror(errno_save));
+# else /* UNIV_LINUX */
+				goto short_warning;
+# endif /* UNIV_LINUX */
+			}
+		} else {
+# ifndef UNIV_LINUX
+short_warning:
+# endif
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Failed to set O_DIRECT on file %s: %s: %s, "
+				"continuing anyway.",
+				file_name, operation_name, strerror(errno_save));
 		}
 	}
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
@@ -1836,7 +1839,7 @@ os_file_create_func(
 #endif /* USE_FILE_LOCK */
 
 	if (srv_use_atomic_writes && type == OS_DATA_FILE
-	    && !os_file_set_atomic_writes(name, file)) {
+	    && file != -1 && !os_file_set_atomic_writes(name, file)) {
 
 		*success = FALSE;
 		close(file);

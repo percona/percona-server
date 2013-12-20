@@ -552,7 +552,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
     Character set in which @c m_connect_attrs are encoded.
     Protected by @c m_session_lock.
   */
-  const CHARSET_INFO *m_session_connect_attrs_cs;
+  uint m_session_connect_attrs_cs_number;
 };
 
 extern PFS_stage_stat *global_instr_class_stages_array;
@@ -655,10 +655,22 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
                               PFS_statement_stat *to_array_1,
                               PFS_statement_stat *to_array_2);
 
-void aggregate_thread(PFS_thread *thread);
-void aggregate_thread_waits(PFS_thread *thread);
-void aggregate_thread_stages(PFS_thread *thread);
-void aggregate_thread_statements(PFS_thread *thread);
+void aggregate_thread(PFS_thread *thread,
+                      PFS_account *safe_account,
+                      PFS_user *safe_user,
+                      PFS_host *safe_host);
+void aggregate_thread_waits(PFS_thread *thread,
+                            PFS_account *safe_account,
+                            PFS_user *safe_user,
+                            PFS_host *safe_host);
+void aggregate_thread_stages(PFS_thread *thread,
+                             PFS_account *safe_account,
+                             PFS_user *safe_user,
+                             PFS_host *safe_host);
+void aggregate_thread_statements(PFS_thread *thread,
+                                 PFS_account *safe_account,
+                                 PFS_user *safe_user,
+                                 PFS_host *safe_host);
 void clear_thread_account(PFS_thread *thread);
 void set_thread_account(PFS_thread *thread);
 

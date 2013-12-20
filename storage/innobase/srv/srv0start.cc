@@ -38,6 +38,9 @@ Starts the InnoDB database server
 Created 2/16/1996 Heikki Tuuri
 *************************************************************************/
 
+#include "mysqld.h"
+#include "pars0pars.h"
+#include "row0ftsort.h"
 #include "ut0mem.h"
 #include "mem0mem.h"
 #include "data0data.h"
@@ -535,7 +538,13 @@ create_log_file(
 
 	*file = os_file_create(
 		innodb_file_log_key, name,
-		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
+		OS_FILE_CREATE|OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
+		OS_LOG_FILE, &ret);
+
+	if (!ret) {
+		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot create %s", name);
+		return(DB_ERROR);
+	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Setting log file %s size to %lu MB",
@@ -546,7 +555,9 @@ create_log_file(
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT);
 	if (!ret) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "Error in creating %s", name);
+		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot set log file"
+			" %s to size %lu MB", name, (ulong) srv_log_file_size
+			>> (20 - UNIV_PAGE_SIZE_SHIFT));
 		return(DB_ERROR);
 	}
 
@@ -579,6 +590,8 @@ static
 dberr_t
 create_log_files(
 /*=============*/
+	bool	create_new_db,	/*!< in: TRUE if new database is being
+				created */
 	char*	logfilename,	/*!< in/out: buffer for log file name */
 	size_t	dirnamelen,	/*!< in: length of the directory path */
 	lsn_t	lsn,		/*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
@@ -590,23 +603,28 @@ create_log_files(
 		return(DB_READ_ONLY);
 	}
 
-	/* Remove any old log files. */
-	for (unsigned i = 0; i <= INIT_LOG_FILE0; i++) {
-		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
+	/* We prevent system tablespace creation with existing files in
+	data directory. So we do not delete log files when creating new system
+	tablespace */
+	if (!create_new_db) {
+		/* Remove any old log files. */
+		for (unsigned i = 0; i <= INIT_LOG_FILE0; i++) {
+			sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
-		/* Ignore errors about non-existent files or files
-		that cannot be removed. The create_log_file() will
-		return an error when the file exists. */
+			/* Ignore errors about non-existent files or files
+			that cannot be removed. The create_log_file() will
+			return an error when the file exists. */
 #ifdef __WIN__
-		DeleteFile((LPCTSTR) logfilename);
+			DeleteFile((LPCTSTR) logfilename);
 #else
-		unlink(logfilename);
+			unlink(logfilename);
 #endif
-		/* Crashing after deleting the first
-		file should be recoverable. The buffer
-		pool was clean, and we can simply create
-		all log files from the scratch. */
-		RECOVERY_CRASH(6);
+			/* Crashing after deleting the first
+			file should be recoverable. The buffer
+			pool was clean, and we can simply create
+			all log files from the scratch. */
+			RECOVERY_CRASH(6);
+		}
 	}
 
 	ut_ad(!buf_pool_check_no_pending_io());
@@ -1111,19 +1129,25 @@ srv_undo_tablespace_create(
 	if (srv_read_only_mode && ret) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"%s opened in read-only mode", name);
-	} else if (ret == FALSE
-		   && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
+	} else if (ret == FALSE) {
+		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-		/* AIX 5.1 after security patch ML7 may have
-		errno set to 0 here, which causes our function
-		to return 100; work around that AIX problem */
-		   && os_file_get_last_error(false) != 100
+			/* AIX 5.1 after security patch ML7 may have
+			errno set to 0 here, which causes our function
+			to return 100; work around that AIX problem */
+		    && os_file_get_last_error(false) != 100
 #endif /* UNIV_AIX */
 		) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can't create UNDO tablespace %s", name);
-
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Can't create UNDO tablespace %s", name);
+		} else {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Creating system tablespace with"
+				" existing undo tablespaces is not"
+				" supported. Please delete all undo"
+				" tablespaces before creating new"
+				" system tablespace.");
+		}
 		err = DB_ERROR;
 	} else {
 		ut_a(!srv_read_only_mode);
@@ -1511,6 +1535,10 @@ innobase_start_or_create_for_mysql(void)
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
 
+	if (srv_force_recovery > SRV_FORCE_NO_TRX_UNDO) {
+		srv_read_only_mode = true;
+	}
+
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
@@ -1753,23 +1781,34 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
-		/* If buffer pool is less than 1000 MB,
-		assume fewer threads. Also use only one
-		buffer pool instance */
-		srv_max_n_threads = 50000;
+#define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
+	srv_max_n_threads = 1   /* io_ibuf_thread */
+			    + 1 /* io_log_thread */
+			    + 1 /* lock_wait_timeout_thread */
+			    + 1 /* srv_error_monitor_thread */
+			    + 1 /* srv_monitor_thread */
+			    + 1 /* srv_master_thread */
+			    + 1 /* srv_purge_coordinator_thread */
+			    + 1 /* buf_dump_thread */
+			    + 1 /* dict_stats_thread */
+			    + 1 /* fts_optimize_thread */
+			    + 1 /* recv_writer_thread */
+			    + 1 /* buf_flush_page_cleaner_thread */
+			    + 1 /* trx_rollback_or_clean_all_recovered */
+			    + 128 /* added as margin, for use of
+				  InnoDB Memcached etc. */
+			    + max_connections
+			    + srv_n_read_io_threads
+			    + srv_n_write_io_threads
+			    + srv_n_purge_threads
+			    /* FTS Parallel Sort */
+			    + fts_sort_pll_degree * FTS_NUM_AUX_INDEX
+			      * max_connections;
 
-	} else if (srv_buf_pool_size >= 8 * 1024 * 1024) {
-
+	if (srv_buf_pool_size < BUF_POOL_SIZE_THRESHOLD) {
+		/* If buffer pool is less than 1 GB,
+		use only one buffer pool instance */
 		srv_buf_pool_instances = 1;
-		srv_max_n_threads = 10000;
-	} else {
-		srv_buf_pool_instances = 1;
-
-		/* Saves several MB of memory, especially in
-		64-bit computers */
-
-		srv_max_n_threads = 1000;
 	}
 
 	srv_boot();
@@ -2048,7 +2087,7 @@ innobase_start_or_create_for_mysql(void)
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-		err = create_log_files(logfilename, dirnamelen,
+		err = create_log_files(create_new_db, logfilename, dirnamelen,
 				       max_flushed_lsn, logfile0);
 
 		if (err != DB_SUCCESS) {
@@ -2093,8 +2132,9 @@ innobase_start_or_create_for_mysql(void)
 					}
 
 					err = create_log_files(
-						logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
+						create_new_db, logfilename,
+						dirnamelen, max_flushed_lsn,
+						logfile0);
 
 					if (err != DB_SUCCESS) {
 						return(err);
@@ -2478,8 +2518,9 @@ files_checked:
 
 			srv_log_file_size = srv_log_file_size_requested;
 
-			err = create_log_files(logfilename, dirnamelen,
-					       max_flushed_lsn, logfile0);
+			err = create_log_files(create_new_db, logfilename,
+					       dirnamelen, max_flushed_lsn,
+					       logfile0);
 
 			if (err != DB_SUCCESS) {
 				return(err);
@@ -2577,10 +2618,16 @@ files_checked:
 		srv_undo_tablespaces, srv_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
-		/* Can only happen if force recovery is set. */
-		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
-		     || srv_read_only_mode);
+		/* Can only happen if server is read only. */
+		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
+	}
+
+	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
+	if (!srv_force_recovery && !srv_read_only_mode) {
+		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		ut_a(success);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 
 	if (!srv_read_only_mode) {

@@ -1,8 +1,8 @@
-.. _xtradb_performance_improvements:
+.. _xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads:
 
-=================================
- XtraDB Performance Improvements
-=================================
+===============================================================================
+ XtraDB Performance Improvements for I/O-Bound Highly-Concurrent Workloads
+===============================================================================
 
 In |Percona Server| :rn:`5.6.13-61.0` a number of |XtraDB| performance improvements have been implemented for high-concurrency scenarios.
 
@@ -10,6 +10,7 @@ Priority refill for the buffer pool free list
 =============================================
 
 In highly-concurrent I/O-bound workloads the following situation may happen: 
+
  1) Buffer pool free lists are used faster than they are refilled by the LRU cleaner thread.
  2) Buffer pool free lists become empty and more and more query and utility (i.e. purge) thread stall, checking whether a free list has became non-empty, sleeping, performing single-page LRU flushes.
  3) The number of free list mutex waiters increases.

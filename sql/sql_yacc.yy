@@ -1029,7 +1029,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
   Currently there are 161 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 161
+%expect 162
 
 /*
    Comments for TOKENS.
@@ -1563,6 +1563,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATEMENT_SYM
 %token  STATS_AUTO_RECALC_SYM
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
@@ -2101,6 +2102,16 @@ prepare:
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_PREPARE;
             lex->prepared_stmt_name= $2;
+            /*
+              We don't know know at this time whether there's a password
+              in prepare_src, so we err on the side of caution.  Setting
+              the flag will force a rewrite which will obscure all of
+              prepare_src in the "Query" log line.  We'll see the actual
+              query (with just the passwords obscured, if any) immediately
+              afterwards in the "Prepare" log lines anyway, and then again
+              in the "Execute" log line if and when prepare_src is executed.
+            */
+            lex->contains_plaintext_password= true;
           }
         ;
 
@@ -2232,8 +2243,11 @@ master_def:
           {
             if ($3 > MASTER_DELAY_MAX)
             {
+              Lex_input_stream *lip= YYLIP;
+              const char *start= lip->get_tok_start();
+              const char *msg= YYTHD->strmake(start, lip->get_ptr() - start);
               my_error(ER_MASTER_DELAY_VALUE_OUT_OF_RANGE, MYF(0),
-                       static_cast<uint>($3), MASTER_DELAY_MAX);
+                       msg, MASTER_DELAY_MAX);
             }
             else
               Lex->mi.sql_delay = $3;
@@ -14470,6 +14484,7 @@ keyword_sp:
         | STATS_AUTO_RECALC_SYM    {}
         | STATS_PERSISTENT_SYM     {}
         | STATS_SAMPLE_PAGES_SYM   {}
+        | STATEMENT_SYM            {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
@@ -14546,8 +14561,36 @@ set:
           }
           start_option_value_list
           {}
+        | SET STATEMENT_SYM
+          {
+            LEX *lex= Lex;
+            mysql_init_select(lex);
+            lex->sql_command= SQLCOM_SET_OPTION;
+	    /* Don't clear var_list in the case of recursive statement */
+	    if (!lex->set_statement)
+              lex->var_list.empty();
+            lex->one_shot_set= 0;
+            lex->autocommit= 0;
+            lex->set_statement= true;
+            sp_head *sp= lex->sphead;
+            if (sp && !sp->is_invoked())
+            {
+              sp->m_parser_data.set_current_stmt_start_ptr(YY_TOKEN_START);
+              sp->m_parser_data.set_option_start_ptr(YY_TOKEN_END);
+            }
+          }
+          set_stmt_option_value_following_option_type_list FOR_SYM statement 
+	  {}
         ;
 
+set_stmt_option_value_following_option_type_list:
+	/*
+	  Only system variables can be used here. If this condition is changed
+	  please check careful code under lex->option_type == OPT_STATEMENT
+	  condition on wrong type casts.
+	*/
+          option_value_following_option_type
+        | set_stmt_option_value_following_option_type_list ',' option_value_following_option_type
 
 // Start of option value list
 start_option_value_list:
@@ -14652,23 +14695,31 @@ option_value_following_option_type:
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
-
-            if ($1.var && $1.var != trg_new_row_fake_var)
-            {
-              /* It is a system variable. */
-              if (set_system_variable(thd, &$1, lex->option_type, $3))
+            /*
+              Ignore SET STATEMENT variables list on slaves because system
+              variables are not replicated except certain variables set the
+              values of whose are written to binlog event header and nothing
+              additional is required to set them.
+	    */
+            if (!thd->slave_thread || !lex->set_statement)
+	    {
+              if ($1.var && $1.var != trg_new_row_fake_var)
+              {
+                /* It is a system variable. */
+                if (set_system_variable(thd, &$1, lex->option_type, $3))
+                  MYSQL_YYABORT;
+              }
+              else
+              {
+                /*
+                  Not in trigger assigning value to new row,
+                  and option_type preceeding local variable is illegal.
+                */
+                my_parse_error(ER(ER_SYNTAX_ERROR));
                 MYSQL_YYABORT;
+              }
             }
-            else
-            {
-              /*
-                Not in trigger assigning value to new row,
-                and option_type preceeding local variable is illegal.
-              */
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-          }
+	  }
         ;
 
 // Option values without preceeding option_type.
@@ -15649,7 +15700,6 @@ grant_user:
           {
             $$= $1;
             $1->password= null_lex_str;
-            check_password_policy(NULL);
           }
         ;
 

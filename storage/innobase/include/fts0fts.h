@@ -364,7 +364,10 @@ need a sync to free some memory */
 extern bool		fts_need_sync;
 
 /** Maximum possible Fulltext word length */
-#define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
+#define FTS_MAX_WORD_LEN		HA_FT_MAXBYTELEN
+
+/** Maximum possible Fulltext word length (in characters) */
+#define FTS_MAX_WORD_LEN_IN_CHAR	HA_FT_MAXCHARLEN
 
 /** Variable specifying the table that has Fulltext index to display its
 content through information schema table */
@@ -770,16 +773,12 @@ fts_cache_destroy(
 	fts_cache_t*	cache);			/*!< in: cache*/
 
 /*********************************************************************//**
-Clear cache. If the shutdown flag is TRUE then the cache can contain
-data that needs to be freed. For regular clear as part of normal
-working we assume the caller has freed all resources. */
+Clear cache. */
 UNIV_INTERN
 void
 fts_cache_clear(
 /*============*/
-	fts_cache_t*	cache,			/*!< in: cache */
-	ibool		free_words);		/*!< in: TRUE if free
-						in memory word cache. */
+	fts_cache_t*	cache);			/*!< in: cache */
 
 /*********************************************************************//**
 Initialize things in cache. */
@@ -830,7 +829,7 @@ fts_drop_index_split_tables(
 Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end. */
 UNIV_INTERN
-void
+dberr_t
 fts_sync_table(
 /*===========*/
 	dict_table_t*	table)			/*!< in: table */

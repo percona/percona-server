@@ -126,6 +126,9 @@ my_error_innodb(
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
+	case DB_TEMP_FILE_WRITE_FAILURE:
+		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
+		break;
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
 			 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags));
@@ -3188,8 +3191,6 @@ innobase_check_foreign_key_index(
 {
 	dict_foreign_t*	foreign;
 
-	ut_ad(!index->to_be_dropped);
-
 	/* Check if the index is referenced. */
 	foreign = dict_table_get_referenced_constraint(indexed_table, index);
 
@@ -3614,6 +3615,16 @@ check_if_can_drop_indexes:
 		CREATE TABLE adding FOREIGN KEY constraints. */
 		row_mysql_lock_data_dictionary(prebuilt->trx);
 
+		if (!n_drop_index) {
+			drop_index = NULL;
+		} else {
+			/* Flag all indexes that are to be dropped. */
+			for (ulint i = 0; i < n_drop_index; i++) {
+				ut_ad(!drop_index[i]->to_be_dropped);
+				drop_index[i]->to_be_dropped = 1;
+			}
+		}
+
 		if (prebuilt->trx->check_foreigns) {
 			for (uint i = 0; i < n_drop_index; i++) {
 			     dict_index_t*	index = drop_index[i];
@@ -3641,16 +3652,6 @@ check_if_can_drop_indexes:
 				row_mysql_unlock_data_dictionary(prebuilt->trx);
 				print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
 				goto err_exit;
-			}
-		}
-
-		if (!n_drop_index) {
-			drop_index = NULL;
-		} else {
-			/* Flag all indexes that are to be dropped. */
-			for (ulint i = 0; i < n_drop_index; i++) {
-				ut_ad(!drop_index[i]->to_be_dropped);
-				drop_index[i]->to_be_dropped = 1;
 			}
 		}
 
@@ -3909,7 +3910,8 @@ oom:
 	DEBUG_SYNC_C("inplace_after_index_build");
 
 	DBUG_EXECUTE_IF("create_index_fail",
-			error = DB_DUPLICATE_KEY;);
+			error = DB_DUPLICATE_KEY;
+			prebuilt->trx->error_key_num = ULINT_UNDEFINED;);
 
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
@@ -5677,6 +5679,9 @@ foreign_fail:
 
 			if (index->type & DICT_FTS) {
 				DBUG_ASSERT(index->type == DICT_FTS);
+				/* We reset DICT_TF2_FTS here because the bit
+				is left unset when a drop proceeds the add. */
+				DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
 				fts_add_index(index, ctx->new_table);
 				add_fts = true;
 			}

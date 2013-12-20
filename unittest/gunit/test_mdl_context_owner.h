@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ public:
   }
 
   virtual int  is_killed() { return 0; }
+  virtual bool is_timedout() const { return false; }
   virtual THD* get_thd()   { return NULL; }
 
 private:

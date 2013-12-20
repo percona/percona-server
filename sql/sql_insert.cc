@@ -794,7 +794,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                                            update,
                                            update_fields,
                                            fields,
-                                           !test(values->elements),
+                                           !MY_TEST(values->elements),
                                            &can_prune_partitions,
                                            &prune_needs_default_values,
                                            &used_partitions))
@@ -1906,7 +1906,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             2) do nothing on fake delete
             3) goto #1
           */
-          if (table->file->is_fake_change_enabled(thd))
+          if (unlikely(table->file->is_fake_change_enabled(thd)))
             goto ok_or_after_trg_err;
           /* Let us attempt do write_row() once more */
         }
@@ -1992,7 +1992,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       if (table_list)
       {
         table_list= table_list->top_table();
-        view= test(table_list->view);
+        view= MY_TEST(table_list->view);
       }
       if (view)
       {
@@ -2215,7 +2215,7 @@ public:
   {
     DBUG_ENTER("Delayed_insert constructor");
     thd.security_ctx->user=(char*) delayed_user;
-    thd.security_ctx->host=(char*) my_localhost;
+    thd.security_ctx->set_host(my_localhost);
     strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
             USERNAME_LENGTH);
     thd.current_tablenr=0;
@@ -2262,7 +2262,8 @@ public:
     mysql_cond_destroy(&cond_client);
     remove_global_thread(&thd);         // Must be removed under lock
     my_free(table_list.table_name);
-    thd.security_ctx->user= thd.security_ctx->host=0;
+    thd.security_ctx->set_host("");
+    thd.security_ctx->user= 0;
     delayed_insert_threads--;
     mysql_mutex_unlock(&LOCK_thread_count);
   }
@@ -3998,8 +3999,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   tmp_table.s->db_create_options=0;
   tmp_table.s->db_low_byte_first= 
-        test(create_info->db_type == myisam_hton ||
-             create_info->db_type == heap_hton);
+        MY_TEST(create_info->db_type == myisam_hton ||
+                create_info->db_type == heap_hton);
   tmp_table.null_row=tmp_table.maybe_null=0;
 
   if (!thd->variables.explicit_defaults_for_timestamp)

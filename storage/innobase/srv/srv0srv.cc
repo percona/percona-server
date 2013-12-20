@@ -275,7 +275,7 @@ UNIV_INTERN ulint	srv_cleaner_max_flush_time = 1000;
 
 /** Page cleaner flush list flush batches are further divided into this chunk
 size  */
-UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 200;
+UNIV_INTERN ulint	srv_cleaner_flush_chunk_size = 100;
 
 /** Page cleaner LRU list flush batches are further divided into this chunk
 size  */
@@ -465,6 +465,9 @@ UNIV_INTERN ulong	srv_doublewrite_batch_size	= 120;
 UNIV_INTERN ulong	srv_replication_delay		= 0;
 
 UNIV_INTERN ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
+
+UNIV_INTERN ulint	srv_log_checksum_algorithm =
+	SRV_CHECKSUM_ALGORITHM_INNODB;
 
 /*-------------------------------------------*/
 UNIV_INTERN ulong	srv_n_spin_wait_rounds	= 30;

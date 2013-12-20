@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mysys_err.h>
 #include <mysql/innodb_priv.h>
 #include <mysql/thread_pool_priv.h>
+#include <my_check_opt.h>
 
 /** @file ha_innodb.cc */
 
@@ -98,6 +99,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* UNIV_DEBUG */
 #include "fts0priv.h"
 #include "page0zip.h"
+
+enum_tx_isolation thd_get_trx_isolation(const THD* thd);
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -194,8 +197,6 @@ static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
-static char*	fts_server_stopword_table		= NULL;
-
 /** Possible values for system variable "innodb_stats_method". The values
 are defined the same as its corresponding MyISAM system variable
 "myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
@@ -215,7 +216,8 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
-/** Possible values for system variable "innodb_checksum_algorithm". */
+/** Possible values for system variables "innodb_checksum_algorithm" and
+"innodb_log_checksum_algorithm". */
 static const char* innodb_checksum_algorithm_names[] = {
 	"crc32",
 	"strict_crc32",
@@ -226,8 +228,8 @@ static const char* innodb_checksum_algorithm_names[] = {
 	NullS
 };
 
-/** Used to define an enumerate type of the system variable
-innodb_checksum_algorithm. */
+/** Used to define an enumerate type of the system variables
+innodb_checksum_algorithm and innodb_log_checksum_algorithm. */
 static TYPELIB innodb_checksum_algorithm_typelib = {
 	array_elements(innodb_checksum_algorithm_names) - 1,
 	"innodb_checksum_algorithm_typelib",
@@ -355,6 +357,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&fts_delete_mutex_key, "fts_delete_mutex", 0},
 	{&fts_optimize_mutex_key, "fts_optimize_mutex", 0},
 	{&fts_doc_id_mutex_key, "fts_doc_id_mutex", 0},
+	{&fts_pll_tokenize_mutex_key, "fts_pll_tokenize_mutex", 0},
 	{&log_flush_order_mutex_key, "log_flush_order_mutex", 0},
 	{&hash_table_mutex_key, "hash_table_mutex", 0},
 	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
@@ -496,10 +499,18 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_clust_read_tuple_create,
 	(ib_cb_t) ib_tuple_delete,
 	(ib_cb_t) ib_tuple_copy,
+	(ib_cb_t) ib_tuple_read_u8,
+	(ib_cb_t) ib_tuple_write_u8,
+	(ib_cb_t) ib_tuple_read_u16,
+	(ib_cb_t) ib_tuple_write_u16,
 	(ib_cb_t) ib_tuple_read_u32,
 	(ib_cb_t) ib_tuple_write_u32,
 	(ib_cb_t) ib_tuple_read_u64,
 	(ib_cb_t) ib_tuple_write_u64,
+	(ib_cb_t) ib_tuple_read_i8,
+	(ib_cb_t) ib_tuple_write_i8,
+	(ib_cb_t) ib_tuple_read_i16,
+	(ib_cb_t) ib_tuple_write_i16,
 	(ib_cb_t) ib_tuple_read_i32,
 	(ib_cb_t) ib_tuple_write_i32,
 	(ib_cb_t) ib_tuple_read_i64,
@@ -532,7 +543,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_clear_trx,
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
-	(ib_cb_t) ib_cfg_bk_commit_interval
+	(ib_cb_t) ib_cfg_bk_commit_interval,
+	(ib_cb_t) ib_cursor_stmt_begin
 };
 
 /*************************************************************//**
@@ -585,6 +597,15 @@ innobase_is_fake_change(
 	THD*		thd);	/*!< in: MySQL thread handle of the user for
 				  whom the transaction is being committed */
 
+
+/******************************************************************//**
+Maps a MySQL trx isolation level code to the InnoDB isolation level code
+@return	InnoDB isolation level */
+static inline
+ulint
+innobase_map_isolation_level(
+/*=========================*/
+	enum_tx_isolation	iso);	/*!< in: MySQL isolation level code */
 
 static const char innobase_hton_name[]= "InnoDB";
 
@@ -1529,7 +1550,7 @@ my_bool
 ha_innobase::is_fake_change_enabled(THD* thd)
 {
 	trx_t*	trx	= thd_to_trx(thd);
-	return(trx && trx->fake_changes);
+	return(trx && UNIV_UNLIKELY(trx->fake_changes));
 }
 
 /********************************************************************//**
@@ -1686,6 +1707,9 @@ convert_error_code_to_mysql(
 
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
+
+	case DB_TEMP_FILE_WRITE_FAILURE:
+		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
 		return(HA_ERR_TABLE_IN_FK_CHECK);
@@ -2389,6 +2413,62 @@ trx_is_started(
 	return(trx->state != TRX_STATE_NOT_STARTED);
 }
 
+/****************************************************************//**
+Update log_checksum_algorithm_ptr with a pointer to the function corresponding
+to a given checksum algorithm. */
+static
+void
+innodb_log_checksum_func_update(
+/*============================*/
+	ulint	algorithm)	/*!< in: algorithm */
+{
+	switch (algorithm) {
+	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+	case SRV_CHECKSUM_ALGORITHM_INNODB:
+		log_checksum_algorithm_ptr=log_block_calc_checksum_innodb;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+	case SRV_CHECKSUM_ALGORITHM_CRC32:
+		log_checksum_algorithm_ptr=log_block_calc_checksum_crc32;
+		break;
+	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+	case SRV_CHECKSUM_ALGORITHM_NONE:
+		log_checksum_algorithm_ptr=log_block_calc_checksum_none;
+		break;
+	default:
+		ut_a(0);
+	}
+}
+
+/****************************************************************//**
+On update hook for the innodb_log_checksum_algorithm variable. */
+static
+void
+innodb_log_checksum_algorithm_update(
+/*=================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	srv_checksum_algorithm_t	algorithm;
+
+	algorithm = (srv_checksum_algorithm_t)
+		(*static_cast<const ulong*>(save));
+
+	/* Make sure we are the only log user */
+	mutex_enter(&log_sys->mutex);
+
+	innodb_log_checksum_func_update(algorithm);
+
+	srv_log_checksum_algorithm = algorithm;
+
+	mutex_exit(&log_sys->mutex);
+}
+
 /*********************************************************************//**
 Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
@@ -2404,7 +2484,7 @@ innobase_copy_frm_flags_from_create_info(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+	if (dict_table_is_temporary(innodb_table)) {
 		/* Temp tables do not use persistent stats. */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2440,7 +2520,7 @@ innobase_copy_frm_flags_from_table_share(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+	if (dict_table_is_temporary(innodb_table)) {
 		/* Temp tables do not use persistent stats */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -2503,6 +2583,10 @@ ha_innobase::update_thd(
 {
 	trx_t*		trx;
 
+	DBUG_ENTER("ha_innobase::update_thd");
+	DBUG_PRINT("ha_innobase::update_thd", ("user_thd: %p -> %p",
+		   user_thd, thd));
+
 	/* The table should have been opened in ha_innobase::open(). */
 	DBUG_ASSERT(prebuilt->table->n_ref_count > 0);
 
@@ -2514,6 +2598,7 @@ ha_innobase::update_thd(
 	}
 
 	user_thd = thd;
+	DBUG_VOID_RETURN;
 }
 
 /*********************************************************************//**
@@ -3303,12 +3388,6 @@ mem_free_and_error:
 		goto mem_free_and_error;
 	}
 
-	/* Remember stopword table name supplied at startup */
-	if (innobase_server_stopword_table) {
-		fts_server_stopword_table =
-			my_strdup(innobase_server_stopword_table,  MYF(0));
-	}
-
 	if (innobase_change_buffering) {
 		ulint	use;
 
@@ -3461,6 +3540,8 @@ innobase_change_buffering_inited_ok:
 			"instead.\n");
 		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
 	}
+
+	innodb_log_checksum_func_update(srv_log_checksum_algorithm);
 
 #ifdef HAVE_LARGE_PAGES
 	if ((os_use_large_pages = (ibool) my_use_large_pages)) {
@@ -3747,7 +3828,7 @@ innobase_is_fake_change(
 				whom the transaction is being committed */
 {
 	trx_t*	trx = check_trx_exists(thd);
-	return trx->fake_changes;
+	return UNIV_UNLIKELY(trx->fake_changes);
 }
 
 /*****************************************************************//**
@@ -3800,9 +3881,22 @@ innobase_start_trx_and_assign_read_view(
 
 	trx_start_if_not_started_xa(trx);
 
-	/* Assign a read view if the transaction does not have it yet */
+	/* Assign a read view if the transaction does not have it yet.
+	Do this only if transaction is using REPEATABLE READ isolation
+	level. */
+	trx->isolation_level = innobase_map_isolation_level(
+		thd_get_trx_isolation(thd));
 
-	trx_assign_read_view(trx);
+	if (trx->isolation_level == TRX_ISO_REPEATABLE_READ) {
+		trx_assign_read_view(trx);
+	} else {
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    HA_ERR_UNSUPPORTED,
+				    "InnoDB: WITH CONSISTENT SNAPSHOT "
+				    "was ignored because this phrase "
+				    "can only be used with "
+				    "REPEATABLE READ isolation level.");
+	}
 
 	/* Set the MySQL flag to mark that there is an active transaction */
 
@@ -3842,9 +3936,11 @@ innobase_commit(
 	/* No-op in XtraDB */
 	trx_search_latch_release_if_reserved(trx);
 
-	if (trx->fake_changes &&
+	if (UNIV_UNLIKELY(trx->fake_changes &&
 	    (commit_trx ||
-	     (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))) {
+	     (!thd_test_options(thd,
+				OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))) {
+
 		/* rollback implicitly */
 		innobase_rollback(hton, thd, commit_trx);
 		/* because debug assertion code complains, if something left */
@@ -5461,6 +5557,7 @@ ha_innobase::clone(
 	new_handler = static_cast<ha_innobase*>(handler::clone(name,
 							       mem_root));
 	if (new_handler) {
+		DBUG_ASSERT(new_handler->prebuilt != NULL);
 
 		new_handler->prebuilt->select_lock_type
 			= prebuilt->select_lock_type;
@@ -5854,6 +5951,7 @@ innobase_mysql_fts_get_token(
 	ut_a(cs);
 
 	token->f_n_char = token->f_len = 0;
+	token->f_str = NULL;
 
 	for (;;) {
 
@@ -8532,7 +8630,7 @@ ha_innobase::ft_init_ext(
 	String*			key)	/* in: */
 {
 	trx_t*			trx;
-	dict_table_t*		table;
+	dict_table_t*		ft_table;
 	dberr_t			error;
 	byte*			query = (byte*) key->ptr();
 	ulint			query_len = key->length();
@@ -8582,17 +8680,24 @@ ha_innobase::ft_init_ext(
 		++trx->will_lock;
 	}
 
-	table = prebuilt->table;
+	ft_table = prebuilt->table;
 
 	/* Table does not have an FTS index */
-	if (!table->fts || ib_vector_is_empty(table->fts->indexes)) {
+	if (!ft_table->fts || ib_vector_is_empty(ft_table->fts->indexes)) {
 		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
+		return(NULL);
+	}
+
+	/* If tablespace is discarded, we should return here */
+	if (dict_table_is_discarded(ft_table)) {
+		my_error(ER_NO_SUCH_TABLE, MYF(0), table->s->db.str,
+			 table->s->table_name.str);
 		return(NULL);
 	}
 
 	if (keynr == NO_SUCH_KEY) {
 		/* FIXME: Investigate the NO_SUCH_KEY usage */
-		index = (dict_index_t*) ib_vector_getp(table->fts->indexes, 0);
+		index = (dict_index_t*) ib_vector_getp(ft_table->fts->indexes, 0);
 	} else {
 		index = innobase_get_index(keynr);
 	}
@@ -8602,10 +8707,10 @@ ha_innobase::ft_init_ext(
 		return(NULL);
 	}
 
-	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
-		fts_init_index(table, FALSE);
+	if (!(ft_table->fts->fts_status & ADDED_TABLE_SYNCED)) {
+		fts_init_index(ft_table, FALSE);
 
-		table->fts->fts_status |= ADDED_TABLE_SYNCED;
+		ft_table->fts->fts_status |= ADDED_TABLE_SYNCED;
 	}
 
 	error = fts_query(trx, index, flags, query, query_len, &result);
@@ -9585,7 +9690,7 @@ innobase_fts_load_stopword(
 	THD*		thd)	/*!< in: current thread */
 {
 	return(fts_load_stopword(table, trx,
-				 fts_server_stopword_table,
+				 innobase_server_stopword_table,
 				 THDVAR(thd, ft_user_stopword_table),
 				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
@@ -10021,7 +10126,7 @@ ha_innobase::create(
 
 	trx = innobase_trx_allocate(thd);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -10393,7 +10498,7 @@ ha_innobase::truncate()
 		DBUG_RETURN(HA_ERR_CRASHED);
 	}
 
-	if (prebuilt->trx->fake_changes) {
+	if (UNIV_UNLIKELY(prebuilt->trx->fake_changes)) {
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
@@ -10481,7 +10586,7 @@ ha_innobase::delete_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -10611,7 +10716,7 @@ innobase_drop_database(
 #endif
 	trx = innobase_trx_allocate(thd);
 
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		my_free(namebuf);
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
@@ -10791,7 +10896,7 @@ ha_innobase::rename_table(
 	trx_search_latch_release_if_reserved(parent_trx);
 
 	trx = innobase_trx_allocate(thd);
-	if (trx->fake_changes) {
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
 		innobase_commit_low(trx);
 		trx_free_for_mysql(trx);
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -10897,6 +11002,10 @@ ha_innobase::records_in_range(
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innobase_get_index() */
+	if (dict_table_is_discarded(prebuilt->table)) {
+		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
 	if (UNIV_UNLIKELY(!index)) {
 		n_rows = HA_POS_ERROR;
 		goto func_exit;
@@ -11340,8 +11449,6 @@ ha_innobase::info_low(
 
 			if (dict_stats_is_persistent_enabled(ib_table)) {
 
-				ut_ad(!srv_read_only_mode);
-
 				if (is_analyze) {
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {
@@ -11758,13 +11865,12 @@ int
 ha_innobase::check(
 /*===============*/
 	THD*		thd,		/*!< in: user thread handle */
-	HA_CHECK_OPT*	check_opt)	/*!< in: check options, currently
-					ignored */
+	HA_CHECK_OPT*	check_opt)	/*!< in: check options */
 {
 	dict_index_t*	index;
 	ulint		n_rows;
 	ulint		n_rows_in_table	= ULINT_UNDEFINED;
-	ibool		is_ok		= TRUE;
+	bool		is_ok		= true;
 	ulint		old_isolation_level;
 	ibool		table_corrupted;
 
@@ -11820,33 +11926,47 @@ ha_innobase::check(
 	do additional check */
 	prebuilt->table->corrupted = FALSE;
 
-	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	os_increment_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
-
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 		char	index_name[MAX_FULL_NAME_LEN + 1];
 
-		/* If this is an index being created or dropped, break */
+		/* If this is an index being created or dropped, skip */
 		if (*index->name == TEMP_INDEX_PREFIX) {
-			break;
-		} else if (!btr_validate_index(index, prebuilt->trx)) {
-			is_ok = FALSE;
-
-			innobase_format_name(
-				index_name, sizeof index_name,
-				index->name, TRUE);
-
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-					    ER_NOT_KEYFILE,
-					    "InnoDB: The B-tree of"
-					    " index %s is corrupted.",
-					    index_name);
 			continue;
+		}
+
+		if (!(check_opt->flags & T_QUICK)) {
+			/* Enlarge the fatal lock wait timeout during
+			CHECK TABLE. */
+			os_increment_counter_by_amount(
+				server_mutex,
+				srv_fatal_semaphore_wait_threshold,
+				SRV_SEMAPHORE_WAIT_EXTENSION);
+			bool valid = btr_validate_index(index, prebuilt->trx);
+
+			/* Restore the fatal lock wait timeout after
+			CHECK TABLE. */
+			os_decrement_counter_by_amount(
+				server_mutex,
+				srv_fatal_semaphore_wait_threshold,
+				SRV_SEMAPHORE_WAIT_EXTENSION);
+
+			if (!valid) {
+				is_ok = false;
+
+				innobase_format_name(
+					index_name, sizeof index_name,
+					index->name, TRUE);
+				push_warning_printf(
+					thd,
+					Sql_condition::WARN_LEVEL_WARN,
+					ER_NOT_KEYFILE,
+					"InnoDB: The B-tree of"
+					" index %s is corrupted.",
+					index_name);
+				continue;
+			}
 		}
 
 		/* Instead of invoking change_active_index(), set up
@@ -11870,7 +11990,7 @@ ha_innobase::check(
 					"InnoDB: Index %s is marked as"
 					" corrupted",
 					index_name);
-				is_ok = FALSE;
+				is_ok = false;
 			} else {
 				push_warning_printf(
 					thd,
@@ -11903,7 +12023,7 @@ ha_innobase::check(
 				"InnoDB: The B-tree of"
 				" index %s is corrupted.",
 				index_name);
-			is_ok = FALSE;
+			is_ok = false;
 			dict_set_corrupted(
 				index, prebuilt->trx, "CHECK TABLE-check index");
 		}
@@ -11929,7 +12049,7 @@ ha_innobase::check(
 				index->name,
 				(ulong) n_rows,
 				(ulong) n_rows_in_table);
-			is_ok = FALSE;
+			is_ok = false;
 			dict_set_corrupted(
 				index, prebuilt->trx,
 				"CHECK TABLE; Wrong count");
@@ -11952,21 +12072,17 @@ ha_innobase::check(
 	/* Restore the original isolation level */
 	prebuilt->trx->isolation_level = old_isolation_level;
 
-	/* We validate also the whole adaptive hash index for all tables
-	at every CHECK TABLE */
+	/* We validate the whole adaptive hash index for all tables
+	at every CHECK TABLE only when QUICK flag is not present. */
 
-	if (!btr_search_validate()) {
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	if (!(check_opt->flags & T_QUICK) && !btr_search_validate()) {
 		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
 			     ER_NOT_KEYFILE,
 			     "InnoDB: The adaptive hash index is corrupted.");
-		is_ok = FALSE;
+		is_ok = false;
 	}
-
-	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	os_decrement_counter_by_amount(
-		server_mutex,
-		srv_fatal_semaphore_wait_threshold,
-		SRV_SEMAPHORE_WAIT_EXTENSION);
+#endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
@@ -12959,6 +13075,7 @@ innodb_show_status(
 	const long		MAX_STATUS_SIZE = 1048576;
 	ulint			trx_list_start = ULINT_UNDEFINED;
 	ulint			trx_list_end = ULINT_UNDEFINED;
+	bool			ret_val;
 
 	DBUG_ENTER("innodb_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -13035,12 +13152,13 @@ innodb_show_status(
 
 	mutex_exit(&srv_monitor_file_mutex);
 
-	stat_print(thd, innobase_hton_name, (uint) strlen(innobase_hton_name),
-		   STRING_WITH_LEN(""), str, flen);
+	ret_val= stat_print(thd, innobase_hton_name,
+				(uint) strlen(innobase_hton_name),
+				STRING_WITH_LEN(""), str, flen);
 
 	my_free(str);
 
-	DBUG_RETURN(0);
+	DBUG_RETURN(ret_val);
 }
 
 /************************************************************************//**
@@ -14780,44 +14898,6 @@ innodb_stopword_table_validate(
 	return(ret);
 }
 
-/****************************************************************//**
-Update global variable fts_server_stopword_table with the "saved"
-stopword table name value. This function is registered as a callback
-with MySQL. */
-static
-void
-innodb_stopword_table_update(
-/*=========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	stopword_table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	stopword_table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (stopword_table_name) {
-		*(char**) var_ptr =  my_strdup(stopword_table_name,  MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-
-	fts_server_stopword_table = *(char**) var_ptr;
-}
-
 /*************************************************************//**
 Check whether valid argument given to "innodb_fts_internal_tbl_name"
 This function is registered as a callback with MySQL.
@@ -16394,6 +16474,33 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
   NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
+
+static MYSQL_SYSVAR_ENUM(log_checksum_algorithm, srv_log_checksum_algorithm,
+  PLUGIN_VAR_RQCMDARG,
+  "The algorithm InnoDB uses for log block checksums. Possible values are "
+  "CRC32 (hardware accelerated if the CPU supports it) "
+    "write crc32, allow any of the other checksums to match when reading; "
+  "STRICT_CRC32 "
+    "write crc32, do not allow other algorithms to match when reading; "
+  "INNODB "
+    "write a software calculated checksum, allow any other checksums "
+    "to match when reading; "
+  "STRICT_INNODB "
+    "write a software calculated checksum, do not allow other algorithms "
+    "to match when reading; "
+  "NONE "
+    "write a constant magic number, do not do any checksum verification "
+    "when reading (same as innodb_checksums=OFF); "
+  "STRICT_NONE "
+    "write a constant magic number, do not allow values other than that "
+    "magic number when reading; "
+  "Logs created when this option is set to crc32/strict_crc32/none/strict_none "
+  "will not be readable by any MySQL version or Percona Server versions that do"
+  "not support this feature",
+  NULL, innodb_log_checksum_algorithm_update, SRV_CHECKSUM_ALGORITHM_INNODB,
+  &innodb_checksum_algorithm_typelib);
+
+
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "DEPRECATED. Use innodb_checksum_algorithm=NONE instead of setting "
@@ -16526,10 +16633,10 @@ static MYSQL_SYSVAR_STR(file_format_max, innobase_file_format_max,
   innodb_file_format_max_update, "Antelope");
 
 static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table,
-  PLUGIN_VAR_OPCMDARG,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
   "The user supplied stopword table name.",
   innodb_stopword_table_validate,
-  innodb_stopword_table_update,
+  NULL,
   NULL);
 
 static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
@@ -16993,7 +17100,7 @@ static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
 static MYSQL_SYSVAR_ULONG(ft_max_token_size, fts_max_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search maximum token size in characters",
-  NULL, NULL, HA_FT_MAXCHARLEN, 10, FTS_MAX_WORD_LEN , 0);
+  NULL, NULL, FTS_MAX_WORD_LEN_IN_CHAR, 10, FTS_MAX_WORD_LEN_IN_CHAR, 0);
 
 
 static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
@@ -17406,6 +17513,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(lru_scan_depth),
   MYSQL_SYSVAR(flush_neighbors),
   MYSQL_SYSVAR(checksum_algorithm),
+  MYSQL_SYSVAR(log_checksum_algorithm),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
@@ -18068,7 +18176,8 @@ ib_logf(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 uint
 innobase_convert_to_filename_charset(
 /*=================================*/
@@ -18084,7 +18193,8 @@ innobase_convert_to_filename_charset(
 }
 
 /**********************************************************************
-Converts an identifier from my_charset_filename to UTF-8 charset. */
+Converts an identifier from my_charset_filename to UTF-8 charset.
+@return result string length, as returned by strconvert() */
 uint
 innobase_convert_to_system_charset(
 /*===============================*/

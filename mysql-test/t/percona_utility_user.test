@@ -5,6 +5,8 @@
 DROP DATABASE IF EXISTS mysqltest;
 --enable_warnings
 
+call mtr.add_suppression("Did not write failed .* ");
+
 SELECT user FROM mysql.user WHERE user LIKE 'frank';
 
 --error ER_CANNOT_USER 

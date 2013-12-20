@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -61,6 +61,15 @@ extern	ibool	log_debug_writes;
 /** Write to log */
 # define log_do_write TRUE
 #endif /* UNIV_DEBUG */
+
+/** Magic value to use instead of log checksums when they are disabled */
+#define LOG_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+
+typedef ulint (*log_checksum_func_t)(const byte* log_block);
+
+/** Pointer to the log checksum calculation function. Protected with
+log_sys->mutex. */
+extern log_checksum_func_t log_checksum_algorithm_ptr;
 
 /** Wait modes for log_write_up_to @{ */
 #define LOG_NO_WAIT		91
@@ -813,12 +822,14 @@ struct log_t{
 	ulint		max_buf_free;	/*!< recommended maximum value of
 					buf_free, after which the buffer is
 					flushed */
+ #ifdef UNIV_LOG_DEBUG
 	ulint		old_buf_free;	/*!< value of buf free when log was
 					last time opened; only in the debug
 					version */
 	ib_uint64_t	old_lsn;	/*!< value of lsn when log was
 					last time opened; only in the
 					debug version */
+#endif /* UNIV_LOG_DEBUG */
 	ibool		check_flush_or_checkpoint;
 					/*!< this is set to TRUE when there may
 					be need to flush the log buffer, or
@@ -841,6 +852,8 @@ struct log_t{
 					later; this is advanced when a flush
 					operation is completed to all the log
 					groups */
+	volatile bool	is_extending;	/*!< this is set to true during extend
+					the log buffer size */
 	lsn_t		written_to_some_lsn;
 					/*!< first log sequence number not yet
 					written to any log group; for this to

@@ -572,7 +572,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= test(thd->is_error())))
+  if (!(error= MY_TEST(thd->is_error())))
   {
     it.rewind();
     while ((var= it++))
@@ -613,8 +613,8 @@ int set_var::check(THD *thd)
     return -1;
   }
   if (!acl_is_utility_user(thd->security_ctx->priv_user,
-                           thd->security_ctx->host,
-                           thd->security_ctx->ip)
+                           thd->security_ctx->get_host()->ptr(),
+                           thd->security_ctx->get_ip()->ptr())
       && (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     return 1;
   /* value is a NULL pointer if we are using SET ... = DEFAULT */

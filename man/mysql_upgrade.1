@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 05/21/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 11/15/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "05/21/2013" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "11/15/2013" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -193,11 +193,39 @@ If you install MySQL from RPM packages on Linux, you must install the server and
 \fBmysql_upgrade\fR
 is included in the server RPM but requires the client RPM because the latter includes
 \fBmysqlcheck\fR\&. (See
-Section\ \&2.5.1, \(lqInstalling MySQL on Linux Using RPM Packages\(rq\&.)
+Section\ \&2.5.3, \(lqInstalling MySQL on Linux Using RPM Packages\(rq\&.)
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the help tables\&. For upgrade instructions, see
 Section\ \&5.1.10, \(lqServer-Side Help\(rq\&.
+.PP
+\fBmysql_upgrade\fR
+runs by default as the MySQL
+root
+user\&. If the
+root
+password is expired when you run
+\fBmysql_upgrade\fR, you will see a message that your password is expired and that
+\fBmysql_upgrade\fR
+failed as a result\&. To correct this, reset the
+root
+password to unexpire it and run
+\fBmysql_upgrade\fR
+again:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysql \-u root \-p\fR
+Enter password: \fB****\fR  <\- enter root password here
+mysql> \fBSET PASSWORD = PASSWORD(\*(Aqroot\-password\*(Aq);\fR
+mysql> \fBquit\fR
+shell> \fBmysql_upgrade\fR
+.fi
+.if n \{\
+.RE
+.\}
 .PP
 \fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
@@ -220,9 +248,7 @@ Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: help option
-.\" help option: mysql_upgrade
-\fB\-\-help\fR
+.\" mysql_upgrade: help option.\" help option: mysql_upgrade\fB\-\-help\fR
 .sp
 Display a short help message and exit\&.
 .RE
@@ -235,11 +261,9 @@ Display a short help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: basedir option
-.\" basedir option: mysql_upgrade
-\fB\-\-basedir=\fR\fB\fIpath\fR\fR
+.\" mysql_upgrade: basedir option.\" basedir option: mysql_upgrade\fB\-\-basedir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the MySQL installation directory\&. This option is accepted for backward compatibility but ignored\&.
+The path to the MySQL installation directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
 .RE
 .sp
 .RS 4
@@ -250,11 +274,9 @@ The path to the MySQL installation directory\&. This option is accepted for back
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: datadir option
-.\" datadir option: mysql_upgrade
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR
+.\" mysql_upgrade: datadir option.\" datadir option: mysql_upgrade\fB\-\-datadir=\fR\fB\fIpath\fR\fR
 .sp
-The path to the data directory\&. This option is accepted for backward compatibility but ignored\&.
+The path to the data directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
 .RE
 .sp
 .RS 4
@@ -265,9 +287,7 @@ The path to the data directory\&. This option is accepted for backward compatibi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: debug-check option
-.\" debug-check option: mysql_upgrade
-\fB\-\-debug\-check\fR
+.\" mysql_upgrade: debug-check option.\" debug-check option: mysql_upgrade\fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
 .RE
@@ -280,9 +300,7 @@ Print some debugging information when the program exits\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: debug-info option
-.\" debug-info option: mysql_upgrade
-\fB\-\-debug\-info\fR,
+.\" mysql_upgrade: debug-info option.\" debug-info option: mysql_upgrade\fB\-\-debug\-info\fR,
 \fB\-T\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
@@ -296,9 +314,7 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: default-auth option
-.\" default-auth option: mysql_upgrade
-\fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
+.\" mysql_upgrade: default-auth option.\" default-auth option: mysql_upgrade\fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 The client\-side authentication plugin to use\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
@@ -314,9 +330,7 @@ This option was added in MySQL 5\&.6\&.2\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: force option
-.\" force option: mysql_upgrade
-\fB\-\-force\fR
+.\" mysql_upgrade: force option.\" force option: mysql_upgrade\fB\-\-force\fR
 .sp
 Ignore the
 mysql_upgrade_info
@@ -335,9 +349,7 @@ has already been executed for the current version of MySQL\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: plugin-dir option
-.\" plugin-dir option: mysql_upgrade
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+.\" mysql_upgrade: plugin-dir option.\" plugin-dir option: mysql_upgrade\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory in which to look for plugins\&. It may be necessary to specify this option if the
 \fB\-\-default\-auth\fR
@@ -357,9 +369,7 @@ This option was added in MySQL 5\&.6\&.2\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: tmpdir option
-.\" tmpdir option: mysql_upgrade
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
+.\" mysql_upgrade: tmpdir option.\" tmpdir option: mysql_upgrade\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
 \fB\-t \fR\fB\fIpath\fR\fR
 .sp
 The path name of the directory to use for creating temporary files\&.
@@ -373,9 +383,7 @@ The path name of the directory to use for creating temporary files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: upgrade-system-tables option
-.\" upgrade-system-tables option: mysql_upgrade
-\fB\-\-upgrade\-system\-tables\fR,
+.\" mysql_upgrade: upgrade-system-tables option.\" upgrade-system-tables option: mysql_upgrade\fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
 .sp
 Upgrade only the system tables, do not upgrade data\&.
@@ -389,9 +397,7 @@ Upgrade only the system tables, do not upgrade data\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: user option
-.\" user option: mysql_upgrade
-\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+.\" mysql_upgrade: user option.\" user option: mysql_upgrade\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
 The MySQL user name to use when connecting to the server\&. The default user name is
@@ -406,9 +412,7 @@ root\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: verbose option
-.\" verbose option: mysql_upgrade
-\fB\-\-verbose\fR
+.\" mysql_upgrade: verbose option.\" verbose option: mysql_upgrade\fB\-\-verbose\fR
 .sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
@@ -421,9 +425,7 @@ Verbose mode\&. Print more information about what the program does\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: version-check option
-.\" version-check option: mysql_upgrade
-\fB\-\-version\-check\fR,
+.\" mysql_upgrade: version-check option.\" version-check option: mysql_upgrade\fB\-\-version\-check\fR,
 \fB\-k\fR
 .sp
 Check the version of the server to which
@@ -444,9 +446,7 @@ exits\&. This option is enabled by default; to disable the check, use
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: write-binlog option
-.\" write-binlog option: mysql_upgrade
-\fB\-\-write\-binlog\fR
+.\" mysql_upgrade: write-binlog option.\" write-binlog option: mysql_upgrade\fB\-\-write\-binlog\fR
 .sp
 Cause binary logging to be enabled while
 \fBmysql_upgrade\fR
@@ -473,40 +473,11 @@ Section\ \&16.1.3.4, \(lqRestrictions on Replication with GTIDs\(rq, for more in
 .PP
 Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
-The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
-.PP
-U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
-.PP
-This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
-.PP
-Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
-.PP
-This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
-.PP
-This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
-.PP
-This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
-.PP
-You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
-.PP
-For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
-\m[blue]\fBMySQL Contact & Questions\fR\m[].
-.PP
-For additional licensing information, including licenses for third-party libraries used by MySQL products, see
-Preface and Legal Notices.
-.PP
-For help with using MySQL, please visit either the
-\m[blue]\fBMySQL Forums\fR\m[]
-or
-\m[blue]\fBMySQL Mailing Lists\fR\m[]
-where you can discuss your issues with other MySQL users.
-.PP
-For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
-\m[blue]\fBMySQL Documentation Library\fR\m[].
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

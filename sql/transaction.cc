@@ -143,7 +143,7 @@ bool trans_begin(THD *thd, uint flags)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= test(ha_commit_trans(thd, TRUE));
+    res= MY_TEST(ha_commit_trans(thd, TRUE));
   }
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
@@ -172,7 +172,7 @@ bool trans_begin(THD *thd, uint flags)
       compatibility.
     */
     const bool user_is_super=
-      test(thd->security_ctx->master_access & SUPER_ACL);
+      MY_TEST(thd->security_ctx->master_access & SUPER_ACL);
     if (opt_readonly && !user_is_super)
     {
       my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
@@ -191,7 +191,7 @@ bool trans_begin(THD *thd, uint flags)
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
     res= ha_start_consistent_snapshot(thd);
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -230,7 +230,7 @@ bool trans_commit(THD *thd)
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -278,7 +278,7 @@ bool trans_commit_implicit(THD *thd)
     thd->server_status&=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res= test(ha_commit_trans(thd, TRUE));
+    res= MY_TEST(ha_commit_trans(thd, TRUE));
   }
   else if (tc_log)
     tc_log->commit(thd, true);
@@ -334,7 +334,53 @@ bool trans_rollback(THD *thd)
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
+}
+
+
+/**
+  Implicitly rollback the current transaction, typically
+  after deadlock was discovered.
+
+  @param thd     Current thread
+
+  @retval False Success
+  @retval True  Failure
+
+  @note ha_rollback_low() which is indirectly called by this
+        function will mark XA transaction for rollback by
+        setting appropriate RM error status if there was
+        transaction rollback request.
+*/
+
+bool trans_rollback_implicit(THD *thd)
+{
+  int res;
+  DBUG_ENTER("trans_rollback_implict");
+
+  /*
+    Always commit/rollback statement transaction before manipulating
+    with the normal one.
+    Don't perform rollback in the middle of sub-statement, wait till
+    its end.
+  */
+  DBUG_ASSERT(thd->transaction.stmt.is_empty() && !thd->in_sub_stmt);
+
+  thd->server_status&=
+    ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
+  DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
+  res= ha_rollback_trans(thd, true);
+  /*
+    We don't reset OPTION_BEGIN flag below to simulate implicit start
+    of new transacton in @@autocommit=1 mode. This is necessary to
+    preserve backward compatibility.
+  */
+  thd->transaction.all.reset_unsafe_rollback_flags();
+
+  /* Rollback should clear transaction_rollback_request flag. */
+  DBUG_ASSERT(! thd->transaction_rollback_request);
+
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -397,7 +443,7 @@ bool trans_commit_stmt(THD *thd)
 
   thd->transaction.stmt.reset();
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -436,8 +482,6 @@ bool trans_rollback_stmt(THD *thd)
   if (thd->transaction.stmt.ha_list)
   {
     ha_rollback_trans(thd, FALSE);
-    if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-      ha_rollback_trans(thd, TRUE);
     if (! thd->in_active_multi_stmt_transaction())
     {
       thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
@@ -603,7 +647,7 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   if (!res && !binlog_on)
     thd->mdl_context.rollback_to_savepoint(sv->mdl_savepoint);
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -645,7 +689,7 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
 
   thd->transaction.savepoints= sv->prev;
 
-  DBUG_RETURN(test(res));
+  DBUG_RETURN(MY_TEST(res));
 }
 
 
@@ -809,7 +853,7 @@ bool trans_xa_commit(THD *thd)
   else if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
   {
     int r= ha_commit_trans(thd, TRUE);
-    if ((res= test(r)))
+    if ((res= MY_TEST(r)))
       my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
   }
   else if (xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
@@ -837,9 +881,9 @@ bool trans_xa_commit(THD *thd)
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
       if (tc_log)
-        res= test(tc_log->commit(thd, /* all */ true));
+        res= MY_TEST(tc_log->commit(thd, /* all */ true));
       else
-        res= test(ha_commit_low(thd, /* all */ true));
+        res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));

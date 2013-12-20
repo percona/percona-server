@@ -6,6 +6,7 @@
    :maxdepth: 1
    :glob:
 
+   Percona-Server-5.6.14-62.0
    Percona-Server-5.6.13-61.0
    Percona-Server-5.6.13-60.6
    Percona-Server-5.6.13-60.5

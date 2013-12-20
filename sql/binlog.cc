@@ -32,6 +32,7 @@
 #include "rpl_mi.h"
 #include <list>
 #include <string>
+#include <my_stacktrace.h>
 
 using std::max;
 using std::min;
@@ -54,6 +55,7 @@ using std::list;
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
 //number of limit unsafe warnings after which the suppression will be activated
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
+#define MAX_SESSION_ATTACH_TRIES 10
 
 static ulonglong limit_unsafe_suppression_start_time= 0;
 static bool unsafe_warning_suppression_is_activated= false;
@@ -114,6 +116,41 @@ private:
 
 
 /**
+  Print system time.
+ */
+
+static void print_system_time()
+{
+#ifdef __WIN__
+  SYSTEMTIME utc_time;
+  GetSystemTime(&utc_time);
+  const long hrs=  utc_time.wHour;
+  const long mins= utc_time.wMinute;
+  const long secs= utc_time.wSecond;
+#else
+  /* Using time() instead of my_time() to avoid looping */
+  const time_t curr_time= time(NULL);
+  /* Calculate time of day */
+  const long tmins = curr_time / 60;
+  const long thrs  = tmins / 60;
+  const long hrs   = thrs  % 24;
+  const long mins  = tmins % 60;
+  const long secs  = curr_time % 60;
+#endif
+  char hrs_buf[3]= "00";
+  char mins_buf[3]= "00";
+  char secs_buf[3]= "00";
+  int base= 10;
+  my_safe_itoa(base, hrs, &hrs_buf[2]);
+  my_safe_itoa(base, mins, &mins_buf[2]);
+  my_safe_itoa(base, secs, &secs_buf[2]);
+
+  my_safe_printf_stderr("---------- %s:%s:%s UTC - ",
+                        hrs_buf, mins_buf, secs_buf);
+}
+
+
+/**
   Helper class to perform a thread excursion.
 
   This class is used to temporarily switch to another session (THD
@@ -160,24 +197,68 @@ public:
   }
 
   /**
+    Try to attach the POSIX thread to a session.
+    - This function attaches the POSIX thread to a session
+    in MAX_SESSION_ATTACH_TRIES tries when encountering
+    'out of memory' error, and terminates the server after
+    failed in MAX_SESSION_ATTACH_TRIES tries.
+
+    @param[in] thd       The thd of a session
+   */
+  void try_to_attach_to(THD *thd)
+  {
+    int i= 0;
+    /*
+      Attach the POSIX thread to a session in MAX_SESSION_ATTACH_TRIES
+      tries when encountering 'out of memory' error.
+    */
+    while (i < MAX_SESSION_ATTACH_TRIES)
+    {
+      /*
+        Currently attach_to(...) returns ER_OUTOFMEMORY or 0. So
+        we continue to attach the POSIX thread when encountering
+        the ER_OUTOFMEMORY error. Please take care other error
+        returned from attach_to(...) in future.
+      */
+      if (!attach_to(thd))
+      {
+        if (i > 0)
+          sql_print_warning("Server overcomes the temporary 'out of memory' "
+                            "in '%d' tries while attaching to session thread "
+                            "during the group commit phase.\n", i + 1);
+        break;
+      }
+      i++;
+    }
+    /*
+      Terminate the server after failed to attach the POSIX thread
+      to a session in MAX_SESSION_ATTACH_TRIES tries.
+    */
+    if (MAX_SESSION_ATTACH_TRIES == i)
+    {
+      print_system_time();
+      my_safe_printf_stderr("%s", "[Fatal] Out of memory while attaching to "
+                            "session thread during the group commit phase. "
+                            "Data consistency between master and slave can "
+                            "be guaranteed after server restarts.\n");
+      _exit(EXIT_FAILURE);
+    }
+  }
+
+private:
+
+  /**
     Attach the POSIX thread to a session.
    */
   int attach_to(THD *thd)
   {
-    /*
-      Simulate session attach error.
-    */
-    DBUG_EXECUTE_IF("simulate_session_attach_error",
-                    {
-                      if (rand() % 3 == 0)
-                        return 1;
-                    };);
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
     if (PSI_server)
       PSI_server->set_thread(thd_get_psi(thd));
 #endif
 #ifndef EMBEDDED_LIBRARY
-    if (unlikely(setup_thread_globals(thd)))
+    if (DBUG_EVALUATE_IF("simulate_session_attach_error", 1, 0)
+        || unlikely(setup_thread_globals(thd)))
     {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
       if (PSI_server)
@@ -193,8 +274,6 @@ public:
 #endif /* EMBEDDED_LIBRARY */
     return 0;
   }
-
-private:
 
   int setup_thread_globals(THD *thd) const {
     int error= 0;
@@ -2464,6 +2543,8 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   this object.
   @param prev_gtids If not NULL, then the GTIDs from the
   Previous_gtids_log_events are stored in this object.
+  @param last_gtid If not NULL, then the last GTID information from the
+  file will be stored in this object.
   @param verify_checksum Set to true to verify event checksums.
 
   @retval GOT_GTIDS The file was successfully read and it contains
@@ -2482,7 +2563,8 @@ enum enum_read_gtids_from_binlog_status
 { GOT_GTIDS, GOT_PREVIOUS_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
-                       Gtid_set *prev_gtids, bool verify_checksum)
+                       Gtid_set *prev_gtids, Gtid *last_gtid,
+                       bool verify_checksum)
 {
   DBUG_ENTER("read_gtids_from_binlog");
   DBUG_PRINT("info", ("Opening file %s", filename));
@@ -2590,24 +2672,34 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         at least one Gtid_log_event, so that we can distinguish the
         return values GOT_GTID and GOT_PREVIOUS_GTIDS. We don't need
         to read anything else from the binary log.
+        But if last_gtid is requested (i.e., NOT NULL), we should continue to
+        read all gtids. Otherwise, we are done.
       */
-      if (all_gtids == NULL)
+      if (all_gtids == NULL && last_gtid == NULL)
+      {
         ret= GOT_GTIDS, done= true;
+      }
       else
       {
         Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
         rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
         if (sidno < 0)
           ret= ERROR, done= true;
+        else
         {
-          if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
-            ret= ERROR, done= true;
-          else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-                   RETURN_STATUS_OK)
-            ret= ERROR, done= true;
+          if (all_gtids)
+          {
+            if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+              ret= ERROR, done= true;
+            else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+                     RETURN_STATUS_OK)
+              ret= ERROR, done= true;
+            DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
+                                filename, sidno, gtid_ev->get_gno()));
+          }
+          if (last_gtid)
+            last_gtid->set(sidno, gtid_ev->get_gno());
         }
-        DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
-                            filename, sidno, gtid_ev->get_gno()));
       }
       break;
     }
@@ -2704,7 +2796,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     const char *filename= rit->c_str();
     DBUG_PRINT("info", ("Read Previous_gtids_log_event from filename='%s'",
                         filename));
-    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set,
+    switch (read_gtids_from_binlog(filename, NULL, &previous_gtid_set, NULL,
                                    opt_master_verify_checksum))
     {
     case ERROR:
@@ -2755,6 +2847,7 @@ end:
 }
 
 bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
+                                   Gtid *last_gtid,
                                    bool verify_checksum, bool need_lock)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
@@ -2814,15 +2907,17 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
                         rit->c_str(), reached_first_file));
-    while (!got_gtids && !reached_first_file)
+    while ((!got_gtids || (last_gtid && last_gtid->empty()))
+           && !reached_first_file)
     {
       const char *filename= rit->c_str();
       rit++;
       reached_first_file= (rit == filename_list.rend());
       DBUG_PRINT("info", ("filename='%s' got_gtids=%d reached_first_file=%d",
                           filename, got_gtids, reached_first_file));
-      switch (read_gtids_from_binlog(filename, all_gtids,
+      switch (read_gtids_from_binlog(filename, got_gtids ? NULL : all_gtids,
                                      reached_first_file ? lost_gtids : NULL,
+                                     last_gtid,
                                      verify_checksum))
       {
       case ERROR:
@@ -2845,7 +2940,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     {
       const char *filename= it->c_str();
       DBUG_PRINT("info", ("filename='%s'", filename));
-      switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
+      switch (read_gtids_from_binlog(filename, NULL, lost_gtids, NULL,
                                      verify_checksum))
       {
       case ERROR:
@@ -4056,6 +4151,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
     global_sid_lock->wrlock();
     error= init_gtid_sets(NULL,
                        const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
+                       NULL,
                        opt_master_verify_checksum,
                        false/*false=don't need lock*/);
     global_sid_lock->unlock();
@@ -5225,7 +5321,17 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
       */
       if (!write_incident(current_thd, false/*need_lock_log=false*/,
                           false/*do_flush_and_sync==false*/))
+      {
+        /*
+          Write an error to log. So that user might have a chance
+          to be alerted and explore incident details before its
+          slave servers would stop.
+        */
+        sql_print_error("The server was unable to create a new log file. "
+                        "An incident event has been written to the binary "
+                        "log which will stop the slaves.");
         flush_and_sync(0);
+      }
 
     *check_purge= true;
   }
@@ -6437,16 +6543,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 #ifndef DBUG_OFF
     stage_manager.clear_preempt_status(head);
 #endif
-    if (head->commit_error != THD::CE_NONE)
-      ;
-    else if (excursion.attach_to(head))
+    if (head->commit_error == THD::CE_NONE)
     {
-      head->commit_error= THD::CE_COMMIT_ERROR;
-      sql_print_error("Out of memory while attaching to session thread "
-                      "during the group commit phase.");
-    }
-    else
-    {
+      excursion.try_to_attach_to(head);
       bool all= head->transaction.flags.real_commit;
       if (head->transaction.flags.commit_low)
       {
@@ -6489,22 +6588,14 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
     if (head->transaction.flags.run_hooks &&
         head->commit_error == THD::CE_NONE)
     {
-      if (excursion.attach_to(head))
-      {
-        head->commit_error= THD::CE_COMMIT_ERROR;
-        sql_print_error("Out of memory while attaching to session thread "
-                        "during the group commit phase.");
-      }
-      if (head->commit_error == THD::CE_NONE)
-      {
-        bool all= head->transaction.flags.real_commit;
-        (void) RUN_HOOK(transaction, after_commit, (head, all));
-        /*
-          When after_commit finished for the transaction, clear the run_hooks flag.
-          This allow other parts of the system to check if after_commit was called.
-        */
-        head->transaction.flags.run_hooks= false;
-      }
+      excursion.try_to_attach_to(head);
+      bool all= head->transaction.flags.real_commit;
+      (void) RUN_HOOK(transaction, after_commit, (head, all));
+      /*
+        When after_commit finished for the transaction, clear the run_hooks flag.
+        This allow other parts of the system to check if after_commit was called.
+      */
+      head->transaction.flags.run_hooks= false;
     }
   }
 }

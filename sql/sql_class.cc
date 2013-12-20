@@ -555,14 +555,14 @@ extern "C" int mysql_tmpfile(const char *prefix)
 extern "C"
 int thd_in_lock_tables(const THD *thd)
 {
-  return test(thd->in_lock_tables);
+  return MY_TEST(thd->in_lock_tables);
 }
 
 
 extern "C"
 int thd_tablespace_op(const THD *thd)
 {
-  return test(thd->tablespace_op);
+  return MY_TEST(thd->tablespace_op);
 }
 
 
@@ -779,7 +779,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
                            unsigned int max_query_len)
 {
   String str(buffer, length, &my_charset_latin1);
-  const Security_context *sctx= &thd->main_security_ctx;
+  Security_context *sctx= &thd->main_security_ctx;
   char header[256];
   int len;
   /*
@@ -797,16 +797,16 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   str.length(0);
   str.append(header, len);
 
-  if (sctx->host)
+  if (sctx->get_host()->length())
   {
     str.append(' ');
-    str.append(sctx->host);
+    str.append(sctx->get_host()->ptr());
   }
 
-  if (sctx->ip)
+  if (sctx->get_ip()->length())
   {
     str.append(' ');
-    str.append(sctx->ip);
+    str.append(sctx->get_ip()->ptr());
   }
 
   if (sctx->user)
@@ -943,7 +943,6 @@ void Open_tables_state::reset_open_tables_state()
   lock= NULL;
   extra_lock= NULL;
   locked_tables_mode= LTM_NONE;
-  // JOH: What about resetting current_tablenr?
   state_flags= 0U;
   reset_reprepare_observers();
 }
@@ -954,6 +953,7 @@ THD::THD(bool enable_plugins)
               /* statement id */ 0),
    rli_fake(0), rli_slave(NULL),
    in_sub_stmt(0),
+   fill_status_recursion_level(0),
    order_deterministic(false),
    binlog_row_event_extra_data(NULL),
    binlog_unsafe_warning_flags(0),
@@ -2474,7 +2474,8 @@ char *THD::get_client_host_port(THD *client)
   Security_context *client_sctx= client->security_ctx;
   char *client_host= NULL;
 
-  if (client->peer_port && (client_sctx->host || client_sctx->ip) &&
+  if (client->peer_port && (client_sctx->get_host()->length()
+                            || client_sctx->get_ip()->length()) &&
       security_ctx->host_or_ip[0])
   {
     if ((client_host= (char *) this->alloc(LIST_PROCESS_HOST_LEN+1)))
@@ -2484,7 +2485,8 @@ char *THD::get_client_host_port(THD *client)
   else
     client_host= this->strdup(client_sctx->host_or_ip[0] ?
                               client_sctx->host_or_ip :
-                              client_sctx->host ? client_sctx->host : "");
+                              client_sctx->get_host()->length() ?
+                              client_sctx->get_host()->ptr() : "");
 
   return client_host;
 }
@@ -2493,7 +2495,8 @@ const char *get_client_host(THD *client)
 {
   return client->security_ctx->host_or_ip[0] ?
       client->security_ctx->host_or_ip :
-      client->security_ctx->host ? client->security_ctx->host : "";
+      client->security_ctx->get_host()->length() ?
+      client->security_ctx->get_host()->ptr() : "";
 }
 
 /*
@@ -2736,7 +2739,7 @@ void select_to_file::send_error(uint errcode,const char *err)
 
 bool select_to_file::send_eof()
 {
-  int error= test(end_io_cache(&cache));
+  int error= MY_TEST(end_io_cache(&cache));
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error())
     error= true;
 
@@ -2939,8 +2942,8 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
     escape_char= (int) (uchar) (*exchange->escaped)[0];
   else
     escape_char= -1;
-  is_ambiguous_field_sep= test(strchr(ESCAPE_CHARS, field_sep_char));
-  is_unsafe_field_sep= test(strchr(NUMERIC_CHARS, field_sep_char));
+  is_ambiguous_field_sep= MY_TEST(strchr(ESCAPE_CHARS, field_sep_char));
+  is_unsafe_field_sep= MY_TEST(strchr(NUMERIC_CHARS, field_sep_char));
   line_sep_char= (exchange->line_term->length() ?
                  (int) (uchar) (*exchange->line_term)[0] : INT_MAX);
   if (!field_term_length)
@@ -3538,7 +3541,7 @@ void Query_arena::cleanup_stmt()
 */
 
 Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
-                     enum enum_state state_arg, ulong id_arg)
+                     enum_state state_arg, ulong id_arg)
   :Query_arena(mem_root_arg, state_arg),
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
@@ -3904,7 +3907,10 @@ void THD::set_status_var_init()
 
 void Security_context::init()
 {
-  host= user= ip= external_user= 0;
+  user= 0;
+  ip.set("", 0, system_charset_info);
+  host.set("", 0, system_charset_info);
+  external_user.set("", 0, system_charset_info);
   host_or_ip= "connecting host";
   priv_user[0]= priv_host[0]= proxy_user[0]= '\0';
   master_access= 0;
@@ -3914,29 +3920,35 @@ void Security_context::init()
   password_expired= false; 
 }
 
-
 void Security_context::destroy()
 {
-  // If not pointer to constant
-  if (host != my_localhost)
+  if (host.ptr() != my_localhost && host.length())
   {
-    my_free(host);
-    host= NULL;
+    char *c= (char *) host.ptr();
+    host.set("", 0, system_charset_info);
+    my_free(c);
   }
-  if (user != delayed_user)
+
+  if (user && user != delayed_user)
   {
     my_free(user);
     user= NULL;
   }
 
-  if (external_user)
+  if (external_user.length())
   {
-    my_free(external_user);
-    user= NULL;
+    char *c= (char *) external_user.ptr();
+    external_user.set("", 0, system_charset_info);
+    my_free(c);
   }
 
-  my_free(ip);
-  ip= NULL;
+  if (ip.length())
+  {
+    char *c= (char *) ip.ptr();
+    ip.set("", 0, system_charset_info);
+    my_free(c);
+  }
+
 }
 
 
@@ -3954,6 +3966,45 @@ bool Security_context::set_user(char *user_arg)
   my_free(user);
   user= my_strdup(user_arg, MYF(0));
   return user == 0;
+}
+
+String *Security_context::get_host()
+{
+  return (&host);
+}
+
+String *Security_context::get_ip()
+{
+  return (&ip);
+}
+
+String *Security_context::get_external_user()
+{
+  return (&external_user);
+}
+
+void Security_context::set_host(const char *str)
+{
+  uint len= str ? strlen(str) :  0;
+  host.set(str, len, system_charset_info);
+}
+
+void Security_context::set_ip(const char *str)
+{
+  uint len= str ? strlen(str) :  0;
+  ip.set(str, len, system_charset_info);
+}
+
+void Security_context::set_external_user(const char *str)
+{
+  uint len= str ? strlen(str) :  0;
+  external_user.set(str, len, system_charset_info);
+}
+
+void Security_context::set_host(const char * str, size_t len)
+{
+  host.set(str, len, system_charset_info);
+  host.c_ptr_quick();
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -4061,44 +4112,49 @@ bool Security_context::user_matches(Security_context *them)
 void Log_throttle::new_window(ulonglong now)
 {
   count= 0;
-  total_exec_time= 0;
-  total_lock_time= 0;
   window_end= now + window_size;
 }
 
 
-Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
-                           ulong window_usecs,
-                           bool (*logger)(THD *, const char *, uint),
-                           const char *msg)
-  :total_exec_time(0), total_lock_time(0), window_end(0),
-   rate(threshold),
-   window_size(window_usecs), count(0),
-   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
+void Slow_log_throttle::new_window(ulonglong now)
+{
+  Log_throttle::new_window(now);
+  total_exec_time= 0;
+  total_lock_time= 0;
+}
+
+
+Slow_log_throttle::Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock,
+                                     ulong window_usecs,
+                                     bool (*logger)(THD *, const char *, uint),
+                                     const char *msg)
+  : Log_throttle(window_usecs, msg), total_exec_time(0), total_lock_time(0),
+    rate(threshold), log_summary(logger), LOCK_log_throttle(lock)
 {
   aggregate_sctx.init();
 }
 
 
-ulong Log_throttle::prepare_summary(THD *thd)
+ulong Log_throttle::prepare_summary(ulong rate)
 {
   ulong ret= 0;
   /*
     Previous throttling window is over or rate changed.
     Return the number of lines we throttled.
   */
-  if (count > *rate)
+  if (count > rate)
   {
-    ret= count - *rate;
+    ret= count - rate;
     count= 0;                                 // prevent writing it again.
   }
+
   return ret;
 }
 
 
-void Log_throttle::print_summary(THD *thd, ulong suppressed,
-                                 ulonglong print_lock_time,
-                                 ulonglong print_exec_time)
+void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
+                                      ulonglong print_lock_time,
+                                      ulonglong print_exec_time)
 {
   /*
     We synthesize these values so the totals in the log will be
@@ -4130,14 +4186,14 @@ void Log_throttle::print_summary(THD *thd, ulong suppressed,
 }
 
 
-bool Log_throttle::flush(THD *thd)
+bool Slow_log_throttle::flush(THD *thd)
 {
   // Write summary if we throttled.
-  lock_exclusive();
+  mysql_mutex_lock(LOCK_log_throttle);
   ulonglong print_lock_time=  total_lock_time;
   ulonglong print_exec_time=  total_exec_time;
-  ulong     suppressed_count= prepare_summary(thd);
-  unlock();
+  ulong     suppressed_count= prepare_summary(*rate);
+  mysql_mutex_unlock(LOCK_log_throttle);
   if (suppressed_count > 0)
   {
     print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
@@ -4147,7 +4203,7 @@ bool Log_throttle::flush(THD *thd)
 }
 
 
-bool Log_throttle::log(THD *thd, bool eligible)
+bool Slow_log_throttle::log(THD *thd, bool eligible)
 {
   bool  suppress_current= false;
 
@@ -4157,7 +4213,7 @@ bool Log_throttle::log(THD *thd, bool eligible)
   */
   if (*rate > 0)
   {
-    lock_exclusive();
+    mysql_mutex_lock(LOCK_log_throttle);
 
     ulong     suppressed_count=   0;
     ulonglong print_lock_time=    total_lock_time;
@@ -4170,12 +4226,12 @@ bool Log_throttle::log(THD *thd, bool eligible)
     */
     if (!in_window(end_utime_of_query))
     {
-      suppressed_count= prepare_summary(thd);
+      suppressed_count= prepare_summary(*rate);
       // start new window only if this is the statement type we handle
       if (eligible)
         new_window(end_utime_of_query);
     }
-    if (eligible && (inc_queries() > *rate))
+    if (eligible && inc_log_count(*rate))
     {
       /*
         Current query's logging should be suppressed.
@@ -4186,7 +4242,7 @@ bool Log_throttle::log(THD *thd, bool eligible)
       suppress_current= true;
     }
 
-    unlock();
+    mysql_mutex_unlock(LOCK_log_throttle);
 
     /*
       print_summary() is deferred until after we release the locks to
@@ -4209,6 +4265,44 @@ bool Log_throttle::log(THD *thd, bool eligible)
   }
 
   return suppress_current;
+}
+
+
+bool Error_log_throttle::log(THD *thd)
+{
+  ulonglong end_utime_of_query= thd->current_utime();
+
+  /*
+    If the window has expired, we'll try to write a summary line.
+    The subroutine will know whether we actually need to.
+  */
+  if (!in_window(end_utime_of_query))
+  {
+    ulong suppressed_count= prepare_summary(1);
+
+    new_window(end_utime_of_query);
+
+    if (suppressed_count > 0)
+      print_summary(suppressed_count);
+  }
+
+  /*
+    If this is a first error in the current window then do not suppress it.
+  */
+  return inc_log_count(1);
+}
+
+
+bool Error_log_throttle::flush(THD *thd)
+{
+  // Write summary if we throttled.
+  ulong     suppressed_count= prepare_summary(1);
+  if (suppressed_count > 0)
+  {
+    print_summary(suppressed_count);
+    return true;
+  }
+  return false;
 }
 
 
@@ -4292,6 +4386,11 @@ extern "C" int thd_allow_batch(MYSQL_THD thd)
       (thd->slave_thread && opt_slave_allow_batching))
     return 1;
   return 0;
+}
+
+enum_tx_isolation thd_get_trx_isolation(const MYSQL_THD thd)
+{
+	return thd->tx_isolation;
 }
 
 #ifdef INNODB_COMPATIBILITY_HOOKS

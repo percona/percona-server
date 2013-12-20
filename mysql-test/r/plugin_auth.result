@@ -1,4 +1,5 @@
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
+call mtr.add_suppression("Did not write failed .*");
 SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 PLUGIN_STATUS	ACTIVE
@@ -17,10 +18,8 @@ test_plugin_server	plug_dest
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 GRANT PROXY ON plug_dest TO plug;
 test proxies_priv columns
-SELECT * FROM mysql.proxies_priv;
+SELECT * FROM mysql.proxies_priv WHERE user !='root';
 Host	User	Proxied_host	Proxied_user	With_grant	Grantor	Timestamp
-xx	root			1		xx
-xx	root			1		xx
 xx	plug	%	plug_dest	0	root@localhost	xx
 test mysql.proxies_priv;
 SHOW CREATE TABLE mysql.proxies_priv;

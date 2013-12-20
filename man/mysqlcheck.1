@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 05/21/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 11/15/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "05/21/2013" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "11/15/2013" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -217,9 +217,7 @@ Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: help option
-.\" help option: mysqlcheck
-\fB\-\-help\fR,
+.\" mysqlcheck: help option.\" help option: mysqlcheck\fB\-\-help\fR,
 \fB\-?\fR
 .sp
 Display a help message and exit\&.
@@ -233,9 +231,7 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: all-databases option
-.\" all-databases option: mysqlcheck
-\fB\-\-all\-databases\fR,
+.\" mysqlcheck: all-databases option.\" all-databases option: mysqlcheck\fB\-\-all\-databases\fR,
 \fB\-A\fR
 .sp
 Check all tables in all databases\&. This is the same as using the
@@ -251,9 +247,7 @@ option and naming all the databases on the command line\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: all-in-1 option
-.\" all-in-1 option: mysqlcheck
-\fB\-\-all\-in\-1\fR,
+.\" mysqlcheck: all-in-1 option.\" all-in-1 option: mysqlcheck\fB\-\-all\-in\-1\fR,
 \fB\-1\fR
 .sp
 Instead of issuing a statement for each table, execute a single statement for each database that names all the tables from that database to be processed\&.
@@ -267,9 +261,7 @@ Instead of issuing a statement for each table, execute a single statement for ea
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: analyze option
-.\" analyze option: mysqlcheck
-\fB\-\-analyze\fR,
+.\" mysqlcheck: analyze option.\" analyze option: mysqlcheck\fB\-\-analyze\fR,
 \fB\-a\fR
 .sp
 Analyze the tables\&.
@@ -283,9 +275,7 @@ Analyze the tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: auto-repair option
-.\" auto-repair option: mysqlcheck
-\fB\-\-auto\-repair\fR
+.\" mysqlcheck: auto-repair option.\" auto-repair option: mysqlcheck\fB\-\-auto\-repair\fR
 .sp
 If a checked table is corrupted, automatically fix it\&. Any necessary repairs are done after all tables have been checked\&.
 .RE
@@ -298,9 +288,7 @@ If a checked table is corrupted, automatically fix it\&. Any necessary repairs a
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: bind-address option
-.\" bind-address option: mysqlcheck
-\fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
+.\" mysqlcheck: bind-address option.\" bind-address option: mysqlcheck\fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
 On a computer having multiple network interfaces, this option can be used to select which interface is employed when connecting to the MySQL server\&.
 .sp
@@ -315,9 +303,7 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: character-sets-dir option
-.\" character-sets-dir option: mysqlcheck
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+.\" mysqlcheck: character-sets-dir option.\" character-sets-dir option: mysqlcheck\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -331,9 +317,7 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: check option
-.\" check option: mysqlcheck
-\fB\-\-check\fR,
+.\" mysqlcheck: check option.\" check option: mysqlcheck\fB\-\-check\fR,
 \fB\-c\fR
 .sp
 Check the tables for errors\&. This is the default operation\&.
@@ -347,9 +331,7 @@ Check the tables for errors\&. This is the default operation\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: check-only-changed option
-.\" check-only-changed option: mysqlcheck
-\fB\-\-check\-only\-changed\fR,
+.\" mysqlcheck: check-only-changed option.\" check-only-changed option: mysqlcheck\fB\-\-check\-only\-changed\fR,
 \fB\-C\fR
 .sp
 Check only tables that have changed since the last check or that have not been closed properly\&.
@@ -363,9 +345,7 @@ Check only tables that have changed since the last check or that have not been c
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: check-upgrade option
-.\" check-upgrade option: mysqlcheck
-\fB\-\-check\-upgrade\fR,
+.\" mysqlcheck: check-upgrade option.\" check-upgrade option: mysqlcheck\fB\-\-check\-upgrade\fR,
 \fB\-g\fR
 .sp
 Invoke
@@ -387,9 +367,7 @@ options\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: compress option
-.\" compress option: mysqlcheck
-\fB\-\-compress\fR
+.\" mysqlcheck: compress option.\" compress option: mysqlcheck\fB\-\-compress\fR
 .sp
 Compress all information sent between the client and the server if both support compression\&.
 .RE
@@ -402,9 +380,7 @@ Compress all information sent between the client and the server if both support 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: databases option
-.\" databases option: mysqlcheck
-\fB\-\-databases\fR,
+.\" mysqlcheck: databases option.\" databases option: mysqlcheck\fB\-\-databases\fR,
 \fB\-B\fR
 .sp
 Process all tables in the named databases\&. Normally,
@@ -420,9 +396,7 @@ treats the first name argument on the command line as a database name and follow
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: debug option
-.\" debug option: mysqlcheck
-\fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
+.\" mysqlcheck: debug option.\" debug option: mysqlcheck\fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
 Write a debugging log\&. A typical
@@ -440,9 +414,7 @@ string is
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: debug-check option
-.\" debug-check option: mysqlcheck
-\fB\-\-debug\-check\fR
+.\" mysqlcheck: debug-check option.\" debug-check option: mysqlcheck\fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
 .RE
@@ -455,9 +427,7 @@ Print some debugging information when the program exits\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: debug-info option
-.\" debug-info option: mysqlcheck
-\fB\-\-debug\-info\fR
+.\" mysqlcheck: debug-info option.\" debug-info option: mysqlcheck\fB\-\-debug\-info\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
 .RE
@@ -470,9 +440,7 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: default-character-set option
-.\" default-character-set option: mysqlcheck
-\fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
+.\" mysqlcheck: default-character-set option.\" default-character-set option: mysqlcheck\fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
 .sp
 Use
 \fIcharset_name\fR
@@ -488,9 +456,7 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: extended option
-.\" extended option: mysqlcheck
-\fB\-\-extended\fR,
+.\" mysqlcheck: extended option.\" extended option: mysqlcheck\fB\-\-extended\fR,
 \fB\-e\fR
 .sp
 If you are using this option to check tables, it ensures that they are 100% consistent but takes a long time\&.
@@ -506,9 +472,7 @@ If you are using this option to repair tables, it runs an extended repair that m
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: default-auth option
-.\" default-auth option: mysqlcheck
-\fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
+.\" mysqlcheck: default-auth option.\" default-auth option: mysqlcheck\fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 The client\-side authentication plugin to use\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
@@ -524,9 +488,7 @@ This option was added in MySQL 5\&.6\&.2\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: fast option
-.\" fast option: mysqlcheck
-\fB\-\-fast\fR,
+.\" mysqlcheck: fast option.\" fast option: mysqlcheck\fB\-\-fast\fR,
 \fB\-F\fR
 .sp
 Check only tables that have not been closed properly\&.
@@ -540,9 +502,7 @@ Check only tables that have not been closed properly\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: fix-db-names option
-.\" fix-db-names option: mysqlcheck
-\fB\-\-fix\-db\-names\fR
+.\" mysqlcheck: fix-db-names option.\" fix-db-names option: mysqlcheck\fB\-\-fix\-db\-names\fR
 .sp
 Convert database names to 5\&.1 format\&. Only database names that contain special characters are affected\&.
 .RE
@@ -555,9 +515,7 @@ Convert database names to 5\&.1 format\&. Only database names that contain speci
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: fix-table-names option
-.\" fix-table-names option: mysqlcheck
-\fB\-\-fix\-table\-names\fR
+.\" mysqlcheck: fix-table-names option.\" fix-table-names option: mysqlcheck\fB\-\-fix\-table\-names\fR
 .sp
 Convert table names to 5\&.1 format\&. Only table names that contain special characters are affected\&. This option also applies to views\&.
 .RE
@@ -570,9 +528,7 @@ Convert table names to 5\&.1 format\&. Only table names that contain special cha
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: force option
-.\" force option: mysqlcheck
-\fB\-\-force\fR,
+.\" mysqlcheck: force option.\" force option: mysqlcheck\fB\-\-force\fR,
 \fB\-f\fR
 .sp
 Continue even if an SQL error occurs\&.
@@ -586,9 +542,7 @@ Continue even if an SQL error occurs\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: host option
-.\" host option: mysqlcheck
-\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
+.\" mysqlcheck: host option.\" host option: mysqlcheck\fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
 Connect to the MySQL server on the given host\&.
@@ -602,9 +556,7 @@ Connect to the MySQL server on the given host\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: medium-check option
-.\" medium-check option: mysqlcheck
-\fB\-\-medium\-check\fR,
+.\" mysqlcheck: medium-check option.\" medium-check option: mysqlcheck\fB\-\-medium\-check\fR,
 \fB\-m\fR
 .sp
 Do a check that is faster than an
@@ -620,9 +572,7 @@ operation\&. This finds only 99\&.99% of all errors, which should be good enough
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: optimize option
-.\" optimize option: mysqlcheck
-\fB\-\-optimize\fR,
+.\" mysqlcheck: optimize option.\" optimize option: mysqlcheck\fB\-\-optimize\fR,
 \fB\-o\fR
 .sp
 Optimize the tables\&.
@@ -636,9 +586,7 @@ Optimize the tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: password option
-.\" password option: mysqlcheck
-\fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
+.\" mysqlcheck: password option.\" password option: mysqlcheck\fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
 The password to use when connecting to the server\&. If you use the short option form (\fB\-p\fR), you
@@ -665,9 +613,7 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: pipe option
-.\" pipe option: mysql
-\fB\-\-pipe\fR,
+.\" mysqlcheck: pipe option.\" pipe option: mysql\fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
 On Windows, connect to the server using a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
@@ -681,9 +627,7 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: plugin-dir option
-.\" plugin-dir option: mysqlcheck
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+.\" mysqlcheck: plugin-dir option.\" plugin-dir option: mysqlcheck\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory in which to look for plugins\&. It may be necessary to specify this option if the
 \fB\-\-default\-auth\fR
@@ -703,9 +647,7 @@ This option was added in MySQL 5\&.6\&.2\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: port option
-.\" port option: mysqlcheck
-\fB\-\-port=\fR\fB\fIport_num\fR\fR,
+.\" mysqlcheck: port option.\" port option: mysqlcheck\fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
 The TCP/IP port number to use for the connection\&.
@@ -719,9 +661,7 @@ The TCP/IP port number to use for the connection\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: protocol option
-.\" protocol option: mysqlcheck
-\fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
+.\" mysqlcheck: protocol option.\" protocol option: mysqlcheck\fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
 Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
@@ -735,9 +675,7 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: quick option
-.\" quick option: mysqlcheck
-\fB\-\-quick\fR,
+.\" mysqlcheck: quick option.\" quick option: mysqlcheck\fB\-\-quick\fR,
 \fB\-q\fR
 .sp
 If you are using this option to check tables, it prevents the check from scanning the rows to check for incorrect links\&. This is the fastest check method\&.
@@ -753,9 +691,7 @@ If you are using this option to repair tables, it tries to repair only the index
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: repair option
-.\" repair option: mysqlcheck
-\fB\-\-repair\fR,
+.\" mysqlcheck: repair option.\" repair option: mysqlcheck\fB\-\-repair\fR,
 \fB\-r\fR
 .sp
 Perform a repair that can fix almost anything except unique keys that are not unique\&.
@@ -769,9 +705,7 @@ Perform a repair that can fix almost anything except unique keys that are not un
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: silent option
-.\" silent option: mysqlcheck
-\fB\-\-silent\fR,
+.\" mysqlcheck: silent option.\" silent option: mysqlcheck\fB\-\-silent\fR,
 \fB\-s\fR
 .sp
 Silent mode\&. Print only error messages\&.
@@ -785,9 +719,7 @@ Silent mode\&. Print only error messages\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: skip-database option
-.\" skip-database option: mysqlcheck
-\fB\-\-skip\-database=\fR\fB\fIdb_name\fR\fR
+.\" mysqlcheck: skip-database option.\" skip-database option: mysqlcheck\fB\-\-skip\-database=\fR\fB\fIdb_name\fR\fR
 .sp
 Do not include the named database (case sensitive) in the operations performed by
 \fBmysqlcheck\fR\&. This option was added in MySQL 5\&.6\&.11\&.
@@ -801,9 +733,7 @@ Do not include the named database (case sensitive) in the operations performed b
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: socket option
-.\" socket option: mysqlcheck
-\fB\-\-socket=\fR\fB\fIpath\fR\fR,
+.\" mysqlcheck: socket option.\" socket option: mysqlcheck\fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
 For connections to
@@ -818,9 +748,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: SSL options
-.\" SSL options: mysqlcheck
-\fB\-\-ssl*\fR
+.\" mysqlcheck: SSL options.\" SSL options: mysqlcheck\fB\-\-ssl*\fR
 .sp
 Options that begin with
 \fB\-\-ssl\fR
@@ -836,9 +764,7 @@ Section\ \&6.3.9.4, \(lqSSL Command Options\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: tables option
-.\" tables option: mysqlcheck
-\fB\-\-tables\fR
+.\" mysqlcheck: tables option.\" tables option: mysqlcheck\fB\-\-tables\fR
 .sp
 Override the
 \fB\-\-databases\fR
@@ -855,9 +781,7 @@ option\&. All name arguments following the option are regarded as table names\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: use-frm option
-.\" use-frm option: mysqlcheck
-\fB\-\-use\-frm\fR
+.\" mysqlcheck: use-frm option.\" use-frm option: mysqlcheck\fB\-\-use\-frm\fR
 .sp
 For repair operations on
 MyISAM
@@ -876,9 +800,7 @@ header is corrupted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: user option
-.\" user option: mysqlcheck
-\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
+.\" mysqlcheck: user option.\" user option: mysqlcheck\fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
 The MySQL user name to use when connecting to the server\&.
@@ -892,9 +814,7 @@ The MySQL user name to use when connecting to the server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: verbose option
-.\" verbose option: mysqlcheck
-\fB\-\-verbose\fR,
+.\" mysqlcheck: verbose option.\" verbose option: mysqlcheck\fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
 Verbose mode\&. Print information about the various stages of program operation\&.
@@ -908,9 +828,7 @@ Verbose mode\&. Print information about the various stages of program operation\
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: version option
-.\" version option: mysqlcheck
-\fB\-\-version\fR,
+.\" mysqlcheck: version option.\" version option: mysqlcheck\fB\-\-version\fR,
 \fB\-V\fR
 .sp
 Display version information and exit\&.
@@ -924,9 +842,7 @@ Display version information and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlcheck: write-binlog option
-.\" write-binlog option: mysqlcheck
-\fB\-\-write\-binlog\fR
+.\" mysqlcheck: write-binlog option.\" write-binlog option: mysqlcheck\fB\-\-write\-binlog\fR
 .sp
 This option is enabled by default, so that
 ANALYZE TABLE,
@@ -947,40 +863,11 @@ when these statements should not be sent to replication slaves or run when using
 .PP
 Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
-The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
-.PP
-U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
-.PP
-This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
-.PP
-Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
-.PP
-This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
-.PP
-This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
-.PP
-This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
-.PP
-You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
-.PP
-For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
-\m[blue]\fBMySQL Contact & Questions\fR\m[].
-.PP
-For additional licensing information, including licenses for third-party libraries used by MySQL products, see
-Preface and Legal Notices.
-.PP
-For help with using MySQL, please visit either the
-\m[blue]\fBMySQL Forums\fR\m[]
-or
-\m[blue]\fBMySQL Mailing Lists\fR\m[]
-where you can discuss your issues with other MySQL users.
-.PP
-For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
-\m[blue]\fBMySQL Documentation Library\fR\m[].
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

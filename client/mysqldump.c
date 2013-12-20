@@ -2564,7 +2564,7 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
       Check only the first (for PRIMARY KEY) or the second (for secondary keys)
       quoted identifier.
     */
-    if ((idnum == 1 + test(type != KEY_TYPE_PRIMARY)))
+    if ((idnum == 1 + MY_TEST(type != KEY_TYPE_PRIMARY)))
       break;
 
     keydef= to + 1;
@@ -2640,11 +2640,12 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
   const char *constr_from;
   const char *constr_to;
   LIST *keydef_node;
+  my_bool keys_processed= FALSE;
 
   strend= create_str + strlen(create_str);
 
   ptr= create_str;
-  while (*ptr)
+  while (*ptr && !keys_processed)
   {
     char *tmp, *orig_ptr, c;
 
@@ -2728,7 +2729,11 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
     {
       char *end;
 
-      if (last_comma != NULL && *ptr != ')')
+      if (last_comma != NULL && *ptr == ')')
+      {
+        keys_processed= TRUE;
+      }
+      else if (last_comma != NULL && !keys_processed)
       {
         /*
           It's not the last line of CREATE TABLE, so we have skipped a key

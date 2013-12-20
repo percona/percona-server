@@ -128,7 +128,7 @@ connection default;
 LOCK TABLES t1 WRITE;
 
 connection con1;
---error ER_QUERY_TIMEOUT
+--error ER_QUERY_TIMEOUT # ER_QUERY_INTERRUPTED
 LOCK TABLES t1 READ;
 
 connection default;

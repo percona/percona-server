@@ -780,10 +780,21 @@ dict_stats_update_transient_for_index(
 /*==================================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
-	if (UNIV_LIKELY
-	    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
-	     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-		 && dict_index_is_clust(index)))) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+	    && (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO
+		|| !dict_index_is_clust(index))) {
+		/* If we have set a high innodb_force_recovery
+		level, do not calculate statistics, as a badly
+		corrupted index can cause a crash in it.
+		Initialize some bogus index cardinality
+		statistics, so that the data can be queried in
+		various means, also via secondary indexes. */
+		dict_stats_empty_index(index);
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	} else if (ibuf_debug && !dict_index_is_clust(index)) {
+		dict_stats_empty_index(index);
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+	} else {
 		mtr_t	mtr;
 		ulint	size;
 		mtr_start(&mtr);
@@ -812,14 +823,6 @@ dict_stats_update_transient_for_index(
 		index->stat_n_leaf_pages = size;
 
 		btr_estimate_number_of_different_key_vals(index);
-	} else {
-		/* If we have set a high innodb_force_recovery
-		level, do not calculate statistics, as a badly
-		corrupted index can cause a crash in it.
-		Initialize some bogus index cardinality
-		statistics, so that the data can be queried in
-		various means, also via secondary indexes. */
-		dict_stats_empty_index(index);
 	}
 }
 
@@ -2924,7 +2927,9 @@ dict_stats_update(
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
 
-		ut_ad(!srv_read_only_mode);
+		if (srv_read_only_mode) {
+			goto transient;
+		}
 
 		/* Persistent recalculation requested, called from
 		1) ANALYZE TABLE, or
@@ -3025,8 +3030,6 @@ dict_stats_update(
 
 		dict_table_t*	t;
 
-		ut_ad(!srv_read_only_mode);
-
 		/* Create a dummy table object with the same name and
 		indexes, suitable for fetching the stats into it. */
 		t = dict_stats_table_clone_create(table);
@@ -3059,6 +3062,10 @@ dict_stats_update(
 		case DB_STATS_DO_NOT_EXIST:
 
 			dict_stats_table_clone_free(t);
+
+			if (srv_read_only_mode) {
+				goto transient;
+			}
 
 			if (dict_stats_auto_recalc_is_enabled(table)) {
 				return(dict_stats_update(

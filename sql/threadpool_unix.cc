@@ -44,6 +44,14 @@ typedef port_event_t native_event;
 /** Maximum number of native events a listener can read in one go */
 #define MAX_EVENTS 1024
 
+/** Define if wait_begin() should create threads if necessary without waiting
+for stall detection to kick in */
+#define THREADPOOL_CREATE_THREADS_ON_WAIT
+
+/* Possible values for thread_pool_high_prio_mode */
+const char *threadpool_high_prio_mode_names[]= {"transactions", "statements",
+                                                 "none", NullS};
+
 /** Indicates that threadpool was initialized*/
 static bool threadpool_started= false; 
 
@@ -139,6 +147,7 @@ struct thread_group_t
   int  thread_count;
   int  active_thread_count;
   int  connection_count;
+  int  waiting_thread_count;
   /* Stats for the deadlock detection timer routine.*/
   int io_event_count;
   int queue_event_count;
@@ -397,6 +406,48 @@ static void* native_event_get_userdata(native_event *event)
 #error not ported yet to this OS
 #endif
 
+namespace {
+
+/*
+  Prevent too many active threads executing at the same time, if the workload is
+  not CPU bound.
+*/
+
+inline bool too_many_active_threads(thread_group_t *thread_group)
+{
+  return (thread_group->active_thread_count
+          >= 1 + (int) threadpool_oversubscribe
+          && !thread_group->stalled);
+}
+
+/*
+  Limit the number of 'busy' threads by 1 + thread_pool_oversubscribe. A thread
+  is busy if it is in either the active state or the waiting state (i.e. between
+  thd_wait_begin() / thd_wait_end() calls).
+*/
+
+inline bool too_many_busy_threads(thread_group_t *thread_group)
+{
+  return (thread_group->active_thread_count + thread_group->waiting_thread_count
+          > 1 + (int) threadpool_oversubscribe);
+}
+
+/*
+   Checks if a given connection is eligible to enter the high priority queue
+   based on its current thread_pool_high_prio_mode value, available high
+   priority tickets and transactional state.
+*/
+
+inline bool connection_is_high_prio(connection_t *c)
+{
+  const ulong mode= c->thd->variables.threadpool_high_prio_mode;
+
+  return (mode == TP_HIGH_PRIO_MODE_STATEMENTS) ||
+    (mode == TP_HIGH_PRIO_MODE_TRANSACTIONS &&
+     c->tickets > 0 && thd_is_transaction_active(c->thd));
+}
+
+} // namespace
 
 /* Dequeue element from a workqueue */
 
@@ -410,7 +461,12 @@ static connection_t *queue_get(thread_group_t *thread_group)
   {
     thread_group->high_prio_queue.remove(c);
   }
-  else if ((c= thread_group->queue.front()))
+  /*
+    Don't pick events from the low priority queue if there are too many
+    active + waiting threads.
+  */
+  else if (!too_many_busy_threads(thread_group) &&
+           (c= thread_group->queue.front()))
   {
     thread_group->queue.remove(c);
   }
@@ -533,7 +589,17 @@ static void* timer_thread(void *param)
   return NULL;
 }
 
+/*
+  Check if both the high and low priority queues are empty.
 
+  NOTE: we also consider the low priority queue empty in case it has events, but
+  they cannot be processed due to the too_many_busy_threads() limit.
+*/
+static bool queues_are_empty(thread_group_t *tg)
+{
+  return (tg->high_prio_queue.is_empty() &&
+          (tg->queue.is_empty() || too_many_busy_threads(tg)));
+}
 
 void check_stall(thread_group_t *thread_group)
 {
@@ -560,21 +626,21 @@ void check_stall(thread_group_t *thread_group)
   thread_group->io_event_count= 0;
 
   /* 
-    Check whether requests from the workqueue are being dequeued.
+    Check whether requests from the workqueues are being dequeued.
 
     The stall detection and resolution works as follows:
 
     1. There is a counter thread_group->queue_event_count for the number of 
-       events removed from the queue. Timer resets the counter to 0 on each run.
+       events removed from the queues. Timer resets the counter to 0 on each run.
     2. Timer determines stall if this counter remains 0 since last check
-       and the queue is not empty.
+       and at least one of the high and low priority queues is not empty.
     3. Once timer determined a stall it sets thread_group->stalled flag and
        wakes and idle worker (or creates a new one, subject to throttling).
     4. The stalled flag is reset, when an event is dequeued.
 
-    Q : Will this handling lead to an unbound growth of threads, if queue
-    stalls permanently?
-    A : No. If queue stalls permanently, it is an indication for many very long
+    Q : Will this handling lead to an unbound growth of threads, if queues
+    stall permanently?
+    A : No. If queues stall permanently, it is an indication for many very long
     simultaneous queries. The maximum number of simultanoues queries is 
     max_connections, further we have threadpool_max_threads limit, upon which no
     worker threads are created. So in case there is a flood of very long 
@@ -585,8 +651,7 @@ void check_stall(thread_group_t *thread_group)
     do wait and indicate that via thd_wait_begin/end callbacks, thread creation
     will be faster.
   */
-  if ((!thread_group->high_prio_queue.is_empty() ||
-      !thread_group->queue.is_empty()) && !thread_group->queue_event_count)
+  if (!thread_group->queue_event_count && !queues_are_empty(thread_group))
   {
     thread_group->stalled= true;
     wake_or_create_thread(thread_group);
@@ -715,14 +780,14 @@ static connection_t * listener(worker_thread_t *current_thread,
     for(int i=(listener_picks_event)?1:0; i < cnt ; i++)
     {
       connection_t *c= (connection_t *)native_event_get_userdata(&ev[i]);
-      if (c->tickets > 0 && thd_is_transaction_active(c->thd))
+      if (connection_is_high_prio(c))
       {
         c->tickets--;
         thread_group->high_prio_queue.push_back(c);
       }
       else
       {
-        c->tickets= threadpool_high_prio_tickets;
+        c->tickets= c->thd->variables.threadpool_high_prio_tickets;
         thread_group->queue.push_back(c);
       }
     }
@@ -1019,7 +1084,7 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
   DBUG_ENTER("queue_put");
 
   mysql_mutex_lock(&thread_group->mutex);
-  connection->tickets= threadpool_high_prio_tickets;
+  connection->tickets= connection->thd->variables.threadpool_high_prio_tickets;
   thread_group->queue.push_back(connection);
 
   if (thread_group->active_thread_count == 0)
@@ -1029,19 +1094,6 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
 
   DBUG_VOID_RETURN;
 }
-
-
-/* 
-  Prevent too many threads executing at the same time,if the workload is 
-  not CPU bound.
-*/
-
-static bool too_many_threads(thread_group_t *thread_group)
-{
-  return (thread_group->active_thread_count >= 1+(int)threadpool_oversubscribe 
-   && !thread_group->stalled);
-}
-
 
 /**
   Retrieve a connection with pending event.
@@ -1073,7 +1125,7 @@ connection_t *get_event(worker_thread_t *current_thread,
 
   for(;;) 
   {
-    bool oversubscribed = too_many_threads(thread_group); 
+    bool oversubscribed = too_many_active_threads(thread_group); 
     if (thread_group->shutdown)
      break;
 
@@ -1112,7 +1164,34 @@ connection_t *get_event(worker_thread_t *current_thread,
       {
         thread_group->io_event_count++;
         connection = (connection_t *)native_event_get_userdata(&nev);
-        break;
+
+        /*
+          Since we are going to perform an out-of-order event processing for the
+          connection, first check whether it is eligible for high priority
+          processing. We can get here even if there are queued events, so it
+          must either have a high priority ticket, or there must be not too many
+          busy threads (as if it was coming from a low priority queue).
+        */
+        if (connection_is_high_prio(connection))
+          connection->tickets--;
+        else if (too_many_busy_threads(thread_group))
+        {
+          /*
+            Not eligible for high priority processing. Restore tickets and put
+            it into the low priority queue.
+          */
+
+          connection->tickets=
+            connection->thd->variables.threadpool_high_prio_tickets;
+          thread_group->queue.push_back(connection);
+          connection= NULL;
+        }
+
+        if (connection)
+        {
+          thread_group->queue_event_count++;
+          break;
+        }
       }
     }
 
@@ -1170,13 +1249,14 @@ void wait_begin(thread_group_t *thread_group)
   DBUG_ENTER("wait_begin");
   mysql_mutex_lock(&thread_group->mutex);
   thread_group->active_thread_count--;
-  
+  thread_group->waiting_thread_count++;
+
   DBUG_ASSERT(thread_group->active_thread_count >=0);
   DBUG_ASSERT(thread_group->connection_count > 0);
- 
+
+#ifdef THREADPOOL_CREATE_THREADS_ON_WAIT
   if ((thread_group->active_thread_count == 0) && 
-      (thread_group->high_prio_queue.is_empty() ||
-       thread_group->queue.is_empty() || !thread_group->listener))
+      (!queues_are_empty(thread_group) || !thread_group->listener))
   {
     /* 
       Group might stall while this thread waits, thus wake 
@@ -1184,7 +1264,8 @@ void wait_begin(thread_group_t *thread_group)
     */
     wake_or_create_thread(thread_group);
   }
-  
+#endif
+
   mysql_mutex_unlock(&thread_group->mutex);
   DBUG_VOID_RETURN;
 }
@@ -1198,6 +1279,7 @@ void wait_end(thread_group_t *thread_group)
   DBUG_ENTER("wait_end");
   mysql_mutex_lock(&thread_group->mutex);
   thread_group->active_thread_count++;
+  thread_group->waiting_thread_count--;
   mysql_mutex_unlock(&thread_group->mutex);
   DBUG_VOID_RETURN;
 }

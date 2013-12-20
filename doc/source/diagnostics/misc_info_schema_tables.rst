@@ -11,7 +11,11 @@ This page lists the ``INFORMATION_SCHEMA`` tables added to standard |MySQL| by |
 Temporary tables
 ================
 
- Only the temporary tables that were explicitly created with `CREATE TEMPORARY TABLE` or `ALTER TABLE` are shown, and not the ones created to process complex queries.
+.. note::
+
+ This feature implementation is considered ALPHA quality.
+
+Only the temporary tables that were explicitly created with `CREATE TEMPORARY TABLE` or `ALTER TABLE` are shown, and not the ones created to process complex queries.
 
 .. table:: INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES
  

@@ -1,6 +1,5 @@
 ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
-ERROR HY000: MySQL server has gone away
-ERROR 42000: Unknown database 'mysql_native_password'
+Got one of the listed errors
 ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
-ERROR 42000: Unknown database 'mysql_native_password'

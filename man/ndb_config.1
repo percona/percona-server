@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 05/21/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 11/15/2013
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "05/21/2013" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "11/15/2013" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -44,7 +44,7 @@ file\&. By default, the management node is the source for the configuration data
 or
 \fB\-\-mycnf\fR
 option\&. It is also possible to use a data node as the source by specifying its node ID with
-\fB\-\-config_from_node=\fR\fB\fInode_id\fR\fR\-
+\fB\-\-config_from_node=\fR\fB\fInode_id\fR\fR\&.
 .PP
 \fBndb_config\fR
 can also provide an offline dump of all configuration parameters which can be used, along with their default, maximum, and minimum values and other information\&. The dump can be produced in either text or XML format; for more information, see the discussion of the
@@ -69,7 +69,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&17.14.\ \&ndb_config Options and Variables: MySQL Cluster NDB 7.3
+.B Table\ \&17.15.\ \&ndb_config Options and Variables: MySQL Cluster NDB 7.3
 .TS
 allbox tab(:);
 lB lB lB.
@@ -257,9 +257,7 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: usage option
-.\" usage option: ndb_config
-\fB\-\-usage\fR,
+.\" ndb_config: usage option.\" usage option: ndb_config\fB\-\-usage\fR,
 \fB\-\-help\fR, or
 \fB\-?\fR
 .TS
@@ -273,10 +271,12 @@ T}:T{
 \-\-help
 T}
 T{
+\ \&
 T}:T{
 \-\-usage
 T}
 T{
+\ \&
 T}:T{
 \-?
 T}
@@ -295,9 +295,7 @@ to print a list of available options, and then exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: config_from_node option
-.\" config_from_node option: ndb_config
-\fB\-\-config_from_node=#\fR
+.\" ndb_config: config_from_node option.\" config_from_node option: ndb_config\fB\-\-config_from_node=#\fR
 .TS
 allbox tab(:);
 l l s s
@@ -313,7 +311,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -347,9 +345,7 @@ fails with an error\&. (To obtain configuration data from the management node in
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: version option
-.\" version option: ndb_config
-\fB\-\-version\fR,
+.\" ndb_config: version option.\" version option: ndb_config\fB\-\-version\fR,
 \fB\-V\fR
 .TS
 allbox tab(:);
@@ -361,6 +357,7 @@ T}:T{
 \-\-version
 T}
 T{
+\ \&
 T}:T{
 \-V
 T}
@@ -379,9 +376,7 @@ to print a version information string, and then exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: ndb-connectstring option
-.\" ndb-connectstring option: ndb_config
-\fB\-\-ndb\-connectstring=\fR\fB\fIconnect_string\fR\fR,
+.\" ndb_config: ndb-connectstring option.\" ndb-connectstring option: ndb_config\fB\-\-ndb\-connectstring=\fR\fB\fIconnect_string\fR\fR,
 \fB\-c \fR\fB\fIconnect_string\fR\fR
 .TS
 allbox tab(:);
@@ -397,17 +392,19 @@ T}:T{
 \-\-ndb\-connectstring=connectstring
 T}
 T{
+\ \&
 T}:T{
 \-\-connect\-string=connectstring
 T}
 T{
+\ \&
 T}:T{
 \-c
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -421,8 +418,8 @@ localhost:1186
 T}
 .TE
 .sp 1
-Specifies the connectstring to use in connecting to the management server\&. The format for the connectstring is the same as described in
-Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, and defaults to
+Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
+Section\ \&17.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
 .RE
 .sp
@@ -434,9 +431,7 @@ localhost:1186\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: config-file option
-.\" config-file option: ndb_config
-\fB\-\-config\-file=\fR\fB\fIpath\-to\-file\fR\fR
+.\" ndb_config: config-file option.\" config-file option: ndb_config\fB\-\-config\-file=\fR\fB\fIpath\-to\-file\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -451,7 +446,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -477,9 +472,7 @@ is invoked, then an absolute path must be used\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: mycnf option
-.\" mycnf option: ndb_config
-\fB\-\-mycnf\fR
+.\" ndb_config: mycnf option.\" mycnf option: ndb_config\fB\-\-mycnf\fR
 .TS
 allbox tab(:);
 l l s s
@@ -494,7 +487,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -521,11 +514,8 @@ file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: query option
-.\" query option: ndb_config
-\fB\-\-query=\fR\fB\fIquery\-options\fR\fR,
-\fB\-q\fR
-\fIquery\-options\fR
+.\" ndb_config: query option.\" query option: ndb_config\fB\-\-query=\fR\fB\fIquery\-options\fR\fR,
+\fB\-q\fR\fIquery\-options\fR
 .TS
 allbox tab(:);
 l l s s
@@ -539,13 +529,14 @@ T}:T{
 \-\-query=string
 T}
 T{
+\ \&
 T}:T{
 \-q
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -567,9 +558,7 @@ mysqld, or
 ndb_mgmd), and any configuration parameters whose values are to be obtained\&.
 .sp
 For example,
-.\" ndb_config: query option
-.\" query option: ndb_config
-\fB\-\-query=id,type,indexmemory,datamemory\fR
+.\" ndb_config: query option.\" query option: ndb_config\fB\-\-query=id,type,indexmemory,datamemory\fR
 returns the node ID, node type,
 DataMemory, and
 IndexMemory
@@ -599,9 +588,7 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: host option
-.\" host option: ndb_config
-\fB\-\-host=\fR\fB\fIhostname\fR\fR
+.\" ndb_config: host option.\" host option: ndb_config\fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -616,7 +603,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -670,13 +657,9 @@ in the same fashion\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: id option
-.\" id option: ndb_config
-\fB\-\-id=\fR\fB\fInode_id\fR\fR
+.\" ndb_config: id option.\" id option: ndb_config\fB\-\-id=\fR\fB\fInode_id\fR\fR
 .sp
-.\" ndb_config: nodeid option
-.\" nodeid option: ndb_config
-\fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
+.\" ndb_config: nodeid option.\" nodeid option: ndb_config\fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -691,7 +674,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -718,9 +701,7 @@ is the preferred form\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: nodes option
-.\" nodes option: ndb_config
-\fB\-\-nodes\fR
+.\" ndb_config: nodes option.\" nodes option: ndb_config\fB\-\-nodes\fR
 .TS
 allbox tab(:);
 l l s s
@@ -735,7 +716,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -767,9 +748,7 @@ or
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: connections option
-.\" connections option: ndb_config
-\fB\-\-connections\fR
+.\" ndb_config: connections option.\" connections option: ndb_config\fB\-\-connections\fR
 .TS
 allbox tab(:);
 l l s s
@@ -784,7 +763,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -816,9 +795,7 @@ or
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: system option
-.\" system option: ndb_config
-\fB\-\-system\fR
+.\" ndb_config: system option.\" system option: ndb_config\fB\-\-system\fR
 .TS
 allbox tab(:);
 l l s s
@@ -833,7 +810,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -868,9 +845,7 @@ options\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: type option
-.\" type option: ndb_config
-\fB\-\-type=\fR\fB\fInode_type\fR\fR
+.\" ndb_config: type option.\" type option: ndb_config\fB\-\-type=\fR\fB\fInode_type\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -888,7 +863,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -927,11 +902,8 @@ ndb_mgmd) are returned\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: fields option
-.\" fields option: ndb_config
-\fB\-\-fields=\fR\fB\fIdelimiter\fR\fR,
-\fB\-f\fR
-\fIdelimiter\fR
+.\" ndb_config: fields option.\" fields option: ndb_config\fB\-\-fields=\fR\fB\fIdelimiter\fR\fR,
+\fB\-f\fR\fIdelimiter\fR
 .TS
 allbox tab(:);
 l l s s
@@ -945,13 +917,14 @@ T}:T{
 \-\-fields=string
 T}
 T{
+\ \&
 T}:T{
 \-f
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -998,11 +971,8 @@ for the linefeed character), then it must be quoted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: rows option
-.\" rows option: ndb_config
-\fB\-\-rows=\fR\fB\fIseparator\fR\fR,
-\fB\-r\fR
-\fIseparator\fR
+.\" ndb_config: rows option.\" rows option: ndb_config\fB\-\-rows=\fR\fB\fIseparator\fR\fR,
+\fB\-r\fR\fIseparator\fR
 .TS
 allbox tab(:);
 l l s s
@@ -1016,13 +986,14 @@ T}:T{
 \-\-rows=string
 T}
 T{
+\ \&
 T}:T{
 \-r
 T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -1067,9 +1038,7 @@ for the linefeed character), then it must be quoted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: configinfo option
-.\" configinfo option: ndb_config
-\fB\-\-configinfo\fR
+.\" ndb_config: configinfo option.\" configinfo option: ndb_config\fB\-\-configinfo\fR
 .sp
 The
 \fB\-\-configinfo\fR
@@ -1177,10 +1146,7 @@ Default: 0 (Min: 0, Max: 4294967039)
 .RE
 .\}
 .sp
-.\" ndb_config: xml option
-.\" xml option: ndb_config
-\fB\-\-configinfo\fR
-\fB\-\-xml\fR
+.\" ndb_config: xml option.\" xml option: ndb_config\fB\-\-configinfo\fR\fB\-\-xml\fR
 .TS
 allbox tab(:);
 l l s s
@@ -1195,7 +1161,7 @@ T}
 T{
 \ \&
 T}:T{
-\fBPermitted Values \fR
+\fBPermitted Values\fR
 T}
 :T{
 \fBType\fR
@@ -1210,8 +1176,7 @@ T}
 .TE
 .sp 1
 You can obtain the output of
-\fBndb_config\fR
-\fB\-\-configinfo\fR
+\fBndb_config\fR\fB\-\-configinfo\fR
 as XML by adding the
 \fB\-\-xml\fR
 option\&. A portion of the resulting output is shown in this example:
@@ -1221,7 +1186,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.11\-ndb\-7\&.3\&.2"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.14\-ndb\-7\&.3\&.4"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -1261,9 +1226,7 @@ shell> \fBndb_config \-\-configinfo \-\-xml\fR
 .ps -1
 .br
 Normally, the XML output produced by
-\fBndb_config\fR
-\fB\-\-configinfo\fR
-\fB\-\-xml\fR
+\fBndb_config\fR\fB\-\-configinfo\fR\fB\-\-xml\fR
 is formatted using one line per element; we have added extra whitespace in the previous example, as well as the next one, for reasons of legibility\&. This should not make any difference to applications using this output, since most XML processors either ignore nonessential whitespace as a matter of course, or can be instructed to do so\&.
 .sp .5v
 .RE
@@ -1421,7 +1384,7 @@ options to place the values for each node on a new line in the output\&.
 .sp -1
 .IP "  2." 4.2
 .\}
-To produce a connectstring that can be used by data, SQL, and API nodes to connect to the management server:
+To produce a connection string that can be used by data, SQL, and API nodes to connect to the management server:
 .sp
 .if n \{\
 .RS 4
@@ -1514,40 +1477,11 @@ option\&.
 .PP
 Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
 .PP
-This software and related documentation are provided under a license agreement containing restrictions on use and disclosure and are protected by intellectual property laws. Except as expressly permitted in your license agreement or allowed by law, you may not use, copy, reproduce, translate, broadcast, modify, license, transmit, distribute, exhibit, perform, publish, or display any part, in any form, or by any means. Reverse engineering, disassembly, or decompilation of this software, unless required by law for interoperability, is prohibited.
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
-The information contained herein is subject to change without notice and is not warranted to be error-free. If you find any errors, please report them to us in writing.
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 .PP
-If this software or related documentation is delivered to the U.S. Government or anyone licensing it on behalf of the U.S. Government, the following notice is applicable:
-.PP
-U.S. GOVERNMENT RIGHTS Programs, software, databases, and related documentation and technical data delivered to U.S. Government customers are "commercial computer software" or "commercial technical data" pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, the use, duplication, disclosure, modification, and adaptation shall be subject to the restrictions and license terms set forth in the applicable Government contract, and, to the extent applicable by the terms of the Government contract, the additional rights set forth in FAR 52.227-19, Commercial Computer Software License (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA 94065.
-.PP
-This software is developed for general use in a variety of information management applications. It is not developed or intended for use in any inherently dangerous applications, including applications which may create a risk of personal injury. If you use this software in dangerous applications, then you shall be responsible to take all appropriate fail-safe, backup, redundancy, and other measures to ensure the safe use of this software. Oracle Corporation and its affiliates disclaim any liability for any damages caused by use of this software in dangerous applications.
-.PP
-Oracle is a registered trademark of Oracle Corporation and/or its affiliates. MySQL is a trademark of Oracle Corporation and/or its affiliates, and shall not be used without Oracle's express written authorization. Other names may be trademarks of their respective owners.
-.PP
-This software and documentation may provide access to or information on content, products, and services from third parties. Oracle Corporation and its affiliates are not responsible for and expressly disclaim all warranties of any kind with respect to third-party content, products, and services. Oracle Corporation and its affiliates will not be responsible for any loss, costs, or damages incurred due to your access to or use of third-party content, products, or services.
-.PP
-This document in any form, software or printed matter, contains proprietary information that is the exclusive property of Oracle. Your access to and use of this material is subject to the terms and conditions of your Oracle Software License and Service Agreement, which has been executed and with which you agree to comply. This document and information contained herein may not be disclosed, copied, reproduced, or distributed to anyone outside Oracle without prior written consent of Oracle or as specifically provided below. This document is not part of your license agreement nor can it be incorporated into any contractual agreement with Oracle or its subsidiaries or affiliates.
-.PP
-This documentation is NOT distributed under a GPL license. Use of this documentation is subject to the following terms:
-.PP
-You may create a printed copy of this documentation solely for your own personal use. Conversion to other formats is allowed as long as the actual content is not altered or edited in any way. You shall not publish or distribute this documentation in any form or on any media, except if you distribute the documentation in a manner similar to how Oracle disseminates it (that is, electronically for download on a Web site with the software) or on a CD-ROM or similar medium, provided however that the documentation is disseminated together with the software on the same medium. Any other use, such as any dissemination of printed copies or use of this documentation, in whole or in part, in another publication, requires the prior written consent from an authorized representative of Oracle. Oracle and/or its affiliates reserve any and all rights to this documentation not expressly granted above.
-.PP
-For more information on the terms of this license, or for details on how the MySQL documentation is built and produced, please visit
-\m[blue]\fBMySQL Contact & Questions\fR\m[].
-.PP
-For additional licensing information, including licenses for third-party libraries used by MySQL products, see
-Preface and Legal Notices.
-.PP
-For help with using MySQL, please visit either the
-\m[blue]\fBMySQL Forums\fR\m[]
-or
-\m[blue]\fBMySQL Mailing Lists\fR\m[]
-where you can discuss your issues with other MySQL users.
-.PP
-For additional documentation on MySQL products, including translations of the documentation into other languages, and downloadable versions in variety of formats, including HTML and PDF formats, see the
-\m[blue]\fBMySQL Documentation Library\fR\m[].
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

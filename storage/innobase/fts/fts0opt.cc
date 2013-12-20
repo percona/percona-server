@@ -54,6 +54,9 @@ static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
 
+/** Initial size of nodes in fts_word_t. */
+static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
+
 /** Last time we did check whether system need a sync */
 static ib_time_t	last_check_sync_time;
 
@@ -244,23 +247,23 @@ static ib_time_t fts_optimize_time_limit = 0;
 static	const char* fts_init_delete_sql =
 	"BEGIN\n"
 	"\n"
-	"INSERT INTO %s_BEING_DELETED\n"
-		"SELECT doc_id FROM %s_DELETED;\n"
+	"INSERT INTO \"%s_BEING_DELETED\"\n"
+		"SELECT doc_id FROM \"%s_DELETED\";\n"
 	"\n"
-	"INSERT INTO %s_BEING_DELETED_CACHE\n"
-		"SELECT doc_id FROM %s_DELETED_CACHE;\n";
+	"INSERT INTO \"%s_BEING_DELETED_CACHE\"\n"
+		"SELECT doc_id FROM \"%s_DELETED_CACHE\";\n";
 
 static const char* fts_delete_doc_ids_sql =
 	"BEGIN\n"
 	"\n"
-	"DELETE FROM %s_DELETED WHERE doc_id = :doc_id1;\n"
-	"DELETE FROM %s_DELETED_CACHE WHERE doc_id = :doc_id2;\n";
+	"DELETE FROM \"%s_DELETED\" WHERE doc_id = :doc_id1;\n"
+	"DELETE FROM \"%s_DELETED_CACHE\" WHERE doc_id = :doc_id2;\n";
 
 static const char* fts_end_delete_sql =
 	"BEGIN\n"
 	"\n"
-	"DELETE FROM %s_BEING_DELETED;\n"
-	"DELETE FROM %s_BEING_DELETED_CACHE;\n";
+	"DELETE FROM \"%s_BEING_DELETED\";\n"
+	"DELETE FROM \"%s_BEING_DELETED_CACHE\";\n";
 
 /**********************************************************************//**
 Initialize fts_zip_t. */
@@ -357,7 +360,7 @@ fts_word_init(
 	word->heap_alloc = ib_heap_allocator_create(heap);
 
 	word->nodes = ib_vector_create(
-		word->heap_alloc, sizeof(fts_node_t), 64);
+		word->heap_alloc, sizeof(fts_node_t), FTS_WORD_NODES_INIT_SIZE);
 
 	return(word);
 }
@@ -435,6 +438,8 @@ fts_optimize_index_fetch_node(
 	dfield_t*	dfield = que_node_get_val(exp);
 	void*		data = dfield_get_data(dfield);
 	ulint		dfield_len = dfield_get_len(dfield);
+	fts_node_t*	node;
+	bool		is_word_init = false;
 
 	ut_a(dfield_len <= FTS_MAX_WORD_LEN);
 
@@ -442,6 +447,7 @@ fts_optimize_index_fetch_node(
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
 		fts_word_init(word, (byte*) data, dfield_len);
+		is_word_init = true;
 	}
 
 	word = static_cast<fts_word_t*>(ib_vector_last(words));
@@ -451,9 +457,23 @@ fts_optimize_index_fetch_node(
 
 		word = static_cast<fts_word_t*>(ib_vector_push(words, NULL));
 		fts_word_init(word, (byte*) data, dfield_len);
+		is_word_init = true;
 	}
 
-	fts_optimize_read_node(word, que_node_get_next(exp));
+	node = fts_optimize_read_node(word, que_node_get_next(exp));
+
+	fetch->total_memory += node->ilist_size;
+	if (is_word_init) {
+		fetch->total_memory += sizeof(fts_word_t)
+			+ sizeof(ib_alloc_t) + sizeof(ib_vector_t) + dfield_len
+			+ sizeof(fts_node_t) * FTS_WORD_NODES_INIT_SIZE;
+	} else if (ib_vector_size(words) > FTS_WORD_NODES_INIT_SIZE) {
+		fetch->total_memory += sizeof(fts_node_t);
+	}
+
+	if (fetch->total_memory >= fts_result_cache_limit) {
+		return(FALSE);
+	}
 
 	return(TRUE);
 }
@@ -503,7 +523,7 @@ fts_index_fetch_nodes(
 			"DECLARE CURSOR c IS"
 			" SELECT word, doc_count, first_doc_id, last_doc_id, "
 				"ilist\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word LIKE :word\n"
 			" ORDER BY first_doc_id;\n"
 			"BEGIN\n"
@@ -827,7 +847,7 @@ fts_index_fetch_words(
 			"DECLARE FUNCTION my_func;\n"
 			"DECLARE CURSOR c IS"
 			" SELECT word\n"
-			" FROM %s\n"
+			" FROM \"%s\"\n"
 			" WHERE word > :word\n"
 			" ORDER BY word;\n"
 			"BEGIN\n"
@@ -987,7 +1007,7 @@ fts_table_fetch_doc_ids(
 		info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS"
-		" SELECT doc_id FROM %s;\n"
+		" SELECT doc_id FROM \"%s\";\n"
 		"BEGIN\n"
 		"\n"
 		"OPEN c;\n"
@@ -1460,7 +1480,7 @@ fts_optimize_write_word(
 	graph = fts_parse_sql(
 		fts_table,
 		info,
-		"BEGIN DELETE FROM %s WHERE word = :word;");
+		"BEGIN DELETE FROM \"%s\" WHERE word = :word;");
 
 	error = fts_eval_sql(trx, graph);
 
@@ -1791,9 +1811,11 @@ fts_optimize_words(
 		selected = fts_select_index(charset, word->f_str, word->f_len);
 
 		/* Read the index records to optimize. */
+		fetch.total_memory = 0;
 		error = fts_index_fetch_nodes(
 			trx, &graph, &optim->fts_index_table, word,
 			&fetch);
+		ut_ad(fetch.total_memory < fts_result_cache_limit);
 
 		if (error == DB_SUCCESS) {
 			/* There must be some nodes to read. */

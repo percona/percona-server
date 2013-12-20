@@ -248,7 +248,7 @@ Lex_input_stream::reset(char *buffer, unsigned int length)
   m_cpp_utf8_processed_ptr= NULL;
   next_state= MY_LEX_START;
   found_semicolon= NULL;
-  ignore_space= test(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
+  ignore_space= MY_TEST(m_thd->variables.sql_mode & MODE_IGNORE_SPACE);
   stmt_prepare_mode= FALSE;
   multi_statements= TRUE;
   in_comment=NO_COMMENT;
@@ -444,6 +444,7 @@ void lex_start(THD *thd)
   lex->select_lex.order_list.empty();
   if (lex->select_lex.order_list_ptrs)
     lex->select_lex.order_list_ptrs->clear();
+  lex->select_lex.gorder_list.empty();
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
@@ -487,6 +488,7 @@ void lex_start(THD *thd)
   lex->is_change_password= false;
   lex->is_set_password_sql= false;
   lex->mark_broken(false);
+  lex->set_statement= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1940,17 +1942,34 @@ void st_select_lex_node::exclude()
 */
 void st_select_lex_unit::exclude_level()
 {
-  SELECT_LEX_UNIT *units= 0, **units_last= &units;
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  SELECT_LEX_UNIT *units= NULL;
+  SELECT_LEX_UNIT **units_last= &units;
+  SELECT_LEX *sl= first_select();
+  while (sl)
   {
+    SELECT_LEX *next_select= sl->next_select();
+
     // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
 
     // bring up underlay levels
-    SELECT_LEX_UNIT **last= 0;
+    SELECT_LEX_UNIT **last= NULL;
     for (SELECT_LEX_UNIT *u= sl->first_inner_unit(); u; u= u->next_unit())
     {
+      /*
+        We are excluding a SELECT_LEX from the hierarchy of
+        SELECT_LEX_UNITs and SELECT_LEXes. Since this level is
+        removed, we must also exclude the Name_resolution_context
+        belonging to this level. Do this by looping through inner
+        subqueries and changing their contexts' outer context pointers
+        to point to the outer context of the removed SELECT_LEX.
+      */
+      for (SELECT_LEX *s= u->first_select(); s; s= s->next_select())
+      {
+        if (s->context.outer_context == &sl->context)
+          s->context.outer_context= sl->context.outer_context;
+      }
       u->master= master;
       last= (SELECT_LEX_UNIT**)&(u->next);
     }
@@ -1959,6 +1978,12 @@ void st_select_lex_unit::exclude_level()
       (*units_last)= sl->first_inner_unit();
       units_last= last;
     }
+
+    // clean up and destroy join
+    sl->cleanup_level();
+
+    sl->invalidate();
+    sl= next_select;
   }
   if (units)
   {
@@ -1972,10 +1997,16 @@ void st_select_lex_unit::exclude_level()
   else
   {
     // exclude currect unit from list of nodes
-    (*prev)= next;
+    if (prev)
+      (*prev)= next;
     if (next)
       next->prev= prev;
   }
+
+  // clean up fake_select_lex and global_parameters
+  cleanup_level();
+
+  invalidate();
 }
 
 
@@ -1987,8 +2018,11 @@ void st_select_lex_unit::exclude_level()
 */
 void st_select_lex_unit::exclude_tree()
 {
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+  SELECT_LEX *sl= first_select();
+  while (sl)
   {
+    SELECT_LEX *next_select= sl->next_select();
+
     // unlink current level from global SELECTs list
     if (sl->link_prev && (*sl->link_prev= sl->link_next))
       sl->link_next->link_prev= sl->link_prev;
@@ -1998,11 +2032,38 @@ void st_select_lex_unit::exclude_tree()
     {
       u->exclude_level();
     }
+
+    // clean up and destroy join
+    sl->cleanup();
+
+    sl->invalidate();
+    sl= next_select;
   }
   // exclude currect unit from list of nodes
-  (*prev)= next;
+  if (prev)
+    (*prev)= next;
   if (next)
     next->prev= prev;
+
+  // clean up fake_select_lex and global_parameters
+  cleanup();
+
+  invalidate();
+}
+
+
+/**
+  Invalidate by nulling out pointers to other st_select_lex_units and
+  st_select_lexes.
+*/
+void st_select_lex_unit::invalidate()
+{
+  next= NULL;
+  prev= NULL;
+  master= NULL;
+  slave= NULL;
+  link_next= NULL;
+  link_prev= NULL;  
 }
 
 
@@ -2134,6 +2195,21 @@ st_select_lex_unit* st_select_lex::master_unit()
 st_select_lex* st_select_lex::outer_select()
 {
   return (st_select_lex*) master->get_master();
+}
+
+
+/**
+  Invalidate by nulling out pointers to other st_select_lex_units and
+  st_select_lexes.
+*/
+void st_select_lex::invalidate()
+{
+  next= NULL;
+  prev= NULL;
+  master= NULL;
+  slave= NULL;
+  link_next= NULL;
+  link_prev= NULL;  
 }
 
 
@@ -3380,7 +3456,7 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
     /*
       and from local list if it is not empty
     */
-    if ((*link_to_local= test(select_lex.table_list.first)))
+    if ((*link_to_local= MY_TEST(select_lex.table_list.first)))
     {
       select_lex.context.table_list= 
         select_lex.context.first_name_resolution_table= first->next_local;

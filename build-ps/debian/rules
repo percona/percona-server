@@ -304,3 +304,9 @@ override_dh_auto_install:
 
 .PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch
 
+override_dh_installinit:
+	dh_installinit --name=mysql --error-handler=:
+
+override_dh_strip:
+	dh_strip --dbg-package=percona-server-5.5-dbg
+

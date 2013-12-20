@@ -37,6 +37,7 @@ Section: libdevel
 Depends: libperconaserverclient18.1 (= ${binary:Version}), zlib1g-dev, ${misc:Depends}
 Conflicts: libperconaserverclient14-dev, libperconaserverclient12-dev, libperconaserverclient10-dev, libperconaserverclient15-dev, libperconaserverclient16-dev, libmysqlclient-dev, libmysqlclient18-dev, libperconaserverclient18-dev
 Replaces: libperconaserverclient14-dev, libperconaserverclient12-dev, libperconaserverclient10-dev, libperconaserverclient15-dev, libperconaserverclient16-dev, libpercona-xtradb-client-dev, libperconaserverclient18-dev
+Provides: libmysqlclient-dev
 Description: Percona Server database development files
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL 
  database server. SQL (Structured Query Language) is the most popular 

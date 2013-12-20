@@ -1084,6 +1084,11 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/*.so
 
+# ----------------------------------------------------------------------------
+%files -n Percona-Server-shared%{product_suffix}
+%defattr(-, root, root, 0755)
+# Shared libraries (omit for architectures that don't support them)
+%{_libdir}/libperconaserver*.so.*
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la
@@ -1091,12 +1096,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/plugin/libfnv_udf.la
 %{_libdir}/mysql/plugin/libmurmur_udf.a
 %{_libdir}/mysql/plugin/libmurmur_udf.la
-
-# ----------------------------------------------------------------------------
-%files -n Percona-Server-shared%{product_suffix}
-%defattr(-, root, root, 0755)
-# Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libmysql*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
 /sbin/ldconfig

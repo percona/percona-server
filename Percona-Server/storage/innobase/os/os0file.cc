@@ -2477,12 +2477,13 @@ os_file_pread(
 	os_mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
 
-	/* Handle signal interruptions correctly */
+	/* Handle partial reads and signal interruptions correctly */
 	for (n_bytes = 0; n_bytes < (ssize_t) n; ) {
-		n_read = pread(file, buf, (ssize_t)n, offs);
+		n_read = pread(file, buf, (ssize_t)n - n_bytes, offs);
 		if (n_read > 0) {
 			n_bytes += n_read;
 			offs += n_read;
+			buf = (char *)buf + n_read;
 		} else if (n_read == -1 && errno == EINTR) {
 			continue;
 		} else {
@@ -2624,12 +2625,13 @@ os_file_pwrite(
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-	/* Handle signal interruptions correctly */
+	/* Handle partial writes and signal interruptions correctly */
 	for (ret = 0; ret < (ssize_t) n; ) {
-		n_written = pwrite(file, buf, (ssize_t)n, offs);
-		if (n_written > 0) {
+		n_written = pwrite(file, buf, (ssize_t)n - ret, offs);
+		if (n_written >= 0) {
 			ret += n_written;
 			offs += n_written;
+			buf = (char *)buf + n_written;
 		} else if (n_written == -1 && errno == EINTR) {
 			continue;
 		} else {

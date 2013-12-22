@@ -14,7 +14,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: mysql-dfsg-4.1\n"
-"Report-Msgid-Bugs-To: mysql-5.5@packages.debian.org\n"
+"Report-Msgid-Bugs-To: percona-server-5.6@packages.debian.org\n"
 "POT-Creation-Date: 2011-11-08 11:42-0800\n"
 "PO-Revision-Date: 2007-05-30 22:41+0200\n"
 "Last-Translator: Claus Hindsgaul <claus.hindsgaul@gmail.com>\n"
@@ -27,20 +27,20 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 msgid "Really proceed with downgrade?"
 msgstr "Ønsker du virkelig at fortsætte nedgraderingen?"
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
 msgstr ""
 "Der er en fil med navnet  /var/lib/mysql/debian-*.flag på dette system."
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 #, fuzzy
 #| msgid ""
 #| "Such file is an indication that a mysql-server package with a higher "
@@ -54,7 +54,7 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 msgid ""
 "There is no guarantee that the version you're currently installing will be "
 "able to use the current databases."
@@ -64,13 +64,13 @@ msgstr ""
 
 #. Type: note
 #. Description
-#: ../mysql-server-5.5.templates:3001
+#: ../percona-server-5.6.templates:3001
 msgid "Important note for NIS/YP users"
 msgstr "Vigtig oplysning til NIS/YP-brugere"
 
 #. Type: note
 #. Description
-#: ../mysql-server-5.5.templates:3001
+#: ../percona-server-5.6.templates:3001
 msgid ""
 "Using MySQL under NIS/YP requires a mysql user account to be added on the "
 "local system with:"
@@ -78,7 +78,7 @@ msgstr ""
 
 #. Type: note
 #. Description
-#: ../mysql-server-5.5.templates:3001
+#: ../percona-server-5.6.templates:3001
 #, fuzzy
 #| msgid ""
 #| "You should also check the permissions and the owner of the /var/lib/mysql "
@@ -91,13 +91,13 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:4001
+#: ../percona-server-5.6.templates:4001
 msgid "Remove all MySQL databases?"
 msgstr "Fjern alle MySQL-databaser?"
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:4001
+#: ../percona-server-5.6.templates:4001
 msgid ""
 "The /var/lib/mysql directory which contains the MySQL databases is about to "
 "be removed."
@@ -107,7 +107,7 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:4001
+#: ../percona-server-5.6.templates:4001
 msgid ""
 "If you're removing the MySQL package in order to later install a more recent "
 "version or if a different mysql-server package is already using it, the data "
@@ -119,13 +119,13 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:5001
+#: ../percona-server-5.6.templates:5001
 msgid "Start the MySQL server on boot?"
 msgstr "Start MySQL-serveren under systemopstart?"
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:5001
+#: ../percona-server-5.6.templates:5001
 msgid ""
 "The MySQL server can be launched automatically at boot time or manually with "
 "the '/etc/init.d/mysql start' command."
@@ -135,13 +135,13 @@ msgstr ""
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:6001
+#: ../percona-server-5.6.templates:6001
 msgid "New password for the MySQL \"root\" user:"
 msgstr "Ny adgangskode for MySQL's \"root\"-bruger:"
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:6001
+#: ../percona-server-5.6.templates:6001
 msgid ""
 "While not mandatory, it is highly recommended that you set a password for "
 "the MySQL administrative \"root\" user."
@@ -151,7 +151,7 @@ msgstr ""
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:6001
+#: ../percona-server-5.6.templates:6001
 #, fuzzy
 #| msgid "If that field is left blank, the password will not be changed."
 msgid "If this field is left blank, the password will not be changed."
@@ -159,7 +159,7 @@ msgstr "Hvis du lader dette felt stå tomt, vil adgangskoden ikke blive ændret."
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:7001
+#: ../percona-server-5.6.templates:7001
 #, fuzzy
 #| msgid "New password for the MySQL \"root\" user:"
 msgid "Repeat password for the MySQL \"root\" user:"
@@ -167,13 +167,13 @@ msgstr "Ny adgangskode for MySQL's \"root\"-bruger:"
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 msgid "Unable to set password for the MySQL \"root\" user"
 msgstr "Kunne ikke sætte adgangskoden for MySQL's \"root\"-bruger"
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 msgid ""
 "An error occurred while setting the password for the MySQL administrative "
 "user. This may have happened because the account already has a password, or "
@@ -186,47 +186,47 @@ msgstr ""
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 msgid "You should check the account's password after the package installation."
 msgstr "Du bør tjekke kontoens adgangskode efter pakkeinstallationen."
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 #, fuzzy
 #| msgid ""
-#| "Please read the /usr/share/doc/mysql-server-5.5/README.Debian file for "
+#| "Please read the /usr/share/doc/percona-server-5.6/README.Debian file for "
 #| "more information."
 msgid ""
-"Please read the /usr/share/doc/mysql-server-5.5/README.Debian file for more "
+"Please read the /usr/share/doc/percona-server-5.6/README.Debian file for more "
 "information."
 msgstr ""
-"Se filen /usr/share/doc/mysql-server-5.5/README.Debian for yderligere "
+"Se filen /usr/share/doc/percona-server-5.6/README.Debian for yderligere "
 "oplysninger."
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:9001
+#: ../percona-server-5.6.templates:9001
 msgid "Password input error"
 msgstr ""
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:9001
+#: ../percona-server-5.6.templates:9001
 msgid "The two passwords you entered were not the same. Please try again."
 msgstr ""
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:10001
+#: ../percona-server-5.6.templates:10001
 msgid "NDB Cluster seems to be in use"
 msgstr ""
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:10001
+#: ../percona-server-5.6.templates:10001
 msgid ""
-"MySQL-5.5 no longer provides NDB Cluster support. Please migrate to the new "
+"Percona-Server-5.6 no longer provides NDB Cluster support. Please migrate to the new "
 "mysql-cluster-server package and remove all lines starting with \"ndb\" from "
 "all config files below /etc/mysql/."
 msgstr ""
@@ -245,14 +245,14 @@ msgstr ""
 #~ "Recent versions of MySQL can no longer use the old ISAM table format and "
 #~ "it is necessary to convert your tables to e.g. MyISAM before upgrading by "
 #~ "using \"mysql_convert_table_format\" or \"ALTER TABLE x ENGINE=MyISAM\". "
-#~ "The installation of mysql-server-5.5 will now abort. In case your old "
+#~ "The installation of percona-server-5.6 will now abort. In case your old "
 #~ "mysql-server-4.1 gets removed nevertheless just reinstall it to convert "
 #~ "those tables."
 #~ msgstr ""
 #~ "Nyere versioner af MySQL kan ikke længere benytte det gamle ISAM-"
 #~ "tabelformat, og det er derfor nødvendigt at konvertere dine tabeller til "
 #~ "f.eks. MyISAM forud for opgraderingen med \"mysql_convert_table_format\" "
-#~ "eller \"ALTER TABLE x ENGINE=MyISAM\". Installationen af mysql-server-5.5 "
+#~ "eller \"ALTER TABLE x ENGINE=MyISAM\". Installationen af percona-server-5.6 "
 #~ "afbrydes nu. Skulle din gamle mysql-server-4.1 alligevel bliver "
 #~ "afinstalleret, så geninstallér den blot og konverter tabellerne."
 

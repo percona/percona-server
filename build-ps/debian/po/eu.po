@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: eu\n"
-"Report-Msgid-Bugs-To: mysql-5.5@packages.debian.org\n"
+"Report-Msgid-Bugs-To: percona-server-5.6@packages.debian.org\n"
 "POT-Creation-Date: 2011-11-08 11:42-0800\n"
 "PO-Revision-Date: 2009-07-29 11:59+0200\n"
 "Last-Translator: Piarres Beobide <pi@beobide.net>\n"
@@ -20,19 +20,19 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 msgid "Really proceed with downgrade?"
 msgstr "Benetan bertsio zaharragora itzuli nahi duzu?"
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
 msgstr "Sisteman badago /var/lib/mysql/debian-*.flag izeneko fitxategi bat."
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 #, fuzzy
 #| msgid ""
 #| "Such file is an indication that a mysql-server package with a higher "
@@ -46,7 +46,7 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:2001
+#: ../percona-server-5.6.templates:2001
 msgid ""
 "There is no guarantee that the version you're currently installing will be "
 "able to use the current databases."
@@ -56,13 +56,13 @@ msgstr ""
 
 #. Type: note
 #. Description
-#: ../mysql-server-5.5.templates:3001
+#: ../percona-server-5.6.templates:3001
 msgid "Important note for NIS/YP users"
 msgstr "NIS/YP erabiltzaileentzat ohar garrantzitsua"
 
 #. Type: note
 #. Description
-#: ../mysql-server-5.5.templates:3001
+#: ../percona-server-5.6.templates:3001
 msgid ""
 "Using MySQL under NIS/YP requires a mysql user account to be added on the "
 "local system with:"
@@ -70,7 +70,7 @@ msgstr ""
 
 #. Type: note
 #. Description
-#: ../mysql-server-5.5.templates:3001
+#: ../percona-server-5.6.templates:3001
 #, fuzzy
 #| msgid ""
 #| "You should also check the permissions and the owner of the /var/lib/mysql "
@@ -84,13 +84,13 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:4001
+#: ../percona-server-5.6.templates:4001
 msgid "Remove all MySQL databases?"
 msgstr "Ezabatu MySQL datubase guztiak?"
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:4001
+#: ../percona-server-5.6.templates:4001
 msgid ""
 "The /var/lib/mysql directory which contains the MySQL databases is about to "
 "be removed."
@@ -98,7 +98,7 @@ msgstr "MySQL datubaseak dituen /var/lib/mysql direktorioa ezabatua izango da."
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:4001
+#: ../percona-server-5.6.templates:4001
 msgid ""
 "If you're removing the MySQL package in order to later install a more recent "
 "version or if a different mysql-server package is already using it, the data "
@@ -110,13 +110,13 @@ msgstr ""
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:5001
+#: ../percona-server-5.6.templates:5001
 msgid "Start the MySQL server on boot?"
 msgstr "Abioan MySQL zerbitzaria abiarazi?"
 
 #. Type: boolean
 #. Description
-#: ../mysql-server-5.5.templates:5001
+#: ../percona-server-5.6.templates:5001
 msgid ""
 "The MySQL server can be launched automatically at boot time or manually with "
 "the '/etc/init.d/mysql start' command."
@@ -126,13 +126,13 @@ msgstr ""
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:6001
+#: ../percona-server-5.6.templates:6001
 msgid "New password for the MySQL \"root\" user:"
 msgstr "MySQL \"root\" erabiltzailearen pasahitz berria:"
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:6001
+#: ../percona-server-5.6.templates:6001
 msgid ""
 "While not mandatory, it is highly recommended that you set a password for "
 "the MySQL administrative \"root\" user."
@@ -142,7 +142,7 @@ msgstr ""
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:6001
+#: ../percona-server-5.6.templates:6001
 #, fuzzy
 #| msgid "If that field is left blank, the password will not be changed."
 msgid "If this field is left blank, the password will not be changed."
@@ -150,19 +150,19 @@ msgstr "Eremua hau zurian utziaz gero ez da pasahitza aldatuko."
 
 #. Type: password
 #. Description
-#: ../mysql-server-5.5.templates:7001
+#: ../percona-server-5.6.templates:7001
 msgid "Repeat password for the MySQL \"root\" user:"
 msgstr "Errepikatu MySQL \"root\" erabiltzailearen pasahitza:"
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 msgid "Unable to set password for the MySQL \"root\" user"
 msgstr "Ezin da MySQL \"root\" erabiltzailearen pasahitza ezarri"
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 msgid ""
 "An error occurred while setting the password for the MySQL administrative "
 "user. This may have happened because the account already has a password, or "
@@ -174,57 +174,57 @@ msgstr ""
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 msgid "You should check the account's password after the package installation."
 msgstr ""
 "Kontuaren pasahitza egiaztatu beharko zenuke paketea instalatu aurretik."
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:8001
+#: ../percona-server-5.6.templates:8001
 #, fuzzy
 #| msgid ""
-#| "Please read the /usr/share/doc/mysql-server-5.5/README.Debian file for "
+#| "Please read the /usr/share/doc/percona-server-5.6/README.Debian file for "
 #| "more information."
 msgid ""
-"Please read the /usr/share/doc/mysql-server-5.5/README.Debian file for more "
+"Please read the /usr/share/doc/percona-server-5.6/README.Debian file for more "
 "information."
 msgstr ""
-"Mesedez irakurri /usr/share/doc/mysql-server-5.5/README.Debian fitxategia "
+"Mesedez irakurri /usr/share/doc/percona-server-5.6/README.Debian fitxategia "
 "xehetasun gehiagorako."
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:9001
+#: ../percona-server-5.6.templates:9001
 msgid "Password input error"
 msgstr "Pasahitz sarrera errorea"
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:9001
+#: ../percona-server-5.6.templates:9001
 msgid "The two passwords you entered were not the same. Please try again."
 msgstr "Idatzi dituzun bi pasahitzak ez dira berdina. Mesedez saiatu berriz."
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:10001
+#: ../percona-server-5.6.templates:10001
 msgid "NDB Cluster seems to be in use"
 msgstr "Dirudienez NDB Cluster-a erabilia dago"
 
 #. Type: error
 #. Description
-#: ../mysql-server-5.5.templates:10001
+#: ../percona-server-5.6.templates:10001
 #, fuzzy
 #| msgid ""
-#| "MySQL-5.5 has orphaned NDB Cluster support. Please migrate to the new "
+#| "Percona-Server-5.6 has orphaned NDB Cluster support. Please migrate to the new "
 #| "mysql-cluster package and remove all lines starting with \"ndb\" from all "
 #| "config files below /etc/mysql/."
 msgid ""
-"MySQL-5.5 no longer provides NDB Cluster support. Please migrate to the new "
+"Percona-Server-5.6 no longer provides NDB Cluster support. Please migrate to the new "
 "mysql-cluster-server package and remove all lines starting with \"ndb\" from "
 "all config files below /etc/mysql/."
 msgstr ""
-"MySQL-5.5-ek NDB cluster euskarri umezurtz bat behar du. Mesedez migratu "
+"Percona-Server-5.6-ek NDB cluster euskarri umezurtz bat behar du. Mesedez migratu "
 "mysql-cluster pakete berrira eta /etc/mysql/ azpiko konfigurazio fitxategi "
 "guztietan \"ndb\"-ez hasten diren lerro guztiak ezabatu."
 

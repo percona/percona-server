@@ -209,13 +209,13 @@ install: build
 	#FIXME install -m 0644 debian/additions/innotop/innotop.1 $(TMP)/usr/share/man/man1/
 
 	# mysql-server
-	mkdir -p $(TMP)/usr/share/doc/percona-server-5.5/examples
-	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.5/examples/
+	mkdir -p $(TMP)/usr/share/doc/percona-server-5.6/examples
+	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.6/examples/
 	rm -vf $(TMP)/usr/share/percona-server/mi_test_all* \
 	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
 	       $(TMP)/usr/share/percona-server/mysql.server \
 	       $(TMP)/usr/share/percona-server/binary-configure
-	nm -n $(builddir)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.5/mysqld.sym.gz
+	nm -n $(builddir)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.6/mysqld.sym.gz
 	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
 	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
@@ -223,16 +223,12 @@ install: build
 	# install AppArmor profile
 	# FIXME install -D -m 644 debian/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
 	# install Apport hook
-	# FIXME install -D -m 644 debian/mysql-server-5.5.py $(TMP)/usr/share/apport/package-hooks/source_mysql-5.5.py
+	# FIXME install -D -m 644 debian/mysql-server-5.6.py $(TMP)/usr/share/apport/package-hooks/source_mysql-5.6.py
 
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
 
 	# Work around MySQL bug 71113, x bit set on example configs
-	chmod -x $(TMP)/usr/share/mysql/config.medium.ini
-	chmod -x $(TMP)/usr/share/mysql/ndb-config-2-node.ini
-	chmod -x $(TMP)/usr/share/mysql/config.huge.ini
 	chmod -x $(TMP)/usr/share/mysql/mysql-log-rotate
-	chmod -x $(TMP)/usr/share/mysql/config.small.ini
 
 	dh_movefiles
 
@@ -272,7 +268,7 @@ binary-arch: build install
 	dh_installmenu -a
 	dh_installlogrotate -a --name mysql-server
 	if [ "$(DISTRIBUTION)" = "Ubuntu" ]; then \
-	  dh_apparmor -pmysql-server-5.5 --profile-name=usr.sbin.mysqld; \
+	  dh_apparmor -pmysql-server-5.6 --profile-name=usr.sbin.mysqld; \
 	fi
 	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
 	# started which might depend on a running database server.
@@ -286,8 +282,7 @@ binary-arch: build install
 	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
 	dh_compress -a
 	dh_fixperms -a
-	#dh_makeshlibs -a
-	dh_makeshlibs -plibmysqlclient18 -V'libmysqlclient18 (>= 5.5.13-1)'
+	dh_makeshlibs -a
 	dh_installdeb -a
 	dh_perl -a
 	#dh_shlibdeps -a -l debian/libmysqlclient16/usr/lib -L libmysqlclient16
@@ -308,5 +303,5 @@ override_dh_installinit:
 	dh_installinit --name=mysql --error-handler=:
 
 override_dh_strip:
-	dh_strip --dbg-package=percona-server-5.5-dbg
+	dh_strip --dbg-package=percona-server-5.6-dbg
 

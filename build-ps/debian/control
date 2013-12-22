@@ -79,7 +79,7 @@ Description: Percona Server database client binaries
 Package: percona-server-server-5.6
 Architecture: any
 Suggests: tinyca
-Pre-Depends: percona-server-common-5.5 (>= ${source:Version}), adduser (>= 3.4.0), debconf
+Pre-Depends: percona-server-common-5.6 (>= ${source:Version}), adduser (>= 3.4.0), debconf
 Depends: percona-server-client-5.6 (>= ${source:Version}), libdbi-perl, libdbd-mysql-perl, perl (>= 5.6), ${shlibs:Depends}, ${misc:Depends}, psmisc, passwd, lsb-base (>= 3.0-10), percona-server-common-5.6 (>= ${source:Version}), adduser (>= 3.40), debconf
 Conflicts: mysql-server, mysql-server-4.1, mysql-server-core-5.1, percona-xtradb-server-5.0, percona-server-server-5.1, percona-server-server-5.5
 Provides: mysql-server

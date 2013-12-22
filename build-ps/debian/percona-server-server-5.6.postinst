@@ -264,7 +264,7 @@ echo -e " * Run the following commands to create these functions:\n"
 echo -e "\tmysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
 echo -e "\tmysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
 echo -e "\tmysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
-echo -e "\n * See http://www.percona.com/doc/percona-server/5.5/management/udf_percona_toolkit.html for more details\n\n"
+echo -e "\n * See http://www.percona.com/doc/percona-server/5.6/management/udf_percona_toolkit.html for more details\n\n"
 #
 db_stop # in case invoke failes
 

@@ -5204,6 +5204,7 @@ os_aio_linux_handle(
 	segment = os_aio_get_array_and_local_segment(&array, global_seg);
 	n = array->n_slots / array->n_segments;
 
+ wait_for_event:
 	/* Loop until we have found a completed request. */
 	for (;;) {
 		ibool	any_reserved = FALSE;
@@ -5266,6 +5267,41 @@ found:
 	if (slot->ret == 0 && slot->n_bytes == (long) slot->len) {
 
 		ret = TRUE;
+	} else if ((slot->ret == 0) && (slot->n_bytes > 0)
+		   && (slot->n_bytes < (long) slot->len)) {
+		/* Partial read or write scenario */
+		int submit_ret;
+		struct iocb*    iocb;
+		slot->buf = (byte*)slot->buf + slot->n_bytes;
+		slot->offset = slot->offset + slot->n_bytes;
+		slot->len = slot->len - slot->n_bytes;
+		/* Resetting the bytes read/written */
+		slot->n_bytes = 0;
+		slot->io_already_done = FALSE;
+		iocb = &(slot->control);
+
+		if (slot->type == OS_FILE_READ) {
+			io_prep_pread(&slot->control, slot->file, slot->buf,
+				      slot->len, (off_t) slot->offset);
+		} else {
+			ut_a(slot->type == OS_FILE_WRITE);
+			io_prep_pwrite(&slot->control, slot->file, slot->buf,
+				       slot->len, (off_t) slot->offset);
+		}
+		/* Resubmit an I/O request */
+		submit_ret = io_submit(array->aio_ctx[segment], 1, &iocb);
+		if (submit_ret < 0 ) {
+			/* Aborting in case of submit failure */
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Native Linux AIO interface. io_submit()"
+				" call failed when resubmitting a partial"
+				" I/O request on the file %s.",
+				slot->name);
+		} else {
+			ret = FALSE;
+			os_mutex_exit(array->mutex);
+			goto wait_for_event;
+		}
 	} else {
 		errno = -slot->ret;
 

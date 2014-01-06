@@ -3496,7 +3496,7 @@ buf_page_init_for_read(
 	prio_rw_lock_t*	hash_lock;
 	mtr_t		mtr;
 	ulint		fold;
-	ibool		lru	= FALSE;
+	ibool		lru;
 	void*		data;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
@@ -3575,7 +3575,6 @@ err_exit:
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
 		mutex_exit(&buf_pool->LRU_list_mutex);
-		lru = TRUE;
 
 		/* We set a pass-type x-lock on the frame because then
 		the same thread which called for the read operation
@@ -3626,28 +3625,24 @@ err_exit:
 
 		rw_lock_x_lock(hash_lock);
 
-		/* If buf_buddy_alloc() allocated storage from the LRU list,
-		it released and reacquired buf_pool->LRU_list_mutex.  Thus, we
-		must check the page_hash again, as it may have been
+		/* We must check the page_hash again, as it may have been
 		modified. */
-		if (UNIV_UNLIKELY(lru)) {
 
-			watch_page = buf_page_hash_get_low(
+		watch_page = buf_page_hash_get_low(
 				buf_pool, space, offset, fold);
 
-			if (UNIV_UNLIKELY(watch_page
+		if (UNIV_UNLIKELY(watch_page
 			    && !buf_pool_watch_is_sentinel(buf_pool,
 							   watch_page))) {
 
-				/* The block was added by some other thread. */
-				mutex_exit(&buf_pool->LRU_list_mutex);
-				rw_lock_x_unlock(hash_lock);
-				watch_page = NULL;
-				buf_buddy_free(buf_pool, data, zip_size);
+			/* The block was added by some other thread. */
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			rw_lock_x_unlock(hash_lock);
+			watch_page = NULL;
+			buf_buddy_free(buf_pool, data, zip_size);
 
-				bpage = NULL;
-				goto func_exit;
-			}
+			bpage = NULL;
+			goto func_exit;
 		}
 
 		bpage = buf_page_alloc_descriptor();

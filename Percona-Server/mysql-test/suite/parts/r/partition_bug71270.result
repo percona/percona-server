@@ -1,0 +1,8 @@
+SET debug="+d,ha_partition_end_bulk_insert_fail";
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=InnoDB PARTITION BY HASH (id) PARTITIONS 2;
+INSERT INTO t2 SELECT * FROM t1;
+ERROR HY000: Got error 1 from storage engine
+DROP TABLE t1, t2;
+SET debug=default;

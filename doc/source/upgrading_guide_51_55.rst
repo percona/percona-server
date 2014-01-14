@@ -385,7 +385,7 @@ Then, download the following packages for your architecture:
 
   * ``percona-server-common-5.5``
 
-  * ``libmysqlclient16``
+  * ``libperconaserverclient16``
 
 At the moment of writing this guide, for *Ubuntu* Maverick on ``i686``, a way of doing this is: ::
 

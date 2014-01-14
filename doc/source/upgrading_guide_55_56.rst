@@ -129,7 +129,7 @@ Then, download the following packages for your architecture:
 
   * ``percona-server-common-5.6``
 
-  * ``libmysqlclient18``
+  * ``libperconaserverclient18``
 
 At the moment of writing this guide, for *Ubuntu* 12.04LTS on ``x86_64``, a way of doing this is: ::
 

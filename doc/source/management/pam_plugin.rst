@@ -6,7 +6,7 @@
 
 Percona PAM Authentication Plugin is a free and Open Source implementation of the |MySQL|'s authentication plugin. This plugin acts as a mediator between the |MySQL| server, the |MySQL| client, and the PAM stack. The server plugin requests authentication from the PAM stack, forwards any requests and messages from the PAM stack over the wire to the client (in cleartext) and reads back any replies for the PAM stack.
 
- PAM plugin uses dialog as its client side plugin. Dialog plugin can be loaded to any client application that uses :file:`libmysqlclient` library.
+ PAM plugin uses dialog as its client side plugin. Dialog plugin can be loaded to any client application that uses :file:`libperconaserverclient`/:file:`libperconaserverclient` library.
 
 Here are some of the benefits that Percona dialog plugin offers over the default one:
 

@@ -6,7 +6,7 @@
 
 Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
-Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_, including:
+Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_, including:
 
  * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
 
@@ -147,63 +147,9 @@ Fetch and extract the source tarball. For example: ::
   $ wget http://www.percona.com/redir/downloads/Percona-Server-5.6/LATEST/source/Percona-Server-5.6.6-alpha60.1.tar.gz
   $ tar xfz Percona-Server-5.6.6-alpha60.1.tar.gz
 
-Next, run :program:`cmake` to configure the build. Here you can specify all the normal
-build options as you do for a normal |MySQL| build. Depending on what
-options you wish to compile Percona Server with, you may need other
-libraries installed on your system. Here is an example using a
-configure line similar to the options that Percona uses to produce
-binaries: ::
+Next, follow the instructions in :ref:`compile_from_source` below.
 
-  $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
-
-Now, compile using make ::
-
-  $ make
-
-Install: ::
-
-  $ make install
-
-===================================================
- Installing |Percona Server| from a Binary Tarball
-===================================================
-
-Fetch and extract the binary tarball. For example: ::
-
- $ wget http://www.percona.com/redir/downloads/Percona-Server-5.6/LATEST/binary/linux/x86_64/Percona-Server-5.6.13-rc60.6-427.Linux.x86_64.tar.gz
- $ xzfv Percona-Server-5.6.13-rc60.6-427.Linux.x86_64.tar.gz 
-
-After that you need to add/create ``mysql`` user and group: ::
-
- $ groupadd mysql
- $ useradd -r -g mysql mysql
-
-Now create a symlink from the extracted folder to the ``/usr/local`` folder: :: 
-
- $ cd /usr/local/
- $ ln -s /usr/local/Percona-Server-5.6.13-rc60.6-427.Linux.x86_64 mysql
-
-Change the ownership of the folder to ``mysql`` user: ::
-
- $ chown mysql:mysql -R mysql/
-
-And run the ``mysql_install_db`` script, which will initialize the |MySQL| data directory, create the system tables that it contains, and create the default configuration file :file:`my.cnf`. Make sure that this configuration file has correct information. ::
-
- $ cd mysql
- $ scripts/mysql_install_db --user=mysql 
-
-Directory ownership can be assigned to the ``root`` user, except the data directory which should be under the ``mysql`` user: ::
-
- $ chown -R root .
- $ chown -R mysql data
-
-After this is successfully done server can be started with: ::
-
- $ bin/mysqld_safe --user=mysql &
-
-.. note::
-
-   The binary tarball on RHEL 6-like OS depends on OpenSSL 0.9.8e being installed, available in openssl098e package, which is side-by-side installable with openssl 1.0.
+.. _source-from-bzr
 
 =========================================================
  Installing |Percona Server| from the Bazaar Source Tree
@@ -225,20 +171,82 @@ talk about building the latest |Percona Server| 5.6 development tree. ::
   $ cd ~/percona-server
   $ bzr branch lp:percona-server/5.6
 
-You can now change into the 5.6 directory and build |Percona Server| 5.6: ::
+Fetching all the history of Percona Server 5.6 may take a long time,
+up to 20 or 30 minutes is not uncommon.
 
-  $ make
+If you are going to be making changes to Percona Server 5.6 and wanting
+to distribute the resulting work, you can generate a new source tarball
+(exactly the same way as we do for release): ::
 
-This will fetch the upstream |MySQL| source tarball and apply the
-|Percona Server| patches to it. If you have the quilt utility installed,
-it will use it to apply the patches, otherwise it will just use the
-standard patch utility. You will then have a directory named
-Percona-Server that is ready to run the configure script and
-build. ::
+  $ cmake .
+  $ make dist
+
+Next, follow the instructions in :ref:`compile_from_source` below.
+
+.. _compile_from_source:
+
+=======================================
+ Compiling |Percona Server| from Source
+=======================================
+
+After either fetching the source repository or extracting a source tarball
+(from Percona or one you generated yourself), you will now need to
+configure and build Percona Server.
+
+First, run cmake to configure the build. Here you can specify all the normal
+build options as you do for a normal |MySQL| build. Depending on what
+options you wish to compile Percona Server with, you may need other
+libraries installed on your system. Here is an example using a
+configure line similar to the options that Percona uses to produce
+binaries: ::
 
   $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
+
+Now, compile using make ::
+
   $ make
+
+Install: ::
+
   $ make install
+
+Percona Server 5.6 will now be installed on your system.
+
+=================================================
+ Building |Percona Server| Debian/Ubuntu packages
+=================================================
+
+If you wish to build your own Percona Server Debian/Ubuntu (dpkg) packages,
+you first need to start with a source tarball, either from the Percona
+website or by generating your own by following the instructions above(
+:ref:`source-from-bzr`).
+
+Extract the source tarball: ::
+
+  $ tar xfz percona-server-5.6.15-62.0.tar.gz
+  $ cd percona-server-5.6.15-62.0
+
+Put the debian packaging in the directory that Debian expects it to be in: ::
+
+  $ cp -ap build-ps/debian debian
+
+Update the changelog for your distribution (here we update for the unstable
+distribution - sid), setting the version number appropriately. The trailing one
+in the version number is the revision of the Debian packaging. ::
+
+  $ dch -D unstable --force-distribution -v "5.6.15-62.0-1" "Update to 5.6.15-62.0"
+
+Build the Debian source package: ::
+
+  $ dpkg-buildpackage -S
+
+Use sbuild to build the binary package in a chroot: ::
+
+  $ sbuild -d sid percona-server-5.6_5.6.15_62.0-1.dsc
+
+You can give different distribution options to dch and sbuild to build binary
+packages for all Debian and Ubuntu releases.
+
 
 .. note::
 

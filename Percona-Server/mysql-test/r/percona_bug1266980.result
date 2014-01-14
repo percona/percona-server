@@ -1,0 +1,5 @@
+SELECT GROUP_CONCAT(1, 2 ORDER BY 1, , );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' )' at line 1
+SELECT GROUP_CONCAT(1, 2 ORDER BY 1);
+GROUP_CONCAT(1, 2 ORDER BY 1)
+12

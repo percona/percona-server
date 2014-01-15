@@ -103,6 +103,7 @@ endif
 	    -DWITH_ARCHIVE_STORAGE_ENGINE=ON \
 	    -DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 	    -DWITH_FEDERATED_STORAGE_ENGINE=ON \
+            -DWITH_PAM=ON \
 		-DWITH_EXTRA_CHARSETS=all ..'
 		
 	#       --sysconfdir=/etc/mysql  -- Appends /etc/mysql after ~/ in the my.cnf search patch!

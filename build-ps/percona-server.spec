@@ -1148,14 +1148,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/libhsclient.la
 %{_libdir}/*.so
 
-<<<<<<< TREE
-# ----------------------------------------------------------------------------
-%files -n Percona-Server-shared%{product_suffix}
-%defattr(-, root, root, 0755)
-# Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libperconaserver*.so.*
-=======
->>>>>>> MERGE-SOURCE
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la
@@ -1168,7 +1160,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %files -n Percona-Server-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libmysql*.so.*
+%{_libdir}/libperconaserver*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
 /sbin/ldconfig

@@ -274,18 +274,20 @@ public:
             const char *log_name,
             enum_log_type log_type,
             const char *new_name,
-            enum cache_type io_cache_type_arg);
+            enum cache_type io_cache_type_arg,
+            bool unique);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name,
                                   enum_log_type log_type_arg,
-                                  enum cache_type io_cache_type_arg);
+                                  enum cache_type io_cache_type_arg,
+                                  bool unique);
   void init(enum_log_type log_type_arg,
             enum cache_type io_cache_type_arg);
   void close(uint exiting);
   inline bool is_open() { return log_state != LOG_CLOSED; }
   const char *generate_name(const char *log_name, const char *suffix,
                             bool strip_ext, char *buff);
-  int generate_new_name(char *new_name, const char *log_name);
+  int generate_new_name(char *new_name, const char *log_name, bool unique);
  protected:
   /* LOCK_log is inited by init_pthread_objects() */
   mysql_mutex_t LOCK_log;
@@ -298,12 +300,14 @@ public:
   volatile enum_log_state log_state;
   enum cache_type io_cache_type;
   friend class Log_event;
+  ulong cur_log_ext;
 #ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
   /** The instrumentation key to use for @ LOCK_log. */
   PSI_mutex_key m_key_LOCK_log;
 #endif
+  int purge_up_to(ulong to_ext, const char *log_name);
 };
 
 
@@ -358,7 +362,7 @@ public:
                 key_file_slow_log,
 #endif
                 generate_name(log_name, "-slow.log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE);
+                LOG_NORMAL, 0, WRITE_CACHE, max_slowlog_size > 0);
   }
   bool open_query_log(const char *log_name)
   {
@@ -368,8 +372,10 @@ public:
                 key_file_query_log,
 #endif
                 generate_name(log_name, ".log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE);
+                LOG_NORMAL, 0, WRITE_CACHE, false);
   }
+  int rotate(ulong max_size, bool *need_purge);
+  int new_file();
 
 private:
   time_t last_time;

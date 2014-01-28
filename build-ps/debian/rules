@@ -32,10 +32,11 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 EXPORTED_SOURCE_TARBALL = debian/percona-server-source-5.5.tar.gz
 
 DISTRIBUTION = $(shell lsb_release -i -s)
+DISTRELEASE = $(shell lsb_release -sc)
 
 MYSQL_SRC = $(shell pwd)
 
-MAKE_TEST_TARGET=test-force
+#MAKE_TEST_TARGET=test-mtr
 ifneq ($(findstring fulltest,$(DEB_BUILD_OPTIONS)),)
 # make test-bt is the testsuite run by the MySQL build team 
 # before a release, but it is long
@@ -91,7 +92,7 @@ endif
 		-DWITH_LIBEDIT=OFF \
 		$(USE_STATIC_MYSQLD) \
 		$(USE_LINUX_NATIVE_AIO) \
-		-DWITH_SSL=bundled \
+		-DWITH_SSL=system \
 	    -DCOMPILATION_COMMENT="($(DISTRIBUTION))" \
 	    -DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
 	    -DSYSTEM_TYPE="debian-linux-gnu" \
@@ -273,9 +274,7 @@ binary-arch: build install
 	dh_installexamples -a
 	dh_installmenu -a
 	dh_installlogrotate -a --name mysql-server
-	if [ "$(DISTRIBUTION)" = "Ubuntu" ]; then \
-	  dh_apparmor -pmysql-server-5.5 --profile-name=usr.sbin.mysqld; \
-	fi
+	if [ "$(DISTRIBUTION)" = "Ubuntu" ]; then if [ "$(DISTRELEASE)"  != "lucid"]; then dh_apparmor -pmysql-server-5.5 --profile-name=usr.sbin.mysqld; fi; fi	
 	# Start mysql in runlevel 19 before 20 where apache, proftpd etc gets
 	# started which might depend on a running database server.
 	dh_installinit -a --name=mysql -- defaults 19 21

@@ -25,17 +25,15 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.5.34
+%define mysql_version 5.5.35
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 32
-%define minorversion 0
-%define percona_server_version	%{majorversion}.%{minorversion}
+%define percona_server_version 33.1
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{majorversion}.%{minorversion}.1%{?dist}
+%define release         rel%{percona_server_version}.1%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -98,10 +96,10 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{percona_server_version}, Revision %{gotrevision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release rel%{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release rel%{percona_server_version}, Revision %{gotrevision}
 %endif
 
 # ----------------------------------------------------------------------------
@@ -116,7 +114,7 @@
   %endif
 %endif
 
-%define server_suffix -%{majorversion}.%{minorversion}
+%define server_suffix -%{percona_server_version}
 %if %{undefined server_suffix}
 %define server_suffix   %{nil}
 %endif
@@ -226,7 +224,7 @@ Version:        %{mysql_version}
 Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
-Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{majorversion}.%{minorversion}/source/%{src_dir}.tar.gz
+Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 Patch1:         mysql-dubious-exports.patch
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
@@ -381,10 +379,12 @@ touch optional-files-devel
 %if "%{_arch}" == "ia64"
 RPM_OPT_FLAGS=
 %endif
-
+#
+RPM_OPT_FLAGS=$(echo ${RPM_OPT_FLAGS} | sed -e 's|-march=i386|-march=i686|g')
+#
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
@@ -1146,7 +1146,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libhsclient.a
 %{_libdir}/libhsclient.la
-%{_libdir}/*.so
 
 # Maatkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
@@ -1160,7 +1159,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %files -n Percona-Server-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libperconaserver*.so.*
+%{_libdir}/libperconaserver*.so*
 
 %post -n Percona-Server-shared%{product_suffix}
 /sbin/ldconfig

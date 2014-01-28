@@ -232,8 +232,7 @@ MACRO (MYSQL_CHECK_SSL)
       MYSQL_USE_BUNDLED_SSL()
     ENDIF()
   ELSE()
-    MESSAGE(SEND_ERROR
-      "Wrong option for WITH_SSL. Valid values are : "${WITH_SSL_DOC})
+    MESSAGE(SEND_ERROR "Wrong option for WITH_SSL. Valid values are: " ${WITH_SSL_DOC})
   ENDIF()
 ENDMACRO()
 

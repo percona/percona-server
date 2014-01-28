@@ -25,17 +25,15 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version   5.6.15
+%define mysql_version @@MYSQL_VERSION@@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define majorversion 62
-%define minorversion 0
-%define percona_server_version	%{majorversion}.%{minorversion}
+%define percona_server_version @@PERCONA_VERSION@@
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{majorversion}.%{minorversion}.1%{?dist}
+%define release         rel%{percona_server_version}.1%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -227,7 +225,7 @@ Version:        %{mysql_version}
 Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
-Source:         http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{mysql_version}-%{majorversion}.%{minorversion}/source/%{src_dir}.tar.gz
+Source:         http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -364,10 +362,12 @@ touch optional-files-devel
 %if "%{_arch}" == "ia64"
 RPM_OPT_FLAGS=
 %endif
-
+#
+RPM_OPT_FLAGS=$(echo ${RPM_OPT_FLAGS} | sed -e 's|-march=i386|-march=i686|g')
+#
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
@@ -463,33 +463,11 @@ RBR=$RPM_BUILD_ROOT
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
 
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
-# needs to be during build phase as $CC is not set during install.
-if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    mkdir -p $RBR%{_libdir}/mysql
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-  fi
-fi
-
-# Move temporarily the saved files to the BUILD directory since the BUILDROOT
-# dir will be cleaned at the start of the install phase
-mkdir -p "$RPM_BUILD_DIR/%{_libdir}"
-mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
-
 ##############################################################################
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}%{server_suffix}
-
-# Move back the libdir from BUILD dir to BUILDROOT
-mkdir -p "$RBR%{_libdir}"
-mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
+MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}-%{percona_server_version}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
@@ -516,6 +494,19 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR install
 )
+
+# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
+# needs to be during build phase as $CC is not set during install.
+if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
+then
+  libgcc=`$CC $CFLAGS --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    mkdir -p $RBR%{_libdir}/mysql
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
+  fi
+fi
 
 # FIXME: at some point we should stop doing this and just install everything
 # FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming

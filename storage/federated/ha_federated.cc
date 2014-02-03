@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -902,7 +902,7 @@ error:
 ha_federated::ha_federated(handlerton *hton,
                            TABLE_SHARE *table_arg)
   :handler(hton, table_arg),
-  mysql(0), last_result(0), position_called(false)
+  mysql(0), stored_result(0)
 {
   trx_next= 0;
   bzero(&bulk_insert, sizeof(bulk_insert));
@@ -1655,7 +1655,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
   ref_length= sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
-  my_init_dynamic_array(&stored_results, sizeof(MYSQL_RES *), 4, 4);
+  my_init_dynamic_array(&results, sizeof(MYSQL_RES *), 4, 4);
   reset();
 
   DBUG_RETURN(0);
@@ -1679,7 +1679,9 @@ int ha_federated::close(void)
 
   DBUG_ENTER("ha_federated::close");
 
-  delete_dynamic(&stored_results);
+  free_result();
+  
+  delete_dynamic(&results);
   
   /* Disconnect from mysql */
   mysql_close(mysql);
@@ -2353,6 +2355,22 @@ int ha_federated::delete_row(const uchar *buf)
   DBUG_RETURN(0);
 }
 
+int ha_federated::index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag)
+{
+  int error= index_init(index, 0);
+  if (error)
+    return error;
+  error= index_read_map(buf, key, keypart_map, find_flag);
+  if(!error && stored_result)
+  {
+    uchar *dummy_arg=NULL;
+    position(dummy_arg);
+  }
+  int error1= index_end();
+  return error ?  error : error1;
+}
 
 /*
   Positions an index cursor to the index specified in the handle. Fetches the
@@ -2365,18 +2383,13 @@ int ha_federated::index_read(uchar *buf, const uchar *key,
                              uint key_len, ha_rkey_function find_flag)
 {
   int rc;
-  MYSQL_RES* mysql_result;
-
   DBUG_ENTER("ha_federated::index_read");
 
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
+  free_result();
   rc= index_read_idx_with_result_set(buf, active_index, key,
                                      key_len, find_flag,
-                                     &mysql_result);
-
-  if (rc == 0)
-    set_last_result(mysql_result);
-
+                                     &stored_result);
   MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
@@ -2407,6 +2420,7 @@ int ha_federated::index_read_idx(uchar *buf, uint index, const uchar *key,
                                               &mysql_result)))
     DBUG_RETURN(retval);
   mysql_free_result(mysql_result);
+  results.elements--;
   DBUG_RETURN(0);
 }
 
@@ -2471,6 +2485,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   if ((retval= read_next(buf, *result)))
   {
     mysql_free_result(*result);
+    results.elements--;
     *result= 0;
     table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(retval);
@@ -2522,7 +2537,6 @@ int ha_federated::read_range_first(const key_range *start_key,
                                    bool eq_range_arg, bool sorted)
 {
   char sql_query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
-  MYSQL_RES *mysql_result;
   int retval;
   String sql_query(sql_query_buffer,
                    sizeof(sql_query_buffer),
@@ -2544,15 +2558,13 @@ int ha_federated::read_range_first(const key_range *start_key,
   }
   sql_query.length(0);
 
-  if (!(mysql_result= store_result(mysql)))
+  if (!(stored_result= store_result(mysql)))
   {
     retval= HA_ERR_END_OF_FILE;
     goto error;
   }
 
-  set_last_result(mysql_result);
-
-  retval= read_next(table->record[0], mysql_result);
+  retval= read_next(table->record[0], stored_result);
   MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 
@@ -2581,7 +2593,7 @@ int ha_federated::index_next(uchar *buf)
   DBUG_ENTER("ha_federated::index_next");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
   ha_statistic_increment(&SSV::ha_read_next_count);
-  retval= read_next(buf, get_last_result());
+  retval= read_next(buf, stored_result);
   MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
 }
@@ -2602,7 +2614,6 @@ int ha_federated::index_next(uchar *buf)
 
 int ha_federated::rnd_init(bool scan)
 {
-  MYSQL_RES *mysql_result;
   DBUG_ENTER("ha_federated::rnd_init");
   /*
     The use of the 'scan' flag is incredibly important for this handler
@@ -2642,9 +2653,8 @@ int ha_federated::rnd_init(bool scan)
   if (scan)
   {
     if (real_query(share->select_query, strlen(share->select_query)) ||
-        !(mysql_result= store_result(mysql)))
+        !(stored_result= store_result(mysql)))
       DBUG_RETURN(stash_remote_error());
-    set_last_result(mysql_result);
   }
   DBUG_RETURN(0);
 }
@@ -2660,6 +2670,7 @@ int ha_federated::rnd_end()
 int ha_federated::index_end(void)
 {
   DBUG_ENTER("ha_federated::index_end");
+  free_result();
   active_index= MAX_KEY;
   DBUG_RETURN(0);
 }
@@ -2690,7 +2701,7 @@ int ha_federated::rnd_next_int(uchar *buf)
 {
   DBUG_ENTER("ha_federated::rnd_next_int");
 
-  if (get_last_result() == 0)
+  if (stored_result == 0)
   {
     /*
       Return value of rnd_init is not always checked (see records.cc),
@@ -2699,7 +2710,7 @@ int ha_federated::rnd_next_int(uchar *buf)
     */
     DBUG_RETURN(1);
   }
-  DBUG_RETURN(read_next(buf, get_last_result()));
+  DBUG_RETURN(read_next(buf, stored_result));
 }
 
 
@@ -2767,19 +2778,16 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
 
 void ha_federated::position(const uchar *record __attribute__ ((unused)))
 {
-  MYSQL_RES* mysql_result;
   DBUG_ENTER("ha_federated::position");
+  
+  DBUG_ASSERT(stored_result);
 
-  mysql_result= get_last_result();
-
-  DBUG_ASSERT(mysql_result);
-
+  position_called= TRUE;
   /* Store result set address. */
-  memcpy(ref, &mysql_result, sizeof(MYSQL_RES *));
+  memcpy(ref, &stored_result, sizeof(MYSQL_RES *));
   /* Store data cursor position. */
   memcpy(ref + sizeof(MYSQL_RES *), &current_position,
                sizeof(MYSQL_ROW_OFFSET));
-  position_called= true;
   DBUG_VOID_RETURN;
 }
 
@@ -3015,20 +3023,14 @@ int ha_federated::reset(void)
   replace_duplicates= FALSE;
 
   /* Free stored result sets. */
-  for (uint i= 0; i < stored_results.elements; i++)
+  for (uint i= 0; i < results.elements; i++)
   {
     MYSQL_RES *result;
-    get_dynamic(&stored_results, (uchar *) &result, i);
+    get_dynamic(&results, (uchar *) &result, i);
     mysql_free_result(result);
   }
-  reset_dynamic(&stored_results);
+  reset_dynamic(&results);
 
-  if (last_result)
-  {
-    mysql_free_result(last_result);
-    last_result= 0;
-  }
-  position_called= false;
   return 0;
 }
 
@@ -3316,24 +3318,27 @@ bool ha_federated::get_error_message(int error, String* buf)
 
 MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
 {
+  MYSQL_RES *result= mysql_store_result(mysql_arg);
   DBUG_ENTER("ha_federated::store_result");
-  DBUG_RETURN(mysql_store_result(mysql_arg));
+  if (result)
+  {
+    (void) insert_dynamic(&results, (uchar*) &result);
+  }
+  position_called= FALSE;
+  DBUG_RETURN(result);
 }
 
 
-void ha_federated::set_last_result(MYSQL_RES *result)
+void ha_federated::free_result()
 {
-  DBUG_ENTER("ha_federated::set_last_result");
-  if (position_called)
+  DBUG_ENTER("ha_federated::free_result");
+  if (stored_result && !position_called)
   {
-    insert_dynamic(&stored_results, (uchar*) &last_result);
-    position_called= false;
+    mysql_free_result(stored_result);
+    stored_result= 0;
+    if (results.elements > 0)
+      results.elements--;
   }
-  else
-  {
-    mysql_free_result(last_result);
-  }
-  last_result= result;
   DBUG_VOID_RETURN;
 }
 

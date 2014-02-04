@@ -1380,17 +1380,8 @@ buf_flush_page_and_try_neighbors(
 		mutex_enter(block_mutex);
 	}
 
-	if (UNIV_UNLIKELY(buf_page_get_state(bpage)
-			  == BUF_BLOCK_REMOVE_HASH)) {
-
-		/* In case we don't hold the LRU list mutex, we may see a page
-		that is about to be relocated on the flush list.  Do not
-		attempt to flush it.  */
-		ut_ad(flush_type == BUF_FLUSH_LIST);
-		return (flushed);
-	}
-
-	ut_a(buf_page_in_file(bpage));
+	ut_a(buf_page_in_file(bpage)
+	     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 
 	if (buf_flush_ready_for_flush(bpage, flush_type)) {
 		ulint		space;
@@ -1405,8 +1396,10 @@ buf_flush_page_and_try_neighbors(
 
 		/* These fields are protected by the buf_page_get_mutex()
 		mutex. */
-		space = buf_page_get_space(bpage);
-		offset = buf_page_get_page_no(bpage);
+		/* Read the fields directly in order to avoid asserting on
+		BUF_BLOCK_REMOVE_HASH pages. */
+		space = bpage->space;
+		offset = bpage->offset;
 
 		if (flush_type == BUF_FLUSH_LRU) {
 			mutex_exit(block_mutex);

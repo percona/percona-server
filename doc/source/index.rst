@@ -70,7 +70,7 @@ Performance Improvements
    performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
-   performance/innodb_opt_lru_count
+   performance/buff_read_ahead_area
    performance/threadpool
    performance/page_cleaner_tuning
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
@@ -86,7 +86,6 @@ Flexibility Improvements
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
-   flexibility/buff_read_ahead_area
    flexibility/extended_select_into_outfile
    flexibility/per_query_variable_statement
    flexibility/extended_mysqlbinlog

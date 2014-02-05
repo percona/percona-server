@@ -69,7 +69,7 @@ If you don't install all "at the same time", you will need to do it in a specifi
 Otherwise, the dependencies won't be met and the installation will fail.
 
 What's in each RPM?
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 Each of the |Percona Server| RPM packages have a particular purpose.
 
@@ -116,7 +116,7 @@ All dependencies will be installed and the |Percona Server|
 installation will be finished by :command:`apt`.
 
 What's in each DEB package?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------
 
 The ``percona-server-server`` package contains the database server
 itself, the ``mysqld`` binary and associated files.
@@ -149,7 +149,7 @@ Fetch and extract the source tarball. For example: ::
 
 Next, follow the instructions in :ref:`compile_from_source` below.
 
-.. _source-from-bzr
+.. _source-from-bzr:
 
 =========================================================
  Installing |Percona Server| from the Bazaar Source Tree

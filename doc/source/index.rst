@@ -76,6 +76,7 @@ Performance Improvements
    performance/innodb_opt_lru_count
    performance/innodb_thread_concurrency_timer_based
    performance/handlersocket
+   performance/buff_read_ahead_area
 
 Flexibility Improvements
 ========================
@@ -89,7 +90,6 @@ Flexibility Improvements
    flexibility/mysql_remove_eol_carret
    flexibility/mysqlbinlog_change_db
    flexibility/replication_skip_single_statement
-   flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
    flexibility/mysqldump_ignore_create_error
 

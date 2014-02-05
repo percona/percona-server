@@ -19,11 +19,13 @@ ib_modified_log_1
 ib_modified_log_2
 PURGE CHANGED_PAGE_BITMAPS BEFORE 1;
 After PURGE ... BEFORE 1:
+ib_modified_log_1
 ib_modified_log_2
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 After PURGE ... BEFORE 100000000 and restart:
+ib_modified_log_3
 ib_modified_log_4
 ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 5+5;
@@ -55,22 +57,42 @@ SELECT @@GLOBAL.innodb_track_changed_pages;
 0
 FLUSH CHANGED_PAGE_BITMAPS;
 Before the PURGE with tracking disabled
+ib_modified_log_3
 ib_modified_log_4
 ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 1;
 After the PURGE that deletes nothing:
+ib_modified_log_3
 ib_modified_log_4
 ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
-After the PURGE that deletes everything:
+After the PURGE that deletes everything but the last file:
+ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 After the repeated PURGE:
+ib_modified_log_5
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 Before the RESET while tracking disabled:
 ib_modified_log_1
 ib_modified_log_2
+ib_modified_log_5
 RESET CHANGED_PAGE_BITMAPS;
 After the RESET with tracking disabled:
+Created dummy bitmap files
+ib_modified_log_1_0.xdb
+ib_modified_log_2_100.xdb
+ib_modified_log_3_200.xdb
+ib_modified_log_4_300.xdb
+PURGE CHANGED_PAGE_BITMAPS BEFORE 99;
+ib_modified_log_1_0.xdb
+ib_modified_log_2_100.xdb
+ib_modified_log_3_200.xdb
+ib_modified_log_4_300.xdb
+PURGE CHANGED_PAGE_BITMAPS BEFORE 200;
+ib_modified_log_3_200.xdb
+ib_modified_log_4_300.xdb
+PURGE CHANGED_PAGE_BITMAPS BEFORE 500;
+ib_modified_log_4_300.xdb
 DROP TABLE t1;
 CREATE TABLE CHANGED_PAGE_BITMAPS (a INT);
 DROP TABLE CHANGED_PAGE_BITMAPS;

@@ -1843,7 +1843,9 @@ loop:
 		rw_lock_s_unlock(&page_hash_latch);
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 loop2:
+#endif
 	if (block == NULL) {
 		/* Page not in buf_pool: needs to be read from file */
 
@@ -1950,6 +1952,11 @@ wait_until_unfixed:
 			goto loop;
 		}
 
+		/* Buffer-fix the block so that it cannot be evicted
+		or relocated while we are attempting to allocate an
+		uncompressed page. */
+		bpage->buf_fix_count++;
+
 		/* Allocate an uncompressed page. */
 		//buf_pool_mutex_exit();
 		//mutex_exit(&buf_pool_zip_mutex);
@@ -1959,45 +1966,23 @@ wait_until_unfixed:
 		ut_a(block);
 		block_mutex = &block->mutex;
 
-		//buf_pool_mutex_enter();
 		mutex_enter(&LRU_list_mutex);
 		rw_lock_x_lock(&page_hash_latch);
-		mutex_enter(block_mutex);
-
-		{
-			buf_page_t*	hash_bpage
-				= buf_page_hash_get(space, offset);
-
-			if (UNIV_UNLIKELY(bpage != hash_bpage)) {
-				/* The buf_pool->page_hash was modified
-				while buf_pool_mutex was released.
-				Free the block that was allocated. */
-
-				buf_LRU_block_free_non_file_page(block, TRUE);
-				mutex_exit(block_mutex);
-
-				block = (buf_block_t*) hash_bpage;
-				if (block) {
-					block_mutex = buf_page_get_mutex_enter((buf_page_t*)block);
-					ut_a(block_mutex);
-				}
-				rw_lock_x_unlock(&page_hash_latch);
-				mutex_exit(&LRU_list_mutex);
-				goto loop2;
-			}
-		}
-
+		mutex_enter(&block->mutex);
 		mutex_enter(&buf_pool_zip_mutex);
+		/* Buffer-fixing prevents the page_hash from changing. */
+		ut_ad(bpage == buf_page_hash_get(space, offset));
 
 		if (UNIV_UNLIKELY
-		    (bpage->buf_fix_count
+		    (--bpage->buf_fix_count
 		     || buf_page_get_io_fix(bpage) != BUF_IO_NONE)) {
 
 			mutex_exit(&buf_pool_zip_mutex);
-			/* The block was buffer-fixed or I/O-fixed
-			while buf_pool_mutex was not held by this thread.
-			Free the block that was allocated and try again.
-			This should be extremely unlikely. */
+			/* The block was buffer-fixed or I/O-fixed while
+			buf_pool_mutex was not held by this thread.
+			Free the block that was allocated and retry.
+			This should be extremely unlikely, for example,
+			if buf_page_get_zip() was invoked. */
 
 			buf_LRU_block_free_non_file_page(block, TRUE);
 			//mutex_exit(&block->mutex);

@@ -1,0 +1,18 @@
+#
+# Bug 1011047: mysqld can't startup when a plugin was installed
+#
+
+--source include/have_example_plugin.inc
+
+show variables like 'userstat%';
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+--source include/restart_mysqld.inc
+show variables like 'userstat%';
+
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+DROP TABLE t1;
+
+UNINSTALL PLUGIN example;

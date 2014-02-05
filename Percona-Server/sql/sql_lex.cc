@@ -325,6 +325,7 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
+  lex->select_lex.gorder_list.empty();
   lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;

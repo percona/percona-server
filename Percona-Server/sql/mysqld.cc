@@ -3753,6 +3753,9 @@ static int init_server_components()
   init_slave_list();
 #endif
 
+  init_global_table_stats();
+  init_global_index_stats();
+
   /* Setup logs */
 
   /*
@@ -3996,8 +3999,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (!errmesg[0][0])
     unireg_abort(1);
 
-  init_global_table_stats();
-  init_global_index_stats();
 #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
   query_response_time_init();
 #endif /* HAVE_RESPONSE_TIME_DISTRIBUTION */

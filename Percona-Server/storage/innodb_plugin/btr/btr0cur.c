@@ -58,6 +58,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "btr0btr.h"
 #include "btr0sea.h"
 #include "trx0rec.h"
+#include "trx0undo.h"
 #include "trx0roll.h" /* trx_is_recv() */
 #include "que0que.h"
 #include "row0row.h"
@@ -1656,7 +1657,7 @@ btr_cur_upd_lock_and_undo(
 
 /***********************************************************//**
 Writes a redo log record of updating a record in-place. */
-UNIV_INLINE
+UNIV_INTERN
 void
 btr_cur_update_in_place_log(
 /*========================*/
@@ -1684,18 +1685,31 @@ btr_cur_update_in_place_log(
 		return;
 	}
 
-	/* The code below assumes index is a clustered index: change index to
-	the clustered index if we are updating a secondary index record (or we
-	could as well skip writing the sys col values to the log in this case
-	because they are not needed for a secondary index record update) */
-
-	index = dict_table_get_first_index(index->table);
+	/* For secondary indexes, we could skip writing the dummy system fields
+	to the redo log but we have to change redo log parsing of
+	MLOG_REC_UPDATE_IN_PLACE/MLOG_COMP_REC_UPDATE_IN_PLACE or we have to add
+	new redo log record. For now, just write dummy sys fields to the redo
+	log if we are updating a secondary index record.
+	*/
 
 	mach_write_to_1(log_ptr, flags);
 	log_ptr++;
 
-	log_ptr = row_upd_write_sys_vals_to_log(index, trx, roll_ptr, log_ptr,
-						mtr);
+	if (index->type & DICT_CLUSTERED) {
+		log_ptr = row_upd_write_sys_vals_to_log(
+				index, trx, roll_ptr, log_ptr, mtr);
+	} else {
+		/* Dummy system fields for a secondary index */
+		/* TRX_ID Position */
+		log_ptr += mach_write_compressed(log_ptr, 0);
+		/* ROLL_PTR */
+		trx_write_roll_ptr(log_ptr, ut_dulint_zero);
+		log_ptr += DATA_ROLL_PTR_LEN;
+		/* TRX_ID */
+		log_ptr += mach_dulint_write_compressed(log_ptr,
+							ut_dulint_zero);
+	}
+
 	mach_write_to_2(log_ptr, page_offset(rec));
 	log_ptr += 2;
 
@@ -4674,6 +4688,10 @@ next_zip_page:
 				}
 			}
 		}
+
+		DBUG_EXECUTE_IF("btr_store_big_rec_extern",
+				error = DB_OUT_OF_FILE_SPACE;
+				goto func_exit;);
 	}
 
 func_exit:
@@ -4706,9 +4724,11 @@ func_exit:
 
 		field_ref = btr_rec_get_field_ref(rec, offsets, i);
 
-		/* The pointer must not be zero. */
+		/* The pointer must not be zero if the operation
+		succeeded. */
 		ut_a(0 != memcmp(field_ref, field_ref_zero,
-				 BTR_EXTERN_FIELD_REF_SIZE));
+				 BTR_EXTERN_FIELD_REF_SIZE)
+		     || error != DB_SUCCESS);
 		/* The column must not be disowned by this record. */
 		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
 	}
@@ -4804,10 +4824,10 @@ btr_free_externally_stored_field(
 
 	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
-		/* In the rollback of uncommitted transactions, we may
-		encounter a clustered index record whose BLOBs have
-		not been written.  There is nothing to free then. */
-		ut_a(rb_ctx == RB_RECOVERY || rb_ctx == RB_RECOVERY_PURGE_REC);
+		/* In the rollback, we may encounter a clustered index
+		record with some unwritten off-page columns. There is
+		nothing to free then. */
+		ut_a(rb_ctx != RB_NONE);
 		return;
 	}
 

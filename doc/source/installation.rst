@@ -131,10 +131,10 @@ client.
 
 The ``percona-server-dfsg`` package contains....
 
-The ``libmysqlclient-dev`` package contains header files needed to
+The ``libperconaserverclient-dev`` package contains header files needed to
 compile software to use the client library.
 
-The ``libmysqlclient18`` package contains the client shared
+The ``libperconaserverclient18`` package contains the client shared
 library. The ``18`` is a reference to the version of the shared
 library. The version is incremented when there is a ABI change that
 requires software using the client library to be recompiled or their
@@ -149,23 +149,9 @@ Fetch and extract the source tarball. For example: ::
   $ wget http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.15-21.0/source/Percona-Server-5.5.15-rel21.0.tar.gz
   $ tar xfz Percona-Server-5.5.15-rel21.0.tar.gz
 
-Next, run cmake to configure the build. Here you can specify all the normal
-build options as you do for a normal |MySQL| build. Depending on what
-options you wish to compile Percona Server with, you may need other
-libraries installed on your system. Here is an example using a
-configure line similar to the options that Percona uses to produce
-binaries: ::
+Next, follow the instructions in :ref:`compile_from_source` below.
 
-  $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
-
-Now, compile using make ::
-
-  $ make
-
-Install: ::
-
-  $ make install
-
+.. _source-from-bzr
 =========================================================
  Installing |Percona Server| from the Bazaar Source Tree
 =========================================================
@@ -186,21 +172,82 @@ talk about building the latest Percona Server 5.5 development tree. ::
   $ cd ~/percona-server
   $ bzr branch lp:percona-server/5.5
 
-You can now change into the 5.5 directory and build Percona Server
-5.5: ::
+Fetching all the history of Percona Server 5.5 may take a long time,
+up to 20 or 30 minutes is not uncommon.
 
-  $ make
+If you are going to be making changes to Percona Server 5.5 and wanting
+to distribute the resulting work, you can generate a new source tarball
+(exactly the same way as we do for release): ::
 
-This will fetch the upstream MySQL source tarball and apply the
-Percona Server patches to it. If you have the quilt utility installed,
-it will use it to apply the patches, otherwise it will just use the
-standard patch utility. You will then have a directory named
-Percona-Server that is ready to run the configure script and
-build. ::
+  $ cmake .
+  $ make dist
+
+Next, follow the instructions in :ref:`compile_from_source` below.
+
+.. _compile_from_source:
+
+=======================================
+ Compiling |Percona Server| from Source
+=======================================
+
+After either fetching the source repository or extracting a source tarball
+(from Percona or one you generated yourself), you will now need to
+configure and build Percona Server.
+
+First, run cmake to configure the build. Here you can specify all the normal
+build options as you do for a normal |MySQL| build. Depending on what
+options you wish to compile Percona Server with, you may need other
+libraries installed on your system. Here is an example using a
+configure line similar to the options that Percona uses to produce
+binaries: ::
 
   $ cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF
+
+Now, compile using make ::
+
   $ make
+
+Install: ::
+
   $ make install
+
+Percona Server 5.5 will now be installed on your system.
+
+=================================================
+ Building |Percona Server| Debian/Ubuntu packages
+=================================================
+
+If you wish to build your own Percona Server Debian/Ubuntu (dpkg) packages,
+you first need to start with a source tarball, either from the Percona
+website or by generating your own by following the instructions above(
+:ref:`source-from-bzr`).
+
+Extract the source tarball: ::
+
+  $ tar xfz percona-server-5.5.34-32.0.tar.gz
+  $ cd percona-server-5.5.34-32.0
+
+Put the debian packaging in the directory that Debian expects it to be in: ::
+
+  $ cp -ap build-ps/debian debian
+
+Update the changelog for your distribution (here we update for the unstable
+distribution - sid), setting the version number appropriately. The trailing one
+in the version number is the revision of the Debian packaging. ::
+
+  $ dch -D unstable --force-distribution -v "5.5.34-32.0-1" "Update to 5.5.34-32.0"
+
+Build the Debian source package: ::
+
+  $ dpkg-buildpackage -S
+
+Use sbuild to build the binary package in a chroot: ::
+
+  $ sbuild -d sid percona-server-5.5_5.5.34_32.0-1.dsc
+
+You can give different distribution options to dch and sbuild to build binary
+packages for all Debian and Ubuntu releases.
+
 
 .. note::
 

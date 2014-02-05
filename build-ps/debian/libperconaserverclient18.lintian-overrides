@@ -1,0 +1,6 @@
+# We are libmysqlclient, so of course we look like it.
+embedded-library binary: usr/lib/*/libperconaserverclient.so.18.0.0
+embedded-library binary: usr/lib/*/libperconaserverclient_r.so.18.0.0
+
+# no wildcards? :(
+embedded-library binary: usr/lib/x86_64-linux-gnu/libperconaserverclient.so.18.0.0

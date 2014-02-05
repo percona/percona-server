@@ -1,14 +1,7 @@
-percona-server-client-5.6: package-has-a-duplicate-relation
+package-has-a-duplicate-relation
 
 # we are MySQL, so we're going to hit false-positives
-embedded-library binary: usr/bin/mysql
-embedded-library binary: usr/bin/mysql_client_test
-embedded-library binary: usr/bin/mysqladmin
-embedded-library binary: usr/bin/mysqlcheck
-embedded-library binary: usr/bin/mysqldump
-embedded-library binary: usr/bin/mysqlimport
-embedded-library binary: usr/bin/mysqlshow
-embedded-library binary: usr/bin/mysqlslap
+embedded-library
 
 # We should get man pages for these binaries.
 binary-without-manpage usr/bin/mysqlanalyze

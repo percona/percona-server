@@ -19,9 +19,9 @@ MYADMIN="${PERCONA_PREFIX}/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
 stop_server() {
   set +e
   if [ -x /usr/sbin/invoke-rc.d ]; then
-    invoke-rc.d percona-server stop
+    invoke-rc.d mysql stop
   else
-    /etc/init.d/percona-server stop
+    /etc/init.d/mysql stop
   fi
   errno=$?
   set -e
@@ -69,7 +69,7 @@ if [ "$1" = "purge" -a ! \( -x /usr/sbin/mysqld -o -L /usr/sbin/mysqld \) ]; the
 
   # (normally) Automatically added by dh_installinit
   if [ "$1" = "purge" ] ; then
-        update-rc.d percona-server remove >/dev/null || exit 0
+        update-rc.d mysql remove >/dev/null || exit 0
   fi
   # (normally) End automatically added section
 fi

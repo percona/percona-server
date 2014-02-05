@@ -14,13 +14,8 @@ DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
 
-#ifneq (,$(filter $(ARCH), i386 kfreebsd-i386 hurd-i386))
-#    USE_THIS_GCC_VERSION:=-4.4
-#endif
-
 export MYSQL_BUILD_CC=$(DEB_HOST_GNU_TYPE)-gcc$(USE_THIS_GCC_VERSION)
 export MYSQL_BUILD_CXX=$(DEB_HOST_GNU_TYPE)-g++$(USE_THIS_GCC_VERSION)
-
 
 DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
 DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
@@ -52,19 +47,6 @@ endif
 
 builddir = builddir
 
-# This causes seg11 crashes if LDAP is used for groups in /etc/nsswitch.conf
-# so it is disabled by default although, according to MySQL, it brings >10%
-# performance gain if enabled. See #299382.
-ifeq ($(STATIC_MYSQLD), 1)
-    USE_STATIC_MYSQLD=--with-mysqld-ldflags=-all-static
-endif
-
-# See http://blogs.innodb.com/wp/2010/04/innodb-performance-aio-linux/
-# Also #659565
-ifneq (,$(findstring linux-gnu,$(DEB_HOST_GNU_TYPE)))
-    USE_LINUX_NATIVE_AIO:=-DLINUX_NATIVE_AIO=ON
-endif
-
 configure: patch configure-stamp
 
 configure-stamp:
@@ -84,32 +66,22 @@ endif
 	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
 		\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
-	       	-DMYSQL_USER=mysql \
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 		-DWITH_LIBWRAP=ON \
-		-DWITH_READLINE=OFF \
-		-DWITH_LIBEDIT=OFF \
-		$(USE_STATIC_MYSQLD) \
-		$(USE_LINUX_NATIVE_AIO) \
 		-DWITH_ZLIB=system \
 		-DWITH_SSL=system \
-	    -DCOMPILATION_COMMENT="($(DISTRIBUTION))" \
-	    -DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
-	    -DSYSTEM_TYPE="debian-linux-gnu" \
-	    -DINSTALL_LAYOUT=RPM \
-	    -DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
-	    -DINSTALL_PLUGINDIR=lib/mysql/plugin \
-        -DWITH_EMBEDDED_SERVER=OFF \
-	    -DWITH_ARCHIVE_STORAGE_ENGINE=ON \
-	    -DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
-	    -DWITH_FEDERATED_STORAGE_ENGINE=ON \
-            -DWITH_PAM=ON \
+		-DCOMPILATION_COMMENT="($(DISTRIBUTION))" \
+		-DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
+		-DSYSTEM_TYPE="debian-linux-gnu" \
+		-DINSTALL_LAYOUT=RPM \
+		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+		-DINSTALL_PLUGINDIR=lib/mysql/plugin \
+		-DWITH_EMBEDDED_SERVER=OFF \
+		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
+		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
+		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
+		-DWITH_PAM=ON \
 		-DWITH_EXTRA_CHARSETS=all ..'
-		
-	#       --sysconfdir=/etc/mysql  -- Appends /etc/mysql after ~/ in the my.cnf search patch!
-	#
-	#	--with-debug
-	
 	touch $@
 
 build: build-arch build-indep
@@ -124,7 +96,7 @@ build-stamp: configure
 	--exclude=debian . \
 	--transform="s,^\./,percona-server-5.6/,"
 
-	cd $(builddir) && $(MAKE) $(MAKE_JFLAG)
+	cd $(builddir) && $(MAKE) $(MAKE_JFLAG) VERBOSE=1
 
 ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
 	# Don't know why the following is necessary...
@@ -278,6 +250,7 @@ binary-arch: build install
 	dh_installlogcheck -a
 	dh_installchangelogs -a
 	dh_strip -a
+	dh_lintian
 	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
 	dh_compress -a
 	dh_fixperms -a

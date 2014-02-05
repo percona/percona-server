@@ -197,18 +197,18 @@ EOF
         "USE mysql\n" \
         "ALTER TABLE user CHANGE Password Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL"`;
     replace_query=`echo -e \
-        "USE mysql\n" \
+        "USE mysql;\n" \
         "REPLACE INTO user SET " \
         "  host='localhost', user='debian-sys-maint', password=password('$pass'), " \
         "  Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', " \
         "  Create_priv='Y', Drop_priv='Y', Reload_priv='Y', Shutdown_priv='Y', " \
         "  Process_priv='Y',  File_priv='Y', Grant_priv='Y', References_priv='Y', " \
-        "  Index_priv='Y', Alter_priv='Y', Super_priv='Y', Show_db_priv='Y', "\
-        "  Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', "\
-        "  Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', "\
-        "  Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', "\
-        "  Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y' "`;
-        "  ssl_cipher='', x509_issuer='', x509_subject=''; "`
+        "  Index_priv='Y', Alter_priv='Y', Super_priv='Y', Show_db_priv='Y', " \
+        "  Create_tmp_table_priv='Y', Lock_tables_priv='Y', Execute_priv='Y', " \
+        "  Repl_slave_priv='Y', Repl_client_priv='Y', Create_view_priv='Y', " \
+        "  Show_view_priv='Y', Create_routine_priv='Y', Alter_routine_priv='Y', " \
+        "  Create_user_priv='Y', Event_priv='Y', Trigger_priv='Y', Create_tablespace_priv='Y', " \
+        "  ssl_cipher='', x509_issuer='', x509_subject=''; " `
     fix_privs=`echo -e \
         "USE mysql;\n" \
         "ALTER TABLE user ADD column Create_view_priv enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N'; " \
@@ -231,15 +231,16 @@ EOF
   ;;
 
   *)
-    echo "postinst called with unknown argument '$1'" 1>&2
+    echo "postinst called with unknown argument $1" 1>&2
     exit 1
   ;;
 esac
 
 # here we check to see if we can connect as root without a password
 # this should catch upgrades from previous versions where the root
-# password wasn't set.  if there is a password, or if the connection
+# password was not set.  if there is a password, or if the connection
 # fails for any other reason, nothing happens.
+
 if [ "$1" = "configure" ]; then
        if test_mysql_access; then
                db_input medium percona-server-server/root_password || true

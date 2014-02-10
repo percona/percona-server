@@ -1,0 +1,46 @@
+set debug_sync= 'RESET';
+INSTALL PLUGIN scalability_metrics SONAME 'scalability_metrics.so';
+SHOW STATUS LIKE 'scalability_metrics%';
+Variable_name	Value
+scalability_metrics_busytime	0
+scalability_metrics_concurrency	0
+scalability_metrics_elapsedtime	0
+scalability_metrics_queries	0
+scalability_metrics_totaltime	0
+SET GLOBAL scalability_metrics_control = ON;
+SHOW STATUS LIKE 'scalability_metrics_concurrency';
+Variable_name	Value
+scalability_metrics_concurrency	1
+SHOW STATUS LIKE 'scalability_metrics_queries';
+Variable_name	Value
+scalability_metrics_queries	1
+SET DEBUG_SYNC="func_sleep_before_sleep SIGNAL sleep1";
+SELECT SLEEP(100);
+SET DEBUG_SYNC= 'now WAIT_FOR sleep1';
+SHOW STATUS LIKE 'scalability_metrics_concurrency';
+Variable_name	Value
+scalability_metrics_concurrency	2
+SHOW STATUS LIKE 'scalability_metrics_queries';
+Variable_name	Value
+scalability_metrics_queries	8
+KILL CONNECTION @id;
+ERROR HY000: Lost connection to MySQL server during query
+SET GLOBAL scalability_metrics_control = OFF;
+SHOW STATUS LIKE 'scalability_metrics_concurrency';
+Variable_name	Value
+scalability_metrics_concurrency	1
+SHOW STATUS LIKE 'scalability_metrics_queries';
+Variable_name	Value
+scalability_metrics_queries	0
+SET GLOBAL scalability_metrics_control = OFF;
+SHOW STATUS LIKE 'scalability_metrics%';
+Variable_name	Value
+scalability_metrics_busytime	0
+scalability_metrics_concurrency	1
+scalability_metrics_elapsedtime	0
+scalability_metrics_queries	0
+scalability_metrics_totaltime	0
+UNINSTALL PLUGIN scalability_metrics;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+set debug_sync= 'RESET';

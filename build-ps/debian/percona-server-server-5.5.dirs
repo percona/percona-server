@@ -1,1 +1,2 @@
-var/run/mysqld
+var/run
+etc/mysql/conf.d

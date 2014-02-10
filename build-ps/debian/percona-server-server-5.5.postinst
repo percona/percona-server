@@ -197,7 +197,7 @@ EOF
         "USE mysql\n" \
         "ALTER TABLE user CHANGE Password Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL"`;
     replace_query=`echo -e \
-        "USE mysql\n" \
+        "USE mysql;\n" \
         "REPLACE INTO user SET " \
         "  host='localhost', user='debian-sys-maint', password=password('$pass'), " \
         "  Select_priv='Y', Insert_priv='Y', Update_priv='Y', Delete_priv='Y', " \
@@ -259,6 +259,7 @@ esac
 # this should catch upgrades from previous versions where the root
 # password wasn't set.  if there is a password, or if the connection
 # fails for any other reason, nothing happens.
+
 if [ "$1" = "configure" ]; then
        if test_mysql_access; then
                db_input medium percona-server-server/root_password || true

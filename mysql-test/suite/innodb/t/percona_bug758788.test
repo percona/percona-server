@@ -1,0 +1,24 @@
+--source include/have_innodb.inc
+
+#
+# Bug #758788: mysql process crashes after setting innodb_dict_size
+#
+# With innodb_dict_size=1 in the .opt file, the 'FLUSH TABLES' command below
+# above allows the eviction of the dict_table for t1 in the dict cache even
+# though there is a lock held against it due to the INSERT and referenced
+# from the transaction lock list. When the COMMIT comes along and tries to 
+# clean up the transaction lock list, the reference to t1 that was locked 
+# during the first INSERT is now completely invalid and can cause various
+# assertions since it is now pointing to potentially reclaimed memory.
+#
+SET SESSION AUTOCOMMIT=0;
+
+CREATE TABLE t1 (c1 INT) ENGINE=INNODB;
+CREATE TABLE t2 (c1 INT) ENGINE=INNODB;
+INSERT INTO t1(c1) VALUES(1);
+FLUSH TABLES;
+INSERT INTO t2(c1) VALUES(1);
+COMMIT;
+
+DROP TABLE t2;
+DROP TABLE t1;

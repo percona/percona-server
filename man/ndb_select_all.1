@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 11/04/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 01/13/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_ALL\FR" "1" "11/04/2013" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_SELECT_ALL\FR" "1" "01/13/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -73,6 +73,7 @@ T}:T{
 Added / Removed
 T}
 .T&
+l l l
 l l l
 l l l
 l l l
@@ -198,6 +199,15 @@ T{
 --gci
 T}:T{
 Include GCI in output
+T}:T{
+.PP
+All MySQL 5\&.5 based releases
+T}
+T{
+.PP
+--gci64
+T}:T{
+Include GCI and row epoch in output
 T}:T{
 .PP
 All MySQL 5\&.5 based releases
@@ -441,9 +451,28 @@ column providing information about the fragments in which rows are stored\&.
 .\" gci option: ndb_select_all
 \fB\-\-gci\fR
 .sp
-Adds a column to the output showing the global checkpoint at which each row was last updated\&. See
+Adds a
+GCI
+column to the output showing the global checkpoint at which each row was last updated\&. See
 Section\ \&17.1, \(lqMySQL Cluster Overview\(rq, and
 Section\ \&17.5.6.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" ndb_select_all: gci64 option
+.\" gci64 option: ndb_select_all
+\fB\-\-gci64\fR
+.sp
+Adds a
+ROW$GCI64
+column to the output showing the global checkpoint at which each row was last updated, as well as the number of the epoch in which this update occurred\&.
 .RE
 .sp
 .RS 4
@@ -574,7 +603,7 @@ NDBT_ProgramExit: 0 \- OK
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

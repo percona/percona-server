@@ -1,0 +1,152 @@
+#
+# Apply log with ''
+#
+# use a
+f
+0
+0
+# use bbbbbbbbbbbbbbbbbbbb
+f
+1
+1
+# use cccccccccccccccc
+f
+2
+2
+# use d
+f
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb" --rewrite-db="cccccccccccccccc->d" --database="d"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+# use cccccccccccccccc
+f
+# use d
+f
+2
+2
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb" --rewrite-db="cccccccccccccccc->d" --database="cccccccccccccccc"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+# use cccccccccccccccc
+f
+# use d
+f
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb" --rewrite-db="cccccccccccccccc->d" --database="bbbbbbbbbbbbbbbbbbbb"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+0
+0
+1
+1
+# use cccccccccccccccc
+f
+# use d
+f
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb" --rewrite-db="cccccccccccccccc->d" --database="a"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+# use cccccccccccccccc
+f
+# use d
+f
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb" --rewrite-db="cccccccccccccccc->d"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+0
+0
+1
+1
+# use cccccccccccccccc
+f
+# use d
+f
+2
+2
+#
+# Apply log with '--rewrite-db="  a  -> bbbbbbbbbbbbbbbbbbbb , cccccccccccccccc ->   d  "'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+0
+0
+1
+1
+# use cccccccccccccccc
+f
+# use d
+f
+2
+2
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb,cccccccccccccccc->d"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+0
+0
+1
+1
+# use cccccccccccccccc
+f
+# use d
+f
+2
+2
+#
+# Apply log with '--rewrite-db="a->d"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+1
+1
+# use cccccccccccccccc
+f
+2
+2
+# use d
+f
+0
+0
+#
+# Apply log with '--rewrite-db="a->bbbbbbbbbbbbbbbbbbbb"'
+#
+# use a
+f
+# use bbbbbbbbbbbbbbbbbbbb
+f
+0
+0
+1
+1
+# use cccccccccccccccc
+f
+2
+2
+# use d
+f

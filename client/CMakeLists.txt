@@ -61,7 +61,8 @@ TARGET_LINK_LIBRARIES(mysqlshow perconaserverclient)
 MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
 TARGET_LINK_LIBRARIES(mysql_plugin perconaserverclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc sql_string.cc)
+MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc sql_string.cc
+                     ../sql/rpl_filter.cc ../sql/sql_list.cc)
 TARGET_LINK_LIBRARIES(mysqlbinlog perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)

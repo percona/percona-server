@@ -259,7 +259,10 @@ dict_mem_table_create(
 					of the table is placed */
 	ulint		n_cols,		/*!< in: number of columns */
 	ulint		flags,		/*!< in: table flags */
-	ulint		flags2);	/*!< in: table flags2 */
+	ulint		flags2,		/*!< in: table flags2 */
+	bool		nonshared);/*!< in: whether the table object is a dummy
+				   one that does not need the initialization of
+				   locking-related fields. */
 /****************************************************************//**
 Free a table memory object. */
 UNIV_INTERN
@@ -860,7 +863,8 @@ struct dict_table_t{
 				dict_table_t::indexes*::stat_index_size
 				dict_table_t::indexes*::stat_n_leaf_pages
 				(*) those are not always protected for
-				performance reasons */
+				performance reasons. NULL for dumy table
+				objects. */
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
@@ -982,10 +986,12 @@ struct dict_table_t{
 				and release it without a need to allocate
 				space from the lock heap of the trx:
 				otherwise the lock heap would grow rapidly
-				if we do a large insert from a select */
+				if we do a large insert from a select. NULL
+				for dummy table objects. */
 	ib_mutex_t		autoinc_mutex;
 				/*!< mutex protecting the autoincrement
-				counter */
+				counter. Not initialized for dummy table
+				objects */
 	ib_uint64_t	autoinc;/*!< autoinc counter value to give to the
 				next inserted row */
 	ulong		n_waiting_or_granted_auto_inc_locks;

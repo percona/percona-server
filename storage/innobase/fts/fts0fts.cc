@@ -1950,7 +1950,7 @@ fts_create_one_index_table(
 
 	ut_ad(index->type & DICT_FTS);
 
-	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
+	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0, false);
 
 	field = dict_index_get_nth_field(index, 0);
 	charset = innobase_get_fts_charset(

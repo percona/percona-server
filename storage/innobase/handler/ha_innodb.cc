@@ -9144,18 +9144,18 @@ create_table_def(
 		/* Adjust for the FTS hidden field */
 		if (!has_doc_id_col) {
 			table = dict_mem_table_create(table_name, 0, n_cols + 1,
-						      flags, flags2);
+						      flags, flags2, false);
 
 			/* Set the hidden doc_id column. */
 			table->fts->doc_col = n_cols;
 		} else {
 			table = dict_mem_table_create(table_name, 0, n_cols,
-						      flags, flags2);
+						      flags, flags2, false);
 			table->fts->doc_col = doc_id_col;
 		}
 	} else {
 		table = dict_mem_table_create(table_name, 0, n_cols,
-					      flags, flags2);
+					      flags, flags2, false);
 	}
 
 	if (flags2 & DICT_TF2_TEMPORARY) {

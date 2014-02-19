@@ -33,7 +33,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{percona_server_version}.1%{?dist}
+%define release         rel%{percona_server_version}%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -350,11 +350,6 @@ touch optional-files-devel
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
 # default RPM build environment.
 #
-# We set CXX=gcc by default to support so-called 'generic' binaries, where we
-# do not have a dependancy on libgcc/libstdc++.  This only works while we do
-# not require C++ features such as exceptions, and may need to be removed at
-# a later date.
-#
 
 # This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
 # the compile in cmd-line-utils/readline - needs investigation, but for now
@@ -408,6 +403,8 @@ mkdir debug
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system -DWITH_PAM=ON \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -427,6 +424,8 @@ mkdir release
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system -DWITH_PAM=ON \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -473,7 +472,7 @@ MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}-%{percona_server_version}
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/mysql-test
-install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
+install -d $RBR%{_datadir}/percona-server/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
@@ -494,19 +493,6 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR install
 )
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
-# needs to be during build phase as $CC is not set during install.
-if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    mkdir -p $RBR%{_libdir}/mysql
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-  fi
-fi
 
 # FIXME: at some point we should stop doing this and just install everything
 # FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming
@@ -531,7 +517,7 @@ touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
 install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
-  $RBR%{_datadir}/mysql/SELinux/RHEL4
+  $RBR%{_datadir}/percona-server/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib*/mysql, so it
@@ -1024,7 +1010,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
-%attr(755, root, root) %{_datadir}/mysql/
+%attr(755, root, root) %{_datadir}/percona-server/
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-client%{product_suffix}

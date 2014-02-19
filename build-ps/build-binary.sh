@@ -134,7 +134,7 @@ if test -e "/proc/cpuinfo"
 then
     PROCESSORS="$(grep -c ^processor /proc/cpuinfo)"
 else
-    PROCESSORS=4
+    PROCESSORS=2
 fi
 
 # Extract version from the Makefile-ps
@@ -153,9 +153,17 @@ COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
 # Compilation flags
 export CC=${CC:-gcc}
-export CXX=${CXX:-gcc}
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
+export CXX=${CXX:-g++}
+#
+if [ -n "$(which rpm)" ]; then
+  export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
+else
+  export COMMON_FLAGS="-O2 -g"
+fi
+#
+export CFLAGS="${COMMON_FLAGS} -static-libgcc -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+export CXXFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+#
 export MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"
 
 # Create a temporary working directory

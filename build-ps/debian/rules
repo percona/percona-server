@@ -60,9 +60,9 @@ endif
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
-	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O3 -DBIG_JOINS=1"} \
+	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
-	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -DBIG_JOINS=1 -felide-constructors -fno-exceptions -fno-rtti"} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
 	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
 		\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \

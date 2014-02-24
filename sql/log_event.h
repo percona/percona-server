@@ -3861,7 +3861,10 @@ public:
   const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
-
+#ifdef MYSQL_CLIENT
+  int rewrite_db(const char* new_name, size_t new_name_len,
+                 const Format_description_log_event*);
+#endif
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 

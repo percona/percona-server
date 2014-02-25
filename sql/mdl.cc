@@ -80,13 +80,15 @@ static void init_mdl_psi_keys(void)
 PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
 {
   {0, "Waiting for global read lock", 0},
+  {0, "Waiting for backup lock", 0},
   {0, "Waiting for schema metadata lock", 0},
   {0, "Waiting for table metadata lock", 0},
   {0, "Waiting for stored function metadata lock", 0},
   {0, "Waiting for stored procedure metadata lock", 0},
   {0, "Waiting for trigger metadata lock", 0},
   {0, "Waiting for event metadata lock", 0},
-  {0, "Waiting for commit lock", 0}
+  {0, "Waiting for commit lock", 0},
+  {0, "Waiting for binlog lock", 0}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -184,6 +186,10 @@ private:
   MDL_lock *m_global_lock;
   /** Pre-allocated MDL_lock object for COMMIT namespace. */
   MDL_lock *m_commit_lock;
+  /** Pre-allocated MDL_lock object for BACKUP namespace. */
+  MDL_lock *m_backup_lock;
+  /** Pre-allocated MDL_lock object for BINLOG namespace */
+  MDL_lock *m_binlog_lock;
 };
 
 
@@ -707,9 +713,13 @@ void MDL_map::init()
 {
   MDL_key global_lock_key(MDL_key::GLOBAL, "", "");
   MDL_key commit_lock_key(MDL_key::COMMIT, "", "");
+  MDL_key backup_lock_key(MDL_key::BACKUP, "", "");
+  MDL_key binlog_lock_key(MDL_key::BINLOG, "", "");
 
   m_global_lock= MDL_lock::create(&global_lock_key, NULL);
   m_commit_lock= MDL_lock::create(&commit_lock_key, NULL);
+  m_backup_lock= MDL_lock::create(&backup_lock_key, NULL);
+  m_binlog_lock= MDL_lock::create(&binlog_lock_key, NULL);
 
   for (uint i= 0; i < mdl_locks_hash_partitions; i++)
   {
@@ -797,27 +807,40 @@ MDL_lock* MDL_map::find_or_insert(const MDL_key *mdl_key)
 {
   MDL_lock *lock;
 
-  if (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
-      mdl_key->mdl_namespace() == MDL_key::COMMIT)
+  /*
+    Avoid locking any m_mutex when a lock in GLOBAL, COMMIT, BACKUP or BINLOG
+    namespace is requested. Return pointer to pre-allocated MDL_lock instance
+    instead.  Such an optimization allows to save one mutex lock/unlock for any
+    statement changing data.
+
+    It works since these namespaces contain only one element so keys
+    for them look like '<namespace-id>\0\0'.
+  */
+  switch (mdl_key->mdl_namespace())
   {
-    /*
-      Avoid locking any m_mutex when lock for GLOBAL or COMMIT namespace is
-      requested. Return pointer to pre-allocated MDL_lock instance instead.
-      Such an optimization allows to save one mutex lock/unlock for any
-      statement changing data.
-
-      It works since these namespaces contain only one element so keys
-      for them look like '<namespace-id>\0\0'.
-    */
-    DBUG_ASSERT(mdl_key->length() == 3);
-
-    lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
-                                                          m_commit_lock;
-
-    mysql_prlock_wrlock(&lock->m_rwlock);
-
-    return lock;
+  case MDL_key::GLOBAL:
+    lock= m_global_lock;
+    break;
+  case MDL_key::COMMIT:
+    lock= m_commit_lock;
+    break;
+  case MDL_key::BACKUP:
+    lock= m_backup_lock;
+    break;
+  case MDL_key::BINLOG:
+    lock= m_binlog_lock;
+    break;
+  default:
+    goto dofind;
   }
+
+  DBUG_ASSERT(mdl_key->length() == 3);
+
+  mysql_prlock_wrlock(&lock->m_rwlock);
+
+  return lock;
+
+dofind:
 
   my_hash_value_type hash_value= m_partitions.at(0)->get_key_hash(mdl_key);
   uint part_id= hash_value % mdl_locks_hash_partitions;
@@ -863,7 +886,9 @@ retry:
         key for it.
       */
       DBUG_ASSERT(mdl_key->mdl_namespace() != MDL_key::GLOBAL &&
-                  mdl_key->mdl_namespace() != MDL_key::COMMIT);
+                  mdl_key->mdl_namespace() != MDL_key::COMMIT &&
+                  mdl_key->mdl_namespace() != MDL_key::BACKUP &&
+                  mdl_key->mdl_namespace() != MDL_key::BINLOG);
 
       unused_lock= m_unused_locks_cache.pop_front();
       unused_lock->reset(mdl_key);
@@ -984,7 +1009,9 @@ bool MDL_map_partition::move_from_hash_to_lock_mutex(MDL_lock *lock)
 void MDL_map::remove(MDL_lock *lock)
 {
   if (lock->key.mdl_namespace() == MDL_key::GLOBAL ||
-      lock->key.mdl_namespace() == MDL_key::COMMIT)
+      lock->key.mdl_namespace() == MDL_key::COMMIT ||
+      lock->key.mdl_namespace() == MDL_key::BACKUP ||
+      lock->key.mdl_namespace() == MDL_key::BINLOG)
   {
     /*
       Never destroy pre-allocated MDL_lock objects for GLOBAL and
@@ -1031,7 +1058,9 @@ void MDL_map_partition::remove(MDL_lock *lock)
       MDL_lock::m_version counter.
     */
     DBUG_ASSERT(lock->key.mdl_namespace() != MDL_key::GLOBAL &&
-                lock->key.mdl_namespace() != MDL_key::COMMIT);
+                lock->key.mdl_namespace() != MDL_key::COMMIT &&
+                lock->key.mdl_namespace() != MDL_key::BACKUP &&
+                lock->key.mdl_namespace() != MDL_key::BINLOG);
 
     m_unused_locks_cache.push_front((MDL_object_lock*)lock);
     mysql_mutex_unlock(&m_mutex);
@@ -1174,6 +1203,8 @@ inline MDL_lock *MDL_lock::create(const MDL_key *mdl_key,
     case MDL_key::GLOBAL:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
+    case MDL_key::BACKUP:
+    case MDL_key::BINLOG:
       return new (std::nothrow) MDL_scoped_lock(mdl_key, map_part);
     default:
       return new (std::nothrow) MDL_object_lock(mdl_key, map_part);

@@ -1877,6 +1877,14 @@ done:
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
 
+  if (thd->killed == THD::KILL_QUERY ||
+      thd->killed == THD::KILL_TIMEOUT ||
+      thd->killed == THD::KILL_BAD_DATA)
+  {
+    thd->killed= THD::NOT_KILLED;
+    thd->mysys_var->abort= 0;
+  }
+
   thd->reset_query();
   thd->set_command(COM_SLEEP);
 
@@ -2477,6 +2485,62 @@ err:
   return TRUE;
 }
 
+/**
+  Acquire a global backup lock.
+
+  @param thd     Thread context.
+
+  @return FALSE on success, TRUE in case of error.
+*/
+
+static bool lock_tables_for_backup(THD *thd)
+{
+  DBUG_ENTER("lock_tables_for_backup");
+
+  if (check_global_access(thd, RELOAD_ACL))
+    DBUG_RETURN(true);
+
+  if (delay_key_write_options == DELAY_KEY_WRITE_ALL)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "delay_key_write=ALL");
+    DBUG_RETURN(true);
+  }
+  /*
+    Do nothing if the current connection already owns the LOCK TABLES FOR
+    BACKUP lock or the global read lock (as it's a more restrictive lock).
+  */
+  if (thd->backup_tables_lock.is_acquired() ||
+      thd->global_read_lock.is_acquired())
+    DBUG_RETURN(false);
+
+  DBUG_RETURN(thd->backup_tables_lock.acquire(thd));
+}
+
+/**
+  Acquire a global binlog lock.
+
+  @param thd     Thread context.
+
+  @return FALSE in case of success, TRUE in case of error.
+*/
+
+static bool lock_binlog_for_backup(THD *thd)
+{
+  DBUG_ENTER("lock_binlog_for_backup");
+
+  if (check_global_access(thd, RELOAD_ACL))
+    DBUG_RETURN(true);
+
+  /*
+    Do nothing if the current connection already owns a LOCK BINLOG FOR BACKUP
+    lock or the global read lock (as it's a more restrictive lock).
+  */
+  if (thd->backup_binlog_lock.is_acquired() ||
+      thd->global_read_lock.is_acquired())
+    DBUG_RETURN(false);
+
+  DBUG_RETURN(thd->backup_binlog_lock.acquire(thd));
+}
 
 /**
   Execute command saved in thd and lex->sql_command.
@@ -4089,12 +4153,28 @@ end_with_restore_list:
       thd->mdl_context.release_transactional_locks();
       thd->variables.option_bits&= ~(OPTION_TABLE_LOCK);
     }
-    if (thd->global_read_lock.is_acquired())
+
+    if (thd->backup_tables_lock.is_acquired())
+    {
+      DBUG_ASSERT(!thd->global_read_lock.is_acquired());
+
+      thd->backup_tables_lock.release(thd);
+    }
+    else if (thd->global_read_lock.is_acquired())
       thd->global_read_lock.unlock_global_read_lock(thd);
+
     if (res)
       goto error;
     my_ok(thd);
     break;
+
+  case SQLCOM_UNLOCK_BINLOG:
+    if (thd->backup_binlog_lock.is_acquired())
+      thd->backup_binlog_lock.release(thd);
+
+    my_ok(thd);
+    break;
+
   case SQLCOM_LOCK_TABLES:
     /*
       Can we commit safely? If not, return to avoid releasing
@@ -4142,6 +4222,16 @@ end_with_restore_list:
 #endif /*HAVE_QUERY_CACHE*/
       my_ok(thd);
     }
+    break;
+  case SQLCOM_LOCK_TABLES_FOR_BACKUP:
+    if (!lock_tables_for_backup(thd))
+      my_ok(thd);
+
+    break;
+  case SQLCOM_LOCK_BINLOG_FOR_BACKUP:
+    if (!lock_binlog_for_backup(thd))
+      my_ok(thd);
+
     break;
   case SQLCOM_CREATE_DB:
   {

@@ -143,6 +143,7 @@ static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
+static uint opt_lock_for_backup= 0;
 static DYNAMIC_STRING extended_row;
 #include <sslopt-vars.h>
 FILE *md_result_file= 0;
@@ -247,6 +248,11 @@ static struct my_option my_long_options[] =
    "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom of dump.",
    &opt_slave_apply, &opt_slave_apply, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
+  {"lock-for-backup", OPT_LOCK_FOR_BACKUP, "Use lightweight metadata locks "
+   "to block updates to non-transactional tables and DDL to all tables. "
+   "This works only with --single-transaction, otherwise this option is "
+   "automatically converted to --lock-all-tables.", &opt_lock_for_backup,
+   &opt_lock_for_backup, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"bind-address", 0, "IP address to bind to.",
    (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -993,6 +999,23 @@ static int get_options(int *argc, char ***argv)
     fprintf(stderr,
             "%s: You must use option --tab with --fields-...\n", my_progname);
     return(EX_USAGE);
+  }
+
+  if (opt_lock_for_backup && opt_lock_all_tables)
+  {
+    fprintf(stderr, "%s: You can't use --lock-for-backup and "
+            "--lock-all-tables at the same time.\n", my_progname);
+    return(EX_USAGE);
+  }
+
+  /*
+     Convert --lock-for-backup to --lock-all-tables if --single-transaction is
+     not specified.
+  */
+  if (!opt_single_transaction && opt_lock_for_backup)
+  {
+    opt_lock_all_tables= 1;
+    opt_lock_for_backup= 0;
   }
 
   /* We don't delete master logs if slave data option */
@@ -5390,6 +5413,20 @@ static int do_flush_tables_read_lock(MYSQL *mysql_con)
                                     "FLUSH TABLES WITH READ LOCK") );
 }
 
+/**
+   Execute LOCK TABLES FOR BACKUP if supported by the server.
+
+   @note If LOCK TABLES FOR BACKUP is not supported by the server, then nothing
+         is done and no error condition is returned.
+
+   @returns  whether there was an error or not
+*/
+
+static int do_lock_tables_for_backup(MYSQL *mysql_con)
+{
+  return mysql_query_with_error_report(mysql_con, 0,
+                                       "LOCK TABLES FOR BACKUP");
+}
 
 static int do_unlock_tables(MYSQL *mysql_con)
 {
@@ -6153,6 +6190,35 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, ulong additional_size)
     die(EX_MYSQLERR, DYNAMIC_STR_ERROR_MSG);
 }
 
+/**
+   Check if the server supports LOCK TABLES FOR BACKUP.
+
+   @returns  TRUE if there is support, FALSE otherwise.
+*/
+
+static my_bool server_supports_backup_locks(void)
+{
+  MYSQL_RES *res;
+  MYSQL_ROW row;
+  my_bool rc;
+
+  if (mysql_query_with_error_report(mysql, &res,
+                                    "SHOW VARIABLES LIKE 'have_backup_locks'"))
+    return FALSE;
+
+  if ((row= mysql_fetch_row(res)) == NULL)
+  {
+    mysql_free_result(res);
+    return FALSE;
+  }
+
+  rc= mysql_num_fields(res) > 1 && !strcmp(row[1], "YES");
+
+  mysql_free_result(res);
+
+  return rc;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -6194,12 +6260,25 @@ int main(int argc, char **argv)
   if (!path)
     write_header(md_result_file, *argv);
 
+  if (opt_lock_for_backup && !server_supports_backup_locks())
+  {
+    fprintf(stderr, "%s: Error: --lock-for-backup was specified with "
+            "--single-transaction, but the server does not support "
+            "LOCK TABLES FOR BACKUP.\n",
+            my_progname);
+    goto err;
+  }
+
   if (opt_slave_data && do_stop_slave_sql(mysql))
     goto err;
 
   if ((opt_lock_all_tables || opt_master_data ||
-       (opt_single_transaction && flush_logs)) &&
-      do_flush_tables_read_lock(mysql))
+       (opt_single_transaction && flush_logs)))
+  {
+    if (do_flush_tables_read_lock(mysql))
+      goto err;
+  }
+  else if (opt_lock_for_backup && do_lock_tables_for_backup(mysql))
     goto err;
 
   /*
@@ -6244,7 +6323,8 @@ int main(int argc, char **argv)
     goto err;
   if (opt_slave_data && do_show_slave_status(mysql))
     goto err;
-  if (opt_single_transaction && do_unlock_tables(mysql)) /* unlock but no commit! */
+  if (opt_single_transaction && (!opt_lock_for_backup || opt_master_data) &&
+      do_unlock_tables(mysql))                  /* unlock but no commit! */
     goto err;
 
   if (opt_alltspcs)

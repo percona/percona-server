@@ -7091,6 +7091,10 @@ ER_TABLE_CORRUPT
 ER_TEMP_FILE_WRITE_FAILURE
   eng "Temporary file write failure."
 
+ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+	eng "Can’t execute the query because you have a conflicting backup lock"
+	rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"
+
 #
 #  End of 5.6 error messages.
 #

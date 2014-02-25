@@ -2124,6 +2124,50 @@ private:
   MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
+/**
+  An instance of a global backup lock in a connection.
+*/
+
+class Global_backup_lock
+{
+public:
+  Global_backup_lock(MDL_key::enum_mdl_namespace mdl_namespace)
+    : m_namespace(mdl_namespace), m_lock(NULL), m_prot_lock(NULL)
+  {}
+
+  bool acquire(THD *thd);
+  void release(THD *thd);
+
+  bool acquire_protection(THD *thd, enum_mdl_duration duration,
+                          ulong lock_wait_timeout);
+  void init_protection_request(MDL_request *mdl_request,
+                               enum_mdl_duration duration) const;
+  void release_protection(THD *thd);
+
+  /**
+    Throw the ER_CANT_EXECUTE_WITH_BACKUP_LOCK error and return 'true', if the
+    current connection has already acquired the lock. Otherwise return
+    'false'.
+  */
+  bool abort_if_acquired() const
+  {
+    if (is_acquired())
+    {
+      my_error(ER_CANT_EXECUTE_WITH_BACKUP_LOCK, MYF(0));
+      return true;
+    }
+
+    return false;
+  }
+
+  bool is_acquired() const { return m_lock != NULL; }
+
+private:
+  MDL_key::enum_mdl_namespace m_namespace;
+  MDL_ticket *m_lock;
+  MDL_ticket *m_prot_lock;
+};
+
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 
@@ -2695,6 +2739,11 @@ public:
     }
   } transaction;
   Global_read_lock global_read_lock;
+
+  Global_backup_lock backup_tables_lock;
+
+  Global_backup_lock backup_binlog_lock;
+
   Field      *dup_field;
 #ifndef __WIN__
   sigset_t signals;

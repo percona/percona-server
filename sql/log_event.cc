@@ -6821,6 +6821,19 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         goto err;
     }
 
+    /*
+      Acquire protection against global BINLOG lock before rli->data_lock is
+      locked (otherwise we would also block SHOW SLAVE STATUS).
+    */
+    DBUG_ASSERT(!thd->backup_binlog_lock.is_acquired());
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    const ulong timeout= thd->variables.lock_wait_timeout;
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT, timeout))
+    {
+      error= 1;
+      goto err;
+    }
+
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
@@ -6834,6 +6847,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                                              false/*need_data_lock=false*/)))
     {
       mysql_mutex_unlock(&rli->data_lock);
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
       goto err;
     }
 
@@ -6842,6 +6857,10 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
+
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    thd->backup_binlog_lock.release_protection(thd);
+
     if (rli->is_parallel_exec())
       rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time,
                                      true/*need_data_lock=true*/);

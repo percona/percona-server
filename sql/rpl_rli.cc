@@ -953,9 +953,27 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
 
   if (need_data_lock)
+  {
+    const ulong timeout= info_thd->variables.lock_wait_timeout;
+
+    /*
+      Acquire protection against global BINLOG lock before rli->data_lock is
+      locked (otherwise we would also block SHOW SLAVE STATUS).
+    */
+    DBUG_ASSERT(!info_thd->backup_binlog_lock.is_acquired());
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    if (info_thd->backup_binlog_lock.acquire_protection(info_thd, MDL_EXPLICIT,
+                                                        timeout))
+      DBUG_RETURN(1);
+
     mysql_mutex_lock(&data_lock);
+  }
   else
+  {
     mysql_mutex_assert_owner(&data_lock);
+    DBUG_ASSERT(info_thd->mdl_context.is_lock_owner(MDL_key::BINLOG, "", "",
+                                                    MDL_INTENTION_EXCLUSIVE));
+  }
 
   inc_event_relay_log_pos();
   group_relay_log_pos= event_relay_log_pos;
@@ -1013,7 +1031,13 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
   mysql_cond_broadcast(&data_cond);
   if (need_data_lock)
+  {
     mysql_mutex_unlock(&data_lock);
+
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    info_thd->backup_binlog_lock.release_protection(info_thd);
+  }
+
   DBUG_RETURN(error);
 }
 

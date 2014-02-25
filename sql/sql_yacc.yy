@@ -15194,16 +15194,28 @@ set_expr_or_default:
 /* Lock function */
 
 lock:
-          LOCK_SYM table_or_tables
+          LOCK_SYM lock_variant
           {
-            LEX *lex= Lex;
-
-            if (lex->sphead)
+            if (Lex->sphead)
             {
               my_error(ER_SP_BADSTATEMENT, MYF(0), "LOCK");
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_LOCK_TABLES;
+          }
+        ;
+
+lock_variant:
+          BINLOG_SYM FOR_SYM BACKUP_SYM
+          {
+            Lex->sql_command= SQLCOM_LOCK_BINLOG_FOR_BACKUP;
+          }
+        | TABLES FOR_SYM BACKUP_SYM
+          {
+            Lex->sql_command= SQLCOM_LOCK_TABLES_FOR_BACKUP;
+          }
+        | table_or_tables
+          {
+            Lex->sql_command= SQLCOM_LOCK_TABLES;
           }
           table_lock_list
           {}
@@ -15244,19 +15256,25 @@ lock_option:
         ;
 
 unlock:
-          UNLOCK_SYM
+          UNLOCK_SYM unlock_variant
           {
-            LEX *lex= Lex;
-
-            if (lex->sphead)
+            if (Lex->sphead)
             {
               my_error(ER_SP_BADSTATEMENT, MYF(0), "UNLOCK");
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_UNLOCK_TABLES;
           }
-          table_or_tables
-          {}
+	;
+
+unlock_variant:
+          BINLOG_SYM
+          {
+            Lex->sql_command= SQLCOM_UNLOCK_BINLOG;
+          }
+        | table_or_tables
+          {
+            Lex->sql_command= SQLCOM_UNLOCK_TABLES;
+          }
         ;
 
 /*

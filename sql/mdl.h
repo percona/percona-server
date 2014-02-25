@@ -303,6 +303,7 @@ public:
     MDL_key is also used outside of the MDL subsystem.
   */
   enum enum_mdl_namespace { GLOBAL=0,
+                            BACKUP,
                             SCHEMA,
                             TABLE,
                             FUNCTION,
@@ -310,6 +311,7 @@ public:
                             TRIGGER,
                             EVENT,
                             COMMIT,
+                            BINLOG,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

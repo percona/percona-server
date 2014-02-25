@@ -962,6 +962,8 @@ THD::THD(bool enable_plugins)
    m_trans_log_file(NULL),
    m_trans_fixed_log_file(NULL),
    m_trans_end_pos(0),
+   backup_tables_lock(MDL_key::BACKUP),
+   backup_binlog_lock(MDL_key::BINLOG),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -1669,6 +1671,12 @@ void THD::cleanup(void)
     metadata locks. Release them.
   */
   mdl_context.release_transactional_locks();
+
+  /* Release backup locks, if acquired */
+  if (backup_binlog_lock.is_acquired())
+    backup_binlog_lock.release(this);
+  if (backup_tables_lock.is_acquired())
+    backup_tables_lock.release(this);
 
   /* Release the global read lock, if acquired. */
   if (global_read_lock.is_acquired())

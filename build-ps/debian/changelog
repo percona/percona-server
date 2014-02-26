@@ -1,8 +1,21 @@
-percona-server-5.6 (5.6.14-rel62.0) unstable; urgency=low
+percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
 
-  * Merged MySQL 5.6.14 
+  * Updated package Uploaders.
+  * Fixed control line length issues.
+  * Fixed percona-server-common-5.6 to depend on mysql-common and corrected
+    Provides and Replaces.
+  * Corrected percona-server-client-5.6 to provide only
+    virtual-mysql-client.
+  * Corrected percona-server-server-5.6 to provide only virtual-mysql-server
+    instead of both mysql-server and virtual-mysql-server.
+  * Corrected percona-server-client-5.6 and percona-server-server-5.6 to
+    follow Breaks/Replaces model.
+  * Added mariadb-5.5 and mysql-5.6  to common, client server, and client-dev
+    Breaks/Replaces.
+  * Modified rules to remove python-for-subunut2junitxml before building
+    packages.
 
- -- Alexey Bychko <alexey.bychko@percona.com>  Tue,  22 Oct 2013 10:00:00 +0700
+ -- George Lorch <george.lorch@percona.com>  Wed, 19 Feb 2014 15:22:30 -0700
 
 percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
 

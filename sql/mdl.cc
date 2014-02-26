@@ -766,6 +766,8 @@ MDL_map_partition::MDL_map_partition()
 
 void MDL_map::destroy()
 {
+  MDL_lock::destroy(m_backup_lock);
+  MDL_lock::destroy(m_binlog_lock);
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
 

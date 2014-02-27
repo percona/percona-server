@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Slave I/O: Get master clock failed with error: , Error_code: 1159");
+call mtr.add_suppression("Get master SERVER_ID failed with error: , Error_code: 1159");
+call mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: , Error_code: 1159");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+SET @debug_saved=@@global.debug;
+include/stop_slave.inc
+SET @@global.debug="+d,get_master_version.heartbeat.ER_NET_READ_INTERRUPTED";
+START SLAVE;
+include/wait_for_slave_io_to_start.inc
+[log_grep.inc] file:  pattern: The slave I/O thread stops because SET @master_heartbeat_period on master failed.
+[log_grep.inc] lines:   0
+include/stop_slave.inc
+SET @@global.debug="+d,get_master_version.serverid.ER_NET_READ_INTERRUPTED";
+START SLAVE;
+include/wait_for_slave_io_to_start.inc
+[log_grep.inc] file:  pattern: fatal error is encountered when it try to get the value of SERVER_ID variable from master
+[log_grep.inc] lines:   0
+include/stop_slave.inc
+SET @@global.debug="+d,get_master_version.timestamp.ER_NET_READ_INTERRUPTED";
+START SLAVE;
+include/wait_for_slave_io_to_start.inc
+[log_grep.inc] file:  pattern: "SELECT UNIX_TIMESTAMP.." failed on master, do not trust column
+[log_grep.inc] lines:   0
+include/stop_slave.inc
+SET @@global.debug='';
+include/start_slave.inc
+include/rpl_end.inc

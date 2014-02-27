@@ -1,0 +1,67 @@
+# Bug #1268735:
+# Slave I/O thread won't attempt to automatically reconnect to the master
+# on ER_NET_READ_INTERRUPTED network error.
+#
+# The bug is in get_master_version_and_clock(). There are two places in this
+# function where the bug takes place. The first one is getting master server id
+# and the second one is getting master time. The error was injected to the code
+# to test the bug fix.
+
+source include/master-slave.inc;
+# The error injection works only with debug facilities.
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+# The test is not supposed to have any binglog affairs.
+# Hence it's enough it to run only with one binlog format
+source include/have_binlog_format_mixed.inc;
+
+call mtr.add_suppression("Slave I/O: Get master clock failed with error: , Error_code: 1159");
+call mtr.add_suppression("Get master SERVER_ID failed with error: , Error_code: 1159");
+call mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: , Error_code: 1159");
+call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
+
+let log_file_full_path= `SELECT @@GLOBAL.log_error`;
+if(!$log_file_full_path)
+{
+  # MySQL Server on windows is started with --console and thus
+  # does not know the location of its .err log, use default location
+  let log_file_full_path = $MYSQLTEST_VARDIR/log/mysqld.2.err;
+}
+
+connection slave;
+SET @debug_saved=@@global.debug;
+
+# i=1 for activating injected error during getting timestamp from master
+# i=2 for activating injected error during getting server id from master
+# i=3 for activating injected error during setting @master_heartbeat_period 
+let i=3;
+
+connection slave;
+source include/stop_slave.inc;
+let old_debug=`SELECT @@global.debug`;
+
+while($i)
+{
+  let debug_name=`SELECT CASE $i WHEN 1 THEN 'get_master_version.timestamp.ER_NET_READ_INTERRUPTED' WHEN 2 THEN 'get_master_version.serverid.ER_NET_READ_INTERRUPTED' WHEN 3 THEN 'get_master_version.heartbeat.ER_NET_READ_INTERRUPTED' END`;
+
+  # Stop slave and set debug variables
+  eval SET @@global.debug="+d,$debug_name";
+
+  START SLAVE;
+  # Crash if error during slave starting takes place
+  let $rpl_allow_error= 0;
+  source include/wait_for_slave_io_to_start.inc;
+
+  let grep_pattern=`SELECT CASE $i WHEN 1 THEN '"SELECT UNIX_TIMESTAMP.." failed on master, do not trust column' WHEN 2 THEN 'fatal error is encountered when it try to get the value of SERVER_ID variable from master' WHEN 3 THEN 'The slave I/O thread stops because SET @master_heartbeat_period on master failed.' END`;
+
+  source include/log_grep.inc;
+
+  source include/stop_slave.inc;
+  dec $i;
+}
+
+eval SET @@global.debug='$old_debug';
+
+source include/start_slave.inc;
+source include/rpl_end.inc;

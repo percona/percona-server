@@ -7082,14 +7082,23 @@ ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
 ER_STOP_SLAVE_IO_THREAD_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
 
-ER_QUERY_TIMEOUT 70101
-        eng "Query execution was interrupted, max_statement_time exceeded"
-
 ER_TABLE_CORRUPT
   eng "Operation cannot be performed. The table '%-.64s.%-.64s' is missing, corrupt or contains bad data."
 
 ER_TEMP_FILE_WRITE_FAILURE
   eng "Temporary file write failure."
+
+ER_INNODB_FT_AUX_NOT_HEX_ID
+  eng "Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index."
+
+ER_OLD_TEMPORALS_UPGRADED
+  eng "TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format."
+
+ER_INNODB_FORCED_RECOVERY
+  eng "Operation not allowed when innodb_forced_recovery > 0."
+
+ER_QUERY_TIMEOUT 70101
+        eng "Query execution was interrupted, max_statement_time exceeded"
 
 ER_CANT_EXECUTE_WITH_BACKUP_LOCK
 	eng "Can’t execute the query because you have a conflicting backup lock"

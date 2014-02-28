@@ -33,7 +33,6 @@ Vcs-Bzr: lp:percona-server/5.5
 Package: libperconaserverclient18
 Section: libs
 Architecture: any
-Pre-Depends: multiarch-support
 Depends: percona-server-common-5.5 ${misc:Depends}, ${shlibs:Depends}
 Replaces: libpercona-server-client16
 Description: Percona Server database client library
@@ -89,7 +88,7 @@ Description: Percona Server database development files
 Package: percona-server-common-5.5
 Section: database
 Architecture: any
-Depends: mysql-comon, ${misc:Depends}
+Depends: mysql-common, ${misc:Depends}
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database

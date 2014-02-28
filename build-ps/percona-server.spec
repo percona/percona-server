@@ -28,6 +28,8 @@
 %define mysql_version @@MYSQL_VERSION@@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define percona_server_version @@PERCONA_VERSION@@
+%define revision @@REVISION@@
+%define short_product_tag 55
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
@@ -96,27 +98,21 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{percona_server_version}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{percona_server_version}, Revision %{revision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release rel%{percona_server_version}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release rel%{percona_server_version}, Revision %{revision}
 %endif
 
 # ----------------------------------------------------------------------------
 # Product and server suffixes
 # ----------------------------------------------------------------------------
-%define product_suffix -55
 %if %{undefined product_suffix}
   %if %{defined short_product_tag}
     %define product_suffix      -%{short_product_tag}
   %else
     %define product_suffix      %{nil}
   %endif
-%endif
-
-%define server_suffix -%{percona_server_version}
-%if %{undefined server_suffix}
-%define server_suffix   %{nil}
 %endif
 
 # ----------------------------------------------------------------------------
@@ -420,8 +416,7 @@ mkdir debug
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
-	   -DWITH_PAM=ON
+           -DWITH_PAM=ON
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
 )
@@ -440,7 +435,6 @@ mkdir release
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
            -DWITH_PAM=ON
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
@@ -472,7 +466,7 @@ RBR=$RPM_BUILD_ROOT
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}%{server_suffix}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}

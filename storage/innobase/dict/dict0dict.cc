@@ -5718,7 +5718,8 @@ dict_ind_init(void)
 	dict_table_t*		table;
 
 	/* create dummy table and index for REDUNDANT infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0);
+	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0,
+				      true);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -5731,7 +5732,7 @@ dict_ind_init(void)
 	/* create dummy table and index for COMPACT infimum and supremum */
 	table = dict_mem_table_create("SYS_DUMMY2",
 				      DICT_HDR_SPACE, 1,
-				      DICT_TF_COMPACT, 0);
+				      DICT_TF_COMPACT, 0, true);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 	dict_ind_compact = dict_mem_index_create("SYS_DUMMY2", "SYS_DUMMY2",

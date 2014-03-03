@@ -466,7 +466,7 @@ void QueryStripComments::set(const char* query, uint query_length, uint addition
         buffer[position++] = ' ';
       }
     }
-    else
+    else if (query_position < query_length)
     {
       buffer[position++] = query[query_position++];
     }
@@ -496,6 +496,7 @@ QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,QueryStripCommen
     query = thd->query();
     length = thd->query_length();
     qsc->set(query,length,thd->db_length + sizeof(size_t) + 1 + QUERY_CACHE_FLAGS_SIZE);
+    *(size_t *) (qsc->query() + qsc->query_length() + 1)= thd->db_length;
     thd->set_query(qsc->query(),qsc->query_length());
   }
   else
@@ -1788,6 +1789,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 			      thd->db_length + QUERY_CACHE_FLAGS_SIZE);
     sql          = query_strip_comments->query();
     query_length = query_strip_comments->query_length();
+    *(size_t *) (sql + query_length + 1)= thd->db_length;
   }
 
   tot_length= query_length + 1 + sizeof(size_t) + 

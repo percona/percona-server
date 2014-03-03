@@ -6,6 +6,8 @@
    :maxdepth: 1
    :glob:
 
+   Percona-Server-5.6.16-64.0-tokudb
+   Percona-Server-5.6.16-64.0
    Percona-Server-5.6.15-63.0
    Percona-Server-5.6.14-62.0
    Percona-Server-5.6.13-61.0

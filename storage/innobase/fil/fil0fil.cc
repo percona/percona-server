@@ -5119,7 +5119,6 @@ retry:
 #ifdef HAVE_POSIX_FALLOCATE
 	if (srv_use_posix_fallocate) {
 
-		mutex_exit(&fil_system->mutex);
 		success = os_file_set_size(node->name, node->handle,
 					   (size_after_extend
 					    - file_start_page_no) * page_size);

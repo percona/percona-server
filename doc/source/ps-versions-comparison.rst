@@ -45,7 +45,7 @@ List of features available in |Percona Server| releases
      - Replaced by the upstream implementation [#n-4]_
    * - :ref:`Reduced Buffer Pool Mutex Contention <ps51:innodb_opt_lru_count>`
      - :ref:`Reduced Buffer Pool Mutex Contention <ps55:innodb_opt_lru_count>`
-     - :ref:`Reduced Buffer Pool Mutex Contention <ps56:innodb_opt_lru_count>`
+     - Feature not implemented 
    * - :ref:`InnoDB timer-based Concurrency Throttling <ps51:innodb_thread_concurrency_timer_based_page>`
      - :ref:`InnoDB timer-based Concurrency Throttling <ps55:innodb_thread_concurrency_timer_based_page>`
      - Replaced by the upstream implementation [#n-5]_

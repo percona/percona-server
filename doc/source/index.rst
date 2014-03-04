@@ -89,6 +89,7 @@ Flexibility Improvements
    flexibility/extended_select_into_outfile
    flexibility/per_query_variable_statement
    flexibility/extended_mysqlbinlog
+   flexibility/mysqlbinlog_change_db
 
 Reliability Improvements
 ========================
@@ -139,6 +140,18 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
+
+TokuDB
+======
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   tokudb/tokudb_intro
+   tokudb/tokudb_installation
+   tokudb/using_tokudb
+   tokudb/tokudb_compression
 
 Reference
 =========

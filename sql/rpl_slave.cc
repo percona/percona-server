@@ -1471,7 +1471,8 @@ bool is_network_error(uint errorno)
       errorno == CR_SERVER_GONE_ERROR ||
       errorno == CR_SERVER_LOST ||
       errorno == ER_CON_COUNT_ERROR ||
-      errorno == ER_SERVER_SHUTDOWN)
+      errorno == ER_SERVER_SHUTDOWN ||
+      errorno == ER_NET_READ_INTERRUPTED)
     return TRUE;
 
   return FALSE;   
@@ -1862,6 +1863,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                   };);
 
   master_res= NULL;
+  DBUG_EXECUTE_IF("get_master_version.timestamp.ER_NET_READ_INTERRUPTED",
+		  {
+		     DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+		     DBUG_SET("-d,get_master_version.timestamp."
+			      "ER_NET_READ_INTERRUPTED");
+		  });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
@@ -1916,6 +1923,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                   };);
   master_res= NULL;
   master_row= NULL;
+  DBUG_EXECUTE_IF("get_master_version.server_id.ER_NET_READ_INTERRUPTED",
+		  {
+                    DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+                    DBUG_SET("-d,get_master_version.server_id."
+                             "ER_NET_READ_INTERRUPTED");
+		  });
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -2105,7 +2118,12 @@ when it try to get the value of TIME_ZONE global variable from master.";
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     sprintf(query, query_format, llbuf);
-
+    DBUG_EXECUTE_IF("get_master_version.heartbeat.ER_NET_READ_INTERRUPTED",
+		    {
+		      DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+		      DBUG_SET("-d,get_master_version.heartbeat."
+			       "ER_NET_READ_INTERRUPTED");
+		    });
     if (mysql_real_query(mysql, query, strlen(query)))
     {
       if (check_io_slave_killed(mi->info_thd, mi, NULL))

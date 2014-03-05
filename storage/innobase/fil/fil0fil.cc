@@ -2389,6 +2389,11 @@ fil_op_log_parse_or_replay(
 	*/
 	if (!space_id) {
 		return(ptr);
+	} else {
+		/* Only replay file ops during recovery.  This is a
+		release-build assert to minimize any data loss risk by a
+		misapplied file operation.  */
+		ut_a(recv_recovery_is_on());
 	}
 
 	/* Let us try to perform the file operation, if sensible. Note that
@@ -5121,10 +5126,21 @@ retry:
 #ifdef HAVE_POSIX_FALLOCATE
 	if (srv_use_posix_fallocate) {
 
-		mutex_exit(&fil_system->mutex);
-		success = os_file_set_size(node->name, node->handle,
-					   (size_after_extend
-					    - file_start_page_no) * page_size);
+		os_offset_t	start_offset = file_start_page_no * page_size;
+		os_offset_t	end_offset
+			= (size_after_extend - file_start_page_no) * page_size;
+
+		success = (posix_fallocate(node->handle, start_offset,
+					   end_offset) == 0);
+		if (!success)
+		{
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"preallocating file space for file \'%s\' "
+				"failed.  Current size " INT64PF
+				", len " INT64PF ", desired size " INT64PF
+				"\n", node->name, start_offset, end_offset,
+				start_offset + end_offset);
+		}
 		mutex_enter(&fil_system->mutex);
 		if (success) {
 			node->size += (size_after_extend - start_page_no);
@@ -5132,6 +5148,7 @@ retry:
 			os_has_said_disk_full = FALSE;
 		}
 		node->being_extended = FALSE;
+		fil_node_complete_io(node, fil_system, OS_FILE_READ);
 		goto complete_io;
 	}
 #endif

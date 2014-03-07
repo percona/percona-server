@@ -78,6 +78,7 @@ Performance Improvements
    performance/innodb_thread_concurrency_timer_based
    performance/innodb_numa_support
    performance/handlersocket
+   performance/buff_read_ahead_area
    performance/threadpool
    performance/binary_group_commit
 
@@ -91,12 +92,12 @@ Flexibility Improvements
    flexibility/innodb_files_extend
    flexibility/log_warnings_suppress
    flexibility/mysql_remove_eol_carret
-   flexibility/buff_read_ahead_area
    flexibility/innodb_fast_shutdown
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
    flexibility/extended_select_into_outfile
+   flexibility/extended_mysqlbinlog
    flexibility/mysqlbinlog_change_db
    flexibility/slowlog_rotation
 

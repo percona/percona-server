@@ -1,0 +1,80 @@
+--source include/have_log_bin.inc
+#
+# WL #36: http://askmonty.org/worklog/Server-Sprint/?tid=36
+# This is basic test for --rewrite-db option.
+# mysqlbinlog --rewrite-db="from->to" should rewrite database name
+#
+
+--disable_query_log
+
+# Because RBR event DB rewrite requires shifting of
+# Table_map_log_event contents around if the DB name length
+# changes, this case is tested for both shorter and longer
+# names.
+
+--let DB1=a
+--let DB2=bbbbbbbbbbbbbbbbbbbb
+--let DB3=cccccccccccccccc
+--let DB4=d
+
+eval CREATE DATABASE $DB1; eval USE $DB1; CREATE TABLE t1(f INT);
+eval CREATE DATABASE $DB2; eval USE $DB2; CREATE TABLE t1(f INT);
+eval CREATE DATABASE $DB3; eval USE $DB3; CREATE TABLE t1(f INT);
+eval CREATE DATABASE $DB4; eval USE $DB4; CREATE TABLE t1(f INT);
+
+RESET MASTER;
+--let MYSQLD_DATA_DIR=`select @@datadir`
+--let LOAD_DATA_FILE=$MYSQLD_DATA_DIR/table.values
+--let BIN_LOG_FILE_NAME=query_get_value(show master status, File,    1)
+--let BIN_LOG_START_POSITION=query_get_value(show master status, Position, 1)
+eval USE $DB1; INSERT INTO t1 VALUES(0); INSERT INTO t1 VALUES(0);
+eval USE $DB2; INSERT INTO t1 VALUES(1); INSERT INTO t1 VALUES(1);
+write_file $LOAD_DATA_FILE;
+2
+2
+EOF
+eval USE $DB3;
+--eval LOAD DATA INFILE "$LOAD_DATA_FILE" INTO TABLE t1
+--let BIN_LOG_STOP_POSITION=query_get_value(show master status, Position, 1)
+FLUSH LOGS;
+
+--let BIN_LOG_FULL_PATH=`SELECT CONCAT("$MYSQLD_DATA_DIR", "$BIN_LOG_FILE_NAME")`
+
+--let i=10
+
+while ($i)
+{
+# Test for different combinations of syntax and db name filtering and rewriting
+--let REWRITE=`SELECT CASE $i WHEN 10 THEN '' WHEN 9 THEN '--rewrite-db="$DB1->$DB2" --rewrite-db="$DB3->$DB4" --database="$DB4"' WHEN 8 THEN '--rewrite-db="$DB1->$DB2" --rewrite-db="$DB3->$DB4" --database="$DB3"' WHEN 7 THEN '--rewrite-db="$DB1->$DB2" --rewrite-db="$DB3->$DB4" --database="$DB2"' WHEN 6 THEN '--rewrite-db="$DB1->$DB2" --rewrite-db="$DB3->$DB4" --database="$DB1"' WHEN 5 THEN '--rewrite-db="$DB1->$DB2" --rewrite-db="$DB3->$DB4"' WHEN 4 THEN '--rewrite-db="  $DB1  -> $DB2 , $DB3 ->   $DB4  "' WHEN 3 THEN '--rewrite-db="$DB1->$DB2,$DB3->$DB4"' WHEN 2 THEN '--rewrite-db="$DB1->$DB4"' WHEN 1 THEN '--rewrite-db="$DB1->$DB2"' END`
+
+eval USE $DB1; DELETE FROM t1;
+eval USE $DB2; DELETE FROM t1;
+eval USE $DB3; DELETE FROM t1;
+eval USE $DB4; DELETE FROM t1;
+
+--echo #
+--echo # Apply log with '$REWRITE'
+--echo #
+
+--exec $MYSQL_BINLOG $REWRITE --start-position=$BIN_LOG_START_POSITION --stop-position=$BIN_LOG_STOP_POSITION $BIN_LOG_FULL_PATH | $MYSQL --local-infile=1
+
+--echo # use $DB1
+eval USE $DB1; SELECT * FROM t1 ORDER BY f;
+--echo # use $DB2
+eval USE $DB2; SELECT * FROM t1 ORDER BY f;
+--echo # use $DB3
+eval USE $DB3; SELECT * FROM t1 ORDER BY f;
+--echo # use $DB4
+eval USE $DB4; SELECT * FROM t1 ORDER BY f;
+
+dec $i;
+}
+
+eval USE $DB1; DROP TABLE t1; eval DROP DATABASE $DB1;
+eval USE $DB2; DROP TABLE t1; eval DROP DATABASE $DB2;
+eval USE $DB3; DROP TABLE t1; eval DROP DATABASE $DB3;
+eval USE $DB4; DROP TABLE t1; eval DROP DATABASE $DB4;
+
+--remove_file $LOAD_DATA_FILE
+
+--enable_query_log

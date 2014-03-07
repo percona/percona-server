@@ -1,0 +1,227 @@
+# mysql-dfsg (debconf) translation to Catalan.
+# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+# Aleix Badia i Bosch <abadia@ica.es> 2004
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mysql-dfsg-4.1\n"
+"Report-Msgid-Bugs-To: mysql-5.5@packages.debian.org\n"
+"POT-Creation-Date: 2011-11-08 11:42-0800\n"
+"PO-Revision-Date: 2004-01-31 19:20GMT\n"
+"Last-Translator: Aleix Badia i Bosch <abadia@ica.es>\n"
+"Language-Team: Debian L10n Catalan <debian-l10n-catalan@lists.debian.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:2001
+msgid "Really proceed with downgrade?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:2001
+msgid "A file named /var/lib/mysql/debian-*.flag exists on this system."
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:2001
+msgid ""
+"Such a file is an indication that a mysql-server package with a higher "
+"version has been installed previously."
+msgstr ""
+"Aquest fitxer indica que anteriorment s'ha instaŀlat un paquet mysql-server "
+"amb una versió posterior."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:2001
+msgid ""
+"There is no guarantee that the version you're currently installing will be "
+"able to use the current databases."
+msgstr ""
+"No hi ha cap garantia que la versió que esteu instaŀlant actualment puga "
+"emprar les bases de dades actuals."
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.5.templates:3001
+#, fuzzy
+#| msgid "Important note for NIS/YP users!"
+msgid "Important note for NIS/YP users"
+msgstr "Nota important pels usuaris de NIS/YP"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.5.templates:3001
+msgid ""
+"Using MySQL under NIS/YP requires a mysql user account to be added on the "
+"local system with:"
+msgstr ""
+"Si empreu MySQL sota NIS/YP, heu d'afegir un compte d'usuari mysql al "
+"sistema local amb:"
+
+#. Type: note
+#. Description
+#: ../mysql-server-5.5.templates:3001
+msgid ""
+"You should also check the permissions and ownership of the /var/lib/mysql "
+"directory:"
+msgstr ""
+"També hauríeu de comprovar els permisos i propietaris del directori /var/"
+"lib/mysql:"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:4001
+msgid "Remove all MySQL databases?"
+msgstr ""
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:4001
+msgid ""
+"The /var/lib/mysql directory which contains the MySQL databases is about to "
+"be removed."
+msgstr ""
+"El directori /var/lib/mysql que conté les bases de dades de MySQL està a "
+"punt deser suprimit."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:4001
+msgid ""
+"If you're removing the MySQL package in order to later install a more recent "
+"version or if a different mysql-server package is already using it, the data "
+"should be kept."
+msgstr ""
+"Si esteu suprimint el paquet MySQL per a posteriorment instaŀlar una versió "
+"més recent, o si un paquet mysql-server diferent ja l'està emprant, les "
+"dades s'haurien de mantenir."
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:5001
+#, fuzzy
+#| msgid "Should MySQL start on boot?"
+msgid "Start the MySQL server on boot?"
+msgstr "Voleu que el MySQL s'inici� a l'arrencada ?"
+
+#. Type: boolean
+#. Description
+#: ../mysql-server-5.5.templates:5001
+#, fuzzy
+msgid ""
+"The MySQL server can be launched automatically at boot time or manually with "
+"the '/etc/init.d/mysql start' command."
+msgstr ""
+"El MySQL es pot executar automàticament a l'arrencada o manualment amb "
+"l'ordre «/etc/init.d/mysql start»."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.5.templates:6001
+msgid "New password for the MySQL \"root\" user:"
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.5.templates:6001
+msgid ""
+"While not mandatory, it is highly recommended that you set a password for "
+"the MySQL administrative \"root\" user."
+msgstr ""
+"Tot i que no és requerida, és molt recomanable que establiu una "
+"contrasenya per a «root», l'usuari administratiu del MySQL."
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.5.templates:6001
+msgid "If this field is left blank, the password will not be changed."
+msgstr ""
+
+#. Type: password
+#. Description
+#: ../mysql-server-5.5.templates:7001
+msgid "Repeat password for the MySQL \"root\" user:"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:8001
+msgid "Unable to set password for the MySQL \"root\" user"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:8001
+msgid ""
+"An error occurred while setting the password for the MySQL administrative "
+"user. This may have happened because the account already has a password, or "
+"because of a communication problem with the MySQL server."
+msgstr ""
+"S'ha produït un error en establir la contrasenya de l'usuari administratiu "
+"del MySQL. Això pot haver passat perquè el compte ja té una una "
+"contrasenya, o per un problema de comunicació amb el servidor de MySQL."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:8001
+msgid "You should check the account's password after the package installation."
+msgstr ""
+"Hauríeu de comprovar la contrasenya del compte després de la instaŀlació "
+"del paquet."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:8001
+#, fuzzy
+#| msgid ""
+#| "Please read the /usr/share/doc/mysql-server-5.1/README.Debian file for "
+#| "more information."
+msgid ""
+"Please read the /usr/share/doc/mysql-server-5.5/README.Debian file for more "
+"information."
+msgstr ""
+"Llegiu el fitxer /usr/share/doc/mysql-server-5.1/README.Debian per a obtenir "
+"més informació."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:9001
+msgid "Password input error"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:9001
+msgid "The two passwords you entered were not the same. Please try again."
+msgstr ""
+"Les dos contrasenyes que heu introduït no són la mateixa. Proveu-ho de nou."
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:10001
+msgid "NDB Cluster seems to be in use"
+msgstr ""
+
+#. Type: error
+#. Description
+#: ../mysql-server-5.5.templates:10001
+msgid ""
+"MySQL-5.5 no longer provides NDB Cluster support. Please migrate to the new "
+"mysql-cluster-server package and remove all lines starting with \"ndb\" from "
+"all config files below /etc/mysql/."
+msgstr ""
+
+#~ msgid ""
+#~ "MySQL-5.1 no longer provides NDB Cluster support. Please migrate to the "
+#~ "new "
+#~ msgstr ""
+#~ "El MySQL-5.1 ja no implementa el clúster NDB. Migreu al nou paquet mysql-"
+#~ "cluster i suprimiu totes les línies que comencen per «ndb» de tots els "
+#~ "fitxers de configuració sota /etc/mysql/."

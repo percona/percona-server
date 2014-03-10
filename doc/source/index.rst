@@ -89,6 +89,7 @@ Flexibility Improvements
    flexibility/extended_select_into_outfile
    flexibility/per_query_variable_statement
    flexibility/extended_mysqlbinlog
+   flexibility/slowlog_rotation
    flexibility/mysqlbinlog_change_db
 
 Reliability Improvements
@@ -122,6 +123,7 @@ Management Improvements
    management/innodb_expanded_fast_index_creation
    management/log_archiving
    management/statement_timeout
+   management/backup_locks
 
 Diagnostics Improvements
 ========================

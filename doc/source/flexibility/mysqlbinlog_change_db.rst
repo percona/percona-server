@@ -32,7 +32,7 @@ Example
  COMMIT/*!*/;
  DELIMITER ;
 
-**mysqlbinlog** output when the new variable is used:  :: 
+**mysqlbinlog** output when the new option is used:  :: 
 
  $ mysqlbinlog --rewrite-db='world->new_world' mysql-bin.000005
  ...
@@ -67,7 +67,7 @@ Version Specific Information
 ============================
 
   * :rn:`5.6.16-64.0`
-    Feature ported from |Percona Server| 5.1
+    Full functionality.
 
 Client Command Line Parameter
 =============================

@@ -115,8 +115,8 @@ char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-static void mysql_close_free_options(MYSQL *mysql);
-static void mysql_close_free(MYSQL *mysql);
+void mysql_close_free_options(MYSQL *mysql);
+void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
@@ -3952,7 +3952,7 @@ mysql_select_db(MYSQL *mysql, const char *db)
   If handle is alloced by mysql connect free it.
 *************************************************************************/
 
-static void mysql_close_free_options(MYSQL *mysql)
+void mysql_close_free_options(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close_free_options");
 
@@ -3988,6 +3988,7 @@ static void mysql_close_free_options(MYSQL *mysql)
   {
     my_free(mysql->options.extension->plugin_dir);
     my_free(mysql->options.extension->default_auth);
+    my_free(mysql->options.extension->server_public_key_path);
     my_hash_free(&mysql->options.extension->connection_attributes);
     my_free(mysql->options.extension);
   }
@@ -3996,18 +3997,24 @@ static void mysql_close_free_options(MYSQL *mysql)
 }
 
 
-static void mysql_close_free(MYSQL *mysql)
+/*
+  Free all memory allocated in a MYSQL handle but preserve
+  current options if any.
+*/
+
+void mysql_close_free(MYSQL *mysql)
 {
   my_free(mysql->host_info);
   my_free(mysql->user);
   my_free(mysql->passwd);
   my_free(mysql->db);
+
 #if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
   my_free(mysql->info_buffer);
   mysql->info_buffer= 0;
 #endif
   /* Clear pointers for better safety */
-  mysql->host_info= mysql->user= mysql->passwd= mysql->db= 0;
+  mysql->host_info= mysql->user= mysql->passwd= mysql->db= mysql->extension= 0;
 }
 
 

@@ -28,6 +28,7 @@
 %define mysql_version @@MYSQL_VERSION@@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define percona_server_version @@PERCONA_VERSION@@
+%define revision @@REVISION@@
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
@@ -96,10 +97,10 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}
 %endif
 
 
@@ -316,8 +317,6 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
-Provides:       mysql-shared mysql-libs
-Obsoletes:	mysql-libs
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages

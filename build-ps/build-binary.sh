@@ -158,11 +158,9 @@ export CXX=${CXX:-g++}
 #
 if [ -n "$(which rpm)" ]; then
   export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
-else
-  export COMMON_FLAGS="-O2 -g"
 fi
 #
-export CFLAGS="${COMMON_FLAGS} -static-libgcc -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+export CFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
 export CXXFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
 #
 export MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"

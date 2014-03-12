@@ -805,12 +805,12 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 	fi
 fi
 
-echo "Percona Server is distributed with several useful UDF (User Defined Function) from Maatkit."
+echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
-echo "See http://code.google.com/p/maatkit/source/browse/trunk/udf for more details"
+echo "See http://www.percona.com/doc/percona-server/5.6/management/udf_percona_toolkit.html for more details"
 
 # Collect an upgrade history ...
 echo "Upgrade/install finished at `date`"        >> $STATUS_FILE
@@ -1060,7 +1060,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/*.so
 
-# Maatkit UDF libs
+# Percona Toolkit UDF libs
 %{_libdir}/mysql/plugin/libfnv1a_udf.a
 %{_libdir}/mysql/plugin/libfnv1a_udf.la
 %{_libdir}/mysql/plugin/libfnv_udf.a

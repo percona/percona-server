@@ -541,7 +541,7 @@ elsif ( $opt->{basedir} )
                     find_in_basedir($opt,"file","mysqld-nt",
                                   "bin");  # ,"sql"
   $pkgdatadir     = find_in_basedir($opt,"dir","fill_help_tables.sql",
-                                    "share","share/mysql");  # ,"scripts"
+                                    "share","share/percona-server","share/mysql");  # ,"scripts"
   $scriptdir      = "$opt->{basedir}/scripts";
 }
 else

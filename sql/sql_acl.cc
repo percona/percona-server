@@ -11561,6 +11561,12 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 
   server_mpvio_update_thd(thd, &mpvio);
 
+  if (mpvio.make_it_fail)
+  {
+    mpvio.status= MPVIO_EXT::FAILURE;
+    res= CR_ERROR;
+  }
+
   Security_context *sctx= thd->security_ctx;
   const ACL_USER *acl_user= mpvio.acl_user;
 

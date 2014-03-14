@@ -186,15 +186,15 @@ install: build
 
 	# mysql-server
 	mkdir -p $(TMP)/usr/share/doc/percona-server-5.6/examples
-	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.6/examples/
+	mv $(TMP)/usr/share/percona-server/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.6/examples/
 	rm -vf $(TMP)/usr/share/percona-server/mi_test_all* \
 	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
 	       $(TMP)/usr/share/percona-server/mysql.server \
 	       $(TMP)/usr/share/percona-server/binary-configure
 	nm -n $(builddir)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.6/mysqld.sym.gz
-	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
+	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/percona-server/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
-	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/percona-server/
 
 	# install AppArmor profile
 	# FIXME install -D -m 644 debian/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld
@@ -202,9 +202,6 @@ install: build
 	# FIXME install -D -m 644 debian/mysql-server-5.6.py $(TMP)/usr/share/apport/package-hooks/source_mysql-5.6.py
 
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
-
-	# Work around MySQL bug 71113, x bit set on example configs
-	chmod -x $(TMP)/usr/share/mysql/mysql-log-rotate
 
 	dh_movefiles
 

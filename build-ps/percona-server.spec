@@ -410,8 +410,6 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
-           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
-           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -429,8 +427,6 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
-           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
-           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \

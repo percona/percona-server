@@ -50,6 +50,6 @@ usr/share/man/man1/mysql.server.1
 usr/share/man/man1/comp_err.1
 usr/share/man/man1/mysqlman.1
 usr/share/man/man8/mysqld.8
-usr/share/mysql
+usr/share/percona-server
 etc/mysql/debian-start
-usr/share/mysql/debian-start.inc.sh
+usr/share/percona-server/debian-start.inc.sh

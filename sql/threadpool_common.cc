@@ -24,6 +24,7 @@
 #include <debug_sync.h>
 #include <threadpool.h>
 #include <global_threads.h>
+#include <probes_mysql.h>
 
 
 /* Threadpool parameters */
@@ -212,7 +213,9 @@ int threadpool_add_connection(THD *thd)
 
   if (!setup_connection_thread_globals(thd))
   {
-    if (!login_connection(thd))
+    bool rc= login_connection(thd);
+    MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+    if (!rc)
     {
       prepare_new_connection_state(thd);
       
@@ -229,6 +232,9 @@ int threadpool_add_connection(THD *thd)
         thd->m_server_idle= true;
         threadpool_init_net_server_extension(thd);
       }
+
+      MYSQL_CONNECTION_START(thd->thread_id, &thd->security_ctx->priv_user[0],
+                             (char *) thd->security_ctx->host_or_ip);
     }
   }
   worker_context.restore();

@@ -751,7 +751,12 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # owns all database files.
 # ----------------------------------------------------------------------
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-
+#
+# TODO fixing my.cnf, prepending params with invalid paths with #
+if [ -f /etc/my.cnf ]; then
+  sed -i -e '/^[^#].*share\/mysql/s/^/#/' /etc/my.cnf
+fi
+#
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------

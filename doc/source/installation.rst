@@ -151,7 +151,8 @@ Fetch and extract the source tarball. For example: ::
 
 Next, follow the instructions in :ref:`compile_from_source` below.
 
-.. _source-from-bzr
+.. _source-from-bzr:
+
 =========================================================
  Installing |Percona Server| from the Bazaar Source Tree
 =========================================================

@@ -35,27 +35,6 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
                                  const void *event);
 
 
-static inline
-void set_audit_mask(unsigned long *mask, uint event_class)
-{
-  mask[0]= 1;
-  mask[0]<<= event_class;
-}
-
-static inline
-void add_audit_mask(unsigned long *mask, const unsigned long *rhs)
-{
-  mask[0]|= rhs[0];
-}
-
-static inline
-bool check_audit_mask(const unsigned long *lhs,
-                      const unsigned long *rhs)
-{
-  return !(lhs[0] & rhs[0]);
-}
-
-
 typedef void (*audit_handler_t)(THD *thd, uint event_subtype, va_list ap);
 
 /**

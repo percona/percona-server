@@ -4537,6 +4537,8 @@ longlong Item_func_sleep::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
+  DEBUG_SYNC(current_thd, "func_sleep_before_sleep");
+
   error= 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed)

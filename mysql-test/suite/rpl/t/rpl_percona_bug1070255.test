@@ -1,0 +1,51 @@
+#
+# Bug 1070255: overflow caused replication sql thread failed to execute events
+#
+
+source include/have_debug.inc;
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+
+connection master;
+
+set global DEBUG='+d,dbug_table_map_id_500';
+CREATE TABLE t2 (a INT PRIMARY KEY, b VARCHAR(20));
+INSERT INTO t2 VALUES(1, '1');
+
+set global DEBUG='+d,dbug_table_map_id_4B_UINT_MAX+501';
+CREATE TABLE t3 (a INT PRIMARY KEY, b VARCHAR(20));
+INSERT INTO t3 VALUES(1, '1');
+
+set global DEBUG='+d,dbug_table_map_id_6B_UINT_MAX';
+CREATE TABLE t4 (a INT PRIMARY KEY, b VARCHAR(20));
+INSERT INTO t4 VALUES(1, '1');
+
+UPDATE t2, t3, t4 SET t2.b='tt2', t3.b='tt3', t4.b='tt4' WHERE t2.a=t3.a and t2.a=t4.a;
+
+sync_slave_with_master;
+
+SELECT * FROM t2;
+SELECT * FROM t3;
+SELECT * FROM t4;
+
+connection master;
+
+DELETE FROM t2;
+DELETE FROM t3;
+DELETE FROM t4;
+
+sync_slave_with_master;
+
+SELECT * FROM t2;
+SELECT * FROM t3;
+SELECT * FROM t4;
+
+connection master;
+
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+set global DEBUG='';
+
+--source include/rpl_end.inc

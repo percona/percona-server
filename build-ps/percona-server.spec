@@ -25,15 +25,17 @@
 %define mysql_vendor            Oracle and/or its affiliates
 %define percona_server_vendor	Percona, Inc
 
-%define mysql_version 5.5.35
+%define mysql_version @@MYSQL_VERSION@@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
-%define percona_server_version 33.1
+%define percona_server_version @@PERCONA_VERSION@@
+%define revision @@REVISION@@
+%define short_product_tag 55
 
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{percona_server_version}.1%{?dist}
+%define release         rel%{percona_server_version}%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -96,27 +98,21 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{percona_server_version}, Revision %{gotrevision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{percona_server_version}, Revision %{revision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release rel%{percona_server_version}, Revision %{gotrevision}
+%define compilation_comment_release     Percona Server (GPL), Release rel%{percona_server_version}, Revision %{revision}
 %endif
 
 # ----------------------------------------------------------------------------
 # Product and server suffixes
 # ----------------------------------------------------------------------------
-%define product_suffix -55
 %if %{undefined product_suffix}
   %if %{defined short_product_tag}
     %define product_suffix      -%{short_product_tag}
   %else
     %define product_suffix      %{nil}
   %endif
-%endif
-
-%define server_suffix -%{percona_server_version}
-%if %{undefined server_suffix}
-%define server_suffix   %{nil}
 %endif
 
 # ----------------------------------------------------------------------------
@@ -225,7 +221,6 @@ Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
-Patch1:         mysql-dubious-exports.patch
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -317,17 +312,16 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 Provides:       mysql-shared mysql-libs
-Obsoletes:      mysql-libs
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use Percona Server.
 
 ##############################################################################
-%prep
-%setup -n %{src_dir}
 #
-%patch1 -p1 
+%prep
+#
+%setup -n %{src_dir}
 #
 ##############################################################################
 %build
@@ -366,12 +360,6 @@ touch optional-files-devel
 # Set environment in order of preference, MYSQL_BUILD_* first, then variable
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
 # default RPM build environment.
-#
-# We set CXX=gcc by default to support so-called 'generic' binaries, where we
-# do not have a dependancy on libgcc/libstdc++.  This only works while we do
-# not require C++ features such as exceptions, and may need to be removed at
-# a later date.
-#
 
 # This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
 # the compile in cmd-line-utils/readline - needs investigation, but for now
@@ -423,11 +411,12 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
-	   -DWITH_PAM=ON
+           -DWITH_PAM=ON
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
 )
@@ -441,10 +430,11 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}" \
            -DWITH_PAM=ON
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
@@ -472,39 +462,17 @@ RBR=$RPM_BUILD_ROOT
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
 
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
-# needs to be during build phase as $CC is not set during install.
-if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    mkdir -p $RBR%{_libdir}/mysql
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
-  fi
-fi
-
-# Move temporarily the saved files to the BUILD directory since the BUILDROOT
-# dir will be cleaned at the start of the install phase
-mkdir -p "$(dirname $RPM_BUILD_DIR/%{_libdir})"
-mv $RBR%{_libdir} $RPM_BUILD_DIR/%{_libdir}
-
 ##############################################################################
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}%{server_suffix}
-
-# Move back the libdir from BUILD dir to BUILDROOT
-mkdir -p "$(dirname $RBR%{_libdir})"
-mv $RPM_BUILD_DIR/%{_libdir} $RBR%{_libdir}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/mysql-test
-install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
+install -d $RBR%{_datadir}/percona-server/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
@@ -552,7 +520,7 @@ touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
 install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
-  $RBR%{_datadir}/mysql/SELinux/RHEL4
+  $RBR%{_datadir}/percona-server/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib*/mysql, so it
@@ -1093,7 +1061,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
-%attr(755, root, root) %{_datadir}/mysql/
+%attr(755, root, root) %{_datadir}/percona-server/
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-client%{product_suffix}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1209,7 +1209,8 @@ bool is_network_error(uint errorno)
       errorno == CR_SERVER_GONE_ERROR ||
       errorno == CR_SERVER_LOST ||
       errorno == ER_CON_COUNT_ERROR ||
-      errorno == ER_SERVER_SHUTDOWN)
+      errorno == ER_SERVER_SHUTDOWN ||
+      errorno == ER_NET_READ_INTERRUPTED)
     return TRUE;
 
   return FALSE;   
@@ -1325,6 +1326,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                   };);
 
   master_res= NULL;
+  DBUG_EXECUTE_IF("get_master_version.timestamp.ER_NET_READ_INTERRUPTED",
+		  {
+		     DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+		     DBUG_SET("-d,get_master_version.timestamp."
+			      "ER_NET_READ_INTERRUPTED");
+		  });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
@@ -1375,6 +1382,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                   };);
   master_res= NULL;
   master_row= NULL;
+  DBUG_EXECUTE_IF("get_master_version.server_id.ER_NET_READ_INTERRUPTED",
+		  {
+                    DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+                    DBUG_SET("-d,get_master_version.server_id."
+                             "ER_NET_READ_INTERRUPTED");
+		  });
   if (!mysql_real_query(mysql,
                         STRING_WITH_LEN("SHOW VARIABLES LIKE 'SERVER_ID'")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -1564,17 +1577,31 @@ when it try to get the value of TIME_ZONE global variable from master.";
     */
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     sprintf(query, query_format, llbuf);
-
-    if (mysql_real_query(mysql, query, strlen(query))
-        && !check_io_slave_killed(mi->io_thd, mi, NULL))
-    {
-      errmsg= "The slave I/O thread stops because SET @master_heartbeat_period "
-        "on master failed.";
-      err_code= ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
-      mysql_free_result(mysql_store_result(mysql));
-      goto err;
+    DBUG_EXECUTE_IF("get_master_version.heartbeat.ER_NET_READ_INTERRUPTED",
+		    {
+		      DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+		      DBUG_SET("-d,get_master_version.heartbeat."
+			       "ER_NET_READ_INTERRUPTED");
+		    });
+    if (mysql_real_query(mysql, query, strlen(query))) {
+      if (is_network_error(mysql_errno(mysql)))
+      {
+        mi->report(WARNING_LEVEL, mysql_errno(mysql),
+                   "SET @master_heartbeat_period to master failed with error: %s",
+                   mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto network_err;
+      }
+      else if (!check_io_slave_killed(mi->io_thd, mi, NULL)) {
+        errmsg= "The slave I/O thread stops because SET @master_heartbeat_period "
+          "on master failed.";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto err;
+      }
     }
+
     mysql_free_result(mysql_store_result(mysql));
   }
  

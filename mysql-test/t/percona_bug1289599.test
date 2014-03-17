@@ -1,0 +1,33 @@
+#
+# Bug 1289599: Authentication bypass if auth_socket installed
+#
+
+--source include/have_socket_auth_plugin.inc
+
+if (`SELECT count(*) <> 0 FROM mysql.user WHERE user = '$USER'`)
+{
+  --skip Unix user present in mysql.user
+}
+
+update mysql.user set plugin='auth_socket';
+flush privileges;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $USER USER
+--error ER_PLUGIN_IS_NOT_LOADED
+connect (fail,localhost,$USER);
+
+--error ER_PLUGIN_IS_NOT_LOADED
+change_user $USER;
+
+eval install plugin auth_socket soname '$SOCKET_AUTH';
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT $USER USER
+--error ER_ACCESS_DENIED_ERROR, ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+connect (fail,localhost,$USER);
+
+--error ER_ACCESS_DENIED_ERROR, ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+change_user $USER;
+
+update mysql.user set plugin='';
+flush privileges;
+uninstall plugin auth_socket;

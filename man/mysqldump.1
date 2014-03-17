@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 11/04/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 01/13/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "11/04/2013" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "01/13/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -928,13 +928,20 @@ This option is similar to
 \fB\-\-master\-data\fR
 except that it is used to dump a replication slave server to produce a dump file that can be used to set up another server as a slave that has the same master as the dumped server\&. It causes the dump output to include a
 CHANGE MASTER TO
-statement that indicates the binary log coordinates (file name and position) of the dumped slave\*(Aqs master (rather than the coordinates of the dumped server, as is done by the
+statement that indicates the binary log coordinates (file name and position) of the dumped slave\*(Aqs master\&. These are the master server coordinates from which the slave should start replicating\&.
+.sp
+\fB\-\-dump\-slave\fR
+causes the coordinates from the master to be used rather than those of the dumped server, as is done by the
 \fB\-\-master\-data\fR
-option)\&. These are the master server coordinates from which the slave should start replicating\&. This option was added in MySQL 5\&.5\&.3\&.
+option\&. In addition, specfiying this option causes the
+\fB\-\-master\-data\fR
+option to be overridden, if used, and effectively ignored\&.
 .sp
 The option value is handled the same way as for
 \fB\-\-master\-data\fR
-and has the same effect as
+(setting no value or 1 causes a
+CHANGE MASTER TO
+statement to be written to the dump, setting 2 causes the statement to be written but encased in SQL comments) and has the same effect as
 \fB\-\-master\-data\fR
 in terms of enabling or disabling other options and in how locking is handled\&.
 .sp
@@ -948,6 +955,8 @@ In conjunction with
 and
 \fB\-\-include\-master\-host\-port\fR
 options can also be used\&.
+.sp
+This option was added in MySQL 5\&.5\&.3\&.
 .RE
 .sp
 .RS 4
@@ -1329,7 +1338,9 @@ also is specified, in which case, a global read lock is acquired only for a shor
 .sp
 It is also possible to set up a slave by dumping an existing slave of the master\&. In MySQL 5\&.5\&.3 and later, you can create such a dump using the
 \fB\-\-dump\-slave\fR
-option\&.
+option, which overrides
+\fB\-\-master\-data\fR
+and causes it to be ignored if both options are used\&.
 .sp
 In MySQL 5\&.2\&.2 and earlier, use the following procedure on the existing slave:
 .sp
@@ -1930,7 +1941,7 @@ or
 MEMORY
 tables dumped while using this option may still change state\&.
 .sp
-Before MySQL 5\&.5\&.3, while a
+While a
 \fB\-\-single\-transaction\fR
 dump is in process, to ensure a valid dump file (correct table contents and binary log coordinates), no other connection should use the following statements:
 ALTER TABLE,
@@ -1941,7 +1952,7 @@ TRUNCATE TABLE\&. A consistent read is not isolated from those statements, so us
 SELECT
 that is performed by
 \fBmysqldump\fR
-to retrieve the table contents to obtain incorrect contents or fail\&. As of MySQL 5\&.5\&.3, metadata locking prevents this situation\&.
+to retrieve the table contents to obtain incorrect contents or fail\&.
 .sp
 The
 \fB\-\-single\-transaction\fR
@@ -1959,10 +1970,11 @@ transaction isolation level\&. You should always use
 NDB
 backup and restore instead\&.
 .sp
-To dump large tables, you should combine the
+To dump large tables, combine the
 \fB\-\-single\-transaction\fR
-option with
-\fB\-\-quick\fR\&.
+option with the
+\fB\-\-quick\fR
+option\&.
 .RE
 .sp
 .RS 4
@@ -2541,7 +2553,7 @@ Section\ \&E.5, \(lqRestrictions on Views\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

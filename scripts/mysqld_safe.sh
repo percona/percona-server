@@ -233,8 +233,8 @@ parse_arguments() {
       --skip-syslog) want_syslog=0 ;;
       --syslog-tag=*) syslog_tag="$val" ;;
       --timezone=*) TZ="$val"; export TZ; ;;
-      --flush-caches) flush_caches=1 ;;
-      --numa-interleave) numa_interleave=1 ;;
+      --flush-caches=*) flush_caches="$val" ;;
+      --numa-interleave=*) numa_interleave="$val" ;;
 
       --help) usage ;;
 

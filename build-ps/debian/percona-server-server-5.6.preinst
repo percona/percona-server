@@ -127,12 +127,6 @@ if ! getent passwd mysql >/dev/null; then
 fi
 
 # end of NIS tolerance zone
-# 
-# TODO fixing my.cnf, prepending params with invalid paths with #
-if [ -f /etc/mysql/my.cnf ]; then
-  sed -i -e '/^[^#].*share\/mysql/s/^/#/' /etc/mysql/my.cnf
-fi
-#
 set -e
 
 # if there's a symlink, let's store where it's pointing, because otherwise

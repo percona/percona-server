@@ -402,6 +402,8 @@ mkdir debug
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system -DWITH_PAM=ON \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -421,6 +423,8 @@ mkdir release
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_INNODB_MEMCACHED=ON \
            -DWITH_SSL=system -DWITH_PAM=ON \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -751,12 +755,7 @@ usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
 # owns all database files.
 # ----------------------------------------------------------------------
 chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-#
-# TODO fixing my.cnf, prepending params with invalid paths with #
-if [ -f /etc/my.cnf ]; then
-  sed -i -e '/^[^#].*share\/mysql/s/^/#/' /etc/my.cnf
-fi
-#
+
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------

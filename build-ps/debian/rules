@@ -186,15 +186,15 @@ install: build
 
 	# mysql-server
 	mkdir -p $(TMP)/usr/share/doc/percona-server-5.6/examples
-	mv $(TMP)/usr/share/percona-server/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.6/examples/
-	rm -vf $(TMP)/usr/share/percona-server/mi_test_all* \
-	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
-	       $(TMP)/usr/share/percona-server/mysql.server \
-	       $(TMP)/usr/share/percona-server/binary-configure
+	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.6/examples/
+	rm -vf $(TMP)/usr/share/mysql/mi_test_all* \
+	       $(TMP)/usr/share/mysql/mysql-log-rotate \
+	       $(TMP)/usr/share/mysql/mysql.server \
+	       $(TMP)/usr/share/mysql/binary-configure
 	nm -n $(builddir)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.6/mysqld.sym.gz
-	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/percona-server/
+	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
-	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/percona-server/
+	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
 
 	# install AppArmor profile
 	# FIXME install -D -m 644 debian/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld

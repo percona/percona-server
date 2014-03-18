@@ -1,0 +1,13 @@
+[log_start.inc] percona_slow_extended_query_log_1
+SET GLOBAL long_query_time=10000;
+SELECT 1;
+1
+1
+SET GLOBAL long_query_time=0;
+SELECT 1;
+1
+1
+[log_stop.inc] percona_slow_extended_query_log_1
+[log_grep.inc] file: percona_slow_extended_query_log_1 pattern: ^# Time: \d{6} (\d| )\d:\d\d:\d\d$
+[log_grep.inc] lines:   1
+SET GLOBAL long_query_time=default;

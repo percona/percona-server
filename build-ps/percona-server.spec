@@ -410,6 +410,8 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -427,6 +429,8 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
+           -DINSTALL_MYSQLSHAREDIR=share/percona-server \
+           -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
@@ -744,12 +748,7 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
 # The user may already exist, make sure it has the proper group nevertheless
 # (BUG#12823)
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
-#
-# TODO fixing my.cnf, prepending params with invalid paths with #
-if [ -f /etc/my.cnf ]; then
-  sed -i -e '/^[^#].*share\/mysql/s/^/#/' /etc/my.cnf
-fi
-#
+
 # ----------------------------------------------------------------------
 # Initiate databases if needed
 # ----------------------------------------------------------------------

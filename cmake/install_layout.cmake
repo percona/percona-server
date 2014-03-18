@@ -162,10 +162,10 @@ SET(INSTALL_INFODIR_RPM                 "share/info")
 SET(INSTALL_MANDIR_RPM                  "share/man")
 #
 SET(INSTALL_SHAREDIR_RPM                "share")
-SET(INSTALL_MYSQLSHAREDIR_RPM           "share/percona-server")
+SET(INSTALL_MYSQLSHAREDIR_RPM           "share/mysql")
 SET(INSTALL_MYSQLTESTDIR_RPM            "share/mysql-test")
 SET(INSTALL_SQLBENCHDIR_RPM             "")
-SET(INSTALL_SUPPORTFILESDIR_RPM         "share/percona-server")
+SET(INSTALL_SUPPORTFILESDIR_RPM         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_RPM            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_RPM           ${plugin_tests})

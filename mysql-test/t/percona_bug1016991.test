@@ -1,0 +1,20 @@
+#
+# bug 1016991 - long_query_time not respected when slow_query_log_use_global_control = all
+# 
+--let log_file=percona_slow_extended_query_log_1
+--source include/log_start.inc
+
+# this one should never show in log
+SET GLOBAL long_query_time=10000;
+SELECT 1;
+
+# with bug, this would never show in log but should
+SET GLOBAL long_query_time=0;
+SELECT 1;
+
+--source include/log_stop.inc
+--let grep_pattern= ^# Time: \d{6} (\d| )\d:\d\d:\d\d\$
+--source include/log_grep.inc
+
+SET GLOBAL long_query_time=default;
+--source include/log_cleanup.inc

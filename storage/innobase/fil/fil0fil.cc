@@ -5119,9 +5119,21 @@ retry:
 #ifdef HAVE_POSIX_FALLOCATE
 	if (srv_use_posix_fallocate) {
 
-		success = os_file_set_size(node->name, node->handle,
-					   (size_after_extend
-					    - file_start_page_no) * page_size);
+		os_offset_t	start_offset = file_start_page_no * page_size;
+		os_offset_t	end_offset
+			= (size_after_extend - file_start_page_no) * page_size;
+
+		success = (posix_fallocate(node->handle, start_offset,
+					   end_offset) == 0);
+		if (!success)
+		{
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"preallocating file space for file \'%s\' "
+				"failed.  Current size " INT64PF
+				", len " INT64PF ", desired size " INT64PF
+				"\n", node->name, start_offset, end_offset,
+				start_offset + end_offset);
+		}
 		mutex_enter(&fil_system->mutex);
 		if (success) {
 			node->size += (size_after_extend - start_page_no);

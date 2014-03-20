@@ -7,6 +7,7 @@ PACKAGE=percona-server-5.6
 PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
 
 TMP=$(CURDIR)/debian/tmp/
+prefix=/usr
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -147,6 +148,13 @@ install: build
 
 	# make install (trailing slash needed for innobase)
 	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
+
+	# Build UDFs
+	(cd UDF && \
+	CXXFLAGS="-I $(CURDIR)/$(builddir)/include" \
+	./configure --includedir=$(CURDIR)/include \
+	--libdir=$(prefix)/lib/mysql/plugin && \
+	make && make DESTDIR=$(TMP) install)
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \
@@ -267,7 +275,6 @@ binary:	binary-indep binary-arch
 
 override_dh_auto_install:
 	dh_auto_install
-	cd UDF && make DESTDIR=$(TMP) install
 
 .PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch
 

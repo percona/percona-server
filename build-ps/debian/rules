@@ -143,7 +143,22 @@ install: build
 
 	# make install (trailing slash needed for innobase)
 	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
-		
+	
+	# build HandlerSocket
+	(cd storage/HandlerSocket-Plugin-for-MySQL && \
+	MYSQL_CFLAGS="-I $(MYSQL_SRC)/include" \
+	./configure --with-mysql-source=$(MYSQL_SRC) \
+	--with-mysql-bindir=$(MYSQL_SRC)/$(builddir)/scripts \
+	--with-mysql-plugindir=$(TMP)/mysql/plugin && \
+	make DESTDIR=$(TMP) install)
+
+	# Build UDFs
+	(cd UDF && \
+	CXXFLAGS="-I $(TMP)/mysql/include" \
+	./configure --includedir=$(MYSQL_SRC)/include \
+	--libdir=$(TMP)/mysql/plugin && \
+	make DESTDIR=$(TMP) install)
+
 	# After installing, remove rpath to make lintian happy.
 	set +e; \
 	find ./debian/tmp/ -type f -print0 \
@@ -275,8 +290,6 @@ binary:	binary-indep binary-arch
 
 override_dh_auto_install:
 	dh_auto_install
-	cd storage/HandlerSocket-Plugin-for-MySQL && make DESTDIR=$(TMP) install
-	cd UDF && make DESTDIR=$(TMP) install
 
 .PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch
 

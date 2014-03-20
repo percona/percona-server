@@ -7,6 +7,7 @@ PACKAGE=percona-server-5.5
 PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
 
 TMP=$(CURDIR)/debian/tmp/
+prefix=/usr
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -146,18 +147,19 @@ install: build
 	
 	# build HandlerSocket
 	(cd storage/HandlerSocket-Plugin-for-MySQL && \
-	MYSQL_CFLAGS="-I $(MYSQL_SRC)/include" \
-	./configure --with-mysql-source=$(MYSQL_SRC) \
-	--with-mysql-bindir=$(MYSQL_SRC)/$(builddir)/scripts \
-	--with-mysql-plugindir=$(TMP)/mysql/plugin && \
-	make DESTDIR=$(TMP) install)
+	MYSQL_CFLAGS="-I$(CURDIR)/$(builddir)/include" \
+	./configure --with-mysql-source=$(CURDIR) \
+	--with-mysql-bindir=$(CURDIR)/$(builddir)/scripts \
+	--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
+	--libdir=$(prefix)/lib --prefix=$(prefix) && \
+	make && make DESTDIR=$(TMP) install)
 
 	# Build UDFs
 	(cd UDF && \
-	CXXFLAGS="-I $(TMP)/mysql/include" \
-	./configure --includedir=$(MYSQL_SRC)/include \
-	--libdir=$(TMP)/mysql/plugin && \
-	make DESTDIR=$(TMP) install)
+	CXXFLAGS="-I $(CURDIR)/$(builddir)/include" \
+	./configure --includedir=$(CURDIR)/include \
+	--libdir=$(prefix)/lib/mysql/plugin && \
+	make && make DESTDIR=$(TMP) install)
 
 	# After installing, remove rpath to make lintian happy.
 	set +e; \

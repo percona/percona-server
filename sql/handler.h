@@ -781,6 +781,7 @@ struct handlerton
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
    int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
+   int (*clone_consistent_snapshot)(handlerton *hton, THD *thd, THD *from_thd);
    /**
      Flush the log(s) of storage engine(s).
 
@@ -2882,6 +2883,32 @@ protected:
     return index_read_last(buf, key, key_len);
   }
 public:
+
+  /**
+    Notify storage engine about imminent index scan where a large number of
+    rows is expected to be returned. Does not replace nor call index_init.
+  */
+  virtual int prepare_index_scan(void) { return 0; }
+
+  /**
+    Notify storage engine about imminent index range scan.
+  */
+  virtual int prepare_range_scan(const key_range *start_key,
+                                 const key_range *end_key)
+  {
+    return 0;
+  }
+
+  /**
+    Notify storage engine about imminent index read with a bitmap of used key
+    parts.
+  */
+  int prepare_index_key_scan_map(const uchar *key, key_part_map keypart_map)
+  {
+    uint key_len= calculate_key_len(table, active_index, keypart_map);
+    return prepare_index_key_scan(key, key_len);
+  }
+
   /**
     Query storage engine to see if it supports gap locks on this table.
   */
@@ -2904,7 +2931,16 @@ protected:
   bool is_using_prohibited_gap_locks(TABLE* table,
                                      bool using_full_primary_key) const;
 
+  /**
+    Notify storage engine about imminent index read with key length.
+  */
+  virtual int prepare_index_key_scan(const uchar *key, uint key_len)
+  {
+    return 0;
+  }
+
 public:
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);

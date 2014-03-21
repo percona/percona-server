@@ -1075,6 +1075,13 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/libperconaserver*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
+# Added for compatibility
+for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
+if [ ! -f %{_libdir}/$lib ]; then
+        ln -s libperconaserverclient.so.18 %{_libdir}/$lib;
+fi
+done
+
 /sbin/ldconfig
 
 %postun -n Percona-Server-shared%{product_suffix}

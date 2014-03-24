@@ -66,6 +66,7 @@ use mtr_cases;
 use mtr_cases_from_list;
 use mtr_match;
 use mtr_report;
+use mtr_report_junit;
 use mtr_results;
 use mtr_unique;
 
@@ -257,6 +258,8 @@ our $opt_fast                      = 0;
 our $opt_gcov_err                  = "mysql-test-gcov.err";
 our $opt_gcov_exe                  = "gcov";
 our $opt_gcov_msg                  = "mysql-test-gcov.msg";
+our $opt_junit_output              = undef;
+our $opt_junit_package             = undef;
 our $opt_mem                       = $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_only_big_test             = 0;
 our $opt_parallel                  = $ENV{MTR_PARALLEL};
@@ -834,11 +837,21 @@ sub main {
 
   print_total_times($opt_parallel) if $opt_report_times;
 
-  mtr_report_stats("Completed", $completed);
+  report_stats("Completed", $completed);
 
   remove_vardir_subs() if $opt_clean_vardir;
 
   exit(0);
+}
+
+sub report_stats($$;$) {
+  my ($prefix, $tests, $skip_error) = @_;
+
+  if ($opt_junit_output) {
+    mtr_report_stats_junit($tests, $opt_junit_output, $opt_junit_package);
+  }
+
+  mtr_report_stats($prefix, $tests, $skip_error);
 }
 
 # The word server here refers to the main control loop of MTR, not a
@@ -1005,7 +1018,7 @@ sub run_test_server ($$$) {
             } elsif ($opt_max_test_fail > 0 and
                      $num_failed_test >= $opt_max_test_fail) {
               push(@$completed, $result);
-              mtr_report_stats("Too many failed", $completed, 1);
+              report_stats("Too many failed", $completed, 1);
               mtr_report("Too many tests($num_failed_test) failed!",
                          "Terminating...");
               return undef;
@@ -1201,7 +1214,7 @@ sub run_test_server ($$$) {
 
     # Check if test suite timer expired
     if (has_expired($suite_timeout)) {
-      mtr_report_stats("Timeout", $completed, 1);
+      report_stats("Timeout", $completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
@@ -1613,6 +1626,8 @@ sub command_line_setup {
     'fast'                  => \$opt_fast,
     'force-restart'         => \$opt_force_restart,
     'help|h'                => \$opt_usage,
+    'junit-output=s'        => \$opt_junit_output,
+    'junit-package=s'       => \$opt_junit_package,
     'max-connections=i'     => \$opt_max_connections,
     'print-testcases'       => \&collect_option,
     'quiet'                 => \$opt_quiet,
@@ -1658,6 +1673,12 @@ sub command_line_setup {
   list_options(\%options) if $opt_list_options;
 
   check_platform() if defined $ENV{PB2WORKDIR};
+
+  # Make sure that XML::Simple support exists for JUnit output
+  if ($opt_junit_output and !mtr_junit_supported()) {
+    mtr_error("JUnit XML reporting is not supported.  The XML::Simple package",
+              "could not be loaded.");
+  }
 
   # Setup verbosity if verbose option is enabled.
   if ($opt_verbose) {
@@ -7605,6 +7626,8 @@ Misc options
                         The result is a gcov file per source and header file.
   gprof                 Collect profiling information using gprof.
   help                  Get this help text.
+  junit-output=FILE     Output JUnit test summary XML to FILE.
+  junit-package=NAME    Set the JUnit package name to NAME for this test run.
   max-connections=N     Max number of open connection to server in mysqltest.
   no-skip               This option is used to run all MTR tests even if the
                         condition required for running the test as specified

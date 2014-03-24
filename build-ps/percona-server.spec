@@ -317,6 +317,12 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
+%ifarch x86_64
+Provides:       libmysqlclient.so.18()(64bit)
+%endif
+%ifarch i386 i686
+Provides:       libmysqlclient.so.18()(32bit)
+%endif
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages

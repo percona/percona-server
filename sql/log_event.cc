@@ -18,6 +18,7 @@
 #ifdef MYSQL_CLIENT
 
 #include "sql_priv.h"
+#include "mysqld_error.h"
 
 #else
 
@@ -1946,6 +1947,14 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     else
     {
       my_b_printf(file, "###   @%d=", i + 1);
+      size_t fsize= td->calc_field_size((uint)i, (uchar*) value);
+      if (value + fsize > m_rows_end)
+      {
+        my_b_printf(file, "***Corrupted replication event was detected."
+                    " Not printing the value***\n");
+        value+= fsize;
+        return 0;
+      }
       size_t size= log_event_print_value(file, value,
                                          td->type(i), td->field_metadata(i),
                                          typestr, sizeof(typestr));
@@ -2016,7 +2025,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   if (!(map= print_event_info->m_table_map.get_table(m_table_id)) ||
       !(td= map->create_table_def()))
   {
-    my_b_printf(file, "### Row event for unknown table #%d", m_table_id);
+    my_b_printf(file, "### Row event for unknown table #%llu", m_table_id.id());
     return;
   }
 
@@ -4717,11 +4726,22 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   fields = (char*)field_lens + num_fields;
   table_name  = fields + field_block_len;
   db = table_name + table_name_len + 1;
+  DBUG_EXECUTE_IF ("simulate_invalid_address",
+                   db_len = data_len;);
   fname = db + db_len + 1;
+  if ((db_len > data_len) || (fname > buf_end))
+    goto err;
   fname_len = (uint) strlen(fname);
+  if ((fname_len > data_len) || (fname + fname_len > buf_end))
+    goto err;
   // null termination is accomplished by the caller doing buf[event_len]=0
 
   DBUG_RETURN(0);
+
+err:
+  // Invalid event.
+  table_name = 0;
+  DBUG_RETURN(1);
 }
 
 
@@ -7568,7 +7588,8 @@ const char *sql_ex_info::init(const char *buf, const char *buf_end,
 **************************************************************************/
 
 #ifndef MYSQL_CLIENT
-Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
+Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
+                               const Table_id& tid,
                                MY_BITMAP const *cols, bool is_transactional)
   : Log_event(thd_arg, 0, is_transactional),
     m_row_count(0),
@@ -7580,14 +7601,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
 #endif
 {
-  /*
-    We allow a special form of dummy event when the table, and cols
-    are null and the table id is ~0UL.  This is a temporary
-    solution, to be able to terminate a started statement in the
-    binary log: the extraneous events will be removed in the future.
-   */
-  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
-              (!tbl_arg && !cols && tid == ~0UL));
+  DBUG_ASSERT(tbl_arg && tbl_arg->s && tid.is_valid());
 
   if (thd_arg->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -7647,7 +7661,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   }
   else
   {
-    m_table_id= (ulong) uint6korr(post_start);
+    m_table_id= uint6korr(post_start);
     post_start+= RW_FLAGS_OFFSET;
   }
 
@@ -7709,8 +7723,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   const uchar* const ptr_rows_data= (const uchar*) ptr_after_width;
 
   size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
-  DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
-                     m_table_id, m_flags, m_width, (ulong) data_size));
+  DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
+                     m_table_id.id(), m_flags, m_width, (ulong) data_size));
 
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
   if (likely((bool)m_rows_buf))
@@ -7822,25 +7836,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
   int error= 0;
-  /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
-    tables_to_lock list, close the thread tables, and return with
-    success.
-   */
-  if (m_table_id == ~0UL)
-  {
-    /*
-       This one is supposed to be set: just an extra check so that
-       nothing strange has happened.
-     */
-    DBUG_ASSERT(get_flags(STMT_END_F));
-
-    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-    thd->clear_error();
-    DBUG_RETURN(0);
-  }
-
   /*
     'thd' has been set by exec_relay_log_event(), just before calling
     do_apply_event(). We still check here to prevent future coding
@@ -7998,7 +7993,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     table= 
     m_table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(m_table_id);
 
-  DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %lu", (ulong) m_table, m_table_id));
+  DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %llu", (ulong) m_table,
+                       m_table_id.id()));
 
   if (table)
   {
@@ -8324,14 +8320,14 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
 bool Rows_log_event::write_data_header(IO_CACHE *file)
 {
   uchar buf[ROWS_HEADER_LEN];	// No need to init the buffer
-  DBUG_ASSERT(m_table_id != ~0UL);
+  DBUG_ASSERT(m_table_id.is_valid());
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   {
-                    int4store(buf + 0, m_table_id);
+                    int4store(buf + 0, (ulong)m_table_id.id());
                     int2store(buf + 4, m_flags);
                     return (my_b_safe_write(file, buf, 6));
                   });
-  int6store(buf + RW_MAPID_OFFSET, (ulonglong)m_table_id);
+  int6store(buf + RW_MAPID_OFFSET, m_table_id.id());
   int2store(buf + RW_FLAGS_OFFSET, m_flags);
   return (my_b_safe_write(file, buf, ROWS_HEADER_LEN));
 }
@@ -8379,7 +8375,7 @@ void Rows_log_event::pack_info(THD *thd, Protocol *protocol)
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
   size_t bytes= my_snprintf(buf, sizeof(buf),
-                               "table_id: %lu%s", m_table_id, flagstr);
+                            "table_id: %llu%s", m_table_id.id(), flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
 }
 #endif
@@ -8395,8 +8391,8 @@ void Rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu%s\n",
-                name, m_table_id,
+    my_b_printf(head, "\t%s: table id %llu%s\n",
+                name, m_table_id.id(),
                 last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }
@@ -8489,7 +8485,8 @@ int Table_map_log_event::save_field_metadata()
   (tbl->s->db etc) and not pointer content.
  */
 #if !defined(MYSQL_CLIENT)
-Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
+Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl,
+                                         const Table_id& tid,
                                          bool is_transactional)
   : Log_event(thd, 0, is_transactional),
     m_table(tbl),
@@ -8509,7 +8506,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
 {
   uchar cbuf[sizeof(m_colcnt) + 1];
   uchar *cbuf_end;
-  DBUG_ASSERT(m_table_id != ~0UL);
+  DBUG_ASSERT(m_table_id.is_valid());
   /*
     In TABLE_SHARE, "db" and "table_name" are 0-terminated (see this comment in
     table.cc / alloc_table_share():
@@ -8590,7 +8587,7 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 #endif
     m_dbnam(NULL), m_dblen(0), m_tblnam(NULL), m_tbllen(0),
     m_colcnt(0), m_coltype(0),
-    m_memory(NULL), m_table_id(ULONG_MAX), m_flags(0),
+    m_memory(NULL), m_table_id(ULONGLONG_MAX), m_flags(0),
     m_data_size(0), m_field_metadata(0), m_field_metadata_size(0),
     m_null_bits(0), m_meta_memory(NULL)
 {
@@ -8623,11 +8620,9 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
   else
   {
     DBUG_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
-    m_table_id= (ulong) uint6korr(post_start);
+    m_table_id= uint6korr(post_start);
     post_start+= TM_FLAGS_OFFSET;
   }
-
-  DBUG_ASSERT(m_table_id != ~0UL);
 
   m_flags= uint2korr(post_start);
 
@@ -8694,6 +8689,108 @@ Table_map_log_event::~Table_map_log_event()
   my_free(m_memory);
 }
 
+#ifdef MYSQL_CLIENT
+
+/*
+  Rewrite database name for the event to name specified by new_db
+  SYNOPSIS
+    new_db   Database name to change to
+    new_len  Length
+    desc     Event describing binlog that we're writing to.
+
+  DESCRIPTION
+    Reset db name. This function assumes that temp_buf member contains event
+    representation taken from a binary log. It resets m_dbnam and m_dblen and
+    rewrites temp_buf with new db name.
+
+  RETURN 
+    0     - Success
+    other - Error
+*/
+
+int Table_map_log_event::rewrite_db(const char* new_db, size_t new_len,
+                                    const Format_description_log_event* desc)
+{
+  DBUG_ENTER("Table_map_log_event::rewrite_db");
+  DBUG_ASSERT(temp_buf);
+
+  uint header_len= min(desc->common_header_len,
+                       LOG_EVENT_MINIMAL_HEADER_LEN) + TABLE_MAP_HEADER_LEN;
+  int len_diff;
+
+  if (!(len_diff= new_len - m_dblen))
+  {
+    memcpy((void*) (temp_buf + header_len + 1), new_db, m_dblen + 1);
+    memcpy((void*) m_dbnam, new_db, m_dblen + 1);
+    DBUG_RETURN(0);
+  }
+
+  // Create new temp_buf
+  ulong event_cur_len= uint4korr(temp_buf + EVENT_LEN_OFFSET);
+  ulong event_new_len= event_cur_len + len_diff;
+  char* new_temp_buf= (char*) my_malloc(event_new_len, MYF(MY_WME));
+
+  if (!new_temp_buf)
+  {
+    sql_print_error("Table_map_log_event::rewrite_db: "
+                    "failed to allocate new temp_buf (%d bytes required)",
+                    event_new_len);
+    DBUG_RETURN(-1);
+  }
+
+  // Rewrite temp_buf
+  char* ptr= new_temp_buf;
+  ulong cnt= 0;
+
+  // Copy header and change event length
+  memcpy(ptr, temp_buf, header_len);
+  int4store(ptr + EVENT_LEN_OFFSET, event_new_len);
+  ptr += header_len;
+  cnt += header_len;
+
+  // Write new db name length and new name
+  *ptr++ = new_len;
+  memcpy(ptr, new_db, new_len + 1);
+  ptr += new_len + 1;
+  cnt += m_dblen + 2;
+
+  // Copy rest part
+  memcpy(ptr, temp_buf + cnt, event_cur_len - cnt);
+
+  // Reregister temp buf
+  free_temp_buf();
+  register_temp_buf(new_temp_buf);
+
+  // Reset m_dbnam and m_dblen members
+  m_dblen= new_len;
+
+  // m_dbnam resides in m_memory together with m_tblnam and m_coltype
+  uchar* memory= m_memory;
+  char const* tblnam= m_tblnam;
+  uchar* coltype= m_coltype;
+
+  m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
+                                     &m_dbnam, (uint) m_dblen + 1,
+                                     &m_tblnam, (uint) m_tbllen + 1,
+                                     &m_coltype, (uint) m_colcnt,
+                                     NullS);
+
+  if (!m_memory)
+  {
+    sql_print_error("Table_map_log_event::rewrite_db: "
+                    "failed to allocate new m_memory (%d + %d + %d bytes required)",
+                    m_dblen + 1, m_tbllen + 1, m_colcnt);
+    DBUG_RETURN(-1);
+  }
+
+  memcpy((void*)m_dbnam, new_db, m_dblen + 1);
+  memcpy((void*)m_tblnam, tblnam, m_tbllen + 1);
+  memcpy(m_coltype, coltype, m_colcnt);
+
+  my_free(memory);
+  DBUG_RETURN(0);
+}
+#endif /* MYSQL_CLIENT */
 /*
   Return value is an error code, one of:
 
@@ -8823,10 +8920,13 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                              tname_mem, strlen(tname_mem),
                              tname_mem, TL_WRITE);
 
-  table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
+  table_list->table_id=
+    DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());
   table_list->updating= 1;
   table_list->required_type= FRMTYPE_TABLE;
-  DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
+  DBUG_PRINT("debug", ("table: %s is mapped to %llu", table_list->table_name,
+                       table_list->table_id.id()));
+
   enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
   if (tblmap_status == OK_TO_PROCESS)
   {
@@ -8880,9 +8980,9 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       char buf[256];
 
       my_snprintf(buf, sizeof(buf), 
-                  "Found table map event mapping table id %u which "
+                  "Found table map event mapping table id %llu which "
                   "was already mapped but with different settings.",
-                  table_list->table_id);
+                  table_list->table_id.id());
 
       if (thd->slave_thread)
         rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
@@ -8923,15 +9023,15 @@ int Table_map_log_event::do_update_pos(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 bool Table_map_log_event::write_data_header(IO_CACHE *file)
 {
-  DBUG_ASSERT(m_table_id != ~0UL);
+  DBUG_ASSERT(m_table_id.is_valid());
   uchar buf[TABLE_MAP_HEADER_LEN];
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
                   {
-                    int4store(buf + 0, m_table_id);
+                    int4store(buf + 0, m_table_id.id());
                     int2store(buf + 4, m_flags);
                     return (my_b_safe_write(file, buf, 6));
                   });
-  int6store(buf + TM_MAPID_OFFSET, (ulonglong)m_table_id);
+  int6store(buf + TM_MAPID_OFFSET, m_table_id.id());
   int2store(buf + TM_FLAGS_OFFSET, m_flags);
   return (my_b_safe_write(file, buf, TABLE_MAP_HEADER_LEN));
 }
@@ -8981,8 +9081,8 @@ void Table_map_log_event::pack_info(THD *thd, Protocol *protocol)
 {
     char buf[256];
     size_t bytes= my_snprintf(buf, sizeof(buf),
-                                 "table_id: %lu (%s.%s)",
-                              m_table_id, m_dbnam, m_tblnam);
+                              "table_id: %llu (%s.%s)",
+                              m_table_id.id(), m_dbnam, m_tblnam);
     protocol->store(buf, bytes, &my_charset_bin);
 }
 #endif
@@ -9010,8 +9110,8 @@ void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info)
 		      m_tblnam,
 		      strlen(m_tblnam));
     my_b_printf(&print_event_info->head_cache,
-                "\tTable_map: %s.%s mapped to number %lu\n",
-                db_nam.c_ptr(), tbl_nam.c_ptr(), m_table_id);
+                "\tTable_map: %s.%s mapped to number %llu\n",
+                db_nam.c_ptr(), tbl_nam.c_ptr(), m_table_id.id());
     print_base64(&print_event_info->body_cache, print_event_info, TRUE);
   }
 }
@@ -9026,7 +9126,7 @@ void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info)
  */
 #if !defined(MYSQL_CLIENT)
 Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                           ulong tid_arg,
+                                           const Table_id& tid_arg,
                                            MY_BITMAP const *cols,
                                            bool is_transactional)
   : Rows_log_event(thd_arg, tbl_arg, tid_arg, cols, is_transactional)
@@ -9975,7 +10075,8 @@ err:
 
 #ifndef MYSQL_CLIENT
 Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                             ulong tid, MY_BITMAP const *cols,
+                                             const Table_id& tid,
+                                             MY_BITMAP const *cols,
                                              bool is_transactional)
   : Rows_log_event(thd_arg, tbl_arg, tid, cols, is_transactional)
 {
@@ -10071,7 +10172,7 @@ void Delete_rows_log_event::print(FILE *file,
  */
 #if !defined(MYSQL_CLIENT)
 Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                             ulong tid,
+                                             const Table_id& tid,
                                              MY_BITMAP const *cols_bi,
                                              MY_BITMAP const *cols_ai,
                                              bool is_transactional)
@@ -10081,7 +10182,7 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 }
 
 Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                             ulong tid,
+                                             const Table_id& tid,
                                              MY_BITMAP const *cols,
                                              bool is_transactional)
 : Rows_log_event(thd_arg, tbl_arg, tid, cols, is_transactional)

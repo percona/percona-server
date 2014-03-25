@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2713,10 +2713,21 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     should not be any other mysql_cond_signal() calls.
   */
   mysql_mutex_lock(&LOCK_thread_count);
-  mysql_mutex_unlock(&LOCK_thread_count);
   mysql_cond_broadcast(&COND_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
 
-  (void) pthread_sigmask(SIG_BLOCK,&set,NULL);
+  /*
+    Waiting for until mysqld_server_started != 0
+    to ensure that all server components has been successfully
+    initialized. This step is mandatory since signal processing
+    could be done safely only when all server components
+    has been initialized.
+  */
+  mysql_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+
   for (;;)
   {
     int error;					// Used when debugging
@@ -4983,7 +4994,7 @@ default_service_handling(char **argv,
 
   /* We have to quote filename if it contains spaces */
   pos= add_quoted_string(path_and_service, file_path, end);
-  if (*extra_opt)
+  if (extra_opt && *extra_opt)
   {
     /* 
      Add option after file_path. There will be zero or one extra option.  It's 

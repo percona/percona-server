@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 11/04/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 01/13/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "11/04/2013" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "01/13/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ supports the following options\&.
 \fB\-\-cflags\fR
 .sp
 Compiler flags to find include files and critical compiler flags and defines used when compiling the
-libperconaserverclient
+libmysqlclient
 library\&. The options returned are tied to the specific compiler that was used when the library was created and might clash with the settings for your own compiler\&. Use
 \fB\-\-include\fR
 for more portable options that contain only include paths\&.
@@ -198,9 +198,9 @@ Usage: /usr/local/mysql/bin/mysql_config [options]
 Options:
   \-\-cflags         [\-I/usr/local/mysql/include/mysql \-mcpu=pentiumpro]
   \-\-include        [\-I/usr/local/mysql/include/mysql]
-  \-\-libs           [\-L/usr/local/mysql/lib/mysql \-lperconaserverclient
+  \-\-libs           [\-L/usr/local/mysql/lib/mysql \-lmysqlclient
                     \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl]
-  \-\-libs_r         [\-L/usr/local/mysql/lib/mysql \-lperconaserverclient_r
+  \-\-libs_r         [\-L/usr/local/mysql/lib/mysql \-lmysqlclient_r
                     \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl]
   \-\-socket         [/tmp/mysql\&.sock]
   \-\-port           [3306]
@@ -231,7 +231,7 @@ shell> \fBgcc \-o progname progname\&.o `mysql_config \-\-libs`\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

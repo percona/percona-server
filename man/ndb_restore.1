@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.77.1 <http://docbook.sf.net/>
-.\"      Date: 11/04/2013
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 01/13/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "11/04/2013" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "01/13/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -749,6 +749,40 @@ with the
 option (short form
 \fB\-A\fR) when restoring the table data\&. Attribute promotion does not occur if this option is not used; instead, the restore operation fails with an error\&.
 .RE
+.PP
+Prior to MySQL Cluster NDB 7\&.2\&.14, conversions between character data types and
+TEXT
+or
+BLOB
+were not handled correctly (Bug #17325051)\&.
+.PP
+When converting between character data types and
+TEXT
+or
+BLOB, only conversions between character types (CHAR
+and
+VARCHAR) and binary types (BINARY
+and
+VARBINARY) can be performed at the same time\&. For example, you cannot promote an
+INT
+column to
+BIGINT
+while promoting a
+VARCHAR
+column to
+TEXT
+in the same invocation of
+\fBndb_restore\fR\&.
+.PP
+When performing conversions of character or binary types to
+TEXT
+or
+BLOB
+with
+\fBndb_restore\fR, you may notice that it creates and uses one or more staging tables named
+\fItable_name\fR$ST\fInode_id\fR\&. These tables are not needed afterwards, and are normally deleted by
+\fBndb_restore\fR
+following a successful restoration\&.
 .PP
 .\" ndb_restore: lossy-conversions option
 .\" lossy-conversions option (ndb_restore)
@@ -2074,7 +2108,7 @@ START SLAVE\&. This is a known issue in MySQL Cluster\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

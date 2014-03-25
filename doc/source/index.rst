@@ -98,6 +98,8 @@ Flexibility Improvements
    flexibility/mysqldump_ignore_create_error
    flexibility/extended_select_into_outfile
    flexibility/extended_mysqlbinlog
+   flexibility/mysqlbinlog_change_db
+   flexibility/slowlog_rotation
 
 Reliability Improvements
 ========================

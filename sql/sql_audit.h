@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include <mysql/plugin_audit.h>
 #include "sql_class.h"
+#include "sql_parse.h"                          // command_name
 
 extern unsigned long mysql_global_audit_mask[];
 
@@ -68,9 +69,8 @@ static inline uint make_user_name(THD *thd, char *buf)
 */
  
 static inline
-void mysql_audit_general_log(THD *thd, time_t time,
-                             const char *user, uint userlen,
-                             const char *cmd, uint cmdlen,
+void mysql_audit_general_log(THD *thd,
+                             enum enum_server_command command,
                              const char *query, uint querylen)
 {
 #ifndef EMBEDDED_LIBRARY
@@ -78,6 +78,13 @@ void mysql_audit_general_log(THD *thd, time_t time,
   {
     MYSQL_LEX_STRING sql_command, ip, host, external_user;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
+
+    time_t time;
+    char user[MAX_USER_HOST_SIZE + 1];
+    uint userlen;
+
+    userlen= make_user_name(thd, user);
+    time= my_time(0);
 
     if (thd)
     {
@@ -101,7 +108,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
       : global_system_variables.character_set_client;
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
-                       0, time, user, userlen, cmd, cmdlen, query, querylen,
+                       0, time, user, userlen, command_name[(uint) command].str,
+                       command_name[(uint) command].length, query, querylen,
                        clientcs, 0, sql_command, host, external_user, ip);
   }
 #endif

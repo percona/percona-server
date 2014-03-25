@@ -4856,7 +4856,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
   /* Pre-conditions */
-  DBUG_ASSERT(table->s->table_map_id != ~0UL);
+  DBUG_ASSERT(table->s->table_map_id.is_valid());
 
   /* Fetch the type code for the RowsEventT template parameter */
   int const type_code= RowsEventT::TYPE_CODE;

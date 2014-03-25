@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "handler.h"                /* row_type, ha_choice, handler */
 #include "mysql_com.h"              /* enum_field_types */
 #include "thr_lock.h"                  /* thr_lock_type */
+#include "table_id.h"
 
 /* Structs that defines the TABLE */
 
@@ -642,7 +643,7 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
-  ulong table_map_id;                   /* for row-based replication */
+  Table_id table_map_id;                   /* for row-based replication */
 
   /*
     Cache for row-based replication table share checks that does not
@@ -766,7 +767,7 @@ struct TABLE_SHARE
     return (table_category == TABLE_CATEGORY_LOG);
   }
 
-  inline ulong get_table_def_version()
+  inline ulonglong get_table_def_version()
   {
     return table_map_id;
   }
@@ -871,9 +872,9 @@ struct TABLE_SHARE
 
    @sa TABLE_LIST::is_table_ref_id_equal()
   */
-  ulong get_table_ref_version() const
+  ulonglong get_table_ref_version() const
   {
-    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id;
+    return (tmp_table == SYSTEM_TMP_TABLE || is_view) ? 0 : table_map_id.id();
   }
 
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
@@ -1462,7 +1463,7 @@ struct TABLE_LIST
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<Index_hint> *index_hints;
   TABLE        *table;                          /* opened table */
-  uint          table_id; /* table id (from binlog) for opened table */
+  Table_id table_id; /* table id (from binlog) for opened table */
   /*
     select_result for derived table to pass it from table creation to table
     filling procedure
@@ -1779,7 +1780,7 @@ struct TABLE_LIST
 
   inline
   void set_table_ref_id(enum_table_ref_type table_ref_type_arg,
-                        ulong table_ref_version_arg)
+                        ulonglong table_ref_version_arg)
   {
     m_table_ref_type= table_ref_type_arg;
     m_table_ref_version= table_ref_version_arg;
@@ -1810,8 +1811,8 @@ private:
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
-  /** See comments for set_metadata_id() */
-  ulong m_table_ref_version;
+  /** See comments for TABLE_SHARE::get_table_ref_version() */
+  ulonglong m_table_ref_version;
 };
 
 class Item;

@@ -1,4 +1,4 @@
-/* Copyright 2007 MySQL AB. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,7 +128,7 @@ public:
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
   size_t get_width() const          { return m_width; }
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const { return m_table_id; }
 
 #ifndef MYSQL_CLIENT
   virtual bool write_data_header(IO_CACHE *file);
@@ -172,7 +172,7 @@ protected:
 #ifndef MYSQL_CLIENT
   TABLE *m_table;		/* The table the rows belong to */
 #endif
-  ulong       m_table_id;	/* Table ID */
+  Table_id    m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
 
@@ -203,10 +203,8 @@ protected:
   { 
     DBUG_ASSERT(m_table);
     ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
-    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
-                                   &m_curr_row_end, &m_master_reclength);
-    ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);
-    return result;
+    return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
+                                   &m_curr_row_end, &m_master_reclength, m_rows_end);
   }
 #endif
 

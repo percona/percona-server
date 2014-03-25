@@ -5,6 +5,36 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`71375` - Slave IO thread won't attempt auto reconnect to the master/error-code 1593|
+|:Launchpad bug: :bug:`1268735`                                                                               |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
+|:Fix Released: :rn:`5.5.36-34.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`71374` - Slave IO thread won't attempt auto reconnect to the master/error-code 1159|
+|:Launchpad bug: :bug:`1268729`                                                                               |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
+|:Fix Released: :rn:`5.5.36-34.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`71089` - CMake warning when generating Makefile                                    |
+|:Launchpad bug: :bug:`1274827`                                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.36-34.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`54430` - innodb should retry partial reads/writes where errno was 0                |
+|:Launchpad bug: :bug:`1262500`                                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.36-34.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`62311` - segfault in mysqld during early SIGHUP handling                           |
+|:Launchpad bug: :bug:`1249193`                                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.36-34.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`41975` - Support for SSL options not included in mysqlbinlog                       |
 |:Launchpad bug: :bug:`1197524`                                                                               |
 |:Upstream state: Closed                                                                                      |
@@ -13,7 +43,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69639` - mysql failed to build with dtrace Sun D 1.11                              |
 |:Launchpad bug: :bug:`1196460`                                                                               |
-|:Upstream state: Open (checked on 2014-02-05)                                                                |
+|:Upstream state: Open (checked on 2014-03-17)                                                                |
 |:Fix Released: :rn:`5.5.33-31.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -25,7 +55,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`42415` - UPDATE/DELETE with LIMIT clause unsafe for SBL even with ORDER BY PK ...  |
 |:Launchpad bug: :bug:`1132194`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.32-31.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -37,7 +67,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68970` - fsp_reserve_free_extents switches from small to big tblspace handling ... |
 |:Launchpad bug: :bug:`1169494`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.32-31.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -49,7 +79,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68999` - SSL_OP_NO_COMPRESSION not defined                                         |
 |:Launchpad bug: :bug:`1183610`                                                                               |
-|:Upstream state: No Feedback (checked on 2014-02-05)                                                         |
+|:Upstream state: No Feedback (checked on 2014-03-17)                                                         |
 |:Fix Released: :rn:`5.5.31-30.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -61,7 +91,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68845` - Unnecessary log_sys->mutex reacquisition in mtr_log_reserve_and_write()   |
 |:Launchpad bug: :bug:`1163439`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.30-30.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -91,13 +121,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68476` - Suboptimal code in my_strnxfrm_simple()                                   |
 |:Launchpad bug: :bug:`1132350`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.30-30.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68116` - InnoDB monitor may hit an assertion error in buf_page_get_gen in debug ...|
 |:Launchpad bug: :bug:`1100178`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.29-30.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -161,6 +191,12 @@
 |:Fix Released: :rn:`5.5.28-29.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`71603` - file name is not escaped in binlog for LOAD DATA INFILE statement         |
+|:Launchpad bug: :bug:`1277351`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.5.28-29.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`67606` - MySQL crashes with segmentation fault when disk quota is reached          |
 |:Launchpad bug: :bug:`1079596`                                                                               |
 |:Upstream state: Duplicate                                                                                   |
@@ -187,13 +223,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61180` - korr/store macros in my_global.h assume the argument to be a char pointer |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -205,7 +241,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64800` - mysqldump with --include-master-host-port putting quotes around port no.  | 
 |:Launchpad bug: :bug:`1013432`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.27-28.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -253,7 +289,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71183` - os_file_fsync() should handle fsync() returning EINTR                     |
 |:Launchpad bug: :bug:`1262651`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.20-24.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -277,13 +313,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62516` - Fast index creation does not update index statistics                      |
 |:Launchpad bug: :bug:`857590`                                                                                |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.16-22.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
 |:Launchpad bug: N/A                                                                                          |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.15-21.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -301,7 +337,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61595` - mysql-test/include/wait_for_slave_param.inc timeout logic is incorrect    |
 |:Launchpad bug: :bug:`800035`                                                                                |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-03-17)                                                            |
 |:Fix Released: :rn:`5.5.13-20.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -331,7 +367,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69146` - Optimization in buf_pool_get_oldest_modification if srv_buf_pool_instances|
 |:Launchpad bug: :bug:`1176496`                                                                               |
-|:Upstream state: Open (checked on 2014-02-05)                                                                |
+|:Upstream state: Open (checked on 2014-03-17)                                                                |
 |:Fix Released: :rn:`5.5.8-20.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

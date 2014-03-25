@@ -34,6 +34,7 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+#include "table_id.h"
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -3485,7 +3486,8 @@ public:
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
-  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
+  Table_map_log_event(THD *thd, TABLE *tbl, const Table_id& tid,
+                      bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
@@ -3501,10 +3503,13 @@ public:
                          m_field_metadata_size, m_null_bits, m_flags);
   }
 #endif
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
-
+#ifdef MYSQL_CLIENT
+  int rewrite_db(const char* new_name, size_t new_name_len,
+                 const Format_description_log_event*);
+#endif
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
   virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
 
@@ -3543,7 +3548,7 @@ private:
   uchar         *m_coltype;
 
   uchar         *m_memory;
-  ulong          m_table_id;
+  Table_id       m_table_id;
   flag_set       m_flags;
 
   size_t         m_data_size;
@@ -3655,7 +3660,7 @@ public:
 
   MY_BITMAP const *get_cols() const { return &m_cols; }
   size_t get_width() const          { return m_width; }
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const        { return m_table_id; }
 
 #ifdef MYSQL_SERVER
   virtual bool write_data_header(IO_CACHE *file);
@@ -3681,7 +3686,7 @@ protected:
      this class, not create instances of this class.
   */
 #ifdef MYSQL_SERVER
-  Rows_log_event(THD*, TABLE*, ulong table_id, 
+  Rows_log_event(THD*, TABLE*, const Table_id& table_id, 
 		 MY_BITMAP const *cols, bool is_transactional);
 #endif
   Rows_log_event(const char *row_data, uint event_len, 
@@ -3699,7 +3704,7 @@ protected:
 #ifdef MYSQL_SERVER
   TABLE *m_table;		/* The table the rows belong to */
 #endif
-  ulong       m_table_id;	/* Table ID */
+  Table_id    m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
   /*
@@ -3739,12 +3744,8 @@ protected:
     DBUG_ASSERT(m_table);
 
     ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
-    int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
-                                   &m_curr_row_end, &m_master_reclength);
-    if (m_curr_row_end > m_rows_end)
-      my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-    ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);
-    return result;
+    return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
+                                   &m_curr_row_end, &m_master_reclength, m_rows_end);
   }
 #endif
 
@@ -3829,7 +3830,7 @@ public:
   };
 
 #if defined(MYSQL_SERVER)
-  Write_rows_log_event(THD*, TABLE*, ulong table_id, 
+  Write_rows_log_event(THD*, TABLE*, const Table_id& table_id, 
 		       MY_BITMAP const *cols, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
@@ -3887,12 +3888,12 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 			MY_BITMAP const *cols_bi,
 			MY_BITMAP const *cols_ai,
                         bool is_transactional);
 
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 			MY_BITMAP const *cols,
                         bool is_transactional);
 
@@ -3968,7 +3969,7 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Delete_rows_log_event(THD*, TABLE*, ulong, 
+  Delete_rows_log_event(THD*, TABLE*, const Table_id&, 
 			MY_BITMAP const *cols, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION

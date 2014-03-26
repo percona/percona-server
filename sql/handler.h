@@ -1027,7 +1027,12 @@ struct handlerton
    updates to them. If so, statements that update such tables will not be
    affected by an active LOCK TABLES FOR BACKUP.
 */
-#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 11)
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 12)
+
+/**
+  Engine supports secondary clustered keys.
+*/
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 13)
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};

@@ -671,7 +671,11 @@ bool PT_delete::contextualize(Parse_context *pc)
     if (opt_delete_limit_clause->itemize(pc, &opt_delete_limit_clause))
       return true;
     pc->select->select_limit= opt_delete_limit_clause;
-    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    if (pc->select->select_limit->fixed &&
+        pc->select->select_limit->val_int() != 0)
+    {
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    }
     pc->select->explicit_limit= 1;
   }
 

@@ -4004,7 +4004,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
 	break;
     }
 
-    switch (key->type) {
+    switch ((int)key->type) {
     case KEYTYPE_MULTIPLE:
 	key_info->flags= 0;
 	break;
@@ -4021,6 +4021,57 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
     case KEYTYPE_FOREIGN:
       key_number--;				// Skip this key
       continue;
+    case KEYTYPE_CLUSTERING | KEYTYPE_UNIQUE:
+    case KEYTYPE_CLUSTERING | KEYTYPE_MULTIPLE:
+      if (thd->work_part_info)
+      {
+        partition_info *part_info= thd->work_part_info;
+        List_iterator<partition_element> part_it(part_info->partitions);
+        partition_element *part_elem;
+
+        while ((part_elem= part_it++))
+        {
+          if (part_elem->subpartitions.elements)
+          {
+            List_iterator<partition_element> sub_it(part_elem->subpartitions);
+            partition_element *subpart_elem;
+            while ((subpart_elem= sub_it++))
+            {
+              if (unlikely(!ha_check_storage_engine_flag(
+                  subpart_elem->engine_type, HTON_SUPPORTS_CLUSTERED_KEYS)))
+              {
+                my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+                         ha_resolve_storage_engine_name(
+                         subpart_elem->engine_type), "CLUSTERING");
+                DBUG_RETURN(TRUE);
+              }
+            }
+          }
+          else if (unlikely(!ha_check_storage_engine_flag(
+                   part_elem->engine_type, HTON_SUPPORTS_CLUSTERED_KEYS)))
+          {
+            my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+                     ha_resolve_storage_engine_name(part_elem->engine_type),
+                     "CLUSTERING");
+            DBUG_RETURN(TRUE);
+          }
+        }
+      }
+      else if (unlikely(!ha_check_storage_engine_flag(
+               file->ht, HTON_SUPPORTS_CLUSTERED_KEYS)))
+      {
+        my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+                 ha_resolve_storage_engine_name(file->ht), "CLUSTERING");
+        DBUG_RETURN(TRUE);
+      }
+      if (key->type & KEYTYPE_UNIQUE)
+        key_info->flags= HA_NOSAME;
+      else
+        key_info->flags= 0;
+      key_info->flags|= HA_CLUSTERING;
+      break;
+    case KEYTYPE_CLUSTERING:
+      DBUG_ASSERT(0);
     default:
       key_info->flags = HA_NOSAME;
       break;
@@ -4337,7 +4388,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
 	    key_part_length= min(max_key_length, file->max_key_part_length());
 	    if (max_field_size)
               key_part_length= min(key_part_length, max_field_size);
-	    if (key->type == KEYTYPE_MULTIPLE)
+	    if (key->type & KEYTYPE_MULTIPLE)
 	    {
 	      /* not a critical problem */
 	      push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -4389,7 +4440,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
           key->type != KEYTYPE_FULLTEXT)
       {
         key_part_length= file->max_key_part_length();
-	if (key->type == KEYTYPE_MULTIPLE)
+	if (key->type & KEYTYPE_MULTIPLE)
 	{
 	  /* not a critical problem */
 	  push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -8338,7 +8389,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_type= KEYTYPE_FULLTEXT;
       else
         key_type= KEYTYPE_MULTIPLE;
-      
+      if (key_info->flags & HA_CLUSTERING)
+        key_type= (enum keytype)(key_type | KEYTYPE_CLUSTERING);
+
       if (index_column_dropped)
       {
         /*

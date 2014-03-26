@@ -951,6 +951,8 @@ struct interval_range
   my_decimal dec;
 };
 
+#ifdef MYSQL_SERVER
+
 class Item_func_interval :public Item_int_func
 {
   typedef Item_int_func super;
@@ -1996,6 +1998,7 @@ public:
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
+#endif /* MYSQL_SERVER */
 
 class Item_cond :public Item_bool_func
 {
@@ -2070,6 +2073,7 @@ public:
   virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
 };
 
+#ifdef MYSQL_SERVER
 
 /*
   The class Item_equal is used to represent conjunctions of equality
@@ -2332,5 +2336,7 @@ extern Gt_creator gt_creator;
 extern Lt_creator lt_creator;
 extern Ge_creator ge_creator;
 extern Le_creator le_creator;
+
+#endif /* MYSQL_SERVER */
 
 #endif /* ITEM_CMPFUNC_INCLUDED */

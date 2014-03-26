@@ -310,8 +310,8 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr)
         further.
   */
 
-  if (!sp ||            // case #1
-      sp->is_invoked()) // case #3
+  if (!sp ||              // case #1
+      sp->is_invoked())  // case #3
   {
     return;
   }
@@ -375,8 +375,8 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
         further.
   */
 
-  if (!sp ||            // case #1
-      sp->is_invoked()) // case #3
+  if (!sp ||              // case #1
+      sp->is_invoked())  // case #3
   {
     return false;
   }
@@ -428,5 +428,4 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
 
   return false;
 }
-
 

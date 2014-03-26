@@ -5740,13 +5740,20 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
-  if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
+  if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG | CLUSTERING_FLAG))
   {
-    Key *key;
+    enum keytype key_type;
+    if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
+      key_type= KEYTYPE_UNIQUE;
+    else
+      key_type= KEYTYPE_MULTIPLE;
+    if (type_modifier & CLUSTERING_FLAG)
+      key_type= static_cast<enum keytype>(key_type | KEYTYPE_CLUSTERING);
+    DBUG_ASSERT(key_type != KEYTYPE_MULTIPLE);
+
     lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key(KEYTYPE_UNIQUE, null_lex_str,
-                 &default_key_create_info, 0,
-                 lex->col_list);
+    Key *key= new Key(key_type, null_lex_str, &default_key_create_info, 0,
+                      lex->col_list);
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }

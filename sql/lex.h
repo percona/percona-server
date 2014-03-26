@@ -124,6 +124,7 @@ static const SYMBOL symbols[] = {
   { SYM("CLASS_ORIGIN",             CLASS_ORIGIN_SYM)},
   { SYM("CLIENT",                   CLIENT_SYM)},
   { SYM("CLOSE",                    CLOSE_SYM)},
+  { SYM("CLUSTERING",               CLUSTERING_SYM)},
   { SYM("COALESCE",                 COALESCE)},
   { SYM("CODE",                     CODE_SYM)},
   { SYM("COLLATE",                  COLLATE_SYM)},

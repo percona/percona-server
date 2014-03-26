@@ -454,10 +454,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /*
-  Currently there are 159 shift/reduce conflicts.
+  Currently there are 158 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 155
+%expect 158
 
 /*
    Comments for TOKENS.
@@ -543,6 +543,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  CLASS_ORIGIN_SYM              /* SQL-2003-N */
 %token  CLIENT_SYM
 %token  CLOSE_SYM                     /* SQL-2003-R */
+%token  CLUSTERING_SYM
 %token  COALESCE                      /* SQL-2003-N */
 %token  CODE_SYM
 %token  COLLATE_SYM                   /* SQL-2003-R */
@@ -1273,7 +1274,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
-        normal_key_type opt_unique constraint_key_type fulltext spatial
+        normal_key_type opt_unique_combo_clustering constraint_key_type 
+        fulltext spatial unique_opt_clustering unique_combo_clustering unique clustering
 
 %type <key_alg>
         btree_or_rtree
@@ -2308,7 +2310,7 @@ create:
             }
             create_table_set_open_action_and_adjust_tables(lex);
           }
-        | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
+        | CREATE opt_unique_combo_clustering INDEX_SYM ident key_alg ON table_ident
           {
             if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
@@ -6293,6 +6295,13 @@ key_def:
         | opt_constraint constraint_key_type opt_ident key_alg
           '(' key_list ')' normal_key_options
           {
+            if (($1.length != 0)
+                 && ($2 == (KEYTYPE_CLUSTERING | KEYTYPE_MULTIPLE)))
+            {
+              /* Forbid "CONSTRAINT c CLUSTERING" */
+              my_syntax_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
             if (add_create_index (Lex, $2, $3.str ? $3 : $1))
               MYSQL_YYABORT;
           }
@@ -6922,17 +6931,23 @@ attribute:
             lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
-        | UNIQUE_SYM
+        | unique_combo_clustering
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_FLAG;
+            if ($1 & KEYTYPE_UNIQUE)
+              lex->type|= UNIQUE_FLAG; 
+            if ($1 & KEYTYPE_CLUSTERING)
+              lex->type|= CLUSTERING_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
-        | UNIQUE_SYM KEY_SYM
+        | unique_combo_clustering KEY_SYM
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_KEY_FLAG;
-            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
+            if ($1 & KEYTYPE_UNIQUE)
+              lex->type|= UNIQUE_KEY_FLAG; 
+            if ($1 & KEYTYPE_CLUSTERING)
+              lex->type|= CLUSTERING_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX; 
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
         | COLLATE_SYM collation_name
@@ -7336,7 +7351,8 @@ normal_key_type:
 
 constraint_key_type:
           PRIMARY_SYM KEY_SYM { $$= KEYTYPE_PRIMARY; }
-        | UNIQUE_SYM opt_key_or_index { $$= KEYTYPE_UNIQUE; }
+        | unique_combo_clustering opt_key_or_index { $$= $1; }
+
         ;
 
 key_or_index:
@@ -7355,9 +7371,43 @@ keys_or_index:
         | INDEXES {}
         ;
 
-opt_unique:
-          /* empty */  { $$= KEYTYPE_MULTIPLE; }
-        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
+opt_unique_combo_clustering:
+          /* empty */          { $$= KEYTYPE_MULTIPLE; }
+        | unique_combo_clustering
+        ;
+
+unique_combo_clustering:
+          clustering
+          {
+            $$= (enum keytype)($1 | KEYTYPE_MULTIPLE);
+          }
+        | unique_opt_clustering
+          {
+            $$= $1;
+          }
+        ;
+
+unique_opt_clustering:
+          unique 
+          { 
+            $$= $1; 
+          }
+        | unique clustering
+          {
+            $$= (enum keytype)($1 | $2);
+          }
+        | clustering unique
+          {
+            $$= (enum keytype)($1 | $2);
+          }
+        ;        
+
+unique: 
+          UNIQUE_SYM     { $$= KEYTYPE_UNIQUE; }
+        ;
+
+clustering:
+          CLUSTERING_SYM { $$= KEYTYPE_CLUSTERING; }
         ;
 
 fulltext:

@@ -144,7 +144,8 @@ static int partition_initialize(void *p)
   partition_hton->partition_flags= partition_flags;
   partition_hton->flags= HTON_NOT_USER_SELECTABLE |
                          HTON_HIDDEN |
-                         HTON_TEMPORARY_NOT_SUPPORTED;
+                         HTON_TEMPORARY_NOT_SUPPORTED |
+                         HTON_SUPPORTS_CLUSTERED_KEYS;
 #ifdef HAVE_PSI_INTERFACE
   init_partition_psi_keys();
 #endif

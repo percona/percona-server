@@ -115,6 +115,7 @@ static SYMBOL symbols[] = {
   { "CLIENT",		SYM(CLIENT_SYM)},
   { "CLIENT_STATISTICS",	SYM(CLIENT_STATS_SYM)},
   { "CLOSE",		SYM(CLOSE_SYM)},
+  { "CLUSTERING",       SYM(CLUSTERING_SYM)},
   { "COALESCE",		SYM(COALESCE)},
   { "CODE",             SYM(CODE_SYM)},
   { "COLLATE",		SYM(COLLATE_SYM)},

@@ -317,6 +317,12 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
+%ifarch x86_64
+Provides:       libmysqlclient.so.18()(64bit)
+%endif
+%ifarch i386 i686
+Provides:       libmysqlclient.so.18()(32bit)
+%endif
 
 %description -n Percona-Server-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
@@ -1075,6 +1081,13 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/libperconaserver*.so.*
 
 %post -n Percona-Server-shared%{product_suffix}
+# Added for compatibility
+for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
+if [ ! -f %{_libdir}/$lib ]; then
+        ln -s libperconaserverclient.so.18 %{_libdir}/$lib;
+fi
+done
+
 /sbin/ldconfig
 
 %postun -n Percona-Server-shared%{product_suffix}

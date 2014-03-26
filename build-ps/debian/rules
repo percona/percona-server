@@ -7,6 +7,7 @@ PACKAGE=percona-server-5.6
 PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
 
 TMP=$(CURDIR)/debian/tmp/
+prefix=/usr
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
@@ -147,6 +148,13 @@ install: build
 
 	# make install (trailing slash needed for innobase)
 	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
+
+	# Build UDFs
+	(cd UDF && \
+	CXXFLAGS="-I $(CURDIR)/$(builddir)/include" \
+	./configure --includedir=$(CURDIR)/include \
+	--libdir=$(prefix)/lib/mysql/plugin && \
+	make && make DESTDIR=$(TMP) install)
 		
 	# After installing, remove rpath to make lintian happy.
 	set +e; \
@@ -187,10 +195,10 @@ install: build
 	# mysql-server
 	mkdir -p $(TMP)/usr/share/doc/percona-server-5.6/examples
 	mv $(TMP)/usr/share/mysql/*cnf 	    $(TMP)/usr/share/doc/percona-server-5.6/examples/
-	rm -vf $(TMP)/usr/share/percona-server/mi_test_all* \
-	       $(TMP)/usr/share/percona-server/mysql-log-rotate \
-	       $(TMP)/usr/share/percona-server/mysql.server \
-	       $(TMP)/usr/share/percona-server/binary-configure
+	rm -vf $(TMP)/usr/share/mysql/mi_test_all* \
+	       $(TMP)/usr/share/mysql/mysql-log-rotate \
+	       $(TMP)/usr/share/mysql/mysql.server \
+	       $(TMP)/usr/share/mysql/binary-configure
 	nm -n $(builddir)/sql/mysqld |gzip -9 > $(TMP)/usr/share/doc/percona-server-5.6/mysqld.sym.gz
 	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
@@ -202,9 +210,6 @@ install: build
 	# FIXME install -D -m 644 debian/mysql-server-5.6.py $(TMP)/usr/share/apport/package-hooks/source_mysql-5.6.py
 
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`
-
-	# Work around MySQL bug 71113, x bit set on example configs
-	chmod -x $(TMP)/usr/share/mysql/mysql-log-rotate
 
 	dh_movefiles
 
@@ -270,7 +275,6 @@ binary:	binary-indep binary-arch
 
 override_dh_auto_install:
 	dh_auto_install
-	cd UDF && make DESTDIR=$(TMP) install
 
 .PHONY: clean clean-patched configure build binary binary-indep binary-arch install patch
 

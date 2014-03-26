@@ -1,0 +1,73 @@
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CLUSTERING KEY b (b)) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+ALTER TABLE t1 ADD CLUSTERING INDEX b (b);
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE CLUSTERING INDEX b ON t1 (b) LOCK=EXCLUSIVE ALGORITHM=COPY;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+ALTER TABLE t1 ADD CLUSTERING INDEX b (b), LOCK=EXCLUSIVE, ALGORITHM=COPY;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE CLUSTERING KEY b (b)) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE UNIQUE KEY b (b)) ENGINE=InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE KEY b (b)) ENGINE=InnoDB' at line 1
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CLUSTERING CLUSTERING KEY b (b)) ENGINE=InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CLUSTERING KEY b (b)) ENGINE=InnoDB' at line 1
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CLUSTERING UNIQUE KEY b (b)) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 UNIQUE CLUSTERING KEY b (b)) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 CLUSTERING UNIQUE KEY b (b)) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 UNIQUE UNIQUE KEY b (b)) ENGINE=InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE KEY b (b)) ENGINE=InnoDB' at line 1
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 CLUSTERING KEY b (b)) ENGINE=InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') ENGINE=InnoDB' at line 1
+ALTER TABLE t1 ADD UNIQUE CLUSTERING INDEX b (b);
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+ALTER TABLE t1 ADD CLUSTERING UNIQUE INDEX b (b);
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+ALTER TABLE t1 ADD UNIQUE UNIQUE INDEX b (b);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE INDEX b (b)' at line 1
+ALTER TABLE t1 ADD CLUSTERING CLUSTERING INDEX b (b);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CLUSTERING INDEX b (b)' at line 1
+ALTER TABLE t1 ADD CONSTRAINT c1 UNIQUE CLUSTERING INDEX b (b);
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+ALTER TABLE t1 ADD CONSTRAINT c1 CLUSTERING UNIQUE INDEX b (b);
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+ALTER TABLE t1 ADD CONSTRAINT c1 UNIQUE UNIQUE INDEX b (b);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNIQUE INDEX b (b)' at line 1
+ALTER TABLE t1 ADD CONSTRAINT c1 CLUSTERING INDEX b (b);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+DROP TABLE t1;
+CREATE TABLE t1 (a INT CLUSTERING) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT CLUSTERING KEY) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT CLUSTERING UNIQUE) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT CLUSTERING UNIQUE KEY) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT UNIQUE CLUSTERING) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE t1 (a INT UNIQUE CLUSTERING KEY) ENGINE=InnoDB;
+ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'CLUSTERING'
+CREATE TABLE CLUSTERING(a INT) ENGINE=InnoDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CLUSTERING(a INT) ENGINE=InnoDB' at line 1
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT, f INT, g INT, UNIQUE KEY b (b)) ENGINE=InnoDB;
+ALTER TABLE t1 ADD UNIQUE INDEX c (c), LOCK=EXCLUSIVE, ALGORITHM=COPY;
+ALTER TABLE t1 ADD CONSTRAINT c1 UNIQUE INDEX g (g);
+ALTER TABLE t1 ADD INDEX d (d);
+CREATE INDEX e ON t1 (e) LOCK=EXCLUSIVE ALGORITHM=COPY;
+CREATE UNIQUE INDEX f ON t1 (f);
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, KEY b (b)) ENGINE=InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, UNIQUE b (b)) ENGINE=InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, CONSTRAINT c1 UNIQUE b (b)) ENGINE=InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE) ENGINE=InnoDB;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT UNIQUE KEY) ENGINE=InnoDB;
+DROP TABLE t1;

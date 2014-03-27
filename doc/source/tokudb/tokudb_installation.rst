@@ -6,9 +6,9 @@
 
 .. warning:: 
 
-   This feature is considered **ALPHA** quality and it isn't recommended for production use.
+   This feature is considered **BETA** quality and it isn't recommended for production use.
 
-|Percona Server| has added support for TokuDB storage engine in the :rn:`5.6.16-64.0-tokudb` release. 
+|Percona Server| has added support for TokuDB storage engine in the :rn:`5.6.16-64.0-tokudb` release.
 
 `TokuDB <http://www.tokutek.com/products/tokudb-for-mysql/>`_ is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.
 
@@ -51,20 +51,22 @@ Upgrade
 Upgrading from other |Percona Server| 5.5 and 5.6 releases should work without problems (you should read :ref:`changed_in_56` before upgrading from |Percona Server| 5.5 to |Percona Server| 5.6 with TokuDB engine). 
 
 
-Enabling the TokuDB support
-===========================
+Manually enabling the TokuDB support
+====================================
 
-This plugin requires manual installation because it isn't installed by default.
+After |Percona Server| :rn:`5.6.16-64.2-tokudb` release, TokuDB engine will be automatically enabled during new installations.
+
+This plugin will require manual installation if there is a root password already set up during the new installation or upgrade. 
 
 .. code-block:: mysql
 
- mysql> INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';
- mysql> INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';
- mysql> INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';
- mysql> INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';
- mysql> INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';
- mysql> INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
- mysql> INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
 
 After the engine has been installed it should be present in the engines list. To check if the engine has been correctly installed and active: 
 

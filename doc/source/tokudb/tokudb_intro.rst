@@ -4,6 +4,12 @@
  TokuDB Introduction
 =====================
 
+.. warning:: 
+
+   This feature is considered **BETA** quality and it isn't recommended for production use.
+
+|Percona Server| has added support for TokuDB storage engine in the :rn:`5.6.16-64.0-tokudb` release. TokuDB engine is only available in special |Percona Server| with TokuDB storage engine releases.
+
 TokuDB is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.
 
 Available TokuDB features:

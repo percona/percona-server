@@ -261,6 +261,7 @@ enum enum_alter_inplace_result {
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
+#define HA_CLUSTERED_INDEX      512     /* Data is clustered on this key */
 
 
 

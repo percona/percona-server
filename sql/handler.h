@@ -1031,6 +1031,11 @@ struct handlerton
 */
 #define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 11)
 
+/**
+  Engine supports secondary clustered keys.
+*/
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 12)
+
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 

@@ -63,9 +63,9 @@ endif
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
-	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -fno-strict-aliasing"} \
+	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
-	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
 	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
 		\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
@@ -80,6 +80,7 @@ endif
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
 		-DINSTALL_PLUGINDIR=lib/mysql/plugin \
 		-DWITH_EMBEDDED_SERVER=OFF \
+		-DWITH_INNODB_MEMCACHED=ON \
 		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
@@ -257,7 +258,7 @@ binary-arch: build install
 	dh_installinfo -a
 	dh_installlogcheck -a
 	dh_installchangelogs -a
-	dh_strip -a
+	dh_strip -a --dbg-package=percona-server-5.6-dbg
 	dh_lintian
 	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
 	dh_compress -a
@@ -280,7 +281,3 @@ override_dh_auto_install:
 
 override_dh_installinit:
 	dh_installinit --name=mysql --error-handler=:
-
-override_dh_strip:
-	dh_strip --dbg-package=percona-server-5.6-dbg
-

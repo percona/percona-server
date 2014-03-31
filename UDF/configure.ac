@@ -1,4 +1,4 @@
-AC_INIT([maatkit-udf], [0.1], [http://code.google.com/p/maatkit/issues/list])
+AC_INIT([pt-udf], [0.1], [https://bugs.launchpad.net/percona-toolkit])
 AM_INIT_AUTOMAKE([foreign -Wall -Wno-extra-portability foreign])
 AC_CONFIG_MACRO_DIR([m4])
 LT INIT

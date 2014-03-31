@@ -272,7 +272,7 @@ binary-arch: build install
 	dh_installinfo -a
 	dh_installlogcheck -a
 	dh_installchangelogs -a
-	dh_strip -a
+	dh_strip -a --dbg-package=percona-server-5.5-dbg
 	dh_lintian
 	dh_link -a	# .so muss nach .so.1.2.3 installier werden!
 	dh_compress -a
@@ -297,7 +297,3 @@ override_dh_auto_install:
 
 override_dh_installinit:
 	dh_installinit --name=mysql --error-handler=:
-
-override_dh_strip:
-	dh_strip --dbg-package=percona-server-5.5-dbg
-

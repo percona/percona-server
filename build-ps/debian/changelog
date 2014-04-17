@@ -1,4 +1,20 @@
-percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
+percona-server-5.6 (5.6.16-rel64.2) unstable; urgency=low
+
+  * PT UDFs added
+  * Removed dependency on mysql-common
+  * Reverted changes to install_layout.cmake and fixes around that change
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Tue, 25 Mar 2014 13:51:05 +0200
+
+percona-server-5.6 (5.6.16-rel64.1) unstable; urgency=low
+
+  * Removed Pre-Depends:multiarch-support from libperconaserverclient
+  * Fixed search path for libraries
+  * Fixed installation failure if old paths
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Mon, 17 Mar 2014 13:24:05 +0200
+
+percona-server-5.6 (5.6.16-rel64.0) unstable; urgency=low
 
   * Updated package Uploaders.
   * Fixed control line length issues.

@@ -127,7 +127,7 @@ fi
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/Makefile-ps" || exit 2
+test -e "$SOURCEDIR/VERSION" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -137,11 +137,10 @@ else
     PROCESSORS=4
 fi
 
-# Extract version from the Makefile-ps
-MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile-ps" \
-    | cut -d = -f 2)"
-PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
-    "$SOURCEDIR/Makefile-ps" | cut -d = -f 2)"
+# Extract version from the VERSION file
+source "$SOURCEDIR/VERSION"
+MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
+PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-/rel/')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
@@ -186,9 +185,6 @@ fi
 (
     cd "$SOURCEDIR"
  
-    # Execute clean and download mysql, apply patches
-    make -f Makefile-ps all
-
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTNAME \
@@ -210,6 +206,7 @@ fi
     # Build UDF
     (
         cd "UDF"
+	autoreconf --install
         CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/include" \
             --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
         make $MAKE_JFLAG

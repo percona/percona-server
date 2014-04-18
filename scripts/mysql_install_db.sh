@@ -426,8 +426,8 @@ else
   echo "describes problems on your OS.  Another information source are the"
   echo "MySQL email archives available at http://lists.mysql.com/."
   echo
-  echo "Please check all of the above before submitting a bug report"
-  echo "at http://bugs.mysql.com/"
+  echo "Please check all of the above before submitting a bug report at"
+  echo "  https://bugs.launchpad.net/percona-server/+filebug"
   echo
   exit 1
 fi
@@ -478,7 +478,8 @@ then
   fi
 
   echo
-  echo "Please report any problems at http://bugs.mysql.com/"
+  echo "Please report any problems at"
+  echo "  https://bugs.launchpad.net/percona-server/+filebug"
   echo
   echo "Percona recommends that all production deployments be protected with a support"
   echo "contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,"

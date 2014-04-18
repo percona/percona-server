@@ -1,3 +1,38 @@
+percona-server-5.5 (5.5.36-rel34.2) unstable; urgency=low
+
+  * Release 5.5.36-34.2
+  * Added UDF and HandlerSocket
+  * Reverted change of location from /usr/share/percona-server to /usr/share/mysql
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Tue, 25 Mar 2014 11:04:59 +0100
+
+percona-server-5.5 (5.5.36-rel34.1) unstable; urgency=low
+
+  * Release 5.5.36-34.1
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Tue, 17 Mar 2014 10:57:09 +0100
+
+percona-server-5.5 (5.5.36-rel34.0) unstable; urgency=low
+
+  * Release 5.5.36-34.0
+  * Resolved: Multiple arch installation of libmysqlclient18 broken
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Tue, 10 Mar 2014 10:44:46 +0100
+
+percona-server-5.5 (5.5.35-rel33.0) unstable; urgency=low
+
+  * Release 5.5.35-33.0
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Fri, 20 Dec 2013 10:40:29 +0100
+
+percona-server-5.5 (5.5.34-rel32.0) unstable; urgency=low
+
+  * Release 5.5.34-32.0
+  * Resolved: apt-upgrading percona-server fails in post-installation
+  * Resolved: libmysqlclient18-dev doesn't provide libmysqlclient-dev
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Mon, 28 Oct 2013 10:31:09 +0100
+
 percona-server-5.5 (5.5.33-rel31.1) unstable; urgency=low
 
   * Remove the info entry for mysql.info, which was pointless.

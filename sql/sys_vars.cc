@@ -4072,7 +4072,7 @@ static Sys_var_set Sys_log_slow_filter(
 static Sys_var_ulong sys_log_slow_rate_limit(
        "log_slow_rate_limit","Rate limit statement writes to slow log to only those from every (1/log_slow_rate_limit) session.",
        SESSION_VAR(log_slow_rate_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(1), BLOCK_SIZE(1));
+       VALID_RANGE(1, SLOG_SLOW_RATE_LIMIT_MAX), DEFAULT(1), BLOCK_SIZE(1));
 
 static double opt_slow_query_log_always_write_time;
 static bool update_slow_query_log_always_write_time(sys_var *self, THD *thd,

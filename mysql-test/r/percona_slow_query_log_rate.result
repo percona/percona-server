@@ -1,3 +1,5 @@
+SET @old_debug=@@global.debug;
+SET GLOBAL debug="+d,seed_slow_log_random";
 SET GLOBAL long_query_time=0;
 SET GLOBAL log_slow_rate_type='session';
 SET GLOBAL log_slow_rate_limit=3;
@@ -24,6 +26,7 @@ connection_three
 [log_grep.inc] file: percona.slow_extended.log_slow_rate_limit_1 pattern: 
 [log_grep.inc] sum:  2
 [log_grep.inc] zero: 2
+SET GLOBAL debug="+d,seed_slow_log_random";
 SET GLOBAL log_slow_rate_type='query';
 SET GLOBAL log_slow_rate_limit=2;
 [log_start.inc] percona.slow_extended.log_slow_rate_limit_2

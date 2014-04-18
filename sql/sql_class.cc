@@ -1613,6 +1613,10 @@ void THD::init(void)
     ulong tmp;
     tmp= sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+    randominit(&slog_rand, tmp + (ulong) &slog_rand,
+               tmp + (ulong) ::global_query_id);
+    DBUG_EXECUTE_IF("seed_slow_log_random",
+                    randominit(&slog_rand, 0x11111111, 0x77777777););
   }
 
   server_status= SERVER_STATUS_AUTOCOMMIT;

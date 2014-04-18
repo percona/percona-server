@@ -1736,6 +1736,7 @@ public:
   HASH    user_vars;			// hash for user variables
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
+  struct  rand_struct slog_rand;	// used for random slow log filtering
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */

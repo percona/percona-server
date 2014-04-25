@@ -1,0 +1,19 @@
+1.1.1 - 2013-05-06
+  * 1.1.1
+  * Fixed compilation problems with mysql 5.6.11
+
+1.1.0 - 2011-12-29
+  * 1.1.0
+
+1.0.6 - 2010-10-29
+  * Changed build instruction (autoreconf/configure/make), removed auto-generated files (Contributed by jmhodges)
+  * 
+
+1.0.5 - 2010-10-18
+  * Changed build procedures (using typical configure/make)
+  * Supported 5.5.6
+  * Added status variables
+
+1.0.4 - 2010-08-15 
+  * Initial public release
+

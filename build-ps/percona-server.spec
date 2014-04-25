@@ -334,19 +334,6 @@ and applications need to dynamically load and use Percona Server.
 ##############################################################################
 %build
 
-# Be strict about variables, bail at earliest opportunity, etc.
-set -uex
-
-BuildUDF() {
-    cd UDF
-    CXX="${UDF_CXX:-g++}"\
-        CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
-        --libdir=%{_libdir}/mysql/plugin
-    make %{?_smp_mflags} all
-    cd -
-}
-
 # Optional package files
 touch optional-files-devel
 
@@ -437,10 +424,6 @@ mkdir release
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
-  cd ../
-  d="`pwd`"
-  BuildUDF
-  cd "$d"
 )
 
 # For the debuginfo extraction stage, some source files are not located in the release
@@ -487,10 +470,6 @@ install -d $RBR%{_libdir}/mysql/plugin
 (
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
-  d="`pwd`"
-  cd $MBD/UDF
-  make DESTDIR=$RBR benchdir_root=%{_datadir} install
-  cd "$d"
 )
 
 # Install all binaries
@@ -1065,14 +1044,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libperconaserverclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/*.so
-
-# Percona Toolkit UDF libs
-%{_libdir}/mysql/plugin/libfnv1a_udf.a
-%{_libdir}/mysql/plugin/libfnv1a_udf.la
-%{_libdir}/mysql/plugin/libfnv_udf.a
-%{_libdir}/mysql/plugin/libfnv_udf.la
-%{_libdir}/mysql/plugin/libmurmur_udf.a
-%{_libdir}/mysql/plugin/libmurmur_udf.la
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}

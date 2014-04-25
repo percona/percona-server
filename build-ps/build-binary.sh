@@ -203,17 +203,6 @@ fi
     make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install
 
-    # Build UDF
-    (
-        cd "UDF"
-	autoreconf --install
-        CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/include" \
-            --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
-        make $MAKE_JFLAG
-        make DESTDIR="$INSTALLDIR" install
-
-    )
-
     # Build jemalloc
     if test "x$WITH_JEMALLOC" != x
     then

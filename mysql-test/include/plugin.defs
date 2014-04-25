@@ -47,3 +47,5 @@ innodb_engine      plugin/innodb_memcached/innodb_memcache INNODB_ENGINE
 validate_password  plugin/password_validation VALIDATE_PASSWORD validate_password
 auth_socket        plugin/auth        SOCKET_AUTH
 scalability_metrics plugin/scalability_metrics SCALABILITY_METRICS
+adt_null           plugin/audit_null  AUDIT_NULL
+audit_log          plugin/audit_log   AUDIT_LOG             audit_log

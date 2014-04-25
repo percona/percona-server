@@ -1117,6 +1117,9 @@ THD::THD(bool enable_plugins)
   tablespace_op=FALSE;
   tmp= sql_rnd_with_mutex();
   randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+  randominit(&slog_rand, tmp + (ulong) &slog_rand, tmp + (ulong) ::global_query_id);
+  DBUG_EXECUTE_IF("seed_slow_log_random",
+                  randominit(&slog_rand, 0x11111111, 0x77777777););
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
 

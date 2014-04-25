@@ -12,6 +12,10 @@ SET @old_log_slow_rate_type=@@global.log_slow_rate_type;
 SET @old_log_slow_rate_limit=@@global.log_slow_rate_limit;
 SET @old_slow_query_log_always_write_time=@@global.slow_query_log_always_write_time;
 
+# Force deterministic random pattern of slow log filter for new connections
+SET @old_debug=@@global.debug;
+SET GLOBAL debug="+d,seed_slow_log_random";
+
 SET GLOBAL log_slow_rate_type='session';
 SET GLOBAL long_query_time=10.0;
 SET GLOBAL log_slow_rate_limit=999;
@@ -69,6 +73,7 @@ SELECT 'this-should-not-be-logged';
 --source include/log_grep.inc
 
 # off the rate limit
+SET GLOBAL debug=@old_debug;
 SET GLOBAL long_query_time=@old_long_query_time;
 SET GLOBAL log_slow_rate_type=@old_log_slow_rate_type;
 SET GLOBAL log_slow_rate_limit=@old_log_slow_rate_limit;

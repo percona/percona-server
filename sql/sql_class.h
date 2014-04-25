@@ -122,6 +122,7 @@ enum enum_log_slow_filter {
   SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
   SLOG_F_FILESORT_DISK
 };
+#define SLOG_SLOW_RATE_LIMIT_MAX	1000
 enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
 enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
                             SLAVE_EXEC_MODE_IDEMPOTENT,
@@ -2263,6 +2264,7 @@ public:
   String  packet;			// dynamic buffer for network I/O
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
+  struct  rand_struct slog_rand;	// used for random slow log filtering
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */

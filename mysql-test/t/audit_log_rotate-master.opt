@@ -1,0 +1,8 @@
+$AUDIT_LOG_OPT
+$AUDIT_LOG_LOAD
+--audit_log_file=test_audit.log
+--audit_log_format=JSON
+--audit_log_strategy=ASYNCHRONOUS
+--audit_log_rotate_on_size=4096
+--audit_log_buffer_size=5000
+--audit_log_rotations=10

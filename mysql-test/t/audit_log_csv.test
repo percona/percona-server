@@ -1,0 +1,20 @@
+--source include/not_embedded.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+--source include/audit_log_events.inc
+
+--move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_csv.log
+set global audit_log_flush= ON;
+perl;
+  eval "use Text::CSV; 1" or exit 0;
+  my $p = Text::CSV->new({ binary => 1, sep_char => ',' });
+  open my $file, $ENV{'MYSQLD_DATADIR'} . '/test_audit_csv.log' or die "Could not open log: $!";
+  while ($p->getline($file)) {};
+  if (not $p->eof) {
+    die "CSV parse error " . $p->error_diag();
+  }
+  close $file;
+EOF
+--remove_file $MYSQLD_DATADIR/test_audit.log

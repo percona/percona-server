@@ -1,0 +1,14 @@
+--source include/not_embedded.inc
+
+# Adjustment to the OS dependent extension of shared libraries.
+let $expected_extension= so;
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+           IN ("Win32","Win64","Windows")`)
+{
+   let $expected_extension= dll;
+}
+
+--replace_result $expected_extension <expected_extension>
+eval INSTALL PLUGIN audit_log SONAME 'audit_log.$expected_extension';
+
+UNINSTALL PLUGIN audit_log;

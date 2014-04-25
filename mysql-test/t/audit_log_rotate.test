@@ -1,0 +1,29 @@
+--source include/not_embedded.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+--disable_result_log
+--disable_query_log
+--source include/audit_log_events.inc
+--source include/audit_log_events.inc
+--source include/audit_log_events.inc
+--source include/audit_log_events.inc
+--enable_query_log
+--enable_result_log
+
+perl;
+  eval "use JSON qw(decode_json); 1" or exit 0;
+  my @files = glob ($ENV{'MYSQLD_DATADIR'} . "/test_audit.log.*");
+  foreach (@files) {
+    open my $file, $_ or die "Could not open log: $!";
+    while (my $line = <$file>) {
+        decode_json($line);
+    }
+    close $file;
+  }
+  die "Rotation doesn't wrok!" unless scalar(@files) > 1
+EOF
+--remove_files_wildcard $MYSQLD_DATADIR test_audit.log*
+
+--echo success

@@ -1,0 +1,84 @@
+CREATE TABLE t1 (c1 INT, c2 CHAR(20));
+CREATE TABLE t1
+(c1 INT,
+c2 CHAR(20));
+ERROR 42S01: Table 't1' already exists
+INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+SELECT * FROM t1;
+c1	c2
+1	a
+2	b
+3	c
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+DROP TABLE t1;
+PREPARE stmt1 FROM 'SELECT 1';
+EXECUTE stmt1;
+1
+1
+SHOW STATUS LIKE 'audit_log%';
+Variable_name	Value
+DEALLOCATE PREPARE stmt1;
+show variables like 'audit_log%';
+Variable_name	Value
+audit_log_buffer_size	1048576
+audit_log_file	test_audit.log
+audit_log_flush	OFF
+audit_log_format	CSV
+audit_log_handler	FILE
+audit_log_policy	ALL
+audit_log_rotate_on_size	0
+audit_log_rotations	0
+audit_log_strategy	SEMISYNCHRONOUS
+audit_log_syslog_facility	LOG_USER
+audit_log_syslog_ident	percona-audit
+audit_log_syslog_priority	LOG_INFO
+connect(localhost,no_such_user,,mysql,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'no_such_user'@'localhost' (using password: NO)
+create table t1 (id int);
+create table t2 (id int);
+insert into t1 values (1), (2);
+insert into t2 values (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2), (1), (2);
+select * from t1;
+id
+1
+2
+alter table t1 rename renamed_t1;
+select * from t_doesnt_exist;
+ERROR 42S02: Table 'test.t_doesnt_exist' doesn't exist
+syntax_error_query;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'syntax_error_query' at line 1
+drop table renamed_t1, t2;
+show variables like 'audit_log%';
+Variable_name	Value
+audit_log_buffer_size	1048576
+audit_log_file	test_audit.log
+audit_log_flush	OFF
+audit_log_format	CSV
+audit_log_handler	FILE
+audit_log_policy	ALL
+audit_log_rotate_on_size	0
+audit_log_rotations	0
+audit_log_strategy	SEMISYNCHRONOUS
+audit_log_syslog_facility	LOG_USER
+audit_log_syslog_ident	percona-audit
+audit_log_syslog_priority	LOG_INFO
+create database sa_db;
+create table t1 (id2 int);
+insert into t1 values (1), (2);
+select * from t1;
+id2
+1
+2
+drop table t1;
+use sa_db;
+create table sa_t1(id int);
+insert into sa_t1 values (1), (2);
+drop table sa_t1;
+drop database sa_db;
+create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
+drop user 'jeffrey'@'localhost';
+select '&;&&&""""<><<>>>>';
+&;&&&""""<><<>>>>
+&;&&&""""<><<>>>>
+set global audit_log_flush= ON;

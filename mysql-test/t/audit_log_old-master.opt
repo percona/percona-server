@@ -1,0 +1,5 @@
+$AUDIT_LOG_OPT
+$AUDIT_LOG_LOAD
+--audit_log_file=test_audit.log
+--audit_log_buffer_size=4096
+--audit_log_strategy=ASYNCHRONOUS

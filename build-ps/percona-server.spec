@@ -1055,9 +1055,11 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0.0.0
-
-
-
+# Audit Log and Scalability Metrics files
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1161,6 +1163,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Fri Apr 25 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Added Audit Log and Scalability Metrics plugin binaries
+
 * Thu Feb 10 2011 Ignacio Nin <ignacio.nin@percona.com>
 
 - Removed lines which prevented -debuginfo packages from being built.

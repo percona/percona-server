@@ -105,7 +105,9 @@ Depends: debianutils (>=1.6),
          libperconaserverclient18.1 (>= ${source:Version}),
          ${shlibs:Depends},
          ${misc:Depends}
-Provides: virtual-mysql-client
+Provides: mysql-client,
+          virtual-mysql-client,
+          virtual-mysql-client-core
 Breaks: mysql-client-5.0,
         mysql-client-core-5.1,
         mysql-client-5.1,
@@ -116,7 +118,9 @@ Breaks: mysql-client-5.0,
         percona-server-client-5.5,
         mariadb-client,
         mariadb-client-core-5.5,
-        mariadb-client-5.5
+        mariadb-client-5.5,
+        virtual-mysql-client,
+        virtual-mysql-client-core
 Replaces: mysql-client-5.0,
            mysql-client-core-5.1,
            mysql-client-5.1,
@@ -127,7 +131,9 @@ Replaces: mysql-client-5.0,
            percona-server-client-5.5,
            mariadb-client,
            mariadb-client-core-5.5,
-           mariadb-client-5.5
+           mariadb-client-5.5,
+           virtual-mysql-client,
+           virtual-mysql-client-core
 Description: Percona Server database client binaries
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database
@@ -152,7 +158,9 @@ Depends: percona-server-client-5.6 (>= ${source:Version}),
          psmisc,
          passwd,
          lsb-base (>= 3.0-10)
-Provides: virtual-mysql-server
+Provides: mysql-server,
+          virtual-mysql-server,
+          virtual-mysql-server-core
 Breaks: mysql-server-5.0,
         mysql-server-5.1,
         mysql-server-5.5,
@@ -163,7 +171,9 @@ Breaks: mysql-server-5.0,
         percona-server-server-5.5,
         mariadb-server,
         mariadb-server-core-5.5,
-        mariadb-server-5.5
+        mariadb-server-5.5,
+        virtual-mysql-server,
+        virtual-mysql-server-core
 Replaces: mysql-server-5.0,
           mysql-server-5.1,
           mysql-server-5.5,
@@ -174,7 +184,9 @@ Replaces: mysql-server-5.0,
           percona-server-server-5.5,
           mariadb-server,
           mariadb-server-core-5.5,
-          mariadb-server-5.5
+          mariadb-server-5.5,
+          virtual-mysql-server,
+          virtual-mysql-server-core
 Description: Percona Server database server binaries
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL
  database server. SQL (Structured Query Language) is the most popular database

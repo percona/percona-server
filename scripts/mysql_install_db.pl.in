@@ -451,6 +451,10 @@ if ( ! $print_defaults )
 -x $print_defaults or -f "$print_defaults.exe"
   or cannot_find_file($print_defaults);
 
+# fix for: https://bugs.launchpad.net/percona-server/+bug/1314596
+# should be removed later
+my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
+
 <<'CONFIGFILE_BUG1225189';
 my $config_file;
 my $copy_cfg_file;

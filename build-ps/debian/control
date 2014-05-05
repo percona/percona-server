@@ -46,18 +46,8 @@ Description: Percona Server database client library
 Package: libperconaserverclient18.1-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient-dev (= ${binary:Version}), ${misc:Depends}
-Description: Percona Server database development files - empty transitional 
- package. This is an empty package that depends on libperconaserverclient-dev
- to ease the transition for packages with versioned build-deps on
- libperconaserverclient18-dev.
-
-Package: libperconaserverclient-dev
-Architecture: any
-Section: libdevel
 Depends: libperconaserverclient18.1 (= ${binary:Version}),
-         zlib1g-dev,
-         ${misc:Depends}
+         zlib1g-dev, ${misc:Depends}
 Breaks: libperconaserverclient18-dev,
         libperconaserverclient16-dev,
         libperconaserverclient15-dev,

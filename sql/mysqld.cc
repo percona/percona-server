@@ -717,6 +717,7 @@ SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
+SHOW_COMP_OPTION have_backup_locks;
 
 ulonglong opt_log_warnings_suppress= 0;
 
@@ -778,6 +779,8 @@ pthread_t signal_thread;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+
+mysql_rwlock_t LOCK_consistent_snapshot;
 
 int mysqld_server_started= 0;
 
@@ -2059,6 +2062,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_global_user_client_stats);
   mysql_mutex_destroy(&LOCK_global_table_stats);
   mysql_mutex_destroy(&LOCK_global_index_stats);
+  mysql_rwlock_destroy(&LOCK_consistent_snapshot);
 }
 #endif /*EMBEDDED_LIBRARY*/
 
@@ -3559,6 +3563,8 @@ SHOW_VAR com_status_vars[]= {
   {"kill",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_KILL]), SHOW_LONG_STATUS},
   {"load",                 (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOAD]), SHOW_LONG_STATUS},
   {"lock_tables",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_TABLES]), SHOW_LONG_STATUS},
+  {"lock_tables_for_backup",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_TABLES_FOR_BACKUP]), SHOW_LONG_STATUS},
+  {"lock_binlog_for_backup",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_LOCK_BINLOG_FOR_BACKUP]), SHOW_LONG_STATUS},
   {"optimize",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_OPTIMIZE]), SHOW_LONG_STATUS},
   {"preload_keys",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PRELOAD_KEYS]), SHOW_LONG_STATUS},
   {"prepare_sql",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_PREPARE]), SHOW_LONG_STATUS},
@@ -3639,6 +3645,7 @@ SHOW_VAR com_status_vars[]= {
   {"stmt_send_long_data",  (char*) offsetof(STATUS_VAR, com_stmt_send_long_data), SHOW_LONG_STATUS},
   {"truncate",             (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_TRUNCATE]), SHOW_LONG_STATUS},
   {"uninstall_plugin",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNINSTALL_PLUGIN]), SHOW_LONG_STATUS},
+  {"unlock_binlog",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNLOCK_BINLOG]), SHOW_LONG_STATUS},
   {"unlock_tables",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UNLOCK_TABLES]), SHOW_LONG_STATUS},
   {"update",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE]), SHOW_LONG_STATUS},
   {"update_multi",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_UPDATE_MULTI]), SHOW_LONG_STATUS},
@@ -4316,6 +4323,8 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
+  mysql_rwlock_init(key_rwlock_LOCK_consistent_snapshot,
+                    &LOCK_consistent_snapshot);
   mysql_cond_init(key_COND_thread_count, &COND_thread_count, NULL);
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
@@ -8535,6 +8544,8 @@ static int mysql_init_variables(void)
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
+  have_backup_locks= SHOW_OPTION_YES;
+
 #if defined(__WIN__)
   /* Allow Win32 users to move MySQL anywhere */
   {
@@ -9719,7 +9730,7 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock;
+  key_rwlock_global_sid_lock, key_rwlock_LOCK_consistent_snapshot;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
@@ -9745,7 +9756,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP

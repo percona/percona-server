@@ -17,7 +17,7 @@ wait/synch/mutex/sql/LOCK_compress_gtid_table	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
-order by name limit 10;
+order by name limit 11;
 NAME	ENABLED	TIMED
 wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES
 wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES
@@ -26,6 +26,7 @@ wait/synch/rwlock/sql/channel_lock	YES	YES
 wait/synch/rwlock/sql/channel_map_lock	YES	YES
 wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES
 wait/synch/rwlock/sql/gtid_mode_lock	YES	YES
+wait/synch/rwlock/sql/LOCK_consistent_snapshot	YES	YES
 wait/synch/rwlock/sql/LOCK_dboptions	YES	YES
 wait/synch/rwlock/sql/LOCK_grant	YES	YES
 wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES

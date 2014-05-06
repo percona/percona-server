@@ -717,6 +717,7 @@ mysql_cond_t COND_socket_listener_active;
 mysql_mutex_t LOCK_start_signal_handler;
 mysql_cond_t COND_start_signal_handler;
 #endif
+mysql_rwlock_t LOCK_consistent_snapshot;
 
 bool mysqld_server_started= false;
 
@@ -1484,6 +1485,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_global_user_client_stats);
   mysql_mutex_destroy(&LOCK_global_table_stats);
   mysql_mutex_destroy(&LOCK_global_index_stats);
+  mysql_rwlock_destroy(&LOCK_consistent_snapshot);
 }
 
 
@@ -8963,7 +8965,8 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
+  key_rwlock_global_sid_lock, key_rwlock_LOCK_consistent_snapshot,
+  key_rwlock_gtid_mode_lock,
   key_rwlock_channel_map_lock, key_rwlock_channel_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
@@ -8991,6 +8994,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_channel_map_lock, "channel_map_lock", 0},
   { &key_rwlock_channel_lock, "channel_lock", 0},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };

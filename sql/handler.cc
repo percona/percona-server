@@ -2270,7 +2270,17 @@ int ha_start_consistent_snapshot(THD *thd)
 {
   bool warn= true;
 
+  /*
+    Blocking commits and binlog updates ensures that we get the same snapshot
+    for all engines (including the binary log). This allows us among other
+    things to do backups with START TRANSACTION WITH CONSISTENT SNAPSHOT and
+    have a consistent binlog position.
+  */
+  tc_log->xlock();
+
   plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+
+  tc_log->xunlock();
 
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not

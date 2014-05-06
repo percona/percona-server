@@ -124,6 +124,7 @@ Management Improvements
    management/log_archiving
    management/statement_timeout
    management/backup_locks
+   management/audit_log_plugin
 
 Diagnostics Improvements
 ========================
@@ -142,6 +143,7 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
+   diagnostics/scalability_metrics_plugin
 
 TokuDB
 ======
@@ -154,6 +156,7 @@ TokuDB
    tokudb/tokudb_installation
    tokudb/using_tokudb
    tokudb/tokudb_compression
+   tokudb/tokudb_multiple_clustering_keys
 
 Reference
 =========

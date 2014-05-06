@@ -77,7 +77,19 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv);
 static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
+static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
 
+static char binlog_snapshot_file[FN_REFLEN];
+static ulonglong binlog_snapshot_position;
+
+static SHOW_VAR binlog_status_vars_detail[]=
+{
+  {"snapshot_file",
+    (char *)&binlog_snapshot_file, SHOW_CHAR},
+  {"snapshot_position",
+   (char *)&binlog_snapshot_position, SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
 
 /**
   Helper class to hold a mutex for the duration of the
@@ -766,6 +778,8 @@ public:
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;
 
+  LOG_INFO binlog_info;
+
 private:
 
   binlog_cache_mngr& operator=(const binlog_cache_mngr& info);
@@ -890,6 +904,7 @@ static int binlog_init(void *p)
   binlog_hton->commit= binlog_commit;
   binlog_hton->rollback= binlog_rollback;
   binlog_hton->prepare= binlog_prepare;
+  binlog_hton->start_consistent_snapshot= binlog_start_consistent_snapshot;
   binlog_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   return 0;
 }
@@ -1301,6 +1316,25 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   return 0;
 }
 
+static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd)
+{
+  int err= 0;
+  LOG_INFO li;
+  DBUG_ENTER("binlog_start_consistent_snapshot");
+
+  if ((err= thd->binlog_setup_trx_data()))
+    DBUG_RETURN(err);
+
+  binlog_cache_mngr * const cache_mngr= thd_get_cache_mngr(thd);
+
+  /* Server layer calls us with LOCK_log locked, so this is safe. */
+  mysql_bin_log.raw_get_current_log(&cache_mngr->binlog_info);
+
+  trans_register_ha(thd, TRUE, hton);
+
+  DBUG_RETURN(err);
+}
+
 /**
   This function is called once after each statement.
 
@@ -1543,8 +1577,18 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     rollback.
    */
   if (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT)
+  {
+    /*
+      Reset binlog_snapshot_% variables for the current connection so that the
+      current coordinates are shown after committing a consistent snapshot
+      transaction.
+    */
+    if (cache_mngr != NULL)
+      cache_mngr->binlog_info.log_file_name[0]= '\0';
+
     if ((error= ha_rollback_low(thd, all)))
       goto end;
+  }
 
   /*
     If there is no cache manager, or if there is nothing in the
@@ -2389,7 +2433,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   previous_gtid_set(0)
+   previous_gtid_set(0), snapshot_lock_acquired(false)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -6266,6 +6310,14 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     DBUG_RETURN(RESULT_SUCCESS);
   }
 
+  /*
+    Reset binlog_snapshot_% variables for the current connection so that the
+    current coordinates are shown after committing a consistent snapshot
+    transaction.
+  */
+  if (all)
+    cache_mngr->binlog_info.log_file_name[0]= '\0';
+
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
 
   DBUG_PRINT("debug", ("in_transaction: %s, no_2pc: %s, rw_ha_count: %d",
@@ -6757,9 +6809,22 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     /*
       storage engine commit
     */
-    if (thd->commit_error == THD::CE_NONE &&
-        ha_commit_low(thd, all, false))
-      thd->commit_error= THD::CE_COMMIT_ERROR;
+    if (thd->commit_error == THD::CE_NONE)
+    {
+      /*
+        Acquire a shared lock to block commits until START TRANSACTION WITH
+        CONSISTENT SNAPSHOT completes snapshot creation for all storage
+        engines. We only reach this code if binlog_order_commits=0.
+      */
+      DBUG_ASSERT(opt_binlog_order_commits == 0);
+
+      slock();
+
+      if (ha_commit_low(thd, all, false))
+        thd->commit_error= THD::CE_COMMIT_ERROR;
+
+      sunlock();
+    }
     /*
       Decrement the prepared XID counter after storage engine commit
     */
@@ -7133,6 +7198,99 @@ err1:
                   "--tc-heuristic-recover={commit|rollback}");
   return 1;
 }
+
+/*
+  Copy out the non-directory part of binlog position filename for the
+  `binlog_snapshot_file' status variable, same way as it is done for
+  SHOW MASTER STATUS.
+*/
+static void set_binlog_snapshot_file(const char *src)
+{
+  int dir_len = dirname_length(src);
+  strmake(binlog_snapshot_file, src + dir_len,
+          sizeof(binlog_snapshot_file) - 1);
+}
+
+/*
+  Copy out current values of status variables, for SHOW STATUS or
+  information_schema.global_status.
+
+  This is called only under LOCK_status, so we can fill in a static array.
+*/
+void MYSQL_BIN_LOG::set_status_variables(THD *thd)
+{
+  binlog_cache_mngr *cache_mngr;
+
+  if (thd && opt_bin_log)
+    cache_mngr= (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  else
+    cache_mngr= 0;
+
+  bool have_snapshot= (cache_mngr &&
+                       cache_mngr->binlog_info.log_file_name[0] != '\0');
+  mysql_mutex_lock(&LOCK_log);
+  if (!have_snapshot)
+  {
+    set_binlog_snapshot_file(log_file_name);
+    binlog_snapshot_position= my_b_tell(&log_file);
+  }
+  mysql_mutex_unlock(&LOCK_log);
+
+  if (have_snapshot)
+  {
+    set_binlog_snapshot_file(cache_mngr->binlog_info.log_file_name);
+    binlog_snapshot_position= cache_mngr->binlog_info.pos;
+  }
+}
+
+
+void MYSQL_BIN_LOG::xlock(void)
+{
+  DBUG_ASSERT(!snapshot_lock_acquired);
+
+  mysql_mutex_lock(&LOCK_log);
+
+  /*
+    We must ensure that no writes to binlog and no commits to storage engines
+    occur after function is called for START TRANSACTION FOR CONSISTENT
+    SNAPSHOT. With binlog_order_commits=1 (the default) flushing to binlog is
+    performed under the LOCK_log mutex and commits are done under the
+    LOCK_commit mutex, both in the stage leader thread. So acquiring those 2
+    mutexes is sufficient to guarantee atomicity.
+
+    With binlog_order_commits=0 commits are performed in parallel by separate
+    threads with each acquiring a shared lock on LOCK_consistent_snapshot.
+
+    binlog_order_commits is a dynamic variable, so we have to keep track what
+    primitives should be used in unlock_for_snapshot().
+  */
+  if (opt_binlog_order_commits)
+  {
+    mysql_mutex_lock(&LOCK_commit);
+  }
+  else
+  {
+    snapshot_lock_acquired= true;
+    mysql_rwlock_wrlock(&LOCK_consistent_snapshot);
+  }
+}
+
+
+void MYSQL_BIN_LOG::xunlock(void)
+{
+  if (!snapshot_lock_acquired)
+  {
+    mysql_mutex_unlock(&LOCK_commit);
+  }
+  else
+  {
+    mysql_rwlock_unlock(&LOCK_consistent_snapshot);
+    snapshot_lock_acquired= false;
+  }
+
+  mysql_mutex_unlock(&LOCK_log);
+}
+
 
 Group_cache *THD::get_group_cache(bool is_transactional)
 {
@@ -8936,6 +9094,25 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
 #endif /* !defined(MYSQL_CLIENT) */
 
+static int show_binlog_vars(THD *thd, SHOW_VAR *var, char *buff)
+{
+  if (mysql_bin_log.is_open())
+    mysql_bin_log.set_status_variables(thd);
+  else
+  {
+    binlog_snapshot_file[0]= '\0';
+    binlog_snapshot_position= 0;
+  }
+  var->type= SHOW_ARRAY;
+  var->value= (char *)&binlog_status_vars_detail;
+  return 0;
+}
+
+static SHOW_VAR binlog_status_vars_top[]= {
+  {"Binlog", (char *) &show_binlog_vars, SHOW_FUNC},
+  {NullS, NullS, SHOW_LONG}
+};
+
 struct st_mysql_storage_engine binlog_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
@@ -8952,7 +9129,7 @@ mysql_declare_plugin(binlog)
   binlog_init, /* Plugin Init */
   NULL, /* Plugin Deinit */
   0x0100 /* 1.0 */,
-  NULL,                       /* status variables                */
+  binlog_status_vars_top,     /* status variables                */
   NULL,                       /* system variables                */
   NULL,                       /* config options                  */
   0,  

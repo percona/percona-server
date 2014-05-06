@@ -42,7 +42,7 @@ SELECT argument FROM mysql.general_log WHERE argument != '';
 
 TRUNCATE TABLE mysql.general_log;
 
---echo # Check that --master-data disables --lock-for-backup
+--echo # Check that --master-data does not disable --lock-for-backup
 
 --exec $MYSQL_DUMP --lock-for-backup --single-transaction --master-data test >$file
 

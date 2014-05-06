@@ -501,6 +501,8 @@ public:
 private:
   Gtid_set* previous_gtid_set;
 
+  bool snapshot_lock_acquired;
+
   int open(const char *opt_name) { return open_binlog(opt_name); }
   bool change_stage(THD *thd, Stage_manager::StageID stage,
                     THD* queue, mysql_mutex_t *leave,
@@ -528,7 +530,15 @@ public:
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
-
+  void xlock(void);
+  void xunlock(void);
+  void slock(void) { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+#else
+  void xlock(void) { }
+  void xunlock(void) { }
+  void slock(void) { }
+  void sunlock(void) { }
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)
   {
@@ -674,6 +684,7 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
+  void set_status_variables(THD *thd);
 };
 
 typedef struct st_load_file_info

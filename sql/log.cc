@@ -53,6 +53,7 @@ using std::max;
 #include "rpl_handler.h"
 #include "debug_sync.h"
 #include "sql_show.h"
+#include "mysqld.h"
 
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
@@ -2899,12 +2900,21 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
   DBUG_ENTER("TC_LOG_MMAP::commit");
   unsigned long cookie= 0;
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+  int rc;
 
   if (all && xid)
     if (!(cookie= log_xid(thd, xid)))
       DBUG_RETURN(RESULT_ABORTED);    // Failed to log the transaction
 
-  if (ha_commit_low(thd, all))
+  /*
+    Acquire a shared lock to block commits until START TRANSACTION WITH
+    CONSISTENT SNAPSHOT completes snapshot creation for all storage engines.
+  */
+  slock();
+  rc= ha_commit_low(thd, all);
+  sunlock();
+
+  if (rc)
     DBUG_RETURN(RESULT_INCONSISTENT); // Transaction logged, but not committed
 
   /* If cookie is non-zero, something was logged */

@@ -137,6 +137,7 @@ Management Improvements
    management/expanded_program_option_modifiers
    management/changed_page_tracking
    management/pam_plugin
+   management/audit_log_plugin
 
 Diagnostics Improvements
 ========================
@@ -157,6 +158,7 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
+   diagnostics/scalability_metrics_plugin
 
 Obsolete and Removed Features
 =============================

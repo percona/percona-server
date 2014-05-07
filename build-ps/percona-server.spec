@@ -43,7 +43,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         beta%{percona_server_version}%{?dist}
+%define release         rc%{percona_server_version}%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM

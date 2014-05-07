@@ -30,11 +30,20 @@
 %define percona_server_version @@PERCONA_VERSION@@
 %define revision @@REVISION@@
 
+#
+%bcond_with tokudb
+#
+%if %{with tokudb}
+  %define tokudb_version @@TOKUDB_VERSION@@
+  %define TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF
+  %define TOKUDB_DEBUG -DTOKU_DEBUG_PARANOID
+%endif
+#
 %define mysqld_user     mysql
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rel%{percona_server_version}%{?dist}
+%define release         beta%{percona_server_version}%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -84,8 +93,11 @@
 %if %{undefined src_base}
 %define src_base percona-server
 %endif
-%define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}
-
+%if  %{with tokudb}
+  %define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}-%{tokudb_version}
+%else
+  %define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}
+%endif
 # ----------------------------------------------------------------------------
 # Feature set (storage engines, options).  Default to community (everything)
 # ----------------------------------------------------------------------------
@@ -96,11 +108,15 @@
 # ----------------------------------------------------------------------------
 # Server comment strings
 # ----------------------------------------------------------------------------
+%if %{with tokudb} 
+  %define build_suff -%{tokudb_version}
+%endif
+#
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}%{build_suff}, Revision %{revision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}
+%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}%{build_suff}, Revision %{revision}
 %endif
 
 
@@ -273,11 +289,25 @@ as well as related utilities to run and administer Percona Server.
 If you want to access and work with the database, you have to install
 package "Percona-Server-client%{product_suffix}" as well!
 
+%if %{with tokudb}
+# ----------------------------------------------------------------------------
+%package -n Percona-Server-tokudb%{product_suffix}
+Summary:        Percona Server - TokuDB
+Group:          Applications/Databases
+Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
+Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
+Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+Provides:       tokudb-plugin = %{version}-%{release}
+
+%description -n Percona-Server-tokudb%{product_suffix}
+This package contains the TokuDB plugin for Percona Server %{version}-%{release}
+%endif
+
 # ----------------------------------------------------------------------------
 %package -n Percona-Server-client%{product_suffix}
 Summary:        Percona Server - Client
 Group:          Applications/Databases
-Requires:      Percona-Server-shared%{product_suffix}
+Requires:       Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55
 
@@ -338,7 +368,6 @@ and applications need to dynamically load and use Percona Server.
 set -uex
 
 BuildUDF() {
-    cd UDF
     CXX="${UDF_CXX:-g++}"\
         CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
         ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
@@ -363,7 +392,11 @@ touch optional-files-devel
 RPM_OPT_FLAGS=
 %endif
 #
+%if %{with tokudb}
+RPM_OPT_FLAGS= 
+%else
 RPM_OPT_FLAGS=$(echo ${RPM_OPT_FLAGS} | sed -e 's|-march=i386|-march=i686|g')
+%endif
 #
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
@@ -413,7 +446,8 @@ mkdir debug
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+           -DMYSQL_SERVER_SUFFIX="-tokudb" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=ON
+
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
 )
@@ -434,11 +468,14 @@ mkdir release
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+           -DMYSQL_SERVER_SUFFIX="tokudb" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=OFF
+  
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
   cd ../
   d="`pwd`"
+  cd UDF
+  autoreconf --install
   BuildUDF
   cd "$d"
 )
@@ -471,7 +508,7 @@ RBR=$RPM_BUILD_ROOT
 %install
 
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/percona-server-%{mysql_version}-%{percona_server_version}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
@@ -507,7 +544,9 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
-
+#
+%{__rm} -f $RBR/%{_prefix}/README*
+#
 # Delete the symlinks to the libraries from the libdir. These are created by
 # ldconfig(8) afterwards.
 rm -f $RBR%{_libdir}/libmysqlclient*.so.18
@@ -921,6 +960,30 @@ echo                                             >> $STATUS_HISTORY
 echo "====="                                     >> $STATUS_HISTORY
 
 
+%if %{with tokudb}
+# ----------------------------------------------------------------------------
+%post -n Percona-Server-tokudb%{product_suffix}
+
+if [ $1 -eq 1 ] ; then
+	echo ""
+	echo "* This release of Percona Server is distributed with TokuDB storage engine."
+	echo "* Run the following commands to enable the TokuDB storage engine in Percona Server:"
+	echo ""
+	echo "INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';"
+	echo "INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';"
+	echo "INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';"
+	echo "INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';"
+	echo "INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';"
+	echo "INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';"
+	echo "INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';"
+	echo ""
+	echo "* See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for more details"
+	echo ""
+fi
+%endif
+# ----------------------------------------------------------------------------
+
+
 # ----------------------------------------------------------------------
 # Clean up the BuildRoot after build is done
 # ----------------------------------------------------------------------
@@ -1005,8 +1068,47 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
-%attr(755, root, root) %{_libdir}/mysql/plugin/*.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
+
+#plugins
+%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.*
+%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.*
+%attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.*
+%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
+
+# %attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam_compat.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1015,7 +1117,52 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 
-%attr(755, root, root) %{_datadir}/percona-server/
+# %attr(755, root, root) %{_datadir}/percona-server/
+%attr(755, root, root) %{_datadir}/percona-server/binary-configure
+%attr(755, root, root) %{_datadir}/percona-server/bulgarian
+%attr(755, root, root) %{_datadir}/percona-server/charsets
+%attr(755, root, root) %{_datadir}/percona-server/czech
+%attr(755, root, root) %{_datadir}/percona-server/danish
+%attr(755, root, root) %{_datadir}/percona-server/dictionary.txt
+%attr(755, root, root) %{_datadir}/percona-server/dutch
+%attr(755, root, root) %{_datadir}/percona-server/english
+%attr(755, root, root) %{_datadir}/percona-server/errmsg-utf8.txt
+%attr(755, root, root) %{_datadir}/percona-server/estonian
+%attr(755, root, root) %{_datadir}/percona-server/fill_help_tables.sql
+%attr(755, root, root) %{_datadir}/percona-server/french
+%attr(755, root, root) %{_datadir}/percona-server/german
+%attr(755, root, root) %{_datadir}/percona-server/greek
+%attr(755, root, root) %{_datadir}/percona-server/hungarian
+%attr(755, root, root) %{_datadir}/percona-server/innodb_memcached_config.sql
+%attr(755, root, root) %{_datadir}/percona-server/italian
+%attr(755, root, root) %{_datadir}/percona-server/japanese
+%attr(755, root, root) %{_datadir}/percona-server/korean
+%attr(755, root, root) %{_datadir}/percona-server/magic
+%attr(755, root, root) %{_datadir}/percona-server/my-default.cnf
+%attr(755, root, root) %{_datadir}/percona-server/mysqld_multi.server
+%attr(755, root, root) %{_datadir}/percona-server/mysql-log-rotate
+%attr(755, root, root) %{_datadir}/percona-server/mysql_security_commands.sql
+%attr(755, root, root) %{_datadir}/percona-server/mysql.server
+%attr(755, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
+%attr(755, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
+%attr(755, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
+%attr(755, root, root) %{_datadir}/percona-server/norwegian
+%attr(755, root, root) %{_datadir}/percona-server/norwegian-ny
+%attr(755, root, root) %{_datadir}/percona-server/polish
+%attr(755, root, root) %{_datadir}/percona-server/portuguese
+%attr(755, root, root) %{_datadir}/percona-server/romanian
+%attr(755, root, root) %{_datadir}/percona-server/russian
+%attr(755, root, root) %{_datadir}/percona-server/SELinux
+%attr(755, root, root) %{_datadir}/percona-server/SELinux/RHEL4
+%attr(755, root, root) %{_datadir}/percona-server/SELinux/RHEL4/mysql.fc
+%attr(755, root, root) %{_datadir}/percona-server/SELinux/RHEL4/mysql.te
+%attr(755, root, root) %{_datadir}/percona-server/serbian
+%attr(755, root, root) %{_datadir}/percona-server/slovak
+%attr(755, root, root) %{_datadir}/percona-server/solaris
+%attr(755, root, root) %{_datadir}/percona-server/solaris/postinstall-solaris
+%attr(755, root, root) %{_datadir}/percona-server/spanish
+%attr(755, root, root) %{_datadir}/percona-server/swedish
+%attr(755, root, root) %{_datadir}/percona-server/ukrainian
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-client%{product_suffix}
@@ -1073,6 +1220,17 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/plugin/libfnv_udf.la
 %{_libdir}/mysql/plugin/libmurmur_udf.a
 %{_libdir}/mysql/plugin/libmurmur_udf.la
+
+%if %{with tokudb}
+# ----------------------------------------------------------------------------
+%files -n Percona-Server-tokudb%{product_suffix}
+%attr(-, root, root) 
+%{_bindir}/tokuftdump
+%{_includedir}/tdb-internal.h
+%{_libdir}/mysql/plugin/ha_tokudb.so
+%attr(755, root, root) %{_datadir}/percona-server/tokudb_engine_install.sql
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
+%endif
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}

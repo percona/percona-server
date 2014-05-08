@@ -1153,13 +1153,9 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/romanian
 %attr(755, root, root) %{_datadir}/percona-server/russian
 %attr(755, root, root) %{_datadir}/percona-server/SELinux
-%attr(755, root, root) %{_datadir}/percona-server/SELinux/RHEL4
-%attr(755, root, root) %{_datadir}/percona-server/SELinux/RHEL4/mysql.fc
-%attr(755, root, root) %{_datadir}/percona-server/SELinux/RHEL4/mysql.te
 %attr(755, root, root) %{_datadir}/percona-server/serbian
 %attr(755, root, root) %{_datadir}/percona-server/slovak
 %attr(755, root, root) %{_datadir}/percona-server/solaris
-%attr(755, root, root) %{_datadir}/percona-server/solaris/postinstall-solaris
 %attr(755, root, root) %{_datadir}/percona-server/spanish
 %attr(755, root, root) %{_datadir}/percona-server/swedish
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian
@@ -1228,7 +1224,6 @@ fi
 %{_bindir}/tokuftdump
 %{_includedir}/tdb-internal.h
 %{_libdir}/mysql/plugin/ha_tokudb.so
-%attr(755, root, root) %{_datadir}/percona-server/tokudb_engine_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
 %endif
 

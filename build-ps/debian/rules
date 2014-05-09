@@ -11,6 +11,7 @@ prefix=/usr
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
+NCPU = $(shell grep -c processor /proc/cpuinfo)
 DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
@@ -100,7 +101,7 @@ build-stamp: configure
 	--exclude=debian . \
 	--transform="s,^\./,percona-server-5.6/,"
 
-	cd $(builddir) && $(MAKE) $(MAKE_JFLAG) VERBOSE=1
+	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
 
 ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
 	# Don't know why the following is necessary...

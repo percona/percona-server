@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.37-rel35.0) unstable; urgency=low
+
+  * Fixed provides/breaks/replaces for client/server debian packages
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Sat, 26 Apr 2014 15:54:31 +0200
+
 percona-server-5.5 (5.5.36-rel34.2) unstable; urgency=low
 
   * Release 5.5.36-34.2

@@ -1,0 +1,2 @@
+--innodb-undo-logs=32 --innodb_data_home_dir="$MYSQL_TMP_DIR" --innodb_data_file_path="ib1260259:12M:autoextend"
+--innodb_log_group_home_dir="$MYSQL_TMP_DIR"

@@ -41,6 +41,8 @@ Restrictions
 
 For performance reasons, a mixed solution is implemented: the fixed format is used at the beginning of the row, while the dynamic one is used for the rest of it.
 
+The size of the fixed-format portion of the record is chosen automatically on ``CREATE TABLE`` and cannot be changed later. This, in particular, means that no indexes can be created later with ``CREATE INDEX`` or ``ALTER TABLE`` when the dynamic row format is used. 
+
 All values for columns used in indexes are stored in fixed format at the first block of the row, then the following columns are handled with ``DRF``.
 
 This sets two restrictions to tables:

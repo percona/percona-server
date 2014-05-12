@@ -6,17 +6,17 @@
 
 Three *Percona Toolkit* UDFs that provide faster checksums are provided:
 
-  * ``fnv_udf``
+  * ``libfnv1a_udf``
 
-  * ``fnv1a_udf``
+  * ``libfnv_udf``
 
-  * ``murmur_udf``
+  * ``libmurmur_udf``
 
 Version Specific Information
 ============================
 
   * :rn:`5.6.11-60.3`:
-    Began distributing ``fnv_udf``, ``fnv1a_udf``, and ``murmur_udf``.
+    Began distributing ``libfnv1a_udf``, ``libfnv_udf``, and ``libmurmur_udf``.
 
 Other Information
 =================
@@ -27,15 +27,11 @@ Other Information
 Installation
 ============
 
-Use of the Percona Software Repositories simplifies the installation of *Percona Toolkit*. Once the repository has been set up on your system, *Percona Toolkit* can be installed by executing: ::
+These UDFs are part of the |Percona Server| packages. To install one of the UDFs into the server, execute one of the following commands, depending on which UDF you want to install: ::
 
-  $ yum install percona-toolkit
-
-This will place the *Percona Toolkit* UDFs onto your system. However, they will not yet be installed into the |MySQL| server. To install one of the UDF``s into the server, execute one of the following commands, depending on which UDF you want to install: ::
-
-  $ mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME ``fnv_udf.so``" 
-  $ mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME ``fnv1a_udf.so``" 
-  $ mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME ``murmur_udf.so``"
+  $ mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME ``libfnv1a_udf.so``" 
+  $ mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME ``libfnv_udf.so``" 
+  $ mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME ``libmurmur_udf.so``"
 
 Executing each of these commands will install its respective UDF into the server.
 

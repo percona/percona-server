@@ -1,0 +1,1 @@
+--innodb-adaptive-hash-index-partitions=32

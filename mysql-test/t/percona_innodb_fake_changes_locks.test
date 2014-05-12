@@ -1,0 +1,122 @@
+--source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+let $t1_checksum_1= `CHECKSUM TABLE t1 EXTENDED`;
+
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1);
+let $t2_checksum_1= `CHECKSUM TABLE t2 EXTENDED`;
+
+--connect (conn1,localhost,root,,)
+--connection conn1
+--echo # Verifying that X_LOCK not acquired
+SET autocommit=0;
+# Cannot use start_fake_changes.inc as conn2 issues real workload before reverting
+SET innodb_fake_changes=1;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+
+--connection default
+SET innodb_lock_wait_timeout=3;
+--error 1205
+UPDATE t1 SET a=2;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+
+--connection conn1
+ROLLBACK;
+
+--echo # Confirm no lock wait timeouts when innodb_locking_fake_changes=0
+SET GLOBAL innodb_locking_fake_changes=0;
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+
+--connect (conn2,localhost,root,,)
+--connection conn2
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+SELECT * FROM t1 LOCK IN SHARE MODE;
+ROLLBACK;
+
+--connection conn1
+ROLLBACK;
+
+--echo # Confirm that fake UPDATE does not hold a lock
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+
+--connection conn2
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+ROLLBACK;
+
+--connection conn1
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+
+--connection conn2
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+ROLLBACK;
+
+--connection conn1
+ROLLBACK;
+--echo # Confirm that fake INSERT does not hold a lock
+BEGIN;
+INSERT INTO t1 VALUES(4);
+
+--connection conn2
+BEGIN;
+INSERT INTO t1 VALUES(4);
+ROLLBACK;
+
+--connection conn1
+ROLLBACK;
+--echo # Confirm that fake DELETE does not hold a lock
+BEGIN;
+DELETE FROM t1 WHERE a=1;
+
+--connection conn2
+BEGIN;
+DELETE FROM t1 WHERE a=1;
+ROLLBACK;
+
+--connection conn1
+ROLLBACK;
+--echo # Confirm that fake REPLACE does not hold a lock
+BEGIN;
+REPLACE INTO t2 VALUES(1, 2);
+
+--connection conn2
+BEGIN;
+REPLACE INTO t2 VALUES(1, 2);
+ROLLBACK;
+
+--connection conn1
+ROLLBACK;
+
+SET innodb_fake_changes=default;
+SET GLOBAL innodb_locking_fake_changes=default;
+--echo # Verify that the fake changes to t1 did not leak through
+CHECK TABLE t1;
+let $t1_checksum_2= `CHECKSUM TABLE t1 EXTENDED`;
+--disable_query_log
+eval SELECT "$t1_checksum_1" LIKE "$t1_checksum_2" AS should_be_1;
+--enable_query_log
+
+--echo # Verify that the fake changes to t2 did not leak through
+CHECK TABLE t2;
+let $t2_checksum_2= `CHECKSUM TABLE t2 EXTENDED`;
+--disable_query_log
+eval SELECT "$t2_checksum_1" LIKE "$t2_checksum_2" AS should_be_1;
+--enable_query_log
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+DROP TABLE t1, t2;

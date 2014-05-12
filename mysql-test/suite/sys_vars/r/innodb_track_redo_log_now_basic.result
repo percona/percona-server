@@ -1,0 +1,28 @@
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+@@GLOBAL.innodb_track_redo_log_now
+0
+SET @@GLOBAL.innodb_track_redo_log_now=1;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+@@GLOBAL.innodb_track_redo_log_now
+0
+SET @@GLOBAL.innodb_track_redo_log_now=0;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+@@GLOBAL.innodb_track_redo_log_now
+0
+SET @@GLOBAL.innodb_track_redo_log_now=ON;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+@@GLOBAL.innodb_track_redo_log_now
+0
+SET @@GLOBAL.innodb_track_redo_log_now=OFF;
+SELECT @@GLOBAL.innodb_track_redo_log_now;
+@@GLOBAL.innodb_track_redo_log_now
+0
+SET @@SESSION.innodb_track_redo_log_now=ON;
+ERROR HY000: Variable 'innodb_track_redo_log_now' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@GLOBAL.innodb_track_redo_log_now=1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_track_redo_log_now'
+SET @@GLOBAL.innodb_track_redo_log_now='foo';
+ERROR 42000: Variable 'innodb_track_redo_log_now' can't be set to the value of 'foo'
+SET @@GLOBAL.innodb_track_redo_log_now=1e1;
+ERROR 42000: Incorrect argument type to variable 'innodb_track_redo_log_now'
+SET @@GLOBAL.innodb_track_redo_log_now=default;

@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+set global DEBUG='+d,dbug_table_map_id_500';
+CREATE TABLE t2 (a INT PRIMARY KEY, b VARCHAR(20));
+INSERT INTO t2 VALUES(1, '1');
+set global DEBUG='+d,dbug_table_map_id_4B_UINT_MAX+501';
+CREATE TABLE t3 (a INT PRIMARY KEY, b VARCHAR(20));
+INSERT INTO t3 VALUES(1, '1');
+set global DEBUG='+d,dbug_table_map_id_6B_UINT_MAX';
+CREATE TABLE t4 (a INT PRIMARY KEY, b VARCHAR(20));
+INSERT INTO t4 VALUES(1, '1');
+UPDATE t2, t3, t4 SET t2.b='tt2', t3.b='tt3', t4.b='tt4' WHERE t2.a=t3.a and t2.a=t4.a;
+SELECT * FROM t2;
+a	b
+1	tt2
+SELECT * FROM t3;
+a	b
+1	tt3
+SELECT * FROM t4;
+a	b
+1	tt4
+DELETE FROM t2;
+DELETE FROM t3;
+DELETE FROM t4;
+SELECT * FROM t2;
+a	b
+SELECT * FROM t3;
+a	b
+SELECT * FROM t4;
+a	b
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+set global DEBUG='';
+include/rpl_end.inc

@@ -21,3 +21,5 @@ Bug Fixes
 ==========
 
  Fixed the upstream :mysqlbug:`68116` that caused the server crash with assertion error when |InnoDB| monitor with verbose lock info was used under heavy load. This bug is affecting only ``-debug`` builds. Bug fixed :bug:`1100178` (*Laurynas Biveinis*).
+
+ Fixed the extra ``libtinfo`` package dependency in |Percona Server| tarballs. Bug fixed :bug:`1153950` (*Ignacio Nin*).

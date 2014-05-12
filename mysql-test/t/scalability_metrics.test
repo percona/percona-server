@@ -1,0 +1,68 @@
+################################################################################
+# Test for plugin scalability_metrics
+################################################################################
+
+--source include/have_scalability_metrics_plugin.inc
+--source include/have_debug_sync.inc
+
+set debug_sync= 'RESET';
+
+INSTALL PLUGIN scalability_metrics SONAME 'scalability_metrics.so';
+
+SHOW STATUS LIKE 'scalability_metrics%';
+SET GLOBAL scalability_metrics_control = ON;
+
+SHOW STATUS LIKE 'scalability_metrics_concurrency';
+SHOW STATUS LIKE 'scalability_metrics_queries';
+
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+
+# test concurrency
+
+let $ID= `SELECT @id := CONNECTION_ID()`;
+
+SET DEBUG_SYNC="func_sleep_before_sleep SIGNAL sleep1";
+
+send SELECT SLEEP(100);
+
+connection default;
+
+SET DEBUG_SYNC= 'now WAIT_FOR sleep1';
+
+let $ignore= `SELECT @id := $ID`;
+
+SHOW STATUS LIKE 'scalability_metrics_concurrency';
+SHOW STATUS LIKE 'scalability_metrics_queries';
+
+KILL CONNECTION @id;
+
+--source include/wait_until_count_sessions.inc
+
+connection default;
+
+connection con1;
+--error 2013
+reap;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+connection default;
+
+# test reset
+
+SET GLOBAL scalability_metrics_control = OFF;
+
+SHOW STATUS LIKE 'scalability_metrics_concurrency';
+SHOW STATUS LIKE 'scalability_metrics_queries';
+
+disconnect con1;
+
+SET GLOBAL scalability_metrics_control = OFF;
+SHOW STATUS LIKE 'scalability_metrics%';
+
+UNINSTALL PLUGIN scalability_metrics;
+
+set debug_sync= 'RESET';

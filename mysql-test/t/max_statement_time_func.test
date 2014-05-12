@@ -1,0 +1,154 @@
+--source include/have_statement_timeout.inc
+--source include/not_embedded.inc
+--source include/have_innodb.inc
+
+SET @old_session_max_statement_time = @@SESSION.max_statement_time;
+
+--echo #
+--echo # Test max statement time interruption.
+--echo # Note that if SLEEP() is interrupted, it returns 1.
+--echo #
+
+SET @@SESSION.max_statement_time = 10;
+SELECT SLEEP(1000);
+SET @@SESSION.max_statement_time = 0;
+
+--echo #
+--echo # Apply timeout to the top-level statement.
+--echo #
+
+DELIMITER |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  SELECT SLEEP(1000);
+END|
+
+DELIMITER ;|
+
+SET @@SESSION.max_statement_time = 10;
+CALL p1();
+SET @@SESSION.max_statement_time = 0;
+
+--echo # Apply timeout to prepared statements.
+PREPARE prep_1 FROM 'call p1()';
+SET @@SESSION.max_statement_time = 10;
+EXECUTE prep_1;
+SET @@SESSION.max_statement_time = 0;
+
+DROP PREPARE prep_1;
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Interrupt a statement that changes data.
+--echo #
+
+CREATE TABLE t1 (a INT);
+
+DELIMITER |;
+
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  WHILE true DO
+    INSERT INTO t1 VALUES (1);
+  END WHILE;
+  RETURN 1;
+END|
+
+DELIMITER ;|
+
+SET @@SESSION.max_statement_time = 500;
+--error ER_QUERY_TIMEOUT
+SELECT f1();
+SET @@SESSION.max_statement_time = 0;
+
+DROP FUNCTION f1;
+DROP TABLE t1;
+
+SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
+  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET';
+
+SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
+  FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_EXCEEDED';
+
+SET @@SESSION.max_statement_time = 100;
+SELECT SLEEP(1000);
+
+--echo # Ensure that the counters for:
+--echo # - statements that are time limited; and
+--echo # - statements that exceeded their maximum execution time
+--echo # are incremented.
+
+SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_SET'
+        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
+
+SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  WHERE VARIABLE_NAME = 'MAX_STATEMENT_TIME_EXCEEDED'
+        AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
+
+SET @@SESSION.max_statement_time = default;
+
+--echo
+--echo # Check that the appropriate error status is set.
+--echo
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+START TRANSACTION;
+SELECT * FROM t1 FOR UPDATE;
+
+connect (con1,localhost,root,,test,,);
+SET @@SESSION.max_statement_time = 100;
+--error ER_QUERY_TIMEOUT
+UPDATE t1 SET a = 2;
+SHOW WARNINGS;
+disconnect con1;
+
+connection default;
+ROLLBACK;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Test interaction with lock waits.
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+connect (con1,localhost,root,,test,,);
+SET @@SESSION.max_statement_time = 500;
+
+connection default;
+LOCK TABLES t1 WRITE;
+
+connection con1;
+--error ER_QUERY_TIMEOUT # ER_QUERY_INTERRUPTED
+LOCK TABLES t1 READ;
+
+connection default;
+UNLOCK TABLES;
+BEGIN;
+SELECT * FROM t1;
+
+connection con1;
+--error ER_QUERY_TIMEOUT
+ALTER TABLE t1 ADD COLUMN b INT;
+
+connection default;
+ROLLBACK;
+SELECT GET_LOCK('lock', 1);
+
+connection con1;
+SELECT GET_LOCK('lock', 1);
+
+disconnect con1;
+connection default;
+SELECT RELEASE_LOCK('lock');
+DROP TABLE t1;
+SET @@SESSION.max_statement_time = @old_session_max_statement_time;

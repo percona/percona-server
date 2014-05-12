@@ -1,0 +1,10 @@
+show variables like 'userstat%';
+Variable_name	Value
+userstat	ON
+INSTALL PLUGIN example SONAME 'ha_example.so';
+show variables like 'userstat%';
+Variable_name	Value
+userstat	ON
+CREATE TABLE t1(a int) ENGINE=EXAMPLE;
+DROP TABLE t1;
+UNINSTALL PLUGIN example;

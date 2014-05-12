@@ -9,10 +9,6 @@
  Percona Server 5.6 - Documentation
 ===================================
 
-.. note::
-
- Please note: |Percona Server| 5.6 is RELEASE CANDIDATE quality software. It should *NOT* be used in production environments.
-
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
 
   * Your queries will run faster and more consistently.
@@ -39,6 +35,8 @@ Introduction
    :glob:
 
    percona_xtradb
+   ps-versions-comparison
+   feature_comparison
    changed_in_56
 
 Installation
@@ -58,7 +56,9 @@ Scalability Improvements
    :maxdepth: 1
    :glob:
 
+   scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io
+   scalability/innodb_adaptive_hash_index_partitions
 
 Performance Improvements
 ========================
@@ -70,7 +70,10 @@ Performance Improvements
    performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
+   performance/buff_read_ahead_area
    performance/threadpool
+   performance/page_cleaner_tuning
+   performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
 
 Flexibility Improvements
 ========================
@@ -83,6 +86,11 @@ Flexibility Improvements
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
    flexibility/mysqldump_ignore_create_error
+   flexibility/extended_select_into_outfile
+   flexibility/per_query_variable_statement
+   flexibility/extended_mysqlbinlog
+   flexibility/slowlog_rotation
+   flexibility/mysqlbinlog_change_db
 
 Reliability Improvements
 ========================
@@ -114,6 +122,9 @@ Management Improvements
    management/pam_plugin
    management/innodb_expanded_fast_index_creation
    management/log_archiving
+   management/statement_timeout
+   management/backup_locks
+   management/audit_log_plugin
 
 Diagnostics Improvements
 ========================
@@ -132,6 +143,20 @@ Diagnostics Improvements
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
+   diagnostics/scalability_metrics_plugin
+
+TokuDB
+======
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   tokudb/tokudb_intro
+   tokudb/tokudb_installation
+   tokudb/using_tokudb
+   tokudb/tokudb_compression
+   tokudb/tokudb_multiple_clustering_keys
 
 Reference
 =========
@@ -141,12 +166,12 @@ Reference
    :glob:
 
    upstream-bug-fixes
+   ps-variables
    development
    trademark-policy
    index_info_schema_tables
    faq
    copyright
-   compatibility
    release-notes/release-notes_index
    glossary
 

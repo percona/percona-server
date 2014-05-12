@@ -1,8 +1,8 @@
 .. _upgrading_guide:
 
-=========================================================
- Percona Sever In-Place Upgrading Guide: From 5.5 to 5.6
-=========================================================
+==========================================================
+ Percona Server In-Place Upgrading Guide: From 5.5 to 5.6
+==========================================================
 
 In-place upgrades are those which are done using the existing data in the server. Generally speaking, this is stopping the server, installing the new server and starting it with the same data files. While they may not be suitable for high-complexity environments, they may be adequate for many scenarios.
 
@@ -129,7 +129,7 @@ Then, download the following packages for your architecture:
 
   * ``percona-server-common-5.6``
 
-  * ``libmysqlclient18``
+  * ``libperconaserverclient18``
 
 At the moment of writing this guide, for *Ubuntu* 12.04LTS on ``x86_64``, a way of doing this is: ::
 

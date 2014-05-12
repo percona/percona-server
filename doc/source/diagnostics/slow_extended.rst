@@ -16,6 +16,10 @@ Version Specific Information
 
      * Feature ported from |Percona Server| 5.5.
 
+  * :rn:`5.6.13-60.4`:
+
+      * New :variable:`slow_query_log_always_write_time` variable introduced
+
 Other Information
 =================
 
@@ -77,6 +81,8 @@ Specifies semantic of :variable:`log_slow_rate_limit` - ``session`` or ``query``
      :conf: Yes
      :scope: Global, session
      :dyn: Yes
+     :default: 1
+     :range: 1-1000
 
 Behavior of this variable depends from :variable:`log_slow_rate_type`.
 
@@ -90,13 +96,17 @@ Logging all queries might consume I/O bandwidth and cause the log file to grow l
 Note that every query has global unique ``query_id`` and every connection can has it own (session) :variable:`log_slow_rate_limit`.
 Decision "log or no" calculated in following manner:
 
- * if ``log_slow_rate_limit`` is 0 - log every query
+ * if ``log_slow_rate_limit`` is 1 - log every query
 
- * If ``log_slow_rate_limit`` > 0 - log query when (``query_id`` % ``log_slow_rate_limit``) is zero.
+ * If ``log_slow_rate_limit`` > 1 - randomly log every 1/``log_slow_rate_limit`` query. 
 
 This allows flexible setup logging behavior.
 
-For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged.
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| :rn:`5.6.13-60.6` information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
+ 
+  Log_slow_rate_type: query  Log_slow_rate_limit: 10
+
+Prior to :rn:`5.6.17-65.0` implementation of the :variable:`log_slow_rate_type` set to ``query`` with :variable:`log_slow_rate_limit` feature would log every nth query deterministically. With the current implementation each query has a non-deterministic probability of 1/n to get logged.
 
 .. variable:: log_slow_sp_statements
 
@@ -139,7 +149,7 @@ Specifies how much information to include in your slow log. The value is a comma
     Equivalent to enabling ``microtime,innodb``.
 
   * ``full``:
-    Equivalent to all other values OR'ed together.
+    Equivalent to all other values OR'ed together without the ``profiling`` and ``profiling_use_getrusage`` options.
 
   * ``profiling``:
     Enables profiling of all queries in all connections.
@@ -212,6 +222,15 @@ Specifies which variables have global scope instead of local. Value is a "flag" 
   * ``all``
     Global variables has effect (instead of local)
 
+.. variable:: slow_query_log_always_write_time
+
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :default: 10
+
+This variable can be used to specify the query execution time after which the query will be written to the slow query log. It can be used to specify an additional execution time threshold for the slow query log, that, when exceeded, will cause a query to be logged unconditionally, that is, :variable:`log_slow_rate_limit` will not apply to it.
 
 Other Information
 =================

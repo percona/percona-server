@@ -1,0 +1,27 @@
+call mtr.add_suppression("Failed to set O_DIRECT on file");
+call mtr.add_suppression("O_DIRECT is known to result in");
+DROP TABLE IF EXISTS t1;
+RESET CHANGED_PAGE_BITMAPS;
+CREATE TABLE t1 (a INT, b BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, REPEAT("a", 20000));
+ib_modified_log_1
+INSERT INTO t1 VALUES (2, REPEAT("b", 20000));
+ib_modified_log_1
+ib_modified_log_2
+INSERT INTO t1 VALUES (3, REPEAT("c", 20000));
+ib_modified_log_1
+ib_modified_log_2
+ib_modified_log_3
+INSERT INTO t1 VALUES (4, REPEAT("d", 20000));
+ib_modified_log_1
+ib_modified_log_2
+ib_modified_log_3
+ib_modified_log_4
+INSERT INTO t1 VALUES (4, REPEAT("e", 20000));
+ib_modified_log_1
+ib_modified_log_2
+ib_modified_log_3
+ib_modified_log_4
+ib_modified_log_5
+RESET CHANGED_PAGE_BITMAPS;
+DROP TABLE t1;

@@ -6,11 +6,7 @@
 
 *Debian* and *Ubuntu* packages from *Percona* are signed with a key. Before using the repository, you should add the key to :program:`apt`. To do that, run the following commands: ::
 
-  $ gpg --keyserver  hkp://keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
-  ... [some output removed] ...
-  gpg:               imported: 1
-  
-  $ gpg -a --export CD2EFD2A | sudo apt-key add -
+  $ apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
 
 Add this to :file:`/etc/apt/sources.list`, replacing ``VERSION`` with the name of your distribution: ::
 
@@ -41,18 +37,18 @@ Ubuntu
 
  * 10.04LTS (lucid)
  * 12.04LTS (precise)
- * 12.10 (quantal)
  * 13.04 (raring)
+ * 13.10 (saucy)
+ * 14.04LTS (trusty)
 
 
-Release Candidate Repository
-============================
+Percona `apt` Experimental repository
+=====================================
 
-To subscribe to the release candidate repository, add two lines to the :file:`/etc/apt/sources.list` file, again replacing ``VERSION`` with your server's release version: ::
+Percona offers fresh beta builds from the experimental repository. To enable it add the following lines to your  :file:`/etc/apt/sources.list` , replacing ``VERSION`` with the name of your distribution: :: 
 
-  deb http://repo.percona.com/apt-rc VERSION main
-  deb-src http://repo.percona.com/apt-rc VERSION main
-
+  deb http://repo.percona.com/apt VERSION main experimental
+  deb-src http://repo.percona.com/apt VERSION main experimental
 
 Apt-Pinning the packages
 ========================

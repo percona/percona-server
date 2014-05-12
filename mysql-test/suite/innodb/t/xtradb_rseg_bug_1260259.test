@@ -1,0 +1,21 @@
+#
+# Test bug 1260259: XTRADB_RSEG query crashes if innodb_undo_logs < default
+#
+
+call mtr.add_suppression("InnoDB: New log files created");
+# The temporary system tablespace does not have the mysql schema InnoDB tables
+call mtr.add_suppression("InnoDB: Cannot open table mysql/");
+call mtr.add_suppression("InnoDB: Creating foreign key constraint system tables.");
+call mtr.add_suppression("Info table is not ready to be used.");
+
+SELECT @@innodb_rollback_segments;
+SELECT @@innodb_undo_logs;
+SHOW STATUS LIKE 'Innodb_available_undo_logs';
+
+--replace_column 2 # 3 # 4 # 6 #
+SELECT * FROM INFORMATION_SCHEMA.XTRADB_RSEG;
+
+# Remove the temporary system tablespace and redo logs as soon when mysqld quits
+remove_file $MYSQL_TMP_DIR/ib1260259;
+remove_file $MYSQL_TMP_DIR/ib_logfile0;
+remove_file $MYSQL_TMP_DIR/ib_logfile1;

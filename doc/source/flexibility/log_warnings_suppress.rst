@@ -4,7 +4,7 @@
  Suppress Warning Messages
 ===========================
 
-This feature is intended to provide a general mechanism (using ``log_warnings_silence``) to disable certain warning messages to the log file. Currently, it is only implemented for disabling message #1592 warnings.
+This feature is intended to provide a general mechanism (using ``log_warnings_silence``) to disable certain warning messages to the log file. Currently, it is only implemented for disabling message #1592 warnings. This feature does not influence warnings delivered to a client.
 
 
 Version Specific Information
@@ -38,8 +38,8 @@ Related Reading
 
   * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 
-  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.1/en/innodb-and-mysql-replication.html>`_
+  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.6/en/innodb-and-mysql-replication.html>`_
 
-  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.1/en/innodb-parameters.html>`_
+  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html>`_
 
-  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.1/en/innodb-error-handling.html>`_
+  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.6/en/innodb-error-handling.html>`_

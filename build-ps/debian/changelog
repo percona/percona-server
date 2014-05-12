@@ -1,0 +1,98 @@
+percona-server-5.6 (5.6.17-rel65.0) unstable; urgency=low
+
+  * Fixed provides/breaks/replaces for client/server debian packages
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Sat, 26 Apr 2014 15:46:48 +0200
+
+percona-server-5.6 (5.6.16-rel64.2) unstable; urgency=low
+
+  * PT UDFs added
+  * Removed dependency on mysql-common
+  * Reverted changes to install_layout.cmake and fixes around that change
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Tue, 25 Mar 2014 13:51:05 +0200
+
+percona-server-5.6 (5.6.16-rel64.1) unstable; urgency=low
+
+  * Removed Pre-Depends:multiarch-support from libperconaserverclient
+  * Fixed search path for libraries
+  * Fixed installation failure if old paths
+
+ -- Alexey Bychko <alexey.bychko@percona.com>  Mon, 17 Mar 2014 13:24:05 +0200
+
+percona-server-5.6 (5.6.16-rel64.0) unstable; urgency=low
+
+  * Updated package Uploaders.
+  * Fixed control line length issues.
+  * Fixed percona-server-common-5.6 to depend on mysql-common and corrected
+    Provides and Replaces.
+  * Corrected percona-server-client-5.6 to provide only
+    virtual-mysql-client.
+  * Corrected percona-server-server-5.6 to provide only virtual-mysql-server
+    instead of both mysql-server and virtual-mysql-server.
+  * Corrected percona-server-client-5.6 and percona-server-server-5.6 to
+    follow Breaks/Replaces model.
+  * Added mariadb-5.5 and mysql-5.6  to common, client server, and client-dev
+    Breaks/Replaces.
+  * Modified rules to remove python-for-subunut2junitxml before building
+    packages.
+
+ -- George Lorch <george.lorch@percona.com>  Wed, 19 Feb 2014 15:22:30 -0700
+
+percona-server-5.6 (5.6.13-rel61.0) unstable; urgency=low
+
+  * Added --error-handler=: to dh_installinit in order to
+    avoid an error when the server wouldn't start for any
+    reasons other than bad installation.
+  * Enable innodb memcached
+  * Remove the info entry for mysql.info, which was pointless.
+  * Do not package the libmysqlclient18.so links in the library package.
+  * Add a manual link from the libmysqlclient_r fully versioned library
+    to the libmysqlclient fully versioned library. The one cmake(1)
+    installs goes to the non-fully versioned one ant it seems impossible
+    to change at the CMakeLists.txt level in an easy way.
+  * Change libmysqlclient18's name to libmysqlclient18.1.
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue,  1 Oct 2013 17:00:00 -0300
+
+percona-server-5.6 (5.6.5-alpha60.0) unstable; urgency=low
+
+  * Update versions to 5.6
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Fri, 10 Aug 2012 17:36:32 -0300
+
+percona-server-5.5 (5.5.13-rel20.4) unstable; urgency=low
+
+  * Update versions to 5.5.13
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue, 28 Jun 2011 19:27:30 -0300
+
+percona-server-5.5 (5.5.12-rel20.3) unstable; urgency=low
+
+  * Update versions to 5.5.12
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Tue, 17 May 2011 18:57:45 -0300
+
+percona-server-5.5 (5.5.11-rel20.2) unstable; urgency=low
+
+  * Update versions to 5.5.11
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Sun, 17 Apr 2011 13:17:02 -0300
+
+percona-server-5.5 (5.5.10-rc20.1) unstable; urgency=low
+
+  * Update versions to 5.5.10
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Sun, 3 Apr 2011 12:51:03 -0300
+
+percona-server-5.5 (5.5.9-20.1) unstable; urgency=low
+
+  * Update packaging to 5.5.9.
+
+ -- Ignacio Nin <ignacio.nin@percona.com>  Fri, 25 Mar 2011 15:23:04 -0300
+
+percona-server-5.5 (5.5.8-20.0-1) unstable; urgency=low
+
+  * Initial release (Closes: #609883)
+
+ -- Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>  Tue, 11 Jan 2011 07:17:08 -0800

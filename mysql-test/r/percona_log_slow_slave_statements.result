@@ -1,0 +1,33 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT) ENGINE=InnoDB;
+SET GLOBAL min_examined_row_limit=0;
+SET GLOBAL long_query_time=0;
+SET GLOBAL log_slow_slave_statements=OFF;
+include/restart_slave.inc
+[log_start.inc] percona.slow_extended.log_slow_slave_statements
+INSERT INTO t VALUES (1);
+SET GLOBAL log_slow_slave_statements=ON;
+BEGIN;
+INSERT INTO t VALUES (2);
+COMMIT;
+SET GLOBAL log_slow_slave_statements=OFF;
+INSERT INTO t VALUES (3);
+[log_stop.inc] percona.slow_extended.log_slow_slave_statements
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(1\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(2\)
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: INSERT INTO t VALUES \(3\)
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.log_slow_slave_statements pattern: ^# User@Host: \[SQL_SLAVE\] @  \[\]
+[log_grep.inc] lines:   2
+DROP TABLE t;
+SET GLOBAL log_slow_slave_statements=default;
+SET GLOBAL long_query_time=default;
+SET GLOBAL min_examined_row_limit=default;
+include/rpl_end.inc

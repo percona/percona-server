@@ -13,7 +13,7 @@ Automatic Installation
 
 Execute the following command as a ``root`` user, replacing ``x86_64`` with ``i386`` if you are not running a 64-bit operating system: ::
 
-  $ rpm -Uhv http://www.percona.com/downloads/percona-release/percona-release-0.0-1.x86_64.rpm
+  $ yum install http://www.percona.com/downloads/percona-release/percona-release-0.0-1.x86_64.rpm
 
 You should see some output such as the following: ::
 
@@ -46,19 +46,20 @@ Make sure packages are downloaded from the repository, by executing the followin
 
 You should see output similar to the following: ::
 
-  percona-release.x86_64                     0.0-1                       installed
+  percona-release.x86_64                     0.0-1                         @/percona-release-0.0-1.x86_64
   ...
-  Percona-Server-client-51.x86_64            5.1.47-rel11.1.51.rhel5     percona  
-  Percona-Server-devel-51.x86_64             5.1.47-rel11.1.51.rhel5     percona  
-  Percona-Server-server-51.x86_64            5.1.47-rel11.1.51.rhel5     percona  
-  Percona-Server-shared-51.x86_64            5.1.47-rel11.1.51.rhel5     percona  
-  Percona-Server-test-51.x86_64              5.1.47-rel11.1.51.rhel5     percona  
+  Percona-Server-client-56.x86_64            5.6.15-rel63.0.519.rhel6      percona
+  Percona-Server-devel-56.x86_64             5.6.15-rel63.0.519.rhel6      percona
+  Percona-Server-server-56.x86_64            5.6.15-rel63.0.519.rhel6      percona
+  Percona-Server-shared-56.x86_64            5.6.15-rel63.0.519.rhel6      percona
+  Percona-Server-test-56.x86_64              5.6.15-rel63.0.519.rhel6      percona
   ...
-  xtrabackup.x86_64                          1.2-22.rhel5                percona  
+  percona-xtrabackup.x86_64                  2.1.7-721.rhel6               percona
+
 
 Supported Platforms
 ===================
-  
+
   *  ``x86_64``
   *  ``i386``
 
@@ -73,9 +74,12 @@ The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, 
 
 * *Amazon Linux AMI* (works the same as *CentOS* 5)
 
-Release Candidate Repository
-============================
+Percona `yum` Experimental repository
+=====================================
 
-To subscribe to the release candidate repository, install the release candidate (RC) *RPM*: ::
+Percona offers fresh beta builds from the experimental repository. To subscribe to the experimental repository, install the experimental *RPM*: ::
 
-  rpm -Uhv http://www.percona.com/downloads/percona-release/percona-rc-0.0-2.x86_64.rpm
+ yum install http://repo.percona.com/testing/centos/6/os/noarch/percona-testing-0.0-1.noarch.rpm
+
+.. note:: 
+ This repository works for both RHEL/CentOS 5 and RHEL/CentOS 6

@@ -1,0 +1,27 @@
+source include/not_embedded.inc;
+
+#
+# MDEV-3915 COM_CHANGE_USER allows fast password brute-forcing
+#
+# only three failed change_user per connection.
+# successful change_user do NOT reset the counter
+#
+connect (test,localhost,root,,);
+connection test;
+--error ER_ACCESS_DENIED_ERROR
+change_user foo,bar;
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+change_user foo;
+--enable_reconnect
+--error ER_ACCESS_DENIED_ERROR
+change_user foo,bar;
+--enable_reconnect
+change_user;
+--error ER_ACCESS_DENIED_ERROR
+change_user foo,bar;
+--error ER_ACCESS_DENIED_ERROR
+change_user foo,bar;
+change_user;
+disconnect test;
+connection default;

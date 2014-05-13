@@ -17,6 +17,8 @@ MYSQLD=
 niceness=0
 mysqld_ld_preload=
 mysqld_ld_library_path=
+flush_caches=0
+numa_interleave=0
 
 # Initial logging status: error log is not open, and not using syslog
 logging=init
@@ -89,10 +91,10 @@ Usage: $0 [OPTIONS]
   --syslog                   Log messages to syslog with 'logger'
   --skip-syslog              Log messages to error log (default)
   --syslog-tag=TAG           Pass -t "mysqld-TAG" to 'logger'
-  --mysqld-safe-log-         TYPE must be one of UTC (ISO 8601 UTC),
-    timestamps=TYPE          system (ISO 8601 local time), hyphen
-                             (hyphenated date a la mysqld 5.6), legacy
-                             (legacy non-ISO 8601 mysqld_safe timestamps)
+  --flush-caches             Flush and purge buffers/caches before
+                             starting the server
+  --numa-interleave          Run mysqld with its memory interleaved
+                             on all NUMA nodes
 
 All other options are passed to the mysqld program.
 
@@ -280,6 +282,7 @@ parse_arguments() {
       --skip-syslog) want_syslog=0 ;;
       --syslog-tag=*) syslog_tag="$val" ;;
       --timezone=*) TZ="$val"; export TZ; ;;
+      --flush-caches=*) flush_caches="$val" ;;
 
       --help) usage ;;
 
@@ -836,6 +839,41 @@ mysqld daemon not started"
         exit 1
       fi
   fi
+fi
+
+#
+# Flush and purge buffers/caches.
+#
+
+if @TARGET_LINUX@ && test $flush_caches -eq 1
+then
+  # Locate sync, ensure it exists.
+  if ! my_which sync > /dev/null 2>&1
+  then
+    log_error "sync command not found, required for --flush-caches"
+    exit 1
+  # Flush file system buffers.
+  elif ! sync
+  then
+    # Huh, the sync() function is always successful...
+    log_error "sync failed, check if sync is properly installed"
+  fi
+
+  # Locate sysctl, ensure it exists.
+  if ! my_which sysctl > /dev/null 2>&1
+  then
+    log_error "sysctl command not found, required for --flush-caches"
+    exit 1
+  # Purge page cache, dentries and inodes.
+  elif ! sysctl -q -w vm.drop_caches=3
+  then
+    log_error "sysctl failed, check the error message for details"
+    exit 1
+  fi
+elif test $flush_caches -eq 1
+then
+  log_error "--flush-caches is not supported on this platform"
+  exit 1
 fi
 
 #

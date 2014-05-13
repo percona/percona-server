@@ -603,6 +603,7 @@ kill query @id;
 
 --echo # -> Switching to connection 'con1'
 connection con1;
+--error 0, ER_QUERY_INTERRUPTED
 reap;
 
 --echo # -> Switching to connection 'default'

@@ -4226,6 +4226,14 @@ handle_condition(THD * /* thd */, uint sql_errno,
     m_lock_wait_timeout= true;
     return true;                                /* condition handled */
   }
+  if (sql_errno == ER_QUERY_INTERRUPTED)
+  {
+    /*
+     * Do not push of ER_QUERY_INTERRUPTED into the diagnostics
+     * stack. GET_LOCK() is expected to return NULL in this case.
+     */
+    return true;
+  }
   return false;
 }
 

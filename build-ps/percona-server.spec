@@ -297,6 +297,7 @@ Group:          Applications/Databases
 Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
 Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
 Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+Requires:       jemalloc
 Provides:       tokudb-plugin = %{version}-%{release}
 
 %description -n Percona-Server-tokudb%{product_suffix}

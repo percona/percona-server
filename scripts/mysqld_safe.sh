@@ -375,6 +375,19 @@ set_malloc_lib() {
 
 
 #
+# Add jemalloc to ld_preload - needed for TokuDB
+#
+for libjemall in "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"
+do
+if test -f "$libjemall/libjemalloc.so.1"
+then
+  add_mysqld_ld_preload "$libjemall/libjemalloc.so.1"
+  break
+fi
+done
+
+
+#
 # First, try to find BASEDIR and ledir (where mysqld is)
 #
 

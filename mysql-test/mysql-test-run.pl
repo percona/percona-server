@@ -1854,6 +1854,12 @@ sub collect_mysqld_features {
     mtr_add_arg($args, "--user=root");
   }
 
+  foreach my $extra_opt (@opt_extra_mysqld_opt) {
+    if ($extra_opt =~ /--plugin-load/) {
+      mtr_add_arg($args, $extra_opt);
+    }
+  }
+
   my $exe_mysqld= find_mysqld($basedir);
   my $cmd= join(" ", $exe_mysqld, @$args);
   my $list= `$cmd`;

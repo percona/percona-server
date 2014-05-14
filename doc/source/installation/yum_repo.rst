@@ -70,7 +70,7 @@ The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, 
 
 * *CentOS* 5 and *RHEL* 5
 
-* *CentOS* 6 and *RHEL* 6
+* *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_ 
 
 * *Amazon Linux AMI* (works the same as *CentOS* 5)
 
@@ -83,3 +83,7 @@ Percona offers fresh beta builds from the experimental repository. To subscribe 
 
 .. note:: 
  This repository works for both RHEL/CentOS 5 and RHEL/CentOS 6
+
+.. rubric:: Footnotes
+
+.. [#f1] Because there is no official CentOS way to support/get latest OpenSSL on CentOS versions prior to 6.5. Similarly, and also as a result thereof, we decided that there is no official Percona way to support latest |Percona Server| builds on CentOS versions prior to 6.5. Added to this is the fact that many would need to upgrade to OpenSSL 1.0.1g in any case (due to `Heartbleed <http://heartbleed.com>`_ vulnerabilty), and this is not available from any official repo for 6.4 and prior. For any officially unsupported system ``src.rpm`` packages may be used to rebuild |Percona Server| for any environment. 

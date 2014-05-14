@@ -68,6 +68,9 @@ drop table sa_t1;
 drop database sa_db;
 create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
 drop user 'jeffrey'@'localhost';
+select '&;&&&""""<><<>>>>';
+&;&&&""""<><<>>>>
+&;&&&""""<><<>>>>
 CREATE TABLE t1 (c1 INT, c2 CHAR(20));
 CREATE TABLE t1 (c1 INT, c2 CHAR(20));
 ERROR 42S01: Table 't1' already exists
@@ -138,3 +141,6 @@ drop table sa_t1;
 drop database sa_db;
 create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
 drop user 'jeffrey'@'localhost';
+select '&;&&&""""<><<>>>>';
+&;&&&""""<><<>>>>
+&;&&&""""<><<>>>>

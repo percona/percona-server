@@ -43,3 +43,4 @@ libdaemon_example  plugin/daemon_example DAEMONEXAMPLE
 adt_null           plugin/audit_null  AUDIT_NULL
 auth_socket        plugin/auth        SOCKET_AUTH
 scalability_metrics plugin/scalability_metrics SCALABILITY_METRICS
+audit_log          plugin/audit_log   AUDIT_LOG             audit_log

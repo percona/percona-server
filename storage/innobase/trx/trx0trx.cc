@@ -1678,6 +1678,38 @@ trx_assign_read_view(
 	return(trx->read_view);
 }
 
+/********************************************************************//**
+Clones the read view from another transaction. All consistent reads within
+the receiver transaction will get the same read view as the donor transaction
+@return read view clone */
+UNIV_INTERN
+read_view_t*
+trx_clone_read_view(
+/*================*/
+	trx_t*	trx,		/*!< in: receiver transaction */
+	trx_t*	from_trx)	/*!< in: donor transaction */
+{
+	ut_ad(lock_mutex_own());
+	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_mutex_own(from_trx));
+	ut_ad(trx->read_view == NULL);
+
+	if (from_trx->state != TRX_STATE_ACTIVE ||
+	    from_trx->read_view == NULL) {
+
+		return(NULL);
+	}
+
+	trx->read_view = read_view_clone(from_trx->read_view,
+					 trx->prebuilt_view);
+
+	read_view_add(trx->read_view);
+
+	trx->global_read_view = trx->read_view;
+
+	return(trx->read_view);
+}
+
 /****************************************************************//**
 Prepares a transaction for commit/rollback. */
 UNIV_INTERN

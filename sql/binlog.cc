@@ -78,6 +78,8 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all);
 static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
+static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
+                                            THD *from_thd);
 
 static char binlog_snapshot_file[FN_REFLEN];
 static ulonglong binlog_snapshot_position;
@@ -905,6 +907,7 @@ static int binlog_init(void *p)
   binlog_hton->rollback= binlog_rollback;
   binlog_hton->prepare= binlog_prepare;
   binlog_hton->start_consistent_snapshot= binlog_start_consistent_snapshot;
+  binlog_hton->clone_consistent_snapshot= binlog_clone_consistent_snapshot;
   binlog_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
   return 0;
 }
@@ -1335,6 +1338,57 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd)
   DBUG_RETURN(err);
 }
 
+static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
+                                            THD *from_thd)
+{
+  binlog_cache_mngr *from_cache_mngr;
+  binlog_cache_mngr *cache_mngr;
+  int err= 0;
+  char log_file_name[FN_REFLEN];
+  my_off_t pos;
+
+  DBUG_ENTER("binlog_start_consistent_snapshot");
+
+  from_cache_mngr= opt_bin_log ?
+    (binlog_cache_mngr *) thd_get_cache_mngr(from_thd) : NULL;
+
+  if (from_cache_mngr == NULL)
+  {
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                        HA_ERR_UNSUPPORTED,
+                        "WITH CONSISTENT SNAPSHOT FROM SESSION was ignored for "
+                        "binary log, because the specified session does not "
+                        "have a consistent snapshot of binary log "
+                        "coordinates.");
+    DBUG_RETURN(0);
+  }
+
+  if ((err= thd->binlog_setup_trx_data()))
+    DBUG_RETURN(err);
+
+  cache_mngr= thd_get_cache_mngr(thd);
+
+  mysql_mutex_lock(&from_cache_mngr->binlog_info.lock);
+
+  pos= from_cache_mngr->binlog_info.pos;
+  strmake(log_file_name, from_cache_mngr->binlog_info.log_file_name,
+          sizeof(log_file_name) - 1);
+
+  mysql_mutex_unlock(&from_cache_mngr->binlog_info.lock);
+
+  mysql_mutex_lock(&cache_mngr->binlog_info.lock);
+
+  cache_mngr->binlog_info.pos = pos;
+  strmake(cache_mngr->binlog_info.log_file_name, log_file_name,
+          sizeof(cache_mngr->binlog_info.log_file_name) - 1);
+
+  mysql_mutex_unlock(&cache_mngr->binlog_info.lock);
+
+  trans_register_ha(thd, TRUE, hton);
+
+  DBUG_RETURN(err);
+}
+
 /**
   This function is called once after each statement.
 
@@ -1584,7 +1638,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       transaction.
     */
     if (cache_mngr != NULL)
+    {
+      mysql_mutex_lock(&cache_mngr->binlog_info.lock);
       cache_mngr->binlog_info.log_file_name[0]= '\0';
+      mysql_mutex_unlock(&cache_mngr->binlog_info.lock);
+    }
 
     if ((error= ha_rollback_low(thd, all)))
       goto end;
@@ -6316,7 +6374,11 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     transaction.
   */
   if (all)
+  {
+    mysql_mutex_lock(&cache_mngr->binlog_info.lock);
     cache_mngr->binlog_info.log_file_name[0]= '\0';
+    mysql_mutex_unlock(&cache_mngr->binlog_info.lock);
+  }
 
   THD_TRANS *trans= all ? &thd->transaction.all : &thd->transaction.stmt;
 

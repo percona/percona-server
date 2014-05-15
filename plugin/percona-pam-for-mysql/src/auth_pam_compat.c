@@ -95,8 +95,13 @@ int auth_pam_talk_perform(const struct pam_message *msg,
     strncpy(resp->resp, (char *)pkt, pkt_len);
     resp->resp[pkt_len]= '\0';
 
-    /* we could only guess whether password was used or not */
-    data->info->password_used= PASSWORD_USED_NO_MENTION;
+    /**
+      we could only guess whether password was used or not
+      normally we would set PASSWORD_USED_NO_MENTION but
+      because of http://bugs.mysql.com/bug.php?id=72536
+      we set PASSWORD_USED_YES.
+    */
+    data->info->password_used= PASSWORD_USED_YES;
     ++(*num_talks);
   }
 

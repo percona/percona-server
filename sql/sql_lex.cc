@@ -477,10 +477,13 @@ void LEX::reset()
   exchange= NULL;
   is_set_password_sql= false;
   mark_broken(false);
+  set_statement= false;
   max_execution_time= 0;
   parse_gcol_expr= false;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+
+  donor_transaction_id= NULL;
 }
 
 

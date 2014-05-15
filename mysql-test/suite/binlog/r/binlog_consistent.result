@@ -71,7 +71,82 @@ Binlog_snapshot_file	master-bin.000002
 Binlog_snapshot_position	154
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
-master-bin.000002	120
+master-bin.000002	154			
+# Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+DELETE FROM t1;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	417
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000002	417			
+INSERT INTO t1 VALUES (1, "first");
+SELECT * FROM t1;
+a	b
+1	first
+# Connection con3
+INSERT INTO t1 VALUES (3, "third");
+SELECT * FROM t1;
+a	b
+3	third
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	700
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000002	700			
+# Connection con2
+SELECT * FROM t1;
+a	b
+3	third
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	700
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000002	700			
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id;
+SELECT * FROM t1;
+a	b
+1	first
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	417
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000002	700			
+# Connection con3
+FLUSH LOGS;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000003
+Binlog_snapshot_position	154
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000003	154			
+# Connection con2
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	417
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000003	154			
+COMMIT;
+# Connection default
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	417
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
+master-bin.000003	154			
+COMMIT;
 SHOW BINLOG EVENTS;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	4	Format_desc	1	123	Server ver: #, Binlog ver: #

@@ -651,6 +651,7 @@ SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_statement_timeout= SHOW_OPTION_DISABLED;
 SHOW_COMP_OPTION have_backup_locks;
+SHOW_COMP_OPTION have_snapshot_cloning;
 
 char* enforce_storage_engine= NULL;
 
@@ -7382,6 +7383,7 @@ static int mysql_init_variables(void)
 #endif
 
   have_backup_locks= SHOW_OPTION_YES;
+  have_snapshot_cloning= SHOW_OPTION_YES;
 
 #if defined(_WIN32)
   /* Allow Win32 users to move MySQL anywhere */

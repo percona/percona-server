@@ -43,6 +43,10 @@ public:
 	Free all the views in the m_free list */
 	~MVCC();
 
+	/** Insert the view in the proper order into the view list.
+	@param	view	view to add */
+	void view_add(const ReadView* view);
+
 	/**
 	Allocate and create a view.
 	@param view		view owned by this class created for the

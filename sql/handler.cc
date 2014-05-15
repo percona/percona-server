@@ -2469,8 +2469,81 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 }
 
 
-static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
-                                   void *arg)
+static my_bool clone_snapshot_handlerton(THD *thd, plugin_ref plugin,
+                                         void *arg)
+{
+  handlerton *hton= plugin_data<handlerton *>(plugin);
+
+  if (hton->state == SHOW_OPTION_YES &&
+      hton->clone_consistent_snapshot)
+    hton->clone_consistent_snapshot(hton, thd, (THD *) arg);
+
+  return FALSE;
+}
+
+static int ha_clone_consistent_snapshot(THD *thd)
+{
+  THD *from_thd;
+  ulong id;
+  Item *val= thd->lex->donor_transaction_id;
+  DBUG_ASSERT(val);
+
+  if (thd->lex->table_or_sp_used())
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
+             "function calls as part of this statement");
+    goto error;
+  }
+
+  if ((!val->fixed && val->fix_fields(thd, &val)) || val->check_cols(1))
+  {
+    my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
+    goto error;
+  }
+
+  id= val->val_int();
+  if (thd->thread_id() == id)
+  {
+    my_error(ER_NO_SUCH_THREAD, MYF(0), id);
+    goto error;
+  }
+
+  {
+    Find_thd_with_id find_thd_with_id(id, true);
+    from_thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+
+    if (!from_thd)
+    {
+      my_error(ER_NO_SUCH_THREAD, MYF(0), id);
+      goto error;
+    }
+  }
+
+  /*
+    Blocking commits and binlog updates ensures that we get the same snapshot
+    for all engines (including the binary log). This allows us among other
+    things to do backups with START TRANSACTION WITH CONSISTENT SNAPSHOT and
+    have a consistent binlog position.
+  */
+  tc_log->xlock();
+
+  plugin_foreach(thd, clone_snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                 from_thd);
+
+  tc_log->xunlock();
+
+  mysql_mutex_unlock(&from_thd->LOCK_thd_data);
+
+  return 0;
+
+error:
+
+  return 1;
+}
+
+
+static my_bool start_snapshot_handlerton(THD *thd, plugin_ref plugin,
+                                         void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES &&
@@ -2484,6 +2557,10 @@ static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
 
 int ha_start_consistent_snapshot(THD *thd)
 {
+
+  if (thd->lex->donor_transaction_id)
+    return ha_clone_consistent_snapshot(thd);
+
   bool warn= true;
 
   /*
@@ -2494,7 +2571,8 @@ int ha_start_consistent_snapshot(THD *thd)
   */
   tc_log->xlock();
 
-  plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+  plugin_foreach(thd, start_snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                 &warn);
 
   tc_log->xunlock();
 

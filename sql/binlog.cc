@@ -2389,7 +2389,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       transaction.
     */
     if (cache_mngr != NULL)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
       cache_mngr->binlog_info.log_file_name[0]= '\0';
+      mysql_mutex_unlock(&thd->LOCK_thd_data);
+    }
 
     if ((error= ha_rollback_low(thd, all)))
       goto end;

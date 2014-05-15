@@ -355,6 +355,7 @@ extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
 extern SHOW_COMP_OPTION have_backup_locks;
+extern SHOW_COMP_OPTION have_snapshot_cloning;
 
 /*
   Helper functions

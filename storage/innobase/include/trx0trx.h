@@ -339,6 +339,18 @@ trx_get_read_view(
 /*==============*/
 	const trx_t*	trx);
 
+/********************************************************************//**
+Clones the read view from another transaction. All the consistent reads within
+the receiver transaction will get the same read view as the donor transaction
+@return read view clone */
+
+ReadView*
+trx_clone_read_view(
+/*================*/
+	trx_t*	trx,		/*!< in: receiver transaction */
+	trx_t*	from_trx)	/*!< in: donor transaction */
+	MY_ATTRIBUTE((warn_unused_result));
+
 /****************************************************************//**
 Prepares a transaction for commit/rollback. */
 void
@@ -916,6 +928,12 @@ struct trx_t {
 					it can */
 
 	trx_id_t	id;		/*!< transaction id */
+
+	trx_id_t	preallocated_id;/*!< preallocated transaction id for a
+					RO transaction whose read view was
+					cloned. If this transaction is promoted
+					to RW, it will become the transaction
+					id. */
 
 	trx_id_t	no;		/*!< transaction serialization number:
 					max trx id shortly before the

@@ -1,0 +1,152 @@
+# connection con1
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# connection con2
+INSERT INTO t1 VALUES(2);
+# connection con3
+SELECT * FROM t1;
+a
+1
+2
+# Basic syntax tests
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION CONNECTION_ID();
+ERROR HY000: Unknown thread id: ID
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+(SELECT MAX(a) FROM t1);
+ERROR 42000: This version of MySQL doesn't yet support 'Usage of subqueries or stored function calls as part of this statement'
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION (1,1);
+ERROR 21000: Operand should contain 1 column(s)
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION "foo";
+ERROR HY000: Unknown thread id: 0
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION NULL;
+ERROR HY000: Unknown thread id: 0
+# Functional tests
+COMMIT;
+SET SESSION tx_isolation='READ-COMMITTED';
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
+Warnings:
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+COMMIT;
+SET SESSION tx_isolation='REPEATABLE-READ';
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
+SELECT * FROM t1;
+a
+1
+# connection con2
+INSERT INTO t1 VALUES(3);
+SELECT * FROM t1;
+a
+1
+2
+3
+# connection con3
+SELECT * FROM t1;
+a
+1
+INSERT INTO t1 VALUES(4);
+SELECT * FROM t1;
+a
+1
+# connection con1
+INSERT INTO t1 VALUES(5);
+SELECT * FROM t1;
+a
+1
+5
+# connection con3
+SELECT * FROM t1;
+a
+1
+5
+# connection con1
+COMMIT;
+# Test cascading snapshot cloning
+# connection con2
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con3_id;
+SELECT * FROM t1;
+a
+1
+5
+COMMIT;
+SELECT * FROM t1;
+a
+1
+2
+3
+5
+# connection con3
+SELECT * FROM t1;
+a
+1
+5
+COMMIT;
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+# The following should fail to clone a read view as con1 does not have an
+# active transaction
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
+Warnings:
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
+# connection con1
+INSERT INTO t1 VALUES(6);
+# connection con3
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+6
+# connection con3
+COMMIT;
+# Now test cloning read view from a regular transaction
+# connection con1
+START TRANSACTION;
+INSERT INTO t1 VALUES(7);
+# connection con3
+# The following should fail to clone a read view as con1 does not yet have an
+# active transaction
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
+Warnings:
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT FROM SESSION was ignored because the target transaction has not been assigned a read view.
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+6
+# connection con1
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+6
+7
+INSERT INTO t1 VALUES(8);
+# connection con3
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id;
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+6
+7
+8
+DROP TABLE t1;

@@ -23,7 +23,9 @@ OPENSSL_INCLUDE=''
 OPENSSL_LIBRARY=''
 CRYPTO_LIBRARY=''
 TAG=''
-
+#
+export TOKUDB_VERSION=@@TOKUDB_VERSION@@
+#
 # Some programs that may be overriden
 TAR=${TAR:-tar}
 

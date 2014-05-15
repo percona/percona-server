@@ -43,7 +43,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         rc%{percona_server_version}%{?dist}
+%define release         rel%{percona_server_version}%{?dist}
 
 #
 # Macros we use which are not available in all supported versions of RPM
@@ -93,11 +93,8 @@
 %if %{undefined src_base}
 %define src_base percona-server
 %endif
-%if  %{with tokudb}
-  %define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}-%{tokudb_version}
-%else
-  %define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}
-%endif
+%define src_dir %{src_base}-%{mysql_version}-%{percona_server_version}
+
 # ----------------------------------------------------------------------------
 # Feature set (storage engines, options).  Default to community (everything)
 # ----------------------------------------------------------------------------
@@ -108,9 +105,9 @@
 # ----------------------------------------------------------------------------
 # Server comment strings
 # ----------------------------------------------------------------------------
-%if %{with tokudb} 
-  %define build_suff -%{tokudb_version}
-%endif
+#%if %{with tokudb} 
+#  %define build_suff -%{tokudb_version}
+#%endif
 #
 %if %{undefined compilation_comment_debug}
 %define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}%{build_suff}, Revision %{revision}
@@ -453,7 +450,7 @@ mkdir debug
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="-tokudb" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=ON
+           -DMYSQL_SERVER_SUFFIX="" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=ON
 
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
@@ -475,7 +472,7 @@ mkdir release
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="tokudb" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=OFF
+           -DMYSQL_SERVER_SUFFIX="" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=OFF
   
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}

@@ -120,85 +120,43 @@ void xml_escape(const char *in, size_t *inlen, char* out, size_t *outlen)
   const char* base = in;
   char* outend = out + *outlen;
   const char* inend;
+  size_t i;
+  my_bool replaced;
+
+  const struct {
+    char symbol;
+    size_t length;
+    const char *replace;
+  } escape[] = {
+    { '<',  4, "&lt;" },
+    { '>',  4, "&gt;" },
+    { '&',  5, "&amp;" },
+    { '\r', 5, "&#13;" },
+    { '"',  6, "&quot;" },
+  };
 
   inend = in + (*inlen);
 
   while ((in < inend) && (out < outend))
   {
-    if (*in == '<')
+    replaced= FALSE;
+    for (i= 0; i < array_elements(escape); i++)
     {
-      if (outend - out < 4)
+      if (*in == escape[i].symbol)
+      {
+        if ((outend - out) < (int) escape[i].length)
+          goto end_of_buffer;
+        memcpy(out, escape[i].replace, escape[i].length);
+        out += escape[i].length;
+        replaced= TRUE;
         break;
-      *out++ = '&';
-      *out++ = 'l';
-      *out++ = 't';
-      *out++ = ';';
+      }
     }
-    else if (*in == '>')
-    {
-      if (outend - out < 4)
-        break;
-      *out++ = '&';
-      *out++ = 'g';
-      *out++ = 't';
-      *out++ = ';';
-    }
-    else if (*in == '&')
-    {
-      if (outend - out < 5)
-        break;
-      *out++ = '&';
-      *out++ = 'a';
-      *out++ = 'm';
-      *out++ = 'p';
-      *out++ = ';';
-    }
-    else if (*in == '\r')
-    {
-      if (outend - out < 5)
-        break;
-      *out++ = '&';
-      *out++ = '#';
-      *out++ = '1';
-      *out++ = '3';
-      *out++ = ';';
-    }
-    else
-    {
+    if (!replaced)
       *out++ = *in;
-    }
     ++in;
   }
-  *outlen = out - outstart;
-  *inlen = in - base;
-}
-
-
-static
-void attr_escape(const char *in, size_t *inlen, char* out, size_t *outlen)
-{
-  char* outstart = out;
-  const char* base = in;
-  char* outend = out + *outlen;
-  const char* inend;
-
-  inend = in + (*inlen);
-
-  while ((in < inend) && (out < outend))
-  {
-    if (*in == '"')
-    {
-      if (outend - out < 2)
-        break;
-      *out++ = '\\';
-      *out++ = '"';
-    }
-    else
-    {
-      *out++ = *in;
-    }
-    ++in;
-  }
+end_of_buffer:
   *outlen = out - outstart;
   *inlen = in - base;
 }
@@ -219,33 +177,6 @@ char *xml_escape_string(const char *in, size_t inlen,
     out= 0;
   }
   return out;
-}
-
-static
-char *attr_escape_string(const char *in, size_t inlen,
-                         char *out, size_t outlen)
-{
-  if (in != NULL)
-  {
-    --outlen;
-    attr_escape(in, &inlen, out, &outlen);
-    out[outlen]= 0;
-  }
-  else
-  {
-    out= 0;
-  }
-  return out;
-}
-
-static
-char *escape_string(const char *in, size_t inlen,
-                         char *out, size_t outlen)
-{
-  typedef char *(*escape_func_t)(const char *, size_t, char *, size_t);
-  const escape_func_t escape_func[] = { attr_escape_string, xml_escape_string };
-
-  return escape_func[audit_log_format](in, inlen, out, outlen);
 }
 
 static
@@ -412,9 +343,9 @@ size_t audit_log_general_record(char *buf, size_t buflen,
                      make_timestamp(timestamp, sizeof(timestamp), t),
                      event->general_sql_command.str,
                      event->general_thread_id, status,
-                     escape_string(event->general_query,
-                                   event->general_query_length,
-                                   query, sizeof(query)),
+                     xml_escape_string(event->general_query,
+                                       event->general_query_length,
+                                       query, sizeof(query)),
                      event->general_user,
                      event->general_host.str,
                      event->general_external_user.str,

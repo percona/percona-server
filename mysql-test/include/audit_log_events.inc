@@ -50,4 +50,5 @@ drop database sa_db;
 connection default;
 create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
 drop user 'jeffrey'@'localhost';
+select '&;&&&""""<><<>>>>';
 disconnect con1;

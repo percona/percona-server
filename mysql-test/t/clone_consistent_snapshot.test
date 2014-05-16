@@ -1,0 +1,178 @@
+########################################################################
+# Tests for START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+########################################################################
+
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+--connect (con3,localhost,root,,)
+
+--connection con1
+--echo # connection con1
+
+--let $con1_id=`SELECT CONNECTION_ID()`
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+--connection con2
+--echo # connection con2
+
+INSERT INTO t1 VALUES(2);
+
+--connection con3
+--echo # connection con3
+
+SELECT * FROM t1;
+
+--echo # Basic syntax tests
+
+--error ER_PARSE_ERROR
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION;
+--replace_regex /id: [0-9]+/id: ID/
+--error ER_NO_SUCH_THREAD
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION CONNECTION_ID();
+--error ER_NOT_SUPPORTED_YET
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+      (SELECT MAX(a) FROM t1);
+--error ER_OPERAND_COLUMNS
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION (1,1);
+--error ER_NO_SUCH_THREAD
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION "foo";
+--error ER_NO_SUCH_THREAD
+START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION NULL;
+
+--echo # Functional tests
+
+COMMIT;
+SET SESSION tx_isolation='READ-COMMITTED';
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+COMMIT;
+
+SET SESSION tx_isolation='REPEATABLE-READ';
+
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+SELECT * FROM t1;
+
+--connection con2
+--echo # connection con2
+
+INSERT INTO t1 VALUES(3);
+SELECT * FROM t1;
+
+--connection con3
+--echo # connection con3
+
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(4);
+SELECT * FROM t1;
+
+--connection con1
+--echo # connection con1
+
+INSERT INTO t1 VALUES(5);
+SELECT * FROM t1;
+
+--connection con3
+--echo # connection con3
+
+--let $con3_id=`SELECT CONNECTION_ID()`
+
+SELECT * FROM t1;
+
+--connection con1
+--echo # connection con1
+
+COMMIT;
+
+--echo # Test cascading snapshot cloning
+--connection con2
+--echo # connection con2
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con3_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con3_id
+--enable_query_log
+
+SELECT * FROM t1;
+
+COMMIT;
+
+SELECT * FROM t1;
+
+--connection con3
+--echo # connection con3
+
+SELECT * FROM t1;
+
+COMMIT;
+
+SELECT * FROM t1;
+
+--echo # The following should fail to clone a read view as con1 does not have an
+--echo # active transaction
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+
+--connection con1
+--echo # connection con1
+
+INSERT INTO t1 VALUES(6);
+
+--connection con3
+--echo # connection con3
+SELECT * FROM t1;
+
+--connection con3
+--echo # connection con3
+
+COMMIT;
+
+--echo # Now test cloning read view from a regular transaction
+
+--connection con1
+--echo # connection con1
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(7);
+
+--connection con3
+--echo # connection con3
+--echo # The following should fail to clone a read view as con1 does not yet have an
+--echo # active transaction
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+SELECT * FROM t1;
+
+--connection con1
+--echo # connection con1
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(8);
+
+--connection con3
+--echo # connection con3
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+SELECT * FROM t1;
+
+--connection default
+--disconnect con1
+--disconnect con2
+--disconnect con3
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

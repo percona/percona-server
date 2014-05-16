@@ -41,6 +41,8 @@ Description: TokuDB engine plugin for Percona Server
  this via Fractal Tree indexing. TokuDB is a scalable, ACID and MVCC compliant 
  storage engine that provides indexing-based query improvements, offers online 
  schema modifications, and reduces slave lag for both hard disk drives and flash memory.
+ .
+ This package includes the TokuDB plugin library.
 
 Package: libperconaserverclient18.1
 Section: libs

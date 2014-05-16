@@ -36,7 +36,13 @@
 %if %{with tokudb}
   %define tokudb_version @@TOKUDB_VERSION@@
   %define TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF
-  %define TOKUDB_DEBUG -DTOKU_DEBUG_PARANOID
+  %define TOKUDB_DEBUG_ON -DTOKU_DEBUG_PARANOID=ON
+  %define TOKUDB_DEBUG_OFF -DTOKU_DEBUG_PARANOID=OFF
+%else
+  %define tokudb_version %{nil}
+  %define TOKUDB_FLAGS %{nil}
+  %define TOKUDB_DEBUG_ON %{nil}
+  %define TOKUDB_DEBUG_OFF %{nil}
 %endif
 #
 %define mysqld_user     mysql
@@ -449,8 +455,7 @@ mkdir debug
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=ON
+           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_ON}
 
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
@@ -471,8 +476,7 @@ mkdir release
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG}=OFF
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
   
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}

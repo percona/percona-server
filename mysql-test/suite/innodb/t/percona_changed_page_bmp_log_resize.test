@@ -1,0 +1,64 @@
+#
+# Test that log tracking is compatible with log resizing (bug 1204072)
+# This is not a proper test case in a sense that it will not necessarily fail with the bug
+# present. But it should never fail with the bug fixed and a reliably failing testcase would
+# require syncing two utility threads, which would require too much supporting code in the
+# server. 
+#
+--source include/have_innodb.inc
+
+RESET CHANGED_PAGE_BITMAPS;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $BITMAP_FILE= $MYSQLD_DATADIR/ib_modified_log_1_0.xdb;
+
+let $old_log_file_size=`SELECT @@innodb_log_file_size`;
+
+CREATE TABLE t1 (x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+call mtr.add_suppression("Resizing redo log");
+call mtr.add_suppression("Starting to delete and rewrite log files");
+call mtr.add_suppression("New log files created");
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# The tracking should have worked before the restart
+file_exists $BITMAP_FILE;
+--echo 1st restart, current bitmap files:
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+--enable_reconnect
+--exec echo "restart:--innodb-log-file-size=10M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+# Do not silently break the test if we happen to specify the same size and not resizing happens
+--let $assert_text= Redo log must have been resized on the last restart
+--let $assert_cond= [SELECT @@innodb_log_file_size] != $old_log_file_size
+--source include/assert.inc
+
+# Test that log tracking after the resize works
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+INSERT INTO t1 SELECT x FROM t1;
+CREATE TABLE t2 (x INT) ENGINE=InnoDB;
+INSERT INTO t2 SELECT x FROM t1;
+
+DROP TABLE t1, t2;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# The tracking should have worked after the restart
+file_exists $BITMAP_FILE;
+--echo 2nd restart, current bitmap files:
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc

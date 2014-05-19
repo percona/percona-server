@@ -176,8 +176,10 @@ extern os_event_t	srv_checkpoint_completed_event;
 log tracking iteration */
 extern os_event_t	srv_redo_log_tracked_event;
 
-/** srv_redo_log_follow_thread spawn flag */
-extern bool srv_redo_log_thread_started;
+/** Whether the redo log tracker thread has been started. Does not take into
+account whether the tracking is currently enabled (see srv_track_changed_pages
+for that) */
+extern bool		srv_redo_log_thread_started;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
@@ -278,6 +280,10 @@ extern my_bool	srv_undo_log_truncate;
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
 
+
+/** Whether the redo log tracking is currently enabled. Note that it is
+possible for the log tracker thread to be running and the tracking to be
+disabled */
 extern my_bool		srv_track_changed_pages;
 extern ulonglong	srv_max_bitmap_file_size;
 
@@ -304,7 +310,6 @@ extern ib_uint64_t	srv_log_file_size;
 /** The value of the startup parameter innodb_log_file_size */
 extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
-extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
 
 enum { DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE = 8 * 1024L };
@@ -338,7 +343,7 @@ extern ulong	srv_n_page_hash_locks;
 extern ulong	srv_LRU_scan_depth;
 /** Whether or not to flush neighbors of a block */
 extern ulong	srv_flush_neighbors;
-/** Previously requested size */
+/** Previously requested size. Accesses protected by memory barriers. */
 extern ulint	srv_buf_pool_old_size;
 /** Current size as scaling factor for the other components */
 extern ulint	srv_buf_pool_base_size;
@@ -432,6 +437,7 @@ extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
 extern double	srv_max_buf_pool_modified_pct;
+
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 

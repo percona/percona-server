@@ -215,6 +215,17 @@ fil_name_process(
 {
 	bool	processed = true;
 
+	/* The first condition is true during normal server operation, the
+	second one during server startup after
+	recv_recovery_from_checkpoint_start has completed. */
+	if (!recv_recovery_is_on() || recv_lsn_checks_on)
+	{
+		/* We are being called from online log tracking, file name
+		processing is a no-op, and specifically do not cause any DD
+		changes. */
+		return(processed);
+	}
+
 	/* We will also insert space=NULL into the map, so that
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
@@ -4362,6 +4373,8 @@ recv_reset_logs(
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = 0;
+
+	log_sys->tracked_lsn = log_sys->lsn;
 
 	log_block_init(log_sys->buf, log_sys->lsn);
 	log_block_set_first_rec_group(log_sys->buf, LOG_BLOCK_HDR_SIZE);

@@ -24,6 +24,9 @@ OPENSSL_LIBRARY=''
 CRYPTO_LIBRARY=''
 TAG=''
 #
+CMAKE_BUILD_TYPE=''
+COMMON_FLAGS=''
+#
 export TOKUDB_VERSION=@@TOKUDB_VERSION@@
 #
 # Some programs that may be overriden
@@ -155,6 +158,18 @@ COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 # Compilation flags
 export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
+
+# TokuDB cmake flags
+if test -d "$SOURCEDIR/storage/tokudb"
+then
+    CMAKE_OPTS="${CMAKE_OPTS:-} -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF"
+    if test "x$CMAKE_BUILD_TYPE" != "xDebug"
+    then
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=OFF"
+    else
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=ON"
+    fi
+fi
 
 #
 if [ -n "$(which rpm)" ]; then

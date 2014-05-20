@@ -143,7 +143,7 @@ clean-patched:
 	rm -rf $(builddir)
 
 	debconf-updatepo
-	rm -f $(EXPORTED_SOURCE_TARBALL)
+	# rm -f $(EXPORTED_SOURCE_TARBALL)
 	dh_clean -v
 
 

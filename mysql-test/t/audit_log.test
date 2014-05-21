@@ -1,0 +1,13 @@
+--source include/not_embedded.inc
+
+--source include/audit_log_events.inc
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --audit_log_policy=LOGINS --audit-log-format=NEW --audit_log_strategy=SYNCHRONOUS" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source include/audit_log_events.inc
+

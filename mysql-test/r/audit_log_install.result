@@ -1,0 +1,4 @@
+INSTALL PLUGIN audit_log SONAME 'audit_log.<expected_extension>';
+UNINSTALL PLUGIN audit_log;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

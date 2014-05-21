@@ -273,12 +273,12 @@ size_t audit_log_audit_record(char *buf, size_t buflen,
   char arg_buf[512];
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
-                     "  \"NAME\"=\"%s\"\n"
-                     "  \"RECORD\"=\"%s\"\n"
-                     "  \"TIMESTAMP\"=\"%s\"\n"
-                     "  \"MYSQL_VERSION\"=\"%s\"\n"
-                     "  \"STARTUP_OPTIONS\"=\"%s\"\n"
-                     "  \"OS_VERSION\"=\""MACHINE_TYPE"-"SYSTEM_TYPE"\",\n"
+                     "  NAME=\"%s\"\n"
+                     "  RECORD=\"%s\"\n"
+                     "  TIMESTAMP=\"%s\"\n"
+                     "  MYSQL_VERSION=\"%s\"\n"
+                     "  STARTUP_OPTIONS=\"%s\"\n"
+                     "  OS_VERSION=\""MACHINE_TYPE"-"SYSTEM_TYPE"\"\n"
                      "/>\n",
                      "<AUDIT_RECORD>\n"
                      "  <NAME>%s</NAME>\n"
@@ -310,17 +310,17 @@ size_t audit_log_general_record(char *buf, size_t buflen,
   char query[512];
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
-                     "  \"NAME\"=\"%s\"\n"
-                     "  \"RECORD\"=\"%s\"\n"
-                     "  \"TIMESTAMP\"=\"%s\"\n"
-                     "  \"COMMAND_CLASS\"=\"%s\"\n"
-                     "  \"CONNECTION_ID\"=\"%lu\"\n"
-                     "  \"STATUS\"=\"%d\"\n"
-                     "  \"SQLTEXT\"=\"%s\"\n"
-                     "  \"USER\"=\"%s\"\n"
-                     "  \"HOST\"=\"%s\"\n"
-                     "  \"OS_USER\"=\"%s\"\n"
-                     "  \"IP\"=\"%s\"\n"
+                     "  NAME=\"%s\"\n"
+                     "  RECORD=\"%s\"\n"
+                     "  TIMESTAMP=\"%s\"\n"
+                     "  COMMAND_CLASS=\"%s\"\n"
+                     "  CONNECTION_ID=\"%lu\"\n"
+                     "  STATUS=\"%d\"\n"
+                     "  SQLTEXT=\"%s\"\n"
+                     "  USER=\"%s\"\n"
+                     "  HOST=\"%s\"\n"
+                     "  OS_USER=\"%s\"\n"
+                     "  IP=\"%s\"\n"
                      "/>\n",
                      "<AUDIT_RECORD>\n"
                      "  <NAME>%s</NAME>\n"
@@ -361,18 +361,18 @@ size_t audit_log_connection_record(char *buf, size_t buflen,
   char timestamp[MAX_TIMESTAMP_SIZE];
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
-                     "  \"NAME\"=\"%s\"\n"
-                     "  \"RECORD\"=\"%s\"\n"
-                     "  \"TIMESTAMP\"=\"%s\"\n"
-                     "  \"CONNECTION_ID\"=\"%lu\"\n"
-                     "  \"STATUS\"=\"%d\"\n"
-                     "  \"USER\"=\"%s\"\n"
-                     "  \"PRIV_USER\"=\"%s\"\n"
-                     "  \"OS_LOGIN\"=\"%s\"\n"
-                     "  \"PROXY_USER\"=\"%s\"\n"
-                     "  \"HOST\"=\"%s\"\n"
-                     "  \"IP\"=\"%s\"\n"
-                     "  \"DB\"=\"%s\"\n"
+                     "  NAME=\"%s\"\n"
+                     "  RECORD=\"%s\"\n"
+                     "  TIMESTAMP=\"%s\"\n"
+                     "  CONNECTION_ID=\"%lu\"\n"
+                     "  STATUS=\"%d\"\n"
+                     "  USER=\"%s\"\n"
+                     "  PRIV_USER=\"%s\"\n"
+                     "  OS_LOGIN=\"%s\"\n"
+                     "  PROXY_USER=\"%s\"\n"
+                     "  HOST=\"%s\"\n"
+                     "  IP=\"%s\"\n"
+                     "  DB=\"%s\"\n"
                      "/>\n",
                      "<AUDIT_RECORD>\n"
                      "  <NAME>%s</NAME>\n"
@@ -405,16 +405,59 @@ size_t audit_log_connection_record(char *buf, size_t buflen,
                       event->database ? event->database : "");
 }
 
+static
+size_t audit_log_header(char *buf, size_t buflen)
+{
+  const char *format_string[] = {
+                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                     "<AUDIT>\n",
+                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                     "<AUDIT>\n" };
+
+  return my_snprintf(buf, buflen, format_string[audit_log_format]);
+}
+
+
+static
+size_t audit_log_footer(char *buf, size_t buflen)
+{
+  const char *format_string[] = {
+                     "</AUDIT>\n",
+                     "</AUDIT>\n" };
+
+  return my_snprintf(buf, buflen, format_string[audit_log_format]);
+}
+
+static
+void write_header(LOGGER_HANDLE *log, MY_STAT *stat)
+{
+  char buf[1024];
+  size_t len;
+
+  log_file_time= stat->st_mtime;
+
+  init_record_id(stat->st_size);
+
+  len= audit_log_header(buf, sizeof(buf));
+  logger_write_safe(log, buf, len);
+}
+
+static
+void write_footer(LOGGER_HANDLE *log)
+{
+  char buf[1024];
+  size_t len;
+  len= audit_log_footer(buf, sizeof(buf));
+  logger_write_safe(log, buf, len);
+}
 
 static
 int init_new_log_file()
 {
-  MY_STAT stat_arg;
-
   audit_file_logger= logger_open(audit_log_file, audit_log_rotate_on_size,
                             audit_log_rotate_on_size ? audit_log_rotations : 0,
                             audit_log_strategy >= SEMISYNCHRONOUS,
-                            &stat_arg);
+                            write_header);
   if (audit_file_logger == NULL)
   {
     fprintf_timestamp(stderr);
@@ -423,10 +466,6 @@ int init_new_log_file()
     return(1);
   }
 
-  log_file_time= stat_arg.st_mtime;
-
-  init_record_id(stat_arg.st_size);
-
   return(0);
 }
 
@@ -434,19 +473,13 @@ int init_new_log_file()
 static
 int reopen_log_file()
 {
-  MY_STAT stat_arg;
-
-  if (logger_reopen(audit_file_logger, &stat_arg))
+  if (logger_reopen(audit_file_logger, write_header, write_footer))
   {
     fprintf_timestamp(stderr);
     fprintf(stderr, "Cannot open file %s. ", audit_log_file);
     perror("Error: ");
     return(1);
   }
-
-  log_file_time= stat_arg.st_mtime;
-
-  init_record_id(stat_arg.st_size);
 
   return(0);
 }
@@ -456,7 +489,7 @@ static
 void close_log_file()
 {
   if (audit_file_logger != NULL)
-    logger_close(audit_file_logger);
+    logger_close(audit_file_logger, write_footer);
 }
 
 
@@ -465,6 +498,8 @@ int audit_log_plugin_init(void *arg __attribute__((unused)))
 {
   char buf[1024];
   size_t len;
+
+  logger_init_mutexes();
 
   if (init_new_log_file())
     return(1);
@@ -494,7 +529,6 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
 
   if (audit_log_buffer != NULL)
     audit_log_buffer_shutdown(audit_log_buffer);
-
   close_log_file();
 
   return(0);

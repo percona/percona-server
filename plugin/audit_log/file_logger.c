@@ -85,14 +85,15 @@ static unsigned int n_dig(unsigned int i)
   return (i == 0) ? 0 : ((i < 10) ? 1 : ((i < 100) ? 2 : 3));
 }
 
-
 LOGGER_HANDLE *logger_open(const char *path,
                            unsigned long long size_limit,
                            unsigned int rotations,
                            int thread_safe,
-                           MY_STAT *stat)
+                           logger_prolog_func_t header)
 {
   LOGGER_HANDLE new_log, *l_perm;
+  MY_STAT stat;
+
   /*
     I don't think we ever need more rotations,
     but if it's so, the rotation procedure should be adapted to it.
@@ -120,15 +121,12 @@ LOGGER_HANDLE *logger_open(const char *path,
     return 0;
   }
 
-  if (stat != NULL)
+  if (my_fstat(new_log.file, &stat, MYF(0)))
   {
-    if (my_fstat(new_log.file, stat, MYF(0)))
-    {
-      errno= my_errno;
-      my_close(new_log.file, MYF(0));
-      new_log.file= -1;
-      return 0;
-    }
+    errno= my_errno;
+    my_close(new_log.file, MYF(0));
+    new_log.file= -1;
+    return 0;
   }
 
   if (!(l_perm= (LOGGER_HANDLE *) my_malloc(sizeof(LOGGER_HANDLE), MYF(0))))
@@ -139,22 +137,19 @@ LOGGER_HANDLE *logger_open(const char *path,
   }
   *l_perm= new_log;
 
-#if defined(HAVE_PSI_INTERFACE) && !defined(FLOGGER_NO_PSI) && !defined(FLOGGER_NO_THREADSAFE)
-  if (PSI_server)
-    PSI_server->register_mutex("file_logger",
-                               mutex_list, array_elements(mutex_list));
-#endif /*HAVE_PSI_INTERFACE && !FLOGGER_NO_PSI*/
-
   flogger_mutex_init(key_LOCK_logger_service, l_perm,
                      MY_MUTEX_INIT_FAST);
+
+  header(l_perm, &stat);
 
   return l_perm;
 }
 
-int logger_close(LOGGER_HANDLE *log)
+int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer)
 {
   int result;
   File file= log->file;
+  footer(log);
   flogger_mutex_destroy(log);
   my_free(log);
   if ((result= my_close(file, MYF(0))))
@@ -163,11 +158,15 @@ int logger_close(LOGGER_HANDLE *log)
 }
 
 
-int logger_reopen(LOGGER_HANDLE *log, MY_STAT *stat)
+int logger_reopen(LOGGER_HANDLE *log, logger_prolog_func_t header,
+                  logger_epilog_func_t footer)
 {
   int result= 0;
+  MY_STAT stat;
 
   flogger_mutex_lock(log);
+
+  footer(log);
 
   if ((result= my_close(log->file, MYF(0))))
   {
@@ -182,14 +181,13 @@ int logger_reopen(LOGGER_HANDLE *log, MY_STAT *stat)
     goto error;
   }
 
-  if (stat != NULL)
+  if ((result= my_fstat(log->file, &stat, MYF(0))))
   {
-    if ((result= my_fstat(log->file, stat, MYF(0))))
-    {
-      errno= my_errno;
-      goto error;
-    }
+    errno= my_errno;
+    goto error;
   }
+
+  header(log, &stat);
 
 error:
   flogger_mutex_unlock(log);

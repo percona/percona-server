@@ -60,20 +60,23 @@ extern "C" {
 #endif
 
 typedef struct logger_handle_st LOGGER_HANDLE;
+typedef void (logger_prolog_func_t)(LOGGER_HANDLE *, MY_STAT *);
+typedef void (logger_epilog_func_t)(LOGGER_HANDLE *);
 
 void logger_init_mutexes();
 LOGGER_HANDLE *logger_open(const char *path,
                            unsigned long long size_limit,
                            unsigned int rotations,
                            int thread_safe,
-                           MY_STAT *stat);
-int logger_close(LOGGER_HANDLE *log);
+                           logger_prolog_func_t header);
+int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer);
 int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
 int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...);
 int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size);
 int logger_rotate(LOGGER_HANDLE *log); 
 int logger_sync(LOGGER_HANDLE *log);
-int logger_reopen(LOGGER_HANDLE *log, MY_STAT *stat);
+int logger_reopen(LOGGER_HANDLE *log, logger_prolog_func_t header,
+                  logger_epilog_func_t footer);
 void logger_set_size_limit(LOGGER_HANDLE *log, unsigned long long size_limit);
 void logger_set_rotations(LOGGER_HANDLE *log, unsigned int rotations);
 

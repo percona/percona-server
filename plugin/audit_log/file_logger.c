@@ -13,12 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <string.h>
-
-#include <mysql/plugin.h>
 #include <my_global.h>
+#include <mysql/plugin.h>
 #include <my_sys.h>
 #include <my_pthread.h>
+#include <string.h>
 
 #include "logger.h"
 
@@ -85,14 +84,17 @@ static unsigned int n_dig(unsigned int i)
   return (i == 0) ? 0 : ((i < 10) ? 1 : ((i < 100) ? 2 : 3));
 }
 
-
 LOGGER_HANDLE *logger_open(const char *path,
                            unsigned long long size_limit,
                            unsigned int rotations,
                            int thread_safe,
-                           MY_STAT *stat)
+                           logger_prolog_func_t header)
 {
   LOGGER_HANDLE new_log, *l_perm;
+  MY_STAT stat_arg;
+  char buf[128];
+  size_t len;
+
   /*
     I don't think we ever need more rotations,
     but if it's so, the rotation procedure should be adapted to it.
@@ -113,22 +115,19 @@ LOGGER_HANDLE *logger_open(const char *path,
     return 0;
   }
 
-  if ((new_log.file= open(new_log.path, LOG_FLAGS, 0666)) < 0)
+  if ((new_log.file= my_open(new_log.path, LOG_FLAGS, 0666)) < 0)
   {
     errno= my_errno;
     /* Check errno for the cause */
     return 0;
   }
 
-  if (stat != NULL)
+  if (my_fstat(new_log.file, &stat_arg, MYF(0)))
   {
-    if (my_fstat(new_log.file, stat, MYF(0)))
-    {
-      errno= my_errno;
-      my_close(new_log.file, MYF(0));
-      new_log.file= -1;
-      return 0;
-    }
+    errno= my_errno;
+    my_close(new_log.file, MYF(0));
+    new_log.file= -1;
+    return 0;
   }
 
   if (!(l_perm= (LOGGER_HANDLE *) my_malloc(sizeof(LOGGER_HANDLE), MYF(0))))
@@ -139,22 +138,25 @@ LOGGER_HANDLE *logger_open(const char *path,
   }
   *l_perm= new_log;
 
-#if defined(HAVE_PSI_INTERFACE) && !defined(FLOGGER_NO_PSI) && !defined(FLOGGER_NO_THREADSAFE)
-  if (PSI_server)
-    PSI_server->register_mutex("file_logger",
-                               mutex_list, array_elements(mutex_list));
-#endif /*HAVE_PSI_INTERFACE && !FLOGGER_NO_PSI*/
-
   flogger_mutex_init(key_LOCK_logger_service, l_perm,
                      MY_MUTEX_INIT_FAST);
+
+  len= header(&stat_arg, buf, sizeof(buf));
+  my_write(l_perm->file, (uchar *)buf, len, MYF(0));
 
   return l_perm;
 }
 
-int logger_close(LOGGER_HANDLE *log)
+int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer)
 {
   int result;
   File file= log->file;
+  char buf[128];
+  size_t len;
+
+  len= footer(buf, sizeof(buf));
+  my_write(file, (uchar *)buf, len, MYF(0));
+
   flogger_mutex_destroy(log);
   my_free(log);
   if ((result= my_close(file, MYF(0))))
@@ -163,11 +165,18 @@ int logger_close(LOGGER_HANDLE *log)
 }
 
 
-int logger_reopen(LOGGER_HANDLE *log, MY_STAT *stat)
+int logger_reopen(LOGGER_HANDLE *log, logger_prolog_func_t header,
+                  logger_epilog_func_t footer)
 {
   int result= 0;
+  MY_STAT stat_arg;
+  char buf[128];
+  size_t len;
 
   flogger_mutex_lock(log);
+
+  len= footer(buf, sizeof(buf));
+  my_write(log->file, (uchar *)buf, len, MYF(0));
 
   if ((result= my_close(log->file, MYF(0))))
   {
@@ -182,19 +191,19 @@ int logger_reopen(LOGGER_HANDLE *log, MY_STAT *stat)
     goto error;
   }
 
-  if (stat != NULL)
+  if ((result= my_fstat(log->file, &stat_arg, MYF(0))))
   {
-    if ((result= my_fstat(log->file, stat, MYF(0))))
-    {
-      errno= my_errno;
-      goto error;
-    }
+    errno= my_errno;
+    goto error;
   }
+
+  len= header(&stat_arg, buf, sizeof(buf));
+  my_write(log->file, (uchar *)buf, len, MYF(0));
 
 error:
   flogger_mutex_unlock(log);
 
-  return 0;
+  return result;
 }
 
 

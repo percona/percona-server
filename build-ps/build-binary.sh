@@ -27,8 +27,6 @@ TAG=''
 CMAKE_BUILD_TYPE=''
 COMMON_FLAGS=''
 #
-export TOKUDB_VERSION=@@TOKUDB_VERSION@@
-#
 # Some programs that may be overriden
 TAR=${TAR:-tar}
 
@@ -149,7 +147,15 @@ PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-/rel/')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REVISION="@@REVISION@@"
+if test -e "$SOURCEDIR/Docs/INFO_SRC"
+then
+    REVISION="$(cd "$SOURCEDIR"; grep '^revno: ' Docs/INFO_SRC |sed -e 's/revno: //')"
+elif test -e "$SOURCEDIR/.bzr/branch/last-revision"
+then
+    REVISION="$(cd "$SOURCEDIR"; cat .bzr/branch/last-revision | awk -F ' ' '{print $1}')"
+else
+    REVISION=""
+fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}$TAG.$(uname -s).$TARGET"
 COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
@@ -163,11 +169,17 @@ export CXX=${CXX:-g++}
 if test -d "$SOURCEDIR/storage/tokudb"
 then
     CMAKE_OPTS="${CMAKE_OPTS:-} -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF"
+    
     if test "x$CMAKE_BUILD_TYPE" != "xDebug"
     then
         CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=OFF"
     else
         CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=ON"
+    fi
+
+    if [[ $CMAKE_OPTS == *WITH_VALGRIND=ON* ]]
+    then
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DUSE_VALGRIND=ON"
     fi
 fi
 
@@ -211,7 +223,6 @@ fi
         -DWITH_SSL=system \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
-        -DMYSQL_SERVER_SUFFIX="-${MYSQL_VERSION_EXTRA#-}" \
         -DCOMPILATION_COMMENT="$COMMENT" \
         -DWITH_PAM=ON \
         -DWITH_INNODB_MEMCACHED=ON \

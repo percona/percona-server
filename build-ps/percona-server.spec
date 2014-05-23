@@ -34,12 +34,10 @@
 %bcond_with tokudb
 #
 %if %{with tokudb}
-  %define tokudb_version @@TOKUDB_VERSION@@
   %define TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF
   %define TOKUDB_DEBUG_ON -DTOKU_DEBUG_PARANOID=ON
   %define TOKUDB_DEBUG_OFF -DTOKU_DEBUG_PARANOID=OFF
 %else
-  %define tokudb_version %{nil}
   %define TOKUDB_FLAGS %{nil}
   %define TOKUDB_DEBUG_ON %{nil}
   %define TOKUDB_DEBUG_OFF %{nil}
@@ -111,15 +109,11 @@
 # ----------------------------------------------------------------------------
 # Server comment strings
 # ----------------------------------------------------------------------------
-#%if %{with tokudb} 
-#  %define build_suff -%{tokudb_version}
-#%endif
-#
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}%{build_suff}, Revision %{revision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}%{build_suff}, Revision %{revision}
+%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}
 %endif
 
 
@@ -303,7 +297,7 @@ Group:          Applications/Databases
 Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
 Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
 Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
-Requires:       jemalloc
+Requires:       jemalloc >= 3.3.0
 Provides:       tokudb-plugin = %{version}-%{release}
 
 %description -n Percona-Server-tokudb%{product_suffix}

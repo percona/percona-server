@@ -35,7 +35,9 @@
 enum audit_log_policy_t { ALL, NONE, LOGINS, QUERIES };
 enum audit_log_strategy_t
   { ASYNCHRONOUS, PERFORMANCE, SEMISYNCHRONOUS, SYNCHRONOUS };
-enum audit_log_format_t { OLD, NEW };
+enum audit_log_format_t { OLD, NEW, JSON, CSV };
+
+typedef void (*escape_buf_func_t)(const char *, size_t *, char *, size_t *);
 
 static LOGGER_HANDLE *audit_file_logger= NULL;
 static audit_log_buffer_t *audit_log_buffer= NULL;
@@ -113,41 +115,37 @@ char *make_record_id(char *buf, size_t buf_len)
   return buf;
 }
 
+typedef struct
+{
+  char character;
+  size_t length;
+  const char *replacement;
+} escape_rule_t;
+
 static
-void xml_escape(const char *in, size_t *inlen, char* out, size_t *outlen)
+void escape_buf(const char *in, size_t *inlen, char *out, size_t *outlen,
+                const escape_rule_t *escape_rules)
 {
   char* outstart = out;
   const char* base = in;
   char* outend = out + *outlen;
   const char* inend;
-  size_t i;
+  const escape_rule_t *rule;
   my_bool replaced;
-
-  const struct {
-    char symbol;
-    size_t length;
-    const char *replace;
-  } escape[] = {
-    { '<',  4, "&lt;" },
-    { '>',  4, "&gt;" },
-    { '&',  5, "&amp;" },
-    { '\r', 5, "&#13;" },
-    { '"',  6, "&quot;" },
-  };
 
   inend = in + (*inlen);
 
   while ((in < inend) && (out < outend))
   {
     replaced= FALSE;
-    for (i= 0; i < array_elements(escape); i++)
+    for (rule= escape_rules; rule->character; rule++)
     {
-      if (*in == escape[i].symbol)
+      if (*in == rule->character)
       {
-        if ((outend - out) < (int) escape[i].length)
+        if ((outend - out) < (int) rule->length)
           goto end_of_buffer;
-        memcpy(out, escape[i].replace, escape[i].length);
-        out += escape[i].length;
+        memcpy(out, rule->replacement, rule->length);
+        out += rule->length;
         replaced= TRUE;
         break;
       }
@@ -161,20 +159,71 @@ end_of_buffer:
   *inlen = in - base;
 }
 
+static
+void xml_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
+{
+  const escape_rule_t rules[]=
+  {
+    { '<',  4, "&lt;" },
+    { '>',  4, "&gt;" },
+    { '&',  5, "&amp;" },
+    { '\r', 5, "&#13;" },
+    { '\n', 5, "&#10;" },
+    { '"',  6, "&quot;" },
+    { 0,  0, NULL }
+  };
+
+  escape_buf(in, inlen, out, outlen, rules);
+}
 
 static
-char *xml_escape_string(const char *in, size_t inlen,
-                        char *out, size_t outlen)
+void json_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
 {
+  const escape_rule_t rules[]=
+  {
+    { '\\', 2, "\\\\" },
+    { '"',  2, "\\\"" },
+    { '\r',  2, "\\r" },
+    { '\n',  2, "\\n" },
+    { 0,  0, NULL }
+  };
+
+  escape_buf(in, inlen, out, outlen, rules);
+}
+
+static
+void csv_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
+{
+  const escape_rule_t rules[]=
+  {
+    { '"',  2, "\"\"" },
+    { 0,  0, NULL }
+  };
+
+  escape_buf(in, inlen, out, outlen, rules);
+}
+
+static
+char *escape_string(const char *in, size_t inlen,
+                    char *out, size_t outlen,
+                    char **endptr)
+{
+  const escape_buf_func_t format_escape_func[]=
+        { xml_escape, xml_escape, json_escape, csv_escape };
+
   if (in != NULL)
   {
     --outlen;
-    xml_escape(in, &inlen, out, &outlen);
+    format_escape_func[audit_log_format](in, &inlen, out, &outlen);
     out[outlen]= 0;
+    if (endptr)
+      *endptr= out + outlen + 1;
   }
   else
   {
-    out= 0;
+    *out= 0;
+    if (endptr)
+      *endptr= out + 1;
   }
   return out;
 }
@@ -273,13 +322,14 @@ size_t audit_log_audit_record(char *buf, size_t buflen,
   char arg_buf[512];
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
-                     "  \"NAME\"=\"%s\"\n"
-                     "  \"RECORD\"=\"%s\"\n"
-                     "  \"TIMESTAMP\"=\"%s\"\n"
-                     "  \"MYSQL_VERSION\"=\"%s\"\n"
-                     "  \"STARTUP_OPTIONS\"=\"%s\"\n"
-                     "  \"OS_VERSION\"=\""MACHINE_TYPE"-"SYSTEM_TYPE"\",\n"
+                     "  NAME=\"%s\"\n"
+                     "  RECORD=\"%s\"\n"
+                     "  TIMESTAMP=\"%s\"\n"
+                     "  MYSQL_VERSION=\"%s\"\n"
+                     "  STARTUP_OPTIONS=\"%s\"\n"
+                     "  OS_VERSION=\""MACHINE_TYPE"-"SYSTEM_TYPE"\"\n"
                      "/>\n",
+
                      "<AUDIT_RECORD>\n"
                      "  <NAME>%s</NAME>\n"
                      "  <RECORD>%s</RECORD>\n"
@@ -287,7 +337,15 @@ size_t audit_log_audit_record(char *buf, size_t buflen,
                      "  <MYSQL_VERSION>%s</MYSQL_VERSION>\n"
                      "  <STARTUP_OPTIONS>%s</STARTUP_OPTIONS>\n"
                      "  <OS_VERSION>"MACHINE_TYPE"-"SYSTEM_TYPE"</OS_VERSION>\n"
-                     "</AUDIT_RECORD>\n" };
+                     "</AUDIT_RECORD>\n",
+
+                     "{\"audit_record\":{\"name\":\"%s\",\"record\":\"%s\","
+                     "\"timestamp\":\"%s\",\"mysql_version\":\"%s\","
+                     "\"startup_optionsi\":\"%s\","
+                     "\"os_version\":\""MACHINE_TYPE"-"SYSTEM_TYPE"\"}}\n",
+
+                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\","
+                     "\""MACHINE_TYPE"-"SYSTEM_TYPE"\"\n" };
 
   return my_snprintf(buf, buflen,
                      format_string[audit_log_format],
@@ -307,21 +365,23 @@ size_t audit_log_general_record(char *buf, size_t buflen,
 {
   char id_str[MAX_RECORD_ID_SIZE];
   char timestamp[MAX_TIMESTAMP_SIZE];
-  char query[512];
+  char query[512], tmp[128];
+  char *endptr= tmp, *endtmp= tmp + sizeof(tmp);
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
-                     "  \"NAME\"=\"%s\"\n"
-                     "  \"RECORD\"=\"%s\"\n"
-                     "  \"TIMESTAMP\"=\"%s\"\n"
-                     "  \"COMMAND_CLASS\"=\"%s\"\n"
-                     "  \"CONNECTION_ID\"=\"%lu\"\n"
-                     "  \"STATUS\"=\"%d\"\n"
-                     "  \"SQLTEXT\"=\"%s\"\n"
-                     "  \"USER\"=\"%s\"\n"
-                     "  \"HOST\"=\"%s\"\n"
-                     "  \"OS_USER\"=\"%s\"\n"
-                     "  \"IP\"=\"%s\"\n"
+                     "  NAME=\"%s\"\n"
+                     "  RECORD=\"%s\"\n"
+                     "  TIMESTAMP=\"%s\"\n"
+                     "  COMMAND_CLASS=\"%s\"\n"
+                     "  CONNECTION_ID=\"%lu\"\n"
+                     "  STATUS=\"%d\"\n"
+                     "  SQLTEXT=\"%s\"\n"
+                     "  USER=\"%s\"\n"
+                     "  HOST=\"%s\"\n"
+                     "  OS_USER=\"%s\"\n"
+                     "  IP=\"%s\"\n"
                      "/>\n",
+
                      "<AUDIT_RECORD>\n"
                      "  <NAME>%s</NAME>\n"
                      "  <RECORD>%s</RECORD>\n"
@@ -334,7 +394,23 @@ size_t audit_log_general_record(char *buf, size_t buflen,
                      "  <HOST>%s</HOST>\n"
                      "  <OS_USER>%s</OS_USER>\n"
                      "  <IP>%s</IP>\n"
-                     "</AUDIT_RECORD>\n" };
+                     "</AUDIT_RECORD>\n",
+
+                     "{\"audit_record\":"
+                       "{\"name\":\"%s\","
+                       "\"record\":\"%s\","
+                       "\"timestamp\":\"%s\","
+                       "\"command_class\":\"%s\","
+                       "\"connection_id\":\"%lu\","
+                       "\"status\":%d,"
+                       "\"sqltext\":\"%s\","
+                       "\"user\":\"%s\","
+                       "\"host\":\"%s\","
+                       "\"os_user\":\"%s\","
+                       "\"ip\":\"%s\"}}\n",
+
+                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
+                     "\"%s\",\"%s\",\"%s\"\n" };
 
   return my_snprintf(buf, buflen,
                      format_string[audit_log_format],
@@ -343,13 +419,21 @@ size_t audit_log_general_record(char *buf, size_t buflen,
                      make_timestamp(timestamp, sizeof(timestamp), t),
                      event->general_sql_command.str,
                      event->general_thread_id, status,
-                     xml_escape_string(event->general_query,
-                                       event->general_query_length,
-                                       query, sizeof(query)),
-                     event->general_user,
-                     event->general_host.str,
-                     event->general_external_user.str,
-                     event->general_ip.str);
+                     escape_string(event->general_query,
+                                   event->general_query_length,
+                                   query, sizeof(query), NULL),
+                     escape_string(event->general_user,
+                                   event->general_user_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->general_host.str,
+                                   event->general_host.length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->general_external_user.str,
+                                   event->general_external_user.length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->general_ip.str,
+                                   event->general_ip.length,
+                                   endptr, endtmp - endptr, &endptr));
 }
 
 static
@@ -359,21 +443,24 @@ size_t audit_log_connection_record(char *buf, size_t buflen,
 {
   char id_str[MAX_RECORD_ID_SIZE];
   char timestamp[MAX_TIMESTAMP_SIZE];
+  char tmp[128];
+  char *endptr= tmp, *endtmp= tmp + sizeof(tmp);
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
-                     "  \"NAME\"=\"%s\"\n"
-                     "  \"RECORD\"=\"%s\"\n"
-                     "  \"TIMESTAMP\"=\"%s\"\n"
-                     "  \"CONNECTION_ID\"=\"%lu\"\n"
-                     "  \"STATUS\"=\"%d\"\n"
-                     "  \"USER\"=\"%s\"\n"
-                     "  \"PRIV_USER\"=\"%s\"\n"
-                     "  \"OS_LOGIN\"=\"%s\"\n"
-                     "  \"PROXY_USER\"=\"%s\"\n"
-                     "  \"HOST\"=\"%s\"\n"
-                     "  \"IP\"=\"%s\"\n"
-                     "  \"DB\"=\"%s\"\n"
+                     "  NAME=\"%s\"\n"
+                     "  RECORD=\"%s\"\n"
+                     "  TIMESTAMP=\"%s\"\n"
+                     "  CONNECTION_ID=\"%lu\"\n"
+                     "  STATUS=\"%d\"\n"
+                     "  USER=\"%s\"\n"
+                     "  PRIV_USER=\"%s\"\n"
+                     "  OS_LOGIN=\"%s\"\n"
+                     "  PROXY_USER=\"%s\"\n"
+                     "  HOST=\"%s\"\n"
+                     "  IP=\"%s\"\n"
+                     "  DB=\"%s\"\n"
                      "/>\n",
+
                      "<AUDIT_RECORD>\n"
                      "  <NAME>%s</NAME>\n"
                      "  <RECORD>%s</RECORD>\n"
@@ -387,34 +474,96 @@ size_t audit_log_connection_record(char *buf, size_t buflen,
                      "  <HOST>%s</HOST>\n"
                      "  <IP>%s</IP>\n"
                      "  <DB>%s</DB>\n"
-                     "</AUDIT_RECORD>\n" };
+                     "</AUDIT_RECORD>\n",
+
+                     "{\"audit_record\":"
+                       "{\"name\":\"%s\","
+                       "\"record\":\"%s\","
+                       "\"timestamp\":\"%s\","
+                       "\"connection_id\":\"%lu\","
+                       "\"status\":%d,"
+                       "\"user\":\"%s\","
+                       "\"priv_user\":\"%s\","
+                       "\"os_login\":\"%s\","
+                       "\"proxy_user\":\"%s\","
+                       "\"host\":\"%s\","
+                       "\"ip\":\"%s\","
+                       "\"db\":\"%s\"}}\n",
+
+                     "\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\",\"%s\","
+                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
 
   return my_snprintf(buf, buflen,
                      format_string[audit_log_format],
-                      name,
-                      make_record_id(id_str, sizeof(id_str)),
-                      make_timestamp(timestamp, sizeof(timestamp), t),
-                      event->thread_id,
-                      event->status,
-                      event->user ? event->user : "",
-                      event->priv_user ? event->priv_user : "",
-                      event->external_user ? event->external_user : "",
-                      event->proxy_user ? event->proxy_user : "",
-                      event->host ? event->host : "",
-                      event->ip ? event->ip : "",
-                      event->database ? event->database : "");
+                     name,
+                     make_record_id(id_str, sizeof(id_str)),
+                     make_timestamp(timestamp, sizeof(timestamp), t),
+                     event->thread_id,
+                     event->status,
+                     escape_string(event->user,
+                                   event->user_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->priv_user,
+                                   event->priv_user_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->external_user,
+                                   event->external_user_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->proxy_user,
+                                   event->proxy_user_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->host,
+                                   event->host_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->user,
+                                   event->user_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->ip,
+                                   event->ip_length,
+                                   endptr, endtmp - endptr, &endptr),
+                     escape_string(event->database,
+                                   event->database_length,
+                                   endptr, endtmp - endptr, &endptr));
+}
+
+static
+size_t audit_log_header(MY_STAT *stat, char *buf, size_t buflen)
+{
+  const char *format_string[] = {
+                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                     "<AUDIT>\n",
+                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                     "<AUDIT>\n",
+                     "",
+                     "" };
+
+  log_file_time= stat->st_mtime;
+
+  init_record_id(stat->st_size);
+
+  return my_snprintf(buf, buflen, format_string[audit_log_format]);
 }
 
 
 static
+size_t audit_log_footer(char *buf, size_t buflen)
+{
+  const char *format_string[] = {
+                     "</AUDIT>\n",
+                     "</AUDIT>\n",
+                     "",
+                     "" };
+
+  return my_snprintf(buf, buflen, format_string[audit_log_format]);
+}
+
+static
 int init_new_log_file()
 {
-  MY_STAT stat_arg;
-
   audit_file_logger= logger_open(audit_log_file, audit_log_rotate_on_size,
                             audit_log_rotate_on_size ? audit_log_rotations : 0,
                             audit_log_strategy >= SEMISYNCHRONOUS,
-                            &stat_arg);
+                            audit_log_header);
   if (audit_file_logger == NULL)
   {
     fprintf_timestamp(stderr);
@@ -423,10 +572,6 @@ int init_new_log_file()
     return(1);
   }
 
-  log_file_time= stat_arg.st_mtime;
-
-  init_record_id(stat_arg.st_size);
-
   return(0);
 }
 
@@ -434,19 +579,13 @@ int init_new_log_file()
 static
 int reopen_log_file()
 {
-  MY_STAT stat_arg;
-
-  if (logger_reopen(audit_file_logger, &stat_arg))
+  if (logger_reopen(audit_file_logger, audit_log_header, audit_log_footer))
   {
     fprintf_timestamp(stderr);
     fprintf(stderr, "Cannot open file %s. ", audit_log_file);
     perror("Error: ");
     return(1);
   }
-
-  log_file_time= stat_arg.st_mtime;
-
-  init_record_id(stat_arg.st_size);
 
   return(0);
 }
@@ -456,7 +595,7 @@ static
 void close_log_file()
 {
   if (audit_file_logger != NULL)
-    logger_close(audit_file_logger);
+    logger_close(audit_file_logger, audit_log_footer);
 }
 
 
@@ -465,6 +604,8 @@ int audit_log_plugin_init(void *arg __attribute__((unused)))
 {
   char buf[1024];
   size_t len;
+
+  logger_init_mutexes();
 
   if (init_new_log_file())
     return(1);
@@ -494,7 +635,6 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
 
   if (audit_log_buffer != NULL)
     audit_log_buffer_shutdown(audit_log_buffer);
-
   close_log_file();
 
   return(0);
@@ -612,7 +752,7 @@ static MYSQL_SYSVAR_ENUM(strategy, audit_log_strategy,
        ASYNCHRONOUS, &audit_log_strategy_typelib);
 
 static const char *audit_log_format_names[]=
-  { "OLD", "NEW", 0 };
+  { "OLD", "NEW", "JSON", "CSV", 0 };
 static TYPELIB audit_log_format_typelib=
 {
     array_elements(audit_log_format_names) - 1, "audit_log_format_typelib",
@@ -674,7 +814,7 @@ void audit_log_flush_update(
 {
   char new_val= *(const char *)(save);
 
-  if (new_val != audit_log_flush && new_val == TRUE)
+  if (new_val != audit_log_flush && new_val)
   {
     audit_log_flush= TRUE;
     reopen_log_file();

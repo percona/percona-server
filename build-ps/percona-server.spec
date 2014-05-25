@@ -368,18 +368,6 @@ and applications need to dynamically load and use Percona Server.
 ##############################################################################
 %build
 
-# Be strict about variables, bail at earliest opportunity, etc.
-set -uex
-
-BuildUDF() {
-    CXX="${UDF_CXX:-g++}"\
-        CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
-        --libdir=%{_libdir}/mysql/plugin
-    make %{?_smp_mflags} all
-    cd -
-}
-
 # Optional package files
 touch optional-files-devel
 
@@ -474,12 +462,6 @@ mkdir release
   
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
-  cd ../
-  d="`pwd`"
-  cd UDF
-  autoreconf --install
-  BuildUDF
-  cd "$d"
 )
 
 # For the debuginfo extraction stage, some source files are not located in the release
@@ -526,10 +508,6 @@ install -d $RBR%{_libdir}/mysql/plugin
 (
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
-  d="`pwd`"
-  cd $MBD/UDF
-  make DESTDIR=$RBR benchdir_root=%{_datadir} install
-  cd "$d"
 )
 
 # Install all binaries
@@ -1092,6 +1070,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
 
 # %attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -1103,7 +1082,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libfnv1a_udf.*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libfnv_udf.*
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmurmur_udf.*
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
@@ -1111,6 +1093,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/handlersocket.so
 # Audit Log and Scalability Metrics files
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
@@ -1216,16 +1199,8 @@ fi
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/*.so
 
-# Percona Toolkit UDF libs
-%{_libdir}/mysql/plugin/libfnv1a_udf.a
-%{_libdir}/mysql/plugin/libfnv1a_udf.la
-%{_libdir}/mysql/plugin/libfnv_udf.a
-%{_libdir}/mysql/plugin/libfnv_udf.la
-%{_libdir}/mysql/plugin/libmurmur_udf.a
-%{_libdir}/mysql/plugin/libmurmur_udf.la
-
-%if %{with tokudb}
 # ----------------------------------------------------------------------------
+%if %{with tokudb}
 %files -n Percona-Server-tokudb%{product_suffix}
 %attr(-, root, root) 
 %{_bindir}/tokuftdump

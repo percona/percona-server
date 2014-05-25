@@ -82,6 +82,62 @@ COMMIT;
 SHOW STATUS LIKE 'binlog_snapshot_%';
 SHOW MASTER STATUS;
 
+--echo # Test START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION
+
+DELETE FROM t1;
+
+--let $donor_id=`SELECT CONNECTION_ID()`
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+INSERT INTO t1 VALUES (1, "first");
+SELECT * FROM t1;
+
+--connection con3
+--echo # Connection con3
+INSERT INTO t1 VALUES (3, "third");
+SELECT * FROM t1;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+--connection con2
+--echo # Connection con2
+SELECT * FROM t1;
+
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+--disable_query_log
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $donor_id
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$donor_id;
+--enable_query_log
+SELECT * FROM t1;
+
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+--connection con3
+--echo # Connection con3
+FLUSH LOGS;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+--connection con2
+--echo # Connection con2
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+COMMIT;
+
+--connection default
+--echo # Connection default
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+COMMIT;
+
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
 SHOW BINLOG EVENTS;
 

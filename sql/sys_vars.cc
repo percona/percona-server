@@ -4065,6 +4065,10 @@ static Sys_var_have Sys_have_backup_locks(
        "have_backup_locks", "have_backup_locks",
        READ_ONLY GLOBAL_VAR(have_backup_locks), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_snapshot_cloning(
+       "have_snapshot_cloning", "have_snapshot_cloning",
+       READ_ONLY GLOBAL_VAR(have_snapshot_cloning), NO_CMD_LINE);
+
 static Sys_var_have Sys_have_query_cache(
        "have_query_cache", "have_query_cache",
        READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE);

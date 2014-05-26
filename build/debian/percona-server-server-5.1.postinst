@@ -28,6 +28,7 @@ test_mysql_access() {
 set_mysql_rootpw() {
        # forget we ever saw the password.  don't use reset to keep the seen status
        db_set percona-server-server/root_password ""
+       db_set percona-server-server/root_password_again ""
 
        tfile=`mktemp`
        if [ ! -f "$tfile" ]; then

@@ -1242,6 +1242,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Mon May 26 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Added packaging changes regarding TokuDB
+
 * Thu Feb 10 2011 Ignacio Nin <ignacio.nin@percona.com>
 
 - Removed lines which prevented -debuginfo packages from being built.

@@ -146,19 +146,12 @@ install: build
 	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
 	
 	# build HandlerSocket
-	(cd storage/HandlerSocket-Plugin-for-MySQL && \
+	(cd plugin/HandlerSocket-Plugin-for-MySQL && ./autogen.sh; \
 	MYSQL_CFLAGS="-I$(CURDIR)/$(builddir)/include" \
 	./configure --with-mysql-source=$(CURDIR) \
 	--with-mysql-bindir=$(CURDIR)/$(builddir)/scripts \
 	--with-mysql-plugindir=$(prefix)/lib/mysql/plugin \
 	--libdir=$(prefix)/lib --prefix=$(prefix) && \
-	make && make DESTDIR=$(TMP) install)
-
-	# Build UDFs
-	(cd UDF && \
-	CXXFLAGS="-I $(CURDIR)/$(builddir)/include" \
-	./configure --includedir=$(CURDIR)/include \
-	--libdir=$(prefix)/lib/mysql/plugin && \
 	make && make DESTDIR=$(TMP) install)
 
 	# After installing, remove rpath to make lintian happy.

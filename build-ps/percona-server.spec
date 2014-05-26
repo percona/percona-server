@@ -335,8 +335,9 @@ and applications need to dynamically load and use Percona Server.
 set -uex
 
 BuildHandlerSocket() {
-    cd storage/HandlerSocket-Plugin-for-MySQL
+    cd plugin/HandlerSocket-Plugin-for-MySQL
     echo "Configuring HandlerSocket"
+    ./autogen.sh
     CXX="${HS_CXX:-g++}" \
         MYSQL_CFLAGS="-I $RPM_BUILD_DIR/%{src_dir}/release/include" \
         ./configure --with-mysql-source=$RPM_BUILD_DIR/%{src_dir} \
@@ -345,16 +346,6 @@ BuildHandlerSocket() {
         --libdir=%{_libdir} \
         --prefix=%{_prefix}
     make %{?_smp_mflags}
-    cd -
-}
-
-BuildUDF() {
-    cd UDF
-    CXX="${UDF_CXX:-g++}"\
-        CXXFLAGS="$CXXFLAGS -I$RPM_BUILD_DIR/%{src_dir}/release/include" \
-        ./configure --includedir=$RPM_BUILD_DIR/%{src_dir}/include \
-        --libdir=%{_libdir}/mysql/plugin
-    make %{?_smp_mflags} all
     cd -
 }
 
@@ -446,7 +437,6 @@ mkdir release
   cd ../
   d="`pwd`"
   BuildHandlerSocket
-  BuildUDF
   cd "$d"
 )
 
@@ -488,10 +478,7 @@ install -d $RBR%{_libdir}/mysql/plugin
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   d="`pwd`"
-  cd $MBD/storage/HandlerSocket-Plugin-for-MySQL
-  make DESTDIR=$RBR benchdir_root=%{_datadir} install
-  cd "$d"
-  cd $MBD/UDF
+  cd $MBD/plugin/HandlerSocket-Plugin-for-MySQL
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
   cd "$d"
 )
@@ -1047,14 +1034,13 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so.0.0.0
 # UDF files
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv1a_udf.so.0.0.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libfnv_udf.so.0.0.0
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0
-%attr(755, root, root) %{_libdir}/mysql/plugin/libmurmur_udf.so.0.0.0
+# debug
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libfnv1a_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libfnv_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmurmur_udf.so
+
 # Audit Log and Scalability Metrics files
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
@@ -1121,14 +1107,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/mysql/libhsclient.a
 %{_libdir}/libhsclient.la
-
-# Percona Toolkit UDF libs
-%{_libdir}/mysql/plugin/libfnv1a_udf.a
-%{_libdir}/mysql/plugin/libfnv1a_udf.la
-%{_libdir}/mysql/plugin/libfnv_udf.a
-%{_libdir}/mysql/plugin/libfnv_udf.la
-%{_libdir}/mysql/plugin/libmurmur_udf.a
-%{_libdir}/mysql/plugin/libmurmur_udf.la
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-shared%{product_suffix}

@@ -202,7 +202,7 @@ fi
 
     # Build HandlerSocket
     (
-        cd "storage/HandlerSocket-Plugin-for-MySQL"
+        cd "plugin/HandlerSocket-Plugin-for-MySQL"
         ./autogen.sh
         CXX=${HS_CXX:-g++} ./configure --with-mysql-source="$SOURCEDIR" \
             --with-mysql-bindir="$SOURCEDIR/scripts" \

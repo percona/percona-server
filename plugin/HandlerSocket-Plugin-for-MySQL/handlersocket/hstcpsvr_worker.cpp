@@ -293,9 +293,7 @@ hstcpsvr_worker::hstcpsvr_worker(const hstcpsvr_worker_arg& arg)
     if (epoll_fd.get() < 0) {
       fatal_abort("epoll_create");
     }
-    epoll_event ev = { };
-    ev.events = EPOLLIN;
-    ev.data.ptr = 0;
+    epoll_event ev = { EPOLLIN, { 0 } };
     if (epoll_ctl(epoll_fd.get(), EPOLL_CTL_ADD, cshared.listen_fd.get(), &ev)
       != 0) {
       fatal_abort("epoll_ctl EPOLL_CTL_ADD");
@@ -505,7 +503,7 @@ hstcpsvr_worker::run_one_ep()
 	if (fcntl(c->fd.get(), F_SETFL, O_NONBLOCK) != 0) {
 	  fatal_abort("F_SETFL O_NONBLOCK");
 	}
-	epoll_event cev = { };
+	epoll_event cev;
 	cev.events = EPOLLIN | EPOLLOUT | EPOLLET;
 	cev.data.ptr = c.get();
 	c->nb_last_io = now;
@@ -630,9 +628,7 @@ hstcpsvr_worker::run_one_ep()
       total_num_conns * 2 > num_conns * cshared.num_threads) {
       e_acc = true;
     }
-    epoll_event ev = { };
-    ev.events = EPOLLIN;
-    ev.data.ptr = 0;
+    epoll_event ev = { EPOLLIN, { 0 } };
     if (e_acc == accept_enabled) {
     } else if (e_acc) {
       if (epoll_ctl(epoll_fd.get(), EPOLL_CTL_ADD, cshared.listen_fd.get(), &ev)

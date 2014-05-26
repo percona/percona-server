@@ -216,7 +216,8 @@ mysql_declare_plugin(handlersocket)
   0x0100 /* 1.0 */,
   daemon_handlersocket_status_variables,
   daemon_handlersocket_system_variables,
-  0
+  NULL,
+  0,
 }
 mysql_declare_plugin_end;
 

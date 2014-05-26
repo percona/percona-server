@@ -80,9 +80,9 @@ int
 socket_set_options(auto_file& fd, const socket_args& args, std::string& err_r)
 {
   if (args.timeout != 0 && !args.nonblocking) {
-    struct timeval tv = { };
+    struct timeval tv;
+    memset(&tv, 0, sizeof(tv));
     tv.tv_sec = args.timeout;
-    tv.tv_usec = 0;
     if (setsockopt(fd.get(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0) {
       return errno_string("setsockopt SO_RCVTIMEO", errno, err_r);
     }

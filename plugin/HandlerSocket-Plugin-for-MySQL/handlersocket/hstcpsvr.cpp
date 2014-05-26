@@ -54,7 +54,7 @@ namespace {
 void
 check_nfile(size_t nfile)
 {
-  struct rlimit rl = { };
+  struct rlimit rl;
   const int r = getrlimit(RLIMIT_NOFILE, &rl);
   if (r != 0) {
     fatal_abort("check_nfile: getrlimit failed");

@@ -4,7 +4,9 @@ export DH_VERBOSE=1
 export DEB_BUILD_HARDENING=1
 
 PACKAGE=percona-server-5.6
-PS_VERSION_EXTRA = $(shell echo "Percona Server (GPL), $(DEBVERSION)")
+PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
+REVISION = '@@REVISION@@'
+COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
 
 TMP=$(CURDIR)/debian/tmp/
 prefix=/usr
@@ -14,7 +16,6 @@ ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
 NCPU = $(shell grep -c processor /proc/cpuinfo)
 DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEBVERSION = $(shell dpkg-parsechangelog | awk '/^Version: / { print $$2 }' | sed 's/^.*-//' )
 
 export MYSQL_BUILD_CC=$(DEB_HOST_GNU_TYPE)-gcc$(USE_THIS_GCC_VERSION)
 export MYSQL_BUILD_CXX=$(DEB_HOST_GNU_TYPE)-g++$(USE_THIS_GCC_VERSION)
@@ -74,8 +75,7 @@ endif
 		-DWITH_LIBWRAP=ON \
 		-DWITH_ZLIB=system \
 		-DWITH_SSL=system \
-		-DCOMPILATION_COMMENT="($(DISTRIBUTION))" \
-		-DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
+		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_RELEASE) \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
 		-DINSTALL_LAYOUT=RPM \
 		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \

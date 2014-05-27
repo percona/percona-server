@@ -127,7 +127,7 @@ fi
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
 
 SOURCEDIR="$(cd $(dirname "$0"); cd ..; pwd)"
-test -e "$SOURCEDIR/Makefile-ps" || exit 2
+test -e "$SOURCEDIR/VERSION" || exit 2
 
 # The number of processors is a good default for -j
 if test -e "/proc/cpuinfo"
@@ -137,18 +137,25 @@ else
     PROCESSORS=2
 fi
 
-# Extract version from the Makefile-ps
-MYSQL_VERSION="$(grep ^MYSQL_VERSION= "$SOURCEDIR/Makefile-ps" \
-    | cut -d = -f 2)"
-PERCONA_SERVER_VERSION="$(grep ^PERCONA_SERVER_VERSION= \
-    "$SOURCEDIR/Makefile-ps" | cut -d = -f 2)"
+# Extract version from the VERSION file
+source "$SOURCEDIR/VERSION"
+MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
+PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-/rel/')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 
 # Build information
-REVISION="$(cd "$SOURCEDIR"; grep '^revno: ' Docs/INFO_SRC |sed -e 's/revno: //')"
+if test -e "$SOURCEDIR/Docs/INFO_SRC"
+then
+    REVISION="$(cd "$SOURCEDIR"; grep '^revno: ' Docs/INFO_SRC |sed -e 's/revno: //')"
+elif test -e "$SOURCEDIR/.bzr/branch/last-revision"
+then
+    REVISION="$(cd "$SOURCEDIR"; cat .bzr/branch/last-revision | awk -F ' ' '{print $1}')"
+else
+    REVISION=""
+fi
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION${BUILD_COMMENT:-}$TAG.$(uname -s).$TARGET"
-COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
+COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}"
 COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 
 # Compilation flags
@@ -187,9 +194,6 @@ fi
 (
     cd "$SOURCEDIR"
  
-    # Execute clean and download mysql, apply patches
-    make -f Makefile-ps all
-
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
         -DWITH_EMBEDDED_SERVER=OFF \
@@ -197,7 +201,6 @@ fi
         -DWITH_SSL=system \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
-        -DMYSQL_SERVER_SUFFIX="-$PERCONA_SERVER_VERSION" \
         -DCOMPILATION_COMMENT="$COMMENT" \
         -DWITH_PAM=ON \
         $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
@@ -222,6 +225,7 @@ fi
     # Build UDF
     (
         cd "UDF"
+        autoreconf --install
         CXX=${UDF_CXX:-g++} ./configure --includedir="$SOURCEDIR/include" \
             --libdir="/usr/local/$PRODUCT_FULL/mysql/plugin"
         make $MAKE_JFLAG

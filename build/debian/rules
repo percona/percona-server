@@ -15,7 +15,6 @@ ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ARCH_OS = $(shell dpkg-architecture -qDEB_BUILD_ARCH_OS)
 DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 DEB_HOST_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEBVERSION = $(shell echo "rel`if test -z \"$(major_version)\"; then echo ${major_version_default}; else echo $(major_version); fi`.`if test -z \"$(minor_version)\"; then echo ${minor_version_default}; else echo $(minor_version); fi`" )
 
 DEB_SOURCE_PACKAGE ?= $(strip $(shell egrep '^Source: ' debian/control | cut -f 2 -d ':'))
 DEB_VERSION ?= $(shell dpkg-parsechangelog | egrep '^Version:' | cut -f 2 -d ' ')
@@ -88,8 +87,7 @@ endif
 	        --infodir=/usr/share/info \
 	        --mandir=/usr/share/man \
 		\
-		--with-server-suffix="-$(DEBVERSION)" \
-		--with-comment="($(DISTRIBUTION))" \
+		--with-comment="$(DISTRIBUTION)" \
 		--with-system-type="debian-linux-gnu" \
 		\
 		--enable-shared \

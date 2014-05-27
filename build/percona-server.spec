@@ -106,8 +106,8 @@
 
 %define server_suffix  -rel%{majorversion}.%{minorversion}
 %define package_suffix -51
-%define ndbug_comment Percona Server (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
-%define debug_comment Percona Server - Debug (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define ndbug_comment Percona Server (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define debug_comment Percona Server - Debug (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
 %define NORMAL_TEST_MODE test-bt
 %define DEBUG_TEST_MODE test-bt-debug
 
@@ -337,7 +337,6 @@ cd -
 
 BuildServer() {
 BuildMySQL "--enable-shared \
-        --with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
 		--without-bench \
 		--with-zlib-dir=bundled \

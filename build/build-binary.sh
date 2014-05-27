@@ -110,7 +110,7 @@ PRODUCT="Percona-Server-$MYSQL_VERSION"
 REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION$TAG.$(uname -s).$TARGET"
-COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
+COMMENT="Percona Server (GPL), Release ${PERCONA_SERVER_VERSION#rel}"
 COMMENT="$COMMENT, Revision $REVISION"
 
 # Compilation flags
@@ -135,7 +135,6 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     ./configure \
         --prefix="/usr/local/$PRODUCT_FULL" \
         --localstatedir="/usr/local/$PRODUCT_FULL/data" \
-        --with-server-suffix="$PERCONA_SERVER_VERSION" \
         --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
         --without-embedded-server \
         --with-comment="$COMMENT" \

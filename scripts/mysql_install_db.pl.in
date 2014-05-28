@@ -451,50 +451,46 @@ if ( ! $print_defaults )
 -x $print_defaults or -f "$print_defaults.exe"
   or cannot_find_file($print_defaults);
 
-# fix for: https://bugs.launchpad.net/percona-server/+bug/1314596
-# should be removed later
-my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
+# Next block is commented because of bug1225189
+# Except for the line that defines variable $cnfext which is needed
+# my $config_file;
+# my $copy_cfg_file;
 
-<<'CONFIGFILE_BUG1225189';
-my $config_file;
-my $copy_cfg_file;
-
-# ----------------------------------------------------------------------
-# This will be the default config file
-# ----------------------------------------------------------------------
+# # ----------------------------------------------------------------------
+# # This will be the default config file
+# # ----------------------------------------------------------------------
 
 my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
 
-$config_file= "$basedir/my.$cnfext";
+# $config_file= "$basedir/my.$cnfext";
 
-my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
-				  ".", "share","share/mysql","support-files");
--e $cfg_template or cannot_find_file("my-default.$cnfext");
+# my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
+# 				  ".", "share","share/mysql","support-files");
+# -e $cfg_template or cannot_find_file("my-default.$cnfext");
 
-$copy_cfg_file= $config_file;
-my $failed_write_cfg= 0;
-if (-e $copy_cfg_file)
-{
-  $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
-  # Too early to print warning here, the user may not notice
-}
-open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
-if (open (CFG, "> $copy_cfg_file"))
-{
-  while (<TEMPL>)
-  {
-    # Remove lines beginning with # *** which are template comments
-    print CFG $_ unless /^# \*\*\*/;
-  }
-  close CFG;
-}
-else
-{
-  warning($opt,"Could not write to config file $copy_cfg_file: $!");
-  $failed_write_cfg= 1;
-}
-close TEMPL;
-CONFIGFILE_BUG1225189
+# $copy_cfg_file= $config_file;
+# my $failed_write_cfg= 0;
+# if (-e $copy_cfg_file)
+# {
+#   $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
+#   # Too early to print warning here, the user may not notice
+# }
+# open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+# if (open (CFG, "> $copy_cfg_file"))
+# {
+#   while (<TEMPL>)
+#   {
+#     # Remove lines beginning with # *** which are template comments
+#     print CFG $_ unless /^# \*\*\*/;
+#   }
+#   close CFG;
+# }
+# else
+# {
+#   warning($opt,"Could not write to config file $copy_cfg_file: $!");
+#   $failed_write_cfg= 1;
+# }
+# close TEMPL;
 
 # ----------------------------------------------------------------------
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
@@ -885,33 +881,33 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "Support Percona by buying support at",
            "  http://www.percona.com/products/mysql-support");
 
-<<'CONFIGFILE_BUG1225189';
-    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
-    {
-      report($opt,
-	     "New default config file was created as $config_file and",
-	     "will be used by default by the server when you start it.",
-	     "You may edit this file to change server settings");
-    }
-    elsif ($failed_write_cfg)
-    {
-      warning($opt,
-	      "Could not copy config file template $cfg_template to",
-	      "$copy_cfg_file, may not have access rights to do so.",
-	      "You may want to copy the file manually, or create your own,",
-              "it will then be used by default by the server when you start it.");
-    }
-    else
-    {
-      warning($opt,
-	      "Found existing config file $config_file on the system.",
-	      "Because this file might be in use, it was not replaced,",
-	      "but was used in bootstrap (unless you used --defaults-file)",
-	      "and when you later start the server.",
-	      "The new default config file was created as $copy_cfg_file,",
-	      "please compare it with your file and take the changes you need.");
-    }
-CONFIGFILE_BUG1225189
+# Next block is commented because of bug1225189
+#     if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
+#     {
+#       report($opt,
+# 	     "New default config file was created as $config_file and",
+# 	     "will be used by default by the server when you start it.",
+# 	     "You may edit this file to change server settings");
+#     }
+#     elsif ($failed_write_cfg)
+#     {
+#       warning($opt,
+# 	      "Could not copy config file template $cfg_template to",
+# 	      "$copy_cfg_file, may not have access rights to do so.",
+# 	      "You may want to copy the file manually, or create your own,",
+#               "it will then be used by default by the server when you start it.");
+#     }
+#     else
+#     {
+#       warning($opt,
+# 	      "Found existing config file $config_file on the system.",
+# 	      "Because this file might be in use, it was not replaced,",
+# 	      "but was used in bootstrap (unless you used --defaults-file)",
+# 	      "and when you later start the server.",
+# 	      "The new default config file was created as $copy_cfg_file,",
+# 	      "please compare it with your file and take the changes you need.");
+#     }
+
     foreach my $cfg ( "/etc/my.$cnfext", "/etc/mysql/my.$cnfext" )
     {
       check_sys_cfg_file ($opt, $cfg);

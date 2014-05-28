@@ -3021,6 +3021,8 @@ int MYSQL_QUERY_LOG::new_file()
                 name,
                 LOG_NORMAL, new_name, WRITE_CACHE, false);
 
+  my_free(old_name);
+
 end:
 
   if (error && close_on_error /* rotate or reopen failed */)

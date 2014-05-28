@@ -24,7 +24,9 @@ OPENSSL_INCLUDE=''
 OPENSSL_LIBRARY=''
 CRYPTO_LIBRARY=''
 TAG=''
-
+#
+COMMON_FLAGS=''
+#
 # Some programs that may be overriden
 TAR=${TAR:-tar}
 

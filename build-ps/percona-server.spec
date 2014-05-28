@@ -399,8 +399,7 @@ mkdir debug
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+           -DCOMPILATION_COMMENT="%{compilation_comment_debug}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
 )
@@ -420,8 +419,7 @@ mkdir release
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
-           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
-           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
 )

@@ -17,7 +17,9 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 WITH_SSL='/usr'
 TAG=''
-
+#
+COMMON_FLAGS=''
+#
 # Some programs that may be overriden
 TAR=${TAR:-tar}
 

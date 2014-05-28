@@ -98,10 +98,10 @@
 # Server comment strings
 # ----------------------------------------------------------------------------
 %if %{undefined compilation_comment_debug}
-%define compilation_comment_debug       Percona Server - Debug (GPL), Release rel%{percona_server_version}, Revision %{revision}
+%define compilation_comment_debug       Percona Server - Debug (GPL), Release %{percona_server_version}, Revision %{revision}
 %endif
 %if %{undefined compilation_comment_release}
-%define compilation_comment_release     Percona Server (GPL), Release rel%{percona_server_version}, Revision %{revision}
+%define compilation_comment_release     Percona Server (GPL), Release %{percona_server_version}, Revision %{revision}
 %endif
 
 # ----------------------------------------------------------------------------

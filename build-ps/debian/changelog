@@ -1,3 +1,10 @@
+percona-server-5.5 (5.5.37-rel35.1) unstable; urgency=low
+
+  * UDF and HandlerSocket moved to plugin
+  * Fixed version reported by mysql client
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Thu, 29 May 2014 11:14:29 +0200
+
 percona-server-5.5 (5.5.37-rel35.0) unstable; urgency=low
 
   * Fixed provides/breaks/replaces for client/server debian packages

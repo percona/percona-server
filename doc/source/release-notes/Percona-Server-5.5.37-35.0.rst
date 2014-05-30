@@ -4,7 +4,7 @@
  |Percona Server| 5.5.37-35.0 
 ==============================
 
-Percona is glad to announce the release of |Percona Server| 5.5.37-35.0 on April 30th, 2014. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.37-35.0/>`_ and from the :doc:`Percona Software Repositories </installation>`.
+Percona is glad to announce the release of |Percona Server| 5.5.37-35.0 on May 6th, 2014. Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.37-35.0/>`_ and from the :doc:`Percona Software Repositories </installation>`.
 
 Based on `MySQL 5.5.37 <http://dev.mysql.com/doc/relnotes/mysql/5.5/en/news-5-5-37.html>`_, including all the bug fixes in it, |Percona Server| 5.5.37-35.0 is now the current stable release in the 5.5 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.5.37-35.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.5.37-35.0>`_. 
 

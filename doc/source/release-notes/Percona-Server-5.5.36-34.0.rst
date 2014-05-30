@@ -44,5 +44,6 @@ Bugs Fixed
 
  On *Ubuntu* Precise multiple architecture versions of ``libmysqlclient18`` couldn't be installed side by side. Bug fixed :bug:`1052636`.
 
+ Database administrator password could be seen in plain text if when ``debconf-get-selections`` was executed. Bug fixed :bug:`1018291`.
 
 Other bugs fixed: :bug:`1005787`.

@@ -66,7 +66,7 @@ Example
 Version Specific Information
 ============================
 
-  * :rn:`5.6.16-64.0`
+  * :rn:`5.6.36-34.0`
     Full functionality.
 
 Client Command Line Parameter

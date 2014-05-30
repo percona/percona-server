@@ -71,8 +71,8 @@ List of features available in |Percona Server| releases
      - :ref:`Handle BLOB End of Line <ps55:mysql_remove_eol_carret>`
      - Replaced by the upstream implementation [#n-9]_
    * - :ref:`Ability to change database for mysqlbinlog <ps51:mysqlbinlog_change_db>` 
-     - Feature not implemented
-     - Feature not implemented
+     - :ref:`Ability to change database for mysqlbinlog <ps55:mysqlbinlog_change_db>`
+     - :ref:`Ability to change database for mysqlbinlog <ps56:mysqlbinlog_change_db>`
    * - :ref:`Replication Stop Recovery <ps51:replication_skip_single_statement>`
      - Feature not implemented
      - Feature not implemented
@@ -208,6 +208,21 @@ List of features available in |Percona Server| releases
    * - Feature not implemented
      - Feature not implemented
      - :ref:`Per-query variable statement <ps56:per_query_variable_statement>`
+   * - Feature not implemented
+     - :ref:`Extended mysqlbinlog <ps55:extended_mysqlbinlog>`
+     - :ref:`Extended mysqlbinlog <ps56:extended_mysqlbinlog>`
+   * - Feature not implemented
+     - :ref:`Slow Query Log Rotation and Expiration <ps55:slowlog_rotation>`
+     - :ref:`Slow Query Log Rotation and Expiration <ps56:slowlog_rotation>`
+   * - Feature not implemented
+     - :ref:`Metrics for scalability measurement <ps55:scalability_metrics_plugin>`
+     - :ref:`Metrics for scalability measurement <ps56:scalability_metrics_plugin>`
+   * - Feature not implemented
+     - :ref:`Audit Log <ps55:audit_log_plugin>`
+     - :ref:`Audit Log <ps56:audit_log_plugin>`
+   * - Feature not implemented
+     - Feature not implemented
+     - :ref:`Backup Locks <ps56:backup_locks>`
    
 
 Other Reading

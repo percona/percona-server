@@ -66,4 +66,6 @@ Bugs Fixed
 
  Performance schema autosizing heuristics have been updated to account for Percona Server-specific ``wait/synch/mutex/sql/THD::LOCK_temporary_tables`` mutex. Bug fixed :bug:`1264952`.
 
+ Database administrator password could be seen in plain text if when ``debconf-get-selections`` was executed. Bug fixed :bug:`1018291`.
+
 Other bugs fixed: :bug:`1276445`, :bug:`1005787`, :bug:`1285064`, :bug:`1229598`, and :bug:`1277505` (upstream :mysqlbug:`71624`).

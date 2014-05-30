@@ -8,12 +8,10 @@ diagnostics.
 
 Submitting Changes
 ==================
-This process is very much modeled on what is being used by
-`Drizzle <http://www.drizzle.org>`_. The Drizzle project went through
-several iterations and refinements before settling on this process. It
-has been found to both keep trunk in a constant state of stability
-(allowing for a release at any time) and minimizing wasted time by
-developers due to broken code from somebody else interfering with their day.
+
+We keep trunk in a constant state of stability to allow for a release at 
+any time and to minimize wasted time by developers due to broken code 
+from somebody else interfering with their day.
 
 You should also be familiar with our |Jenkins| setup.
 

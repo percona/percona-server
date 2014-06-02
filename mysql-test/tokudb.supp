@@ -1,0 +1,6 @@
+{
+        tls_variables
+        Memcheck:Leak
+        fun:memalign
+        fun:__tls_get_addr
+}

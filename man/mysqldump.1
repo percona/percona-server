@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/14/2014
+.\"      Date: 05/11/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "03/14/2014" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "05/11/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -75,8 +75,7 @@ MyISAM
 tables, you can also use
 \fBmysqlhotcopy\fR
 for this purpose\&.
-        Performance and Scalability Considerations
-.PP
+Performance and Scalability Considerations.PP
 mysqldump
 advantages include the convenience and flexibility of viewing or even editing the output before restoring\&. You can clone databases for development and DBA work, or produce slight variations of an existing database for testing\&. It is not intended as a fast or scalable solution for backing up substantial amounts of data\&. With large data sizes, even if the backup step takes a reasonable time, restoring the data can be very slow because replaying the SQL statements involves disk I/O for insertion, index creation, and so on\&.
 .PP
@@ -150,8 +149,7 @@ option\&.
 For additional information about
 \fBmysqldump\fR, see
 Section\ \&7.4, \(lqUsing mysqldump for Backups\(rq\&.
-        Syntax
-.PP
+Syntax.PP
 There are in general three ways to use
 \fBmysqldump\fR\(emin order to dump a set of one or more tables, a set of one or more complete databases, or an entire MySQL server\(emas shown here:
 .sp
@@ -345,10 +343,8 @@ supports the following options, which can be specified on the command line or in
 [mysqldump]
 and
 [client]
-groups of an option file\&.
-\fBmysqldump\fR
-also supports the options for processing option files described at
-Section\ \&4.2.3.4, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
+groups of an option file\&. For information about option files, see
+Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -810,6 +806,70 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&. If no character set is s
 uses
 utf8, and earlier versions use
 latin1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: defaults-extra-file option
+.\" defaults-extra-file option: mysqldump
+\fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. Before MySQL 5\&.5\&.8,
+\fIfile_name\fR
+must be the full path name to the file\&. As of MySQL 5\&.5\&.8, the name is interpreted relative to the current directory if given as a relative path name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: defaults-file option
+.\" defaults-file option: mysqldump
+\fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. Before MySQL 5\&.5\&.8,
+\fIfile_name\fR
+must be the full path name to the file\&. As of MySQL 5\&.5\&.8, the name is interpreted relative to the current directory if given as a relative path name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: defaults-group-suffix option
+.\" defaults-group-suffix option: mysqldump
+\fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
+.sp
+Read not only the usual option groups, but also groups with the usual names and a suffix of
+\fIstr\fR\&. For example,
+\fBmysqldump\fR
+normally reads the
+[client]
+and
+[mysqldump]
+groups\&. If the
+\fB\-\-defaults\-group\-suffix=_other\fR
+option is given,
+\fBmysqldump\fR
+also reads the
+[client_other]
+and
+[mysqldump_other]
+groups\&.
 .RE
 .sp
 .RS 4
@@ -1597,6 +1657,23 @@ statement for the table (for example, to create an empty copy of the table by lo
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqldump: no-defaults option
+.\" no-defaults option: mysqldump
+\fB\-\-no\-defaults\fR
+.sp
+Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
+\fB\-\-no\-defaults\fR
+can be used to prevent them from being read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqldump: no-set-names option
 .\" no-set-names option: mysqldump
 \fB\-\-no\-set\-names\fR,
@@ -1754,6 +1831,21 @@ This option was added in MySQL 5\&.5\&.9\&.
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
 The TCP/IP port number to use for the connection\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: print-defaults option
+.\" print-defaults option: mysqldump
+\fB\-\-print\-defaults\fR
+.sp
+Print the program name and all options that it gets from option files\&.
 .RE
 .sp
 .RS 4

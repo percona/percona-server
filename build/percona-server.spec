@@ -106,8 +106,8 @@
 
 %define server_suffix  -rel%{majorversion}.%{minorversion}
 %define package_suffix -51
-%define ndbug_comment Percona Server (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
-%define debug_comment Percona Server - Debug (GPL), %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define ndbug_comment Percona Server (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
+%define debug_comment Percona Server - Debug (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
 %define NORMAL_TEST_MODE test-bt
 %define DEBUG_TEST_MODE test-bt-debug
 
@@ -337,7 +337,6 @@ cd -
 
 BuildServer() {
 BuildMySQL "--enable-shared \
-        --with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
 		--without-bench \
 		--with-zlib-dir=bundled \
@@ -691,12 +690,12 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 	sleep 2
 fi
 
-echo "Percona Server is distributed with several useful UDF (User Defined Function) from Maatkit."
+echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'\""
 echo "mysql -e \"CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'\""
-echo "See http://code.google.com/p/maatkit/source/browse/trunk/udf for more details"
+echo "See http://www.percona.com/doc/percona-server/5.1/management/udf_percona_toolkit.html for more details"
 
 # Allow mysqld_safe to start mysqld and print a message before we exit
 sleep 2

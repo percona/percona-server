@@ -17,7 +17,9 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 WITH_SSL='/usr'
 TAG=''
-
+#
+COMMON_FLAGS=''
+#
 # Some programs that may be overriden
 TAR=${TAR:-tar}
 
@@ -110,16 +112,23 @@ PRODUCT="Percona-Server-$MYSQL_VERSION"
 REVISION="$(cd "$SOURCEDIR"; bzr revno)"
 PRODUCT_FULL="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
 PRODUCT_FULL="$PRODUCT_FULL-$REVISION$TAG.$(uname -s).$TARGET"
-COMMENT="Percona Server with XtraDB (GPL), Release $PERCONA_SERVER_VERSION"
+COMMENT="Percona Server (GPL), Release ${PERCONA_SERVER_VERSION#rel}"
 COMMENT="$COMMENT, Revision $REVISION"
 
 # Compilation flags
 export CC=${CC:-gcc}
-export CXX=${CXX:-gcc}
-export CFLAGS="-fPIC -Wall -O3 -g -static-libgcc -fno-omit-frame-pointer -DPERCONA_INNODB_VERSION=$PERCONA_INNODB_VERSION $TARGET_CFLAGS ${CFLAGS:-}"
-export CXXFLAGS="-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fno-exceptions -DPERCONA_INNODB_VERSION=$PERCONA_INNODB_VERSION $TARGET_CFLAGS ${CXXFLAGS:-}"
-export MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"
+export CXX=${CXX:-g++}
 
+#
+if [ -n "$(which rpm)" ]; then
+  export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
+fi
+#
+export CFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+export CXXFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+#
+export MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"
+#
 # Create a temporary working directory
 INSTALLDIR="$(cd "$WORKDIR" && TMPDIR="$WORKDIR_ABS" mktemp -d percona-build.XXXXXX)"
 INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
@@ -135,7 +144,6 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     ./configure \
         --prefix="/usr/local/$PRODUCT_FULL" \
         --localstatedir="/usr/local/$PRODUCT_FULL/data" \
-        --with-server-suffix="$PERCONA_SERVER_VERSION" \
         --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
         --without-embedded-server \
         --with-comment="$COMMENT" \

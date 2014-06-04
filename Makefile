@@ -6,7 +6,7 @@ PERCONA_SERVER_SHORT_2 ?=Percona-Server
 KEWPIE ?=kewpie
 BASEDIR = $(CURDIR)
 
-all:  main install-lic handlersocket maatkit-udf autorun
+all:  main install-lic handlersocket pt-udf autorun
 	@echo ""
 	@echo "Percona Server source code is ready"
 	@echo "Now change directory to $(PERCONA_SERVER) define variables as show below"
@@ -25,7 +25,7 @@ handlersocket:
 	cp -R HandlerSocket-Plugin-for-MySQL $(PERCONA_SERVER)/storage
 	patch -p1 -d $(PERCONA_SERVER)/storage < handlersocket.patch
 
-maatkit-udf:
+pt-udf:
 	cp -R UDF "$(PERCONA_SERVER)"
 	cd "$(PERCONA_SERVER)"/UDF && autoreconf --install
 

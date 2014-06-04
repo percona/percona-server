@@ -42,7 +42,7 @@ INFORMATION_SCHEMA Tables
    :column INFO: The statement that the thread is executing, or NULL if it is not executing any statement.
    :column TIME_MS: The time in milliseconds that the thread has been in its current state.
    :column ROWS_EXAMINED: The number of rows examined by the statement being executed.
-   :column ROWS_SENT:	The number of rows sent by the statement being executed.
+   :column ROWS_SENT: The number of rows sent by the statement being executed.
    :column ROWS_READ: The number of rows read by the statement being executed.
 
 
@@ -69,4 +69,4 @@ Table :table:`PROCESSLIST`: ::
   |    2 | root      | localhost | test   | Query   |    0 | executing  | SELECT * from INFORMATION_SCHEMA.PROCESSLIST |        0 |             0 |         0 |         1 |
   +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
 
- 
+

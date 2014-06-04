@@ -20,14 +20,14 @@ check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
 [slave_lock]
 SHOW SLAVE STATUS;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
-SIGNAL after SHOW SLAVE STATUS is 'signal.after_show_slave_status'
+SIGNAL after SHOW SLAVE STATUS is 
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.empty';
 [slave_nolock]
 SHOW SLAVE STATUS NOLOCK;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
 # should be 'signal.after_show_slave_status'
-SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
+SIGNAL after SHOW SLAVE STATUS NOLOCK is .empty'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]
@@ -45,14 +45,14 @@ check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version s
 [slave_lock]
 SHOW SLAVE STATUS;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
-SIGNAL after SHOW SLAVE STATUS is 'signal.empty'
+SIGNAL after SHOW SLAVE STATUS is .empty'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.empty';
 [slave_nolock]
 SHOW SLAVE STATUS NOLOCK;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
 # should be 'signal.after_show_slave_status'
-SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
+SIGNAL after SHOW SLAVE STATUS NOLOCK is .empty'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]

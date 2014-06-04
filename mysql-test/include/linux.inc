@@ -1,5 +1,5 @@
-if (`select convert(@@version_compile_os using latin1) LIKE 'Linux' = 0`)
+if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
 {
-  skip Need Linux;
+  skip Needs Linux;
 }
 

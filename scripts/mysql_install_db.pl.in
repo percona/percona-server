@@ -873,13 +873,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     }
     report($opt,
            "Please report any problems at",
-           "  https://bugs.launchpad.net/percona-server/+filebug",
+           " https://bugs.launchpad.net/percona-server/+filebug",
            "",
            "The latest information about Percona Server is available on the web at",
            "  http://www.percona.com/software/percona-server",
            "",
            "Support Percona by buying support at",
-           "  http://www.percona.com/products/mysql-support");
+           " http://www.percona.com/products/mysql-support");
 
 # Next block is commented because of bug1225189
 #     if ($copy_cfg_file eq $config_file and !$failed_write_cfg)

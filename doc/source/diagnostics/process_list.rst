@@ -22,9 +22,6 @@ INFORMATION_SCHEMA Tables
    :column STATE: An action, event, or state that indicates what the thread is doing.
    :column INFO: The statement that the thread is executing, or NULL if it is not executing any statement.
    :column TIME_MS: The time in milliseconds that the thread has been in its current state.
-   :column ROWS_EXAMINED: The number of rows examined by the statement being executed.
-   :column ROWS_SENT:	The number of rows sent by the statement being executed.
-   :column ROWS_READ: The number of rows read by the statement being executed.
 
 
 Example Output
@@ -33,21 +30,21 @@ Example Output
 ``SHOW PROCESSLIST`` Command: ::
 
   mysql> show processlist;
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+-----------+---------------+-----------+
-  | Id   | User      | Host      | db     | Command | Time | State      | Info                                         | ROWS_SENT | ROWS_EXAMINED | ROWS_READ |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+-----------+---------------+-----------+
-  |    2 | root      | localhost | test   | Query   |    0 | NULL       | SHOW PROCESSLIST                             |         0 |             0 |         1 |
-  |   14 | root      | localhost | test   | Query   |    0 | User lock  | SELECT GET_LOCK(``t``,1000)                    |         0 |             0 |         1 |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+-----------+---------------+-----------+
+  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+
+  | Id   | User      | Host      | db     | Command | Time | State      | Info                                         |
+  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+
+  |    2 | root      | localhost | test   | Query   |    0 | NULL       | SHOW PROCESSLIST                             |
+  |   14 | root      | localhost | test   | Query   |    0 | User lock  | SELECT GET_LOCK(``t``,1000)                  | 
+  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+
 
 Table :table:`PROCESSLIST`: ::
 
   mysql> select * from information_schema.PROCESSLIST;
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
-  | ID   | USER      | HOST      | DB     | COMMAND | TIME | STATE      | INFO                                         | TIME_MS  | ROWS_EXAMINED | ROWS_SENT | ROWS_READ |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
-  |   14 | root      | localhost | test   | Query   |    0 | User lock  | SELECT GET_LOCK(``t``,1000)                    |        1 |             0 |         0   |         1 |
-  |    2 | root      | localhost | test   | Query   |    0 | executing  | SELECT * from INFORMATION_SCHEMA.PROCESSLIST |        0 |             0 |         0 |         1 |
-  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+----------+---------------+-----------+-----------+
+  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+
+  | ID   | USER      | HOST      | DB     | COMMAND | TIME | STATE      | INFO                                         |
+  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+
+  |   14 | root      | localhost | test   | Query   |    0 | User lock  | SELECT GET_LOCK(``t``,1000)                  |
+  |    2 | root      | localhost | test   | Query   |    0 | executing  | SELECT * from INFORMATION_SCHEMA.PROCESSLIST |
+  +------+-----------+-----------+--------+---------+------+------------+----------------------------------------------+
 
  

@@ -7,7 +7,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69407` - Build warnings with mysql                                                 |
 |:Launchpad bug: :bug:`1244154`                                                                               |
-|:Upstream state: Duplicate (checked on 2014-02-05)                                                           |
+|:Upstream state: Duplicate                                                                                   |
 |:Fix Released: :rn:`5.1.73-14.11`                                                                            |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -25,13 +25,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69379` - MySQL clients return bogus errno for host-not-found errors on Ubuntu 13.04|
 |:Launchpad bug: :bug:`1186690`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.69-14.7`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68116` - InnoDB monitor may hit an assertion error in buf_page_get_gen in debug ...|
 |:Launchpad bug: :bug:`1100178`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.67-14.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -45,6 +45,12 @@
 |:Launchpad bug: :bug:`1083377`                                                                               |
 |:Upstream state: N/A                                                                                         |
 |:Fix Released: :rn:`5.1.67-14.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`71603` - file name is not escaped in binlog for LOAD DATA INFILE statement         |
+|:Launchpad bug: :bug:`1277351`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.1.66-14.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`66237` - Temporary files created by binary log cache are not purged after transa...|
@@ -79,13 +85,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61180` - korr/store macros in my_global.h assume the argument to be a char ...     |
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.66-14.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -139,7 +145,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64127` - MTR --warnings option misses some of InnoDB errors and warnings           |
 |:Launchpad bug: :bug:`937859`                                                                                |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.62-13.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -163,7 +169,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62516` - Fast index creation does not update index statistics                      |
 |:Launchpad bug: :bug:`857590`                                                                                |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.59-13.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -187,7 +193,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71183` - os_file_fsync() should handle fsync() returning EINTR                     |
 |:Launchpad bug: :bug:`1262651`                                                                               |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.56-12.7`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -229,7 +235,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`55032` - Query cache sometime insert queries to cache, but doesn't find ...        |
 |:Launchpad bug: none                                                                                         |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`5.1.47-rel11.2`                                                                          |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -277,7 +283,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`44140` - Insert buffer operation may destroy the page during its recovery process  |
 |:Launchpad bug: none                                                                                         |
-|:Upstream state: Open (checked on 2014-02-05)                                                                |
+|:Upstream state: Won't fix                                                                                   |
 |:Fix Released: :rn:`1.0.3-7`                                                                                 |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -289,7 +295,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
 |:Launchpad bug: none                                                                                         |
-|:Upstream state: Verified (checked on 2014-02-05)                                                            |
+|:Upstream state: Verified (checked on 2014-06-04)                                                            |
 |:Fix Released: :rn:`1.0.3-7`                                                                                 |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

@@ -91,6 +91,7 @@ For example, to log only queries that perform a full table scan, set the value t
      :conf: Yes
      :scope: Global, session
      :dyn: Yes
+     :range: 1-ULONG_MAX (either 4294967295 or 18446744073709551615, depending on the platform)
 
 Specifies that only a fraction of sessions should be logged. Logging is enabled for every nth session. By default, n is 1, so logging is enabled for every session. Rate limiting is disabled for the replication thread.
 

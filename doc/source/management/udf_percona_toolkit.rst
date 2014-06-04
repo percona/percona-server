@@ -29,9 +29,9 @@ Installation
 
 These UDFs are part of the |Percona Server| packages. To install one of the UDFs into the server, execute one of the following commands, depending on which UDF you want to install: ::
 
-  $ mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME ``libfnv1a_udf.so``" 
-  $ mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME ``libfnv_udf.so``" 
-  $ mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME ``libmurmur_udf.so``"
+  mysql -e "CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'" 
+  mysql -e "CREATE FUNCTION fnv_64 RETURNS INTEGER SONAME 'libfnv_udf.so'" 
+  mysql -e "CREATE FUNCTION murmur_hash RETURNS INTEGER SONAME 'libmurmur_udf.so'"
 
 Executing each of these commands will install its respective UDF into the server.
 

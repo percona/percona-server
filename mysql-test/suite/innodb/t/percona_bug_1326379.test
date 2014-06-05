@@ -1,0 +1,10 @@
+mkdir $MYSQLTEST_VARDIR/tmpdatadir;
+
+--write_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql
+EOF
+
+--echo Running mysqld --bootstrap --innodb-log-archive=1 --innodb-log-block-size=4096 --innodb-log-file-size=1048576 --innodb-track-changed-pages=1
+--exec $MYSQLD_BOOTSTRAP_CMD --innodb-data-home-dir=$MYSQLTEST_VARDIR/tmpdatadir --innodb-log-group-home-dir=$MYSQLTEST_VARDIR/tmpdatadir --innodb-log-archive=1 --innodb-log-block-size=4096 --innodb-log-file-size=1048576 --innodb-track-changed-pages=1 < $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql > $MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1
+remove_file $MYSQLTEST_VARDIR/tmp/bootstrap_test.sql;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmpdatadir;
+rmdir $MYSQLTEST_VARDIR/tmpdatadir;

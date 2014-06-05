@@ -1,0 +1,1 @@
+Running mysqld --bootstrap --innodb-log-archive=1 --innodb-log-block-size=4096 --innodb-log-file-size=1048576 --innodb-track-changed-pages=1

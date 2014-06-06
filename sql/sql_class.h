@@ -1672,8 +1672,6 @@ public:
   */
   enum enum_server_command command;
   uint32     server_id;
-  // Used to save the command, before it is set to COM_SLEEP.
-  enum enum_server_command old_command;
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;

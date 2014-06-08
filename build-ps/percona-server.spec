@@ -1141,6 +1141,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Thu May 29 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- UDF and HandlerSocket moved to plugin
+- Fixed version reported in mysql client
+
 * Fri Apr 25 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Added Audit Log and Scalability Metrics plugin binaries

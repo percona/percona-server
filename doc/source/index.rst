@@ -70,6 +70,7 @@ Performance Improvements
    performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
+   performance/handlersocket
    performance/buff_read_ahead_area
    performance/threadpool
    performance/page_cleaner_tuning
@@ -125,6 +126,7 @@ Management Improvements
    management/statement_timeout
    management/backup_locks
    management/audit_log_plugin
+   management/start_transaction_with_consistent_snapshot
 
 Diagnostics Improvements
 ========================

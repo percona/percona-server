@@ -46,6 +46,7 @@ public:
   }
 
   virtual int  is_killed() { return 0; }
+  virtual bool is_connected() { return true; }
   virtual bool is_timedout() const { return false; }
   virtual THD* get_thd()   { return NULL; }
 

@@ -109,7 +109,6 @@ update performance_schema.setup_instruments set enabled='NO', timed='NO';
 
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                 'wait/synch/mutex/sql/LOCK_user_locks',
                  'wait/synch/rwlock/sql/LOCK_grant',
                  'wait/io/file/sql/query_log',
                  'idle');
@@ -179,7 +178,6 @@ begin
     select username, event_name, count_star
       from performance_schema.events_waits_summary_by_thread_by_event_name
       where event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                           'wait/synch/mutex/sql/LOCK_user_locks',
                            'wait/synch/rwlock/sql/LOCK_grant',
                            'wait/io/file/sql/query_log')
       and thread_id = my_thread_id
@@ -197,7 +195,6 @@ prepare dump_waits_account from
   from performance_schema.events_waits_summary_by_account_by_event_name
   where user like \'user%\'
   and event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                     'wait/synch/mutex/sql/LOCK_user_locks',
                      'wait/synch/rwlock/sql/LOCK_grant',
                      'wait/io/file/sql/query_log')
   order by user, host, event_name;";
@@ -207,7 +204,6 @@ prepare dump_waits_user from
   from performance_schema.events_waits_summary_by_user_by_event_name
   where user like \'user%\'
   and event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                     'wait/synch/mutex/sql/LOCK_user_locks',
                      'wait/synch/rwlock/sql/LOCK_grant',
                      'wait/io/file/sql/query_log')
   order by user, event_name;";
@@ -217,7 +213,6 @@ prepare dump_waits_host from
   from performance_schema.events_waits_summary_by_host_by_event_name
   where host=\'localhost\'
   and event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                     'wait/synch/mutex/sql/LOCK_user_locks',
                      'wait/synch/rwlock/sql/LOCK_grant',
                      'wait/io/file/sql/query_log')
   order by host, event_name;";
@@ -226,7 +221,6 @@ prepare dump_waits_global from
   "select event_name, count_star
   from performance_schema.events_waits_summary_global_by_event_name
   where event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                       'wait/synch/mutex/sql/LOCK_user_locks',
                        'wait/synch/rwlock/sql/LOCK_grant',
                        'wait/io/file/sql/query_log')
   order by event_name;";
@@ -235,7 +229,6 @@ prepare dump_waits_history from
   "select event_name, count(event_name)
   from performance_schema.events_waits_history_long
   where event_name in ('wait/synch/mutex/sql/LOCK_connection_count',
-                       'wait/synch/mutex/sql/LOCK_user_locks',
                        'wait/synch/rwlock/sql/LOCK_grant',
                        'wait/io/file/sql/query_log')
   group by event_name order by event_name;";

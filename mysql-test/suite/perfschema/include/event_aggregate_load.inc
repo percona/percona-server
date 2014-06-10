@@ -33,8 +33,6 @@ execute dump_hosts;
 # The main thread does not count for BY_ACCOUNT / BY_HOST.
 # The user thread does count for BY_ACCOUNT, BY_HOST
 #
-# Each get_lock() causes 1 wait/synch/mutex/sql/LOCK_user_locks
-#
 # To avoid noise from main, the background threads are disabled.
 
 connect (con1, localhost, user1, , );

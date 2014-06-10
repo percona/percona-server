@@ -237,6 +237,7 @@ our $opt_client_ddd;
 my $opt_boot_ddd;
 our $opt_manual_gdb;
 our $opt_manual_dbx;
+our $opt_manual_lldb;
 our $opt_manual_ddd;
 our $opt_manual_debug;
 our $opt_debugger;
@@ -1095,6 +1096,7 @@ sub command_line_setup {
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
+             'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
              'ddd'                      => \$opt_ddd,
@@ -1553,7 +1555,8 @@ sub command_line_setup {
     }
 
     if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_ddd ||
-	 $opt_manual_debug || $opt_debugger || $opt_dbx || $opt_manual_dbx)
+	 $opt_manual_debug || $opt_debugger || $opt_dbx || $opt_manual_dbx ||
+         $opt_manual_lldb)
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1582,7 +1585,7 @@ sub command_line_setup {
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd ||
        $opt_manual_gdb || $opt_manual_ddd || $opt_manual_debug ||
        $opt_dbx || $opt_client_dbx || $opt_manual_dbx ||
-       $opt_debugger || $opt_client_debugger )
+       $opt_manual_lldb || $opt_debugger || $opt_client_debugger )
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
@@ -5271,6 +5274,10 @@ sub mysqld_start ($$) {
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
   }
+  elsif ( $opt_manual_lldb )
+  {
+    lldb_arguments(\$args, \$exe, $mysqld->name());
+  }
   elsif ( $opt_ddd || $opt_manual_ddd )
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
@@ -6085,6 +6092,34 @@ sub gdb_arguments {
 
 
 #
+# Modify the exe and args so that program is run in lldb
+#
+sub lldb_arguments {
+  my $args= shift;
+  my $exe= shift;
+  my $type= shift;
+  my $input= shift;
+
+  my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
+  unlink($lldb_init_file);
+
+  my $str= join(" ", @$$args);
+  my $runline= $input ? "r $str < $input" : "r $str";
+
+  # write init file for mysqld or client
+  mtr_tofile($lldb_init_file,
+	     "b main\n" .
+	     $runline);
+
+  print "\nTo start lldb for $type, type in another window:\n";
+  print "(cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe)\n";
+
+  # Indicate the exe should not be started
+  $$exe= undef;
+  return;
+}
+
+#
 # Modify the exe and args so that program is run in ddd
 #
 sub ddd_arguments {
@@ -6563,6 +6598,8 @@ Options for debugging the product
   manual-debug          Let user manually start mysqld in debugger, before
                         running test(s)
   manual-gdb            Let user manually start mysqld in gdb, before running
+                        test(s)
+  manual-lldb           Let user manually start mysqld in lldb, before running
                         test(s)
   manual-ddd            Let user manually start mysqld in ddd, before running
                         test(s)

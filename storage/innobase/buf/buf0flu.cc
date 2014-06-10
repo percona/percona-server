@@ -1659,7 +1659,7 @@ buf_do_LRU_batch(
 {
 	if (buf_LRU_evict_from_unzip_LRU(buf_pool)) {
 		n->unzip_LRU_evicted
-			+= buf_free_from_unzip_LRU_list_batch(buf_pool, max);
+			= buf_free_from_unzip_LRU_list_batch(buf_pool, max);
 	} else {
 		n->unzip_LRU_evicted = 0;
 	}
@@ -1958,6 +1958,7 @@ buf_flush_LRU(
 	if (!buf_flush_start(buf_pool, BUF_FLUSH_LRU)) {
 		n->flushed = 0;
 		n->evicted = 0;
+		n->unzip_LRU_evicted = 0;
 		return(false);
 	}
 

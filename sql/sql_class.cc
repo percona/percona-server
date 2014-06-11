@@ -1537,9 +1537,9 @@ void THD::update_stats(bool ran_command)
   if (ran_command)
   {
     // The replication thread has the COM_CONNECT command.
-    if ((old_command == COM_QUERY || get_command() == COM_CONNECT) &&
-        (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END))
-    {
+    DBUG_ASSERT(get_command() != COM_SLEEP);
+    if ((get_command() == COM_QUERY || get_command() == COM_CONNECT) &&
+        (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END)) {
       // A SQL query.
       if (lex->sql_command == SQLCOM_SELECT)
       {

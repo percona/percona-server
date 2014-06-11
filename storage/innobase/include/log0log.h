@@ -475,6 +475,16 @@ void
 log_mem_free(void);
 /*==============*/
 
+/****************************************************************//**
+Safely reads the log_sys->tracked_lsn value.  The writer counterpart function
+is log_set_tracked_lsn() in log0online.c.
+
+@return log_sys->tracked_lsn value. */
+UNIV_INLINE
+lsn_t
+log_get_tracked_lsn(void);
+/*=====================*/
+
 /** Redo log system */
 extern log_t*	log_sys;
 

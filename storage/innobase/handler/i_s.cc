@@ -24,12 +24,16 @@ Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
 #include <item.h>
+#include <item_func.h>
+#include <item_sum.h>
+#include <item_cmpfunc.h>
 
 #include "ha_prototypes.h"
 #include <field.h>
 #include <sql_acl.h>
 #include <sql_show.h>
 #include <sql_time.h>
+#include <debug_sync.h>
 
 #include "i_s.h"
 #include "btr0pcur.h"
@@ -8997,6 +9001,115 @@ limit_lsn_range_from_condition(
 	ib_uint64_t*	start_lsn,	/*!<in/out: minumum LSN */
 	ib_uint64_t*	end_lsn)	/*!<in/out: maximum LSN */
 {
+	enum Item_func::Functype	func_type;
+
+	if (cond->type() != Item::COND_ITEM &&
+	    cond->type() != Item::FUNC_ITEM)
+		return;
+
+	func_type = ((Item_func*) cond)->functype();
+
+	switch (func_type)
+	{
+	case Item_func::COND_AND_FUNC:
+	{
+		List_iterator<Item>	li(*((Item_cond*) cond)
+					   ->argument_list());
+		Item			*item;
+
+		while ((item= li++)) {
+			limit_lsn_range_from_condition(table, item, start_lsn,
+						       end_lsn);
+		}
+		break;
+	}
+	case Item_func::LT_FUNC:
+	case Item_func::LE_FUNC:
+	case Item_func::GT_FUNC:
+	case Item_func::GE_FUNC:
+	{
+		Item		*left;
+		Item		*right;
+		Item_field	*item_field;
+		ib_uint64_t	tmp_result;
+		bool		is_end_lsn;
+
+		/* a <= b equals to b >= a that's why we just exchange "left"
+		and "right" in the case of ">" or ">=" function.  We don't
+		touch the operation itself.  */
+		if (((Item_func*) cond)->functype() == Item_func::LT_FUNC
+		    || ((Item_func*) cond)->functype() == Item_func::LE_FUNC) {
+			left = ((Item_func*) cond)->arguments()[0];
+			right = ((Item_func*) cond)->arguments()[1];
+		} else {
+			left = ((Item_func*) cond)->arguments()[1];
+			right = ((Item_func*) cond)->arguments()[0];
+		}
+
+		if (left->type() == Item::FIELD_ITEM) {
+			item_field = (Item_field *)left;
+		} else if (right->type() == Item::FIELD_ITEM) {
+			item_field = (Item_field *)right;
+		} else {
+			return;
+		}
+
+		/* Check if the current field belongs to our table */
+		if (table != item_field->field->table) {
+			return;
+		}
+
+		/* Check if the field is START_LSN or END_LSN */
+		/* END_LSN */
+		is_end_lsn = table->field[3]->eq(item_field->field);
+
+		if (/* START_LSN */ !table->field[2]->eq(item_field->field)
+		    && !is_end_lsn) {
+			return;
+		}
+
+		if (left->type() == Item::FIELD_ITEM
+		    && right->type() == Item::INT_ITEM) {
+
+			/* The case of start_lsn|end_lsn <|<= const, i.e. the
+			upper bound.  */
+
+			tmp_result = right->val_int();
+			if (((func_type == Item_func::LE_FUNC)
+			     || (func_type == Item_func::GE_FUNC))
+			    && (tmp_result != IB_UINT64_MAX)) {
+
+				tmp_result++;
+			}
+			if (tmp_result < *end_lsn) {
+				*end_lsn = tmp_result;
+			}
+
+		} else if (left->type() == Item::INT_ITEM
+			   && right->type() == Item::FIELD_ITEM) {
+
+			/* The case of const <|<= start_lsn|end_lsn, i.e. the
+			lower bound */
+
+			tmp_result = left->val_int();
+			if (is_end_lsn && tmp_result != 0) {
+				tmp_result--;
+			}
+			if (((func_type == Item_func::LT_FUNC)
+			     || (func_type == Item_func::GT_FUNC))
+			    && (tmp_result != IB_UINT64_MAX)) {
+
+				tmp_result++;
+			}
+			if (tmp_result > *start_lsn) {
+				*start_lsn = tmp_result;
+			}
+		}
+
+		break;
+	}
+	default:;
+	}
 }
 
 /***********************************************************************
@@ -9011,6 +9124,11 @@ i_s_innodb_changed_pages_fill(
 	Item*		cond)	/*!<in: condition */
 {
 	TABLE*			table = (TABLE *) tables->table;
+	log_bitmap_iterator_t	i;
+	ib_uint64_t		output_rows_num = 0UL;
+	lsn_t			max_lsn = LSN_MAX;
+	lsn_t			min_lsn = 0ULL;
+	int			ret = 0;
 
 	DBUG_ENTER("i_s_innodb_changed_pages_fill");
 
@@ -9020,9 +9138,79 @@ i_s_innodb_changed_pages_fill(
 		DBUG_RETURN(0);
 	}
 
-	(void) table;
-	(void) cond;
-	DBUG_RETURN(0);
+	if (cond) {
+		limit_lsn_range_from_condition(table, cond, &min_lsn,
+					       &max_lsn);
+	}
+	
+	/* If the log tracker is running and our max_lsn > current tracked LSN,
+	cap the max lsn so that we don't try to read any partial runs as the
+	tracked LSN advances. */
+	if (srv_track_changed_pages) {
+		ib_uint64_t		tracked_lsn = log_get_tracked_lsn();
+		if (max_lsn > tracked_lsn)
+			max_lsn = tracked_lsn;
+	}
+
+	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		DBUG_RETURN(1);
+	}
+
+	DEBUG_SYNC(thd, "i_s_innodb_changed_pages_range_ready");
+
+	while(log_online_bitmap_iterator_next(&i) &&
+	      (!srv_max_changed_pages ||
+	       output_rows_num < srv_max_changed_pages))
+	{
+		if (!LOG_BITMAP_ITERATOR_PAGE_CHANGED(i))
+			continue;
+
+		/* SPACE_ID */
+		table->field[0]->store(
+				       LOG_BITMAP_ITERATOR_SPACE_ID(i));
+		/* PAGE_ID */
+		table->field[1]->store(
+				       LOG_BITMAP_ITERATOR_PAGE_NUM(i));
+		/* START_LSN */
+		table->field[2]->store(
+				       LOG_BITMAP_ITERATOR_START_LSN(i), true);
+		/* END_LSN */
+		table->field[3]->store(
+				       LOG_BITMAP_ITERATOR_END_LSN(i), true);
+
+		/*
+		  I_S tables are in-memory tables. If bitmap file is big enough
+		  a lot of memory can be used to store the table. But the size
+		  of used memory can be diminished if we store only data which
+		  corresponds to some conditions (in WHERE sql clause). Here
+		  conditions are checked for the field values stored above.
+
+		  Conditions are checked twice. The first is here (during table
+		  generation) and the second during query execution. Maybe it
+		  makes sense to use some flag in THD object to avoid double
+		  checking.
+		*/
+		if (cond && !cond->val_int())
+			continue;
+
+		if (schema_table_store_record(thd, table))
+		{
+			log_online_bitmap_iterator_release(&i);
+			my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+			DBUG_RETURN(1);
+		}
+
+		++output_rows_num;
+	}
+
+	if (i.failed) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		ret = 1;
+	}
+
+	log_online_bitmap_iterator_release(&i);
+	DBUG_RETURN(ret);
 }
 
 static

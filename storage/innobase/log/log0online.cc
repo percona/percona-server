@@ -1606,6 +1606,8 @@ log_online_bitmap_iterator_init(
 {
 	ut_a(i);
 
+	i->max_lsn = max_lsn;
+
 	if (UNIV_UNLIKELY(min_lsn > max_lsn)) {
 
 		/* Empty range */
@@ -1715,6 +1717,9 @@ log_online_bitmap_iterator_next(
 				   i->bit_offset);
 		return true;
 	}
+
+	if (i->end_lsn >= i->max_lsn && i->last_page_in_run)
+		return false;
 
 	while (!checksum_ok)
 	{

@@ -1549,6 +1549,11 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   */
   if (!leader)
   {
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_thread *psi_thread;
+    psi_thread= PSI_THREAD_CALL(get_thread)();
+    PSI_THREAD_CALL(set_thread)(NULL);
+#endif
     mysql_mutex_lock(&m_lock_done);
 #ifndef DBUG_OFF
     /*
@@ -1564,6 +1569,9 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
       mysql_cond_wait(&m_cond_done, &m_lock_done);
     }
     mysql_mutex_unlock(&m_lock_done);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread)(psi_thread);
+#endif
   }
   return leader;
 }

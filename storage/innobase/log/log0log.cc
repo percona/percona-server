@@ -188,23 +188,6 @@ log_buf_pool_get_oldest_modification(void)
 	return(lsn);
 }
 
-/*********************************************************//**
-Returns the log_sys->tracked_lsn value (the last LSN up to which the
-changed page bitmap thread has tracked the redo log).
-@return log_sys->tracked_lsn value. */
-UNIV_INLINE
-lsn_t
-log_get_tracked_lsn(void)
-/*=====================*/
-{
-#ifdef HAVE_ATOMIC_BUILTINS_64
-	return os_atomic_increment_uint64(&log_sys->tracked_lsn, 0);
-#else
-	ut_ad(mutex_own(&(log_sys->mutex)));
-	return log_sys->tracked_lsn;
-#endif
-}
-
 /****************************************************************//**
 Checks if the log groups have a big enough margin of free space in
 so that a new log entry can be written without overwriting log data

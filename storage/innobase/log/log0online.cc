@@ -1196,6 +1196,9 @@ log_online_write_bitmap(void)
 
 		bmp_tree_node = (ib_rbt_node_t*)
 			rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
+
+		DBUG_EXECUTE_IF("bitmap_page_2_write_error",
+				DBUG_SET("+d,bitmap_page_write_error"););
 	}
 
 	rbt_reset(log_bmp_sys->modified_pages);

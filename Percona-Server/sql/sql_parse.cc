@@ -1013,9 +1013,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_PRINT("info",("packet: '%*.s'; command: %d", packet_length, packet, command));
 
   thd->command=command;
-  // To increment the corrent command counter for user stats, 'command' must
-  // be saved because it is set to COM_SLEEP at the end of this function.
-  thd->old_command = command;
   /*
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.

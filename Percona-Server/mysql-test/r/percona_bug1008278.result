@@ -1,0 +1,8 @@
+include/master-slave.inc
+[connection master]
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT,data CHAR(30));
+INSERT INTO t VALUES
+(1,"aaaaabbbbbcccccdddddeeeeefffff");
+DROP TABLE t;
+include/rpl_end.inc

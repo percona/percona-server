@@ -6,10 +6,10 @@ INSERT INTO t2 VALUES(10);
 INSERT INTO t2 VALUES(20);
 INSERT INTO t2 VALUES(10);
 INSERT INTO t2 VALUES(20);
-SET DEBUG_SYNC= 'locked_table_name SIGNAL thread1_ready WAIT_FOR threads_dumped';
+SET DEBUG_SYNC= 'locked_table_name SIGNAL thread1_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
 CREATE TABLE t1 (a INT);
 SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
-SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
 SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
@@ -23,13 +23,15 @@ id	info	rows_sent	rows_examined
 ###	CREATE TABLE t1 (a INT)	0	0
 ###	SELECT a FROM t2 WHERE a > 15	2	5
 SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
+SET DEBUG_SYNC= 'RESET';
 a
 20
 20
-SET DEBUG_SYNC= 'sent_row SIGNAL thread1_ready WAIT_FOR threads_dumped';
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'sent_row SIGNAL thread1_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
 SELECT a FROM t2 WHERE a < 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
-SET DEBUG_SYNC= 'sent_row SIGNAL thread2_ready WAIT_FOR threads_dumped';
+SET DEBUG_SYNC= 'sent_row SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
 SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
@@ -47,13 +49,15 @@ a
 10
 10
 10
+SET DEBUG_SYNC= 'RESET';
 a
 20
 20
-SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread1_ready WAIT_FOR threads_dumped';
+SET DEBUG_SYNC= 'RESET';
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread1_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
 UPDATE t2 SET a = 15 WHERE a = 20;
 SET DEBUG_SYNC= 'now WAIT_FOR thread1_ready';
-SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped';
+SET DEBUG_SYNC= 'execute_command_after_close_tables SIGNAL thread2_ready WAIT_FOR threads_dumped NO_CLEAR_EVENT';
 UPDATE t2 SET a = 15 WHERE a = 10;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;

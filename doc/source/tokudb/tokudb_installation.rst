@@ -33,14 +33,21 @@ Transparent huge pages
 
 TokuDB won't be able to start if the transparent huge pages are enabled. `Transparent huge pages <https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-memory-transhuge.html>`_ is feature available in the newer kernel versions. You can check if the Transparent huge pages are enabled with: ::
   
-   $ cat /sys/kernel/mm/transparent_hugepage/enabled
+  $ cat /sys/kernel/mm/transparent_hugepage/enabled
 
    [always] madvise never
 
- You can `disable <http://www.oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php#disabling-transparent-hugepages>`_ them by passing ``transparent_hugepage=never`` to the kernel in your bootloader or by running: :: 
+If transparent huge pages are enabled and you try to start the TokuDB engine you'll get the following message in you :file:`error.log`: ::
 
-  $ echo never > /sys/kernel/mm/transparent_hugepage/enabled
-  $ echo never > /sys/kernel/mm/transparent_hugepage/defrag
+ Transparent huge pages are enabled, according to /sys/kernel/mm/redhat_transparent_hugepage/enabled
+ Transparent huge pages are enabled, according to /sys/kernel/mm/transparent_hugepage/enabled
+
+You can `disable <http://www.oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php#disabling-transparent-hugepages>`_ them by passing ``transparent_hugepage=never`` to the kernel in your bootloader or by running the following command as root: 
+  
+.. code-block:: bash
+
+  echo never > /sys/kernel/mm/transparent_hugepage/enabled
+  echo never > /sys/kernel/mm/transparent_hugepage/defrag
 
 Installation
 ============
@@ -123,8 +130,6 @@ Installing the TokuDB package is compatible with existing server setup and datab
 Version Specific Information
 ============================
 
- * :rn:`5.6.16-64.0-tokudb`
-    TokuDB Storage engine available in special |Percona Server| release.
  * :rn:`5.6.17-66.0`
     TokuDB storage engine available as a separate |Percona Server| package.
 

@@ -19,7 +19,7 @@ New Features
 
  TokuDB Storage engine is now available as a separate package that can be :ref:`installed <tokudb_installation>` along with the |Percona Server| 5.6.17-66.0. This feature is currently considered Release Candidate quality.
 
- |Percona Server| version 5.6 now includes :ref:`handlersocket_page` in addition to 5.5.
+ |Percona Server| version 5.6 now includes :ref:`handlersocket_page` in addition to |Percona Server| 5.5.
 
 Bugs Fixed
 ==========

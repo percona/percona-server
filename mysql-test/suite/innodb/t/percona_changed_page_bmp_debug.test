@@ -130,5 +130,61 @@ SET DEBUG_SYNC="RESET";
 disconnect con2;
 
 DROP TABLE t2;
+RESET CHANGED_PAGE_BITMAPS;
+
+--source include/wait_until_count_sessions.inc
+
+#
+# Test for bug 1193332 ([Warning] InnoDB: changed page bitmap file
+# './ib_modified_log_11_951286349.xdb' does not contain a complete run at the end.)
+#
+
+# Setup an error on the 2nd bitmap page write, so that bitmap contains an incomplete run
+--echo 4th restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart:-#d,bitmap_page_2_write_error" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+--source include/count_sessions.inc
+
+--connect(con2,localhost,root,,)
+
+SET DEBUG_SYNC="i_s_innodb_changed_pages_range_ready SIGNAL ready WAIT_FOR finish";
+send SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+
+--connection default
+
+SET DEBUG_SYNC="now WAIT_FOR ready";
+
+# Pause the log tracker
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+
+# Prepare two pages of bitmap data
+CREATE TABLE t1 (a INT)ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (2);
+
+# Resume the log tracker so it crashes after writing one page
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+SET DEBUG_SYNC="now SIGNAL finish";
+
+--connection con2
+# With the bug present the query will fail with ER_CANT_FIND_SYSTEM_REC
+--disable_result_log
+reap;
+--enable_result_log
+
+--disconnect con2
+--connection default
+
+DROP TABLE t1, t2;
 
 --source include/wait_until_count_sessions.inc

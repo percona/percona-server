@@ -1,3 +1,9 @@
+percona-server-5.1 (5.1.73-rel14.12) unstable; urgency=low
+
+  * Percona Server 5.1 release 14.12 
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Mon, 16 Jun 2014 10:51:12 +0200
+
 percona-server-5.1 (5.1.73-rel14.11) unstable; urgency=low
 
   * Percona Server 5.1 release 14.11

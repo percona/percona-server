@@ -1,0 +1,18 @@
+#!/bin/bash -e
+
+# Some postinstall info about TokuDB
+if [ -z "$2" ]; then
+	echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
+	echo -e " * Run the following commands to enable the TokuDB storage engine in Percona Server:\n"
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';\""
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';\""
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';\""
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';\""
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';\""
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';\""
+	echo -e "\tmysql -e \"INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';\""
+	echo -e "\n * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for more details\n\n"
+fi
+
+#DEBHELPER#
+exit 0

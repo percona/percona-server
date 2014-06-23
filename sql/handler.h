@@ -395,6 +395,7 @@ enum legacy_db_type
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
   DB_TYPE_MARIA,
+  DB_TYPE_TOKUDB=41,
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_FIRST_DYNAMIC=42,

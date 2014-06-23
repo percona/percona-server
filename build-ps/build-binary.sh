@@ -24,6 +24,7 @@ OPENSSL_LIBRARY=''
 CRYPTO_LIBRARY=''
 TAG=''
 #
+CMAKE_BUILD_TYPE=''
 COMMON_FLAGS=''
 #
 # Some programs that may be overriden
@@ -164,6 +165,24 @@ COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 
+# TokuDB cmake flags
+if test -d "$SOURCEDIR/storage/tokudb"
+then
+    CMAKE_OPTS="${CMAKE_OPTS:-} -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF"
+    
+    if test "x$CMAKE_BUILD_TYPE" != "xDebug"
+    then
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=OFF"
+    else
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DTOKU_DEBUG_PARANOID=ON"
+    fi
+
+    if [[ $CMAKE_OPTS == *WITH_VALGRIND=ON* ]]
+    then
+        CMAKE_OPTS="${CMAKE_OPTS:-} -DUSE_VALGRIND=ON"
+    fi
+fi
+
 #
 if [ -n "$(which rpm)" ]; then
   export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
@@ -235,9 +254,17 @@ fi
 (
     cd "$INSTALLDIR/usr/local/"
 
-    $TAR czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" \
-        --owner=0 --group=0 "$PRODUCT_FULL/"
-    
+    find $PRODUCT_FULL ! -type d  ! -iname "*tdb*.h" -a ! -iname "*toku*" | sort > $WORKDIR_ABS/tokudb_server.list
+    $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" -T $WORKDIR_ABS/tokudb_server.list
+    rm -f $WORKDIR_ABS/tokudb_server.list
+
+    if test -e "$PRODUCT_FULL/lib/mysql/plugin/ha_tokudb.so"
+    then
+        TARGETTOKU=$(echo $PRODUCT_FULL | sed 's/.Linux/.TokuDB.Linux/')
+        find $PRODUCT_FULL ! -type d  -iname "*toku*" -o -iname "*tdb*.h" > $WORKDIR_ABS/tokudb_plugin.list
+        $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$TARGETTOKU.tar.gz" -T $WORKDIR_ABS/tokudb_plugin.list
+        rm -f $WORKDIR_ABS/tokudb_plugin.list
+    fi
 )
 
 # Clean up

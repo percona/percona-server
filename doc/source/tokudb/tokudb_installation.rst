@@ -4,10 +4,6 @@
  TokuDB Installation
 =====================
 
-.. note:: 
-
-   This feature is considered **RELEASE CANDIDATE** quality and it isn't recommended for production use.
-
 |Percona Server| has added support for TokuDB storage engine in the :rn:`5.6.16-64.0-tokudb` release, and TokuDB storage engine is available as a separate package from :rn:`5.6.17-66.0` release.
 
 `TokuDB <http://www.tokutek.com/products/tokudb-for-mysql/>`_ is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.

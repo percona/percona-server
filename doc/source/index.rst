@@ -59,6 +59,7 @@ Scalability Improvements
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io
    scalability/innodb_adaptive_hash_index_partitions
+   scalability/multiple_user_level_locks
 
 Performance Improvements
 ========================

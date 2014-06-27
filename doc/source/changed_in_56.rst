@@ -11,7 +11,6 @@ Features removed from |Percona Server| 5.6 that were available in |Percona Serve
 
 Some features that were present in |Percona Server| 5.5 have been removed in |Percona Server| 5.6. These are:
 
- * `HandlerSocket <http://www.percona.com/doc/percona-server/5.5/performance/handlersocket.html>`_ (This feature will be ported in one of the future |Percona Server| 5.6 releases)
  * ``SHOW [GLOBAL] TEMPORARY TABLES`` functionality is now only available via the ``INFORMATION_SCHEMA`` tables :table:`TEMPORARY_TABLES` and :table:`GLOBAL_TEMPORARY_TABLES`.
  * `InnoDB timer-based Concurrency Throttling <http://www.percona.com/doc/percona-server/5.5/performance/innodb_thread_concurrency_timer_based.html>`_
  * `InnoDB Recovery Stats <http://www.percona.com/doc/percona-server/5.5/management/innodb_recovery_patches.html>`_
@@ -87,6 +86,7 @@ Following features were ported from |Percona Server| 5.5 to |Percona Server| 5.6
  :ref:`buff_read_ahead_area`                        :rn:`5.6.13-60.5`
  :ref:`innodb_split_buf_pool_mutex`                 :rn:`5.6.13-60.6`
  :ref:`innodb_adaptive_hash_index_partitions_page`  :rn:`5.6.13-60.6`
+ :ref:`handlersocket_page`                          :rn:`5.6.17-66.0`
  ================================================= ===================
 
 List of status variables that are no longer available in |Percona Server| 5.6
@@ -186,7 +186,7 @@ Following system variables available in |Percona Server| 5.5 are no longer prese
    * - :variable:`innodb_page_size`                        
      - replaced by `innodb_page_size <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_page_size>`_
    * - :variable:`innodb_read_ahead`                       
-     - replaced by MySQL `Read-Ahead Algorithm <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-performance-read_ahead>`_ implementation, `innodb_random_read_ahead <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_andom_read_ahead>`_
+     - replaced by MySQL `Read-Ahead Algorithm <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-performance-read_ahead>`_ implementation, `innodb_random_read_ahead <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_random_read_ahead>`_
    * - :variable:`innodb_recovery_stats`                   
      - :ref:`InnoDB Recovery Stats <ps55:innodb_recovery_patches>` feature containing this variable has not been ported to |Percona Server| 5.6
    * - :variable:`innodb_recovery_update_relay_log`        

@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.38-rel35.2) unstable; urgency=low
+
+  * Fixed missing libperconaserverclient lib in lucid/squeeze
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Fri, 27 Jun 2014 15:18:59 +0200
+
 percona-server-5.5 (5.5.37-rel35.1) unstable; urgency=low
 
   * UDF and HandlerSocket moved to plugin

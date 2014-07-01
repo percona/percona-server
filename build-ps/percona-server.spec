@@ -1221,6 +1221,11 @@ if [ ! -f %{_libdir}/$lib ]; then
         ln -s libperconaserverclient.so.18 %{_libdir}/$lib;
 fi
 done
+for lib in libmysqlclient{.so.18.1.0,_r.so.18.1.0}; do
+if [ ! -f %{_libdir}/$lib ]; then
+        ln -s libperconaserverclient.so.18.1.0 %{_libdir}/$lib;
+fi
+done
 
 /sbin/ldconfig
 

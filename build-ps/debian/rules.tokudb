@@ -171,12 +171,6 @@ install: build
 		ln -sf `basename $$i` $(TMP)/usr/lib/$(DEB_HOST_MULTIARCH)/$$rlib ;\
 	done
 
-	# create links for libmysqlclient18.1
-	for i in `ls $(TMP)/usr/lib/$(DEB_HOST_MULTIARCH)/libperconaserverclient*so*.18.1*` ; do \
-		mlib=`basename $$i | sed -e 's/libperconaserverclient/libmysqlclient/'` ;\
-		ln -sf `basename $$i` $(TMP)/usr/lib/$(DEB_HOST_MULTIARCH)/$$mlib ;\
-	done
-
 	# libmysqlclient-dev: forgotten header file since 3.23.25?
 	#cp $(BUILDDIR)/include/my_config.h $(TMP)/usr/include/mysql/
 	#cp include/my_dir.h $(TMP)/usr/include/mysql/

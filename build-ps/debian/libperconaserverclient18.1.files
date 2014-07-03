@@ -1,4 +1,2 @@
 usr/lib/*/libperconaserverclient*.so.*
-usr/lib/*/libmysqlclient*.so.*
 usr/lib/libperconaserverclient*.so.*
-usr/lib/libmysqlclient*.so.*

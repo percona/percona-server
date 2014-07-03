@@ -611,6 +611,12 @@ rw_lock_x_lock_wait(
 
 	ut_ad(lock->lock_word <= 0);
 
+	if (high_priority) {
+
+		prio_rw_lock = reinterpret_cast<prio_rw_lock_t *>(lock);
+		prio_rw_lock->high_priority_wait_ex_waiter = 1;
+	}
+
 	while (lock->lock_word < 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
@@ -627,13 +633,6 @@ rw_lock_x_lock_wait(
 							   RW_LOCK_WAIT_EX,
 							   file_name,
 							   line, &index);
-
-		if (high_priority) {
-
-			prio_rw_lock
-				= reinterpret_cast<prio_rw_lock_t *>(lock);
-			prio_rw_lock->high_priority_wait_ex_waiter = 1;
-		}
 
 		i = 0;
 
@@ -661,12 +660,14 @@ rw_lock_x_lock_wait(
 			We must pass the while-loop check to proceed.*/
 		} else {
 			sync_array_free_cell(sync_arr, index);
-			if (prio_rw_lock) {
-
-				prio_rw_lock->high_priority_wait_ex_waiter = 0;
-			}
 		}
 	}
+
+	if (prio_rw_lock) {
+
+		prio_rw_lock->high_priority_wait_ex_waiter = 0;
+	}
+
 	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
 }
 

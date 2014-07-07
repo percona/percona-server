@@ -1145,7 +1145,6 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/SELinux
 %attr(755, root, root) %{_datadir}/percona-server/serbian
 %attr(755, root, root) %{_datadir}/percona-server/slovak
-%attr(755, root, root) %{_datadir}/percona-server/solaris
 %attr(755, root, root) %{_datadir}/percona-server/spanish
 %attr(755, root, root) %{_datadir}/percona-server/swedish
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian
@@ -1220,6 +1219,11 @@ fi
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
 if [ ! -f %{_libdir}/$lib ]; then
         ln -s libperconaserverclient.so.18 %{_libdir}/$lib;
+fi
+done
+for lib in libmysqlclient{.so.18.1.0,_r.so.18.1.0}; do
+if [ ! -f %{_libdir}/$lib ]; then
+        ln -s libperconaserverclient.so.18.1.0 %{_libdir}/$lib;
 fi
 done
 

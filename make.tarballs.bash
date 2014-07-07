@@ -19,8 +19,9 @@ function get_repo() {
     fi
 }
 
-function make_binary_tarballs() {
+function get_source_from_repos() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
+
     # clean jemalloc
     pushd $HOME/jemalloc-3.6.0
     if [ $? -ne 0 ] ; then exit 1; fi
@@ -42,8 +43,10 @@ function make_binary_tarballs() {
     fi
 
     # merge
-    tar xzf $perconaserver.tokudb.tar.gz
-    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    if [ ! -d $perconaserver.tokudb ] ; then
+        tar xzf $perconaserver.tokudb.tar.gz
+        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    fi
     target=$PWD/$perconaserver-$buildtype
     pushd $perconaserver.tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
@@ -66,6 +69,10 @@ function make_binary_tarballs() {
         fi      
     done
     popd
+}
+
+function build_tarballs_from_source() {
+    local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
     # build
     pushd $perconaserver-$buildtype
@@ -73,7 +80,7 @@ function make_binary_tarballs() {
     buildargs="--with-jemalloc $HOME/jemalloc-3.6.0"
     if [ $buildtype = "debug" ] ; then buildargs="-d $buildargs"; fi
     if [ $buildtype = "debug-valgrind" ] ; then buildargs="-d -v $buildargs"; fi
-    nohup bash -x build-ps/build-binary.sh $buildargs . >build.out
+    bash -x build-ps/build-binary.sh $buildargs . >build.out 2>&1
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     for x in *.gz; do
         md5sum $x >$x.md5
@@ -90,14 +97,19 @@ perconaserver=$1
 tokudb=$2
 
 # release
-make_binary_tarballs $perconaserver $tokudb release
+get_source_from_repos $perconaserver $tokudb release
+if [ $? -ne 0 ] ; then exit 1; fi
+build_tarballs_from_source $perconaserver $tokudb release
 if [ $? -ne 0 ] ; then exit 1; fi
 
 # debug
-make_binary_tarballs $perconaserver $tokudb debug
+get_source_from_repos $perconaserver $tokudb debug
+if [ $? -ne 0 ] ; then exit 1; fi
+build_tarballs_from_source $perconaserver $tokudb debug
 if [ $? -ne 0 ] ; then exit 1; fi
 
 # debug valgrind
-make_binary_tarballs $perconaserver $tokudb debug-valgrind
+get_source_from_repos $perconaserver $tokudb debug-valgrind
 if [ $? -ne 0 ] ; then exit 1; fi
-
+build_tarballs_from_source $perconaserver $tokudb debug-valgrind
+if [ $? -ne 0 ] ; then exit 1; fi

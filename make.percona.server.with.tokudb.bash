@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage() {
-    echo "make.tarballs.bash percona-server-5.6.19-67.0-618-90 tokudb-7.1.7"
+    echo "make.percona.server.with.tokudb.bash percona-server-5.6.19-67.0-618-90 tokudb-7.1.7"
 }
 
 function get_repo() {

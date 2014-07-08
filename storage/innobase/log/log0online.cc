@@ -1584,6 +1584,17 @@ log_online_bitmap_iterator_init(
 {
 	ut_a(i);
 
+	if (UNIV_UNLIKELY(min_lsn > max_lsn)) {
+
+		/* Empty range */
+		i->in_files.count = 0;
+		i->in_files.files = NULL;
+		i->in.file = os_file_invalid;
+		i->page = NULL;
+		i->failed = FALSE;
+		return TRUE;
+	}
+
 	if (!log_online_setup_bitmap_file_range(&i->in_files, min_lsn,
 		max_lsn)) {
 

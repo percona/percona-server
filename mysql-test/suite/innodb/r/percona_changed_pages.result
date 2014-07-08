@@ -51,6 +51,9 @@ FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
 WHERE START_LSN >= END_LSN;
 COUNT(*)
 0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN < 10 AND END_LSN > 20;
+space_id	page_id	start_lsn	end_lsn
 ICP tests (all should be 1):
 SELECT COUNT(*) = @cond_test_pages_count
 FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
@@ -107,6 +110,20 @@ COUNT(*) = @cond_test_pages_count
 SELECT COUNT(*) = @cond_test_pages_count
 FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
 WHERE
+START_LSN > (@cond_test_max_start_lsn - 1) AND
+END_LSN <= @max_end_lsn;
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN >= @cond_test_max_start_lsn AND
+END_LSN < (@max_end_lsn + 1);
+COUNT(*) = @cond_test_pages_count
+1
+SELECT COUNT(*) = @cond_test_pages_count
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
 START_LSN >= @cond_test_max_start_lsn AND
 END_LSN >= @cond_test_max_start_lsn;
 COUNT(*) = @cond_test_pages_count
@@ -130,6 +147,55 @@ FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
 WHERE
 START_LSN > @cond_test_max_lsn + 10 AND
 END_LSN < @cond_test_max_lsn - 10;
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN <= (@min_start_lsn - 1);
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+START_LSN < @min_start_lsn;
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+END_LSN > @max_end_lsn;
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE
+END_LSN >= (@max_end_lsn + 1);
+COUNT(*)
+0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN = (@min_start_lsn - 1);
+COUNT(*)
+0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN < @min_start_lsn OR END_LSN > @max_end_lsn;
+COUNT(*)
+0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN <= (@min_start_lsn - 1) OR END_LSN > @max_end_lsn;
+COUNT(*)
+0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN < @min_start_lsn OR END_LSN >= (@max_end_lsn + 1);
+COUNT(*)
+0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE START_LSN <= (@min_start_lsn - 1) OR END_LSN >= (@max_end_lsn + 1);
+COUNT(*)
+0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+WHERE (START_LSN > @cond_test_max_lsn AND END_LSN < @cond_test_max_lsn)
+OR (START_LSN > @cond_test_max_lsn + 10 AND END_LSN < @cond_test_max_lsn - 10);
 COUNT(*)
 0
 SELECT @total_pages=@r1_r4_pages AS should_be_1;

@@ -1,0 +1,50 @@
+--source include/not_embedded.inc
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+let $restart_log= $MYSQLTEST_VARDIR/log/mysqld.1.restart.err;
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1);
+
+BEGIN;
+INSERT INTO t1 VALUES (2);
+SET SESSION debug="d,crash_commit_after_prepare";
+--exec echo "wait" > $restart_file
+--error 2006, 2013
+COMMIT;
+
+--source include/wait_until_disconnected.inc
+--echo Restarting with --tc-heuristic-recover=ROLLBACK
+--error 1
+--exec $MYSQLD_CMD --tc-heuristic-recover=ROLLBACK --console > $restart_log 2>&1
+--exec echo "restart" > $restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo 2 should be absent:
+SELECT * FROM t1;
+
+BEGIN;
+INSERT INTO t1 VALUES (2);
+SET SESSION debug="d,crash_commit_after_prepare";
+--exec echo "wait" > $restart_file
+--error 2006, 2013
+COMMIT;
+
+--source include/wait_until_disconnected.inc
+--echo Restarting with --tc-heuristic-recover=COMMIT
+--error 1
+--exec $MYSQLD_CMD --tc-heuristic-recover=COMMIT --console >> $restart_log 2>&1
+--exec echo "restart" > $restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo 2 should be present:
+SELECT * FROM t1;
+
+DROP TABLE t1;

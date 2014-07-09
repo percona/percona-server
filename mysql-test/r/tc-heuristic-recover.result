@@ -1,0 +1,24 @@
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+BEGIN;
+INSERT INTO t1 VALUES (2);
+SET SESSION debug="d,crash_commit_after_prepare";
+COMMIT;
+Got one of the listed errors
+Restarting with --tc-heuristic-recover=ROLLBACK
+2 should be absent:
+SELECT * FROM t1;
+a
+1
+BEGIN;
+INSERT INTO t1 VALUES (2);
+SET SESSION debug="d,crash_commit_after_prepare";
+COMMIT;
+Got one of the listed errors
+Restarting with --tc-heuristic-recover=COMMIT
+2 should be present:
+SELECT * FROM t1;
+a
+1
+2
+DROP TABLE t1;

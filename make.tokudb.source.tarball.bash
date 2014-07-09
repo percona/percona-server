@@ -3,7 +3,7 @@
 # make the tokudb source tarball from the Tokutek github repositories
 
 function usage() {
-    echo "make.tokudb.source.tarball.bash percona-server-5.6.19-67.0 tokudb-7.1.7"
+    echo "make.tokudb.source.tarball.bash percona-server-5.6.19-67.0-618-90 tokudb-7.1.7"
 }
 
 function get_repo() {

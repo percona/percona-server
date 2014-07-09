@@ -8,6 +8,7 @@ function usage() {
 
 function get_repo() {
     local owner=$1; local repo=$2; local ref=$3
+    # download a github repo as a tarball and expand it in a local directory
     if [ ! -f $repo.tar.gz ] ; then
         rm -rf $repo
         curl -L https://api.github.com/repos/$owner/$repo/tarball/$ref --output $repo.tar.gz

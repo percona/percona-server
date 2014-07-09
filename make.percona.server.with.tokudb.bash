@@ -4,8 +4,14 @@ function usage() {
     echo "make.percona.server.with.tokudb.bash percona-server-5.6.19-67.0-618-90 tokudb-7.1.7"
 }
 
+# download a github repo as a tarball and expand it in a local directory
+# arg 1 is the github repo owner
+# arg 2 is the github repo name
+# arg 3 is the github commit reference
+# the local directory name is the same as the github repo name
 function get_repo() {
     local owner=$1; local repo=$2; local ref=$3
+
     if [ ! -f $repo.tar.gz ] ; then
         rm -rf $repo
         curl -L https://api.github.com/repos/$owner/$repo/tarball/$ref --output $repo.tar.gz
@@ -16,6 +22,7 @@ function get_repo() {
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         tar --extract --gzip --directory $repo --strip-components 1 --file $repo.tar.gz
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+        rm -rf $repo.tar.gz
     fi
 }
 
@@ -33,7 +40,6 @@ function get_source_from_repos() {
         get_repo Tokutek percona-server-5.6 $perconaserver
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         mv percona-server-5.6 $perconaserver-$buildtype
-        rm -rf percona-server-5.6.tar.gz
     fi
 
     # make the tokudb source tarball
@@ -42,11 +48,13 @@ function get_source_from_repos() {
         if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
     fi
 
-    # merge
+    # extract the tokudb source tarball
     if [ ! -d $perconaserver.tokudb ] ; then
         tar xzf $perconaserver.tokudb.tar.gz
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     fi
+
+    # merge
     target=$PWD/$perconaserver-$buildtype
     pushd $perconaserver.tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
@@ -58,10 +66,12 @@ function get_source_from_repos() {
                     mkdir -p $targetdir
                     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
                 fi
-                if [[ $f =~ disabled.def ]] ; then
+                if [ $(basename $f) = disabled.def ] ; then
+                    # append the tokudb disabled.def to the base disabled.def
                     cat $f >>$target/$f
                     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
                 else
+                    # replace the base file
                     cp $f $target/$f
                     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
                 fi

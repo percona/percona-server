@@ -40,6 +40,8 @@ function get_source_from_repos() {
         get_repo Tokutek percona-server-5.6 $perconaserver
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         mv percona-server-5.6 $perconaserver-$buildtype
+        # append the tokudb tag to the revno string
+        sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
     fi
 
     # make the tokudb source tarball

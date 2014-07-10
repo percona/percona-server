@@ -13,7 +13,7 @@ New Features
 
  |Percona Server| has implemented priority connection scheduling for the :ref:`threadpool`. (*Alexey Kopytov*) 
 
- |Percona Server| will now be shipped with the ``libjemalloc`` library. Benchmark showing the impact of memory allocators on |MySQL| performance can be found in this `blogpost <http://www.mysqlperformanceblog.com/2012/07/05/impact-of-memory-allocators-on-mysql-performance/>`_. (*Ignacio Nin*)
+ |Percona Server| ``.tar.gz`` binaries will now be shipped with the ``libjemalloc`` library. ``jemalloc`` package is now available in our :ref:`apt <apt_repo>`/:ref:`yum <yum_repo>` repositories as well. In case newer version is available in the distribution repositories that version will be used. Benchmark showing the impact of memory allocators on |MySQL| performance can be found in this `blogpost <http://www.mysqlperformanceblog.com/2012/07/05/impact-of-memory-allocators-on-mysql-performance/>`_. (*Ignacio Nin*)
 
  This release of |Percona Server| has fixed a number of performance bugs. (*Alexey Kopytov*)
 

@@ -51,7 +51,7 @@ The following tables provide various information about the contents of the |Inno
   :column PAGE_TYPE: Type of the page. Possible values: index, undo_log, inode, ibuf_free_list, allocated, bitmap, sys, trx_sys, fsp_hdr, xdes, blob, zblob, zblob2, unknown
   :column SPACE_ID: Tablespace ID
   :column PAGE_NO:  Page offset within its tablespace
-  :column LRU_POSITION: Page position in the LRU list
+  :column LRU_POSITION: this field is always ``0`` and will be removed in a future Percona Server release
   :column FIX_COUNT: reference count of a page. It is incremented every time the page is accessed by |InnoDB|, and is 0 if and only if the page is not currently being accessed
   :column FLUSH_TYPE: type of the last flush of the page (0:LRU 2:flush_list)
 
@@ -61,26 +61,26 @@ Example: ::
   +-----------+----------+---------+--------------+-----------+------------+
   | page_type | space_id | page_no | lru_position | fix_count | flush_type |
   +-----------+----------+---------+--------------+-----------+------------+
-  | allocated |        0 |       7 |            3 |         0 |          2 | 
-  | allocated |        0 |       1 |            4 |         0 |          0 | 
-  | allocated |        0 |       3 |            5 |         0 |          0 | 
-  | inode     |        0 |       2 |            6 |         0 |          2 | 
-  | index     |        0 |       4 |            7 |         0 |          2 | 
-  | index     |        0 |      11 |            8 |         0 |          0 | 
-  | index     |        0 |   12956 |            9 |         0 |          0 | 
-  | allocated |        0 |       5 |           10 |         0 |          2 | 
-  | allocated |        0 |       6 |           11 |         0 |          2 | 
-  | undo_log  |        0 |      51 |           12 |         0 |          2 | 
-  | undo_log  |        0 |      52 |           13 |         0 |          2 | 
-  | index     |        0 |       8 |           14 |         0 |          0 | 
-  | index     |        0 |     288 |           15 |         0 |          0 | 
-  | index     |        0 |     290 |           16 |         0 |          2 | 
-  | index     |        0 |     304 |           17 |         0 |          0 | 
-  | allocated |        0 |       0 |           18 |         0 |          2 | 
-  | index     |        0 |      10 |           19 |         0 |          0 | 
-  | index     |        0 |   12973 |           20 |         0 |          0 | 
-  | index     |        0 |       9 |           21 |         0 |          2 | 
-  | index     |        0 |      12 |           22 |         0 |          0 | 
+  | allocated |        0 |       7 |            0 |         0 |          2 | 
+  | allocated |        0 |       1 |            0 |         0 |          0 | 
+  | allocated |        0 |       3 |            0 |         0 |          0 | 
+  | inode     |        0 |       2 |            0 |         0 |          2 | 
+  | index     |        0 |       4 |            0 |         0 |          2 | 
+  | index     |        0 |      11 |            0 |         0 |          0 | 
+  | index     |        0 |   12956 |            0 |         0 |          0 | 
+  | allocated |        0 |       5 |            0 |         0 |          2 | 
+  | allocated |        0 |       6 |            0 |         0 |          2 | 
+  | undo_log  |        0 |      51 |            0 |         0 |          2 | 
+  | undo_log  |        0 |      52 |            0 |         0 |          2 | 
+  | index     |        0 |       8 |            0 |         0 |          0 | 
+  | index     |        0 |     288 |            0 |         0 |          0 | 
+  | index     |        0 |     290 |            0 |         0 |          2 | 
+  | index     |        0 |     304 |            0 |         0 |          0 | 
+  | allocated |        0 |       0 |            0 |         0 |          2 | 
+  | index     |        0 |      10 |            0 |         0 |          0 | 
+  | index     |        0 |   12973 |            0 |         0 |          0 | 
+  | index     |        0 |       9 |            0 |         0 |          2 | 
+  | index     |        0 |      12 |            0 |         0 |          0 | 
   +-----------+----------+---------+--------------+-----------+------------+
   20 rows in set (0.81 sec)
 

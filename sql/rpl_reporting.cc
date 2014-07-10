@@ -161,7 +161,10 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   }
   curr_buff= pbuff;
   if (prefix_msg)
+  {
     curr_buff += sprintf(curr_buff, "%s; ", prefix_msg);
+    pbuffsize -= curr_buff - pbuff;
+  }
   my_vsnprintf(curr_buff, pbuffsize, msg, args);
 
   mysql_mutex_unlock(&err_lock);

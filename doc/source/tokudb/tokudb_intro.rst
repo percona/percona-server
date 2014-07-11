@@ -11,15 +11,13 @@ TokuDB is a scalable, ACID and MVCC compliant storage engine that provides index
 Available TokuDB features:
 
  * :ref:`tokudb_compression`
-
-Currently available ALPHA features [#n-1]_:
-
  * `Multiple Clustering Indexes <http://www.tokutek.com/2009/05/introducing_multiple_clustering_indexes/>`_
- * `Fast Updates with NOAR <http://www.tokutek.com/2013/02/fast-updates-with-tokudb/>`_
  * `Hot Table Optimization <http://www.tokutek.com/2012/06/hot-table-optimization-with-mysql/>`_
+ * `Prelocking index and range scans <https://github.com/Tokutek/tokudb-engine/wiki/Patch-for-prelocking-index-and-range-scans>`_
+
+
+These features were available only in older alpha, :rn:`5.6.16-64.0-tokudb` and :rn:`5.6.16-64.2-tokudb`, Percona Server with TokuDB releases:
+
+ * `Fast Updates with NOAR <http://www.tokutek.com/2013/02/fast-updates-with-tokudb/>`_
  * `TokuDB AUTOINCREMENT implementation <http://www.tokutek.com/2009/07/autoincrement_semantics/>`_
- * `Prelocking index and range scans <https://github.com/Tokutek/mysql56/wiki/Patch-for-prelocking-index-and-range-scans>`_
 
-.. rubric:: Footnotes
-
-.. [#n-1] These features are available only in ALPHA Percona Server with TokuDB builds. They might change or even disappear in a future release.

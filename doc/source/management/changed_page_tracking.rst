@@ -13,7 +13,11 @@ Bitmap filename format used for changed page tracking is ``ib_modified_log_<seq>
 
 Sequence number can be used to easily check if all the required bitmap files are present. Start LSN number will be used in |XtraBackup| and ``INFORMATION_SCHEMA`` queries to determine which files have to be opened and read for the required LSN interval data. The bitmap file is rotated on each server restart and whenever the current file size reaches the predefined maximum. This maximum is controlled by a new :variable:`innodb_max_bitmap_file_size` variable.
 
+Old bitmap files may be safely removed after a corresponding incremental backup is taken. For that there are server :ref:`changed_page_tracking_statements`. Removing the bitmap files from the filesystem directly is safe too, as long as care is taken not to delete data for not-yet-backuped LSN range.
+
 This feature will be used for implementing faster incremental backups that use this information to avoid full data scans in |Percona XtraBackup|.
+
+.. _changed_page_tracking_statements:
 
 User statements for handling the XtraDB changed page bitmaps
 ============================================================
@@ -45,7 +49,7 @@ This table contains a list of modified pages from the bitmap file data.  As thes
 
 The ``start_lsn`` and the ``end_lsn`` columns denote between which two checkpoints this page was changed at least once. They are also equal to checkpoint LSNs.
 
-Number of records in this table can be limited by using the variable :variable:`innodb_changed_pages_limit`.
+Number of records in this table can be limited by using the variable :variable:`innodb_max_changed_pages`.
 
 System Variables
 ================
@@ -61,6 +65,8 @@ System Variables
    :default: 1000000
    :range: 1 - 0 (unlimited)
 
+This variable is used to limit the result row count for the queries from :table:`INNODB_CHANGED_PAGES` table.
+
 .. variable:: innodb_track_changed_pages
 
    :version 5.6.11-60.3: Variable introduced
@@ -72,6 +78,8 @@ System Variables
    :default: 0 - False
    :range: 0-1
 
+This variable is used to enable/disable :ref:`changed_page_tracking` feature.
+
 .. variable:: innodb_max_bitmap_file_size
 
    :version 5.6.11-60.3: Variable introduced
@@ -82,3 +90,5 @@ System Variables
    :vartype: Numeric 
    :default: 104857600 (100 MB)
    :range: 4096 (4KB) - 18446744073709551615 (16EB)
+
+This variable is used to control maximum bitmap size after which the file will be rotated.

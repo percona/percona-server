@@ -29,9 +29,14 @@ function get_repo() {
 function get_source_from_repos() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
-    # clean jemalloc
-    pushd $HOME/jemalloc-3.6.0
-    if [ $? -ne 0 ] ; then exit 1; fi
+    # get jemalloc
+    if [ ! -d jemalloc-3.6.0 ] ; then
+        get_repo Tokutek jemalloc 3.6.0
+        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+        mv jemalloc jemalloc-3.6.0
+    fi
+    pushd jemalloc-3.6.0
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     make clean
     popd
 
@@ -41,7 +46,7 @@ function get_source_from_repos() {
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         mv percona-server-5.6 $perconaserver-$buildtype
         # append the tokudb tag to the revno string
-        sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
+        # conflict with build-binary.sh tarball splitter # sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
     fi
 
     # make the tokudb source tarball
@@ -87,9 +92,10 @@ function build_tarballs_from_source() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
     # build
+    jemallocdir=$PWD/jemalloc-3.6.0
     pushd $perconaserver-$buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    buildargs="--with-jemalloc $HOME/jemalloc-3.6.0"
+    buildargs="--with-jemalloc $jemallocdir"
     if [ $buildtype = "debug" ] ; then buildargs="-d $buildargs"; fi
     if [ $buildtype = "debug-valgrind" ] ; then buildargs="-d -v $buildargs"; fi
     bash -x build-ps/build-binary.sh $buildargs . >build.out 2>&1
@@ -101,7 +107,7 @@ function build_tarballs_from_source() {
 
     # cleanup
     cp $perconaserver-$buildtype/Percona-Server*.gz* .
-    rm -rf ${perconaserver}*
+    rm -rf ${perconaserver}* $jemallocdir
 }
 
 if [ $# -ne 2 ] ; then usage; exit 1; fi
@@ -123,5 +129,5 @@ if [ $? -ne 0 ] ; then exit 1; fi
 # debug valgrind
 get_source_from_repos $perconaserver $tokudb debug-valgrind
 if [ $? -ne 0 ] ; then exit 1; fi
-build_tarballs_from_source $perconaserver $tokudb debug-valgrind
+build_tarballs_from_source $perconaserver $tokudb debug-valgrind 
 if [ $? -ne 0 ] ; then exit 1; fi

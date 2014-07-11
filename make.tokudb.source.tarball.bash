@@ -50,9 +50,9 @@ if [ ! -d $staging ] ; then
     cp -r ft-index $staging/storage/tokudb
     cp -r tokudb-percona-server-5.6/mysql-test $staging
 
+    # set the tokudb version to the github ref in the cmake file
     pushd $staging/storage/tokudb
     if [ $? -ne 0 ] ; then exit 1; fi
-    # set the tokudb version to the github ref in the cmake file
     echo "SET(TOKUDB_VERSION $ref)" >new.CMakeLists.txt
     cat CMakeLists.txt >>new.CMakeLists.txt
     mv new.CMakeLists.txt CMakeLists.txt

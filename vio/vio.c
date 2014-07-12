@@ -368,5 +368,6 @@ void vio_end(void)
   ERR_free_strings();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
+  sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
 #endif
 }

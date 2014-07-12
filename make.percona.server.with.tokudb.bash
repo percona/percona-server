@@ -30,36 +30,24 @@ function get_source_from_repos() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
     # get jemalloc
-    if [ ! -d jemalloc-3.6.0 ] ; then
-        get_repo Tokutek jemalloc 3.6.0
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-        mv jemalloc jemalloc-3.6.0
-    fi
-    pushd jemalloc-3.6.0
+    get_repo Tokutek jemalloc 3.6.0
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    make clean
-    popd
+    mv jemalloc jemalloc-3.6.0
 
     # get percona server source
-    if [ ! -d $perconaserver-$buildtype ] ; then
-        get_repo Tokutek percona-server-5.6 $perconaserver
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-        mv percona-server-5.6 $perconaserver-$buildtype
-        # append the tokudb tag to the revno string
-        sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
-    fi
+    get_repo Tokutek percona-server-5.6 $perconaserver
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    mv percona-server-5.6 $perconaserver-$buildtype
+    # append the tokudb tag to the revno string
+    sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
 
     # make the tokudb source tarball
-    if [ ! -f $perconaserver.tokudb.tar.gz ] ; then
-        bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb
-        if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
-    fi
+    bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb
+    if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
 
     # extract the tokudb source tarball
-    if [ ! -d $perconaserver.tokudb ] ; then
-        tar xzf $perconaserver.tokudb.tar.gz
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    fi
+    tar xzf $perconaserver.tokudb.tar.gz
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
 
     # merge
     target=$PWD/$perconaserver-$buildtype
@@ -98,36 +86,35 @@ function build_tarballs_from_source() {
     buildargs="--with-jemalloc $jemallocdir"
     if [ $buildtype = "debug" ] ; then buildargs="-d $buildargs"; fi
     if [ $buildtype = "debug-valgrind" ] ; then buildargs="-d -v $buildargs"; fi
-    bash -x build-ps/build-binary.sh $buildargs . >build.out 2>&1
+    bash -x build-ps/build-binary.sh $buildargs .
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     for x in *.gz; do
         md5sum $x >$x.md5
     done
     popd
-
-    # cleanup
-    cp $perconaserver-$buildtype/Percona-Server*.gz* .
-    rm -rf ${perconaserver}* $jemallocdir
 }
+
+function make_target() {
+    local perconaserver=$1; local tokudb=$2; local buildtype=$3
+
+    rm -rf build-$buildtype
+    mkdir build-$buildtype
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    pushd build-$buildtype
+    get_source_from_repos $perconaserver $tokudb $buildtype
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    build_tarballs_from_source $perconaserver $tokudb $buildtype
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    popd
+    mv build-$buildtype/$perconaserver-$buildtype/Percona-Server*.gz* .
+    rm -rf build-$buildtype
+}
+
 
 if [ $# -ne 2 ] ; then usage; exit 1; fi
 perconaserver=$1
 tokudb=$2
 
-# release
-get_source_from_repos $perconaserver $tokudb release
-if [ $? -ne 0 ] ; then exit 1; fi
-build_tarballs_from_source $perconaserver $tokudb release
-if [ $? -ne 0 ] ; then exit 1; fi
-
-# debug
-get_source_from_repos $perconaserver $tokudb debug
-if [ $? -ne 0 ] ; then exit 1; fi
-build_tarballs_from_source $perconaserver $tokudb debug
-if [ $? -ne 0 ] ; then exit 1; fi
-
-# debug valgrind
-get_source_from_repos $perconaserver $tokudb debug-valgrind
-if [ $? -ne 0 ] ; then exit 1; fi
-build_tarballs_from_source $perconaserver $tokudb debug-valgrind 
-if [ $? -ne 0 ] ; then exit 1; fi
+make_target $perconaserver $tokudb release
+make_target $perconaserver $tokudb debug
+make_target $perconaserver $tokudb debug-valgrind

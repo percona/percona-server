@@ -1690,96 +1690,114 @@ table.left-headers td {
 /***
  * side style buttons
 */
-.a-btn-container {
-	overflow:hidden;
-	border-radius:4px;
-}
-.a-btn, .a-btn-new {
-	width: 218px;
-	height: 48px;
-	background: #fdcd34;
-	background:-webkit-gradient(linear,left top,left bottom,color-stop(##fdcd34,0),color-stop(##d42c14,1));
-    background:-webkit-linear-gradient(top, #fdcd34 0%, #d42c14 100%);
-    background:-moz-linear-gradient(top, #fdcd34 0%, #d42c14 100%);
-    background:-o-linear-gradient(top, #fdcd34 0%, #d42c14 100%);
-    background:linear-gradient(top, #fdcd34 0%, #d42c14 100%);
-    filter:progid:DXImageTransform.Microsoft.gradient( startColorstr='#fdcd34', endColorstr='#d42c14',GradientType=0 );
-    
-    padding:0px;
-    
-    display:inline-block;
-    position:relative;
-    -webkit-border-radius:4px;
-    -moz-border-radius:4px;
-    border-radius:4px;
-    
-    overflow:hidden;
-    -webkit-transition:all 0.3s linear;
-    -moz-transition:all 0.3s linear;
-    -o-transition:all 0.3s linear;
-    transition:all 0.3s linear;
-    text-decoration: none !important;
-    border: 1px solid #f08900;
+.a-btn-green, .a-btn-green-big {
+    background: #0a4200; /* Old browsers */
+    background: -moz-linear-gradient(top,  #099b00 0%, #0a4200 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#099b00), color-stop(100%,#0a4200)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  #099b00 0%,#0a4200 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  #099b00 0%,#0a4200 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  #099b00 0%,#0a4200 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  #099b00 0%,#0a4200 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#099b00', endColorstr='#0a4200',GradientType=0 ); /* IE6-9 */
+    border: none;
+    border-radius: 4px 4px 4px 4px;
+    display: inline-block;
+    height: 65px;
     margin-bottom: 10px;
+    overflow: hidden;
+    padding: 0;
+    position: relative;
+    text-decoration: none !important;
+    transition: all 0.3s linear 0s;
+    width: 100%;
+    background-color:#0a4200;
 }
-
-.a-btn-text{
-	padding-left:10px;
-    padding-top:5px;
-    display:block;
-    font-size:13px;
-    white-space:nowrap;
-    color: #ffffff;
-    -webkit-transition:all 0.3s linear;
-    -moz-transition:all 0.3s linear;
-    -o-transition:all 0.3s linear;
-    transition:all 0.3s linear;
-    
+.a-btn-orange, .a-btn-new {
+    background: #bf3200; /* Old browsers */
+    background: -moz-linear-gradient(top,  #f17800 0%, #bf3200 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#f17800), color-stop(100%,#bf3200)); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  #f17800 0%,#bf3200 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  #f17800 0%,#bf3200 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  #f17800 0%,#bf3200 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  #f17800 0%,#bf3200 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#f17800', endColorstr='#bf3200',GradientType=0 ); /* IE6-9 */
+    border: none;
+    border-radius: 4px 4px 4px 4px;
+    display: inline-block;
+    height: 31px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    padding: 0;
+    position: relative;
+    text-decoration: none !important;
+    transition: all 0.3s linear 0s;
+    width: 100%;
 }
-
-.a-btn-slide-text, .a-btn-fixed-slide-text {
-    padding-left: 10px;
-    left:0px;
-    width:auto;
-    right:52px;
-    height:0px;
-    
-    color:#000000;
-    font-size:12px;
-    white-space:nowrap;
-    font-family:Georgia, serif;
-    font-style:italic;
-    text-indent:15px;
-    overflow:hidden;
-    
-    
+.a-btn-new {
+    width: 224px !important;
 }
-.a-btn-fixed-slide-text{
-	height: 30px;
+.a-btn-text-green {
+    color: #FFFFFF;
+    display: block;
+    font-size: 13px;
+    padding-left: 15px;
+    padding-top: 16px;
+    transition: all 0.3s linear 0s;
+    white-space: nowrap;
 }
-
-.a-btn-icon-right{
-    position:absolute;
-    right:0px;
-    top:0px;
-    height:100%;
-    width:52px;
+.a-btn-text-orange, .a-btn-text {
+    color: #FFFFFF;
+    display: block;
+    font-size: 12px;
+    padding-left: 25px;
+    padding-top: 8px;
+    transition: all 0.3s linear 0s;
+    white-space: nowrap;
 }
-
-.a-btn-icon-right span{
-    width:38px;
-    height:38px;
-    
-    position:absolute;
-    left:50%;
-    top:50%;
-    margin:-20px 0px 0px -20px;
-    background:transparent url('button-download-icon.png') no-repeat 50% 55%;
-    -webkit-transition:all 0.3s linear;
-    -moz-transition:all 0.3s linear;
-    -o-transition:all 0.3s linear;
-    transition:all 0.3s linear;
-	
+.a-btn-fixed-slide-text-green {
+    color: #fbdc32;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    font-style: italic;
+    left: 0;
+    overflow: hidden;
+    padding-left: 14px;
+    right: 52px;
+    text-indent: 15px;
+    white-space: nowrap;
+    width: auto;
+    line-height:20px;
+}
+.a-btn-icon-right-green {
+    height: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 52px;
+}
+.a-btn-icon-left-green, .a-btn-icon-left-orange {
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 52px;
+}
+.a-btn-icon-right-green span, .a-btn-icon-left-green span, .a-btn-icon-left-orange span {
+    height: 38px;
+    left: 50%;
+    margin: -19px 0 0 -22px;
+    position: absolute;
+    top: 50%;
+    transition: all 0.3s linear 0s;
+    width: 38px;
+}
+.a-btn-icon-right-green span {
+    background: url("bullet-yellow.png") no-repeat scroll 50% 55% transparent;
+    margin: -19px 0 0 -22px;
+}
+.a-btn-icon-left-green span {
+    background: url("bullet-yellow-green.png") no-repeat scroll 50% 55% transparent;
+    margin: -20px 0 0 -17px;
 }
 
 

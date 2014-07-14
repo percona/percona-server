@@ -128,6 +128,8 @@ Version Specific Information
 
  * :rn:`5.6.17-66.0`
     TokuDB storage engine available as a separate |Percona Server| package.
+ * :rn:`5.6.19-67.0`
+    TokuDB storage engine is considered GA quality.
 
 
 Other Reading

@@ -12,27 +12,17 @@ function usage() {
 function get_repo() {
     local owner=$1; local repo=$2; local ref=$3
 
-    if [ ! -f $repo.tar.gz ] ; then
-        rm -rf $repo
-        curl -L https://api.github.com/repos/$owner/$repo/tarball/$ref --output $repo.tar.gz
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    fi
-    if [ ! -d $repo ] ; then
-        mkdir $repo
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-        tar --extract --gzip --directory $repo --strip-components 1 --file $repo.tar.gz
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-        rm -rf $repo.tar.gz
-    fi
+    curl -L https://api.github.com/repos/$owner/$repo/tarball/$ref --output $repo.tar.gz
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    mkdir $repo
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    tar --extract --gzip --directory $repo --strip-components 1 --file $repo.tar.gz
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    rm -rf $repo.tar.gz
 }
 
 function get_source_from_repos() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
-
-    # get jemalloc
-    get_repo Tokutek jemalloc 3.6.0
-    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    mv jemalloc jemalloc-3.6.0
 
     # get percona server source
     get_repo Tokutek percona-server-5.6 $perconaserver
@@ -74,6 +64,11 @@ function get_source_from_repos() {
         fi      
     done
     popd
+
+    # get jemalloc
+    get_repo Tokutek jemalloc 3.6.0
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    mv jemalloc jemalloc-3.6.0
 }
 
 function build_tarballs_from_source() {

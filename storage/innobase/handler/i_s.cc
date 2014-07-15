@@ -42,6 +42,7 @@ Created July 18, 2007 Vasil Dimov
 #include "i_s.h"
 #include <sql_plugin.h>
 #include <mysql/innodb_priv.h>
+#include <debug_sync.h>
 
 #include "btr0pcur.h"
 #include "btr0types.h"
@@ -8435,11 +8436,22 @@ i_s_innodb_changed_pages_fill(
 		limit_lsn_range_from_condition(table, cond, &min_lsn,
 					       &max_lsn);
 	}
+	
+	/* If the log tracker is running and our max_lsn > current tracked LSN,
+	cap the max lsn so that we don't try to read any partial runs as the
+	tracked LSN advances. */
+	if (srv_track_changed_pages) {
+		ib_uint64_t		tracked_lsn = log_get_tracked_lsn();
+		if (max_lsn > tracked_lsn)
+			max_lsn = tracked_lsn;
+	}
 
 	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
 		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
 		DBUG_RETURN(1);
 	}
+
+	DEBUG_SYNC(thd, "i_s_innodb_changed_pages_range_ready");
 
 	while(log_online_bitmap_iterator_next(&i) &&
 	      (!srv_max_changed_pages ||

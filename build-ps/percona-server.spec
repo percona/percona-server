@@ -567,6 +567,14 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
 %pre -n Percona-Server-server%{product_suffix}
 
+# On rhel7 change default MariaDB options if they exists (only on initial installation)
+%if "%rhel" > "6"
+if [ $1 -eq 1 -a -f /etc/my.cnf ]; then
+  sed -i 's/log-error=\/var\/log\/mariadb\/mariadb.log/log-error=\/var\/log\/mysqld.log/g' /etc/my.cnf;
+  sed -i 's/pid-file=\/var\/run\/mariadb\/mariadb.pid/pid-file=\/var\/run\/mysql\/mysqld.pid/g' /etc/my.cnf;
+fi
+%endif
+
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
 # There are users who deviate from the default file system layout.

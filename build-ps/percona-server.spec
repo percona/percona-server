@@ -271,6 +271,9 @@ be eligible for hot fixes, and boost your team's productivity.
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
+%if "%rhel" > "6"
+Requires:       perl(Data::Dumper)
+%endif
 Provides:       mysql-server MySQL-server
 Conflicts:	Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55
 
@@ -320,6 +323,9 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 # ----------------------------------------------------------------------------
 %package -n Percona-Server-test%{product_suffix}
 Requires:       Percona-Server-client%{product_suffix} perl
+%if "%rhel" > "6"
+Requires:       perl(Socket), perl(Time::HiRes), perl(Data::Dumper), perl(Test::More)
+%endif
 Summary:        Percona Server - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test

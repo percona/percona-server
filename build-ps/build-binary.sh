@@ -254,14 +254,14 @@ fi
 (
     cd "$INSTALLDIR/usr/local/"
 
-    find $PRODUCT_FULL ! -type d  ! -iname "*tdb*.h" -a ! -iname "*toku*" | sort > $WORKDIR_ABS/tokudb_server.list
+    find $PRODUCT_FULL ! -type d  ! \( -iname '*toku*' -o -iwholename '*/tokudb*/*' -o -iname '*tdb*.h' \) | sort > $WORKDIR_ABS/tokudb_server.list
     $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$PRODUCT_FULL.tar.gz" -T $WORKDIR_ABS/tokudb_server.list
     rm -f $WORKDIR_ABS/tokudb_server.list
 
     if test -e "$PRODUCT_FULL/lib/mysql/plugin/ha_tokudb.so"
     then
         TARGETTOKU=$(echo $PRODUCT_FULL | sed 's/.Linux/.TokuDB.Linux/')
-        find $PRODUCT_FULL ! -type d  -iname "*toku*" -o -iname "*tdb*.h" > $WORKDIR_ABS/tokudb_plugin.list
+	find $PRODUCT_FULL ! -type d \( -iname '*toku*' -o -iwholename '*/tokudb*/*' -o -iname '*tdb*.h' \) > $WORKDIR_ABS/tokudb_plugin.list
         $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$TARGETTOKU.tar.gz" -T $WORKDIR_ABS/tokudb_plugin.list
         rm -f $WORKDIR_ABS/tokudb_plugin.list
     fi

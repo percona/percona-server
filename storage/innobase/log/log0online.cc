@@ -1264,6 +1264,7 @@ log_online_follow_redo_log(void)
 /*********************************************************************//**
 Diagnose a bitmap file range setup failure and free the partially-initialized
 bitmap file range.  */
+UNIV_COLD
 static
 void
 log_online_diagnose_inconsistent_dir(
@@ -1445,26 +1446,30 @@ log_online_setup_bitmap_file_range(
 		return FALSE;
 	}
 
-#ifdef UNIV_DEBUG
-	if (!bitmap_files->files[0].seq_num) {
+	if (!bitmap_files->files[0].seq_num
+	    || bitmap_files->files[0].seq_num != first_file_seq_num) {
 
 		log_online_diagnose_inconsistent_dir(bitmap_files);
 		return FALSE;
 	}
-	ut_ad(bitmap_files->files[0].seq_num == first_file_seq_num);
+
 	{
 		size_t i;
 		for (i = 1; i < bitmap_files->count; i++) {
 			if (!bitmap_files->files[i].seq_num) {
 				break;
 			}
-			ut_ad(bitmap_files->files[i].seq_num
-			      > bitmap_files->files[i - 1].seq_num);
-			ut_ad(bitmap_files->files[i].start_lsn
-			      >= bitmap_files->files[i - 1].start_lsn);
+			if ((bitmap_files->files[i].seq_num
+			      <= bitmap_files->files[i - 1].seq_num)
+			    || (bitmap_files->files[i].start_lsn
+				< bitmap_files->files[i - 1].start_lsn)) {
+
+				log_online_diagnose_inconsistent_dir(
+								bitmap_files);
+				return FALSE;
+			}
 		}
 	}
-#endif
 
 	return TRUE;
 }

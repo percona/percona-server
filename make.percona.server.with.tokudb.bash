@@ -93,24 +93,27 @@ function build_tarballs_from_source() {
 function make_target() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
-    rm -rf build-$buildtype
-    mkdir build-$buildtype
+    local builddir=$perconaserver-$tokudb-$buildtype
+    rm -rf -$builddir
+    mkdir $builddir
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    pushd build-$buildtype
+    pushd $builddir
     get_source_from_repos $perconaserver $tokudb $buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     build_tarballs_from_source $perconaserver $tokudb $buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     popd
-    mv build-$buildtype/$perconaserver-$buildtype/Percona-Server*.gz* .
-    rm -rf build-$buildtype
+    mv $builddir/$perconaserver-$buildtype/Percona-Server*.gz* .
+    # rm -rf build-$buildtype
 }
 
 
-if [ $# -ne 2 ] ; then usage; exit 1; fi
+if [ $# -lt 2 ] ; then usage; exit 1; fi
 perconaserver=$1
 tokudb=$2
+buildtype=
+if [ $# -eq 3 ] ;then buildtype=$3; fi
 
-make_target $perconaserver $tokudb release
-make_target $perconaserver $tokudb debug
-make_target $perconaserver $tokudb debug-valgrind
+if [ -z "$buildtype" -o $buildtype = release ] ; then make_target $perconaserver $tokudb release; fi
+if [ -z "$buildtype" -o $buildtype = debug ] ; then make_target $perconaserver $tokudb debug; fi
+if [ -z "$buildtype" -o $buildtype = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind; fi

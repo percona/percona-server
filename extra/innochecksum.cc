@@ -52,17 +52,6 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "mach0data.h"           /* mach_read_from_4() */
 #include "ut0crc32.h"            /* ut_crc32_init() */
 
-/** Smallest compressed page size */
-#define PAGE_ZIP_MIN_SIZE       (1 << 10)
-
-#define DICT_TF_FORMAT_SHIFT            5       /* file format */
-#define DICT_TF_FORMAT_MASK                                             \
-    ((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
-#define DICT_TF_FORMAT_51               0       /*!< InnoDB/MySQL up to 5.1 */
-#define DICT_TF_FORMAT_ZIP              1       /*!< InnoDB plugin for 5.1:
-                                                  compressed tables,
-                                                  new BLOB treatment */
-
 #ifdef UNIV_NONINL
 # include "fsp0fsp.ic"
 # include "mach0data.ic"
@@ -324,14 +313,13 @@ display_format_info(uchar *page)
   }
   else if (page_type == FIL_PAGE_TYPE_FSP_HDR)
   {
-    ulint format = flags & DICT_TF_FORMAT_MASK >> DICT_TF_FORMAT_SHIFT;
     ulint zip_size = fsp_flags_get_zip_size(flags);
 
     if (!flags)
     {
       printf("Detected file format: Antelope (5.1.7 or newer).\n");
     }
-    else if (format == DICT_TF_FORMAT_ZIP)
+    else if (DICT_TF_HAS_ATOMIC_BLOBS(flags))
     {
       printf("Detected file format: Barracuda ");
       if (!zip_size)
@@ -340,7 +328,7 @@ display_format_info(uchar *page)
         printf("(compressed with KEY_BLOCK_SIZE=%lu).\n", zip_size);
     }
     else
-      printf("Unknown file format: %lu\n", format);
+      printf("Unknown file format flags: %lu\n", flags);
   }
   else
   {

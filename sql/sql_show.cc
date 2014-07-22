@@ -1062,8 +1062,6 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 }
 
 
-#define LIST_PROCESS_HOST_LEN 64
-
 static bool get_field_default_value(THD *thd, Field *timestamp_field,
                                     Field *field, String *def_value,
                                     bool quoted)

@@ -37,10 +37,6 @@
 
 class Alter_info;
 
-#if MAX_KEY > 128
-#error MAX_KEY is too large.  Values up to 128 are supported.
-#endif
-
 // the following is for checking tables
 
 #define HA_ADMIN_ALREADY_DONE	  1

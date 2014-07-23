@@ -11383,16 +11383,6 @@ ha_innobase::get_memory_buffer_size() const
 	return(innobase_buffer_pool_size);
 }
 
-UNIV_INTERN
-bool
-ha_innobase::is_corrupt() const
-{
-	if (share->ib_table)
-		return ((bool)share->ib_table->is_corrupt);
-	else
-		return (FALSE);
-}
-
 /*********************************************************************//**
 Calculates the key number used inside MySQL for an Innobase index. We will
 first check the "index translation table" for a match of the index to get

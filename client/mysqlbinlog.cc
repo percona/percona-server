@@ -2585,7 +2585,6 @@ static Exit_status check_header(IO_CACHE* file,
   }
 
   pos= my_b_tell(file);
-  DBUG_ASSERT(pos == 0);
 
   /* fstat the file to check if the file is a regular file. */
   if (my_fstat(file->file, &my_file_stat, MYF(0)) == -1)
@@ -2756,7 +2755,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     /* read from normal file */
     if ((fd = my_open(logname, O_RDONLY | O_BINARY, MYF(MY_WME))) < 0)
       return ERROR_STOP;
-    if (init_io_cache(file, fd, 0, READ_CACHE, (my_off_t) 0, 0,
+    if (init_io_cache(file, fd, 0, READ_CACHE, start_position_mot, 0,
 		      MYF(MY_WME | MY_NABP)))
     {
       my_close(fd, MYF(MY_WME));
@@ -2764,7 +2763,6 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
     if ((retval= check_header(file, print_event_info, logname)) != OK_CONTINUE)
       goto end;
-    my_b_seek(file, start_position_mot);
   }
   else
   {

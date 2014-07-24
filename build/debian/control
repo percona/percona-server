@@ -39,6 +39,9 @@ Description: Percona Server database development files
 
 Package: percona-server-common
 Section: database
+Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
+Provides: mysql-common
+Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)

@@ -37,7 +37,7 @@ connection slave;
 --let $condition= 'INSERT INTO t VALUES(0)'
 --source include/wait_show_condition.inc
 
---echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
+--echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NONBLOCKING' - both should work fine
 --source include/percona_show_slave_status_nolock.inc
 
 connection master;
@@ -62,7 +62,7 @@ connection slave;
 --let $condition= 'STOP SLAVE'
 --source include/wait_show_condition.inc
 
---echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
+--echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NONBLOCKING' - just NONBLOCKING version should works fine
 --source include/percona_show_slave_status_nolock.inc
 
 
@@ -86,5 +86,11 @@ connection master;
 --echo [master]
 DROP TABLE t;
 sync_slave_with_master;
+
+# Test NOLOCK syntax deprecation warning
+--disable_result_log
+SHOW SLAVE STATUS NOLOCK;
+--enable_result_log
+SHOW WARNINGS;
 
 --source include/rpl_end.inc

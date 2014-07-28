@@ -21,10 +21,10 @@ SET DEBUG_SYNC='now SIGNAL signal.empty';
 
 connection slave_nolock;
 --echo [slave_nolock]
-send SHOW SLAVE STATUS NOLOCK;
+send SHOW SLAVE STATUS NONBLOCKING;
 
 connection slave;
---let $condition= 'SHOW SLAVE STATUS NOLOCK'
+--let $condition= 'SHOW SLAVE STATUS NONBLOCKING'
 --source include/wait_show_condition.inc
 
 --disable_warnings
@@ -33,7 +33,7 @@ SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
 
 --echo # should be 'signal.after_show_slave_status'
 --let current=`SELECT SUBSTR(Variable_value FROM 22) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name = 'DEBUG_SYNC'`
---echo SIGNAL after SHOW SLAVE STATUS NOLOCK is $current
+--echo SIGNAL after SHOW SLAVE STATUS NONBLOCKING is $current
 
 connection slave;
 --echo [slave]

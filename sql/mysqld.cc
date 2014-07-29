@@ -297,7 +297,7 @@ const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
 static const char *tc_heuristic_recover_names[]=
 {
-  "COMMIT", "ROLLBACK", NullS
+  "NONE", "COMMIT", "ROLLBACK", NullS
 };
 static TYPELIB tc_heuristic_recover_typelib=
 {
@@ -7497,8 +7497,8 @@ struct my_option my_long_options[]=
    &global_system_variables.sysdate_is_now,
    0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"tc-heuristic-recover", 0,
-   "Decision to use in heuristic recover process. Possible values are COMMIT "
-   "or ROLLBACK.", &tc_heuristic_recover, &tc_heuristic_recover,
+   "Decision to use in heuristic recover process. Possible values are NONE, "
+   "COMMIT, or ROLLBACK.", &tc_heuristic_recover, &tc_heuristic_recover,
    &tc_heuristic_recover_typelib, GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #if defined(ENABLED_DEBUG_SYNC)
   {"debug-sync-timeout", OPT_DEBUG_SYNC_TIMEOUT,

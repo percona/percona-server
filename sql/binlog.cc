@@ -496,11 +496,6 @@ protected:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     remove_pending_event();
-    /*
-      Truncate the temporary file to reclaim disk space occupied by cached
-      transactions on COMMIT/ROLLBACK.
-    */
-    truncate_cached_file(&cache_log, pos);
     reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }

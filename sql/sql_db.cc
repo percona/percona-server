@@ -541,6 +541,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];
+  char	 tmp_query[FN_REFLEN+16];
   long result= 1;
   int error= 0;
   MY_STAT stat_info;
@@ -626,10 +627,23 @@ not_silent:
   {
     char *query;
     uint query_length;
+    char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
+    int id_len= 0;
 
-    query=        thd->query();
-    query_length= thd->query_length();
-    DBUG_ASSERT(query);
+    if (!thd->query())                          // Only in replication
+    {
+      id_len= my_strmov_quoted_identifier(thd, (char *) db_name_quoted, db,
+                                          0);
+      db_name_quoted[id_len]= '\0';
+      query= tmp_query;
+      query_length= (uint) (strxmov(tmp_query,"create database ",
+                                    db_name_quoted, NullS) - tmp_query);
+    }
+    else
+    {
+      query=        thd->query();
+      query_length= thd->query_length();
+    }
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
                         query, query_length,
@@ -881,11 +895,23 @@ update_binlog:
   {
     const char *query;
     ulong query_length;
-
-    query= thd->query();
-    query_length= thd->query_length();
-    DBUG_ASSERT(query);
-
+    // quoted db name + wraping quote
+    char buffer_temp [2 * FN_REFLEN + 2];
+    int id_len= 0;
+    if (!thd->query())
+    {
+      /* The client used the old obsolete mysql_drop_db() call */
+      query= path;
+      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db, strlen(db));
+      buffer_temp[id_len] ='\0';
+      query_length= (uint) (strxmov(path, "DROP DATABASE ", buffer_temp, "",
+                                     NullS) - path);
+    }
+    else
+    {
+      query= thd->query();
+      query_length= thd->query_length();
+    }
     if (mysql_bin_log.is_open())
     {
       int errcode= query_error_code(thd, TRUE);
@@ -916,8 +942,9 @@ update_binlog:
   else if (mysql_bin_log.is_open() && !silent)
   {
     char *query, *query_pos, *query_end, *query_data_start;
+    char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    uint db_len;
+    uint db_len, id_length=0;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
@@ -939,16 +966,8 @@ update_binlog:
       if (exists)
         continue;
 
-      char quoted_name_c[FN_REFLEN+3];
-      String quoted_name(quoted_name_c,
-			 sizeof(quoted_name_c),
-			 system_charset_info);
-      quoted_name.length(0);
-      quoted_name.append_identifier(tbl->table_name,
-				    strlen(tbl->table_name),
-				    system_charset_info,
-				    '`');
-      tbl_name_len= quoted_name.length() + 1; /* +1 for the comma */
+      /* 3 for the quotes and the comma*/
+      tbl_name_len= strlen(tbl->table_name) + 3;
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         /*
@@ -962,8 +981,10 @@ update_binlog:
         }
         query_pos= query_data_start;
       }
-
-      query_pos= strmov(query_pos, quoted_name.c_ptr());
+      id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
+                                      tbl->table_name, 0);
+      temp_identifier[id_length]= '\0';
+      query_pos= strmov(query_pos,(char *)&temp_identifier);
       *query_pos++ = ',';
     }
 

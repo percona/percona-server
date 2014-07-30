@@ -13421,7 +13421,7 @@ load_data_set_elem:
                 lex->value_list.push_back($4) ||
                 lex->load_set_str_list.push_back(val))
                 MYSQL_YYABORT;
-            $4->item_name.copy_no_truncate($3, length, YYTHD->charset());
+            $4->item_name.copy($3, length, YYTHD->charset());
           }
         ;
 

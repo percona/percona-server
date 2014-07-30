@@ -41,7 +41,7 @@ html:
 	@echo "Downloading percona-theme ..."
 	@wget -O percona-theme.tar.gz http://percona.com/docs/theme/percona-server/5.6
 	@echo "Extracting theme."
-	@tar -zxf percona-theme.tar.gz
+	@tar -mzxf percona-theme.tar.gz
 	@rm -rf source/percona-theme
 	@mv percona-theme source/percona-theme
 	@rm percona-theme.tar.gz

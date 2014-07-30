@@ -32,6 +32,8 @@ If we experience query cache contention, the output of ``SHOW PROCESSLIST`` will
   4       root    localhost       test    Query   1       Waiting on query cache mutex  SELECT number from t where id > 0;
   5       root    localhost       test    Query   0       NULL
 
+.. _ignoring_comments:
+
 Ignoring comments
 =================
 

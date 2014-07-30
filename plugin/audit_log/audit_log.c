@@ -25,22 +25,24 @@
 #include <mysql_version.h>
 #include <mysql_com.h>
 #include <my_pthread.h>
+#include <syslog.h>
 
 #include "logger.h"
 #include "buffer.h"
+#include "audit_handler.h"
 
-#define PLUGIN_VERSION 0x0001
+#define PLUGIN_VERSION 0x0002
 
 
 enum audit_log_policy_t { ALL, NONE, LOGINS, QUERIES };
 enum audit_log_strategy_t
   { ASYNCHRONOUS, PERFORMANCE, SEMISYNCHRONOUS, SYNCHRONOUS };
 enum audit_log_format_t { OLD, NEW, JSON, CSV };
+enum audit_log_handler_t { HANDLER_FILE, HANDLER_SYSLOG };
 
 typedef void (*escape_buf_func_t)(const char *, size_t *, char *, size_t *);
 
-static LOGGER_HANDLE *audit_file_logger= NULL;
-static audit_log_buffer_t *audit_log_buffer= NULL;
+static audit_handler_t *log_handler= NULL;
 static ulonglong record_id= 0;
 static time_t log_file_time= 0;
 char *audit_log_file;
@@ -52,6 +54,43 @@ ulonglong audit_log_rotate_on_size= 0;
 ulonglong audit_log_rotations= 0;
 char audit_log_flush= FALSE;
 ulong audit_log_format= OLD;
+ulong audit_log_handler= HANDLER_FILE;
+char *audit_log_syslog_ident;
+char default_audit_log_syslog_ident[] = "percona-audit";
+ulong audit_log_syslog_facility= 0;
+ulong audit_log_syslog_priority= 0;
+
+
+static int audit_log_syslog_facility_codes[]=
+  { LOG_USER,   LOG_AUTHPRIV, LOG_CRON,   LOG_DAEMON, LOG_FTP,
+    LOG_KERN,   LOG_LPR,      LOG_MAIL,   LOG_NEWS,
+#if (defined LOG_SECURITY)
+    LOG_SECURITY,
+#endif
+    LOG_SYSLOG, LOG_AUTH,     LOG_UUCP,   LOG_LOCAL0, LOG_LOCAL1,
+    LOG_LOCAL2, LOG_LOCAL3,   LOG_LOCAL4, LOG_LOCAL5, LOG_LOCAL6,
+    LOG_LOCAL7, 0};
+
+
+static const char *audit_log_syslog_facility_names[]=
+  { "LOG_USER",   "LOG_AUTHPRIV", "LOG_CRON",   "LOG_DAEMON", "LOG_FTP",
+    "LOG_KERN",   "LOG_LPR",      "LOG_MAIL",   "LOG_NEWS",
+#if (defined LOG_SECURITY)
+    "LOG_SECURITY",
+#endif
+    "LOG_SYSLOG", "LOG_AUTH",     "LOG_UUCP",   "LOG_LOCAL0", "LOG_LOCAL1",
+    "LOG_LOCAL2", "LOG_LOCAL3",   "LOG_LOCAL4", "LOG_LOCAL5", "LOG_LOCAL6",
+    "LOG_LOCAL7", 0 };
+
+
+static const int audit_log_syslog_priority_codes[]=
+  { LOG_INFO,   LOG_ALERT, LOG_CRIT, LOG_ERR, LOG_WARNING,
+    LOG_NOTICE, LOG_EMERG,  LOG_DEBUG, 0 };
+
+
+static const char *audit_log_syslog_priority_names[]=
+  { "LOG_INFO",   "LOG_ALERT", "LOG_CRIT", "LOG_ERR", "LOG_WARNING",
+    "LOG_NOTICE", "LOG_EMERG", "LOG_DEBUG", 0 };
 
 
 static
@@ -228,14 +267,15 @@ char *escape_string(const char *in, size_t inlen,
   return out;
 }
 
+
 static
-void logger_write_safe(LOGGER_HANDLE *log, const char *buffer, size_t size)
+void audit_log_write(const char *buf, size_t len)
 {
   static int write_error= 0;
 
-  if (log != NULL)
+  if (log_handler != NULL)
   {
-    if (logger_write(log, buffer, size) < 0)
+    if (audit_handler_write(log_handler, buf, len) < 0)
     {
       if (!write_error)
       {
@@ -249,44 +289,6 @@ void logger_write_safe(LOGGER_HANDLE *log, const char *buffer, size_t size)
     {
       write_error= 0;
     }
-  }
-}
-
-
-static 
-void logger_write_safe_void(void *log, const char *buffer, size_t size)
-{
-  logger_write_safe((LOGGER_HANDLE *)log, buffer, size);
-}
-
-
-static
-void audit_log_write_without_buffer(const char *buf, size_t len)
-{
-  logger_write_safe(audit_file_logger, buf, len);
-  if (audit_log_strategy == SYNCHRONOUS && audit_file_logger != NULL)
-  {
-    logger_sync(audit_file_logger);
-  }
-}
-
-
-static
-void audit_log_write(const char *buf, size_t len)
-{
-  switch (audit_log_strategy)
-  {
-    case ASYNCHRONOUS:
-    case PERFORMANCE:
-      if (audit_log_buffer != NULL)
-        audit_log_buffer_write(audit_log_buffer, buf, len);
-      break;
-    case SEMISYNCHRONOUS:
-    case SYNCHRONOUS:
-      audit_log_write_without_buffer(buf, len);
-      break;
-    default:
-      DBUG_ASSERT(0);
   }
 }
 
@@ -541,6 +543,11 @@ size_t audit_log_header(MY_STAT *stat, char *buf, size_t buflen)
 
   init_record_id(stat->st_size);
 
+  if (buf == NULL)
+  {
+    return 0;
+  }
+
   return my_snprintf(buf, buflen, format_string[audit_log_format]);
 }
 
@@ -554,22 +561,56 @@ size_t audit_log_footer(char *buf, size_t buflen)
                      "",
                      "" };
 
+  if (buf == NULL)
+  {
+    return 0;
+  }
+
   return my_snprintf(buf, buflen, format_string[audit_log_format]);
 }
 
 static
 int init_new_log_file()
 {
-  audit_file_logger= logger_open(audit_log_file, audit_log_rotate_on_size,
-                            audit_log_rotate_on_size ? audit_log_rotations : 0,
-                            audit_log_strategy >= SEMISYNCHRONOUS,
-                            audit_log_header);
-  if (audit_file_logger == NULL)
+  if (audit_log_handler == HANDLER_FILE)
   {
-    fprintf_timestamp(stderr);
-    fprintf(stderr, "Cannot open file %s. ", audit_log_file);
-    perror("Error: ");
-    return(1);
+    audit_handler_file_config_t opts;
+    opts.name= audit_log_file;
+    opts.rotate_on_size= audit_log_rotate_on_size;
+    opts.rotations= audit_log_rotations;
+    opts.sync_on_write= audit_log_strategy == SYNCHRONOUS;
+    opts.use_buffer= audit_log_strategy < SEMISYNCHRONOUS;
+    opts.buffer_size= audit_log_buffer_size;
+    opts.can_drop_data= audit_log_strategy == PERFORMANCE;
+    opts.header= audit_log_header;
+    opts.footer= audit_log_footer;
+
+    log_handler= audit_handler_file_open(&opts);
+    if (log_handler == NULL)
+    {
+      fprintf_timestamp(stderr);
+      fprintf(stderr, "Cannot open file %s. ", audit_log_file);
+      perror("Error: ");
+      return(1);
+    }
+  }
+  else
+  {
+    audit_handler_syslog_config_t opts;
+    opts.facility= audit_log_syslog_facility_codes[audit_log_syslog_facility];
+    opts.ident= audit_log_syslog_ident;
+    opts.priority= audit_log_syslog_priority_codes[audit_log_syslog_priority];
+    opts.header= audit_log_header;
+    opts.footer= audit_log_footer;
+
+    log_handler= audit_handler_syslog_open(&opts);
+    if (log_handler == NULL)
+    {
+      fprintf_timestamp(stderr);
+      fprintf(stderr, "Cannot open syslog. ");
+      perror("Error: ");
+      return(1);
+    }
   }
 
   return(0);
@@ -579,23 +620,18 @@ int init_new_log_file()
 static
 int reopen_log_file()
 {
-  if (logger_reopen(audit_file_logger, audit_log_header, audit_log_footer))
+  if (log_handler != NULL)
   {
-    fprintf_timestamp(stderr);
-    fprintf(stderr, "Cannot open file %s. ", audit_log_file);
-    perror("Error: ");
-    return(1);
+    if (audit_handler_flush(log_handler))
+    {
+      fprintf_timestamp(stderr);
+      fprintf(stderr, "Cannot open file %s. ", audit_log_file);
+      perror("Error: ");
+      return(1);
+    }
   }
 
   return(0);
-}
-
-
-static
-void close_log_file()
-{
-  if (audit_file_logger != NULL)
-    logger_close(audit_file_logger, audit_log_footer);
 }
 
 
@@ -609,13 +645,6 @@ int audit_log_plugin_init(void *arg __attribute__((unused)))
 
   if (init_new_log_file())
     return(1);
-
-  if (audit_log_strategy < SEMISYNCHRONOUS)
-  {
-    audit_log_buffer= audit_log_buffer_init(audit_log_buffer_size,
-      audit_log_strategy == PERFORMANCE, logger_write_safe_void,
-      audit_file_logger);
-  }
 
   len= audit_log_audit_record(buf, sizeof(buf), "Audit", time(NULL));
   audit_log_write(buf, len);
@@ -633,9 +662,7 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
   len= audit_log_audit_record(buf, sizeof(buf), "NoAudit", time(NULL));
   audit_log_write(buf, len);
 
-  if (audit_log_buffer != NULL)
-    audit_log_buffer_shutdown(audit_log_buffer);
-  close_log_file();
+  audit_handler_close(log_handler);
 
   return(0);
 }
@@ -729,8 +756,8 @@ static const char *audit_log_policy_names[]=
 
 static TYPELIB audit_log_policy_typelib=
 {
-    array_elements(audit_log_policy_names) - 1, "audit_log_policy_typelib",
-    audit_log_policy_names, NULL
+  array_elements(audit_log_policy_names) - 1, "audit_log_policy_typelib",
+  audit_log_policy_names, NULL
 };
 
 static MYSQL_SYSVAR_ENUM(policy, audit_log_policy, PLUGIN_VAR_RQCMDARG,
@@ -742,21 +769,22 @@ static const char *audit_log_strategy_names[]=
   { "ASYNCHRONOUS", "PERFORMANCE", "SEMISYNCHRONOUS", "SYNCHRONOUS", 0 };
 static TYPELIB audit_log_strategy_typelib=
 {
-    array_elements(audit_log_strategy_names) - 1, "audit_log_strategy_typelib",
-    audit_log_strategy_names, NULL
+  array_elements(audit_log_strategy_names) - 1, "audit_log_strategy_typelib",
+  audit_log_strategy_names, NULL
 };
 
 static MYSQL_SYSVAR_ENUM(strategy, audit_log_strategy,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-       "The logging method used by the audit log plugin.", NULL, NULL,
+       "The logging method used by the audit log plugin, "
+       "if FILE handler is used.", NULL, NULL,
        ASYNCHRONOUS, &audit_log_strategy_typelib);
 
 static const char *audit_log_format_names[]=
   { "OLD", "NEW", "JSON", "CSV", 0 };
 static TYPELIB audit_log_format_typelib=
 {
-    array_elements(audit_log_format_names) - 1, "audit_log_format_typelib",
-    audit_log_format_names, NULL
+  array_elements(audit_log_format_names) - 1, "audit_log_format_typelib",
+  audit_log_format_names, NULL
 };
 
 static MYSQL_SYSVAR_ENUM(format, audit_log_format,
@@ -764,9 +792,23 @@ static MYSQL_SYSVAR_ENUM(format, audit_log_format,
        "The audit log file format.", NULL, NULL,
        ASYNCHRONOUS, &audit_log_format_typelib);
 
+static const char *audit_log_handler_names[]=
+  { "FILE", "SYSLOG", 0 };
+static TYPELIB audit_log_handler_typelib=
+{
+  array_elements(audit_log_handler_names) - 1, "audit_log_handler_typelib",
+  audit_log_handler_names, NULL
+};
+
+static MYSQL_SYSVAR_ENUM(handler, audit_log_handler,
+       PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+       "The audit log handler.", NULL, NULL,
+       HANDLER_FILE, &audit_log_handler_typelib);
+
 static MYSQL_SYSVAR_ULONGLONG(buffer_size, audit_log_buffer_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "The size of the buffer for asynchronous logging.",
+  "The size of the buffer for asynchronous logging, "
+  "if FILE handler is used.",
   NULL, NULL, 1048576UL, 4096UL, ULONGLONG_MAX, 4096UL);
 
 static
@@ -778,13 +820,15 @@ void audit_log_rotate_on_size_update(
 {
   ulonglong new_val= *(ulonglong *)(save);
 
-  if (audit_file_logger)
-    logger_set_size_limit(audit_file_logger, new_val);
+  if (log_handler != NULL)
+    audit_handler_set_option(log_handler, OPT_ROTATE_ON_SIZE, &new_val);
+
+  audit_log_rotate_on_size= new_val;
 }
 
 static MYSQL_SYSVAR_ULONGLONG(rotate_on_size, audit_log_rotate_on_size,
   PLUGIN_VAR_RQCMDARG,
-  "Maximum size of the log to start the rotation.",
+  "Maximum size of the log to start the rotation, if FILE handler is used.",
   NULL, audit_log_rotate_on_size_update, 0UL, 0UL, ULONGLONG_MAX, 4096UL);
 
 static
@@ -796,13 +840,15 @@ void audit_log_rotations_update(
 {
   ulonglong new_val= *(ulonglong *)(save);
 
-  if (audit_file_logger)
-    logger_set_rotations(audit_file_logger, new_val);
+  if (log_handler != NULL)
+    audit_handler_set_option(log_handler, OPT_ROTATIONS, &new_val);
+
+  audit_log_rotations= new_val;
 }
 
 static MYSQL_SYSVAR_ULONGLONG(rotations, audit_log_rotations,
   PLUGIN_VAR_RQCMDARG,
-  "Maximum number of rotations to keep.",
+  "Maximum number of rotations to keep, if FILE handler is used.",
   NULL, audit_log_rotations_update, 0UL, 0UL, 999UL, 1UL);
 
 static
@@ -826,6 +872,39 @@ static MYSQL_SYSVAR_BOOL(flush, audit_log_flush,
        PLUGIN_VAR_OPCMDARG, "Flush the log file.", NULL,
        audit_log_flush_update, 0);
 
+static MYSQL_SYSVAR_STR(syslog_ident, audit_log_syslog_ident,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "The string that will be prepended to each log message, "
+  "if SYSLOG handler is used.",
+  NULL, NULL, default_audit_log_syslog_ident);
+
+static TYPELIB audit_log_syslog_facility_typelib=
+{
+  array_elements(audit_log_syslog_facility_names) - 1,
+  "audit_log_syslog_facility_typelib",
+  audit_log_syslog_facility_names, NULL
+};
+
+static MYSQL_SYSVAR_ENUM(syslog_facility, audit_log_syslog_facility,
+       PLUGIN_VAR_RQCMDARG,
+       "The syslog facility to assign to messages, if SYSLOG handler is used.",
+       NULL, NULL, 0,
+       &audit_log_syslog_facility_typelib);
+
+static TYPELIB audit_log_syslog_priority_typelib=
+{
+  array_elements(audit_log_syslog_priority_names) - 1,
+  "audit_log_syslog_priority_typelib",
+  audit_log_syslog_priority_names, NULL
+};
+
+static MYSQL_SYSVAR_ENUM(syslog_priority, audit_log_syslog_priority,
+       PLUGIN_VAR_RQCMDARG,
+       "Priority to be assigned to all messages written to syslog.",
+       NULL, NULL, 0,
+       &audit_log_syslog_priority_typelib);
+
+
 static struct st_mysql_sys_var* audit_log_system_variables[] =
 {
   MYSQL_SYSVAR(file),
@@ -836,6 +915,10 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(rotate_on_size),
   MYSQL_SYSVAR(rotations),
   MYSQL_SYSVAR(flush),
+  MYSQL_SYSVAR(handler),
+  MYSQL_SYSVAR(syslog_ident),
+  MYSQL_SYSVAR(syslog_priority),
+  MYSQL_SYSVAR(syslog_facility),
   NULL
 };
 

@@ -686,21 +686,20 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                bool transactional_table,
                                                int errcode)
 {
-  char                *load_data_query;
-  my_off_t            fname_start,
-                      fname_end;
+  char                *load_data_query,
+                      *end,
+                      *fname_start,
+                      *fname_end,
+                      *p= NULL;
+  size_t               pl= 0;
   List<Item>           fv;
-  Item                *item, *val;
+  Item                *item;
+  String              *str;
+  String               pfield, pfields;
   int                  n;
-  const char          *tbl;
+  const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
   String              string_buf;
-  const char          *qualify_db= NULL;
-  char                command_buffer[1024];
-  String              query_str(command_buffer, sizeof(command_buffer),
-                              system_charset_info);
-
-  query_str.length(0);
   if (!thd->db || strcmp(db_arg, thd->db))
   {
     /*
@@ -711,7 +710,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     string_buf.set_charset(system_charset_info);
     append_identifier(thd, &string_buf, db_arg, strlen(db_arg));
     string_buf.append(".");
-    qualify_db= db_arg;
   }
   append_identifier(thd, &string_buf, table_name_arg,
                     strlen(table_name_arg));
@@ -724,8 +722,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   */
   if (thd->lex->local_file)
     lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
-  lle.print_query(thd, FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
-                  &query_str, &fname_start, &fname_end, qualify_db);
 
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
@@ -734,51 +730,66 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   {
     List_iterator<Item>  li(thd->lex->field_list);
 
-    query_str.append(" (");
+    pfields.append(" (");
     n= 0;
 
     while ((item= li++))
     {
       if (n++)
-        query_str.append(", ");
+        pfields.append(", ");
       if (item->type() == Item::FIELD_ITEM)
-        append_identifier(thd, &query_str, item->item_name.ptr(),
+        append_identifier(thd, &pfields, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
       else
-      {
-        /* Actually Item_user_var_as_out_param despite claiming STRING_ITEM. */
-        DBUG_ASSERT(item->type() == Item::STRING_ITEM);
-        ((Item_user_var_as_out_param *)item)->print_for_load(thd, &query_str);
-      }
+        item->print(&pfields, QT_ORDINARY);
     }
-    query_str.append(")");
+    pfields.append(")");
   }
 
   if (!thd->lex->update_list.is_empty())
   {
     List_iterator<Item> lu(thd->lex->update_list);
-    List_iterator<Item> lv(thd->lex->value_list);
+    List_iterator<String> ls(thd->lex->load_set_str_list);
 
-    query_str.append(" SET ");
+    pfields.append(" SET ");
     n= 0;
 
     while ((item= lu++))
     {
-      val= lv++;
+      str= ls++;
       if (n++)
-        query_str.append(", ");
-      append_identifier(thd, &query_str, item->item_name.ptr(),
+        pfields.append(", ");
+      append_identifier(thd, &pfields, item->item_name.ptr(),
                         strlen(item->item_name.ptr()));
-      query_str.append(val->item_name.ptr());
+      // Extract exact Item value
+      str->copy();
+      pfields.append(str->ptr());
+      str->free();
     }
+    /*
+      Clear the SET string list once the SET command is reconstructed
+      as we donot require the list anymore.
+    */
+    thd->lex->load_set_str_list.empty();
   }
 
-  if (!(load_data_query= (char *)thd->strmake(query_str.ptr(), query_str.length())))
+  p= pfields.c_ptr_safe();
+  pl= strlen(p);
+
+  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
     return TRUE;
 
+  lle.print_query(FALSE, ex->cs ? ex->cs->csname : NULL,
+                  load_data_query, &end,
+                  &fname_start, &fname_end);
+
+  strcpy(end, p);
+  end += pl;
+
   Execute_load_query_log_event
-    e(thd, load_data_query, query_str.length(),
-      static_cast<uint>(fname_start - 1), static_cast<uint>(fname_end),
+    e(thd, load_data_query, end-load_data_query,
+      static_cast<uint>(fname_start - load_data_query - 1),
+      static_cast<uint>(fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);

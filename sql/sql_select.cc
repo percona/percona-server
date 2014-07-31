@@ -78,7 +78,6 @@ bool handle_select(THD *thd, select_result *result,
   LEX *lex= thd->lex;
   register SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
- 
   MYSQL_SELECT_START(thd->query());
 
   if (lex->proc_analyse && lex->sql_command != SQLCOM_SELECT)

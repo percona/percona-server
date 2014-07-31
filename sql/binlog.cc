@@ -1836,10 +1836,11 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   int error= 1;
 
   String log_query;
-  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      append_identifier(thd, &log_query, thd->lex->ident.str,
-                        thd->lex->ident.length))
+  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")))
     DBUG_RETURN(error);
+  else
+    append_identifier(thd, &log_query, thd->lex->ident.str,
+                      thd->lex->ident.length);
 
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -1879,8 +1880,9 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        append_identifier(thd, &log_query, thd->lex->ident.str,
-                          thd->lex->ident.length))
+        log_query.append("`") ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
+        log_query.append("`"))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -2449,7 +2451,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
         description_event->checksum_alg= ev->checksum_alg;
 
       if (event_count >= limit_start &&
-        ev->net_send(thd, protocol, linfo.log_file_name, pos))
+        ev->net_send(protocol, linfo.log_file_name, pos))
       {
 	errmsg = "Net error";
 	delete ev;

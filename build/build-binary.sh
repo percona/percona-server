@@ -15,7 +15,7 @@ set -ue
 # Examine parameters
 TARGET="$(uname -m)"
 TARGET_CFLAGS=''
-WITH_SSL='/usr'
+WITH_SSL='--with-ssl=/usr'
 TAG=''
 #
 COMMON_FLAGS=''
@@ -26,7 +26,7 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options="it" --longoptions=with-ssl:,tag:,i686 \
+    go_out="$(getopt --options="it" --longoptions=with-yassl,with-ssl:,tag:,i686 \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -41,9 +41,13 @@ do
         TARGET="i686"
         TARGET_CFLAGS="-m32 -march=i686"
         ;;
+    --with-yassl )
+        shift
+        WITH_SSL="--with-ssl"
+        ;;
     --with-ssl )
         shift
-        WITH_SSL="$1"
+        WITH_SSL="--with-ssl=$1"
         shift
         ;;
     -t | --tag )
@@ -153,10 +157,10 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
         --with-unix-socket-path=/var/lib/mysql/mysql.sock \
         --with-pic \
         --with-extra-charsets=complex \
-        --with-ssl="$WITH_SSL" \
         --enable-thread-safe-client \
         --enable-profiling \
-        --with-readline 
+        --with-readline \
+	$WITH_SSL
 
     make $MAKE_JFLAG VERBOSE=1
     make DESTDIR="$INSTALLDIR" install

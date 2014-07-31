@@ -60,8 +60,8 @@ extern "C" {
 #endif
 
 typedef struct logger_handle_st LOGGER_HANDLE;
-typedef size_t (logger_prolog_func_t)(MY_STAT *, char *buf, size_t buflen);
-typedef size_t (logger_epilog_func_t)(char *buf, size_t buflen);
+typedef size_t (*logger_prolog_func_t)(MY_STAT *, char *buf, size_t buflen);
+typedef size_t (*logger_epilog_func_t)(char *buf, size_t buflen);
 
 void logger_init_mutexes();
 LOGGER_HANDLE *logger_open(const char *path,

@@ -20,13 +20,22 @@
 
 #include <string.h> // for size_t
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct audit_log_buffer audit_log_buffer_t;
 
-typedef void (*audit_log_write_func)(void *data, const char *buf, size_t len);
+typedef int (*audit_log_write_func)(void *data, const char *buf, size_t len);
 
 audit_log_buffer_t *audit_log_buffer_init(size_t size, int drop_if_full,
                                  audit_log_write_func write_func, void *data);
 void audit_log_buffer_shutdown(audit_log_buffer_t *log);
-int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf, size_t len);
+int audit_log_buffer_write(audit_log_buffer_t *log,
+                           const char *buf, size_t len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -107,13 +107,12 @@ function make_target() {
     # rm -rf build-$buildtype
 }
 
-
 if [ $# -lt 2 ] ; then usage; exit 1; fi
 perconaserver=$1
 tokudb=$2
 buildtype=
 if [ $# -eq 3 ] ;then buildtype=$3; fi
 
-if [ -z "$buildtype" -o $buildtype = release ] ; then make_target $perconaserver $tokudb release; fi
-if [ -z "$buildtype" -o $buildtype = debug ] ; then make_target $perconaserver $tokudb debug; fi
-if [ -z "$buildtype" -o $buildtype = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind; fi
+if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target $perconaserver $tokudb release; fi
+if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target $perconaserver $tokudb debug; fi
+if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind; fi

@@ -330,6 +330,28 @@ This package contains the TokuDB plugin for Percona Server %{version}-%{release}
 %endif
 
 # ----------------------------------------------------------------------------
+%package -n Percona-Server-selinux%{product_suffix}
+Summary: 		Percona Server - Selinux policy module
+Group:          	Applications/Databases
+%if 0%{?rhel} >= 6
+BuildArch:		noarch
+%endif
+Requires:		selinux-policy
+Requires(post):		policycoreutils
+Requires(postun):	policycoreutils
+
+%if 0%{?rhel} == 6
+BuildRequires: 		selinux-policy
+%else
+BuildRequires: 		selinux-policy-devel
+%endif
+
+%description -n Percona-Server-selinux%{product_suffix}
+This package contains SELinux policy module for Percona Server package.
+
+For a description of Percona Server see http://www.percona.com/software/percona-server/
+
+# ----------------------------------------------------------------------------
 %package -n Percona-Server-client%{product_suffix}
 Summary:        Percona Server - Client
 Group:          Applications/Databases
@@ -530,6 +552,13 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 install -d $RBR%{_libdir}/mysql/plugin
+
+# SElinux
+pushd ${MBD}/policy
+make -f /usr/share/selinux/devel/Makefile
+install -D -m 0644 $MBD/policy/percona-server.pp $RBR%{_datadir}/selinux/packages/percona-server/percona-server.pp
+popd
+# SElinux END
 
 (
   cd $MBD/release
@@ -774,6 +803,17 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         sleep 5
 fi
 %endif
+
+# SElinux
+%post -n Percona-Server-selinux%{product_suffix}
+/usr/sbin/semodule -i %{_datadir}/selinux/packages/percona-server/percona-server.pp >/dev/null 2>&1 || :
+
+%postun -n Percona-Server-selinux%{product_suffix}
+if [ $1 -eq 0 ] ; then
+    /usr/sbin/semodule -r percona-server >/dev/null 2>&1 || :
+fi
+
+#SElinux
 
 %post -n Percona-Server-server%{product_suffix}
 
@@ -1060,6 +1100,10 @@ fi
 ##############################################################################
 #  Files section
 ##############################################################################
+
+%files -n Percona-Server-selinux%{product_suffix}
+%dir %attr(755, root, root) %{_datadir}/selinux/packages/percona-server
+%attr(644, root, root) %{_datadir}/selinux/packages/percona-server/percona-server.pp
 
 %files -n Percona-Server-server%{product_suffix}
 %defattr(-,root,root,0755)

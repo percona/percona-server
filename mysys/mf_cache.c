@@ -119,23 +119,3 @@ void close_cached_file(IO_CACHE *cache)
   }
   DBUG_VOID_RETURN;
 }
-
-/*
-  Truncate the cached file to a given offset, if the current size is greater
-  than the offset. The cache must be reinitialized with reinit_io_cache() after
-  this call.
-*/
-
-my_bool truncate_cached_file(IO_CACHE *cache, my_off_t pos)
-{
-  DBUG_ENTER("truncate_cached_file");
-
-  if (my_b_inited(cache) && cache->file > -1 &&
-      my_seek(cache->file, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE)) > pos)
-  {
-    if (my_chsize(cache->file, pos, 0, MYF(MY_WME)))
-      DBUG_RETURN(TRUE);
-  }
-
-  DBUG_RETURN(FALSE);
-}

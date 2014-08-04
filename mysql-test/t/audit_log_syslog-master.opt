@@ -1,0 +1,7 @@
+$AUDIT_LOG_OPT
+$AUDIT_LOG_LOAD
+--audit-log-format=CSV
+--audit_log_handler=SYSLOG
+--audit_log_syslog_ident=test_audit
+--audit_log_syslog_facility=LOG_AUTH
+--audit_log_syslog_priority=LOG_INFO

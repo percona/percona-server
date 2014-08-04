@@ -10,6 +10,10 @@ When this variable is specified and a user tries to create a table using an expl
 
 In case user tries to enable :variable:`enforce_storage_engine` with engine that isn't available, system will not start.
 
+.. note::
+ 
+ If you're using :variable:`enforce_storage_engine`, you must either disable it before doing ``mysql_upgrade`` or perform ``mysql_upgrade`` with server started with :option:`--skip-grants-tables`.
+
 Version Specific Information
 ============================
 

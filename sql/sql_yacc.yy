@@ -1577,6 +1577,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
 %token  NOLOCK_SYM                    /* SHOW SLAVE STATUS NOLOCK */
+%token  NONBLOCKING_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
 %token  STOP_SYM
@@ -12750,7 +12751,12 @@ show_param:
 	/* SHOW SLAVE STATUS NOLOCK */
         | SLAVE STATUS_SYM NOLOCK_SYM
           {
-	    Lex->sql_command = SQLCOM_SHOW_SLAVE_NOLOCK_STAT; //SQLCOM_SHOW_SLAVE_NOLOCK_STAT;
+            WARN_DEPRECATED(YYTHD, "SHOW SLAVE STATUS NOLOCK", "SHOW SLAVE STATUS NONBLOCKING");
+            Lex->sql_command = SQLCOM_SHOW_SLAVE_NOLOCK_STAT;
+          }
+        | SLAVE STATUS_SYM NONBLOCKING_SYM
+          {
+	    Lex->sql_command = SQLCOM_SHOW_SLAVE_NOLOCK_STAT;
           }
         | CLIENT_STATS_SYM wild_and_where
           {
@@ -13415,7 +13421,7 @@ load_data_set_elem:
                 lex->value_list.push_back($4) ||
                 lex->load_set_str_list.push_back(val))
                 MYSQL_YYABORT;
-            $4->item_name.copy_no_truncate($3, length, YYTHD->charset());
+            $4->item_name.copy($3, length, YYTHD->charset());
           }
         ;
 

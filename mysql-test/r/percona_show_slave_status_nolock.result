@@ -15,7 +15,7 @@ SET GLOBAL DEBUG="+d,after_mysql_insert,after_show_slave_status";
 [master]
 INSERT INTO t VALUES(0);
 [slave]
-check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
+check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NONBLOCKING' - both should work fine
 
 [slave_lock]
 SHOW SLAVE STATUS;
@@ -24,10 +24,10 @@ SIGNAL after SHOW SLAVE STATUS is
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.empty';
 [slave_nolock]
-SHOW SLAVE STATUS NOLOCK;
+SHOW SLAVE STATUS NONBLOCKING;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
 # should be 'signal.after_show_slave_status'
-SIGNAL after SHOW SLAVE STATUS NOLOCK is .empty'
+SIGNAL after SHOW SLAVE STATUS NONBLOCKING is .empty'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]
@@ -40,7 +40,7 @@ include/rpl_connect.inc [creating slave_stop]
 [slave_stop]
 STOP SLAVE;
 [slave]
-check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
+check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NONBLOCKING' - just NONBLOCKING version should works fine
 
 [slave_lock]
 SHOW SLAVE STATUS;
@@ -49,10 +49,10 @@ SIGNAL after SHOW SLAVE STATUS is .empty'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.empty';
 [slave_nolock]
-SHOW SLAVE STATUS NOLOCK;
+SHOW SLAVE STATUS NONBLOCKING;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
 # should be 'signal.after_show_slave_status'
-SIGNAL after SHOW SLAVE STATUS NOLOCK is .empty'
+SIGNAL after SHOW SLAVE STATUS NONBLOCKING is .empty'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]
@@ -69,4 +69,8 @@ SET GLOBAL DEBUG='';
 SET DEBUG_SYNC='RESET';
 [master]
 DROP TABLE t;
+SHOW SLAVE STATUS NOLOCK;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1287	'SHOW SLAVE STATUS NOLOCK' is deprecated and will be removed in a future release. Please use SHOW SLAVE STATUS NONBLOCKING instead
 include/rpl_end.inc

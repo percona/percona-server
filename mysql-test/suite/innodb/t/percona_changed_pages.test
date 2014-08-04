@@ -105,6 +105,10 @@ eval SELECT COUNT(*) > 0 AS should_be_1
 # Gather data for condition pushdown testing not using conditions #
 ###################################################################
 --disable_result_log
+SET @min_start_lsn=
+        (SELECT MIN(start_lsn)
+                FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES);
+
 SET @max_end_lsn=
         (SELECT MAX(end_lsn)
                 FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES);
@@ -144,6 +148,12 @@ eval SELECT MAX(PAGE_ID) + 1 >= COUNT(DISTINCT PAGE_ID)
 SELECT COUNT(*)
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE START_LSN >= END_LSN;
+
+# Test for https://bugs.launchpad.net/percona-server/+bug/1202252
+# and https://mariadb.atlassian.net/browse/MDEV-4791: ICP crashes for
+# start_lsn < X AND end_lsn > Y, if X < Y
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN < 10 AND END_LSN > 20;
 
 ######################################################
 # Check if condition pushdown doesn't break anything #
@@ -198,6 +208,18 @@ SELECT COUNT(*) = @cond_test_pages_count
 SELECT COUNT(*) = @cond_test_pages_count
   FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
   WHERE
+  START_LSN > (@cond_test_max_start_lsn - 1) AND
+  END_LSN <= @max_end_lsn;
+
+SELECT COUNT(*) = @cond_test_pages_count
+  FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE
+  START_LSN >= @cond_test_max_start_lsn AND
+  END_LSN < (@max_end_lsn + 1);
+  
+SELECT COUNT(*) = @cond_test_pages_count
+  FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE
   START_LSN >= @cond_test_max_start_lsn AND
   END_LSN >= @cond_test_max_start_lsn;
 
@@ -219,6 +241,48 @@ SELECT COUNT(*)
   WHERE
   START_LSN > @cond_test_max_lsn + 10 AND
   END_LSN < @cond_test_max_lsn - 10;
+
+SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE
+  START_LSN <= (@min_start_lsn - 1);
+
+SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE
+  START_LSN < @min_start_lsn;
+
+SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE
+  END_LSN > @max_end_lsn;
+
+SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE
+  END_LSN >= (@max_end_lsn + 1);
+      
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN = (@min_start_lsn - 1);
+
+# Queries from a MariaDB patch for https://mariadb.atlassian.net/browse/MDEV-4791
+# with various conditions that are not supported by ICP
+# All must return empty set
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN < @min_start_lsn OR END_LSN > @max_end_lsn;
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN <= (@min_start_lsn - 1) OR END_LSN > @max_end_lsn;
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN < @min_start_lsn OR END_LSN >= (@max_end_lsn + 1);
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE START_LSN <= (@min_start_lsn - 1) OR END_LSN >= (@max_end_lsn + 1);
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+  WHERE (START_LSN > @cond_test_max_lsn AND END_LSN < @cond_test_max_lsn)
+  OR (START_LSN > @cond_test_max_lsn + 10 AND END_LSN < @cond_test_max_lsn - 10);
   
 # Test the combination of ICP and bitmap file selection
 --disable_query_log
@@ -249,7 +313,7 @@ SELECT @total_pages=@r1_r4_pages AS should_be_1;
 SELECT @r1_r2_pages+@r2_r3_pages+@r3_r4_pages=@r1_r4_pages AS should_be_1;
 SELECT @r1_r2_pages+@r2_r3_pages=@r1_r3_pages AS should_be_1;
 SELECT @r2_r3_pages+@r3_r4_pages=@r2_r4_pages AS should_be_1;
-  
+
 ################################################
 # Check how limit for maximum rows count works #
 ################################################

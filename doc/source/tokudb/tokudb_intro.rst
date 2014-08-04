@@ -4,11 +4,11 @@
  TokuDB Introduction
 =====================
 
-|Percona Server| provides the separate TokuDB storage engine package since :rn:`5.6.17-66.0`. This package can be :ref:`installed <tokudb_installation>` along side with |Percona Server| 5.6 releases. Before the separate package implementation |Percona Server| has added support for TokuDB storage engine in the :rn:`5.6.16-64.0-tokudb` release and TokuDB engine was only available in special |Percona Server| with TokuDB storage engine releases. 
+|Percona Server| is compatible with the separately available TokuDB storage engine package. TokuDB engine is not packaged with any |Percona Server| 5.6 download. The TokuDB engine must be separately downloaded and then enabled as a plug-in component.  This package can be installed alongside with standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
 
 TokuDB is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing.
 
-Available TokuDB features:
+Key TokuDB features available in the current production release: 
 
  * :ref:`tokudb_compression`
  * `Multiple Clustering Indexes <http://www.tokutek.com/2009/05/introducing_multiple_clustering_indexes/>`_
@@ -16,7 +16,7 @@ Available TokuDB features:
  * `Prelocking index and range scans <https://github.com/Tokutek/tokudb-engine/wiki/Patch-for-prelocking-index-and-range-scans>`_
 
 
-These features were available only in older alpha, :rn:`5.6.16-64.0-tokudb` and :rn:`5.6.16-64.2-tokudb`, Percona Server with TokuDB releases:
+Some features that were available in older alpha releases have since been discontinued:
 
  * `Fast Updates with NOAR <http://www.tokutek.com/2013/02/fast-updates-with-tokudb/>`_
  * `TokuDB AUTOINCREMENT implementation <http://www.tokutek.com/2009/07/autoincrement_semantics/>`_

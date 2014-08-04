@@ -14,9 +14,9 @@
 %define mysql_vendor  Percona, Inc
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define community 1
-%define mysqlversion 5.1.71
+%define mysqlversion 5.1.73
 %define majorversion 14
-%define minorversion 9
+%define minorversion 12
 %define distribution  rhel%{redhatversion}
 %define release       rel%{majorversion}.%{minorversion}.%{gotrevision}.%{distribution}
 
@@ -104,7 +104,7 @@
 
 %define __os_install_post /usr/lib/rpm/brp-compress
 
-%define server_suffix  -rel%{majorversion}.%{minorversion}
+%define server_suffix  -%{majorversion}.%{minorversion}
 %define package_suffix -51
 %define ndbug_comment Percona Server (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
 %define debug_comment Percona Server - Debug (GPL), Release %{majorversion}.%{minorversion}, Revision %{gotrevision}
@@ -115,7 +115,7 @@
 
 %define lic_type GNU GPL v2
 %define lic_files COPYING README
-%define src_dir Percona-Server-%{mysqlversion}%{server_suffix}
+%define src_dir Percona-Server-%{mysqlversion}-rel%{majorversion}.%{minorversion}
 
 ##############################################################################
 # Main spec file section
@@ -128,7 +128,7 @@ Version:	%{mysqlversion}
 Release:	%{release}
 Distribution:	Red Hat Enterprise Linux %{redhatversion}
 License:    GPL	version 2 http://www.gnu.org/licenses/gpl-2.0.html
-Source:		Percona-Server-%{mysqlversion}%{server_suffix}.tar.gz
+Source:		%{src_dir}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
@@ -337,6 +337,7 @@ cd -
 
 BuildServer() {
 BuildMySQL "--enable-shared \
+		--with-server-suffix='%{server_suffix}' \
 		--without-embedded-server \
 		--without-bench \
 		--with-zlib-dir=bundled \

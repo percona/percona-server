@@ -148,6 +148,7 @@ INSTALLDIR="$WORKDIR_ABS/$INSTALLDIR"   # Make it absolute
     ./configure \
         --prefix="/usr/local/$PRODUCT_FULL" \
         --localstatedir="/usr/local/$PRODUCT_FULL/data" \
+	--with-server-suffix="-${PERCONA_SERVER_VERSION#rel}" \
         --with-plugins=partition,archive,blackhole,csv,example,federated,innodb_plugin \
         --without-embedded-server \
         --with-comment="$COMMENT" \

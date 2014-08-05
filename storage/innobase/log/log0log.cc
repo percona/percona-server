@@ -611,7 +611,7 @@ log_pad_current_log_block(void)
 	byte		b		= MLOG_DUMMY_RECORD;
 	ulint		pad_length;
 	ulint		i;
-	ib_uint64_t	lsn;
+	lsn_t		lsn;
 
 	/* We retrieve lsn only because otherwise gcc crashed on HP-UX */
 	lsn = log_reserve_and_open(OS_FILE_LOG_BLOCK_SIZE);
@@ -619,6 +619,12 @@ log_pad_current_log_block(void)
 	pad_length = OS_FILE_LOG_BLOCK_SIZE
 		- (log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE)
 		- LOG_BLOCK_TRL_SIZE;
+	if (pad_length
+	    == (OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE
+		- LOG_BLOCK_TRL_SIZE)) {
+
+		pad_length = 0;
+	}
 
 	for (i = 0; i < pad_length; i++) {
 		log_write_low(&b, 1);
@@ -3037,8 +3043,7 @@ void
 log_archive_all(void)
 /*=================*/
 {
-	ib_uint64_t	present_lsn;
-	ulint		dummy;
+	lsn_t	present_lsn;
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -3055,6 +3060,9 @@ log_archive_all(void)
 	log_pad_current_log_block();
 
 	for (;;) {
+
+		ulint	archived_bytes;
+
 		mutex_enter(&(log_sys->mutex));
 
 		if (present_lsn <= log_sys->archived_lsn) {
@@ -3066,7 +3074,10 @@ log_archive_all(void)
 
 		mutex_exit(&(log_sys->mutex));
 
-		log_archive_do(TRUE, &dummy);
+		log_archive_do(TRUE, &archived_bytes);
+
+		if (archived_bytes == 0)
+			return;
 	}
 }
 

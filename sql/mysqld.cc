@@ -2122,6 +2122,10 @@ void close_connection(THD *thd, uint sql_errno)
 
   thd->disconnect();
 
+#ifdef HAVE_OPENSSL
+  ERR_remove_state(0);
+#endif
+
   MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
 
   if (MYSQL_CONNECTION_DONE_ENABLED())
@@ -3797,6 +3801,7 @@ static void init_ssl()
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
 					  opt_ssl_cipher, &error);
+    ERR_remove_state(0);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {

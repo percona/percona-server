@@ -94,7 +94,7 @@ function make_target() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
     local builddir=$perconaserver-$tokudb-$buildtype
-    rm -rf -$builddir
+    rm -rf $builddir
     mkdir $builddir
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     pushd $builddir

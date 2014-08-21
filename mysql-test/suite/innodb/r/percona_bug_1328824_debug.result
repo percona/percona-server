@@ -1,0 +1,25 @@
+SET @saved_print_all_deadlocks = @@GLOBAL.innodb_print_all_deadlocks;
+SET GLOBAL innodb_print_all_deadlocks=ON;
+SET @saved_debug = @@GLOBAL.debug;
+SET GLOBAL debug="+d,thd_security_context_LOCK_thd_data_busy";
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0), (1), (2);
+BEGIN;
+SELECT * FROM t1 WHERE a=2 FOR UPDATE;
+a
+2
+SELECT * FROM t1 WHERE a=0 FOR UPDATE;
+a
+0
+BEGIN;
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+a
+1
+SELECT * FROM t1 WHERE a=0 FOR UPDATE;
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+COMMIT;
+COMMIT;
+Grepping the error log for unavailable query text placeholder
+DROP TABLE t1;
+SET GLOBAL innodb_print_all_deadlocks = @saved_print_all_deadlocks;
+SET GLOBAL debug = @saved_debug;

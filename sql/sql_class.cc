@@ -782,6 +782,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   Security_context *sctx= &thd->main_security_ctx;
   char header[256];
   int len;
+  int err;
   /*
     The thd->proc_info pointer might change since it is being modified
     concurrently. This is acceptable for proc_info since its value
@@ -821,7 +822,18 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  if (thd == current_thd && thd->query())
+  /* Only lock the mutex if it's available in order to avoid
+  http://bugs.mysql.com/bug.php?id=60682 */
+  err= mysql_mutex_trylock(&thd->LOCK_thd_data);
+
+  DBUG_EXECUTE_IF("thd_security_context_LOCK_thd_data_busy",
+                  { if (!err) {
+                      mysql_mutex_unlock(&thd->LOCK_thd_data);
+                      err= EBUSY;
+                    }
+                  });
+
+  if (!err && thd->query())
   {
     if (max_query_len < 1)
       len= thd->query_length();
@@ -829,6 +841,17 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
       len= min(thd->query_length(), max_query_len);
     str.append('\n');
     str.append(thd->query(), len);
+  }
+  else if (err)
+  {
+    DBUG_ASSERT(err == EBUSY);
+    str.append('\n');
+    str.append("<query text unavailable>");
+  }
+
+  if (!err)
+  {
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
   if (str.c_ptr_safe() == buffer)

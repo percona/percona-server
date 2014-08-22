@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, const void *, char *, int);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static void print_cmdline_password_warning();
 static my_bool get_bool_argument(const struct my_option *opts,
                                  const char *argument,
                                  bool *error);
@@ -860,7 +859,7 @@ done:
  * if password string is specified on the command line.
  */
 
-static void print_cmdline_password_warning()
+void print_cmdline_password_warning()
 {
   static my_bool password_warning_announced= FALSE;
 

@@ -482,11 +482,14 @@ static connection_t *queue_get(thread_group_t *thread_group)
 
 static void timeout_check(pool_timer_t *timer)
 {
+  std::set<THD*> global_thread_list_copy;
   DBUG_ENTER("timeout_check");
-  
-  mysql_mutex_lock(&LOCK_thread_count);
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
+
+  mysql_mutex_lock(&LOCK_thd_remove);
+  copy_global_thread_list(&global_thread_list_copy);
+
+  Thread_iterator it= global_thread_list_copy.begin();
+  Thread_iterator end= global_thread_list_copy.end();
 
   /* Reset next timeout check, it will be recalculated in the loop below */
   my_atomic_fas64((volatile int64*)&timer->next_timeout_check, ULONGLONG_MAX);
@@ -521,7 +524,7 @@ static void timeout_check(pool_timer_t *timer)
       set_next_timeout_check(connection->abs_wait_timeout);
     }
   }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thd_remove);
   DBUG_VOID_RETURN;
 }
 

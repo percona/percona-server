@@ -555,6 +555,7 @@ public:
   LEX_STRING plugin;
   LEX_STRING auth_string;
   bool password_expired;
+  bool can_authenticate;
 
   ACL_USER *copy(MEM_ROOT *root)
   {
@@ -1076,6 +1077,16 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                         table->field[MYSQL_USER_FIELD_HOST]));
     user.user= get_field(&global_acl_memory,
                          table->field[MYSQL_USER_FIELD_USER]);
+
+    /*
+      All accounts can authenticate per default. This will change when
+      we add a new field to the user table.
+
+      Currently this flag is only set to false when authentication is attempted
+      using an unknown user name.
+    */
+    user.can_authenticate= true;
+
     if (check_no_resolve && hostname_requires_resolving(user.host.get_host()))
     {
       sql_print_warning("'user' entry '%s@%s' "
@@ -1808,8 +1819,10 @@ acl_init_utility_user(my_bool check_no_resolve)
 
   acl_utility_user.ssl_type= SSL_TYPE_NONE;
 
+  acl_utility_user.can_authenticate= true;
+
   (void) push_dynamic(&acl_users,(uchar*) &acl_utility_user);
-        
+
   /* initialize the schema access list if specified */
   if (utility_user_schema_access)
   {
@@ -2187,6 +2200,14 @@ static void acl_insert_user(const char *user, const char *host,
   int hash_not_ok;
 
   mysql_mutex_assert_owner(&acl_cache->lock);
+  /*
+     All accounts can authenticate per default. This will change when
+     we add a new field to the user table.
+
+     Currently this flag is only set to false when authentication is attempted
+     using an unknown user name.
+  */
+  acl_user.can_authenticate= true;
 
   acl_user.user= *user ? strdup_root(&global_acl_memory,user) : 0;
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);
@@ -9791,7 +9812,6 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
     uint pkt_len;
   } cached_server_packet;
   int packets_read, packets_written; ///< counters for send/received packets
-  bool make_it_fail;
   /** when plugin returns a failure this tells us what really happened */
   enum { SUCCESS, FAILURE, RESTART } status;
 
@@ -9809,6 +9829,10 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
   Thd_charset_adapter *charset_adapter;
   LEX_STRING acl_user_plugin;
   int vio_is_encrypted;
+  bool can_authenticate()
+  {
+    return (acl_user && acl_user->can_authenticate);
+  }
 };
 
 bool auth_plugin_is_built_in(const char *plugin_name)
@@ -10190,17 +10214,45 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
 }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+/**
+  When authentication is attempted using an unknown username a dummy user
+  account with no authentication capabilites is assigned to the connection.
+  This is done increase the cost of enumerating user accounts based on
+  authentication protocol.
+*/
+
+ACL_USER *decoy_user(const LEX_STRING &username,
+                      MEM_ROOT *mem)
+{
+  ACL_USER *user= (ACL_USER *) alloc_root(mem, sizeof(ACL_USER));
+  user->can_authenticate= false;
+  user->user= strmake_root(mem, username.str, username.length);
+  user->auth_string= empty_lex_str;
+  user->ssl_cipher= empty_c_string;
+  user->x509_issuer= empty_c_string;
+  user->x509_subject= empty_c_string;
+  user->salt_len= 0;
+
+  /*
+    For now the common default account is used. Improvements might involve
+    mapping a consistent hash of a username to a range of plugins.
+  */
+  user->plugin= default_auth_plugin_name;
+  return user;
+}
+
 /**
    Finds acl entry in user database for authentication purposes.
-   
-   Finds a user and copies it into mpvio. Creates a fake user
-   if no matching user account is found.
+
+   Finds a user and copies it into mpvio. Reports an authentication
+   failure if a user is not found.
 
    @note find_acl_user is not the same, because it doesn't take into
    account the case when user is not empty, but acl_user->user is empty
 
    @retval 0    found
-   @retval 1    error
+   @retval 1    not found
 */
 static bool find_mpvio_user(MPVIO_EXT *mpvio)
 {
@@ -10236,31 +10288,13 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
   if (!mpvio->acl_user)
   {
     /*
-      A matching user was not found. Fake it. Take any user, make the
-      authentication fail later.
-      This way we get a realistically looking failure, with occasional
-      "change auth plugin" requests even for nonexistent users. The ratio
-      of "change auth plugin" request will be the same for real and
-      nonexistent users.
-      Note, that we cannot pick any user at random, it must always be
-      the same user account for the incoming sctx->user name.
+      Pretend the user exists; let the plugin decide how to handle
+      bad credentials.
     */
-    ulong nr1=1, nr2=4;
-    CHARSET_INFO *cs= &my_charset_latin1;
-    cs->coll->hash_sort(cs, (uchar*) mpvio->auth_info.user_name,
-                        mpvio->auth_info.user_name_length, &nr1, &nr2);
-
-    mysql_mutex_lock(&acl_cache->lock);
-    uint i= nr1 % acl_users.elements;
-    ACL_USER *acl_user_tmp= dynamic_element(&acl_users, i, ACL_USER*);
-    mpvio->acl_user= acl_user_tmp->copy(mpvio->mem_root);
-    make_lex_string_root(mpvio->mem_root, 
-                         &mpvio->acl_user_plugin, 
-                         acl_user_tmp->plugin.str, 
-                         acl_user_tmp->plugin.length, 0);
-    mysql_mutex_unlock(&acl_cache->lock);
-
-    mpvio->make_it_fail= true;
+    LEX_STRING usr= { mpvio->auth_info.user_name,
+                      mpvio->auth_info.user_name_length };
+    mpvio->acl_user= decoy_user(usr, mpvio->mem_root);
+    mpvio->acl_user_plugin= mpvio->acl_user->plugin;
   }
 
   if (my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
@@ -10428,7 +10462,9 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (find_mpvio_user(mpvio))
+  {
     DBUG_RETURN(1);
+  }
 
   char *client_plugin;
   if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)
@@ -11172,10 +11208,6 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
       *buf= (uchar*) mpvio->cached_client_reply.pkt;
       mpvio->cached_client_reply.pkt= 0;
       mpvio->packets_read++;
-
-      if (mpvio->make_it_fail)
-        goto err;
-
       DBUG_RETURN ((int) mpvio->cached_client_reply.pkt_len);
     }
 
@@ -11218,21 +11250,12 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
   else
     *buf= mpvio->net->read_pos;
 
-  if (mpvio->make_it_fail)
-    goto err;
-
   DBUG_RETURN((int)pkt_len);
 
 err:
   if (mpvio->status == MPVIO_EXT::FAILURE)
   {
-    if (!current_thd->is_error())
-    {
-      if (mpvio->make_it_fail)
-        login_failed_error(mpvio, mpvio->auth_info.password_used);
-      else
-        my_error(ER_HANDSHAKE_ERROR, MYF(0));
-    }
+    my_error(ER_HANDSHAKE_ERROR, MYF(0));
   }
   DBUG_RETURN(-1);
 }
@@ -11440,7 +11463,6 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
     mpvio->vio_is_encrypted= 0;
   mpvio->status= MPVIO_EXT::FAILURE;
-  mpvio->make_it_fail= false;
 
   mpvio->client_capabilities= thd->client_capabilities;
   mpvio->mem_root= thd->mem_root;
@@ -11514,6 +11536,8 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 
     if (parse_com_change_user_packet(&mpvio, com_change_user_pkt_len))
     {
+      if (!thd->is_error())
+        login_failed_error(&mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -11561,12 +11585,6 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 
   server_mpvio_update_thd(thd, &mpvio);
 
-  if (mpvio.make_it_fail)
-  {
-    mpvio.status= MPVIO_EXT::FAILURE;
-    res= CR_ERROR;
-  }
-
   Security_context *sctx= thd->security_ctx;
   const ACL_USER *acl_user= mpvio.acl_user;
 
@@ -11592,6 +11610,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       general_log_print(thd, command, (char*) "%s@%s on %s",
                         mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
                         mpvio.db.str ? mpvio.db.str : (char*) "");
+  }
+
+  if (res == CR_OK && !mpvio.can_authenticate())
+  {
+    res= CR_ERROR;
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -11712,7 +11735,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
-    if (unlikely(acl_user && acl_user->password_expired
+    if (unlikely(mpvio.acl_user && mpvio.acl_user->password_expired
         && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
         && disconnect_on_expired_password))
     {
@@ -11743,7 +11766,13 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
-    sctx->password_expired= acl_user->password_expired;
+    /*
+      We are copying the connected user's password expired flag to the security
+      context.
+      This allows proxy user to execute queries even if proxied user password
+      expires.
+    */
+    sctx->password_expired= mpvio.acl_user->password_expired;
 #endif
   }
   else

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 05/11/2014
+.\"      Date: 07/18/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "05/11/2014" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "07/18/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -104,7 +104,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&24.2, \(lqMySQL Enterprise Backup\(rq\&.
+Section\ \&25.2, \(lqMySQL Enterprise Backup\(rq\&.
 .RE
 .sp
 .RS 4
@@ -175,12 +175,12 @@ option\&.
 \fBmysqldump\fR
 does not dump the
 INFORMATION_SCHEMA
-database by default\&.
-\fBmysqldump\fR
-dumps
-INFORMATION_SCHEMA
-only if you name it explicitly on the command line, although currently you must also use the
+or
+performance_schema
+database by default\&. To dump either of these, name it explicitly on the command line and also use the
 \fB\-\-skip\-lock\-tables\fR
+option\&. You can also name them with the
+\fB\-\-databases\fR
 option\&. Before MySQL 5\&.5
 \fBmysqldump\fR
 silently ignores
@@ -344,7 +344,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files, see
-Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -2641,7 +2641,7 @@ Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .\" mysqldump: workarounds
 .PP
 If you encounter problems backing up views, please read the section that covers restrictions on views which describes a workaround for backing up views when this fails due to insufficient privileges\&. See
-Section\ \&E.5, \(lqRestrictions on Views\(rq\&.
+Section\ \&D.5, \(lqRestrictions on Views\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

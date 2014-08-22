@@ -1,0 +1,11 @@
+CREATE TABLE t1(c42 tinyblob not null, c45 TEXT, unique(c42 (255)), unique(c45 (255))) ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY c45 SET('') NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c42` tinyblob NOT NULL,
+  `c45` set('') NOT NULL,
+  UNIQUE KEY `c42` (`c42`(255)),
+  UNIQUE KEY `c45` (`c45`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;

@@ -680,7 +680,7 @@ ulonglong utility_user_privileges= 0;
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_thread_created;
-mysql_mutex_t LOCK_thread_count;
+mysql_mutex_t LOCK_thread_count, LOCK_thd_remove;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
@@ -1682,6 +1682,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_cond_destroy(&COND_thread_count);
+  mysql_mutex_destroy(&LOCK_thd_remove);
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
@@ -2192,6 +2193,8 @@ void dec_connection_count(THD *thd)
 
 void delete_thd(THD *thd)
 {
+  mysql_mutex_assert_owner(&LOCK_thread_count);
+  mysql_mutex_assert_owner(&LOCK_thd_remove);
   thread_count--;
   delete thd;
 }
@@ -2205,7 +2208,7 @@ void delete_thd(THD *thd)
     thd		 Thread handler
 
   NOTES
-    LOCK_thread_count is locked and left locked
+    LOCK_thread_count, LOCK_thd_remove are locked and left locked
 */
 
 void unlink_thd(THD *thd)
@@ -2215,6 +2218,7 @@ void unlink_thd(THD *thd)
 
   thd_cleanup(thd);
   dec_connection_count(thd);
+  mysql_mutex_lock(&LOCK_thd_remove);
   mysql_mutex_lock(&LOCK_thread_count);
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -2327,6 +2331,7 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 {
   DBUG_ENTER("one_thread_per_connection_end");
   unlink_thd(thd);
+  mysql_mutex_unlock(&LOCK_thd_remove);
   if (put_in_cache)
     put_in_cache= cache_thread();
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -3641,6 +3646,8 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_thread_created, &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thd_remove,
+                   &LOCK_thd_remove, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_status,
@@ -5293,9 +5300,11 @@ void create_thread_to_handle_connection(THD *thd)
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
       close_connection(thd);
+      mysql_mutex_lock(&LOCK_thd_remove);
       mysql_mutex_lock(&LOCK_thread_count);
       delete thd;
       mysql_mutex_unlock(&LOCK_thread_count);
+      mysql_mutex_unlock(&LOCK_thd_remove);
       return;
       /* purecov: end */
     }
@@ -8181,6 +8190,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_PARTITION_LOCK_auto_inc;
+PSI_mutex_key key_LOCK_thd_remove;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_LOCK_wakeup_ready, key_LOCK_group_commit_queue, key_LOCK_commit_ordered;
 PSI_mutex_key key_LOCK_thread_created;
@@ -8248,7 +8258,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
   { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0},
-  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }
+  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL },
+  { &key_LOCK_thd_remove, "LOCK_thd_remove", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

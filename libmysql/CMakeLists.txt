@@ -168,7 +168,6 @@ ENDIF()
 MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
-INSTALL_DEBUG_SYMBOLS(clientlib)
 IF(MSVC)
  INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)

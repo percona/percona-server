@@ -22,11 +22,9 @@
 */
 
 %{
-/* thd is passed as an argument to yyparse(), and subsequently to yylex().
-** The type will be void*, so it must be  cast to (THD*) when used.
-** Use the YYTHD macro for this.
+/*
+Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 */
-#define YYTHD ((THD *)yythd)
 #define YYLIP (& YYTHD->m_parser_state->m_lip)
 #define YYPS (& YYTHD->m_parser_state->m_yacc)
 
@@ -74,7 +72,7 @@ int yylex(void *yylval, void *yythd);
     ulong val= *(F);                          \
     if (my_yyoverflow((B), (D), &val))        \
     {                                         \
-      yyerror(yythd, (char*) (A));            \
+      yyerror(YYTHD, (char*) (A));            \
       return 2;                               \
     }                                         \
     else                                      \
@@ -172,10 +170,8 @@ void my_parse_error(const char *s)
   to abort from the parser.
 */
 
-void MYSQLerror(void *yythd, const char *s)
+void MYSQLerror(THD *thd, const char *s)
 {
-  THD *thd= current_thd;
-
   /*
     Restore the original LEX if it was replaced when parsing
     a stored procedure. We must ensure that a parsing error
@@ -785,9 +781,9 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
 bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
+%parse-param { class THD *YYTHD }
+%lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
-%parse-param { void *yythd }
-%lex-param { void *yythd }
 /*
   Currently there are 168 shift/reduce conflicts.
   We should not introduce new conflicts any more.
@@ -5616,7 +5612,8 @@ spatial_type:
         | GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
         | POINT_SYM
           {
-            Lex->length= (char*)"25";
+            Lex->length= const_cast<char*>(STRINGIFY_ARG
+                                           (MAX_LEN_GEOM_POINT_FIELD));
             $$= Field::GEOM_POINT;
           }
         | MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }

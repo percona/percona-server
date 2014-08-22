@@ -99,6 +99,11 @@ Usage: $0 [OPTIONS]
   --help               Display this help and exit.                     
   --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --no-defaults        Don't read default options from any option file.
+  --keep-my-cnf        This option is enabled by default in Percona Server and 
+                       is kept only for compatibility: don't try to create
+                       my.cnf based on template.
+                       Useful for systems with working, updated my.cnf.
+                       Deprecated, will be removed in future version.
 EOF1
   if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
     print <<EOF2;
@@ -173,6 +178,7 @@ sub parse_arguments
 
              "skip-name-resolve",
              "verbose",
+             "keep-my-cnf",
              "rpm",
              "help",
              "random-passwords",

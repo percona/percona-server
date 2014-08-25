@@ -34,7 +34,8 @@ connect (fail,localhost,$USER);
 
 connection con2;
 
---error ER_ACCESS_DENIED_ERROR, ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
 change_user $USER;
 
 connection default;

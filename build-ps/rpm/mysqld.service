@@ -24,12 +24,6 @@ WantedBy=multi-user.target
 Alias=mysql.service
 
 [Service]
-User=mysql
-Group=mysql
-
-# Execute pre and post scripts as root
-PermissionsStartOnly=true
-
 # Needed to create system tables etc.
 ExecStartPre=/usr/bin/mysql-systemd-start pre
 

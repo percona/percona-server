@@ -7,8 +7,10 @@ PACKAGE=percona-server-5.6
 PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
 REVISION = '@@REVISION@@'
 COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
+COMPILATION_COMMENT_DEBUG = "Percona Server - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
 
 TMP=$(CURDIR)/debian/tmp/
+TMPD=$(CURDIR)/debian/tmp-debug/
 prefix=/usr
 
 ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
@@ -49,6 +51,7 @@ else
 endif
 
 builddir = builddir
+builddebug = debug
 
 configure: patch configure-stamp
 
@@ -61,6 +64,34 @@ ifneq ($(ARCH_OS),hurd)
 endif
 
 	[ ! -d python-for-subunit2junitxml ] || rm -rf python-for-subunit2junitxml
+
+ifeq ($(SKIP_DEBUG_BINARY),)
+	( test -d $(builddebug) || mkdir $(builddebug) ) && cd $(builddebug) && \
+	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
+	    	CC=$${MYSQL_BUILD_CC:-gcc} \
+	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -g -fno-strict-aliasing"} \
+	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
+	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
+		\
+		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DWITH_LIBWRAP=ON \
+		-DWITH_ZLIB=system \
+		-DWITH_SSL=system \
+		-DCOMPILATION_COMMENT=$(COMPILATION_COMMENT_DEBUG) \
+		-DSYSTEM_TYPE="debian-linux-gnu" \
+		-DINSTALL_LAYOUT=RPM \
+		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+		-DINSTALL_PLUGINDIR=lib/mysql/plugin/debug \
+		-DWITH_EMBEDDED_SERVER=OFF \
+		-DWITH_INNODB_MEMCACHED=ON \
+		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
+		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
+		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
+		-DWITH_PAM=ON \
+		-DWITH_EXTRA_CHARSETS=all ..'
+endif
 
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
@@ -101,6 +132,10 @@ build-stamp: configure
 	--exclude=debian . \
 	--transform="s,^\./,percona-server-5.6/,"
 
+ifeq ($(SKIP_DEBUG_BINARY),)
+	cd $(builddebug) && $(MAKE) -j$(NCPU)
+endif
+
 	cd $(builddir) && $(MAKE) -j$(NCPU) VERBOSE=1
 
 ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
@@ -135,6 +170,7 @@ clean-patched:
 	[ ! -d python-for-subunit2junitxml ] || rm -rf python-for-subunit2junitxml
 	
 	rm -rf $(builddir)
+	rm -rf $(builddebug)
 
 	debconf-updatepo
 	# rm -f $(EXPORTED_SOURCE_TARBALL)
@@ -149,6 +185,7 @@ install: build
 	dh_installdirs
 
 	# make install (trailing slash needed for innobase)
+	(cd $(builddebug) && $(MAKE) install DESTDIR=$(TMPD)/)
 	(cd $(builddir) && $(MAKE) install DESTDIR=$(TMP)/)
 
 	# After installing, remove rpath to make lintian happy.

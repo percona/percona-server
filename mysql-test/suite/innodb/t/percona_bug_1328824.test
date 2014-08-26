@@ -1,0 +1,48 @@
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+SET @saved_print_all_deadlocks = @@GLOBAL.innodb_print_all_deadlocks;
+SET GLOBAL innodb_print_all_deadlocks=ON;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (0), (1), (2);
+
+BEGIN;
+SELECT * FROM t1 WHERE a=2 FOR UPDATE;
+SELECT * FROM t1 WHERE a=0 FOR UPDATE;
+
+--connect(con2,localhost,root,,)
+BEGIN;
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+send SELECT * FROM t1 WHERE a=0 FOR UPDATE;
+
+--connection default
+--disable_result_log
+--error 0,ER_LOCK_DEADLOCK
+SELECT * FROM t1 WHERE a=1 FOR UPDATE;
+--enable_result_log
+COMMIT;
+
+--connection con2
+--disable_result_log
+--error 0,ER_LOCK_DEADLOCK
+reap;
+--enable_result_log
+COMMIT;
+
+--disconnect con2
+--connection default
+
+--echo Grepping the error log for both deadlocked transaction queries
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/percona_bug_1328824.err
+--let SEARCH_PATTERN= transactions deadlock detected, dumping detailed information.
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN= SELECT \* FROM t1 WHERE a=0 FOR UPDATE
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN= SELECT \* FROM t1 WHERE a=1 FOR UPDATE
+--source include/search_pattern_in_file.inc
+
+DROP TABLE t1;
+SET GLOBAL innodb_print_all_deadlocks = @saved_print_all_deadlocks;
+--source include/wait_until_count_sessions.inc

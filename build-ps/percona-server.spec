@@ -32,6 +32,18 @@
 
 #
 %bcond_with tokudb
+%bcond_with systemd
+#
+%if %{with systemd}
+  %define systemd 1
+%else
+  %if 0%{?rhel} > 6
+    %define systemd 1
+  %else
+    %define systemd 0
+  %endif
+%endif
+
 #
 %if %{with tokudb}
   %define TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF
@@ -204,7 +216,7 @@
   %define distro_description            Generic Linux (kernel %{generic_kernel})
   %define distro_releasetag             linux%{generic_kernel}
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel libaio-devel bison cmake
-  %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
+  %define distro_requires               coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
 # ----------------------------------------------------------------------------
@@ -248,6 +260,9 @@ Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
 BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
+%if 0%{?systemd}
+BuildRequires:  systemd
+%endif
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -271,6 +286,16 @@ be eligible for hot fixes, and boost your team's productivity.
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
+Requires:       perl(Data::Dumper)
+%if 0%{?systemd}
+Requires(post):   systemd
+Requires(preun):  systemd
+Requires(postun): systemd
+%else
+Requires(post):   /sbin/chkconfig
+Requires(preun):  /sbin/chkconfig
+Requires(preun):  /sbin/service
+%endif
 Provides:       mysql-server MySQL-server
 Conflicts:	Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55
 
@@ -305,6 +330,28 @@ This package contains the TokuDB plugin for Percona Server %{version}-%{release}
 %endif
 
 # ----------------------------------------------------------------------------
+%package -n Percona-Server-selinux%{product_suffix}
+Summary: 		Percona Server - Selinux policy module
+Group:          	Applications/Databases
+%if 0%{?rhel} >= 6
+BuildArch:		noarch
+%endif
+Requires:		selinux-policy
+Requires(post):		policycoreutils
+Requires(postun):	policycoreutils
+
+%if 0%{?rhel} == 6
+BuildRequires: 		selinux-policy
+%else
+BuildRequires: 		selinux-policy-devel
+%endif
+
+%description -n Percona-Server-selinux%{product_suffix}
+This package contains SELinux policy module for Percona Server package.
+
+For a description of Percona Server see http://www.percona.com/software/percona-server/
+
+# ----------------------------------------------------------------------------
 %package -n Percona-Server-client%{product_suffix}
 Summary:        Percona Server - Client
 Group:          Applications/Databases
@@ -320,6 +367,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 # ----------------------------------------------------------------------------
 %package -n Percona-Server-test%{product_suffix}
 Requires:       Percona-Server-client%{product_suffix} perl
+Requires:       perl(Socket), perl(Time::HiRes), perl(Data::Dumper), perl(Test::More)
 Summary:        Percona Server - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
@@ -505,6 +553,13 @@ install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 install -d $RBR%{_libdir}/mysql/plugin
 
+# SElinux
+pushd ${MBD}/policy
+make -f /usr/share/selinux/devel/Makefile
+install -D -m 0644 $MBD/policy/percona-server.pp $RBR%{_datadir}/selinux/packages/percona-server/percona-server.pp
+popd
+# SElinux END
+
 (
   cd $MBD/release
   make DESTDIR=$RBR benchdir_root=%{_datadir} install
@@ -523,7 +578,13 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+%if 0%{?systemd}
+install -D -m 0755 $MBD/build-ps/rpm/mysql-systemd-start $RBR%{_bindir}/mysql-systemd-start
+install -D -m 0644 $MBD/build-ps/rpm/mysqld.service $RBR%{_unitdir}/mysqld.service
+%else
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+%endif
+
 #
 %{__rm} -f $RBR/%{_prefix}/README*
 #
@@ -551,15 +612,27 @@ install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
-# Remove man pages we explicitly do not want to package, avoids 'unpackaged
+# Remove files we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+%if 0%{?systemd}
+rm -rf $RBR%{_sysconfdir}/init.d/mysql
+%endif
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
 %pre -n Percona-Server-server%{product_suffix}
+
+# On rhel7 change default MariaDB options if they exists (only on initial installation)
+%if "%rhel" > "6"
+if [ $1 -eq 1 -a -f /etc/my.cnf ]; then
+  sed -i 's/log-error=\/var\/log\/mariadb\/mariadb.log/log-error=\/var\/log\/mysqld.log/g' /etc/my.cnf;
+  sed -i 's/pid-file=\/var\/run\/mariadb\/mariadb.pid/pid-file=\/var\/run\/mysqld\/mysqld.pid/g' /etc/my.cnf;
+  sed -i 's/\!includedir \/etc\/my.cnf.d/\#\!includedir \/etc\/my.cnf.d/g' /etc/my.cnf;
+fi
+%endif
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
@@ -716,11 +789,31 @@ fi
 # Note we *could* make that depend on $SERVER_TO_START, but we rather don't,
 # so a "stop" is attempted even if there is no PID file.
 # (Maybe the "stop" doesn't work then, but we might fix that in itself.)
+%if 0%{?systemd}
+SYSD_ACTIVE=$(systemctl is-active mysqld)
+if [ $SYSD_ACTIVE == "active" ] ; then
+	%{_bindir}/systemctl stop mysqld >/dev/null 2>&1
+	echo "Giving mysqld 5 seconds to exit nicely"
+	sleep 5
+fi
+%else
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
         echo "Giving mysqld 5 seconds to exit nicely"
         sleep 5
 fi
+%endif
+
+# SElinux
+%post -n Percona-Server-selinux%{product_suffix}
+/usr/sbin/semodule -i %{_datadir}/selinux/packages/percona-server/percona-server.pp >/dev/null 2>&1 || :
+
+%postun -n Percona-Server-selinux%{product_suffix}
+if [ $1 -eq 0 ] ; then
+    /usr/sbin/semodule -r percona-server >/dev/null 2>&1 || :
+fi
+
+#SElinux
 
 %post -n Percona-Server-server%{product_suffix}
 
@@ -757,12 +850,18 @@ fi
 # NOTE: This still needs to be debated. Should we check whether these links
 # for the other run levels exist(ed) before the upgrade?
 # use chkconfig on Enterprise Linux and newer SuSE releases
+%if 0%{?systemd}
+if [ -x %{_bindir}/systemctl ] ; then
+	%{_bindir}/systemctl enable mysqld >/dev/null 2>&1
+fi
+%else
 if [ -x /sbin/chkconfig ] ; then
         /sbin/chkconfig --add mysql
 # use insserv for older SuSE Linux versions
 elif [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
+%endif
 
 # ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
@@ -822,12 +921,18 @@ fi
 
 # Was the server running before the upgrade? If so, restart the new one.
 if [ "$SERVER_TO_START" = "true" ] ; then
+%if 0%{?systemd}
+if [ -x %{_bindir}/systemctl ] ; then
+	%{_bindir}/systemctl start mysqld
+fi
+%else
 	# Restart in the same way that mysqld will be started normally.
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 		%{_sysconfdir}/init.d/mysql start
-		echo "Giving mysqld 5 seconds to start"
-		sleep 5
 	fi
+%endif
+  echo "Giving mysqld 5 seconds to start"
+  sleep 5
 fi
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
@@ -862,8 +967,14 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 #   Remove last version of package   0 "
 #
 #  http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04s05.html
- 
+
 if [ $1 = 0 ] ; then
+%if 0%{?systemd}
+	if [ -x %{_bindir}/systemctl ] ; then
+		%{_bindir}/systemctl stop mysqld > /dev/null
+		%{_bindir}/systemctl disable mysqld > /dev/null
+	fi
+%else
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
                 %{_sysconfdir}/init.d/mysql stop > /dev/null
@@ -876,6 +987,7 @@ if [ $1 = 0 ] ; then
                         /sbin/insserv -r %{_sysconfdir}/init.d/mysql
                 fi
         fi
+%endif
 fi
 
 # We do not remove the mysql user since it may still own a lot of
@@ -918,21 +1030,35 @@ else
 fi
 echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 
+%if 0%{?systemd}
+if [ -x %{_bindir}/systemctl ] ; then
+	%{_bindir}/systemctl enable mysqld >/dev/null 2>&1
+fi
+%else
 if [ -x /sbin/chkconfig ] ; then
         /sbin/chkconfig --add mysql
 # use insserv for older SuSE Linux versions
 elif [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
+%endif
 
 # Was the server running before the upgrade? If so, restart the new one.
 if [ "$SERVER_TO_START" = "true" ] ; then
-	# Restart in the same way that mysqld will be started normally.
+# Restart in the same way that mysqld will be started normally.
+%if 0%{?systemd}
+	if [ -x %{_bindir}/systemctl ] ; then 
+		%{_bindir}/systemctl start mysqld
+		echo "Giving mysqld 5 seconds to start"
+		sleep 5
+	fi
+%else
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 		%{_sysconfdir}/init.d/mysql start
 		echo "Giving mysqld 5 seconds to start"
 		sleep 5
 	fi
+%endif
 fi
 
 echo "Trigger 'postun --community' finished at `date`"        >> $STATUS_HISTORY
@@ -974,6 +1100,10 @@ fi
 ##############################################################################
 #  Files section
 ##############################################################################
+
+%files -n Percona-Server-selinux%{product_suffix}
+%dir %attr(755, root, root) %{_datadir}/selinux/packages/percona-server
+%attr(644, root, root) %{_datadir}/selinux/packages/percona-server/percona-server.pp
 
 %files -n Percona-Server-server%{product_suffix}
 %defattr(-,root,root,0755)
@@ -1043,6 +1173,9 @@ fi
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
+%if 0%{?systemd}
+%attr(755, root, root) %{_bindir}/mysql-systemd-start
+%endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
@@ -1105,7 +1238,11 @@ fi
 %endif
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
+%if 0%{?systemd}
+%attr(644, root, root) %{_unitdir}/mysqld.service
+%else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
+%endif
 
 # %attr(755, root, root) %{_datadir}/percona-server/
 %attr(755, root, root) %{_datadir}/percona-server/binary-configure

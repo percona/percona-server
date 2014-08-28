@@ -553,8 +553,8 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 %if 0%{?systemd}
-install -D -m 0755 $MBD/build-ps/rpm/mysql-systemd-start $RBR%{_bindir}/mysql-systemd-start
-install -D -m 0644 $MBD/build-ps/rpm/mysqld.service $RBR%{_unitdir}/mysqld.service
+install -D -m 0755 $MBD/build-ps/rpm/mysql-systemd $RBR%{_bindir}/mysql-systemd
+install -D -m 0644 $MBD/build-ps/rpm/mysql.service $RBR%{_unitdir}/mysql.service
 %else
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 %endif
@@ -761,9 +761,9 @@ fi
 # so a "stop" is attempted even if there is no PID file.
 # (Maybe the "stop" doesn't work then, but we might fix that in itself.)
 %if 0%{?systemd}
-SYSD_ACTIVE=$(systemctl is-active mysqld)
+SYSD_ACTIVE=$(systemctl is-active mysql)
 if [ $SYSD_ACTIVE == "active" ] ; then
-	%{_bindir}/systemctl stop mysqld >/dev/null 2>&1
+	%{_bindir}/systemctl stop mysql >/dev/null 2>&1
 	echo "Giving mysqld 5 seconds to exit nicely"
 	sleep 5
 fi
@@ -856,7 +856,7 @@ fi
 # use chkconfig on Enterprise Linux and newer SuSE releases
 %if 0%{?systemd}
 if [ -x %{_bindir}/systemctl ] ; then
-	%{_bindir}/systemctl enable mysqld >/dev/null 2>&1
+	%{_bindir}/systemctl enable mysql >/dev/null 2>&1
 fi
 %else
 if [ -x /sbin/chkconfig ] ; then
@@ -898,7 +898,7 @@ fi
 if [ "$SERVER_TO_START" = "true" ] ; then
 %if 0%{?systemd}
 if [ -x %{_bindir}/systemctl ] ; then
-	%{_bindir}/systemctl start mysqld
+	%{_bindir}/systemctl start mysql
 fi
 %else
 	# Restart in the same way that mysqld will be started normally.
@@ -946,8 +946,8 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 if [ $1 = 0 ] ; then
 %if 0%{?systemd}
 	if [ -x %{_bindir}/systemctl ] ; then
-		%{_bindir}/systemctl stop mysqld > /dev/null
-		%{_bindir}/systemctl disable mysqld > /dev/null
+		%{_bindir}/systemctl stop mysql > /dev/null
+		%{_bindir}/systemctl disable mysql > /dev/null
 	fi
 %else
         # Stop MySQL before uninstalling it
@@ -1007,7 +1007,7 @@ echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 
 %if 0%{?systemd}
 if [ -x %{_bindir}/systemctl ] ; then
-	%{_bindir}/systemctl enable mysqld >/dev/null 2>&1
+	%{_bindir}/systemctl enable mysql >/dev/null 2>&1
 fi
 %else
 if [ -x /sbin/chkconfig ] ; then
@@ -1023,7 +1023,7 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 # Restart in the same way that mysqld will be started normally.
 %if 0%{?systemd}
 	if [ -x %{_bindir}/systemctl ] ; then 
-		%{_bindir}/systemctl start mysqld
+		%{_bindir}/systemctl start mysql
 		echo "Giving mysqld 5 seconds to start"
 		sleep 5
 	fi
@@ -1096,7 +1096,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %if 0%{?systemd}
-%attr(755, root, root) %{_bindir}/mysql-systemd-start
+%attr(755, root, root) %{_bindir}/mysql-systemd
 %endif
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
@@ -1186,7 +1186,7 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysqld.service
+%attr(644, root, root) %{_unitdir}/mysql.service
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %endif

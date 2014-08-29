@@ -10,16 +10,21 @@ If a ``STOP SLAVE`` command is given in this situation, it will wait and not com
 
 This features modifies the ``SHOW SLAVE STATUS`` syntax to allow: ::
 
-  SHOW SLAVE STATUS NOLOCK
+  SHOW SLAVE STATUS NONBLOCKING
 
 This will display the slave's status as if there were no lock, allowing the user to detect and understand the situation that is occurring.
 
 .. note:: 
 
-  The information given when ``NOLOCK`` is used may be slightly inconsistent with the actual situation while the lock is being held.
+  The information given when ``NONBLOCKING`` is used may be slightly inconsistent with the actual situation while the lock is being held.
 
+.. note::
+
+   |Percona Server| originally used ``SHOW SLAVE STATUS NOLOCK`` syntax for this feature. As of :rn:`5.6.20-68.0` release, |Percona Server| implements ``SHOW SLAVE STATUS NONBLOCKING`` syntax, which comes from |MySQL| 5.7. The ``NOLOCK`` one has been deprecated and will be removed in |Percona Server| 5.7.
 
 Version Specific Information
 ============================
 
   * :rn:`5.6.11-60.3`: Feature ported from |Percona Server| 5.5.
+
+  * :rn:`5.6.20-68.0`: |Percona Server| implemented the ``NONBLOCKING`` syntax from |MySQL| 5.7 and deprecated the ``NOLOCK`` syntax.

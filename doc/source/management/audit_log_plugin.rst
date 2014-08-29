@@ -4,7 +4,7 @@
  Audit Log Plugin
 ==================
 
-Percona Audit Log Plugin provides monitoring and logging of connection and query activity that were performed on specific server. Information about the activity will be stored in the XML log file where each event will have its ``NAME`` field, it's own unique ``RECORD_ID`` field and a ``TIMESTAMP`` field. This implementation is alternative to the `MySQL Enterprise Audit Log Plugin <dev.mysql.com/doc/refman/5.5/en/audit-log-plugin.html>`_
+Percona Audit Log Plugin provides monitoring and logging of connection and query activity that were performed on specific server. Information about the activity will be stored in the XML log file where each event will have its ``NAME`` field, its own unique ``RECORD_ID`` field and a ``TIMESTAMP`` field. This implementation is alternative to the `MySQL Enterprise Audit Log Plugin <dev.mysql.com/doc/refman/5.6/en/audit-log-plugin.html>`_
 
 Audit Log plugin produces the log of following events:
 
@@ -40,7 +40,7 @@ Example of the Disconnect event: ::
   "DB"=""
   />
 
-* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table", "create_table", etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement, statements are rewritten  to exclude passwords by default, this can be changed by :option:`--log-raw` option ), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
+* **Query** - Additional fields for this event are: ``COMMAND_CLASS`` (values come from the ``com_status_vars`` array in the :file:`sql/mysqld.cc`` file in a MySQL source distribution. Examples are ``select``, ``alter_table``, ``create_table``, etc.), ``CONNECTION_ID``, ``STATUS`` (indicates error when non-zero), ``SQLTEXT`` (text of SQL-statement), ``USER``, ``HOST``, ``OS_USER``, ``IP``. Possible values for the ``NAME`` name field for this event are ``Query``, ``Prepare``, ``Execute``, ``Change user``, etc.
 
 Example of the Query event: :: 
 
@@ -87,7 +87,7 @@ Audit log should be listed in the output:
 Log Format
 ==========
 
-Audit log plugin supports two formats. In one format (``OLD``) log record properties are saved as XML attributes and in the other (``NEW``) log recored properties are saved as XML tags. Audit log format can be set up with the :variable:`audit_log_format` variable.
+The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats. The log format choice is controlled by :variable:`audit_log_format` variable.
 
 Example of the ``OLD`` format: ::
 
@@ -122,6 +122,25 @@ Example of the ``NEW`` format: ::
   <DB></DB>
  </AUDIT_RECORD>
 
+Example of the ``JSON`` format: ::
+
+ {"audit_record":{"name":"Query","record":"4707_2014-08-27T10:43:52","timestamp":"2014-08-27T10:44:19 UTC","command_class":"show_databases","connection_id":"37","status":0,"sqltext":"show databases","user":"root[root] @ localhost []","host":"localhost","os_user":"","ip":""}}
+
+Example of the ``CSV`` format: :: 
+
+ "Query","49284_2014-08-27T10:47:11","2014-08-27T10:47:23 UTC","show_databases","37",0,"show databases","root[root] @ localhost []","localhost","",""
+
+.. _streaming_to_syslog:
+
+Streaming the audit log to syslog
+=================================
+
+Ability to stream the audit log to `syslog <http://www.syslog.org/>`_ was implemented in |Percona Server| :rn:`5.6.20-68.0`. To stream the audit log to syslog you'll need to set :variable:`audit_log_handler` variable to ``SYSLOG``. To control the syslog file handler, the following variables can be used: :variable:`audit_log_syslog_ident`, :variable:`audit_log_syslog_facility`, and :variable:`audit_log_syslog_priority` These variables have the same meaning as appropriate parameters described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
+
+.. note::
+
+   Variables: :variable:`audit_log_strategy`, :variable:`audit_log_buffer_size`, :variable:`audit_log_rotate_on_size`, :variable:`audit_log_rotations` have effect only with ``FILE`` handler. 
+
 System Variables
 ================
 
@@ -141,6 +160,8 @@ This variable is used to specify the audit log strategy, possible values are:
 * ``PERFORMANCE`` - log using memory buffer, drop messages if buffer is full
 * ``SEMISYNCHRONOUS`` - log directly to file, do not flush and sync every event
 * ``SYNCHRONOUS`` - log directly to file, flush and sync every event
+
+This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
 .. variable:: audit_log_file
 
@@ -173,19 +194,20 @@ When this variable is set to ``ON`` log file will be closed and reopened. This c
      :vartype: Numeric
      :default: 4096
 
-This variable can be used to specify the size of memory buffer used for logging, used when :variable:`audit_log_strategy` variable is set to ``ASYNCHRONOUS`` or ``PERFORMANCE`` values.
+This variable can be used to specify the size of memory buffer used for logging, used when :variable:`audit_log_strategy` variable is set to ``ASYNCHRONOUS`` or ``PERFORMANCE`` values. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
 .. variable:: audit_log_format
 
-     :version 5.6.17-65.0: Implemented
+     :version 5.6.17-65.0: Original implementation
+     :version 5.6.20-68.0: Implemented support for ``CSV`` and  ``JSON`` log formats
      :cli: Yes
      :scope: Global
      :dyn: No 
      :vartype: String
      :default: OLD
-     :allowed values: ``OLD``, ``NEW``
+     :allowed values: ``OLD``, ``NEW``, ``CSV``, ``JSON``
 
-This variable is used to specify the audit log format. When this variable is set to ``OLD`` information will be logged as XML attributes, and when is set to ``NEW`` it will be logged as XML tags.
+This variable is used to specify the audit log format. The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats.
 
 .. variable:: audit_log_policy
 
@@ -213,7 +235,7 @@ This variable is used to specify which events should be logged. Possible values 
      :vartype: Numeric
      :default: 0 (don't rotate the log file)
 
-This variable is used to specify the size of the audit log file. When this size is reached log will get rotated. Old log can be found in the same directory, audit log sequential number will be appended to the name specified in the :variable:`audit_log_file` variable.
+This variable is used to specify the maximum audit log file size. Upon reaching this size the log will be rotated. The rotated log files will be present in the same same directory as the current log file. A sequence number will be appended to the log file name upon rotation. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
  
 .. variable:: audit_log_rotations
 
@@ -224,11 +246,61 @@ This variable is used to specify the size of the audit log file. When this size 
      :vartype: Numeric
      :default: 0 
 
-This variable is used to specify how many log files should be kept when :variable:`audit_log_rotate_on_size` variable is set to non-zero value.
+This variable is used to specify how many log files should be kept when :variable:`audit_log_rotate_on_size` variable is set to non-zero value. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
+
+.. variable:: audit_log_handler
+
+     :version 5.6.20-68.0: Implemented
+     :cli: Yes
+     :scope: Global
+     :dyn: No 
+     :vartype: String
+     :default: FILE
+     :allowed values: ``FILE``, ``SYSLOG``
+
+This variable is used to configure where the audit log will be written. If it is set to ``FILE``, the log will be written into a file specified by :variable:`audit_log_file` variable. If it is set to ``SYSLOG``, the audit log will be written to syslog.
+
+.. variable:: audit_log_syslog_ident
+
+   :version 5.6.20-68.0: Implemented
+   :cli: Yes
+   :scope: Global
+   :dyn: No 
+   :vartype: String
+   :default: percona-audit
+
+This variable is used to specify the ``ident`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
+
+.. variable:: audit_log_syslog_facility
+   
+   :version 5.6.20-68.0: Implemented
+   :cli: Yes
+   :scope: Global
+   :dyn: No 
+   :vartype: String
+   :default: LOG_USER
+
+This variable is used to specify the ``facility`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
+
+.. variable:: audit_log_syslog_priority
+
+   :version 5.6.20-68.0: Implemented
+   :cli: Yes
+   :scope: Global
+   :dyn: No 
+   :vartype: String
+   :default: LOG_INFO
+
+This variable is used to specify the ``priority`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
 Version Specific Information
 ============================
 
   * :rn:`5.6.17-65.0`
     Audit Log plugin has been implemented in |Percona Server|.
+  * :rn:`5.6.20-68.0`
+    |Percona Server| :ref:`audit_log_plugin` now supports ``JSON`` and ``CSV`` log formats. 
+  * :rn:`5.6.20-68.0`
+    |Percona Server| :ref:`audit_log_plugin` now supports :ref:`streaming the audit log to syslog <streaming_to_syslog>`.
 
+ 

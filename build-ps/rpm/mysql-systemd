@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# Scripts to run by MySQL systemd service
+# Scripts to run by Percona Server systemd service
 # 
 # Needed argument: pre | post
 # 

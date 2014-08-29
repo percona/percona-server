@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.39-rel36.0) unstable; urgency=low
+
+  * Added mysqld-debug
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Thu, 28 Aug 2014 09:25:38 +0200
+
 percona-server-5.5 (5.5.38-rel35.2) unstable; urgency=low
 
   * Fixed missing libperconaserverclient lib in lucid/squeeze

@@ -173,7 +173,7 @@ void sm_ctl_update(MYSQL_THD thd __attribute__((unused)),
     if (new_val == CTL_OFF)
     {
       mysql_mutex_lock(&thd_list_mutex);
-      list_free(thd_list_root, FALSE);
+      list_free(thd_list_root, TRUE);
       thd_list_root= NULL;
       mysql_mutex_unlock(&thd_list_mutex);
     }
@@ -196,7 +196,7 @@ int sm_plugin_init(void *arg __attribute__((unused)))
 static
 int sm_plugin_deinit(void *arg __attribute__((unused)))
 {
-  list_free(thd_list_root, FALSE);
+  list_free(thd_list_root, TRUE);
   thd_list_root= NULL;
 
   mysql_mutex_destroy(&thd_list_mutex);

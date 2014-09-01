@@ -460,7 +460,7 @@ my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
-char* opt_secure_file_priv;
+char* opt_secure_file_priv= NULL;
 my_bool opt_secure_file_priv_noarg= FALSE;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
@@ -8991,6 +8991,17 @@ pfs_error:
     break;
   case OPT_TABLE_DEFINITION_CACHE:
     table_definition_cache_specified= true;
+    break;
+  case OPT_SECURE_FILE_PRIV:
+    if (argument == NULL)
+    {
+      opt_secure_file_priv_noarg= TRUE;
+      opt_secure_file_priv= const_cast<char*>("ON");
+    }
+    else
+    {
+      opt_secure_file_priv_noarg= FALSE;
+    }
     break;
   case OPT_AVOID_TEMPORAL_UPGRADE:
     WARN_DEPRECATED_NO_REPLACEMENT(NULL, "avoid_temporal_upgrade");

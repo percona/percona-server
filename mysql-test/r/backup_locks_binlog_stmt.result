@@ -170,7 +170,7 @@ INSERT INTO t_myisam VALUES(0);
 LOCK TABLES FOR BACKUP;
 INSERT INTO t_innodb VALUES(0);
 INSERT INTO t_myisam VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UNLOCK TABLES;
 INSERT INTO t_innodb VALUES(0);
 INSERT INTO t_myisam VALUES(0);

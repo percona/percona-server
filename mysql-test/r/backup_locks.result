@@ -98,15 +98,15 @@ a
 1
 HANDLER t_innodb CLOSE;
 DELETE FROM t_myisam;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_myisam VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT DELAYED INTO t_myisam VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UPDATE t_myisam SET a = 1;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 REPLACE INTO t_myisam VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_myisam;
 a
 HANDLER t_myisam OPEN;
@@ -114,147 +114,147 @@ HANDLER t_myisam READ a FIRST;
 a
 HANDLER t_myisam CLOSE;
 DELETE FROM t_memory;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_memory VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT DELAYED INTO t_memory VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UPDATE t_memory SET a = 1;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 REPLACE INTO t_memory VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_memory;
 a
 DELETE FROM t_archive;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_archive VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT DELAYED INTO t_archive VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UPDATE t_archive SET a = 1;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 REPLACE INTO t_archive VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_archive;
 a
 DELETE FROM t_csv;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO t_csv VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UPDATE t_csv SET a = 1;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 REPLACE INTO t_csv VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 SELECT * FROM t_csv;
 a
 DELETE FROM t_blackhole;
 INSERT INTO t_blackhole VALUES(0);
 INSERT DELAYED INTO t_blackhole VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UPDATE t_blackhole SET a = 1;
 REPLACE INTO t_blackhole VALUES(1);
 SELECT * FROM t_blackhole;
 a
 CREATE TABLE tt_innodb(a INT NOT NULL) ENGINE=InnoDB;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_myisam(a INT NOT NULL) ENGINE=MyISAM;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_memory(a INT NOT NULL) ENGINE=MEMORY;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_csv(a INT NOT NULL) ENGINE=CSV;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_blackhole(a INT NOT NULL) ENGINE=BLACKHOLE;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE TABLE tt_archive(a INT NOT NULL) ENGINE=ARCHIVE;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_innodb;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_myisam;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_memory;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_csv;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_blackhole;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE t_archive;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP TABLE non_existing;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_innodb;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_myisam;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_memory;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_csv;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_blackhole;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 TRUNCATE TABLE t_archive;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_innodb TO tmp;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_myisam TO tmp;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_memory TO tmp;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_csv TO tmp;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_blackhole TO tmp;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 RENAME TABLE t_archive TO tmp;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_innodb ADD COLUMN b CHAR(10);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_myisam ADD COLUMN b CHAR(10);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_memory ADD COLUMN b CHAR(10);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_csv ADD COLUMN b CHAR(10);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_blackhole ADD COLUMN b CHAR(10);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_archive ADD COLUMN b CHAR(10);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_innodb ADD KEY (a);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_myisam ADD KEY (a);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_memory ADD KEY (a);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_csv ADD KEY (a);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_blackhole ADD KEY (a);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 ALTER TABLE t_archive ADD KEY (a);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 DROP DATABASE test;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE DATABASE test1;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE PROCEDURE p1()
 BEGIN
 SELECT 1;
 END|
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
 BEGIN
 RETURN 1;
 END|
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 CREATE VIEW v1 AS SELECT * FROM t_innodb;
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_innodb VALUES(1);
 INSERT INTO v_blackhole VALUES(1);
 INSERT INTO v_myisam VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_csv VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_memory VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 INSERT INTO v_archive VALUES(1);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UNLOCK TABLES;
 LOCK BINLOG FOR BACKUP;
 DELETE FROM t_innodb;
@@ -400,7 +400,7 @@ INSERT INTO t_myisam VALUES(0);
 LOCK TABLES FOR BACKUP;
 INSERT INTO t_innodb VALUES(0);
 INSERT INTO t_myisam VALUES(0);
-ERROR HY000: Can’t execute the query because you have a conflicting backup lock
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UNLOCK TABLES;
 INSERT INTO t_innodb VALUES(0);
 INSERT INTO t_myisam VALUES(0);

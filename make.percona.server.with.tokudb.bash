@@ -25,7 +25,7 @@ function get_source_from_repos() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3
 
     # get percona server source
-    get_repo Tokutek percona-server-5.6 $perconaserver
+    get_repo Tokutek percona-server-5.6 $tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     mv percona-server-5.6 $perconaserver-$buildtype
  

@@ -4,7 +4,7 @@
  TokuDB Installation
 =====================
 
-|Percona Server| is compatible with the separately available TokuDB storage engine package. TokuDB engine is not packaged with any |Percona Server| 5.6 download. The TokuDB engine must be separately downloaded and then enabled as a plug-in component.  This package can be installed alongside with standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
+|Percona Server| is technically compatible with the separately available TokuDB storage engine package. TokuDB engine is not packaged with any |Percona Server| 5.6 download. The TokuDB engine must be separately downloaded and then enabled as a plug-in component.  This package can be installed alongside with standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
 
 The `TokuDB <http://www.tokutek.com/products/tokudb-for-mysql/>`_ storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
@@ -45,7 +45,9 @@ If transparent huge pages are enabled and you try to start the TokuDB engine you
  Transparent huge pages are enabled, according to /sys/kernel/mm/redhat_transparent_hugepage/enabled
  Transparent huge pages are enabled, according to /sys/kernel/mm/transparent_hugepage/enabled
 
-You can `disable <http://www.oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php#disabling-transparent-hugepages>`_ them by passing ``transparent_hugepage=never`` to the kernel in your bootloader or by running the following command as root: 
+You can `disable <http://www.oracle-base.com/articles/linux/configuring-huge-pages-for-oracle-on-linux-64.php#disabling-transparent-hugepages>`_ transparent huge pages permanently by passing ``transparent_hugepage=never`` to the kernel in your bootloader (**NOTE**: For this change to take an effect you'll need to reboot your server).
+
+You can disable the transparent huge pages by running the following command as root (**NOTE**: Setting this will last only until the server is rebooted): 
   
 .. code-block:: bash
 

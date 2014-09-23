@@ -12,8 +12,6 @@ Ready-to-use binaries are available from the |Percona Server| `download page <ht
 
  * *Debian* packages for *Debian* and *Ubuntu*
 
-.. * *Microsoft Windows* binaries
-
  * Generic ``.tar.gz`` packages
 
 Using Percona Software Repositories

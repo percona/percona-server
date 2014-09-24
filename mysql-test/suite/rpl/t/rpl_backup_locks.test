@@ -86,6 +86,38 @@ let $wait_condition=
 
 UNLOCK BINLOG;
 
+############################################################################
+# Bug 1372806: Deadlock with LOCK BINLOG FOR BACKUP + SHOW SLAVE STATUS with
+#              binary log enabled
+############################################################################
+
+--connection slave
+--echo # connection slave
+LOCK BINLOG FOR BACKUP;
+
+--let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+--connection master
+--echo # connection master
+INSERT INTO t_innodb VALUES (1);
+
+--connection slave
+--echo # connection slave
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE = "Waiting for binlog lock" AND
+    (INFO = "INSERT INTO t_innodb VALUES (1)" OR INFO IS NULL);
+--source include/wait_condition.inc
+
+# The following would deadlock with binlog_format=stmt on SHOW SLAVE STATUS
+# before the fix
+
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/check_slave_param.inc
+
+UNLOCK BINLOG;
+
 --connection master
 --echo # connection master
 

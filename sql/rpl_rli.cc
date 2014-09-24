@@ -82,7 +82,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_old_open_count(0), error_on_rli_init_info(false),
    group_relay_log_pos(0), event_relay_log_number(0),
    event_relay_log_pos(0), event_start_pos(0),
-   group_master_log_pos(0),
+   m_group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
    rli_fake(is_rli_fake),
    gtid_retrieved_initialized(false),
@@ -142,7 +142,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 #endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
-    group_master_log_name[0]= 0;
+    m_group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
   set_timespec_nsec(&last_clock, 0);
   memset(&cache_buf, 0, sizeof(cache_buf));
@@ -798,6 +798,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   {
     bool pos_reached;
     int cmp_result= 0;
+    const char * const group_master_log_name= get_group_master_log_name();
+    const ulonglong group_master_log_pos= get_group_master_log_pos();
 
     DBUG_PRINT("info",
                ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
@@ -823,8 +825,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     */
     if (*group_master_log_name && !is_group_master_log_pos_invalid)
     {
-      char *basename= (group_master_log_name +
-                       dirname_length(group_master_log_name));
+      const char * const basename= (group_master_log_name +
+                                    dirname_length(group_master_log_name));
       /*
         First compare the parts before the extension.
         Find the dot in the master's log basename,
@@ -1095,6 +1097,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     */
     DBUG_ASSERT(!info_thd->backup_binlog_lock.is_acquired());
     DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&data_lock);
     if (info_thd->backup_binlog_lock.acquire_protection(info_thd, MDL_EXPLICIT,
                                                         timeout))
       DBUG_RETURN(1);
@@ -1104,8 +1107,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   else
   {
     mysql_mutex_assert_owner(&data_lock);
-    DBUG_ASSERT(info_thd->mdl_context.owns_equal_or_stronger_lock(
-                  MDL_key::BINLOG, "", "", MDL_INTENTION_EXCLUSIVE));
+    DBUG_ASSERT(info_thd->backup_binlog_lock.is_protection_acquired());
   }
 
   inc_event_relay_log_pos();
@@ -1136,10 +1138,10 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     With the end_log_pos solution, we avoid computations involving lengthes.
   */
   DBUG_PRINT("info", ("log_pos: %lu  group_master_log_pos: %lu",
-                      (long) log_pos, (long) group_master_log_pos));
+                      (long) log_pos, (long) get_group_master_log_pos()));
 
   if (log_pos > 0)  // 3.23 binlogs don't have log_posx
-    group_master_log_pos= log_pos;
+    set_group_master_log_pos(log_pos);
   /*
     If the master log position was invalidiated by say, "CHANGE MASTER TO
     RELAY_LOG_POS=N", it is now valid,
@@ -1241,6 +1243,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   mysql_mutex_t *log_lock= relay_log.get_log_lock();
 
   DBUG_ENTER("Relay_log_info::purge_relay_logs");
+  bool binlog_prot_acquired= false;
 
   /*
     Even if inited==0, we still try to empty master_log_* variables. Indeed,
@@ -1258,8 +1261,22 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     SLAVE, he will see old, confusing master_log_*. In other words, we reinit
     master_log_* for SHOW SLAVE STATUS to display fine in any case.
   */
-  group_master_log_name[0]= 0;
-  group_master_log_pos= 0;
+
+  if (!thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&data_lock);
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                   timeout))
+      DBUG_RETURN(1);
+
+    binlog_prot_acquired= true;
+  }
+
+  set_group_master_log_name("");
+  set_group_master_log_pos(0);
 
   /*
     Following the the relay log purge, the master_log_pos will be in sync
@@ -1295,6 +1312,11 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
       {
         sql_print_error("Unable to purge relay log files. Failed to open relay "
                         "log index file:%s.", relay_log.get_index_fname());
+        if (binlog_prot_acquired)
+        {
+          DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+          thd->backup_binlog_lock.release_protection(thd);
+        }
         DBUG_RETURN(1);
       }
       mysql_mutex_lock(&mi->data_lock);
@@ -1310,13 +1332,25 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
         mysql_mutex_unlock(&mi->data_lock);
         sql_print_error("Unable to purge relay log files. Failed to open relay "
                         "log file:%s.", relay_log.get_log_fname());
+        if (binlog_prot_acquired)
+        {
+          DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+          thd->backup_binlog_lock.release_protection(thd);
+        }
         DBUG_RETURN(1);
       }
       mysql_mutex_unlock(log_lock);
       mysql_mutex_unlock(&mi->data_lock);
     }
     else
+    {
+      if (binlog_prot_acquired)
+      {
+        DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+        thd->backup_binlog_lock.release_protection(thd);
+      }
       DBUG_RETURN(0);
+    }
   }
   else
   {
@@ -1382,6 +1416,13 @@ err:
 #endif
   DBUG_PRINT("info",("log_space_total: %s",llstr(log_space_total,buf)));
   mysql_mutex_unlock(&data_lock);
+
+  if (binlog_prot_acquired)
+  {
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1494,9 +1535,9 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       */
       if (ev && ev->server_id == 0)
         DBUG_RETURN(false);
-      log_name= group_master_log_name;
+      log_name= get_group_master_log_name();
       if (!ev || is_in_group() || !ev->common_header->log_pos)
-        log_pos= group_master_log_pos;
+        log_pos= get_group_master_log_pos();
       else
         log_pos= ev->common_header->log_pos - ev->common_header->data_written;
     }
@@ -1510,7 +1551,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     {
       char buf[32];
       DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
-                          group_master_log_name, llstr(group_master_log_pos, buf)));
+                          get_group_master_log_name(),
+                          llstr(get_group_master_log_pos(), buf)));
       DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
                           group_relay_log_name, llstr(group_relay_log_pos, buf)));
       DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
@@ -2337,8 +2379,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       error= 1;
       goto err;
     }
-    group_master_log_name[0]= 0;
-    group_master_log_pos= 0;
+    set_group_master_log_name("");
+    set_group_master_log_pos(0);
   }
   else
   {
@@ -2562,6 +2604,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   int lines= 0;
   char *first_non_digit= NULL;
   ulong temp_group_relay_log_pos= 0;
+  char temp_group_master_log_name[FN_REFLEN];
   ulong temp_group_master_log_pos= 0;
   int temp_sql_delay= 0;
   int temp_internal_id= internal_id;
@@ -2626,8 +2669,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
 
   if (from->get_info(&temp_group_relay_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
-      from->get_info(group_master_log_name,
-                     sizeof(group_relay_log_name),
+      from->get_info(temp_group_master_log_name,
+                     sizeof(temp_group_master_log_name),
                      (char *) "") ||
       from->get_info(&temp_group_master_log_pos,
                      0UL))
@@ -2659,7 +2702,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   }
 
   group_relay_log_pos=  temp_group_relay_log_pos;
-  group_master_log_pos= temp_group_master_log_pos;
+  set_group_master_log_name(temp_group_master_log_name);
+  set_group_master_log_pos(temp_group_master_log_pos);
   sql_delay= (int32) temp_sql_delay;
   internal_id= (uint) temp_internal_id;
 
@@ -2693,8 +2737,8 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
       to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_ID) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
-      to->set_info(group_master_log_name) ||
-      to->set_info((ulong) group_master_log_pos) ||
+      to->set_info(get_group_master_log_name()) ||
+      to->set_info((ulong) get_group_master_log_pos()) ||
       to->set_info((int) sql_delay) ||
       to->set_info(recovery_parallel_workers) ||
       to->set_info((int) internal_id) ||

@@ -29,6 +29,13 @@ LOCK BINLOG FOR BACKUP;
 UNLOCK TABLES;
 include/check_slave_param.inc [Exec_Master_Log_Pos]
 UNLOCK BINLOG;
+# connection slave
+LOCK BINLOG FOR BACKUP;
+# connection master
+INSERT INTO t_innodb VALUES (1);
+# connection slave
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+UNLOCK BINLOG;
 # connection master
 DROP TABLE t_innodb, t_myisam;
 include/rpl_end.inc

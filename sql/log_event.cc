@@ -6666,6 +6666,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     */
     DBUG_ASSERT(!thd->backup_binlog_lock.is_acquired());
     DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&rli->data_lock);
     const ulong timeout= thd->variables.lock_wait_timeout;
     if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT, timeout))
     {
@@ -7240,10 +7241,24 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
   */
   gtid_reacquire_ownership_if_anonymous(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
+  bool binlog_prot_acquired= false;
 
   /* For a slave Xid_log_event is COMMIT */
   query_logger.general_log_print(thd, COM_QUERY,
                                  "COMMIT /* implicit, from Xid_log_event */");
+
+  if (!thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&rli->data_lock);
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                   timeout))
+      DBUG_RETURN(1);
+
+    binlog_prot_acquired= true;
+  }
 
   mysql_mutex_lock(&rli_ptr->data_lock);
 
@@ -7386,6 +7401,12 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
+
+  if (binlog_prot_acquired)
+  {
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
+  }
 
   DBUG_RETURN(error);
 }

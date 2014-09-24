@@ -2191,6 +2191,8 @@ public:
 
   bool is_acquired() const { return m_lock != NULL; }
 
+  bool is_protection_acquired() const { return m_prot_lock != NULL; }
+
 private:
   MDL_key::enum_mdl_namespace m_namespace;
   MDL_ticket *m_lock;

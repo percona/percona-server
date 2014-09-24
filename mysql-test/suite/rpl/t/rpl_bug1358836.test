@@ -1,0 +1,49 @@
+###############################################################################
+# Bug #1358836: Backup locks do not guarantee consistent SHOW SLAVE STATUS with
+#               binary log disabled
+###############################################################################
+
+--source include/have_innodb.inc
+--let $rpl_skip_reset_master_and_slave=1
+--source include/master-slave.inc
+
+CREATE TABLE t1 (
+  a int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+sync_slave_with_master;
+
+--connection slave
+--echo # connection slave
+
+LOCK BINLOG FOR BACKUP;
+
+--let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+--connection master
+--echo # connection master
+
+INSERT INTO t1 VALUES (1);
+
+--connection slave
+--echo # connection slave
+
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE = "Waiting for binlog lock" AND
+    (INFO = "INSERT INTO t1 VALUES (1)" OR INFO IS NULL);
+--source include/wait_condition.inc
+
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/check_slave_param.inc
+
+UNLOCK BINLOG;
+
+--connection master
+--echo # connection master
+DROP TABLE t1;
+
+sync_slave_with_master;
+
+--source include/rpl_end.inc

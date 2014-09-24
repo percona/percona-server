@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE db_1;
+CREATE DATABASE db_2;
+CREATE TABLE db_1.test_1 (id INTEGER) engine=Innodb;
+CREATE TABLE db_2.test_1 (id INTEGER) engine=Innodb;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET @save.slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
+SET @@GLOBAL.slave_parallel_workers= 2;
+include/start_slave.inc
+LOCK BINLOG FOR BACKUP;
+INSERT INTO db_1.test_1 VALUES(1);
+INSERT INTO db_2.test_1 VALUES(1);
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+UNLOCK BINLOG;
+include/sync_slave_sql_with_master.inc
+LOCK BINLOG FOR BACKUP;
+INSERT INTO db_1.test_1 VALUES(2);
+INSERT INTO db_2.test_1 VALUES(2);
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+UNLOCK BINLOG;
+DROP DATABASE db_1;
+DROP DATABASE db_2;
+include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.slave_parallel_workers= @save.slave_parallel_workers;
+include/rpl_end.inc

@@ -3769,6 +3769,12 @@ static my_bool check_if_option_is_deprecated(int optid,
   {
     WARN_DEPRECATED(NULL, opt->name, (opt->name + strlen("plugin-")));
   }
+  else if (!my_strcasecmp(&my_charset_latin1, opt->name, "innodb"))
+  {
+    sql_print_warning("The option innodb (skip-innodb) is deprecated and "
+                      "will be removed in a future release");
+  }
+
   return 0;
 }
 

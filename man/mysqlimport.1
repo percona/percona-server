@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/18/2014
+.\"      Date: 09/06/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "07/18/2014" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "09/06/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -109,7 +109,7 @@ Display a help message and exit\&.
 .\" bind-address option: mysqlimport
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
-On a computer having multiple network interfaces, this option can be used to select which interface is employed when connecting to the MySQL server\&.
+On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
 .sp
 This option is supported only in the version of
 \fBmysqlimport\fR
@@ -650,6 +650,26 @@ and
 options control handling of input rows that duplicate existing rows on unique key values\&. If you specify
 \fB\-\-replace\fR, new rows replace existing rows that have the same unique key value\&. If you specify
 \fB\-\-ignore\fR, input rows that duplicate an existing row on a unique key value are skipped\&. If you do not specify either option, an error occurs when a duplicate key value is found, and the rest of the text file is ignored\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlimport: shared-memory-base-name option
+.\" shared-memory-base-name option: mysqlimport
+\fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
+.sp
+On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
+MYSQL\&. The shared\-memory name is case sensitive\&.
+.sp
+The server must be started with the
+\fB\-\-shared\-memory\fR
+option to enable shared\-memory connections\&.
 .RE
 .sp
 .RS 4

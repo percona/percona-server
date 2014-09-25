@@ -2344,6 +2344,7 @@ bool MYSQL_LOG::open(
                      bool unique)
 {
   char buff[FN_REFLEN];
+  MY_STAT f_stat;
   File file= -1;
   int open_flags= O_CREAT | O_BINARY;
   DBUG_ENTER("MYSQL_LOG::open");
@@ -2359,6 +2360,10 @@ bool MYSQL_LOG::open(
 
   if (init_and_set_log_file_name(name, new_name,
                                  log_type_arg, io_cache_type_arg, unique))
+    goto err;
+
+  /* File is regular writable file */
+  if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
     goto err;
 
   if (io_cache_type == SEQ_READ_APPEND)

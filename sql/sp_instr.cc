@@ -27,6 +27,7 @@
 #include "sql_parse.h"    // check_table_access
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
+#include "sql_audit.h"
 
 #include <algorithm>
 
@@ -829,6 +830,11 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     }
 
     query_cache_end_of_result(thd);
+
+    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                        thd->get_stmt_da()->is_error() ?
+                            thd->get_stmt_da()->sql_errno() : 0,
+                        command_name[COM_QUERY].str);
 
     if (!rc && unlikely(log_slow_applicable(thd)))
     {

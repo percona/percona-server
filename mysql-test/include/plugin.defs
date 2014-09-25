@@ -49,3 +49,4 @@ auth_socket        plugin/auth        SOCKET_AUTH
 scalability_metrics plugin/scalability_metrics SCALABILITY_METRICS
 adt_null           plugin/audit_null  AUDIT_NULL
 audit_log          plugin/audit_log   AUDIT_LOG             audit_log
+query_response_time plugin/query_response_time PLUGIN_QUERY_RESPONSE_TIME QUERY_RESPONSE_TIME_AUDIT,QUERY_RESPONSE_TIME 

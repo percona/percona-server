@@ -213,7 +213,11 @@ public:
     @return Error status.
   */
   bool validate_lex_and_execute_core(THD *thd, uint *nextp, bool open_tables);
-
+#ifndef DBUG_OFF
+  int get_command() const {
+      return m_lex ? m_lex->sql_command : -1;
+  }
+#endif //DBUG_OFF
 private:
   /**
     Prepare LEX and thread for execution of instruction, if requested open

@@ -1999,12 +1999,6 @@ bool log_slow_applicable(THD *thd)
 
   ulonglong end_utime_of_query= thd->current_utime();
   ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
-#ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
-  if (opt_query_response_time_stats)
-  {
-    query_response_time_collect(query_exec_time);
-  }
-#endif
 
   /*
     Low long_query_time value most likely means user is debugging stuff and even

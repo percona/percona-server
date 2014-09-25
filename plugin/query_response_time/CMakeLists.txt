@@ -1,0 +1,1 @@
+MYSQL_ADD_PLUGIN(QUERY_RESPONSE_TIME query_response_time.cc plugin.cc)

@@ -279,13 +279,18 @@ exit:
 }
 
 
-int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size)
+int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
+                 log_record_state_t state)
 {
   int result;
   my_off_t filesize;
 
   flogger_mutex_lock(log);
-  if (log->rotations > 0)
+
+  result= my_write(log->file, (uchar *) buffer, size, MYF(0));
+
+  if (state == LOG_RECORD_COMPLETE && log->rotations > 0)
+  {
     if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
         ((unsigned long long)filesize >= log->size_limit &&
          do_rotate(log)))
@@ -294,8 +299,7 @@ int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size)
       errno= my_errno;
       goto exit; /* Log rotation needed but failed */
     }
-
-  result= my_write(log->file, (uchar *) buffer, size, MYF(0));
+  }
 
 exit:
   flogger_mutex_unlock(log);

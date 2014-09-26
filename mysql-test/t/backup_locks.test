@@ -1075,6 +1075,59 @@ SET GLOBAL log_output = @old_log_output;
 SET GLOBAL slow_query_log = @old_slow_query_log;
 SET GLOBAL general_log = @old_general_log;
 
+--echo ########################################################################
+--echo # Bug #1360064: LOCK TABLES FOR BACKUP should be incompatible with LOCK
+--echo #               TABLES, FLUSH TABLES ... WITH READ LOCK and FLUSH TABLES
+--echo #               ... FOR EXPORT in the same connection
+--echo ########################################################################
+
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+
+LOCK TABLES t1 READ;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+LOCK TABLES FOR BACKUP;
+
+UNLOCK TABLES;
+
+LOCK TABLES t1 WRITE;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+LOCK TABLES FOR BACKUP;
+
+UNLOCK TABLES;
+
+FLUSH TABLES t1 FOR EXPORT;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+LOCK TABLES FOR BACKUP;
+
+UNLOCK TABLES;
+
+FLUSH TABLES t1 WITH READ LOCK;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+LOCK TABLES FOR BACKUP;
+
+UNLOCK TABLES;
+
+LOCK TABLES FOR BACKUP;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+LOCK TABLE t1 READ;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+LOCK TABLE t1 WRITE;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+FLUSH TABLES t1 FOR EXPORT;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+FLUSH TABLES t1 WITH READ LOCK;
+
+--error ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+FLUSH TABLES WITH READ LOCK;
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
 --echo #-----------------------------------------------------------------------
 --echo # Cleanup
 --echo #-----------------------------------------------------------------------

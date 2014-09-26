@@ -874,6 +874,41 @@ UNLOCK TABLES;
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL slow_query_log = @old_slow_query_log;
 SET GLOBAL general_log = @old_general_log;
+########################################################################
+# Bug #1360064: LOCK TABLES FOR BACKUP should be incompatible with LOCK
+#               TABLES, FLUSH TABLES ... WITH READ LOCK and FLUSH TABLES
+#               ... FOR EXPORT in the same connection
+########################################################################
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+LOCK TABLES t1 READ;
+LOCK TABLES FOR BACKUP;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+LOCK TABLES t1 WRITE;
+LOCK TABLES FOR BACKUP;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+FLUSH TABLES t1 FOR EXPORT;
+LOCK TABLES FOR BACKUP;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+FLUSH TABLES t1 WITH READ LOCK;
+LOCK TABLES FOR BACKUP;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+LOCK TABLES FOR BACKUP;
+LOCK TABLE t1 READ;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+LOCK TABLE t1 WRITE;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+FLUSH TABLES t1 FOR EXPORT;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+FLUSH TABLES t1 WITH READ LOCK;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+FLUSH TABLES WITH READ LOCK;
+ERROR HY000: Can't execute the query because you have a conflicting backup lock
+UNLOCK TABLES;
+DROP TABLE t1;
 #-----------------------------------------------------------------------
 # Cleanup
 #-----------------------------------------------------------------------

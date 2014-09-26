@@ -62,6 +62,10 @@ extern "C" {
 typedef struct logger_handle_st LOGGER_HANDLE;
 typedef size_t (*logger_prolog_func_t)(MY_STAT *, char *buf, size_t buflen);
 typedef size_t (*logger_epilog_func_t)(char *buf, size_t buflen);
+typedef enum {
+  LOG_RECORD_COMPLETE,
+  LOG_RECORD_INCOMPLETE
+} log_record_state_t;
 
 void logger_init_mutexes();
 LOGGER_HANDLE *logger_open(const char *path,
@@ -72,7 +76,8 @@ LOGGER_HANDLE *logger_open(const char *path,
 int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer);
 int logger_vprintf(LOGGER_HANDLE *log, const char *fmt, va_list argptr);
 int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...);
-int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size);
+int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size,
+                 log_record_state_t state);
 int logger_rotate(LOGGER_HANDLE *log); 
 int logger_sync(LOGGER_HANDLE *log);
 int logger_reopen(LOGGER_HANDLE *log, logger_prolog_func_t header,

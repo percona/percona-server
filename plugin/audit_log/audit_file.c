@@ -39,7 +39,8 @@ static
 int audit_handler_file_close(audit_handler_t *handler);
 static
 int audit_handler_file_write_nobuf(LOGGER_HANDLE *logger,
-                                   const char *buf, size_t len);
+                                   const char *buf, size_t len,
+                                   log_record_state_t state);
 static
 int audit_handler_file_write_buf(audit_log_buffer_t *buffer,
                                  const char *buf, size_t len);
@@ -48,14 +49,15 @@ void audit_handler_file_set_option(audit_handler_t *handler,
                                    audit_handler_option_t opt, void *val);
 
 static
-int write_callback(void *data, const char *buf, size_t len)
+int write_callback(void *data, const char *buf, size_t len,
+                   log_record_state_t state)
 {
   audit_handler_t *handler= (audit_handler_t *) data;
   audit_handler_file_data_t *hdata= (audit_handler_file_data_t*) handler->data;
 
   DBUG_ASSERT(hdata->struct_size == sizeof(audit_handler_file_data_t));
 
-  return audit_handler_file_write_nobuf(hdata->logger, buf, len);
+  return audit_handler_file_write_nobuf(hdata->logger, buf, len, state);
 }
 
 
@@ -106,9 +108,10 @@ success:
 
 static
 int audit_handler_file_write_nobuf(LOGGER_HANDLE *logger,
-                                   const char *buf, size_t len)
+                                   const char *buf, size_t len,
+                                   log_record_state_t state)
 {
-  return logger_write(logger, buf, len);
+  return logger_write(logger, buf, len, state);
 }
 
 static
@@ -135,7 +138,8 @@ int audit_handler_file_write(audit_handler_t *handler,
   else
   {
     DBUG_ASSERT(data->logger);
-    res= audit_handler_file_write_nobuf(data->logger, buf, len);
+    res= audit_handler_file_write_nobuf(data->logger, buf, len,
+                                        LOG_RECORD_COMPLETE);
 
     if (data->sync_on_write)
     {

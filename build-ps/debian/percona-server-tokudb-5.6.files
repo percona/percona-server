@@ -1,3 +1,2 @@
 usr/lib/mysql/plugin/ha_tokudb.so
 usr/bin/tokuftdump
-usr/include/tdb-internal.h

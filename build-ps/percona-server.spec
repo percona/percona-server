@@ -1340,7 +1340,6 @@ fi
 %files -n Percona-Server-tokudb%{product_suffix}
 %attr(-, root, root) 
 %{_bindir}/tokuftdump
-%{_includedir}/tdb-internal.h
 %{_libdir}/mysql/plugin/ha_tokudb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
 %endif

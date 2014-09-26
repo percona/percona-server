@@ -432,7 +432,7 @@ my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
-char* opt_secure_file_priv;
+char* opt_secure_file_priv= NULL;
 my_bool opt_secure_file_priv_noarg= FALSE;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
@@ -7524,6 +7524,7 @@ mysqld_get_one_option(int optid,
   case OPT_SECURE_FILE_PRIV:
     if (argument == NULL)
     {
+      my_free(opt_secure_file_priv);
       opt_secure_file_priv_noarg= TRUE;
       opt_secure_file_priv= my_strdup("ON", MYF(0));
     }

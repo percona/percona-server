@@ -1,2 +1,3 @@
 usr/lib/mysql/plugin/ha_tokudb.so
+usr/lib/mysql/plugin/debug/ha_tokudb.so
 usr/bin/tokuftdump

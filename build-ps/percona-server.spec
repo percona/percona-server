@@ -61,6 +61,14 @@
 
 %define release         rel%{percona_server_version}%{?dist}
 
+%if "%rhel" > "6"
+%define shared_lib_pri_name libmysqlclient
+%define shared_lib_sec_name libperconaserverclient
+%else
+%define shared_lib_pri_name libperconaserverclient
+%define shared_lib_sec_name libmysqlclient
+%endif
+
 #
 # Macros we use which are not available in all supported versions of RPM
 #
@@ -263,6 +271,7 @@ BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
 %endif
+Patch0:         mysql-5.6-sharedlib-rename.patch
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -286,7 +295,7 @@ be eligible for hot fixes, and boost your team's productivity.
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
-Requires:       perl(Data::Dumper)
+Requires:       perl-DBI perl-DBD-MySQL
 %if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd
@@ -355,7 +364,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-client%{product_suffix}
 Summary:        Percona Server - Client
 Group:          Applications/Databases
-Requires:       Percona-Server-shared%{product_suffix}
+Requires:       Percona-Server-shared%{product_suffix} perl-DBI
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55
 
@@ -396,11 +405,18 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
+Provides:       mysql-shared mysql-libs
+%if "%rhel" > "6"
+Obsoletes:      mariadb-libs
+%else
 %ifarch x86_64
 Provides:       libmysqlclient.so.18()(64bit)
+Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
 %endif
 %ifarch i386 i686
 Provides:       libmysqlclient.so.18()(32bit)
+Provides:       libmysqlclient.so.18(libmysqlclient_18)(32bit)
+%endif
 %endif
 
 %description -n Percona-Server-shared%{product_suffix}
@@ -413,6 +429,11 @@ and applications need to dynamically load and use Percona Server.
 %if %{with tokudb}
 %setup -n %{src_dir} -T -D -b 1
 %endif
+
+%if "%rhel" > "6"
+%patch0 -p1
+%endif
+
 ##############################################################################
 %build
 
@@ -580,9 +601,14 @@ mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 %if 0%{?systemd}
 install -D -m 0755 $MBD/build-ps/rpm/mysql-systemd $RBR%{_bindir}/mysql-systemd
-install -D -m 0644 $MBD/build-ps/rpm/mysql.service $RBR%{_unitdir}/mysql.service
+install -D -m 0644 $MBD/build-ps/rpm/mysqld.service $RBR%{_unitdir}/mysqld.service
+install -D -m 0644 $MBD/build-ps/rpm/mysql.conf $RBR%{_tmpfilesdir}/mysql.conf
 %else
 install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+%endif
+
+%if "%rhel" > "6"
+install -D -m 0644 $MBD/build-ps/rpm/my.cnf $RBR%{_sysconfdir}/my.cnf
 %endif
 
 #
@@ -598,7 +624,7 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 
 # Touch the place where the my.cnf config file might be located
 # Just to make sure it's in the file list and marked as a config file
-touch $RBR%{_sysconfdir}/my.cnf
+# touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
 install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
@@ -624,15 +650,6 @@ rm -rf $RBR%{_sysconfdir}/init.d/mysql
 ##############################################################################
 
 %pre -n Percona-Server-server%{product_suffix}
-
-# On rhel7 change default MariaDB options if they exists (only on initial installation)
-%if "%rhel" > "6"
-if [ $1 -eq 1 -a -f /etc/my.cnf ]; then
-  sed -i 's/log-error=\/var\/log\/mariadb\/mariadb.log/log-error=\/var\/log\/mysqld.log/g' /etc/my.cnf;
-  sed -i 's/pid-file=\/var\/run\/mariadb\/mariadb.pid/pid-file=\/var\/run\/mysqld\/mysqld.pid/g' /etc/my.cnf;
-  sed -i 's/\!includedir \/etc\/my.cnf.d/\#\!includedir \/etc\/my.cnf.d/g' /etc/my.cnf;
-fi
-%endif
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
@@ -789,20 +806,11 @@ fi
 # Note we *could* make that depend on $SERVER_TO_START, but we rather don't,
 # so a "stop" is attempted even if there is no PID file.
 # (Maybe the "stop" doesn't work then, but we might fix that in itself.)
-%if 0%{?systemd}
-SYSD_ACTIVE=$(systemctl is-active mysql)
-if [ $SYSD_ACTIVE == "active" ] ; then
-	%{_bindir}/systemctl stop mysql >/dev/null 2>&1
-	echo "Giving mysqld 5 seconds to exit nicely"
-	sleep 5
-fi
-%else
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
         echo "Giving mysqld 5 seconds to exit nicely"
         sleep 5
 fi
-%endif
 
 # SElinux
 %post -n Percona-Server-selinux%{product_suffix}
@@ -816,6 +824,10 @@ fi
 #SElinux
 
 %post -n Percona-Server-server%{product_suffix}
+
+%if 0%{?systemd}
+  %systemd_post mysqld
+%endif
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
@@ -852,7 +864,7 @@ fi
 # use chkconfig on Enterprise Linux and newer SuSE releases
 %if 0%{?systemd}
 if [ -x %{_bindir}/systemctl ] ; then
-	%{_bindir}/systemctl enable mysql >/dev/null 2>&1
+	%{_bindir}/systemctl enable mysqld >/dev/null 2>&1
 fi
 %else
 if [ -x /sbin/chkconfig ] ; then
@@ -893,6 +905,10 @@ chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
             --datadir=$mysql_datadir
     fi
 
+%if 0%{?systemd}
+  %tmpfiles_create mysql.conf
+%endif
+
 # ----------------------------------------------------------------------
 # Upgrade databases if needed would go here - but it cannot be automated yet
 # ----------------------------------------------------------------------
@@ -919,21 +935,18 @@ if [ -x sbin/restorecon ] ; then
   sbin/restorecon -R var/lib/mysql
 fi
 
+# For systemd check postun
+%if 0%{?systemd} == 0
 # Was the server running before the upgrade? If so, restart the new one.
 if [ "$SERVER_TO_START" = "true" ] ; then
-%if 0%{?systemd}
-if [ -x %{_bindir}/systemctl ] ; then
-	%{_bindir}/systemctl start mysql
-fi
-%else
 	# Restart in the same way that mysqld will be started normally.
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 		%{_sysconfdir}/init.d/mysql start
+		echo "Giving mysqld 5 seconds to start"
+		sleep 5
 	fi
-%endif
-  echo "Giving mysqld 5 seconds to start"
-  sleep 5
 fi
+%endif
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
@@ -970,12 +983,9 @@ mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
 
 if [ $1 = 0 ] ; then
 %if 0%{?systemd}
-	if [ -x %{_bindir}/systemctl ] ; then
-		%{_bindir}/systemctl stop mysql > /dev/null
-		%{_bindir}/systemctl disable mysql > /dev/null
-	fi
+	%systemd_preun mysqld
 %else
-        # Stop MySQL before uninstalling it
+       # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
                 %{_sysconfdir}/init.d/mysql stop > /dev/null
                 # Remove autostart of MySQL
@@ -1032,7 +1042,7 @@ echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 
 %if 0%{?systemd}
 if [ -x %{_bindir}/systemctl ] ; then
-	%{_bindir}/systemctl enable mysql >/dev/null 2>&1
+	%{_bindir}/systemctl enable mysqld >/dev/null 2>&1
 fi
 %else
 if [ -x /sbin/chkconfig ] ; then
@@ -1048,7 +1058,7 @@ if [ "$SERVER_TO_START" = "true" ] ; then
 # Restart in the same way that mysqld will be started normally.
 %if 0%{?systemd}
 	if [ -x %{_bindir}/systemctl ] ; then 
-		%{_bindir}/systemctl start mysql
+		%{_bindir}/systemctl start mysqld
 		echo "Giving mysqld 5 seconds to start"
 		sleep 5
 	fi
@@ -1086,9 +1096,13 @@ if [ $1 -eq 1 ] ; then
 	echo "* See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for more details"
 	echo ""
 fi
-%endif
 # ----------------------------------------------------------------------------
+%endif
 
+%postun -n Percona-Server-server%{product_suffix}
+%if 0%{?systemd}
+%systemd_postun_with_restart mysqld
+%endif
 
 # ----------------------------------------------------------------------
 # Clean up the BuildRoot after build is done
@@ -1145,8 +1159,6 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
-
-%ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -1241,7 +1253,9 @@ fi
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %if 0%{?systemd}
-%attr(644, root, root) %{_unitdir}/mysql.service
+%attr(755, root, root) %{_bindir}/mysql-systemd
+%attr(644, root, root) %{_unitdir}/mysqld.service
+%attr(644, root, root) %{_tmpfilesdir}/mysql.conf
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %endif
@@ -1332,8 +1346,8 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
-%{_libdir}/mysql/libperconaserverclient.a
-%{_libdir}/mysql/libperconaserverclient_r.a
+%{_libdir}/mysql/%{shared_lib_pri_name}.a
+%{_libdir}/mysql/%{shared_lib_pri_name}_r.a
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/*.so
 
@@ -1350,18 +1364,30 @@ fi
 %files -n Percona-Server-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
-%{_libdir}/libperconaserver*.so.*
+%{_libdir}/%{shared_lib_pri_name}*.so.*
+
+%if "%rhel" > "6"
+%attr(644, root, root) %config(noreplace) %{_sysconfdir}/my.cnf
+%endif
 
 %post -n Percona-Server-shared%{product_suffix}
+%if "%rhel" > "6"
 # Added for compatibility
-for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
+for lib in %{shared_lib_pri_name}{.so.18,_r.so.18}; do
+    if [ ! -f %{_libdir}/$lib ]; then
+        ln -s %{shared_lib_pri_name}.so.18.1.0 %{_libdir}/$lib
+    fi
+done
+%endif
+# For compatibility between different names of library
+for lib in %{shared_lib_sec_name}{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
 if [ ! -f %{_libdir}/$lib ]; then
-        ln -s libperconaserverclient.so.18 %{_libdir}/$lib;
+        ln -s %{shared_lib_pri_name}.so.18 %{_libdir}/$lib;
 fi
 done
-for lib in libmysqlclient{.so.18.1.0,_r.so.18.1.0}; do
+for lib in %{shared_lib_sec_name}{.so.18.1.0,_r.so.18.1.0}; do
 if [ ! -f %{_libdir}/$lib ]; then
-        ln -s libperconaserverclient.so.18.1.0 %{_libdir}/$lib;
+        ln -s %{shared_lib_pri_name}.so.18.1.0 %{_libdir}/$lib;
 fi
 done
 

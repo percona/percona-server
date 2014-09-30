@@ -203,6 +203,7 @@ fi
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
         -DWITH_EMBEDDED_SERVER=OFF \
+        -DENABLE_DTRACE=OFF \
         -DFEATURE_SET=community \
         -DWITH_SSL="$WITH_SSL_TYPE" \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \

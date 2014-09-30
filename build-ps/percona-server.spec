@@ -478,6 +478,7 @@ mkdir debug
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \
@@ -497,6 +498,7 @@ mkdir release
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \
            -DINSTALL_MYSQLSHAREDIR=share/percona-server \

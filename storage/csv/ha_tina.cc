@@ -66,6 +66,23 @@ using std::max;
 #define CSN_EXT ".CSN"               // Files used during repair and update
 #define CSM_EXT ".CSM"               // Meta file
 
+enum csv_mode_enum { csv_mode_none= 0, csv_mode_ietf_quotes= 1 };
+
+static const char *csv_mode_names[]=
+{
+  "IETF_QUOTES", NullS
+};
+
+static TYPELIB csv_mode_typelib=
+{
+  array_elements(csv_mode_names) - 1, "",
+  csv_mode_names, NULL
+};
+
+static MYSQL_THDVAR_SET(mode, PLUGIN_VAR_RQCMDARG,
+  "Control CSV parser mode: []: default, ietf_quotes: "
+  "standards-compatible embedded quote and comma parsing",
+  NULL, NULL, 0, &csv_mode_typelib);
 
 static TINA_SHARE *get_share(const char *table_name, TABLE *table);
 static int free_share(TINA_SHARE *share);
@@ -526,7 +543,7 @@ int ha_tina::encode_quote(uchar *buf)
   char attribute_buffer[1024];
   String attribute(attribute_buffer, sizeof(attribute_buffer),
                    &my_charset_bin);
-
+  bool ietf_quotes= THDVAR(current_thd, mode) & csv_mode_ietf_quotes;
   my_bitmap_map *org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
   buffer.length(0);
 
@@ -562,7 +579,7 @@ int ha_tina::encode_quote(uchar *buf)
       {
         if (*ptr == '"')
         {
-          buffer.append('\\');
+          buffer.append(ietf_quotes ? '"' : '\\');
           buffer.append('"');
         }
         else if (*ptr == '\r')
@@ -656,6 +673,7 @@ int ha_tina::find_current_row(uchar *buf)
   my_bitmap_map *org_bitmap;
   int error;
   bool read_all;
+  bool ietf_quotes= THDVAR(current_thd, mode) & csv_mode_ietf_quotes;
   DBUG_ENTER("ha_tina::find_current_row");
 
   free_root(&blobroot, MYF(0));
@@ -689,8 +707,10 @@ int ha_tina::find_current_row(uchar *buf)
                      a) If end of current field is reached, move
                         to next field and jump to step 2.3
                      b) If current character is a \\ handle
-                        \\n, \\r, \\, \\"
-                     c) else append the current character into the buffer
+                        \\n, \\r, \\, and \\" if not in ietf_quotes mode
+                     c) if in ietf_quotes mode and the current character is
+                        a ", handle ""
+                     d) else append the current character into the buffer
                         before checking that EOL has not been reached.
           2.2) If the current character does not begin with a quote
                2.2.1) Until EOL has not been reached
@@ -731,15 +751,25 @@ int ha_tina::find_current_row(uchar *buf)
           curr_offset+= 2;
           break;
         }
-        if (curr_char == '\\' && curr_offset != (end_offset - 1))
+        if (ietf_quotes && curr_char == '"'
+            && file_buff->get_value(curr_offset + 1) == '"')
         {
+          /* Embedded IETF quote */
+          curr_offset++;
+          buffer.append('"');
+        }
+        else if (curr_char == '\\' && curr_offset != (end_offset - 1))
+        {
+          /* A quote followed by something else than a comma, end of line, or
+          (in IETF mode) another quote will be handled as a regular
+          character. */
           curr_offset++;
           curr_char= file_buff->get_value(curr_offset);
           if (curr_char == 'r')
             buffer.append('\r');
           else if (curr_char == 'n' )
             buffer.append('\n');
-          else if (curr_char == '\\' || curr_char == '"')
+          else if (curr_char == '\\' || (!ietf_quotes && curr_char == '"'))
             buffer.append(curr_char);
           else  /* This could only happed with an externally created file */
           {
@@ -1766,6 +1796,11 @@ bool ha_tina::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
+static struct st_mysql_sys_var* csv_system_variables[]= {
+  MYSQL_SYSVAR(mode),
+  NULL
+};
+
 struct st_mysql_storage_engine csv_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
@@ -1781,7 +1816,7 @@ mysql_declare_plugin(csv)
   tina_done_func, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
-  NULL,                       /* system variables                */
+  csv_system_variables,
   NULL,                       /* config options                  */
   0,                          /* flags                           */
 }

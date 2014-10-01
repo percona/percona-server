@@ -1,0 +1,55 @@
+SET @saved_csv_mode = @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = 'ietf_quotes';
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+IETF_QUOTES
+SET @@SESSION.csv_mode = 'IETF_QUOTES';
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+IETF_QUOTES
+SET @@SESSION.csv_mode = IETF_QUOTES;
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+IETF_QUOTES
+SET @@SESSION.csv_mode = '';
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+
+SET @@SESSION.csv_mode = 0;
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+
+SET @@SESSION.csv_mode = 1;
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+IETF_QUOTES
+SET @@SESSION.csv_mode = NULL;
+ERROR 42000: Variable 'csv_mode' can't be set to the value of 'NULL'
+SET @@SESSION.csv_mode = FOO;
+ERROR 42000: Variable 'csv_mode' can't be set to the value of 'FOO'
+SET @@SESSION.csv_mode = 'foo';
+ERROR 42000: Variable 'csv_mode' can't be set to the value of 'foo'
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+IETF_QUOTES
+SET @@SESSION.csv_mode = 0;
+SELECT @@SESSION.csv_mode;
+@@SESSION.csv_mode
+
+SET @@SESSION.csv_mode = -1;
+ERROR 42000: Variable 'csv_mode' can't be set to the value of '-1'
+SET @@SESSION.csv_mode = 2;
+ERROR 42000: Variable 'csv_mode' can't be set to the value of '2'
+SET @@SESSION.csv_mode = @saved_csv_mode;
+SET @saved_csv_mode = @@GLOBAL.csv_mode;
+SET @@GLOBAL.csv_mode = '';
+SELECT @@GLOBAL.csv_mode;
+@@GLOBAL.csv_mode
+
+SET @@GLOBAL.csv_mode = IETF_QUOTES;
+SELECT @@GLOBAL.csv_mode;
+@@GLOBAL.csv_mode
+IETF_QUOTES
+SET @@GLOBAL.csv_mode = FOO;
+ERROR 42000: Variable 'csv_mode' can't be set to the value of 'FOO'
+SET @@GLOBAL.csv_mode = @saved_csv_mode;

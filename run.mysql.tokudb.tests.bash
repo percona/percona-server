@@ -1,5 +1,5 @@
-for suite in tokudb tokudb.bugs tokudb.add_index tokudb.alter_table ; do
-    ./mtr --suite=$suite --skip-test=fast_up.* --mysqld='--plugin-load=tokudb=ha_tokudb.so;tokudb_trx=ha_tokudb.so;tokudb_locks=ha_tokudb.so;tokudb_lock_waits=ha_tokudb.so' --mysqld=--loose-tokudb-check-jemalloc=0 --force --retry=0 --max-test-fail=0 --parallel=auto --no-warnings --testcase-timeout=60 --big-test >$suite.out 2>&1 
+for suite in tokudb.add_index tokudb.alter_table tokudb tokudb.bugs ; do
+    ./mtr --suite=$suite --skip-test=fast_up.* --mysqld='--plugin-load=tokudb=ha_tokudb.so;tokudb_trx=ha_tokudb.so;tokudb_locks=ha_tokudb.so;tokudb_lock_waits=ha_tokudb.so;tokudb_fractal_tree_info=ha_tokudb.so' --mysqld=--loose-tokudb-check-jemalloc=0 --force --retry=0 --max-test-fail=0 --parallel=auto --no-warnings --testcase-timeout=60 --big-test >$suite.out 2>&1 
 done
 
 for suite in funcs iuds ; do

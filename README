@@ -1,0 +1,16 @@
+1. LD_PRELOAD=libHotBackup.so ./mysqld
+
+2. install plugin tokubackup soname 'tokubackup.so';
+
+3. show variables like 'tokubackup%';
+
+4. set tokubackup_dir="/tmp/backup1047";
+
+5. select @@tokubackup_last_error;
+
+6. Work to do
+a. Support multiple directories
+b. Add status variables
+c. Implement the progress callback
+d. Implement the error callback
+

@@ -56,6 +56,8 @@ The *CentOS* repositories should work well with *Red Hat Enterprise Linux* too, 
 
 * *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_ 
 
+* *CentOS* 7 and *RHEL* 7
+
 * *Amazon Linux AMI* (works the same as *CentOS* 5)
 
 Percona `yum` Testing repository

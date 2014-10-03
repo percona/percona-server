@@ -295,7 +295,7 @@ be eligible for hot fixes, and boost your team's productivity.
 Summary:        Percona Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires} Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
-Requires:       perl-DBI perl-DBD-MySQL
+Requires:       perl(Data::Dumper)
 %if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd
@@ -364,7 +364,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-client%{product_suffix}
 Summary:        Percona Server - Client
 Group:          Applications/Databases
-Requires:       Percona-Server-shared%{product_suffix} perl-DBI
+Requires:       Percona-Server-shared%{product_suffix}
 Provides:       mysql-client MySQL-client mysql MySQL
 Conflicts:      Percona-SQL-client-50 Percona-Server-client-51 Percona-Server-client-55
 
@@ -405,9 +405,9 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 %package -n Percona-Server-shared%{product_suffix}
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
-Provides:       mysql-shared mysql-libs
 %if "%rhel" > "6"
 Obsoletes:      mariadb-libs
+Conflicts:      Percona-Server-shared-55
 %else
 %ifarch x86_64
 Provides:       libmysqlclient.so.18()(64bit)

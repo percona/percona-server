@@ -9,7 +9,7 @@ let MYSQLD_DATADIR= $MYSQLD_DATADIR;
 set global audit_log_flush= ON;
 perl;
   eval "use Text::CSV; 1" or exit 0;
-  my $p = Text::CSV->new({ binary => 1, auto_diag => 1, sep_char => ',' });
+  my $p = Text::CSV->new({ binary => 1, sep_char => ',' });
   open my $file, $ENV{'MYSQLD_DATADIR'} . '/test_audit_csv.log' or die "Could not open log: $!";
   while ($p->getline($file)) {};
   if (not $p->eof) {

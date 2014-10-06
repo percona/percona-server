@@ -1487,6 +1487,17 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         last_skip_group= skip_group;
       }
 
+      DBUG_EXECUTE_IF("master_xid_trigger",
+      {
+        Log_event_type event_type= (Log_event_type)
+                                      (*packet)[EVENT_TYPE_OFFSET + ev_offset];
+        if (event_type == XID_EVENT)
+        {
+          const char act[]= "now signal master_xid_reached wait_for resume";
+          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                             STRING_WITH_LEN(act)));
+      }});
+
       if (skip_group == false)
       {
         if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))

@@ -406,6 +406,7 @@ For a description of Percona Server see http://www.percona.com/software/percona-
 Summary:        Percona Server - Shared libraries
 Group:          Applications/Databases
 %if "%rhel" > "6"
+Provides:       mysql-shared mysql-libs
 Obsoletes:      mariadb-libs
 Conflicts:      Percona-Server-shared-55
 %else

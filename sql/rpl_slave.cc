@@ -4355,6 +4355,22 @@ requesting master dump") ||
       */
       THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
       event_len= read_event(mysql, mi, &suppress_warnings);
+
+      DBUG_EXECUTE_IF("relay_xid_trigger",
+        if (event_len != packet_error)
+        {
+          const char* event_buf= (const char*)mysql->net.read_pos + 1;
+          Log_event_type event_type= (Log_event_type)
+                                        event_buf[EVENT_TYPE_OFFSET];
+          if (event_type == XID_EVENT)
+          {
+            const char act[]= "now signal relay_xid_reached wait_for resume";
+            DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                               STRING_WITH_LEN(act)));
+          }
+        }
+      );
+
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
 reading event"))
         goto err;
@@ -5856,6 +5872,8 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   /* we die so won't remember charset - re-update them on next thread start */
   rli->cached_charset_invalidate();
   rli->save_temporary_tables = thd->temporary_tables;
+  delete rli->get_rli_next_event();
+  rli->set_rli_next_event(NULL);
 
   /*
     TODO: see if we can do this conditionally in next_event() instead
@@ -7036,6 +7054,12 @@ static Log_event* next_event(Relay_log_info* rli)
 
   DBUG_ASSERT(thd != 0);
 
+  if ((ev = rli->get_rli_next_event()) != NULL)
+  {
+    rli->set_rli_next_event(NULL);
+    DBUG_RETURN(ev);
+  }
+
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !rli->events_until_exit--)
     DBUG_RETURN(0);
@@ -7159,6 +7183,36 @@ static Log_event* next_event(Relay_log_info* rli)
                     (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
                     sql_slave_killed(thd, rli));
         mysql_mutex_lock(&rli->data_lock);
+      }
+      if (rli->is_parallel_exec() && 
+          ev->should_rollback_current_group() &&
+          (rli->curr_group_seen_begin || rli->curr_group_seen_gtid))
+      {
+        /* We reached the end of relay log file and it doesn't end with
+           COMMIT or ROLLBACK. To prevent MTS from stalling we generate
+           ROLLBACK event. Single-treaded slave takes care of such
+           cases (see Format_description_log_event::do_apply_event).
+           When relay_log_recovery is ON, relay log will be redownloaded
+           from the master. */
+        rli->report(WARNING_LEVEL, 0,
+                    "injecting ROLLBACK at the end of cold group");
+        Query_log_event *rollback_event= 
+            new Query_log_event(thd, STRING_WITH_LEN("ROLLBACK"),
+                                TRUE, FALSE, TRUE, 0, FALSE);
+        if (unlikely(!rollback_event))
+        {
+          errmsg= "Slave SQL thread failed to create a ROLLBACK event "
+            "(out of memory?), MTS may stall";
+          goto err;
+        }
+        rollback_event->data_written = 0;
+        rollback_event->db= "";
+        rollback_event->db_len= 0;
+        rollback_event->server_id= 0; // won't be ignored by slave SQL thread
+        rollback_event->set_artificial_event();
+        rollback_event->future_event_relay_log_pos = BIN_LOG_HEADER_SIZE;
+        rli->set_rli_next_event(ev);
+        DBUG_RETURN(rollback_event);
       }
       DBUG_RETURN(ev);
     }

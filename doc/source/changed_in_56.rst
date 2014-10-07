@@ -25,6 +25,12 @@ Some features that were present in |Percona Server| 5.5 have been replaced by a 
  * ``SHOW ENGINE INNODB STATUS`` sections on memory usage for InnoDB/XtraDB hash tables has been replaced by the :table:`XTRADB_INTERNAL_HASH_TABLES` INFORMATION_SCHEMA table.
  * The :table:`INNODB_RSEG` table has been renamed to :table:`XTRADB_RSEG`.
  * :ref:`buff_read_ahead_area` has been implemented differently. Buffer read-ahead area size is now precalculated once per buffer pool instance initialization instead of hardcoding it at 64MB (like it was done in previous |Percona Server| versions).
+ * :ref:`response_time_distribution` feature has been implemented as a plugin. It has the following changes from the 5.5 implementation:
+   - the plugin requires installation before the feature can be used;
+   - variable :variable:`have_response_time_distribution` has been removed. The presence of the feature can be determined by querying ``SHOW PLUGINS`` instead; 
+   - replication updates performed by the slave SQL threads are not tracked; 
+   - command ``SHOW QUERY_RESPONSE_TIME;`` has been removed in favor of :table:`QUERY_RESPONSE_TIME` table;
+   - command ``FLUSH QUERY_RESPONSE_TIME;`` has been replaced with :variable:`query_response_time_flush` variable.
 
 Features available in |Percona Server| 5.5 that have been replaced with |MySQL| 5.6 features
 ============================================================================================
@@ -87,6 +93,7 @@ Following features were ported from |Percona Server| 5.5 to |Percona Server| 5.6
  :ref:`innodb_split_buf_pool_mutex`                 :rn:`5.6.13-60.6`
  :ref:`innodb_adaptive_hash_index_partitions_page`  :rn:`5.6.13-60.6`
  :ref:`handlersocket_page`                          :rn:`5.6.17-66.0`
+ :ref:`response_time_distribution`                  :rn:`5.6.21-69.0`
  ================================================= ===================
 
 List of status variables that are no longer available in |Percona Server| 5.6
@@ -150,7 +157,7 @@ Following system variables available in |Percona Server| 5.5 are no longer prese
    * - :variable:`have_flashcache`                         
      - Information if the server has been compiled with the Flashcache support has not been ported to |Percona Server| 5.6
    * - :variable:`have_response_time_distribution`
-     - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature containing this variable has not been ported to |Percona Server| 5.6 yet
+     - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature has been ported to |Percona Server| 5.6 without this variable
    * - :variable:`innodb_adaptive_flushing_method`         
      - replaced by MySQL 5.6 `flushing <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-lru-background-flushing>`_ implementation
    * - :variable:`innodb_blocking_buffer_pool_restore`     
@@ -206,7 +213,7 @@ Following system variables available in |Percona Server| 5.5 are no longer prese
    * - :variable:`optimizer_fix`
      - this variable has been deprecated and removed in |Percona Server| 5.5
    * - :variable:`query_response_time_range_base`          
-     - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature containing this variable has not been ported to |Percona Server| 5.6 yet
+     - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature containing this variable has been ported to |Percona Server| 5.6, but requires plugin installation in order to work. More information can be found in :ref:`response_time_distribution` documentation.
    * - :variable:`query_response_time_stats`               
-     - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature containing this variable has not been ported to |Percona Server| 5.6 yet
+     - :ref:`Response Time Distribution <ps55:response_time_distribution>` feature containing this variable has been ported to |Percona Server| 5.6, but requires plugin installation in order to work. More information can be found in :ref:`response_time_distribution` documentation. 
 

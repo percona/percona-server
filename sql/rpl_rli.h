@@ -894,6 +894,22 @@ public:
   }
 
   /**
+    Remember next event.
+  */
+  void set_rli_next_event(Log_event *ev)
+  {
+    rli_next_event= ev;
+  }
+
+  /**
+    Return the remembered event.
+  */
+  Log_event *get_rli_next_event() const
+  {
+    return rli_next_event;
+  }
+
+  /**
     adaptation for the slave applier to specific master versions.
   */
   void adapt_to_master_version(Format_description_log_event *fdle);
@@ -965,6 +981,13 @@ private:
     SLAVE must be executed and the problem fixed manually.
    */
   bool error_on_rli_init_info;
+
+  /*
+   This variable is used when we want to inject "ROLLBACK" event just before
+   the real event. The real event is remembered here and is returned by
+   the next call.
+   */
+  Log_event *rli_next_event;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

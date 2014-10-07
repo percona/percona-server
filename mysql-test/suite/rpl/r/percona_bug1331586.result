@@ -1,0 +1,139 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+call mtr.add_suppression("Slave:*");
+create table a(id int) engine=InnoDB;
+insert into a values(11);
+start transaction;
+insert into a values(12);
+set global debug="d,relay_xid_trigger";
+insert into a values(13);
+commit;
+set debug_sync="now wait_for relay_xid_reached";
+flush logs;
+set global debug="";
+set debug_sync="now signal resume";
+# master: 
+select * from a;
+id
+11
+12
+13
+# slave: 
+select * from a;
+id
+11
+12
+13
+insert into a values(21);
+set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+set global debug="d,master_xid_trigger";
+start transaction;
+insert into a values(22);
+insert into a values(23);
+commit;
+set debug_sync="now wait_for master_xid_reached";
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+set global debug="";
+set debug_sync="now signal resume";
+# master: 
+select * from a;
+id
+11
+12
+13
+21
+22
+23
+# slave: 
+select * from a;
+id
+11
+12
+13
+21
+22
+23
+insert into a values(31);
+start transaction;
+insert into a values(32);
+set global debug="d,relay_xid_trigger";
+insert into a values(33);
+commit;
+set debug_sync="now wait_for relay_xid_reached";
+include/rpl_restart_server.inc [server_number=2]
+include/start_slave.inc
+set global debug="";
+set debug_sync="now signal resume";
+# master: 
+select * from a;
+id
+11
+12
+13
+21
+22
+23
+31
+32
+33
+# slave: 
+select * from a;
+id
+11
+12
+13
+21
+22
+23
+31
+32
+33
+insert into a values(41);
+set global debug="d,master_xid_trigger";
+start transaction;
+insert into a values(42);
+insert into a values(43);
+commit;
+set debug_sync="now wait_for master_xid_reached";
+set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+include/stop_slave.inc
+set global debug="";
+include/start_slave.inc
+set global debug="";
+set debug_sync="now signal resume";
+# master: 
+select * from a;
+id
+11
+12
+13
+21
+22
+23
+31
+32
+33
+41
+42
+43
+# slave: 
+select * from a;
+id
+11
+12
+13
+21
+22
+23
+31
+32
+33
+41
+42
+43
+drop table a;
+include/rpl_end.inc

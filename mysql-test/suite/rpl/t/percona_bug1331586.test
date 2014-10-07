@@ -1,0 +1,148 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_statement.inc
+
+call mtr.add_suppression("Slave:*");
+
+create table a(id int) engine=InnoDB;
+insert into a values(11);
+
+sync_slave_with_master;
+connection master;
+
+start transaction;
+insert into a values(12);
+
+connection slave;
+set global debug="d,relay_xid_trigger";
+
+connection master;
+insert into a values(13);
+commit;
+
+connection slave;
+set debug_sync="now wait_for relay_xid_reached";
+
+flush logs;
+
+set global debug="";
+set debug_sync="now signal resume";
+
+connection master;
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# round two
+connection master;
+insert into a values(21);
+
+sync_slave_with_master;
+set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+connection master;
+set global debug="d,master_xid_trigger";
+
+start transaction;
+insert into a values(22);
+insert into a values(23);
+commit;
+
+set debug_sync="now wait_for master_xid_reached";
+
+connection slave;
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+
+connection master;
+set global debug="";
+set debug_sync="now signal resume";
+
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# round three
+connection master;
+insert into a values(31);
+
+sync_slave_with_master;
+connection master;
+
+start transaction;
+insert into a values(32);
+
+connection slave;
+set global debug="d,relay_xid_trigger";
+
+connection master;
+insert into a values(33);
+commit;
+
+connection slave;
+set debug_sync="now wait_for relay_xid_reached";
+
+--let $rpl_server_number= 2
+--let $rpl_force_stop= 1
+--source include/rpl_restart_server.inc
+--source include/start_slave.inc
+
+set global debug="";
+set debug_sync="now signal resume";
+
+connection master;
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# round four
+connection master;
+insert into a values(41);
+
+sync_slave_with_master;
+connection master;
+set global debug="d,master_xid_trigger";
+
+start transaction;
+insert into a values(42);
+insert into a values(43);
+commit;
+
+set debug_sync="now wait_for master_xid_reached";
+
+connection slave;
+set global debug="d,stop_slave_middle_group,incomplete_group_in_relay_log";
+--source include/stop_slave.inc
+set global debug="";
+--source include/start_slave.inc
+
+connection master;
+set global debug="";
+set debug_sync="now signal resume";
+
+echo # master: ;
+select * from a;
+
+sync_slave_with_master;
+echo # slave: ;
+select * from a;
+
+# cleanup
+
+connection master;
+drop table a;
+
+sync_slave_with_master;
+
+--source include/rpl_end.inc

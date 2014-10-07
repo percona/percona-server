@@ -147,6 +147,7 @@ Diagnostics Improvements
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
    diagnostics/scalability_metrics_plugin
+   diagnostics/response_time_distribution
 
 TokuDB
 ======

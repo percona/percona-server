@@ -14,6 +14,8 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`INNODB_CHANGED_PAGES`
 
+  * :table:`QUERY_RESPONSE_TIME`
+
   * :table:`TABLE_STATISTICS`
 
   * :table:`TEMPORARY_TABLES`

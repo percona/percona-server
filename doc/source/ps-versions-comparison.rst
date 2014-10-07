@@ -174,7 +174,7 @@ List of features available in |Percona Server| releases
      - :ref:`Log All Client Commands (syslog) <ps56:mysql_syslog>`
    * - :ref:`Response Time Distribution <ps51:response_time_distribution>`
      - :ref:`Response Time Distribution <ps55:response_time_distribution>`
-     - Feature not implemented
+     - :ref:`Response Time Distribution <ps56:response_time_distribution>`
    * - :ref:`Show Storage Engines <ps51:show_engines>`
      - :ref:`Show Storage Engines <ps55:show_engines>`
      - :ref:`Show Storage Engines <ps56:show_engines>`

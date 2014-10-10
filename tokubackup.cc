@@ -4,26 +4,31 @@
 #include <my_dbug.h>
 #include <log.h>
 #include <dlfcn.h>
-#include "backup.h"
+#include "backup/backup.h"
 
 static MYSQL_THDVAR_ULONG(last_error, PLUGIN_VAR_THDLOCAL, "last error",
                           NULL, NULL, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
 static int tokubackup_poll_fun(float progress, const char *progress_string, void *extra) {
-    // TODO something
+    // print to error log
+    sql_print_information("tokubackup progress %f %s", progress, progress_string);
+    // TODO set thd info
     return 0;
 }
 
-static void tokubackup_error_fun(int error_number, const char *error_stirng, void *extra) {
-    // TODO something
+static void tokubackup_error_fun(int error_number, const char *error_string, void *extra) {
+    // print to error log
+    sql_print_information("tokubackup error %d %s", error_number, error_string);
+    // TODO set thd info
+    // TODO set last_error_string
 }
 
 static void tokubackup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
-    fprintf(stderr, "%s backup %s\n", __FUNCTION__, mysql_real_data_home);
     const char *source_dirs[1] = { mysql_real_data_home };
     const char *dest_dirs[1] = { *(const char **) save };
+    sql_print_information("%s backup %s %s", __FUNCTION__, source_dirs[0], dest_dirs[0]);
     int error = tokubackup_create_backup(source_dirs, dest_dirs, 1, tokubackup_poll_fun, NULL, tokubackup_error_fun, NULL);
-    fprintf(stderr, "%s backup error %d\n", __FUNCTION__, error);
+    sql_print_information("%s backup error %d", __FUNCTION__, error);
     THDVAR(thd, last_error) = error;
 }
 
@@ -33,7 +38,7 @@ static void tokubackup_update_throttle(THD *thd, struct st_mysql_sys_var *var, v
     my_ulonglong *val = (my_ulonglong *) var_ptr;
     *val = *(my_ulonglong*) save;
     unsigned long nb = *val;
-    fprintf(stderr, "%s %lu\n", __FUNCTION__, nb);
+    sql_print_information("%s %lu", __FUNCTION__, nb);
     tokubackup_throttle_backup(nb);
 }
 
@@ -73,9 +78,9 @@ mysql_declare_plugin(tokubackup) {
     tokubackup_plugin_init,      // Plugin Init
     tokubackup_plugin_deinit,    // Plugin Deinit
     0x0100, // 1.0
-    NULL,                       // status variables
+    NULL,                        // status variables
     tokubackup_system_variables, // system variables
-    NULL,                       // config options
-    0,                          // flags
+    NULL,                        // config options
+    0,                           // flags
 }
 mysql_declare_plugin_end;

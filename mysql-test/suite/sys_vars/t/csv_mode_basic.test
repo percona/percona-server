@@ -1,0 +1,47 @@
+# Basic sys_vars test for csv_mode variable
+
+SET @saved_csv_mode = @@SESSION.csv_mode;
+
+# Valid values
+SET @@SESSION.csv_mode = 'ietf_quotes';
+SELECT @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = 'IETF_QUOTES';
+SELECT @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = IETF_QUOTES;
+SELECT @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = '';
+SELECT @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = 0;
+SELECT @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = 1;
+SELECT @@SESSION.csv_mode;
+
+# Invalid values
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.csv_mode = NULL;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.csv_mode = FOO;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.csv_mode = 'foo';
+SELECT @@SESSION.csv_mode;
+SET @@SESSION.csv_mode = 0;
+SELECT @@SESSION.csv_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.csv_mode = -1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@SESSION.csv_mode = 2;
+
+SET @@SESSION.csv_mode = @saved_csv_mode;
+
+# Test GLOBAL variable
+
+SET @saved_csv_mode = @@GLOBAL.csv_mode;
+
+SET @@GLOBAL.csv_mode = '';
+SELECT @@GLOBAL.csv_mode;
+SET @@GLOBAL.csv_mode = IETF_QUOTES;
+SELECT @@GLOBAL.csv_mode;
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@GLOBAL.csv_mode = FOO;
+
+SET @@GLOBAL.csv_mode = @saved_csv_mode;

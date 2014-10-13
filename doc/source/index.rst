@@ -161,6 +161,7 @@ TokuDB
    tokudb/using_tokudb
    tokudb/tokudb_compression
    tokudb/tokudb_multiple_clustering_keys
+   tokudb/removing_tokudb
 
 Reference
 =========

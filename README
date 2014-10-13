@@ -11,6 +11,8 @@
 6. Work to do
 a. Support multiple directories
 b. Add status variables
-c. Implement the progress callback
-d. Implement the error callback
+c. Implement the error callback
+d. add tokubackup_last_error_str variable
+e. add tokubackup_version variable
+f. back mysqld_safe to auto preload the hot backup lib
 

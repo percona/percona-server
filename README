@@ -1,17 +1,24 @@
-1. LD_PRELOAD=libHotBackup.so ./mysqld
+0. Init mysqld
+$ scripts/mysql_install_db
 
-2. install plugin tokubackup soname 'tokubackup.so';
+1. Run mysqld with the hot backup library (should exist in the lib directory)
+$ LD_PRELOAD=PATH_TO_WHERE_HOT_BACKUP_LIVES/libHotBackup.so ./mysqld_safe
 
-3. show variables like 'tokubackup%';
+2. Install the backup plugin (should exist in the lib/mysql/plugin directory)
+mysql> install plugin tokubackup soname 'tokubackup.so';
 
-4. set tokubackup_dir="/tmp/backup1047";
+3. Check out the backup variables
+mysql> show variables like 'tokubackup%';
 
-5. select @@tokubackup_last_error;
+4. Backup to /tmp/backup1047 directory.  This blocks until the backup is complete.
+mysql> set tokubackup_dir="/tmp/backup1047";
+
+5. Check if the backup worked
+msyql> select @@tokubackup_last_error;
 
 6. Work to do
 a. Support multiple directories
 b. Add status variables
 c. Implement the error callback
-d. add tokubackup_last_error_str variable
-e. back mysqld_safe to auto preload the hot backup lib
-
+d. Add tokubackup_last_error_str variable
+e. Hack mysqld_safe to auto preload the hot backup lib if it finds one

@@ -1,24 +1,36 @@
-0. Init mysqld
+The Tokutek hot backup library intercepts system calls that write files and duplicates the writes on backup files.
+It does this while copying files to the backup directory.  There are two technical issues to solve.  
+
+First, the hot backup library must be loaded into the mysql server so that it can intercept system calls.  
+We use LD_PRELOAD to solve the system call intercept problem.  The hot backup library is preloaded into the
+target process so that it can intercept the system calls.
+
+Second, there must be a user interface that can be used to start a backup, track its progress, and
+determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effect
+of setting a session variable that the plugin creates.
+
+Here are some details on how to use this plugin to run Tokutek hot backup.
+
+1. Init mysqld
 $ scripts/mysql_install_db
 
-1. Run mysqld with the hot backup library (should exist in the lib directory)
+2. Run mysqld with the hot backup library (should exist in the lib directory)
 $ LD_PRELOAD=PATH_TO_WHERE_HOT_BACKUP_LIVES/libHotBackup.so ./mysqld_safe
 
-2. Install the backup plugin (should exist in the lib/mysql/plugin directory)
+3. Install the backup plugin (should exist in the lib/mysql/plugin directory)
 mysql> install plugin tokubackup soname 'tokubackup.so';
 
-3. Check out the backup variables
+4. Check out the backup variables
 mysql> show variables like 'tokubackup%';
 
-4. Backup to /tmp/backup1047 directory.  This blocks until the backup is complete.
+5. Backup to /tmp/backup1047 directory.  This blocks until the backup is complete.
 mysql> set tokubackup_dir="/tmp/backup1047";
 
-5. Check if the backup worked
+6. Check if the backup worked
 msyql> select @@tokubackup_last_error, @@tokubackup_last_error_string;
 
-6. Work to do
+7. Work to do
 - Support multiple directories
 - Add status variables
 - Hack mysqld_safe to auto preload the hot backup lib if it finds one
-- Run with valgrind
-- Fix memory leaks
+- Run with valgrind and fix memory leaks

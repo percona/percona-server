@@ -2288,7 +2288,7 @@ static Sys_var_uint Sys_port(
        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
 
-const char *log_warnings_suppress_name[]= { "1592" };
+static const char *log_warnings_suppress_name[]= { "1592", NullS };
 static Sys_var_set Sys_log_warnings_suppress(
        "log_warnings_suppress",
        "disable logging of enumerated warnings: "

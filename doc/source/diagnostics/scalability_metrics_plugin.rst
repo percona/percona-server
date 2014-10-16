@@ -55,7 +55,7 @@ Status Variables
    :version 5.6.17-65.0: Implemented
    :vartype: Numeric
 
-This status variable shows total time elapsed since metrics collection was started.
+This status variable shows total time elapsed, in microseconds, since metrics collection was started.
 
 .. variable:: scalability_metrics_queries
    

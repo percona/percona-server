@@ -3789,6 +3789,28 @@ public:
   }
   int get_lock_type() const { return m_lock_type; }
 
+public:
+  /* Read-free replication interface */
+
+  /**
+     Determine whether the storage engine asks for row-based replication that
+     may skip the lookup of the old row image.
+
+     @return true if old rows should be read (the default)
+             false if old rows should not be read
+   */
+  virtual bool rpl_lookup_rows() { return true; }
+  /*
+     Storage engine hooks to be called before and after row write, delete, and
+     update events
+  */
+  virtual void rpl_before_write_rows() { }
+  virtual void rpl_after_write_rows() { }
+  virtual void rpl_before_delete_rows() { }
+  virtual void rpl_after_delete_rows() { }
+  virtual void rpl_before_update_rows() { }
+  virtual void rpl_after_update_rows() { }
+
   /**
     Callback function that will be called by my_prepare_gcolumn_template
     once the table has been opened.

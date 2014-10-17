@@ -1,0 +1,27 @@
+#
+# Tests for changed page tracking user requests that need a debug build
+#
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+#
+# Bug 1382336: Purging bitmaps exactly up to the last tracked LSN aborts change tracking
+#
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (10);
+
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+let $current_lsn = query_get_value(SHOW STATUS LIKE 'innodb_lsn_current', Value, 1);
+
+--replace_regex /[0-9]+/CURRENT_LSN/
+eval PURGE CHANGED_PAGE_BITMAPS BEFORE $current_lsn;
+
+INSERT INTO t1 VALUES (20);
+
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+DROP TABLE t1;

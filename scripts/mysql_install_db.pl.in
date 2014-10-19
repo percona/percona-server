@@ -786,7 +786,21 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     tell_root_password();
   }
 
-  close PIPE;
+  if (!close PIPE)
+  {
+     if ($!)
+     {
+       error($opt, "Error closing mysqld pipe: $!");
+     }
+     else
+     {
+       error($opt,
+         "Installation of system tables failed!",
+         "mysqld returned $? exit status",
+         "Examine the logs in $opt->{ldata} for more information.");
+     }
+  };
+
   close SQL;
   close SQL2;
 
@@ -807,7 +821,20 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     {
       print PIPE $_;
     }
-    close PIPE;
+    if (!close PIPE)
+    {
+      if ($!)
+      {
+        error($opt, "Error closing mysqld pipe: $!");
+      }
+      else
+      {
+        error($opt,
+          "Installation of system tables failed!",
+          "mysqld returned $? exit status",
+          "Examine the logs in $opt->{ldata} for more information.");
+      }
+    };
     close SQL;
 
     report_verbose($opt,"OK");

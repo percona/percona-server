@@ -63,8 +63,6 @@ ifneq ($(ARCH_OS),hurd)
 	if [ ! -d /proc/self ]; then echo "/proc IS NEEDED" 1>&2; exit 1; fi 
 endif
 
-	[ ! -d python-for-subunit2junitxml ] || rm -rf python-for-subunit2junitxml
-
 ifeq ($(SKIP_DEBUG_BINARY),)
 	( test -d $(builddebug) || mkdir $(builddebug) ) && cd $(builddebug) && \
 	sh -c  'PATH=$${MYSQL_BUILD_PATH:-"/bin:/usr/bin"} \
@@ -167,7 +165,6 @@ clean-patched:
 	
 	[ ! -f Makefile ] || $(MAKE) clean
 	[ ! -d mysql-test/var ] || rm -rf mysql-test/var
-	[ ! -d python-for-subunit2junitxml ] || rm -rf python-for-subunit2junitxml
 	
 	rm -rf $(builddir)
 	rm -rf $(builddebug)

@@ -17,6 +17,7 @@ MYSQLD=
 niceness=0
 mysqld_ld_preload=
 mysqld_ld_library_path=
+load_jemalloc=1
 load_hotbackup=0
 flush_caches=0
 numa_interleave=
@@ -269,7 +270,10 @@ parse_arguments() {
         fi
         ledir="$val"
         ;;
-      --malloc-lib=*) set_malloc_lib "$val" ;;
+      --malloc-lib=*)
+        set_malloc_lib "$val"
+        load_jemalloc=0
+        ;;
       --mysqld=*)
         if [ -z "$pick_args" ]; then
           log_error "--mysqld option can only be used as command line option, found in config file"

@@ -1483,12 +1483,23 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
+    bool enforce_ro= true;
+    if (!opt_super_readonly)
+      enforce_ro= !(thd->security_ctx->master_access & SUPER_ACL);
+    /*
+      Ignore super_read_only when ignore_global_read_lock is set.
+      ignore_global_read_lock is set for transactions on replication
+      repository tables.
+    */
+    if (ignore_global_read_lock)
+      enforce_ro= false;
     if (rw_trans &&
         opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
+        enforce_ro &&
         !thd->slave_thread)
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+               opt_super_readonly ? "--read-only (super)" : "--read-only");
       ha_rollback_trans(thd, all);
       error= 1;
       goto end;

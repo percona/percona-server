@@ -2339,11 +2339,22 @@ static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 {
   bool result= true;
+
+  if (read_only == FALSE && super_read_only == TRUE)
+  {
+    if (opt_readonly == TRUE)
+      super_read_only= FALSE;
+    else
+      read_only= TRUE;
+  }
+
   my_bool new_read_only= read_only; // make a copy before releasing a mutex
+  my_bool new_super_read_only= super_read_only;
   DBUG_ENTER("sys_var_opt_readonly::update");
 
   if (read_only == FALSE || read_only == opt_readonly)
   {
+    opt_super_readonly= super_read_only;
     opt_readonly= read_only;
     DBUG_RETURN(false);
   }
@@ -2359,6 +2370,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
       - FLUSH TABLES WITH READ LOCK
       - SET GLOBAL READ_ONLY = 1
     */
+    opt_super_readonly= super_read_only;
     opt_readonly= read_only;
     DBUG_RETURN(false);
   }
@@ -2375,6 +2387,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
       Prevents transactions from committing.
   */
 
+  super_read_only= opt_super_readonly;
   read_only= opt_readonly;
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
@@ -2385,6 +2398,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
     goto end_with_read_lock;
 
   /* Change the opt_readonly system variable, safe because the lock is held */
+  opt_super_readonly= new_super_read_only;
   opt_readonly= new_read_only;
   result= false;
 
@@ -2394,6 +2408,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
  end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
  end:
+  super_read_only= opt_super_readonly;
   read_only= opt_readonly;
   DBUG_RETURN(result);
 }
@@ -2425,6 +2440,14 @@ static Sys_var_mybool Sys_thread_statistics(
        "thread_statistics",
        "Control TABLE_STATISTICS running, when userstat is enabled",
        GLOBAL_VAR(opt_thread_statistics), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_super_readonly(
+       "super_read_only",
+       "Enable read_only, and also block writes by "
+       "users with the SUPER privilege",
+       GLOBAL_VAR(super_read_only), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
 
 // Small lower limit to be able to test MRR
 static Sys_var_ulong Sys_read_rnd_buff_size(

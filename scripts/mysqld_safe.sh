@@ -17,6 +17,7 @@ MYSQLD=
 niceness=0
 mysqld_ld_preload=
 mysqld_ld_library_path=
+load_jemalloc=1
 flush_caches=0
 numa_interleave=0
 
@@ -214,7 +215,10 @@ parse_arguments() {
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --core-file-size=*) core_file_size="$val" ;;
       --ledir=*) ledir="$val" ;;
-      --malloc-lib=*) set_malloc_lib "$val" ;;
+      --malloc-lib=*)
+	set_malloc_lib "$val"
+	load_jemalloc=0
+	;;
       --mysqld=*) MYSQLD="$val" ;;
       --mysqld-version=*)
         if test -n "$val"
@@ -375,19 +379,6 @@ set_malloc_lib() {
 
 
 #
-# Add jemalloc to ld_preload - needed for TokuDB
-#
-for libjemall in "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"
-do
-if test -f "$libjemall/libjemalloc.so.1"
-then
-  add_mysqld_ld_preload "$libjemall/libjemalloc.so.1"
-  break
-fi
-done
-
-
-#
 # First, try to find BASEDIR and ledir (where mysqld is)
 #
 
@@ -515,6 +506,19 @@ fi
 
 parse_arguments `$print_defaults $defaults --loose-verbose mysqld_safe safe_mysqld`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
+
+#
+# Add jemalloc to ld_preload if no other malloc forced - needed for TokuDB
+#
+if test $load_jemalloc -eq 1
+then
+  for libjemall in "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+    if [ -r "$libjemall/libjemalloc.so.1" ]; then
+      add_mysqld_ld_preload "$libjemall/libjemalloc.so.1"
+      break
+    fi  
+  done
+fi
 
 #
 # Try to find the plugin directory

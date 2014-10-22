@@ -20,6 +20,7 @@ CREATE TEMPORARY TABLE shortn2 (a INT);
 # In RBR, 'DROP TEMPORARY TABLE ...' statement should never be binlogged no
 # matter if the tables exist or not. In contrast, both in SBR and MBR, the
 # statement should be always binlogged no matter if the tables exist or not.
+# In MBR though, it will always be binlogged with IF EXISTS.
 ##############################################################################
 CREATE TEMPORARY TABLE tmp(c1 int);
 CREATE TEMPORARY TABLE tmp1(c1 int);

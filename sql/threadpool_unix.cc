@@ -1258,7 +1258,7 @@ void wait_begin(thread_group_t *thread_group)
   DBUG_ASSERT(thread_group->connection_count > 0);
 
 #ifdef THREADPOOL_CREATE_THREADS_ON_WAIT
-  if ((thread_group->active_thread_count == 0) &&
+  if ((thread_group->active_thread_count == 0) && 
       (!queues_are_empty(thread_group) || !thread_group->listener))
   {
     /* 

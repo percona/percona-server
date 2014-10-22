@@ -916,14 +916,6 @@ os_file_flush_func(
 /*===============*/
 	os_file_t	file);	/*!< in, own: handle to a file */
 /***********************************************************************//**
-Truncates a file at the specified position.
-@return TRUE if success */
-UNIV_INTERN
-ibool
-os_file_set_eof_at(
-	os_file_t	file,	/*!< in: handle to a file */
-	ib_uint64_t	new_len);/*!< in: new file length */
-/***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,

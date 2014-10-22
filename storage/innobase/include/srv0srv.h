@@ -578,10 +578,6 @@ extern my_bool srv_print_all_deadlocks;
 
 extern my_bool	srv_cmp_per_index_enabled;
 
-/** When TRUE, fake change transcations take S rather than X row locks.
-When FALSE, row locks are not taken at all. */
-extern my_bool srv_fake_changes_locks;
-
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 
@@ -868,16 +864,6 @@ srv_get_active_thread_type(void);
 /*============================*/
 
 extern "C" {
-
-/******************************************************************//**
-Thread that follows redo log changes for changed page tracking.
-@return a dummy value */
-UNIV_INTERN
-os_thread_ret_t
-DECLARE_THREAD(srv_redo_log_follow_thread)(
-/*=======================*/
-	void*	arg);	/*!< in: a dummy parameter required by
-			os_thread_create */
 
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.

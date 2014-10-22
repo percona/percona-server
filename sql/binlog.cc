@@ -1300,7 +1300,6 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
                         DBUG_SET("-d,simulate_file_write_error");
                         DBUG_SET("-d,simulate_disk_full_at_flush_pending");
                         /* 
-                           after +d,simulate_file_write_error the local cache
                            is in unsane state. Since -d,simulate_file_write_error
                            revokes the first simulation do_write_cache()
                            can't be run without facing an assert.
@@ -3637,7 +3636,7 @@ updating the index files.", max_found);
   }
   *end++='.';
 
-  /* 
+  /*
     Check if the generated extension size + the file name exceeds the
     buffer size used. If one did not check this, then the filename might be
     truncated, resulting in error.
@@ -4990,8 +4989,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       it may be good to consider what actually happens when
       open_purge_index_file succeeds but register or sync fails.
 
-      Perhaps we might need the code below in MYSQL_BIN_LOG::cleanup
       for "real life" purposes as well? 
+      for "real life" purposes as well?
     */
     DBUG_EXECUTE_IF("fault_injection_registering_index", {
       if (my_b_inited(&purge_index_file))
@@ -5150,8 +5149,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       the PREVIOUS_GTIDS of binary logs (when current_thd==NULL) after
       server's GTID initialization.
 
-      During server's startup at mysqld_main(), from the binary/relay log
       initialization point of view, it will:
+  
       1) Call init_server_components() that will generate a new binary log
          file but won't write the PREVIOUS_GTIDS event yet;
       2) Initialize server's GTIDs;
@@ -5213,8 +5212,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   }
   if (flush_io_cache(&log_file) ||
       mysql_file_sync(log_file.file, MYF(MY_WME)))
-    goto err;
   
+
   if (write_file_name_to_index_file)
   {
 #ifdef HAVE_REPLICATION
@@ -5735,8 +5734,8 @@ int MYSQL_BIN_LOG::find_next_relay_log(char log_name[FN_REFLEN+1])
 
   The new index file will only contain this file.
 
-  @param thd Thread
 
+      if (my_errno() == ENOENT) 
   @note
     If not called from slave thread, write start event to new log
 
@@ -6698,6 +6697,25 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+  Remove all logs before the given file date from disk and from the
+  index file.
+
+  @param thd		Thread pointer
+  @param purge_time	Delete all log files before given date.
+  @param auto_purge     True if this is an automatic purge.
+
+  @note
+    If any of the logs before the deleted one is in use,
+    only purge logs up to this one.
+
+  @retval
+    0				ok
+  @retval
+    LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
+    LOG_INFO_FATAL              if any other than ENOENT error from
+                                mysql_file_stat() or mysql_file_delete()
+*/
 
 int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 {
@@ -7590,6 +7608,10 @@ void MYSQL_BIN_LOG::purge()
       ha_flush_logs(NULL);
       purge_logs_before_date(purge_time, true);
     }
+  }
+  if (max_binlog_files)
+  {
+    purge_logs_maximum_number(max_binlog_files);
   }
 #endif
 }
@@ -9959,7 +9981,7 @@ void MYSQL_BIN_LOG::xlock(void)
     threads with each acquiring a shared lock on LOCK_consistent_snapshot.
 
     binlog_order_commits is a dynamic variable, so we have to keep track what
-    primitives should be used in unlock_for_snapshot().
+    primitives should be used in xunlock().
   */
   if (opt_binlog_order_commits)
   {
@@ -10656,6 +10678,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     my_bool multi_access_engine= FALSE;
     /*
+       72475 : Track if statement creates or drops a temporary table
+       and log in ROW if it does.
+    */
+    bool create_drop_temp_table= false;
+    /*
        Identifies if a table is changed.
     */
     my_bool is_write= FALSE;
@@ -10746,7 +10773,24 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->is_placeholder())
+      {
+        /*
+          bug 72475 : Detect if this is a CREATE TEMPORARY or DROP of a
+          temporary table. This will be used later in determining whether to
+          log in ROW or STMT if MIXED replication is being used.
+        */
+        if(!create_drop_temp_table &&
+           !table->table &&
+           ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+             (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) ||
+            ((lex->sql_command == SQLCOM_DROP_TABLE ||
+              lex->sql_command == SQLCOM_TRUNCATE) &&
+             find_temporary_table(this, table))))
+        {
+          create_drop_temp_table= true;
+        }
         continue;
+      }
 
       handler::Table_flags const flags= table->table->file->ha_table_flags();
 
@@ -10864,17 +10908,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       flags_access_some_set |= flags;
 
-      if (lex->sql_command != SQLCOM_CREATE_TABLE ||
-          (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)))
-      {
-        if (table->table->s->tmp_table)
-          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
-                                               LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
-        else
-          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TRANS_TABLE :
-                                               LEX::STMT_READS_NON_TRANS_TABLE);
-      }
+      if (table->table->s->tmp_table)
+        lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
+                                             LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
+      else
+        lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TRANS_TABLE :
+                                             LEX::STMT_READS_NON_TRANS_TABLE);
 
       if (prev_access_table && prev_access_table->file->ht !=
           table->table->file->ht)
@@ -11019,7 +11058,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       else
       {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
-            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0
+            || lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE)
+            || lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE)
+            || create_drop_temp_table)
         {
 #ifndef DBUG_OFF
           int flags= lex->get_stmt_unsafe_flags();
@@ -12079,8 +12122,8 @@ void THD::issue_unsafe_warnings()
 
 /**
   Log the current query.
-
   The query will be logged in either row format or statement format
+ 
   depending on the value of @c current_stmt_binlog_format_row field and
   the value of the @c qtype parameter.
 
@@ -12148,8 +12191,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
 
     3 - THD::binlog_query (here) which prints warning for top level
     statements not covered by the two cases above: i.e., if not insided a
-    procedure and a function.
  
+
     Besides, we should not try to print these warnings if it is not
     possible to write statements to the binary log as it happens when
     the execution is inside a function, or generaly speaking, when
@@ -12185,8 +12228,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
       if current_stmt_binlog_format_row is row.
 
       @todo Currently there are places that call this method with
-      STMT_QUERY_TYPE and current_stmt_binlog_format is row.  Fix those
       places and add assert to ensure correct behavior. /Sven
+  0,  
     */
   case THD::STMT_QUERY_TYPE:
     /*
@@ -12254,7 +12297,7 @@ mysql_declare_plugin(binlog)
   0x0100 /* 1.0 */,
   binlog_status_vars_top,     /* status variables                */
   NULL,                       /* system variables                */
-  NULL,                       /* config options                  */
   0,  
+  0,
 }
 mysql_declare_plugin_end;

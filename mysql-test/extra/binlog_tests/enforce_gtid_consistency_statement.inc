@@ -238,11 +238,11 @@ if ($statement_ends_transaction_row != '')
   }
   if ($statement_ends_transaction_mix != '')
   {
-    --let $counter_expected_text= $statement_ends_transaction_row (stm) / $statement_ends_transaction (row) / $statement_ends_transaction_mix (mix)
+    --let $counter_expected_text= $statement_ends_transaction (stm) / $statement_ends_transaction_row (row) / $statement_ends_transaction_mix (mix)
   }
   if ($statement_ends_transaction_mix == '')
   {
-    --let $counter_expected_text= $statement_ends_transaction_row (stm) / $statement_ends_transaction (row)
+    --let $counter_expected_text= $statement_ends_transaction (stm) / $statement_ends_transaction_row (row)
   }
   if ($gtid_next == 'AUTOMATIC')
   {
@@ -261,7 +261,7 @@ if ($statement_ends_transaction_mix != '')
   }
   if ($statement_ends_transaction_row == '')
   {
-    --let $counter_expected_text= $statement_ends_transaction_row (stm) / $statement_ends_transaction_mix (mix)
+    --let $counter_expected_text= $statement_ends_transaction (stm) / $statement_ends_transaction_mix (mix)
   }
   if ($gtid_next == 'AUTOMATIC')
   {

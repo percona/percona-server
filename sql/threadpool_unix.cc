@@ -263,7 +263,7 @@ static int io_poll_start_read(int pollfd, int fd, void *data)
   ev.data.u64= 0; /* Keep valgrind happy */
   ev.data.ptr= data;
   ev.events=  EPOLLIN|EPOLLET|EPOLLERR|EPOLLRDHUP|EPOLLONESHOT;
-  return epoll_ctl(pollfd, EPOLL_CTL_MOD,  fd, &ev);
+  return epoll_ctl(pollfd, EPOLL_CTL_MOD, fd, &ev);
 }
 
 static int io_poll_disassociate_fd(int pollfd, int fd)
@@ -1108,12 +1108,6 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
   DBUG_VOID_RETURN;
 }
 
-
-/*
-  Prevent too many threads executing at the same time,if the workload is
-  not CPU bound.
-*/
-
 /**
   Retrieve a connection with pending event.
   
@@ -1270,7 +1264,7 @@ static void wait_begin(thread_group_t *thread_group)
   mysql_mutex_lock(&thread_group->mutex);
   thread_group->active_thread_count--;
   thread_group->waiting_thread_count++;
-  
+
   DBUG_ASSERT(thread_group->active_thread_count >=0);
   DBUG_ASSERT(thread_group->connection_count > 0);
 
@@ -1312,7 +1306,7 @@ static void wait_end(thread_group_t *thread_group)
 static connection_t *alloc_connection(THD *thd)
 {
   DBUG_ENTER("alloc_connection");
-  
+
   connection_t* connection = (connection_t *)
       my_malloc(key_memory_thread_pool_connection,
                 sizeof(connection_t),0);
@@ -1387,7 +1381,7 @@ static void connection_abort(connection_t *connection)
   thread_group_t *group= connection->thread_group;
 
   threadpool_remove_connection(connection->thd);
-  
+
   mysql_mutex_lock(&group->mutex);
   group->connection_count--;
   mysql_mutex_unlock(&group->mutex);
@@ -1406,7 +1400,7 @@ void tp_post_kill_notification(THD *thd)
   DBUG_ENTER("tp_post_kill_notification");
   if (current_thd == thd || thd->system_thread)
     DBUG_VOID_RETURN;
-  
+
   Vio* vio= thd->get_protocol_classic()->get_vio();
   if (vio)
     vio_cancel(vio, SHUT_RD);
@@ -1526,6 +1520,7 @@ static int change_group(connection_t *c,
   mysql_mutex_unlock(&new_group->mutex);
   return ret;
 }
+
 
 static int start_io(connection_t *connection)
 {

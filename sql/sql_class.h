@@ -3957,30 +3957,15 @@ public:
   inline void reset_current_stmt_binlog_format_row()
   {
     DBUG_ENTER("reset_current_stmt_binlog_format_row");
-    /*
-      If there are temporary tables, don't reset back to
-      statement-based. Indeed it could be that:
-      CREATE TEMPORARY TABLE t SELECT UUID(); # row-based
-      # and row-based does not store updates to temp tables
-      # in the binlog.
-      INSERT INTO u SELECT * FROM t; # stmt-based
-      and then the INSERT will fail as data inserted into t was not logged.
-      So we continue with row-based until the temp table is dropped.
-      If we are in a stored function or trigger, we mustn't reset in the
-      middle of its execution (as the binary logging way of a stored function
-      or trigger is decided when it starts executing, depending for example on
-      the caller (for a stored function: if caller is SELECT or
-      INSERT/UPDATE/DELETE...).
-    */
     DBUG_PRINT("debug",
-               ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
-                YESNO(temporary_tables), YESNO(in_sub_stmt),
+               ("in_sub_stmt: %s, system_thread: %s",
+                YESNO(in_sub_stmt),
                 show_system_thread(system_thread)));
     if (in_sub_stmt == 0)
     {
       if (variables.binlog_format == BINLOG_FORMAT_ROW)
         set_current_stmt_binlog_format_row();
-      else if (temporary_tables == NULL)
+      else
         clear_current_stmt_binlog_format_row();
     }
     DBUG_VOID_RETURN;

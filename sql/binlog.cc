@@ -8091,6 +8091,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     my_bool multi_access_engine= FALSE;
     /*
+       bug 1313901 : Track if statement creates or drops a temporary table
+                     and log in ROW if it does.
+    */
+    my_bool create_drop_temp_table= FALSE;
+    /*
        Identifies if a table is changed.
     */
     my_bool is_write= FALSE;
@@ -8156,7 +8161,25 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->placeholder())
-        continue;
+      {
+        /*
+          bug 1313901 : Detect if this is a CREATE TEMPORARY or DROP of a
+                        temporary table. This will be used later in determining
+                        whether to log in ROW or STMT if MIXED replication is
+                        being used.
+        */
+        if(!create_drop_temp_table &&
+           !table->table &&
+            ((lex->sql_command == SQLCOM_CREATE_TABLE &&
+              (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)) ||
+             ((lex->sql_command == SQLCOM_DROP_TABLE ||
+               lex->sql_command == SQLCOM_TRUNCATE) &&
+              find_temporary_table(this, table))))
+        {
+          create_drop_temp_table= TRUE;
+        }
+         continue;
+      }
 
       handler::Table_flags const flags= table->table->file->ha_table_flags();
 
@@ -8229,17 +8252,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
       flags_access_some_set |= flags;
 
-      if (lex->sql_command != SQLCOM_CREATE_TABLE ||
-          (lex->sql_command == SQLCOM_CREATE_TABLE &&
-          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE)))
-      {
-        if (table->table->s->tmp_table)
-          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
-                                               LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
-        else
-          lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TRANS_TABLE :
-                                               LEX::STMT_READS_NON_TRANS_TABLE);
-      }
+      if (table->table->s->tmp_table)
+        lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TEMP_TRANS_TABLE :
+                                             LEX::STMT_READS_TEMP_NON_TRANS_TABLE);
+      else
+        lex->set_stmt_accessed_table(trans ? LEX::STMT_READS_TRANS_TABLE :
+                                             LEX::STMT_READS_NON_TRANS_TABLE);
 
       if (prev_access_table && prev_access_table->file->ht !=
           table->table->file->ht)
@@ -8379,7 +8397,11 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       else
       {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
-            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0
+            || lex->stmt_accessed_table(LEX::STMT_READS_TEMP_TRANS_TABLE)
+            || lex->stmt_accessed_table(LEX::STMT_READS_TEMP_NON_TRANS_TABLE)
+            || create_drop_temp_table)
         {
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();

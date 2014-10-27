@@ -1,0 +1,6 @@
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+
+source extra/rpl_tests/rpl_drop_temp.test;
+
+source include/rpl_end.inc;

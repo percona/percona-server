@@ -432,6 +432,14 @@ bool Truncate_statement::truncate_table(THD *thd, TABLE_LIST *table_ref)
   /* If it is a temporary table, no need to take locks. */
   if ((table= find_temporary_table(thd, table_ref)))
   {
+    /*    
+      bug 1313901 : THD::decide_logging_format has not yet been called and
+                    may not be called at all dependig on the engine, so call it
+                    here.
+    */
+    if (thd->decide_logging_format(table_ref) != 0)
+      DBUG_RETURN(TRUE);
+
     /* In RBR, the statement is not binlogged if the table is temporary. */
     binlog_stmt= !thd->is_current_stmt_binlog_format_row();
 

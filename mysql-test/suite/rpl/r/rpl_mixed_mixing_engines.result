@@ -11290,14 +11290,12 @@ ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -11344,7 +11342,6 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
 master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11354,7 +11351,6 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
 master-bin.000001	#	Query	#	#	SAVEPOINT `s1`
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	ROLLBACK TO `s1`
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11390,7 +11386,6 @@ ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11398,7 +11393,6 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11438,7 +11432,6 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11448,7 +11441,6 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 357, 2, COUNT(*) FROM tt_1
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN CT T R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11479,14 +11471,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B CT T R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11526,7 +11516,6 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
@@ -11536,7 +11525,6 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VALUES (361, 2)
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5)
 master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B N CT T R << -e-e-e-e-e-e-e-e-e-e-e-

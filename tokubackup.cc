@@ -1,3 +1,7 @@
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:  
+#ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
+
 #define MYSQL_SERVER
 #include <mysql_version.h>
 #include <mysql/plugin.h>

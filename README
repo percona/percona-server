@@ -25,7 +25,6 @@ mysql> set tokubackup_dir="/tmp/backup1047";
 msyql> select @@tokubackup_last_error, @@tokubackup_last_error_string;
 
 7. Work to do
-- Support multiple directories
 - Add status variables
 - Hack mysqld_safe to auto preload the hot backup lib if it finds one
 - Run with valgrind and fix memory leaks

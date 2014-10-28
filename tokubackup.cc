@@ -12,9 +12,9 @@
 #include <binlog.h>
 #include "backup/backup.h"
 
-static char *tokubackup_version = (char *) tokubackup_version_string;
+static char *tokudb_backup_version = (char *) tokubackup_version_string;
 
-static MYSQL_SYSVAR_STR(version, tokubackup_version, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY, "version",
+static MYSQL_SYSVAR_STR(version, tokudb_backup_version, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY, "version",
                         NULL, NULL, NULL);
 
 static MYSQL_THDVAR_ULONG(debug, PLUGIN_VAR_THDLOCAL, "debug",
@@ -25,17 +25,17 @@ static MYSQL_THDVAR_ULONG(last_error, PLUGIN_VAR_THDLOCAL, "last error",
 
 static MYSQL_THDVAR_STR(last_error_string, PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_MEMALLOC, "last error string", NULL, NULL, NULL);
 
-struct tokubackup_progress_extra {
+struct tokudb_backup_progress_extra {
     THD *_thd;
     char *_the_string;
 };
 
-static int tokubackup_progress_fun(float progress, const char *progress_string, void *extra) {
-    tokubackup_progress_extra *be = static_cast<tokubackup_progress_extra *>(extra);
+static int tokudb_backup_progress_fun(float progress, const char *progress_string, void *extra) {
+    tokudb_backup_progress_extra *be = static_cast<tokudb_backup_progress_extra *>(extra);
 
     // print to error log
     if (THDVAR(be->_thd, debug)) {
-        sql_print_information("tokubackup progress %f %s", progress, progress_string);
+        sql_print_information("tokudb_backup progress %f %s", progress, progress_string);
     }
 
     // set thd proc info
@@ -43,7 +43,7 @@ static int tokubackup_progress_fun(float progress, const char *progress_string, 
     size_t len = 100 + strlen(progress_string);
     be->_the_string = (char *) my_realloc(be->_the_string, len, MYF(MY_FAE+MY_ALLOW_ZERO_PTR));
     float percentage = progress * 100;
-    int r = snprintf(be->_the_string, len, "tokubackup about %.0f%% done: %s", percentage, progress_string);
+    int r = snprintf(be->_the_string, len, "tokudb_backup about %.0f%% done: %s", percentage, progress_string);
     assert(0 < r && (size_t)r <= len);
     thd_proc_info(be->_thd, be->_the_string);
 
@@ -53,38 +53,38 @@ static int tokubackup_progress_fun(float progress, const char *progress_string, 
     return 0;
 }
 
-static void tokubackup_set_error(THD *thd, int error, const char *error_string) {
+static void tokudb_backup_set_error(THD *thd, int error, const char *error_string) {
     THDVAR(thd, last_error) = error;
     char *old_error_string = THDVAR(thd, last_error_string);
     THDVAR(thd, last_error_string) = error_string ? my_strdup(error_string, MYF(MY_FAE)) : NULL;
     my_free(old_error_string);
 }
 
-static void tokubackup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
+static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
     size_t n = strlen(error_fmt) + strlen(s1) + strlen(s2) + strlen(s3);
     char error_string[n+1];
-    if (snprintf(error_string, n, error_fmt, s1, s2, s3) > 0) {
-        if (THDVAR(thd, debug)) {
-            sql_print_information("tokubackup error %d %s", error, error_string);
-        }
-        tokubackup_set_error(thd, error, error_string);
+    int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
+    assert(0 < r && (size_t)r <= n);
+    if (THDVAR(thd, debug)) {
+        sql_print_information("tokudb_backup error %d %s", error, error_string);
     }
+    tokudb_backup_set_error(thd, error, error_string);
 }
 
-struct tokubackup_error_extra {
+struct tokudb_backup_error_extra {
     THD *_thd;
 };
 
-static void tokubackup_error_fun(int error_number, const char *error_string, void *extra) {
-    tokubackup_error_extra *be = static_cast<tokubackup_error_extra *>(extra);
+static void tokudb_backup_error_fun(int error_number, const char *error_string, void *extra) {
+    tokudb_backup_error_extra *be = static_cast<tokudb_backup_error_extra *>(extra);
 
     // print to error log
     if (THDVAR(be->_thd, debug)) {
-        sql_print_information("tokubackup error %d %s", error_number, error_string);
+        sql_print_information("tokudb_backup error %d %s", error_number, error_string);
     }
 
     // set last_error and last_error_string
-    tokubackup_set_error(be->_thd, error_number, error_string);
+    tokudb_backup_set_error(be->_thd, error_number, error_string);
 }
 
 const int MYSQL_MAX_DIR_COUNT = 4;
@@ -183,21 +183,21 @@ public:
         if (tokudb_data_set &&
             this->dir_is_child_of_dir(m_mysql_data_dir, m_tokudb_data_dir) == true &&
             this->dirs_are_the_same(m_tokudb_data_dir, m_mysql_data_dir) == false) {
-            tokubackup_set_error_string(thd, error, error_fmt, "tokudb-data-dir", m_tokudb_data_dir, m_mysql_data_dir);
+            tokudb_backup_set_error_string(thd, error, error_fmt, "tokudb-data-dir", m_tokudb_data_dir, m_mysql_data_dir);
             return false;
         }
 
         if (tokudb_log_set &&
             this->dir_is_child_of_dir(m_mysql_data_dir, m_tokudb_log_dir) == true &&
             this->dirs_are_the_same(m_tokudb_log_dir, m_mysql_data_dir) == false) {
-            tokubackup_set_error_string(thd, error, error_fmt, "tokudb-log-dir", m_tokudb_log_dir, m_mysql_data_dir);
+            tokudb_backup_set_error_string(thd, error, error_fmt, "tokudb-log-dir", m_tokudb_log_dir, m_mysql_data_dir);
             return false;
         }
 
         if (log_bin_set &&
             this->dir_is_child_of_dir(m_mysql_data_dir, m_log_bin_dir) == true &&
             this->dirs_are_the_same(m_log_bin_dir, m_mysql_data_dir) == false) {
-            tokubackup_set_error_string(thd, error, error_fmt, "mysql log-bin", m_log_bin_dir, m_mysql_data_dir);
+            tokudb_backup_set_error_string(thd, error, error_fmt, "mysql log-bin", m_log_bin_dir, m_mysql_data_dir);
             return false;
         }
 
@@ -379,10 +379,10 @@ private:
     destination_dirs() {};
 };
 
-static void tokubackup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
+static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
     // reset error variables
     int error = 0;
-    tokubackup_set_error(thd, error, NULL);
+    tokudb_backup_set_error(thd, error, NULL);
 
     struct source_dirs sources;
     sources.find_and_allocate_dirs(thd);
@@ -409,7 +409,7 @@ static void tokubackup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *
 
     error = destinations.create_dirs();
     if (error) {
-        tokubackup_set_error(thd, error, "tokubackup couldn't create needed directories.");
+        tokudb_backup_set_error(thd, error, "tokudb_backup couldn't create needed directories.");
         return;
     }
 
@@ -421,30 +421,30 @@ static void tokubackup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *
     }
 
     if (THDVAR(thd, debug)) {
-        sql_print_information("tokubackup initiating backup:");
+        sql_print_information("tokudb_backup initiating backup:");
         for (int i = 0; i < count; ++i) {
             sql_print_information("%d: %s -> %s", i + 1, source_dirs[i], dest_dirs[i]);
         }
     }
 
     // do the backup
-    tokubackup_progress_extra progress_extra = { thd, NULL };
-    tokubackup_error_extra error_extra = { thd };
-    error = tokubackup_create_backup(source_dirs, dest_dirs, count, tokubackup_progress_fun, &progress_extra, tokubackup_error_fun, &error_extra);
+    tokudb_backup_progress_extra progress_extra = { thd, NULL };
+    tokudb_backup_error_extra error_extra = { thd };
+    error = tokubackup_create_backup(source_dirs, dest_dirs, count, tokudb_backup_progress_fun, &progress_extra, tokudb_backup_error_fun, &error_extra);
     if (THDVAR(thd, debug)) {
         sql_print_information("%s backup error %d", __FUNCTION__, error);
     }
 
     // cleanup
-    thd_proc_info(thd, "tokubackup done"); // must be a static string
+    thd_proc_info(thd, "tokudb_backup done"); // must be a static string
     my_free(progress_extra._the_string);
     
     THDVAR(thd, last_error) = error;
 }
 
-static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup dir", NULL, tokubackup_update_dir, NULL);
+static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup dir", NULL, tokudb_backup_update_dir, NULL);
 
-static void tokubackup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
+static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
     my_ulonglong *val = (my_ulonglong *) var_ptr;
     *val = *(my_ulonglong*) save;
     unsigned long nb = *val;
@@ -455,9 +455,9 @@ static void tokubackup_update_throttle(THD *thd, struct st_mysql_sys_var *var, v
 }
 
 static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
-                              NULL, tokubackup_update_throttle, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+                              NULL, tokudb_backup_update_throttle, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
-static struct st_mysql_sys_var *tokubackup_system_variables[] = {
+static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(dir),
@@ -467,32 +467,32 @@ static struct st_mysql_sys_var *tokubackup_system_variables[] = {
     NULL,
 };
 
-static int tokubackup_plugin_init(void *p) {
+static int tokudb_backup_plugin_init(void *p) {
     DBUG_ENTER(__FUNCTION__);
     DBUG_RETURN(0);
 }
 
-static int tokubackup_plugin_deinit(void *p) {
+static int tokudb_backup_plugin_deinit(void *p) {
     DBUG_ENTER(__FUNCTION__);
     DBUG_RETURN(0);
 }
 
-struct st_mysql_daemon tokubackup_plugin = {
+struct st_mysql_daemon tokudb_backup_plugin = {
     MYSQL_DAEMON_INTERFACE_VERSION
 };
 
-mysql_declare_plugin(tokubackup) {
+mysql_declare_plugin(tokudb_backup) {
     MYSQL_DAEMON_PLUGIN,
-    &tokubackup_plugin,
-    "tokubackup",
+    &tokudb_backup_plugin,
+    "tokudb_backup",
     "Tokutek",
     "Tokutek hot backup",
     PLUGIN_LICENSE_PROPRIETARY,
-    tokubackup_plugin_init,      // Plugin Init
-    tokubackup_plugin_deinit,    // Plugin Deinit
+    tokudb_backup_plugin_init,      // Plugin Init
+    tokudb_backup_plugin_deinit,    // Plugin Deinit
     0x0100, // 1.0
     NULL,                        // status variables
-    tokubackup_system_variables, // system variables
+    tokudb_backup_system_variables, // system variables
     NULL,                        // config options
     0,                           // flags
 }

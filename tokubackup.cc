@@ -126,14 +126,23 @@ public:
     void find_and_allocate_dirs(THD *thd) {
         // Sanitize the trailing slash of the MySQL Data Dir.
         m_mysql_data_dir = my_strdup(mysql_real_data_home, MYF(MY_FAE));
-        assert(m_mysql_data_dir != NULL);
 
         const size_t length = strlen(m_mysql_data_dir);
         m_mysql_data_dir[length - 1] = 0;
 
+        // To avoid crashes due to my_error being called prematurely by find_plug_in_sys_var, we make sure
+        // that the tokudb system variables exist which is the case if the tokudb plugin is loaded.
+        const char *tokudb = "TokuDB";
+        LEX_STRING tokudb_string = { (char *) tokudb, strlen(tokudb) };
+        lock_plugin_data();
+        bool tokudb_found = plugin_find_by_type(&tokudb_string, MYSQL_ANY_PLUGIN) != NULL;
+        unlock_plugin_data();
+
         // Note: These all allocate new strings or return NULL.
-        m_tokudb_data_dir = this->find_plug_in_sys_var("tokudb_data_dir", thd);
-        m_tokudb_log_dir = this->find_plug_in_sys_var("tokudb_log_dir", thd);
+        if (tokudb_found) {
+            m_tokudb_data_dir = this->find_plug_in_sys_var("tokudb_data_dir", thd);
+            m_tokudb_log_dir = this->find_plug_in_sys_var("tokudb_log_dir", thd);
+        }
         m_log_bin_dir = this->find_log_bin_dir(thd);
     }
 
@@ -271,6 +280,7 @@ private:
         const char * result = NULL;
         String null_string;
         String name_to_find(name, &my_charset_bin);
+        // If get_system_var fails, it calls my_error
         Item *item = get_system_var(thd,
                                     OPT_GLOBAL,
                                     name_to_find.lex_string(),
@@ -284,8 +294,6 @@ private:
         }
 
         // delete item; // auto deleted when the query ends
-
-        thd->clear_error(); // get_system_var calls my_error prematurely IMO, so we reset the error after the fact
 
         return result;
     }

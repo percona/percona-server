@@ -2,7 +2,7 @@ The Tokutek hot backup library intercepts system calls that write files and dupl
 
 First, the hot backup library must be loaded into the mysqld server so that it can intercept system calls.  We use LD_PRELOAD to solve the system call intercept problem.  Alternatively, the hot backup library can be linked into mysqld.
 
-Second, there must be a user interface that can be used to start a backup, track its progress, and determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effectof setting a backup session variable to the name of the destination directory.
+Second, there must be a user interface that can be used to start a backup, track its progress, and determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effect of setting a backup session variable to the name of the destination directory.
 
 Here are some details on how to use this plugin to run Tokutek hot backup.
 

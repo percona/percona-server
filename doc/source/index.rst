@@ -93,6 +93,7 @@ Flexibility Improvements
    flexibility/extended_mysqlbinlog
    flexibility/slowlog_rotation
    flexibility/mysqlbinlog_change_db
+   flexibility/csv_engine_mode
 
 Reliability Improvements
 ========================
@@ -128,6 +129,7 @@ Management Improvements
    management/backup_locks
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
+   management/super_read_only
 
 Diagnostics Improvements
 ========================

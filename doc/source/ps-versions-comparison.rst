@@ -223,6 +223,12 @@ List of features available in |Percona Server| releases
    * - Feature not implemented
      - Feature not implemented
      - :ref:`Backup Locks <ps56:backup_locks>`
+   * - Feature not implemented
+     - Feature not implemented
+     - :ref:`CSV engine mode for standard-compliant quote and comma parsing <ps56:csv_engine_mode>`
+   * - Feature not implemented
+     - Feature not implemented
+     - :ref:`Super read-only <ps56:super-read-only>`
    
 
 Other Reading

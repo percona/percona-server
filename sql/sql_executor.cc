@@ -2533,7 +2533,10 @@ join_read_first(JOIN_TAB *tab)
     return 1;
   }
   if ((error= tab->table->file->prepare_index_scan()))
+  {
+    report_handler_error(table, error);
     return 1;
+  }
   if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)

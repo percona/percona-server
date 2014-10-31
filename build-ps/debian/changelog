@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.21-rel70.0) unstable; urgency=low
+
+  * Removed references to subunit2junitxml which has been removed from source
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Tue, 21 Oct 2014 11:49:39 +0200
+
 percona-server-5.6 (5.6.20-rel68.0) unstable; urgency=low
 
   * Added mysqld-debug

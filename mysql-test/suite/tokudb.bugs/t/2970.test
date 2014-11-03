@@ -1,5 +1,5 @@
-source include/have_innodb.inc;
-set default_storage_engine='innodb';
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
 
 # test that the query planner chooses a covering index over a non-covering index with the same
 # record cost

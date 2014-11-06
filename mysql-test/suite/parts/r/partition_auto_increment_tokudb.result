@@ -44,7 +44,7 @@ UPDATE t1 SET c1 = -1 WHERE c1 = 40;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
 AUTO_INCREMENT
-32
+52
 UPDATE t1 SET c1 = NULL WHERE c1 = 4;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
@@ -64,9 +64,9 @@ c1
 25
 30
 31
-32
-33
 51
+52
+53
 DROP TABLE t1;
 CREATE TABLE t1 (
 c1 INT NOT NULL AUTO_INCREMENT,
@@ -262,7 +262,7 @@ UPDATE t1 SET c1 = 140 WHERE c1 = 150;
 SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='test'
   AND TABLE_NAME='t1';
 AUTO_INCREMENT
-141
+152
 UPDATE t1 SET c1 = NULL WHERE c1 = 4;
 Warnings:
 Warning	1048	Column 'c1' cannot be null
@@ -286,9 +286,9 @@ c1
 90
 91
 140
-141
-142
 151
+152
+153
 DROP TABLE t1;
 # Test with auto_increment_increment and auto_increment_offset.
 CREATE TABLE t1 (
@@ -304,39 +304,39 @@ INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 SET @@session.auto_increment_increment = 5;
 SET @@session.auto_increment_offset = 3;
 INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (33 + 1);
+INSERT INTO t1 VALUES (43 + 1);
 INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (38 + 2);
+INSERT INTO t1 VALUES (48 + 2);
 INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (43 + 3);
+INSERT INTO t1 VALUES (53 + 3);
 INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (48 + 4);
+INSERT INTO t1 VALUES (58 + 4);
 INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (53 + 5);
+INSERT INTO t1 VALUES (63 + 5);
 INSERT INTO t1 VALUES (NULL);
-INSERT INTO t1 VALUES (63 + 6);
+INSERT INTO t1 VALUES (73 + 6);
 INSERT INTO t1 VALUES (NULL);
 SET @@session.auto_increment_increment = 1;
 SET @@session.auto_increment_offset = 1;
 SELECT * FROM t1 ORDER BY c1;
 c1
 1
-5
 15
 25
-33
-34
-38
-40
+35
 43
-46
+44
 48
-52
+50
 53
+56
 58
+62
 63
-69
+68
 73
+79
+83
 DROP TABLE t1;
 # Test reported auto_increment value
 CREATE TABLE t1 (
@@ -531,15 +531,11 @@ SELECT * FROM t1 ORDER BY c1;
 c1
 2
 4
-5
-10
 11
 12
 16
 19
 21
-22
-23
 24
 COMMIT;
 SELECT * FROM t1 ORDER BY c1;
@@ -597,15 +593,11 @@ SELECT * FROM t1 ORDER BY c1;
 c1
 2
 4
-5
-10
 11
 12
 16
 19
 21
-22
-23
 24
 COMMIT;
 SELECT * FROM t1 ORDER BY c1;
@@ -689,7 +681,29 @@ PRIMARY KEY (c1,c2))
 ENGINE = 'TokuDB'
 PARTITION BY HASH(c2)
 PARTITIONS 2;
-ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+INSERT INTO t1 VALUES (1, 0);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, NULL);
+INSERT INTO t1 VALUES (3, NULL);
+INSERT INTO t1 VALUES (3, NULL), (2, 0), (2, NULL);
+INSERT INTO t1 VALUES (2, 2);
+# ERROR (only OK if Blackhole/NDB) should give ER_DUP_KEY or ER_DUP_ENTRY
+# mysql_errno: 0
+INSERT INTO t1 VALUES (2, 22), (2, NULL);
+SELECT * FROM t1 ORDER BY c1,c2;
+c1	c2
+1	1
+1	2
+2	2
+2	3
+2	6
+2	7
+2	22
+2	23
+3	4
+3	5
+DROP TABLE t1;
 # Test AUTO_INCREMENT in CREATE
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))
 ENGINE = 'TokuDB'
@@ -878,7 +892,7 @@ c1
 DROP TABLE t1;
 #############################################################################
 # Bug #45823 - Assertion failure in file row/row0mysql.c line 1386
-# Bug #43988 - AUTO_INCREMENT errors with partitioned TokuDB tables in 5.1.31
+# Bug #43988 - AUTO_INCREMENT errors with partitioned InnoDB tables in 5.1.31
 ##############################################################################
 # Inserting negative autoincrement values into a partition table (partitions >= 4)
 CREATE TABLE t (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY(c1),

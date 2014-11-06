@@ -460,6 +460,11 @@ RPM_OPT_FLAGS=
 RPM_OPT_FLAGS=$(echo ${RPM_OPT_FLAGS} | sed -e 's|-march=i386|-march=i686|g')
 %endif
 #
+# Needed on centos5 to force debug symbols compatibility with older gdb version
+%if "%rhel" == "5"
+RPM_OPT_FLAGS="${RPM_OPT_FLAGS} -gdwarf-2"
+%endif
+#
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
 export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}

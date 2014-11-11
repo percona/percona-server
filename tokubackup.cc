@@ -32,7 +32,7 @@ static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup 
 static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save);
 
 static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
-                              NULL, tokudb_backup_update_throttle, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+                              NULL, tokudb_backup_update_throttle, ~0ULL /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
 static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(version),

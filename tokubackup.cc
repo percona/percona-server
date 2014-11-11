@@ -454,6 +454,9 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
         }
     }
 
+    // set the throttle
+    tokubackup_throttle_backup(THDVAR(thd, throttle));
+
     // do the backup
     tokudb_backup_progress_extra progress_extra = { thd, NULL };
     tokudb_backup_error_extra error_extra = { thd };

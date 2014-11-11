@@ -1,8 +1,8 @@
-The Tokutek hot backup library intercepts system calls that write files and duplicates the writes on backup files. It does this while copying files to the backup directory.  There are two technical issues to solve.
+The Tokutek hot backup library intercepts system calls that write files and duplicates the writes on backup files. It does this while copying files to the backup directory.  There are two technical issues to address to get hot backup working with MySQL.
 
-First, the hot backup library must be loaded into the mysql server so that it can intercept system calls.  We use LD_PRELOAD to solve the system call intercept problem.  The hot backup library is preloaded into the mysqld process so that it can intercept the system calls.
+First, the hot backup library must be loaded into the mysqld server so that it can intercept system calls.  We use LD_PRELOAD to solve the system call intercept problem.  Alternatively, the hot backup library can be linked into mysqld.
 
-Second, there must be a user interface that can be used to start a backup, track its progress, and determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effectof setting a session variable that the plugin creates.
+Second, there must be a user interface that can be used to start a backup, track its progress, and determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effect of setting a backup session variable to the name of the destination directory.
 
 Here are some details on how to use this plugin to run Tokutek hot backup.
 
@@ -28,4 +28,4 @@ msyql> select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 - Make binary packages
 - Add versions to library names
 - Hack mysqld_safe to auto preload the hot backup lib if it finds one
-- Run with valgrind and fix memory leaks
+- Run with valgrind and fix memory leaks if any

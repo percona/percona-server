@@ -25,6 +25,25 @@ static MYSQL_THDVAR_ULONG(last_error, PLUGIN_VAR_THDLOCAL, "last error",
 
 static MYSQL_THDVAR_STR(last_error_string, PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_MEMALLOC, "last error string", NULL, NULL, NULL);
 
+static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save);
+
+static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup dir", NULL, tokudb_backup_update_dir, NULL);
+
+static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save);
+
+static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
+                              NULL, tokudb_backup_update_throttle, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+
+static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
+    MYSQL_SYSVAR(version),
+    MYSQL_SYSVAR(debug),
+    MYSQL_SYSVAR(dir),
+    MYSQL_SYSVAR(throttle),
+    MYSQL_SYSVAR(last_error),
+    MYSQL_SYSVAR(last_error_string),
+    NULL,
+};
+
 struct tokudb_backup_progress_extra {
     THD *_thd;
     char *_the_string;
@@ -450,30 +469,12 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     THDVAR(thd, last_error) = error;
 }
 
-static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup dir", NULL, tokudb_backup_update_dir, NULL);
-
 static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
     my_ulonglong *val = (my_ulonglong *) var_ptr;
     *val = *(my_ulonglong*) save;
     unsigned long nb = *val;
-    if (THDVAR(thd, debug)) {
-        sql_print_information("%s %lu", __FUNCTION__, nb);
-    }
     tokubackup_throttle_backup(nb);
 }
-
-static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
-                              NULL, tokudb_backup_update_throttle, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
-
-static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
-    MYSQL_SYSVAR(version),
-    MYSQL_SYSVAR(debug),
-    MYSQL_SYSVAR(dir),
-    MYSQL_SYSVAR(throttle),
-    MYSQL_SYSVAR(last_error),
-    MYSQL_SYSVAR(last_error_string),
-    NULL,
-};
 
 static int tokudb_backup_plugin_init(void *p) {
     DBUG_ENTER(__FUNCTION__);

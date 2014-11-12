@@ -12,6 +12,19 @@
 #include <binlog.h>
 #include "backup/backup.h"
 
+#ifdef TOKUDB_BACKUP_PLUGIN_VERSION
+#define stringify2(x) #x
+#define stringify(x) stringify2(x)
+#define TOKUDB_BACKUP_PLUGIN_VERSION_STRING stringify(TOKUDB_BACKUP_PLUGIN_VERSION)
+#else
+#define TOKUDB_BACKUP_PLUGIN_VERSION_STRING NULL
+#endif
+
+static char *tokudb_backup_plugin_version = (char *) TOKUDB_BACKUP_PLUGIN_VERSION_STRING;
+
+static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY, "version",
+                        NULL, NULL, NULL);
+
 static char *tokudb_backup_version = (char *) tokubackup_version_string;
 
 static MYSQL_SYSVAR_STR(version, tokudb_backup_version, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY, "version",
@@ -35,12 +48,13 @@ static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
                               NULL, tokudb_backup_update_throttle, ~0ULL /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
 static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
+    MYSQL_SYSVAR(plugin_version),
     MYSQL_SYSVAR(version),
-    MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(dir),
     MYSQL_SYSVAR(throttle),
     MYSQL_SYSVAR(last_error),
     MYSQL_SYSVAR(last_error_string),
+    MYSQL_SYSVAR(debug),
     NULL,
 };
 
@@ -493,6 +507,13 @@ struct st_mysql_daemon tokudb_backup_plugin = {
     MYSQL_DAEMON_INTERFACE_VERSION
 };
 
+#ifndef TOKUDB_BACKUP_PLUGIN_VERSION_MAJOR
+#define TOKUDB_BACKUP__PLUGIN_VERSION_MAJOR 0
+#endif
+#ifndef TOKUDB_BACKUP_PLUGIN_VERSION_MINOR
+#define TOKUDB_BACKUP_PLUGIN_VERSION_MINOR 0
+#endif
+
 mysql_declare_plugin(tokudb_backup) {
     MYSQL_DAEMON_PLUGIN,
     &tokudb_backup_plugin,
@@ -502,7 +523,7 @@ mysql_declare_plugin(tokudb_backup) {
     PLUGIN_LICENSE_PROPRIETARY,
     tokudb_backup_plugin_init,      // Plugin Init
     tokudb_backup_plugin_deinit,    // Plugin Deinit
-    0x0100, // 1.0
+    (TOKUDB_BACKUP_PLUGIN_VERSION_MAJOR << 8) + TOKUDB_BACKUP_PLUGIN_VERSION_MINOR,
     NULL,                        // status variables
     tokudb_backup_system_variables, // system variables
     NULL,                        // config options

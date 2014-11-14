@@ -5959,6 +5959,7 @@ lock_rec_insert_check_and_lock(
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
+	ut_ad((flags & BTR_NO_LOCKING_FLAG) || thr);
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 

@@ -4,7 +4,7 @@
  Improved ``NUMA`` support
 ===========================
 
-In cases where the buffer pool memory allocation was bigger than size of the node, system would start swapping already allocated memory even if there is available memory on other node. This is would happen if the default :term:`NUMA` memory allocation policy was selected. In that case system would favor one node more than other which caused the node to run out of memory. Changing the allocation policy to interleaving, memory will be allocated in round-robing fashion over the available node. This can be done by using the mysqld_safe :variable:`numa_interleave` option.
+In cases where the buffer pool memory allocation was bigger than size of the node, system would start swapping already allocated memory even if there is available memory on other node. This is would happen if the default :term:`NUMA` memory allocation policy was selected. In that case system would favor one node more than other which caused the node to run out of memory. Changing the allocation policy to interleaving, memory will be allocated in round-robin fashion over the available node. This can be done by using the mysqld_safe :variable:`numa_interleave` option.
 
 Another improvement implemented is preallocating the pages in the buffer pool on startup with :variable:`innodb_buffer_pool_populate` variable. This forces ``NUMA`` allocation decisions to be made immediately while the buffer cache is clean.
 
@@ -22,7 +22,7 @@ System Variables
 .. variable:: innodb_buffer_pool_populate
 
      :cli: Yes
-     :conf: No
+     :conf: Yes
      :location: mysqld
      :scope: Global
      :dyn: No
@@ -32,12 +32,12 @@ System Variables
 
 When this variable is enabled, |InnoDB| preallocates pages in the buffer pool on startup to force ``NUMA`` allocation decisions to be made immediately while the buffer cache is clean.
 
-Command-line Options
-=====================
+Command-line Options for mysqld_safe
+====================================
 
 .. variable:: flush_caches
 
-     :cli: No
+     :cli: Yes
      :conf: Yes
      :location: mysqld_safe
      :dyn: No
@@ -49,7 +49,7 @@ When enabled this will flush and purge buffers/caches before starting the server
 
 .. variable:: numa_interleave
 
-     :cli: No
+     :cli: Yes
      :conf: Yes
      :location: mysqld_safe
      :dyn: No

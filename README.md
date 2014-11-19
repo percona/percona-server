@@ -4,50 +4,44 @@ First, the hot backup library must be loaded into the mysqld server so that it c
 
 Second, there must be a user interface that can be used to start a backup, track its progress, and determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effect of setting a backup session variable to the name of the destination directory.
 
-# Install the hot backup plugin libraries
+# Install the hot backup libraries
 1 Extract the tarball
 
 2 Copy lib/mysql/plugin/tokudb_backup.so to MySQL's lib/mysql/plugin directory
 
 3 Copy lib/libHotBackup.so to MySQL's lib directory
 
-# Using the hot backup plugin
-Here are some details on how to use this plugin to run Tokutek hot backup.
-
-1 Init mysqld
+4 Init mysqld
 ```
 scripts/mysql_install_db
 ```
 
-2 Run mysqld with the hot backup library (should exist in the lib directory)
+5 Run mysqld with the hot backup library (should exist in the lib directory)
 ```
 LD_PRELOAD=PATH_TO_WHERE_HOT_BACKUP_LIVES/libHotBackup.so ./mysqld_safe
 ```
 
-3 Install the backup plugin (should exist in the lib/mysql/plugin directory)
+6 Install the backup plugin (should exist in the lib/mysql/plugin directory)
 ```
 mysql> install plugin tokudb_backup soname 'tokudb_backup.so';
 ````
 
-4 Check out the backup variables
-```
-mysql> show variables like 'tokudb_backup%';
-```
+# Run a backup
 
-5 Backup to the '/tmp/backup1047' directory.  This blocks until the backup is complete.
+1 Backup to the '/tmp/backup1047' directory.  This blocks until the backup is complete.
 ```
 mysql> set tokudb_backup_dir='/tmp/backup1047';
 ```
 
-6 Check if the backup worked
+2 Check if the backup worked
 ```
 mysql> select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 ```
 
-# Progress monitoring
-The Tokutek hot backup updates the processlist with progress information while it is running.
+# Monitor progress
+The Tokutek hot backup updates the processlist state with progress information while it is running.
 
-# Building the hot backup plugin
+# Build the hot backup plugin from source
 1 Checkout the Percona Server source
 
 2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.9'

@@ -4,8 +4,14 @@ First, the hot backup library must be loaded into the mysqld server so that it c
 
 Second, there must be a user interface that can be used to start a backup, track its progress, and determine whether or not the backup succeeded.  We use a plugin that kicks off a backup as a side effect of setting a backup session variable to the name of the destination directory.
 
-# How to use the hot backup plugin
+# Install the hot backup plugin libraries
+1 Extract the tarball
 
+2 Copy lib/mysql/plugin/tokudb_backup.so to MySQL's lib/mysql/plugin directory
+
+3 Copy lib/libHotBackup.so to MySQL's lib directory
+
+# Using the hot backup plugin
 Here are some details on how to use this plugin to run Tokutek hot backup.
 
 1 Init mysqld
@@ -20,7 +26,7 @@ LD_PRELOAD=PATH_TO_WHERE_HOT_BACKUP_LIVES/libHotBackup.so ./mysqld_safe
 
 3 Install the backup plugin (should exist in the lib/mysql/plugin directory)
 ```
-mysql> install plugin tokudb_backup soname 'tokubackup.so';
+mysql> install plugin tokudb_backup soname 'tokudb_backup.so';
 ````
 
 4 Check out the backup variables
@@ -35,20 +41,22 @@ mysql> set tokudb_backup_dir='/tmp/backup1047';
 
 6 Check if the backup worked
 ```
-msyql> select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
+mysql> select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 ```
 
-# How to build the hot backup plugin
+# Progress monitoring
+The Tokutek hot backup updates the processlist with progress information while it is running.
 
+# Building the hot backup plugin
 1 Checkout the Percona Server source
 
-2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.8'
+2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.9'
 ```
 cd percona-server-5.6/plugin
 git clone git@github.com:Tokutek/tokudb-backup-plugin
 ```
 
-3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.8'
+3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.9'
 ```
 cd percona-server-5.6/plugin/tokudb-backup-plugin
 git clone git@github.com:Tokutek/backup-enterprise
@@ -57,14 +65,14 @@ ln -s backup-enterprise/backup backup
 
 4 Build
 ```
-cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.0.7-percona-server-5.6 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.8 ../percona-server-5.6
+cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.9-percona-server-5.6 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.9 ../percona-server-5.6
 cd plugin/tokudb-backup-plugin
 make -j8 install
 ```
 
 5 Make tarball
 ```
-tar czf tokudb-backup-plugin-0.8-percona-server-5.6.tar.gz tokudb-backup-plugin-0.8-percona-server-5.6
+tar czf tokudb-backup-plugin-0.9-percona-server-5.6.tar.gz tokudb-backup-plugin-0.9-percona-server-5.6
 ```
 
 # Work to do

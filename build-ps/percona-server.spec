@@ -1416,6 +1416,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Thu Nov 20 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed debug symbols on rhel5 (bug 1388972)
+
 * Tue Aug 26 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Added support for centos7

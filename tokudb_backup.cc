@@ -10,6 +10,8 @@
 #include <log.h>
 #include <sql_class.h>
 #include <binlog.h>
+#include <sql_acl.h>   // SUPER_ACL
+#include <sql_parse.h> // check_global_access
 #include "backup/backup.h"
 
 #ifdef TOKUDB_BACKUP_PLUGIN_VERSION
@@ -20,10 +22,10 @@
 #define TOKUDB_BACKUP_PLUGIN_VERSION_STRING NULL
 #endif
 
-static char *tokudb_backup_plugin_version = (char *) TOKUDB_BACKUP_PLUGIN_VERSION_STRING;
+static char *tokudb_backup_plugin_version;
 
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY, "version",
-                        NULL, NULL, NULL);
+                        NULL, NULL, TOKUDB_BACKUP_PLUGIN_VERSION_STRING);
 
 static char *tokudb_backup_version = (char *) tokubackup_version_string;
 
@@ -38,14 +40,16 @@ static MYSQL_THDVAR_ULONG(last_error, PLUGIN_VAR_THDLOCAL, "last error",
 
 static MYSQL_THDVAR_STR(last_error_string, PLUGIN_VAR_THDLOCAL | PLUGIN_VAR_MEMALLOC, "last error string", NULL, NULL, NULL);
 
+static int tokudb_backup_check_dir(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value);
 static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save);
 
-static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup dir", NULL, tokudb_backup_update_dir, NULL);
+static MYSQL_THDVAR_STR(dir, PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC, "backup dir", tokudb_backup_check_dir, tokudb_backup_update_dir, NULL);
 
+static int tokudb_backup_check_throttle(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value);
 static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save);
 
 static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
-                              NULL, tokudb_backup_update_throttle, ~0ULL /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
+                              tokudb_backup_check_throttle, tokudb_backup_update_throttle, ~0ULL /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
 static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(plugin_version),
@@ -420,6 +424,23 @@ private:
     destination_dirs() {};
 };
 
+static int tokudb_backup_check_dir(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value) {
+    // check access
+    if (check_global_access(thd, SUPER_ACL)) {
+        return 1;
+    }
+
+    // check_func_str
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    int length = sizeof(buff);
+    const char *str;
+    if ((str = value->val_str(value, buff, &length))) {
+        str = thd->strmake(str, length);
+    }
+    *(const char**)save = str;
+    return 0;
+}
+
 static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
     // reset error variables
     int error = 0;
@@ -484,6 +505,19 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     my_free(progress_extra._the_string);
     
     THDVAR(thd, last_error) = error;
+}
+
+static int tokudb_backup_check_throttle(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value) {
+    // check access
+    if (check_global_access(thd, SUPER_ACL)) {
+        return 1;
+    }
+
+    // check_func_ulonglong
+    longlong n;
+    value->val_int(value, &n);
+    *(longlong *) save = n;
+    return 0;
 }
 
 static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {

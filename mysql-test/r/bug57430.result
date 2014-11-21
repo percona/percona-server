@@ -1,0 +1,14 @@
+CREATE TABLE t2970 (a INT, b INT, c INT, d INT, KEY(a), KEY(a, b)) ENGINE=InnoDB;
+INSERT INTO t2970 VALUES (1,1,1,1), (1,2,3,4);
+EXPLAIN SELECT a, COUNT(b), MAX(b) FROM t2970 WHERE a > 0 GROUP BY a ORDER BY a;;
+id	1
+select_type	SIMPLE
+table	t2970
+type	index
+possible_keys	a,a_2
+key	a_2
+key_len	10
+ref	NULL
+rows	2
+Extra	Using where; Using index
+DROP TABLE t2970;

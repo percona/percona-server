@@ -5656,7 +5656,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           if (best_key < 0 ||
               (select_limit <= min(quick_records,best_records) ?
                keyinfo->user_defined_key_parts < best_key_parts :
-               quick_records < best_records))
+               quick_records < best_records) ||
+               ((quick_records == best_records) &&
+                !is_best_covering && is_covering))
           {
             best_key= nr;
             best_key_parts= keyinfo->user_defined_key_parts;

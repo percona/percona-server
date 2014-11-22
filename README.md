@@ -23,19 +23,19 @@ LD_PRELOAD=PATH_TO_MYSQL_BASE_DIR/lib/libHotBackup.so ./mysqld_safe
 
 6 Install the backup plugin (should exist in the lib/mysql/plugin directory)
 ```
-mysql> install plugin tokudb_backup soname 'tokudb_backup.so';
+install plugin tokudb_backup soname 'tokudb_backup.so';
 ````
 
 # Run a backup
 
 1 Backup to the '/tmp/backup1047' directory.  This blocks until the backup is complete.
 ```
-mysql> set tokudb_backup_dir='/tmp/backup1047';
+set tokudb_backup_dir='/tmp/backup1047';
 ```
 
 2 Check if the backup worked
 ```
-mysql> select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
+select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 ```
 
 # Monitor progress

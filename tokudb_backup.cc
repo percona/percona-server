@@ -72,7 +72,7 @@ static int tokudb_backup_progress_fun(float progress, const char *progress_strin
 
     // print to error log
     if (THDVAR(be->_thd, debug)) {
-        sql_print_information("tokudb_backup progress %f %s", progress, progress_string);
+        sql_print_information("tokudb backup progress %f %s", progress, progress_string);
     }
 
     // set thd proc info
@@ -80,7 +80,7 @@ static int tokudb_backup_progress_fun(float progress, const char *progress_strin
     size_t len = 100 + strlen(progress_string);
     be->_the_string = (char *) my_realloc(be->_the_string, len, MYF(MY_FAE+MY_ALLOW_ZERO_PTR));
     float percentage = progress * 100;
-    int r = snprintf(be->_the_string, len, "tokudb_backup about %.0f%% done: %s", percentage, progress_string);
+    int r = snprintf(be->_the_string, len, "tokudb backup about %.0f%% done: %s", percentage, progress_string);
     assert(0 < r && (size_t)r <= len);
     thd_proc_info(be->_thd, be->_the_string);
 
@@ -103,7 +103,7 @@ static void tokudb_backup_set_error_string(THD *thd, int error, const char *erro
     int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
     assert(0 < r && (size_t)r <= n);
     if (THDVAR(thd, debug)) {
-        sql_print_information("tokudb_backup error %d %s", error, error_string);
+        sql_print_information("tokudb backup error %d %s", error, error_string);
     }
     tokudb_backup_set_error(thd, error, error_string);
 }
@@ -117,7 +117,7 @@ static void tokudb_backup_error_fun(int error_number, const char *error_string, 
 
     // print to error log
     if (THDVAR(be->_thd, debug)) {
-        sql_print_information("tokudb_backup error %d %s", error_number, error_string);
+        sql_print_information("tokudb backup error %d %s", error_number, error_string);
     }
 
     // set last_error and last_error_string
@@ -162,10 +162,7 @@ public:
 
     void find_and_allocate_dirs(THD *thd) {
         // Sanitize the trailing slash of the MySQL Data Dir.
-        m_mysql_data_dir = my_strdup(mysql_real_data_home, MYF(MY_FAE));
-
-        const size_t length = strlen(m_mysql_data_dir);
-        m_mysql_data_dir[length - 1] = 0;
+        m_mysql_data_dir = realpath(mysql_real_data_home, NULL);
 
         // To avoid crashes due to my_error being called prematurely by find_plug_in_sys_var, we make sure
         // that the tokudb system variables exist which is the case if the tokudb plugin is loaded.
@@ -279,6 +276,17 @@ public:
         return count;
     }
 
+    bool is_child_of_any(const char *dest_dir, THD * thd) {
+        bool result = false;
+        for (int i = 0; i < m_count; i++) {
+            if (dir_is_child_of_dir(dest_dir, m_dirs[i])) { 
+                tokudb_backup_set_error_string(thd, EINVAL, "%s is a child of %s", dest_dir, m_dirs[i], "");
+                result = true;
+            }
+        }
+        return result;
+    }
+
 private:
 
     const char * find_log_bin_dir(THD *thd) {
@@ -326,7 +334,7 @@ private:
             String scratch;
             String * str = item->val_str(&scratch);
             if (str) {
-                result = my_strdup(str->ptr(), MYF(MY_FAE));
+                result = realpath(str->ptr(), NULL);
             }
         }
 
@@ -335,15 +343,30 @@ private:
         return result;
     }
 
-    bool dir_is_child_of_dir(const char *candidate, const char *potential_parent) {
-        size_t length = strlen(potential_parent);
-        int r = strncmp(candidate, potential_parent, length);
-        return r == 0;
+    // is directory "a" a child of directory "b"
+    bool dir_is_child_of_dir(const char *a, const char *b) {
+        bool result = false;
+        char *apath = realpath(a, NULL);
+        char *bpath = realpath(b, NULL);
+        if (apath && bpath) {
+            result = strncmp(apath, bpath, strlen(bpath)) == 0;
+        }
+        free(apath);
+        free(bpath);
+        return result;
     }
 
-    bool dirs_are_the_same(const char *left, const char *right) {
-        int r = strcmp(left, right);
-        return r == 0;
+    // is directory "a" the same as directory "b"
+    bool dirs_are_the_same(const char *a, const char *b) {
+        bool result = false;
+        char *apath = realpath(a, NULL);
+        char *bpath = realpath(b, NULL);
+        if (apath && bpath) {
+            result = strcmp(apath, bpath) == 0;
+        }
+        free(apath);
+        free(bpath);
+        return result;
     }
 
     // Removes the trailing bin log file from the system variable.
@@ -442,6 +465,8 @@ static int tokudb_backup_check_dir(THD *thd, struct st_mysql_sys_var *var, void 
 }
 
 static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
+    const char *dest_dir = *(const char **) save;
+
     // reset error variables
     int error = 0;
     tokudb_backup_set_error(thd, error, NULL);
@@ -454,7 +479,12 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     }
 
     sources.set_dirs();
-    struct destination_dirs destinations(*(const char **) save);
+
+    if (sources.is_child_of_any(dest_dir, thd)) {
+        return;
+    }
+
+    struct destination_dirs destinations(dest_dir);
     int index = 0;
     destinations.set_backup_subdir("/mysql_data_dir", index);
     if (sources.tokudb_data_set) {
@@ -471,7 +501,7 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
 
     error = destinations.create_dirs();
     if (error) {
-        tokudb_backup_set_error(thd, error, "tokudb_backup couldn't create needed directories.");
+        tokudb_backup_set_error(thd, error, "tokudb backup couldn't create needed directories.");
         return;
     }
 
@@ -483,7 +513,7 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     }
 
     if (THDVAR(thd, debug)) {
-        sql_print_information("tokudb_backup initiating backup:");
+        sql_print_information("initiating tokudb backup:");
         for (int i = 0; i < count; ++i) {
             sql_print_information("%d: %s -> %s", i + 1, source_dirs[i], dest_dirs[i]);
         }
@@ -501,7 +531,7 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     }
 
     // cleanup
-    thd_proc_info(thd, "tokudb_backup done"); // must be a static string
+    thd_proc_info(thd, "tokudb backup done"); // must be a static string
     my_free(progress_extra._the_string);
     
     THDVAR(thd, last_error) = error;
@@ -513,7 +543,7 @@ static int tokudb_backup_check_throttle(THD *thd, struct st_mysql_sys_var *var, 
         return 1;
     }
 
-    // check_func_ulonglong
+    // save throttle
     longlong n;
     value->val_int(value, &n);
     *(longlong *) save = n;

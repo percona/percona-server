@@ -18,7 +18,7 @@ scripts/mysql_install_db
 
 5 Run mysqld with the hot backup library (should exist in the lib directory)
 ```
-LD_PRELOAD=PATH_TO_WHERE_HOT_BACKUP_LIVES/libHotBackup.so ./mysqld_safe
+LD_PRELOAD=PATH_TO_MYSQL_BASE_DIR/lib/libHotBackup.so ./mysqld_safe
 ```
 
 6 Install the backup plugin (should exist in the lib/mysql/plugin directory)
@@ -59,7 +59,7 @@ ln -s backup-enterprise/backup backup
 
 4 Build
 ```
-cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.9-percona-server-5.6 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.9 ../percona-server-5.6
+cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.11-percona-server-5.6 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.11 ../percona-server-5.6
 cd plugin/tokudb-backup-plugin
 make -j8 install
 ```

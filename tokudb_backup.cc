@@ -447,30 +447,7 @@ private:
     destination_dirs() {};
 };
 
-static int tokudb_backup_check_dir(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value) {
-    // check access
-    if (check_global_access(thd, SUPER_ACL)) {
-        return 1;
-    }
-
-    // check_func_str
-    char buff[STRING_BUFFER_USUAL_SIZE];
-    int length = sizeof(buff);
-    const char *str;
-    if ((str = value->val_str(value, buff, &length))) {
-        str = thd->strmake(str, length);
-    }
-    *(const char**)save = str;
-    return 0;
-}
-
-static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
-    const char *dest_dir = *(const char **) save;
-
-    // reset error variables
-    int error = 0;
-    tokudb_backup_set_error(thd, error, NULL);
-
+static void tokudb_backup_run(THD *thd, const char *dest_dir) {
     struct source_dirs sources;
     sources.find_and_allocate_dirs(thd);
 
@@ -499,7 +476,7 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
         destinations.set_backup_subdir("/mysql_log_bin", ++index);
     }
 
-    error = destinations.create_dirs();
+    int error = destinations.create_dirs();
     if (error) {
         tokudb_backup_set_error(thd, error, "tokudb backup couldn't create needed directories.");
         return;
@@ -513,9 +490,8 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     }
 
     if (THDVAR(thd, debug)) {
-        sql_print_information("initiating tokudb backup:");
         for (int i = 0; i < count; ++i) {
-            sql_print_information("%d: %s -> %s", i + 1, source_dirs[i], dest_dirs[i]);
+            sql_print_information("tokudb backup %d: %s -> %s", i + 1, source_dirs[i], dest_dirs[i]);
         }
     }
 
@@ -535,6 +511,44 @@ static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, voi
     my_free(progress_extra._the_string);
     
     THDVAR(thd, last_error) = error;
+}
+
+static int tokudb_backup_check_dir(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value) {
+    // check for set global and its synomyms
+
+    // reset error variables
+    int error = 0;
+    tokudb_backup_set_error(thd, error, NULL);
+
+    // check access
+    if (check_global_access(thd, SUPER_ACL)) {
+        return 1;
+    }
+
+    // check_func_str
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    int length = sizeof(buff);
+    const char *str = value->val_str(value, buff, &length);
+    if (str) {
+        str = thd->strmake(str, length);
+        *(const char**)save = str;
+    }
+
+    if (str) {
+        // run backup
+        tokudb_backup_run(thd, str);
+
+        // get the last backup error
+        error = THDVAR(thd, last_error);
+    } else {
+        error = EINVAL;
+    }
+
+    return error;
+}
+
+static void tokudb_backup_update_dir(THD *thd, struct st_mysql_sys_var *var, void *var_ptr, const void *save) {
+    // nothing to do, backup is run in the check dir function
 }
 
 static int tokudb_backup_check_throttle(THD *thd, struct st_mysql_sys_var *var, void *save, struct st_mysql_value *value) {

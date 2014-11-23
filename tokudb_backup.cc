@@ -464,6 +464,14 @@ private:
 };
 
 static void tokudb_backup_run(THD *thd, const char *dest_dir) {
+    // check if the dest dir exists
+    char *dest_dir_path = realpath(dest_dir, NULL);
+    if (dest_dir_path == NULL) {
+        tokudb_backup_set_error_string(thd, errno, "Could not get real path for %s", dest_dir, "", "");
+        return;
+    }
+    free(dest_dir_path);
+
     struct source_dirs sources;
     sources.find_and_allocate_dirs(thd);
 

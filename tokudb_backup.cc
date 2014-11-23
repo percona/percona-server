@@ -162,7 +162,7 @@ public:
 
     void find_and_allocate_dirs(THD *thd) {
         // Sanitize the trailing slash of the MySQL Data Dir.
-        m_mysql_data_dir = realpath(mysql_real_data_home, NULL);
+        m_mysql_data_dir = my_strdup(mysql_real_data_home, MYF(MY_FAE));
 
         // To avoid crashes due to my_error being called prematurely by find_plug_in_sys_var, we make sure
         // that the tokudb system variables exist which is the case if the tokudb plugin is loaded.
@@ -334,7 +334,7 @@ private:
             String scratch;
             String * str = item->val_str(&scratch);
             if (str) {
-                result = realpath(str->ptr(), NULL);
+                result = my_strdup(str->ptr(), MYF(MY_FAE));
             }
         }
 
@@ -343,11 +343,27 @@ private:
         return result;
     }
 
+    char *realpath_with_slash(const char *a) {
+        char *result = NULL;
+        char *apath = realpath(a, NULL);
+        if (apath) {
+            result = apath;
+            size_t apath_len = strlen(apath);
+            if (apath[apath_len] != '/') {
+                char *apath_with_slash = (char *) my_malloc(apath_len+2, MYF(MY_FAE));
+                sprintf(apath_with_slash, "%s/", apath);
+                free(apath);
+                result = apath_with_slash;
+            }
+        }
+        return result;
+    }
+
     // is directory "a" a child of directory "b"
     bool dir_is_child_of_dir(const char *a, const char *b) {
         bool result = false;
-        char *apath = realpath(a, NULL);
-        char *bpath = realpath(b, NULL);
+        char *apath = realpath_with_slash(a);
+        char *bpath = realpath_with_slash(b);
         if (apath && bpath) {
             result = strncmp(apath, bpath, strlen(bpath)) == 0;
         }
@@ -359,8 +375,8 @@ private:
     // is directory "a" the same as directory "b"
     bool dirs_are_the_same(const char *a, const char *b) {
         bool result = false;
-        char *apath = realpath(a, NULL);
-        char *bpath = realpath(b, NULL);
+        char *apath = realpath_with_slash(a);
+        char *bpath = realpath_with_slash(b);
         if (apath && bpath) {
             result = strcmp(apath, bpath) == 0;
         }

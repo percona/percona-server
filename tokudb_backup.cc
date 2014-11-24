@@ -51,6 +51,11 @@ static void tokudb_backup_update_throttle(THD *thd, struct st_mysql_sys_var *var
 static MYSQL_THDVAR_ULONGLONG(throttle, PLUGIN_VAR_THDLOCAL, "backup throttle",
                               tokudb_backup_check_throttle, tokudb_backup_update_throttle, ~0ULL /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
 
+static char *tokudb_backup_allowed_prefix;
+
+static MYSQL_SYSVAR_STR(allowed_prefix, tokudb_backup_allowed_prefix, PLUGIN_VAR_READONLY, "destination directory prefix",
+                        NULL, NULL, NULL);
+
 static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(plugin_version),
     MYSQL_SYSVAR(version),
@@ -59,6 +64,7 @@ static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(last_error),
     MYSQL_SYSVAR(last_error_string),
     MYSQL_SYSVAR(debug),
+    MYSQL_SYSVAR(allowed_prefix),
     NULL,
 };
 
@@ -98,7 +104,7 @@ static void tokudb_backup_set_error(THD *thd, int error, const char *error_strin
 }
 
 static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
-    size_t n = strlen(error_fmt) + strlen(s1) + strlen(s2) + strlen(s3);
+    size_t n = strlen(error_fmt) + (s1 ? strlen(s1) : 0) + (s2 ? strlen(s2) : 0) + (s3 ? strlen(s3) : 0);
     char error_string[n+1];
     int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
     assert(0 < r && (size_t)r <= n);
@@ -122,6 +128,36 @@ static void tokudb_backup_error_fun(int error_number, const char *error_string, 
 
     // set last_error and last_error_string
     tokudb_backup_set_error(be->_thd, error_number, error_string);
+}
+
+static char *tokudb_backup_realpath_with_slash(const char *a) {
+    char *result = NULL;
+    char *apath = realpath(a, NULL);
+    if (apath) {
+        result = apath;
+        size_t apath_len = strlen(apath);
+        if (apath[apath_len] != '/') {
+            char *apath_with_slash = (char *) my_malloc(apath_len+2, MYF(MY_FAE));
+            sprintf(apath_with_slash, "%s/", apath);
+            free(apath);
+            result = apath_with_slash;
+        }
+    }
+    return result;
+}
+
+static bool tokudb_backup_is_child_of(const char *a, const char *b) {
+    bool result = false;
+    char *apath = tokudb_backup_realpath_with_slash(a);
+    char *bpath = tokudb_backup_realpath_with_slash(b);
+    if (apath && bpath) {
+        result = strncmp(apath, bpath, strlen(bpath)) == 0;
+    }
+    if (apath) 
+        free(apath);
+    if (bpath) 
+        free(bpath);
+    return result;
 }
 
 const int MYSQL_MAX_DIR_COUNT = 4;
@@ -279,8 +315,8 @@ public:
     bool is_child_of_any(const char *dest_dir, THD * thd) {
         bool result = false;
         for (int i = 0; i < m_count; i++) {
-            if (dir_is_child_of_dir(dest_dir, m_dirs[i])) { 
-                tokudb_backup_set_error_string(thd, EINVAL, "%s is a child of %s", dest_dir, m_dirs[i], "");
+            if (tokudb_backup_is_child_of(dest_dir, m_dirs[i])) { 
+                tokudb_backup_set_error_string(thd, EINVAL, "%s is a child of %s", dest_dir, m_dirs[i], NULL);
                 result = true;
             }
         }
@@ -343,45 +379,23 @@ private:
         return result;
     }
 
-    char *realpath_with_slash(const char *a) {
-        char *result = NULL;
-        char *apath = realpath(a, NULL);
-        if (apath) {
-            result = apath;
-            size_t apath_len = strlen(apath);
-            if (apath[apath_len] != '/') {
-                char *apath_with_slash = (char *) my_malloc(apath_len+2, MYF(MY_FAE));
-                sprintf(apath_with_slash, "%s/", apath);
-                free(apath);
-                result = apath_with_slash;
-            }
-        }
-        return result;
-    }
-
     // is directory "a" a child of directory "b"
     bool dir_is_child_of_dir(const char *a, const char *b) {
-        bool result = false;
-        char *apath = realpath_with_slash(a);
-        char *bpath = realpath_with_slash(b);
-        if (apath && bpath) {
-            result = strncmp(apath, bpath, strlen(bpath)) == 0;
-        }
-        free(apath);
-        free(bpath);
-        return result;
+        return tokudb_backup_is_child_of(a, b);
     }
 
     // is directory "a" the same as directory "b"
     bool dirs_are_the_same(const char *a, const char *b) {
         bool result = false;
-        char *apath = realpath_with_slash(a);
-        char *bpath = realpath_with_slash(b);
+        char *apath = tokudb_backup_realpath_with_slash(a);
+        char *bpath = tokudb_backup_realpath_with_slash(b);
         if (apath && bpath) {
             result = strcmp(apath, bpath) == 0;
         }
-        free(apath);
-        free(bpath);
+        if (apath)
+            free(apath);
+        if (bpath)
+            free(bpath);
         return result;
     }
 
@@ -464,10 +478,22 @@ private:
 };
 
 static void tokudb_backup_run(THD *thd, const char *dest_dir) {
+    int error = 0;
+
+    // check that the dest dir is a child of the tokudb_backup_allowed_prefix
+    if (tokudb_backup_allowed_prefix) {
+        if (!tokudb_backup_is_child_of(dest_dir, tokudb_backup_allowed_prefix)) {
+            error = EINVAL;
+            tokudb_backup_set_error_string(thd, error, "%s is not a child of %s", dest_dir, tokudb_backup_allowed_prefix, NULL);
+            return;
+        }
+    }
+
     // check if the dest dir exists
-    char *dest_dir_path = realpath(dest_dir, NULL);
+    char *dest_dir_path = tokudb_backup_realpath_with_slash(dest_dir);
     if (dest_dir_path == NULL) {
-        tokudb_backup_set_error_string(thd, errno, "Could not get real path for %s", dest_dir, "", "");
+        error = errno;
+        tokudb_backup_set_error_string(thd, error, "Could not get real path for %s", dest_dir, NULL, NULL);
         return;
     }
     free(dest_dir_path);
@@ -500,7 +526,7 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
         destinations.set_backup_subdir("/mysql_log_bin", ++index);
     }
 
-    int error = destinations.create_dirs();
+    error = destinations.create_dirs();
     if (error) {
         tokudb_backup_set_error(thd, error, "tokudb backup couldn't create needed directories.");
         return;

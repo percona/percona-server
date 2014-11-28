@@ -4882,7 +4882,7 @@ int mysqld_main(int argc, char **argv)
   /* Signal threads waiting for server to be started */
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= 1;
-  mysql_cond_signal(&COND_server_started);
+  mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
 #if defined(_WIN32) || defined(HAVE_SMEM)

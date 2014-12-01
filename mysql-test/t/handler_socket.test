@@ -1,0 +1,14 @@
+--source include/have_handler_socket.inc
+
+call mtr.add_suppression("handlersocket: open_files_limit is too small");
+
+--replace_result $HANDLER_SOCKET HANDLER_SOCKET
+eval INSTALL PLUGIN handlersocket SONAME '$HANDLER_SOCKET';
+
+#
+# Test for bug 1397859: mysqld crashes or hangs on HS plugin shutdown
+#
+--echo Restarting mysqld for bug 1397859 test...
+--source include/restart_mysqld.inc
+
+UNINSTALL PLUGIN handlersocket;

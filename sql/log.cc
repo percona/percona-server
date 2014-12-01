@@ -32,7 +32,12 @@
 #include "sql_parse.h"    // sql_command_flags
 #include "sql_time.h"     // calc_time_from_sec
 #include "table.h"        // TABLE_FIELD_TYPE
-#include "binlog.h"       // generate_new_log_name
+#include "sp_rcontext.h"
+#include "sp_head.h"
+#include "binlog.h"             // generate_new_log_name
+#include "sp_instr.h"           // sp_lex_instr
+#include "sql_prepare.h"        // Prepared_statement
+#include "mysqld.h" // max_binlog_files etc
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -911,6 +916,12 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   if (my_b_write(&log_file, (uchar*) "\n", 1))
     goto err;
 
+  if (opt_log_slow_sp_statements == 1 && thd->sp_runtime_ctx &&
+      my_b_printf(&log_file,
+                  "# Stored_routine: %s\n",
+                  thd->sp_runtime_ctx->sp->m_qname.str) == (uint) -1)
+    goto err;
+
 #if defined(ENABLED_PROFILING)
   thd->profiling.print_current(&log_file);
 #endif
@@ -1482,8 +1493,11 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   LEX_CSTRING sctx_host= sctx->host();
   LEX_CSTRING sctx_ip= sctx->ip();
   size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                  sctx->priv_user().str, "[",
-                                  sctx_user.length ? sctx_user.str : "", "] @ ",
+                                  sctx->priv_user().str
+                                  ? sctx->priv_user().str : "",
+                                  "[", sctx_user.length ? sctx_user.str :
+                                  (thd->slave_thread ? "SQL_SLAVE" : ""),
+                                  "] @ ",
                                   sctx_host.length ? sctx_host.str : "", " [",
                                   sctx_ip.length ? sctx_ip.str : "", "]",
                                   NullS) - user_host_buff);
@@ -1759,6 +1773,7 @@ Query_logger::check_if_log_table(TABLE_LIST *table_list,
     {
       if (!check_if_opened || is_log_table_enabled(QUERY_LOG_SLOW))
         return QUERY_LOG_SLOW;
+      return QUERY_LOG_NONE;
     }
   }
   return QUERY_LOG_NONE;
@@ -1873,6 +1888,40 @@ bool log_slow_applicable(THD *thd)
 
   ulonglong end_utime_of_query= thd->current_utime();
   ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+
+  /*
+    Don't log the CALL statement if slow statements logging
+    inside of stored procedures is enabled.
+  */
+  if (opt_log_slow_sp_statements > 0 && thd->lex)
+  {
+    if (thd->lex->sql_command == SQLCOM_CALL)
+    {
+      if (!thd->stmt_arena->is_conventional())
+      {
+        int sql_command= ((sp_lex_instr *)thd->stmt_arena)->get_command();
+        if (sql_command == SQLCOM_CALL || sql_command == -1)
+          DBUG_RETURN(false);
+      }
+      else
+        DBUG_RETURN(false);
+    }
+    else if (thd->lex->sql_command == SQLCOM_EXECUTE)
+    {
+      Prepared_statement *stmt;
+      LEX_CSTRING *name= &thd->lex->prepared_stmt_name;
+      if ((stmt= thd->stmt_map.find_by_name(*name)) != NULL &&
+          stmt->lex && stmt->lex->sql_command == SQLCOM_CALL)
+        DBUG_RETURN(false);
+    }
+  }
+
+  /*
+    Low long_query_time value most likely means user is debugging stuff and even
+    though some thread's queries are not supposed to be logged b/c of the rate
+    limit, if one of them takes long enough (>= 1 second) it will be sensible
+    to make an exception and write to slow log anyway.
+  */
 
   system_variables const &g= global_system_variables;
   copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
@@ -2192,6 +2241,7 @@ bool Error_log_throttle::log()
 
   /*
     If the window has expired, we'll try to write a summary line.
+    The subroutine will know whether we actually need to.
   */
   if (!in_window(end_utime_of_query))
   {

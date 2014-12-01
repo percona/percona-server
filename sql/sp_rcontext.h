@@ -139,13 +139,12 @@ class sp_rcontext : public Sql_alloc
   */
   bool end_partial_result_set;
 
-#ifndef DBUG_OFF
   /*
     The routine for which this runtime context is created. Used for checking
-    if correct runtime context is used for variable handling.
+    if correct runtime context is used for variable handling and for logging
+    slow statements inside of stored procedure.
   */
   sp_head *sp;
-#endif
 
   sp_rcontext(sp_pcontext *root_parsing_ctx, Field *return_value_fld,
               sp_rcontext *prev_runtime_ctx);

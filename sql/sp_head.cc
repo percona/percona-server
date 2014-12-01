@@ -1729,9 +1729,7 @@ sp_head::execute_trigger(THD *thd,
     goto err_with_cleanup;
   }
 
-#ifndef DBUG_OFF
   nctx->sp= this;
-#endif
 
   thd->spcont= nctx;
 
@@ -1855,9 +1853,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   */
   thd->restore_active_arena(&call_arena, &backup_arena);
 
-#ifndef DBUG_OFF
   nctx->sp= this;
-#endif
 
   /* Pass arguments. */
   for (arg_no= 0; arg_no < argcount; arg_no++)
@@ -2063,9 +2059,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       DBUG_RETURN(TRUE);
     }
 
-#ifndef DBUG_OFF
     octx->sp= 0;
-#endif
     thd->spcont= octx;
 
     /* set callers_arena to thd, for upper-level function to work */
@@ -2079,9 +2073,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
     thd->spcont= save_spcont;
     DBUG_RETURN(TRUE);
   }
-#ifndef DBUG_OFF
   nctx->sp= this;
-#endif
 
   if (params > 0)
   {

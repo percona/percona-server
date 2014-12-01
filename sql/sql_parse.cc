@@ -1580,6 +1580,28 @@ void log_slow_statement(THD *thd)
 #endif
 
   /*
+    Don't log the CALL statement if slow statements logging
+    inside of stored procedures is enabled.
+    This code should be run after query_response_time_collect(...)
+    function to avoid influence on query_response_time_stats logic.
+  */
+  if (opt_log_slow_sp_statements &&
+      thd->lex)
+  {
+    if (thd->lex->sql_command == SQLCOM_CALL)
+      DBUG_VOID_RETURN;
+    /* Can be prepared CALL statement */
+    if (thd->lex->sql_command == SQLCOM_EXECUTE)
+    {
+      Statement *stmt;
+      LEX_STRING *name= &thd->lex->prepared_stmt_name;
+      if ((stmt= thd->stmt_map.find_by_name(name)) != NULL &&
+          stmt->lex && stmt->lex->sql_command == SQLCOM_CALL)
+          DBUG_VOID_RETURN;
+    }
+  }
+
+  /*
     Low long_query_time value most likely means user is debugging stuff and even
     though some thread's queries are not supposed to be logged b/c of the rate
     limit, if one of them takes long enough (>= 1 second) it will be sensible

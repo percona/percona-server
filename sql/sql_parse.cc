@@ -82,6 +82,8 @@
 #include "rpl_handler.h"
 
 #include "sp_head.h"
+#include "sp_rcontext.h"
+#include "sp_instr.h"
 #include "sp.h"
 #include "sp_cache.h"
 #include "events.h"
@@ -1997,6 +1999,19 @@ bool log_slow_applicable(THD *thd)
 
   ulonglong end_utime_of_query= thd->current_utime();
   ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+
+  /*
+    Don't log the CALL statement if slow statements logging
+    inside of stored procedures is enabled.
+  */
+  if (opt_log_slow_sp_statements &&
+      (thd->lex &&
+       (thd->lex->sql_command == SQLCOM_CALL ||
+        thd->lex->sql_command == SQLCOM_EXECUTE)) &&
+      (thd->stmt_arena &&
+       ((((sp_lex_instr *)thd->stmt_arena)->get_command() == SQLCOM_CALL) ||
+        (((sp_lex_instr *)thd->stmt_arena)->get_command() == -1))))
+    DBUG_RETURN(false);
 
   /*
     Low long_query_time value most likely means user is debugging stuff and even

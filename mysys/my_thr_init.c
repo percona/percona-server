@@ -297,8 +297,34 @@ my_bool my_thread_init(void)
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
 
-  tmp->stack_ends_here= (char*)&tmp +
-                         STACK_DIRECTION * (long)my_thread_stack_size;
+#if defined(_GNU_SOURCE) && (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)
+  {
+    pthread_attr_t attr;
+    char*          stack_addr;
+    size_t         stack_size;
+
+    if (pthread_attr_init(&attr) ||
+        pthread_getattr_np(tmp->pthread_self, &attr) ||
+        pthread_attr_getstack(&attr, (void**)&stack_addr, &stack_size))
+    {
+      error= 1;
+      goto end;
+    }
+    tmp->stack_ends_here= stack_addr;
+
+    if (pthread_attr_destroy(&attr))
+    {
+      error= 1;
+      goto end;
+    }
+  }
+#else  //defined(_GNU_SOURCE) && (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)
+  /* assuming tmp is located within the first page of the stack */
+  tmp->stack_ends_here= (void **)(((long long)&tmp & (~((long long)my_getpagesize() - 1))) +
+                                  ((STACK_DIRECTION == 1) ?
+                                  my_thread_stack_size :
+                                  my_getpagesize() - my_thread_stack_size));
+#endif //defined(_GNU_SOURCE) && (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600)
 
   mysql_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;

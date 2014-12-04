@@ -2004,14 +2004,28 @@ bool log_slow_applicable(THD *thd)
     Don't log the CALL statement if slow statements logging
     inside of stored procedures is enabled.
   */
-  if (opt_log_slow_sp_statements &&
-      (thd->lex &&
-       (thd->lex->sql_command == SQLCOM_CALL ||
-        thd->lex->sql_command == SQLCOM_EXECUTE)) &&
-      (thd->stmt_arena &&
-       ((((sp_lex_instr *)thd->stmt_arena)->get_command() == SQLCOM_CALL) ||
-        (((sp_lex_instr *)thd->stmt_arena)->get_command() == -1))))
-    DBUG_RETURN(false);
+  if (opt_log_slow_sp_statements && thd->lex)
+  {
+    if (thd->lex->sql_command == SQLCOM_CALL)
+    {
+      if (thd->stmt_arena)
+      {
+        int sql_command= ((sp_lex_instr *)thd->stmt_arena)->get_command();
+        if (sql_command == SQLCOM_CALL || sql_command == -1)
+          DBUG_RETURN(false);
+      }
+      else
+        DBUG_RETURN(false);
+    }
+    else if (thd->lex->sql_command == SQLCOM_EXECUTE)
+    {
+      Statement *stmt;
+      LEX_STRING *name= &thd->lex->prepared_stmt_name;
+      if ((stmt= thd->stmt_map.find_by_name(name)) != NULL &&
+          stmt->lex && stmt->lex->sql_command == SQLCOM_CALL)
+          DBUG_RETURN(false);
+    }
+  }
 
   /*
     Low long_query_time value most likely means user is debugging stuff and even

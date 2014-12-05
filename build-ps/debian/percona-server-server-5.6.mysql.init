@@ -105,10 +105,16 @@ case "${1:-''}" in
 	   log_end_msg 0
 	else
   	    "${PERCONA_PREFIX}"/bin/mysqld_safe > /dev/null 2>&1 &
-	    # 6s was reported in #352070 to be too few when using ndbcluster
-	    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
+	    dead_check_counter=0
+	    while true; do
                 sleep 1
 	        if mysqld_status check_alive nowarn ; then break; fi
+		# wait 10sec before start checking if pid file created or server is dead
+		if [ $dead_check_counter -lt 10 ]; then
+			dead_check_counter=$(( dead_check_counter + 1 ))
+		else
+			if mysqld_status check_dead nowarn; then break; fi
+		fi
 		log_progress_msg "."
 	    done
 	    if mysqld_status check_alive warn; then

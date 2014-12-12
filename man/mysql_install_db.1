@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2014
+.\"      Date: 11/04/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "09/06/2014" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "11/04/2014" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,10 +59,9 @@ Because the MySQL server,
 \fBmysqld\fR, must access the data directory when it runs later, you should either run
 \fBmysql_install_db\fR
 from the same system account that will be used for running
-\fBmysqld\fR
-or run it as
+\fBmysqld\fR, or run it as
 root
-and use the
+and specify the
 \fB\-\-user\fR
 option to indicate the user name that
 \fBmysqld\fR
@@ -120,7 +119,7 @@ group of an option file\&. (Options that are common to
 can also be specified in the
 [mysqld]
 group\&.) Other options are passed to
-\fBmysqld\fR\&. For information about option files, see
+\fBmysqld\fR\&. For information about option files used by MySQL programs, see
 Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
@@ -195,10 +194,7 @@ For internal use\&. This option is used for building system tables on one host i
 .\}
 .\" mysql_install_db: datadir option
 .\" datadir option: mysql_install_db
-.\" mysql_install_db: ldata option
-.\" ldata option: mysql_install_db
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR,
-\fB\-\-ldata=\fR\fB\fIpath\fR\fR
+\fB\-\-datadir=\fR\fB\fIpath\fR\fR
 .sp
 The path to the MySQL data directory\&.
 .RE
@@ -250,6 +246,22 @@ is interpreted relative to the current directory if given as a relative path nam
 Cause
 \fBmysql_install_db\fR
 to run even if DNS does not work\&. Grant table entries normally created using host names will use IP addresses instead\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: ldata option
+.\" ldata option: mysql_install_db
+\fB\-\-ldata=\fR\fB\fIpath\fR\fR
+.sp
+A synonym for
+\fB\-\-datadir\fR\&.
 .RE
 .sp
 .RS 4
@@ -330,9 +342,9 @@ looks for support files such as the error message file and the file for populati
 The system (login) user name to use for running
 \fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
-will be owned by this user\&. You must be
+will be owned by this user\&. You must be the system
 root
-to use this option\&. By default,
+user to use this option\&. By default,
 \fBmysqld\fR
 runs using your current login name and files and directories that it creates will be owned by you\&.
 .RE

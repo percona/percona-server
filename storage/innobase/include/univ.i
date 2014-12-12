@@ -121,6 +121,10 @@ if we are compiling on Windows. */
 #  include <sched.h>
 # endif
 
+# ifdef HAVE_MALLOC_H
+#  include <malloc.h>
+# endif
+
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 

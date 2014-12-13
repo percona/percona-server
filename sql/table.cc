@@ -2356,6 +2356,9 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
   outparam->default_column_bitmaps();
 
+  /* Fill record with default values */
+  restore_record(outparam, s->default_values);
+
   /* The table struct is now initialized;  Open the table */
   error= 2;
   if (db_stat)

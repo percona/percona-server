@@ -3377,6 +3377,10 @@ partititon_err:
               FALSE);
   outparam->default_column_bitmaps();
 
+  /* Fill record with default values */
+  if (outparam->record[0] != outparam->s->default_values)
+    restore_record(outparam, s->default_values);
+
   /*
     Process generated columns, if any.
   */

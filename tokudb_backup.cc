@@ -9,7 +9,7 @@
 #include <my_dbug.h>
 #include <log.h>
 #include <sql_class.h>
-#include <binlog.h>
+#include <binlog.h>    // normalize_binlog_name
 #include <sql_acl.h>   // SUPER_ACL
 #include <sql_parse.h> // check_global_access
 #include "backup/backup.h"
@@ -31,9 +31,6 @@ static char *tokudb_backup_version = (char *) tokubackup_version_string;
 
 static MYSQL_SYSVAR_STR(version, tokudb_backup_version, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY, "version",
                         NULL, NULL, NULL);
-
-static MYSQL_THDVAR_ULONG(debug, PLUGIN_VAR_THDLOCAL, "debug",
-                          NULL, NULL, 0 /*default*/, 0 /*min*/, 1 /*max*/, 1 /*blocksize*/);
 
 static MYSQL_THDVAR_ULONG(last_error, PLUGIN_VAR_THDLOCAL, "last error",
                           NULL, NULL, 0 /*default*/, 0 /*min*/, ~0ULL /*max*/, 1 /*blocksize*/);
@@ -63,7 +60,6 @@ static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(throttle),
     MYSQL_SYSVAR(last_error),
     MYSQL_SYSVAR(last_error_string),
-    MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(allowed_prefix),
     NULL,
 };
@@ -75,11 +71,6 @@ struct tokudb_backup_progress_extra {
 
 static int tokudb_backup_progress_fun(float progress, const char *progress_string, void *extra) {
     tokudb_backup_progress_extra *be = static_cast<tokudb_backup_progress_extra *>(extra);
-
-    // print to error log
-    if (THDVAR(be->_thd, debug)) {
-        sql_print_information("tokudb backup progress %f %s", progress, progress_string);
-    }
 
     // set thd proc info
     thd_proc_info(be->_thd, "");
@@ -108,9 +99,6 @@ static void tokudb_backup_set_error_string(THD *thd, int error, const char *erro
     char error_string[n+1];
     int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
     assert(0 < r && (size_t)r <= n);
-    if (THDVAR(thd, debug)) {
-        sql_print_information("tokudb backup error %d %s", error, error_string);
-    }
     tokudb_backup_set_error(thd, error, error_string);
 }
 
@@ -120,13 +108,6 @@ struct tokudb_backup_error_extra {
 
 static void tokudb_backup_error_fun(int error_number, const char *error_string, void *extra) {
     tokudb_backup_error_extra *be = static_cast<tokudb_backup_error_extra *>(extra);
-
-    // print to error log
-    if (THDVAR(be->_thd, debug)) {
-        sql_print_information("tokudb backup error %d %s", error_number, error_string);
-    }
-
-    // set last_error and last_error_string
     tokudb_backup_set_error(be->_thd, error_number, error_string);
 }
 
@@ -539,12 +520,6 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
         dest_dirs[i] = destinations.m_dirs[i];
     }
 
-    if (THDVAR(thd, debug)) {
-        for (int i = 0; i < count; ++i) {
-            sql_print_information("tokudb backup %d: %s -> %s", i + 1, source_dirs[i], dest_dirs[i]);
-        }
-    }
-
     // set the throttle
     tokubackup_throttle_backup(THDVAR(thd, throttle));
 
@@ -552,9 +527,6 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
     tokudb_backup_progress_extra progress_extra = { thd, NULL };
     tokudb_backup_error_extra error_extra = { thd };
     error = tokubackup_create_backup(source_dirs, dest_dirs, count, tokudb_backup_progress_fun, &progress_extra, tokudb_backup_error_fun, &error_extra);
-    if (THDVAR(thd, debug)) {
-        sql_print_information("%s backup error %d", __FUNCTION__, error);
-    }
 
     // cleanup
     thd_proc_info(thd, "tokudb backup done"); // must be a static string

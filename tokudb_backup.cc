@@ -3,6 +3,7 @@
 #ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
 #define MYSQL_SERVER
+#include <my_config.h>
 #include <mysql_version.h>
 #include <mysql/plugin.h>
 #include <my_global.h>

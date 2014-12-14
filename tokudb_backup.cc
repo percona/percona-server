@@ -10,7 +10,11 @@
 #include <my_dbug.h>
 #include <log.h>
 #include <sql_class.h>
+#if defined(MARIADB_BASE_VERSION)
+#include <log.h>       // normalize_binlog_name
+#else
 #include <binlog.h>    // normalize_binlog_name
+#endif
 #include <sql_acl.h>   // SUPER_ACL
 #include <sql_parse.h> // check_global_access
 #include "backup/backup.h"

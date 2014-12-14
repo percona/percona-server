@@ -101,7 +101,7 @@ static void tokudb_backup_set_error(THD *thd, int error, const char *error_strin
 
 static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
     size_t n = strlen(error_fmt) + (s1 ? strlen(s1) : 0) + (s2 ? strlen(s2) : 0) + (s3 ? strlen(s3) : 0);
-    char *error_string = static_cast<char *>(my_malloc(n, MYF(MY_FAE)));
+    char *error_string = static_cast<char *>(my_malloc(n+1, MYF(MY_FAE)));
     int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
     assert(0 < r && (size_t)r <= n);
     tokudb_backup_set_error(thd, error, error_string);
@@ -186,7 +186,9 @@ public:
     void find_and_allocate_dirs(THD *thd) {
         // Sanitize the trailing slash of the MySQL Data Dir.
         m_mysql_data_dir = my_strdup(mysql_real_data_home, MYF(MY_FAE));
-
+#if 0
+        // These APIs do not exist on MySQL 5.5 or MariaDB.  We only need this code if the tokudb storage
+        // engine is NOT installed.  
         // To avoid crashes due to my_error being called prematurely by find_plug_in_sys_var, we make sure
         // that the tokudb system variables exist which is the case if the tokudb plugin is loaded.
         const char *tokudb = "TokuDB";
@@ -197,9 +199,12 @@ public:
 
         // Note: These all allocate new strings or return NULL.
         if (tokudb_found) {
+#endif
             m_tokudb_data_dir = this->find_plug_in_sys_var("tokudb_data_dir", thd);
             m_tokudb_log_dir = this->find_plug_in_sys_var("tokudb_log_dir", thd);
+#if 0
         }
+#endif
         m_log_bin_dir = this->find_log_bin_dir(thd);
     }
 

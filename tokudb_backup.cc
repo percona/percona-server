@@ -10,7 +10,7 @@
 #include <my_dbug.h>
 #include <log.h>
 #include <sql_class.h>
-#if defined(MARIADB_BASE_VERSION)
+#if MYSQLVERSION_ID <= 50599 || defined(MARIADB_BASE_VERSION)
 #include <log.h>       // normalize_binlog_name
 #else
 #include <binlog.h>    // normalize_binlog_name
@@ -101,10 +101,11 @@ static void tokudb_backup_set_error(THD *thd, int error, const char *error_strin
 
 static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
     size_t n = strlen(error_fmt) + (s1 ? strlen(s1) : 0) + (s2 ? strlen(s2) : 0) + (s3 ? strlen(s3) : 0);
-    char error_string[n+1];
+    char *error_string = static_cast<char *>(my_malloc(n, MYF(MY_FAE)));
     int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
     assert(0 < r && (size_t)r <= n);
     tokudb_backup_set_error(thd, error, error_string);
+    my_free(error_string);
 }
 
 struct tokudb_backup_error_extra {

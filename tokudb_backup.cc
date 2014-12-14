@@ -10,7 +10,7 @@
 #include <my_dbug.h>
 #include <log.h>
 #include <sql_class.h>
-#if MYSQLVERSION_ID <= 50599 || defined(MARIADB_BASE_VERSION)
+#if MYSQL_VERSION_ID <= 50599 || defined(MARIADB_BASE_VERSION)
 #include <log.h>       // normalize_binlog_name
 #else
 #include <binlog.h>    // normalize_binlog_name

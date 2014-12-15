@@ -1649,8 +1649,9 @@ buf_pool_watch_is_sentinel(
 
 /****************************************************************//**
 Add watch for the given page to be read in. Caller must have
-appropriate hash_lock for the bpage. This function may release the
-hash_lock and reacquire it.
+appropriate hash_lock for the bpage and hold the LRU list mutex to avoid a race
+condition with buf_LRU_free_page inserting the same page into the page hash.
+This function may release the hash_lock and reacquire it.
 @return NULL if watch set, block if the page is in the buffer pool */
 UNIV_INTERN
 buf_page_t*
@@ -1664,6 +1665,8 @@ buf_pool_watch_set(
 	ulint		i;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	prio_rw_lock_t*	hash_lock;
+
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
@@ -2678,9 +2681,11 @@ loop:
 		/* Page not in buf_pool: needs to be read from file */
 
 		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+			mutex_enter(&buf_pool->LRU_list_mutex);
 			rw_lock_x_lock(hash_lock);
 			block = (buf_block_t*) buf_pool_watch_set(
 				space, offset, fold);
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 			if (UNIV_LIKELY_NULL(block)) {
 				/* We can release hash_lock after we
@@ -3012,15 +3017,19 @@ got_block:
 		if (buf_LRU_free_page(&fix_block->page, true)) {
 
 			mutex_exit(fix_mutex);
-			rw_lock_x_lock(hash_lock);
 
 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+				mutex_enter(&buf_pool->LRU_list_mutex);
+				rw_lock_x_lock(hash_lock);
+
 				/* Set the watch, as it would have
 				been set if the page were not in the
 				buffer pool in the first place. */
 				block = (buf_block_t*) buf_pool_watch_set(
 					space, offset, fold);
+				mutex_exit(&buf_pool->LRU_list_mutex);
 			} else {
+				rw_lock_x_lock(hash_lock);
 				block = (buf_block_t*) buf_page_hash_get_low(
 					buf_pool, space, offset, fold);
 			}

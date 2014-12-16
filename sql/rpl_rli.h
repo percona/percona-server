@@ -243,17 +243,7 @@ private:
   /* Last gtid retrieved by IO thread */
   Gtid last_retrieved_gtid;
 
-  /* Mem root that is freed on clear_tables_to_lock. Used for row conversion
-  virtual temp tables */
-  MEM_ROOT lock_tables_mem_root;
-
 public:
-
-  MEM_ROOT *get_lock_tables_mem_root(void) const
-  {
-    return const_cast<MEM_ROOT *>(&lock_tables_mem_root);
-  }
-
   Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
   void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)

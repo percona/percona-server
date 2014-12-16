@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,7 +78,7 @@ The following table includes all options that are supported by the MySQL Cluster
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.88.\ \& This table describes command-line options for the ndb_setup.py program
+.B Table\ \&18.92.\ \& This table describes command-line options for the ndb_setup.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -246,18 +246,12 @@ T}
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-browser\-start\-page=filename
-T}
-T{
-\ \&
-T}:T{
-\-s
 T}
 T{
 \ \&
@@ -296,18 +290,12 @@ index\&.html\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-ca\-certs\-file=filename
-T}
-T{
-\ \&
-T}:T{
-\-a
 T}
 T{
 \ \&
@@ -345,18 +333,12 @@ Specify a file containing a list of client certificates which are allowed to con
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-cert\-file=filename
-T}
-T{
-\ \&
-T}:T{
-\-c
 T}
 T{
 \ \&
@@ -395,7 +377,6 @@ cfg\&.pem\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s
 ^ lt l s
@@ -406,11 +387,6 @@ T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-debug\-level=level
-T}
-T{
-\ \&
-T}:T{
-\-d
 T}
 T{
 \ \&
@@ -467,17 +443,11 @@ is the default\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-help
-T}
-T{
-\ \&
-T}:T{
-\-h
 T}
 .TE
 .sp 1
@@ -500,18 +470,12 @@ Print a help message\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-key\-file=file
-T}
-T{
-\ \&
-T}:T{
-\-k
 T}
 T{
 \ \&
@@ -547,17 +511,11 @@ Specify a file containing the private key if this is not included in the X509 ce
 \fB\-n\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-no\-browser
-T}
-T{
-\ \&
-T}:T{
-\-n
 T}
 .TE
 .sp 1
@@ -580,7 +538,6 @@ Start the installation and configuration tool, but do not open the Start page in
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s
 ^ l l s
@@ -589,11 +546,6 @@ T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-port=#
-T}
-T{
-\ \&
-T}:T{
-\-p
 T}
 T{
 \ \&
@@ -700,18 +652,12 @@ stderr, rather than to a file, use a
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-server\-name=name
-T}
-T{
-\ \&
-T}:T{
-\-N
 T}
 T{
 \ \&
@@ -748,17 +694,11 @@ localhost\&.
 \fB\-S\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-use\-https
-T}
-T{
-\ \&
-T}:T{
-\-S
 T}
 .TE
 .sp 1

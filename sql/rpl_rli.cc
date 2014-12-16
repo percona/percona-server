@@ -138,7 +138,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
   last_retrieved_gtid.clear();
-  init_sql_alloc(&lock_tables_mem_root, 4096, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -179,7 +178,6 @@ Relay_log_info::~Relay_log_info()
   relay_log.cleanup();
   set_rli_description_event(NULL);
   last_retrieved_gtid.clear();
-  free_root(&lock_tables_mem_root, MYF(0));
 
   DBUG_VOID_RETURN;
 }
@@ -1596,7 +1594,6 @@ void Relay_log_info::clear_tables_to_lock()
     tables_to_lock_count--;
     my_free(to_free);
   }
-  free_root(&lock_tables_mem_root, MYF(MY_MARK_BLOCKS_FREE));
   DBUG_ASSERT(tables_to_lock == NULL && tables_to_lock_count == 0);
   DBUG_VOID_RETURN;
 }
@@ -1736,7 +1733,6 @@ int Relay_log_info::rli_init_info()
   log_space_total= 0;
   tables_to_lock= 0;
   tables_to_lock_count= 0;
-  free_root(&lock_tables_mem_root, MYF(MY_MARK_BLOCKS_FREE));
 
   char pattern[FN_REFLEN];
   (void) my_realpath(pattern, slave_load_tmpdir, 0);

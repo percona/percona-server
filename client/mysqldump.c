@@ -643,7 +643,7 @@ static void verbose_msg(const char *fmt, ...)
 
 void check_io(FILE *file)
 {
-  if (ferror(file))
+  if (ferror(file) || errno == 5)
     die(EX_EOF, "Got errno %d on write", errno);
 }
 
@@ -6346,7 +6346,7 @@ static my_bool server_supports_backup_locks(void)
 int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
-  int exit_code;
+  int exit_code, md_result_fd;
   int consistent_binlog_pos= 0;
   MY_INIT("mysqldump");
 
@@ -6515,8 +6515,19 @@ int main(int argc, char **argv)
   if (opt_slave_apply && add_slave_statements())
     goto err;
 
-  /* ensure dumped data flushed */
-  if (md_result_file && fflush(md_result_file))
+  if (md_result_file)
+    md_result_fd= my_fileno(md_result_file);
+
+  /* 
+     Ensure dumped data flushed.
+     First we will flush the file stream data to kernel buffers with fflush().
+     Second we will flush the kernel buffers data to physical disk file with
+     my_sync(), this will make sure the data succeessfully dumped to disk file.
+     fsync() fails with EINVAL if stdout is not redirected to any file, hence
+     MY_IGNORE_BADFD is passed to ingnore that error.
+  */
+  if (md_result_file &&
+      (fflush(md_result_file) || my_sync(md_result_fd, MYF(MY_IGNORE_BADFD))))
   {
     if (!first_error)
       first_error= EX_MYSQLERR;

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -69,7 +69,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.77.\ \& This table describes command-line options for the ndb_config program
+.B Table\ \&18.81.\ \& This table describes command-line options for the ndb_config program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -265,7 +265,6 @@ T}
 .TS
 allbox tab(:);
 l l s s
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
@@ -276,11 +275,6 @@ T{
 \ \&
 T}:T{
 \-\-usage
-T}
-T{
-\ \&
-T}:T{
-\-?
 T}
 .TE
 .sp 1
@@ -361,17 +355,11 @@ fails with an error\&. (To obtain configuration data from the management node in
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-version
-T}
-T{
-\ \&
-T}:T{
-\-V
 T}
 .TE
 .sp 1
@@ -397,7 +385,6 @@ allbox tab(:);
 l l s s
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
@@ -409,11 +396,6 @@ T{
 \ \&
 T}:T{
 \-\-connect\-string=connectstring
-T}
-T{
-\ \&
-T}:T{
-\-c
 T}
 T{
 \ \&
@@ -541,18 +523,12 @@ file\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-query=string
-T}
-T{
-\ \&
-T}:T{
-\-q
 T}
 T{
 \ \&
@@ -949,18 +925,12 @@ ndb_mgmd) are returned\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-fields=string
-T}
-T{
-\ \&
-T}:T{
-\-f
 T}
 T{
 \ \&
@@ -1021,18 +991,12 @@ for the linefeed character), then it must be quoted\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-rows=string
-T}
-T{
-\ \&
-T}:T{
-\-r
 T}
 T{
 \ \&
@@ -1236,7 +1200,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.20\-ndb\-7\&.3\&.7"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.21\-ndb\-7\&.3\&.8"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">

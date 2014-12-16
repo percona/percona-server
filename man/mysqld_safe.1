@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -100,9 +100,11 @@ For backward compatibility,
 \fBmysqld_safe\fR
 also reads
 [safe_mysqld]
-sections, although you should rename such sections to
+sections, although it is preferable to rename
+[safe_mysqld]
+sections to
 [mysqld_safe]
-in MySQL 5\&.6 installations\&.
+sections\&.
 .PP
 \fBmysqld_safe\fR
 supports the following options\&. It also reads option files and supports the options for processing them described at
@@ -805,6 +807,17 @@ options for controlling the destination of these messages:
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR: Write error messages to the named error file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-syslog\fR: Write error messages to
 syslog
 on systems that support the
@@ -826,25 +839,14 @@ in the data directory), or to a named file if the
 \fB\-\-log\-error\fR
 option is given\&.
 .RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR: Write error messages to the named error file\&.
-.RE
 .PP
 If none of these options is given, the default is
 \fB\-\-skip\-syslog\fR\&.
 .PP
 If
-\fB\-\-syslog\fR
-and
 \fB\-\-log\-error\fR
+and
+\fB\-\-syslog\fR
 are both given, a warning is issued and
 \fB\-\-log\-error\fR
 takes precedence\&.

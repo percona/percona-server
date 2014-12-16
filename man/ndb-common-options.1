@@ -2,12 +2,12 @@
 .\"     Title: Options Common to MySQL Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO MY" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "OPTIONS COMMON TO MY" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -97,7 +97,7 @@ The options in the following table are common to all MySQL Cluster executables (
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.92.\ \& This table describes command-line options common to all MySQL Cluster programs
+.B Table\ \&18.96.\ \& This table describes command-line options common to all MySQL Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -241,7 +241,6 @@ options relating to MySQL Cluster\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
@@ -252,11 +251,6 @@ T{
 \ \&
 T}:T{
 \-\-usage
-T}
-T{
-\ \&
-T}:T{
-\-?
 T}
 .TE
 .sp 1
@@ -323,7 +317,6 @@ allbox tab(:);
 l l s s
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
@@ -335,11 +328,6 @@ T{
 \ \&
 T}:T{
 \-\-connect\-string=connectstring
-T}
-T{
-\ \&
-T}:T{
-\-c
 T}
 T{
 \ \&
@@ -484,18 +472,12 @@ process\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-ndb\-mgmd\-host=host[:port]
-T}
-T{
-\fBOption\-File Format\fR
-T}:T{
-ndb\-mgmd\-host
 T}
 T{
 \ \&
@@ -617,17 +599,11 @@ Optimize selection of nodes for transactions\&. Enabled by default\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-version
-T}
-T{
-\ \&
-T}:T{
-\-V
 T}
 .TE
 .sp 1

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.74.\ \& This table describes command-line options for the ndb_mgmd program
+.B Table\ \&18.78.\ \& This table describes command-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -556,36 +556,12 @@ is used\&. (Bug #13428853)
 allbox tab(:);
 l l s s
 l l s s
-l l s s
-^ l l s
-^ l l s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-config\-file=file
-T}
-T{
-\ \&
-T}:T{
-\-f
-T}
-T{
-\ \&
-T}:T{
-\fBPermitted Values\fR
-T}
-:T{
-\fBType\fR
-T}:T{
-file name
-T}
-:T{
-\fBDefault\fR
-T}:T{
-\&./config\&.ini
 T}
 T{
 \ \&
@@ -687,18 +663,12 @@ file\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-daemon
-T}
-T{
-\ \&
-T}:T{
-\-d
 T}
 T{
 \ \&
@@ -944,18 +914,12 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-print\-full\-config
-T}
-T{
-\ \&
-T}:T{
-\-P
 T}
 T{
 \ \&
@@ -1231,7 +1195,7 @@ is the unique node identifier\&.
 .\" config.ini (MySQL Cluster)
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&18.3, \(lqConfiguration of MySQL Cluster NDB 7.3\(rq, discusses how to set up this file\&.
+Section\ \&18.3, \(lqConfiguration of MySQL Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4

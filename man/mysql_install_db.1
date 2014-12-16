@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -60,12 +60,10 @@ assumes it to be in use and writes a new file named
 my\-new\&.cnf
 instead\&.
 .PP
-With one exception, the settings in the default option file are commented and have no effect\&. The exception is that the file changes the
+With one exception, the settings in the default option file are commented and have no effect\&. The exception is that the file sets the
 sql_mode
-system variable from its default of
-NO_ENGINE_SUBSTITUTION
-to also include
-STRICT_TRANS_TABLES\&. This setting produces a server configuration that results in errors rather than warnings for bad data in operations that modify transactional tables\&. See
+system variable to
+NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES\&. This setting produces a server configuration that results in errors rather than warnings for bad data in operations that modify transactional tables\&. See
 Section\ \&5.1.7, \(lqServer SQL Modes\(rq\&.
 .PP
 To invoke
@@ -85,10 +83,9 @@ Because the MySQL server,
 \fBmysqld\fR, must access the data directory when it runs later, you should either run
 \fBmysql_install_db\fR
 from the same system account that will be used for running
-\fBmysqld\fR
-or run it as
+\fBmysqld\fR, or run it as
 root
-and use the
+and specify the
 \fB\-\-user\fR
 option to indicate the user name that
 \fBmysqld\fR
@@ -184,7 +181,7 @@ group of an option file\&. (Options that are common to
 can also be specified in the
 [mysqld]
 group\&.) Other options are passed to
-\fBmysqld\fR\&. For information about option files, see
+\fBmysqld\fR\&. For information about option files used by MySQL programs, see
 Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
@@ -259,10 +256,7 @@ For internal use\&. This option is used for building system tables on one host i
 .\}
 .\" mysql_install_db: datadir option
 .\" datadir option: mysql_install_db
-.\" mysql_install_db: ldata option
-.\" ldata option: mysql_install_db
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR,
-\fB\-\-ldata=\fR\fB\fIpath\fR\fR
+\fB\-\-datadir=\fR\fB\fIpath\fR\fR
 .sp
 The path to the MySQL data directory\&. Beginning with MySQL 5\&.6\&.8,
 \fBmysql_install_db\fR
@@ -334,9 +328,25 @@ Tell
 \fBmysql_install_db\fR
 preserve any existing
 my\&.cnf
-file and not create a new
+file and not create a new default
 my\&.cnf
 file\&. This option was added in MySQL 5\&.6\&.20\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql_install_db: ldata option
+.\" ldata option: mysql_install_db
+\fB\-\-ldata=\fR\fB\fIpath\fR\fR
+.sp
+A synonym for
+\fB\-\-datadir\fR\&.
 .RE
 .sp
 .RS 4
@@ -434,7 +444,7 @@ As a result of these actions, it is necessary after installation to start the se
 root
 using the password written to the
 \&.mysql_secret
-file, and to select a new
+file, and specify a new
 root
 password\&. Until this is done,
 root
@@ -535,9 +545,9 @@ looks for support files such as the error message file and the file for populati
 The system (login) user name to use for running
 \fBmysqld\fR\&. Files and directories created by
 \fBmysqld\fR
-will be owned by this user\&. You must be
+will be owned by this user\&. You must be the system
 root
-to use this option\&. By default,
+user to use this option\&. By default,
 \fBmysqld\fR
 runs using your current login name and files and directories that it creates will be owned by you\&.
 .RE

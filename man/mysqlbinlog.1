@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -149,7 +149,7 @@ supports the following options, which can be specified on the command line or in
 [mysqlbinlog]
 and
 [client]
-groups of an option file\&. For information about option files, see
+groups of an option file\&. For information about option files used by MySQL programs, see
 Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
@@ -301,7 +301,6 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s
 ^ l l s
@@ -311,11 +310,6 @@ T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-binlog\-row\-event\-max\-size=#
-T}
-T{
-\fBOption\-File Format\fR
-T}:T{
-binlog\-row\-event\-max\-size
 T}
 T{
 \ \&
@@ -863,7 +857,7 @@ login file\&. A
 is an option group that permits only a limited set of options:
 \fBhost\fR,
 \fBuser\fR, and
-\fBpassword\fR\&. Think of a login path as a set of values that indicate the server host and the credentials for authenticating with the server\&. To create the login file, use the
+\fBpassword\fR\&. Think of a login path as a set of values that indicate the server host and the credentials for authenticating with the server\&. To create the login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&. This option was added in MySQL 5\&.6\&.6\&.
@@ -2817,8 +2811,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Example: \fBmysqldump\fR + \fBmysqlbinlog\fR
-        for Backup and Restore.PP
+Example: mysqldump + mysqlbinlog for Backup and Restore.PP
 The following example describes a simple scenario that shows how to use
 \fBmysqldump\fR
 and

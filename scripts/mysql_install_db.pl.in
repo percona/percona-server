@@ -503,19 +503,19 @@ my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
 # in the my.cfg file, then re-run to merge with command line arguments.
 # ----------------------------------------------------------------------
 
-my $print_def_file;
+my $cmd;
+my @default_options;
 if ( $opt->{'defaults-file'} )
 {
-  $print_def_file= "--defaults-file=$opt->{'defaults-file'}";
+  $cmd = quote_options($print_defaults,
+                       "--defaults-file=$opt->{'defaults-file'}",
+                       "mysqld", "mysql_install_db");
 }
 else
 {
-  $print_def_file= "";
+  $cmd = quote_options($print_defaults, "mysqld", "mysql_install_db");
 }
 
-my @default_options;
-my $cmd = quote_options($print_defaults, $print_def_file,
-                        "mysqld","mysql_install_db");
 open(PIPE, "$cmd |") or error($opt,"can't run $cmd: $!");
 while ( <PIPE> )
 {

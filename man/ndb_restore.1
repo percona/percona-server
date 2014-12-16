@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 09/11/2014
+.\"      Date: 11/21/2014
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "09/11/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,7 +78,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.85.\ \& This table describes command-line options for the ndb_restore program
+.B Table\ \&18.89.\ \& This table describes command-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -841,18 +841,12 @@ following a successful restoration\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
 ^ l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-lossy\-conversions
-T}
-T{
-\ \&
-T}:T{
-\-L
 T}
 T{
 \ \&
@@ -1083,7 +1077,7 @@ stdout\&.
 TEXT
 and
 BLOB
-column values are always truncated to the first 256 bytes in the output; this cannot currently be overridden when using
+column values are always truncated\&. In MySQL Cluster NDB 7\&.3\&.7 and earlier, such values are truncated to the first 240 bytes in the output; in MySQL Cluster NDB 7\&.3\&.8 and later, they are truncated to 256 bytes\&. (Bug #14571512, Bug #65467) This cannot currently be overridden when using
 \fB\-\-print_data\fR\&.
 .PP
 Several additional options are available for use with the
@@ -1106,17 +1100,11 @@ stdout, or to a file\&. These are similar to some of the options used with
 \fB\-T\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-tab=path
-T}
-T{
-\ \&
-T}:T{
-\-T
 T}
 .TE
 .sp 1
@@ -1962,7 +1950,7 @@ l l s s.
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.20\-ndb\-7\&.3\&.7
+5\&.6\&.21\-ndb\-7\&.3\&.7
 T}
 T{
 \fBCommand\-Line Format\fR

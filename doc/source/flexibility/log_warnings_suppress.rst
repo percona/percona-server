@@ -35,9 +35,13 @@ When ``ON``, disables reporting of warning #1592 (unsafe statement for binary lo
 
 All warnings #1592 will be disabled, so you will not be able to know if your statements are really safe to replicate anymore. Use it at your own risk and only if you understand what you are doing.
 
-In some circumstances, |MySQL| will warn you that a statement is unsafe to replicate even though it is perfectly safe. For example: ::
+In some circumstances, |MySQL| will warn you that a statement is unsafe to replicate even though it is perfectly safe. For example, in versions lower than 5.1.59, the warning will look like: ::
 
   090213 16:58:54 [Warning] Statement is not safe to log in statement format.
+
+or in versions 5.1.59 or higher: ::
+
+  010214 12:08:52 [Warning] Statement may not be safe to log in statement format.
 
 Related Reading
 ===============

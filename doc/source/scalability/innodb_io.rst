@@ -55,7 +55,7 @@ The following values are allowed:
     This behavior is similar to :variable:`innodb_max_dirty_pages_pct` flushing. The difference is that this method starts flushing blocks constantly and contiguously based on the oldest modified age. If the age exceeds 1/2 of the maximum age capacity, |InnoDB| starts weak contiguous flushing. If the age exceeds 3/4, |InnoDB| starts strong flushing. The strength can be adjusted by the |MySQL| variable innodb_io_capacity. In other words, we must tune :variable:`innodb_io_capacity` for the ``reflex`` method to work the best.
 
   * ``estimate``: 
-    If the oldest modified age exceeds 1/2 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by ``[number of modified blocks]``, ``[LSN progress speed]`` and ``[average age of all modified blocks]``. So, this behavior is independent of the innodb_io_capacity variable.
+    If the oldest modified age exceeds 1/4 of the maximum age capacity, |InnoDB| starts flushing blocks every second. The number of blocks flushed is determined by ``[number of modified blocks]``, ``[LSN progress speed]`` and ``[average age of all modified blocks]``. So, this behavior is independent of the innodb_io_capacity variable.
 
   * ``keep_average``: 
     This method attempts to keep the I/O rate constant by using a much shorter loop cycle (0.1 second) than that of the other methods (1.0 second). It is designed for use with SSD cards.

@@ -850,6 +850,12 @@ fi
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
+if [ -f $STATUS_FILE ] ; then
+	SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
+else
+	SERVER_TO_START=''
+fi
+
 # ----------------------------------------------------------------------
 # Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------

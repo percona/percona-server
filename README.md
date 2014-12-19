@@ -48,6 +48,9 @@ The Tokutek hot backup updates the processlist state with progress information w
 ```
 cd percona-server-5.6/plugin
 git clone git@github.com:Tokutek/tokudb-backup-plugin
+pushd tokudb-backup-plugin
+git checkout tokudb-backup-0.14
+popd
 ```
 
 3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.14'
@@ -55,6 +58,9 @@ git clone git@github.com:Tokutek/tokudb-backup-plugin
 cd percona-server-5.6/plugin/tokudb-backup-plugin
 git clone git@github.com:Tokutek/backup-enterprise
 ln -s backup-enterprise/backup backup
+pushd backup-enterprise
+git checkout tokudb-backup-0.14
+popd
 ```
 
 4 Build

@@ -44,13 +44,13 @@ The Tokutek hot backup updates the processlist state with progress information w
 # Build the hot backup plugin from source
 1 Checkout the Percona Server source
 
-2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.9'
+2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.14'
 ```
 cd percona-server-5.6/plugin
 git clone git@github.com:Tokutek/tokudb-backup-plugin
 ```
 
-3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.9'
+3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.14'
 ```
 cd percona-server-5.6/plugin/tokudb-backup-plugin
 git clone git@github.com:Tokutek/backup-enterprise
@@ -59,14 +59,14 @@ ln -s backup-enterprise/backup backup
 
 4 Build
 ```
-cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.11-percona-server-5.6 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.11 ../percona-server-5.6
+cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.14-percona-server-5.6.21 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.14 ../percona-server-5.6.21
 cd plugin/tokudb-backup-plugin
 make -j8 install
 ```
 
 5 Make tarball
 ```
-tar czf tokudb-backup-plugin-0.9-percona-server-5.6.tar.gz tokudb-backup-plugin-0.9-percona-server-5.6
+tar czf tokudb-backup-plugin-0.14-percona-server-5.6.21.tar.gz tokudb-backup-plugin-0.14-percona-server-5.6.21
 ```
 
 # Work to do

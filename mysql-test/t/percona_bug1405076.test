@@ -1,0 +1,54 @@
+########################################################################
+# Bug #1405076: Deadlock in RELEASE_LOCK()
+########################################################################
+
+--source include/have_debug_sync.inc
+
+--source include/count_sessions.inc
+
+--connect (con1, localhost, root,,)
+--connect (con2, localhost, root,,)
+
+--connection con1
+--echo connection con1
+
+SELECT GET_LOCK('foo', -1);
+
+SET debug_sync='mdl_lock_remove_ticket_m_rwlock_locked SIGNAL con1_blocked WAIT_FOR go NO_CLEAR_EVENT';
+--echo # sending SELECT RELEASE_LOCK('foo')
+--send SELECT RELEASE_LOCK('foo')
+
+--connection con2
+--echo connection con2
+
+SET debug_sync='mdl_map_partition_get_lock_owner_m_mutex_locked SIGNAL con2_blocked WAIT_FOR go NO_CLEAR_EVENT';
+
+--echo # sending SELECT RELEASE_LOCK('foo')
+--send SELECT RELEASE_LOCK('foo');
+
+--connection default
+--echo connection default
+
+SET debug_sync='now WAIT_FOR con1_blocked';
+SET debug_sync='now WAIT_FOR con2_blocked';
+SET debug_sync='now SIGNAL go';
+
+# con1 and con2 would deadlock
+
+--connection con1
+--echo connection con1
+--reap
+
+--connection con2
+--echo connection con2
+--reap
+
+--connection default
+--echo connection default
+
+--disconnect con1
+--disconnect con2
+
+SET debug_sync='RESET';
+
+--source include/wait_until_count_sessions.inc

@@ -1,0 +1,23 @@
+connection con1
+SELECT GET_LOCK('foo', -1);
+GET_LOCK('foo', -1)
+1
+SET debug_sync='mdl_lock_remove_ticket_m_rwlock_locked SIGNAL con1_blocked WAIT_FOR go NO_CLEAR_EVENT';
+# sending SELECT RELEASE_LOCK('foo')
+SELECT RELEASE_LOCK('foo');
+connection con2
+SET debug_sync='mdl_map_partition_get_lock_owner_m_mutex_locked SIGNAL con2_blocked WAIT_FOR go NO_CLEAR_EVENT';
+# sending SELECT RELEASE_LOCK('foo')
+SELECT RELEASE_LOCK('foo');;
+connection default
+SET debug_sync='now WAIT_FOR con1_blocked';
+SET debug_sync='now WAIT_FOR con2_blocked';
+SET debug_sync='now SIGNAL go';
+connection con1
+RELEASE_LOCK('foo')
+1
+connection con2
+RELEASE_LOCK('foo')
+NULL
+connection default
+SET debug_sync='RESET';

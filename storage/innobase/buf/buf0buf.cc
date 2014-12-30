@@ -1741,6 +1741,7 @@ page_found:
 			bpage->space = static_cast<ib_uint32_t>(space);
 			bpage->offset = static_cast<ib_uint32_t>(offset);
 			bpage->buf_fix_count = 1;
+			bpage->buf_pool_index = buf_pool_index(buf_pool);
 
 			mutex_exit(&buf_pool->zip_mutex);
 

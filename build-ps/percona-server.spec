@@ -630,7 +630,7 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 
 # Touch the place where the my.cnf config file might be located
 # Just to make sure it's in the file list and marked as a config file
-# touch $RBR%{_sysconfdir}/my.cnf
+touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
 install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
@@ -1171,6 +1171,10 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man8/mysqld.8*
+
+%if "%rhel" < "7"
+%ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
+%endif
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults

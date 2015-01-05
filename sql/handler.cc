@@ -2588,7 +2588,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 ****************************************************************************/
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, ht);
+  handler *new_handler= table ? get_new_handler(table->s, mem_root, ht) : NULL;
 
   if (!new_handler)
     return NULL;

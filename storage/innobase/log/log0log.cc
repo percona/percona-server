@@ -2932,9 +2932,9 @@ log_archive_do(
 	ulint*	n_bytes)/*!< out: archive log buffer size, 0 if nothing to
 			archive */
 {
-	ibool		calc_new_limit;
-	ib_uint64_t	start_lsn;
-	ib_uint64_t	limit_lsn;
+	ibool   calc_new_limit;
+	lsn_t	start_lsn;
+	lsn_t	limit_lsn	= LSN_MAX;
 
 	calc_new_limit = TRUE;
 loop:

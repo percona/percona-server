@@ -8573,6 +8573,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                              true, false)))
       goto err_new_table_cleanup;
 
+    DEBUG_SYNC(thd, "after_open_altered_table");
+
     /* Set markers for fields in TABLE object for altered table. */
     update_altered_table(ha_alter_info, altered_table);
 

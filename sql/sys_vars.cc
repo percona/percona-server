@@ -5049,6 +5049,72 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
 }
 #endif
 
+/* This function is based on check_read_only() */
+static bool check_gtid_deployment_step(sys_var *self, THD *thd, set_var *var)
+{
+  if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+/* This function is based on fix_read_only() */
+static bool fix_gtid_deployment_step(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("fix_gtid_deployment_step");
+  bool new_gtid_deployment_step= gtid_deployment_step;
+  bool result= true;
+
+  if (gtid_deployment_step == FALSE ||
+      gtid_deployment_step == opt_gtid_deployment_step)
+  {
+    opt_gtid_deployment_step= gtid_deployment_step;
+    DBUG_RETURN(false);
+  }
+
+  if (check_gtid_deployment_step(self, thd, 0)) // just in case
+    goto end;
+
+  gtid_deployment_step= opt_gtid_deployment_step;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (thd->global_read_lock.lock_global_read_lock(thd))
+    goto end_with_mutex_unlock;
+
+  if ((result= thd->global_read_lock.make_global_read_lock_block_commit(thd)))
+    goto end_with_read_lock;
+
+  /*
+   Change the opt_deployment_step system variable,
+   safe because the lock is held
+  */
+  opt_gtid_deployment_step= new_gtid_deployment_step;
+  result= false;
+
+ end_with_read_lock:
+  /* Release the lock */
+  thd->global_read_lock.unlock_global_read_lock(thd);
+ end_with_mutex_unlock:
+  mysql_mutex_lock(&LOCK_global_system_variables);
+ end:
+  gtid_deployment_step= opt_gtid_deployment_step;
+  DBUG_RETURN(result);
+}
+
+static Sys_var_mybool Sys_gtid_deployment_step(
+       "gtid_deployment_step",
+       "Whether gtid_deployment_step is enabled: OFF or ON. ON means "
+       "GTIDs are supported by the server but no GTID is generated. If the "
+       "server is a slave and gtid_deployment_step is ON, the slave doesn't "
+       "generate any GTIDs but logs any GTID received from master. OFF means "
+       "the server supports GTID depending on the option gtid_mode.",
+       GLOBAL_VAR(gtid_deployment_step), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_gtid_deployment_step),
+       ON_UPDATE(fix_gtid_deployment_step));
+
 static Sys_var_enum Sys_gtid_mode(
        "gtid_mode",
        /*

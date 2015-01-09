@@ -32,4 +32,6 @@ Bugs Fixed
 
  If the bitmap directory has a bitmap file sequence with a start LSN of one file less than a start LSN of the previous file, a debug build would assert when queries were run on :table:`INNODB_CHANGED_PAGES` table. Bug fixed :bug:`1342494`.
 
+ Server would crash on login attempt if ``mysql.user`` table was truncated. Bug fixed :bug:`1322218`.
+
 Other bugs fixed: :bug:`1337324`, :bug:`1151723`, :bug:`1182050`, :bug:`1182072`, :bug:`1280875`, :bug:`1182046`, :bug:`1328482` (upstream :mysqlbug:`73418`), and :bug:`1334317` (upstream :mysqlbug:`73111`).

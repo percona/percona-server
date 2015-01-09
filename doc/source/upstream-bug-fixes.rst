@@ -5,21 +5,57 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`74987` - mtr failure on Ubuntu Utopic, mysqlhotcopy fails with wrong error(255)    |
+|:Launchpad bug: :bug:`1396330`                                                                               |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
+|:Fix Released: :rn:`5.5.41-37.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`73281` - openssl_1 tries to test a removed cipher on CentOS 7                      |
+|:Launchpad bug: :bug:`1401791`                                                                               |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
+|:Fix Released: :rn:`5.5.41-37.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`74440` - mysql_install_db not handling mysqld startup failure                      |
+|:Launchpad bug: :bug:`1382782`                                                                               |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
+|:Fix Released: :rn:`5.5.41-37.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`72475` - Binlog events with binlog_format=MIXED are unconditionally logged in ROW..|
+|:Launchpad bug: :bug:`1313901`                                                                               |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
+|:Fix Released: :rn:`5.5.41-37.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`75000` - 5.5 fails to compile with debug on Ubuntu Utopic                          |
+|:Launchpad bug: :bug:`1396358`                                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.5.41-37.0`                                                                             |
+|:Upstream fix: 5.5.42                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`73979` - wrong stack size calculation leads to stack overflow in pinbox allocator  |
+|:Launchpad bug: :bug:`1351148`                                                                               |
+|:Upstream state: In Progress (checked on 2015-01-07)                                                         |
+|:Fix Released: :rn:`5.5.41-37.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`73126` - Numerous Valgrind errors in OpenSSL                                       |
 |:Launchpad bug: :bug:`1334743`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.39-36.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`73111` - Suppression typo causing spurious MTR Valgrind failures                   |
 |:Launchpad bug: :bug:`1334317`                                                                               |
-|:Upstream state: Open (checked on 2014-09-30)                                                                |
+|:Upstream state: Open (checked on 2015-01-07)                                                                |
 |:Fix Released: :rn:`5.5.39-36.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`73418` - Add --manual-lldb option to mysql-test-run.pl                             |
 |:Launchpad bug: :bug:`1328482`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.39-36.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -43,13 +79,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71375` - Slave IO thread won't attempt auto reconnect to the master/error-code 1593|
 |:Launchpad bug: :bug:`1268735`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.36-34.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71374` - Slave IO thread won't attempt auto reconnect to the master/error-code 1159|
 |:Launchpad bug: :bug:`1268729`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.36-34.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -79,7 +115,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69639` - mysql failed to build with dtrace Sun D 1.11                              |
 |:Launchpad bug: :bug:`1196460`                                                                               |
-|:Upstream state: Open (checked on 2014-09-30)                                                                |
+|:Upstream state: Open (checked on 2015-01-07)                                                                |
 |:Fix Released: :rn:`5.5.33-31.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -91,7 +127,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`42415` - UPDATE/DELETE with LIMIT clause unsafe for SBL even with ORDER BY PK ...  |
 |:Launchpad bug: :bug:`1132194`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.32-31.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -103,7 +139,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68970` - fsp_reserve_free_extents switches from small to big tblspace handling ... |
 |:Launchpad bug: :bug:`1169494`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.5.32-31.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -115,7 +151,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68999` - SSL_OP_NO_COMPRESSION not defined                                         |
 |:Launchpad bug: :bug:`1183610`                                                                               |
-|:Upstream state: No Feedback (checked on 2014-09-30)                                                         |
+|:Upstream state: No Feedback (checked on 2015-01-07)                                                         |
 |:Fix Released: :rn:`5.5.31-30.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -127,7 +163,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68845` - Unnecessary log_sys->mutex reacquisition in mtr_log_reserve_and_write()   |
 |:Launchpad bug: :bug:`1163439`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.30-30.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -157,7 +193,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68476` - Suboptimal code in my_strnxfrm_simple()                                   |
 |:Launchpad bug: :bug:`1132350`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.5.30-30.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -265,7 +301,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.27-29.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -277,7 +313,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64800` - mysqldump with --include-master-host-port putting quotes around port no.  | 
 |:Launchpad bug: :bug:`1013432`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.27-28.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -325,7 +361,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71183` - os_file_fsync() should handle fsync() returning EINTR                     |
 |:Launchpad bug: :bug:`1262651`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.20-24.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -349,13 +385,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62516` - Fast index creation does not update index statistics                      |
 |:Launchpad bug: :bug:`857590`                                                                                |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.16-22.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
 |:Launchpad bug: :bug:`1148822`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.15-21.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -373,7 +409,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61595` - mysql-test/include/wait_for_slave_param.inc timeout logic is incorrect    |
 |:Launchpad bug: :bug:`800035`                                                                                |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.13-20.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -403,7 +439,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69146` - Optimization in buf_pool_get_oldest_modification if srv_buf_pool_instances|
 |:Launchpad bug: :bug:`1176496`                                                                               |
-|:Upstream state: Verified (checked on 2014-09-30)                                                            |
+|:Upstream state: Verified (checked on 2015-01-07)                                                            |
 |:Fix Released: :rn:`5.5.8-20.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

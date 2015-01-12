@@ -59,7 +59,8 @@ With :variable:`csv_mode` set to ``IETF_QUOTES`` parsed data will look like:
 
 .. code-block:: mysql
 
-   mysql> set csv_mode='IETF_QUOTES';                                                                              Query OK, 0 rows affected (0.00 sec)
+   mysql> set csv_mode='IETF_QUOTES';
+   Query OK, 0 rows affected (0.00 sec)
 
    mysql> select * from albums;
    +--------------+-----------------------------+

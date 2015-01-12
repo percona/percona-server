@@ -13,12 +13,13 @@ Version Specific Information
 ============================
 
   * :rn:`5.6.11-60.3`:
-
      * Feature ported from |Percona Server| 5.5.
 
-  * :rn:`5.6.13-60.4`:
+  * :rn:`5.6.13-60.6`:
+     * New :variable:`slow_query_log_always_write_time` variable introduced
 
-      * New :variable:`slow_query_log_always_write_time` variable introduced
+  * :rn:`5.6.22-71.0`:
+     * Implemented improved slow log reporting for queries in stored procedures.
 
 Other Information
 =================
@@ -119,6 +120,58 @@ Prior to :rn:`5.6.17-65.0` implementation of the :variable:`log_slow_rate_type` 
      :range: TRUE/FALSE
 
 If ``TRUE``, statements executed by stored procedures are logged to the slow if it is open.
+
+.. _improved_sp_reporting:
+
+Prior to :rn:`5.6.22-71.0` implementation of logging stored procedures was logging the stored procedure ``CALLs`` themselves along with the queries inside the procedures. This meant that some queries were counted more than once which could make tracking the bad-performing queries harder and it would cause noise in the slow query log. |Percona Server| :rn:`5.6.22-71.0` implemented improvements for logging of stored procedures to the slow query log:
+ * Each query from a stored procedure is now logged to the slow query log individually
+ * ``CALL`` itself isn't logged to the slow query log anymore as this would be counting twice for the same query which would lead to incorrect results
+ * Queries that were called inside of stored procedures are annotated in the slow query log with the stored procedure name in which they run.
+
+Example of the improved stored procedure slow query log entry:
+
+.. code-block:: mysql
+
+   mysql> DELIMITER //
+   mysql> CREATE PROCEDURE improved_sp_log()
+          BEGIN
+           SELECT * FROM City;
+           SELECT * FROM Country;
+          END//
+   mysql> DELIMITER ;
+   mysql> CALL improved_sp_log();
+
+When we check the slow query log after running the stored procedure ,with variable:`log_slow_sp_statements` set to ``TRUE``, it should look like this: ::
+
+   # Time: 150109 11:38:55
+   # User@Host: root[root] @ localhost []
+   # Thread_id: 40  Schema: world  Last_errno: 0  Killed: 0
+   # Query_time: 0.012989  Lock_time: 0.000033  Rows_sent: 4079  Rows_examined: 4079  Rows_affected: 0  Rows_read: 4079
+   # Bytes_sent: 161085
+   # Stored routine: world.improved_sp_log
+   SET timestamp=1420803535;
+   SELECT * FROM City;
+   # User@Host: root[root] @ localhost []
+   # Thread_id: 40  Schema: world  Last_errno: 0  Killed: 0
+   # Query_time: 0.001413  Lock_time: 0.000017  Rows_sent: 4318  Rows_examined: 4318  Rows_affected: 0  Rows_read: 4318
+   # Bytes_sent: 194601
+   # Stored routine: world.improved_sp_log
+   SET timestamp=1420803535;
+
+If variable :variable:`log_slow_sp_statements` is set to ``FALSE``:
+
+ * Entry is added to a slow-log for a ``CALL`` statement only and not for any of the individual statements run in that stored procedure
+ * Execution time is reported for the ``CALL`` statement as the total execution time of the ``CALL`` including all its statements
+
+If we run the same stored procedure with the variable :variable:`log_slow_sp_statements` is set to ``FALSE`` slow query log should look like this: ::
+
+  # Time: 150109 11:51:42
+  # User@Host: root[root] @ localhost []
+  # Thread_id: 40  Schema: world  Last_errno: 0  Killed: 0
+  # Query_time: 0.013947  Lock_time: 0.000000  Rows_sent: 4318  Rows_examined: 4318  Rows_affected: 0  Rows_read: 4318
+  # Bytes_sent: 194612
+  SET timestamp=1420804302;
+  CALL improved_sp_log();
 
 .. note::
 

@@ -124,7 +124,8 @@ static char *tokudb_backup_realpath_with_slash(const char *a) {
         result = apath;
         size_t apath_len = strlen(apath);
         if (apath[apath_len] != '/') {
-            char *apath_with_slash = (char *) my_malloc(apath_len+2, MYF(MY_FAE));
+            char *apath_with_slash = (char *) malloc(apath_len+2);
+            assert(apath_with_slash);
             sprintf(apath_with_slash, "%s/", apath);
             free(apath);
             result = apath_with_slash;

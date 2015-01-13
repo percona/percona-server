@@ -2614,6 +2614,7 @@ mysql_execute_command(THD *thd)
   bool have_table_map_for_update= FALSE;
 #endif
   struct system_variables *per_query_variables_backup;
+  bool reset_timer= false;
 
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
@@ -2826,8 +2827,6 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 
-  bool reset_timer= set_statement_timer(thd);
-
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
   Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
@@ -2939,6 +2938,8 @@ mysql_execute_command(THD *thd)
       goto error;
     }
   }
+
+  reset_timer= set_statement_timer(thd);
 
   switch (lex->sql_command) {
 

@@ -1430,6 +1430,7 @@ done
 * Fri Jan 09 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Upgrading a running server does not restart the service (bug1311840)
+- Set MYSQL_MAINTAINER_MODE=OFF for debug build (bug1408232)
 
 * Thu Nov 20 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
 

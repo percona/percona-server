@@ -2,6 +2,7 @@ percona-server-5.5 (5.5.41-rel37.0) unstable; urgency=low
 
   * Fixed init script timeout is too short when resizing logs (bug1328262)
   * mysql_install_db not handling mysqld startup failure (bug1382782)
+  * Set MYSQL_MAINTAINER_MODE=OFF for debug build (bug1408232)
 
  -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Wed, 07 Jan 2015 10:00:37 +0100
 

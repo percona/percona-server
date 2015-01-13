@@ -1306,6 +1306,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Fri Jan 09 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Set MYSQL_MAINTAINER_MODE=OFF for debug build (bug1408232)
+
 * Tue Aug 26 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Added support for centos7

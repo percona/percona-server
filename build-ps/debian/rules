@@ -74,6 +74,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		\
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=Debug \
+		-DMYSQL_MAINTAINER_MODE=OFF \
 		-DENABLE_DTRACE=OFF \
 		-DWITH_LIBWRAP=ON \
 		-DWITH_SSL=system \

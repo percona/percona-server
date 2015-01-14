@@ -259,6 +259,14 @@ The following options may be given as the first argument:
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
+ --gtid-deployment-step 
+ Whether gtid_deployment_step is enabled: OFF or ON. ON
+ means GTIDs are supported by the server but no GTID is
+ generated. If the server is a slave and
+ gtid_deployment_step is ON, the slave doesn't generate
+ any GTIDs but logs any GTID received from master. OFF
+ means the server supports GTID depending on the option
+ gtid_mode.
  --gtid-mode=name    Whether Global Transaction Identifiers (GTIDs) are
  enabled. Can be ON or OFF.
  -?, --help          Display this help and exit.
@@ -1185,6 +1193,7 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 group-concat-max-len 1024
+gtid-deployment-step FALSE
 gtid-mode OFF
 help TRUE
 host-cache-size 279

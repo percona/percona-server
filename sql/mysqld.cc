@@ -499,6 +499,8 @@ my_bool enforce_gtid_consistency;
 my_bool simplified_binlog_gtid_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
+bool gtid_deployment_step= false;
+bool opt_gtid_deployment_step= false;
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};

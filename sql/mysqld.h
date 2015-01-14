@@ -254,6 +254,8 @@ enum enum_gtid_mode
   GTID_MODE_ON= 3
 };
 extern ulong gtid_mode;
+extern bool gtid_deployment_step;
+extern bool opt_gtid_deployment_step;
 extern const char *gtid_mode_names[];
 extern TYPELIB gtid_mode_typelib;
 

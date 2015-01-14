@@ -504,6 +504,7 @@ mkdir debug
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DMYSQL_MAINTAINER_MODE=OFF \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_INNODB_MEMCACHED=ON \
@@ -1426,6 +1427,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Fri Jan 09 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Upgrading a running server does not restart the service (bug1311840)
+- Set MYSQL_MAINTAINER_MODE=OFF for debug build (bug1408232)
+
 * Thu Nov 20 2014 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Fixed debug symbols on rhel5 (bug 1388972)

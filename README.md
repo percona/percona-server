@@ -41,6 +41,9 @@ select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 # Monitor progress
 The Tokutek hot backup updates the processlist state with progress information while it is running.
 
+# Throttle the backup disk writes
+The ```tokudb_backup_throttle``` variable imposes an upper bound on the write rate of the TokuDB backup.  Units are bytes per second.  Default is no upper bound.
+
 # Build the hot backup plugin from source
 1 Checkout the Percona Server source
 
@@ -74,8 +77,3 @@ make -j8 install
 ```
 tar czf tokudb-backup-plugin-0.14-percona-server-5.6.21.tar.gz tokudb-backup-plugin-0.14-percona-server-5.6.21
 ```
-
-# Work to do
-- Add versions to library names
-- Hack mysqld_safe to auto preload the hot backup lib if it finds one
-- Run with valgrind and fix memory leaks if any

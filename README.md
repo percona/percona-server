@@ -41,7 +41,7 @@ select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 # Monitor progress
 The Tokutek hot backup updates the processlist state with progress information while it is running.
 
-# Throttle the backup disk writes
+# Throttle the backup write rate
 The ```tokudb_backup_throttle``` variable imposes an upper bound on the write rate of the TokuDB backup.  Units are bytes per second.  Default is no upper bound.
 
 # Build the hot backup plugin from source

@@ -10,11 +10,15 @@ This feature makes replication much more reliable after a crash by making the re
 
 The improvement in |Percona Server| makes |InnoDB| store the replication position transactionally, and overwrite the usual relay_log.info file upon recovery, so replication restarts from the correct position and does not try to re-execute committed transactions. This change greatly improves the durability of |MySQL| replication. It can be set to activate automatically, so replication “just works” and no intervention is necessary after a crash.
 
+Use
+===
+
+To enable the feature, the following options need to be enabled together: :variable:`innodb_recovery_update_relay_log`, and `relay_log_recovery <https://dev.mysql.com/doc/refman/5.5/en/replication-options-slave.html#option_mysqld_relay-log-recovery>`_. 
 
 Restrictions
 ============
 
-When :variable:`innodb_overwrite_relay_log_info` is enabled, you should only update |InnoDB| / |XtraDB| tables, not |MyISAM| tables or other storage engines.
+When both :variable:`innodb_recovery_update_relay_log` and `relay_log_recovery <https://dev.mysql.com/doc/refman/5.5/en/replication-options-slave.html#option_mysqld_relay-log-recovery>`_ are enabled, you should only update |InnoDB| / |XtraDB| tables, not |MyISAM| tables or other storage engines.
 You should not use relay or binary log filenames longer than 480 characters (normal: up to 512). If longer, the replication position information is not recorded in |InnoDB|.
 
 Example Server Error Log Output
@@ -33,7 +37,7 @@ Upon crash recovery, the error log on a replica will show information similar to
 If this feature is enabled, the output will look like the following, with additional lines prefixed with a ``+`` symbol: ::
 
   ....
-  + InnoDB: Warning: innodb_overwrite_relay_log_info is enabled. Updates of other storage engines may have problem of consistency.
+  + InnoDB: Warning: innodb_recovery_update_relay_log is enabled. Updates of other storage engines may have problem of consistency.
   + InnoDB: relay-log.info is detected.
   + InnoDB: relay log: position 429, file name ./gauntlet3-relay-bin.000111
   + InnoDB: master log: position 280, file name gauntlet3-bin.000015

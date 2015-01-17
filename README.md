@@ -77,3 +77,60 @@ make -j8 install
 ```
 tar czf tokudb-backup-plugin-0.14-percona-server-5.6.21.tar.gz tokudb-backup-plugin-0.14-percona-server-5.6.21
 ```
+
+# Variables
+## tokudb_backup_plugin_version
+* name:tokudb_backup_plugin_version
+* readonly:true
+* scope:system
+* type:str
+* comment:version of the tokudb backup plugin
+
+## tokudb_backup_version
+* name:tokudb_backup_version
+* readonly:true
+* scope:system
+* type:str
+* comment:version of the tokutek backup library
+
+## tokudb_backup_allowed_prefix
+* name:tokudb_backup_allowed_prefix
+* readonly:true
+* scope:system
+* type:str
+* comment:destination directory prefix
+
+## tokudb_backup_throttle
+* name:tokudb_backup_throttle
+* readonly:false
+* scope:session
+* type:ulonglong
+* def_val:18446744073709551615
+* min_val:0
+* max_val:18446744073709551615
+* comment:backup throttle on write rate in bytes per second.  default is unlimited
+
+## tokudb_backup_dir
+* name:tokudb_backup_dir
+* readonly:false
+* scope:session
+* type:str
+* comment:name of the directory where the backup is stored
+
+## tokudb_backup_last_error
+* name:tokudb_backup_last_error
+* readonly:false
+* scope:session
+* type:ulong
+* def_val:0
+* min_val:0
+* max_val:18446744073709551615
+* comment:last error
+
+## tokudb_backup_last_error_string
+* name:tokudb_backup_last_error_string
+* readonly:false
+* scope:session
+* type:str
+* comment:last error string
+

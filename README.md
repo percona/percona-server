@@ -98,7 +98,7 @@ tar czf tokudb-backup-plugin-0.14-percona-server-5.6.21.tar.gz tokudb-backup-plu
 * readonly:true
 * scope:system
 * type:str
-* comment:destination directory prefix
+* comment:allowed prefix of the destination directory
 
 ## tokudb_backup_throttle
 * name:tokudb_backup_throttle
@@ -108,7 +108,7 @@ tar czf tokudb-backup-plugin-0.14-percona-server-5.6.21.tar.gz tokudb-backup-plu
 * def_val:18446744073709551615
 * min_val:0
 * max_val:18446744073709551615
-* comment:backup throttle on write rate in bytes per second.  default is unlimited
+* comment:backup throttle on write rate in bytes per second
 
 ## tokudb_backup_dir
 * name:tokudb_backup_dir
@@ -125,12 +125,12 @@ tar czf tokudb-backup-plugin-0.14-percona-server-5.6.21.tar.gz tokudb-backup-plu
 * def_val:0
 * min_val:0
 * max_val:18446744073709551615
-* comment:last error
+* comment:error from the last backup. 0 is success
 
 ## tokudb_backup_last_error_string
 * name:tokudb_backup_last_error_string
 * readonly:false
 * scope:session
 * type:str
-* comment:last error string
+* comment:error string of the last backup
 

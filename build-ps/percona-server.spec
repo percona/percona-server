@@ -951,7 +951,10 @@ fi
 # For systemd check postun
 %if 0%{?systemd} == 0
 # Was the server running before the upgrade? If so, restart the new one.
-if [ "$SERVER_TO_START" = "true" ] ; then
+# Don't start it if TokuDB package is installed - it will be started
+# after TokuDB package is upgraded - prevents TokuDB init error
+tokudb_installed=`rpm -q Percona-Server-tokudb-56 2>/dev/null`
+if [ $? -eq 1 -a "$SERVER_TO_START" = "true" ] ; then
 	# Restart in the same way that mysqld will be started normally.
 	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 		%{_sysconfdir}/init.d/mysql start
@@ -974,7 +977,7 @@ echo                                             >> $STATUS_FILE
 echo "====="                                     >> $STATUS_FILE
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
 cat $STATUS_FILE >> $STATUS_HISTORY
-mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun"
+mv -f  $STATUS_FILE ${STATUS_FILE}-LAST  # for "triggerpostun" and TokuDB package
 
 
 #echo "Thank you for installing the MySQL Community Server! For Production
@@ -1109,6 +1112,40 @@ if [ $1 -eq 1 ] ; then
 	echo "* See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for more details"
 	echo ""
 fi
+# If upgrade is in question and the server was started before upgrade we need to start it
+# after upgrading TokuDB package and not before because TokuDB will fail on init
+%if 0%{?systemd} == 0
+if [ $1 -eq 2 ]; then
+	# There are users who deviate from the default file system layout.
+	# Check local settings to support them.
+	if [ -x %{_bindir}/my_print_defaults ]
+	then
+	  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
+	fi
+	if [ -z "$mysql_datadir" ]
+	then
+	  mysql_datadir=%{mysqldatadir}
+	fi
+
+	STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST
+
+	if [ -f $STATUS_FILE ] ; then
+	  SERVER_TO_START=`grep '^SERVER_TO_START=' $STATUS_FILE | cut -c17-`
+	else
+	  SERVER_TO_START=''
+	fi
+
+	# Was the server running before the upgrade? If so, restart the new one.
+	if [ "$SERVER_TO_START" = "true" ] ; then 
+	  # Restart in the same way that mysqld will be started normally.
+	  if [ -x %{_sysconfdir}/init.d/mysql ] ; then 
+	    %{_sysconfdir}/init.d/mysql start
+	    echo "Giving mysqld 5 seconds to start"
+	    sleep 5
+	  fi
+	fi
+fi
+%endif
 # ----------------------------------------------------------------------------
 %endif
 

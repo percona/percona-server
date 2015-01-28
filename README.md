@@ -7,9 +7,9 @@ Second, there must be a user interface that can be used to start a backup, track
 # Install the hot backup libraries
 1 Extract the tarball
 
-2 Copy lib/mysql/plugin/tokudb_backup.so to MySQL's lib/mysql/plugin directory
+2 Copy tokudb_backup.so to MySQL's plugin directory
 
-3 Copy lib/libHotBackup.so to MySQL's lib directory
+3 Copy libHotBackup.so to MySQL's lib directory
 
 4 Init mysqld
 ```
@@ -18,11 +18,11 @@ scripts/mysql_install_db
 
 5 Run mysqld with the hot backup library (should exist in the lib directory)
 ```
-LD_PRELOAD=PATH_TO_MYSQL_BASE_DIR/lib/libHotBackup.so ./mysqld_safe
+LD_PRELOAD=PATH_TO_MYSQL_BASE_DIR/lib/libHotBackup.so mysqld_safe
 ```
 NOTE: The preload is NOT necessary for MySQL and MariaDB builds from Tokutek since we link the hot backup library into mysqld already.
 
-6 Install the backup plugin (should exist in the lib/mysql/plugin directory)
+6 Install the backup plugin (should exist in MySQL's plugin directory)
 ```
 install plugin tokudb_backup soname 'tokudb_backup.so';
 ````
@@ -33,8 +33,8 @@ install plugin tokudb_backup soname 'tokudb_backup.so';
 ```
 set tokudb_backup_dir='/tmp/backup1047';
 ```
+The ```set tokudb_backup_dir``` statement will succeed if the backup was taken.  Otherwise, the ```tokudb_backup_last_error``` variable is set.
 
-2 Check if the backup worked
 ```
 select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 ```

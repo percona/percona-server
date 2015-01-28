@@ -45,40 +45,6 @@ The Tokutek hot backup updates the processlist state with progress information w
 # Throttle the backup write rate
 The ```tokudb_backup_throttle``` variable imposes an upper bound on the write rate of the TokuDB backup.  Units are bytes per second.  Default is no upper bound.
 
-# Build the hot backup plugin from source
-1 Checkout the Percona Server source
-
-2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.15'
-```
-cd percona-server-5.6/plugin
-git clone git@github.com:Tokutek/tokudb-backup-plugin
-pushd tokudb-backup-plugin
-git checkout tokudb-backup-0.15
-popd
-```
-
-3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.15'
-```
-cd percona-server-5.6/plugin/tokudb-backup-plugin
-git clone git@github.com:Tokutek/backup-enterprise
-ln -s backup-enterprise/backup backup
-pushd backup-enterprise
-git checkout tokudb-backup-0.15
-popd
-```
-
-4 Build
-```
-cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.15-percona-server-5.6.22 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.15 ../percona-server-5.6.22
-cd plugin/tokudb-backup-plugin
-make -j8 install
-```
-
-5 Make tarball
-```
-tar czf tokudb-backup-plugin-0.15-percona-server-5.6.22.tar.gz tokudb-backup-plugin-0.15-percona-server-5.6.22
-```
-
 # Variables
 ## tokudb_backup_plugin_version
 * name:tokudb_backup_plugin_version
@@ -134,4 +100,39 @@ tar czf tokudb-backup-plugin-0.15-percona-server-5.6.22.tar.gz tokudb-backup-plu
 * scope:session
 * type:str
 * comment:error string of the last backup
+
+# Build the hot backup plugin from source
+1 Checkout the Percona Server source
+
+2 Checkout the tokudb backup plugin with tag 'tokudb-backup-0.15'
+```
+cd percona-server-5.6/plugin
+git clone git@github.com:Tokutek/tokudb-backup-plugin
+pushd tokudb-backup-plugin
+git checkout tokudb-backup-0.15
+popd
+```
+
+3 Checkout the tokudb hot backup library with tag 'tokudb-backup-0.15'
+```
+cd percona-server-5.6/plugin/tokudb-backup-plugin
+git clone git@github.com:Tokutek/backup-enterprise
+ln -s backup-enterprise/backup backup
+pushd backup-enterprise
+git checkout tokudb-backup-0.15
+popd
+```
+
+4 Build
+```
+cmake -DBUILD_CONFIG=mysql_release -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=../tokudb-backup-plugin-0.15-percona-server-5.6.22 -DTOKUDB_BACKUP_PLUGIN_VERSION=tokudb-backup-0.15 ../percona-server-5.6.22
+cd plugin/tokudb-backup-plugin
+make -j8 install
+```
+
+5 Make tarball
+```
+tar czf tokudb-backup-plugin-0.15-percona-server-5.6.22.tar.gz tokudb-backup-plugin-0.15-percona-server-5.6.22
+```
+
 

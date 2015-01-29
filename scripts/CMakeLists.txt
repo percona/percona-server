@@ -339,6 +339,7 @@ ELSE()
     mysqldumpslow
     mysqld_multi
     mysqld_safe
+    ps_tokudb_admin
   )
   FOREACH(file ${BIN_SCRIPTS})
     IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${file}.sh)

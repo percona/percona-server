@@ -481,6 +481,9 @@ then
   echo "Please report any problems at"
   echo "  https://bugs.launchpad.net/percona-server/+filebug"
   echo
+  echo "Percona recommends that all production deployments be protected with a support"
+  echo "contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,"
+  echo "be eligible for hot fixes, and boost your team's productivity."
 fi
 
 exit 0

@@ -651,6 +651,10 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 %if 0%{?systemd}
 rm -rf $RBR%{_sysconfdir}/init.d/mysql
 %endif
+# Not needed if TokuDB package is not created
+%if ! %{with tokudb}
+rm -rf $RBR%{_bindir}/ps_tokudb_admin
+%endif
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -1097,20 +1101,11 @@ echo "====="                                     >> $STATUS_HISTORY
 %post -n Percona-Server-tokudb%{product_suffix}
 
 if [ $1 -eq 1 ] ; then
-	echo ""
-	echo "* This release of Percona Server is distributed with TokuDB storage engine."
-	echo "* Run the following commands to enable the TokuDB storage engine in Percona Server:"
-	echo ""
-	echo "mysql -e \"INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';\""
-	echo "mysql -e \"INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';\""
-	echo "mysql -e \"INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';\""
-	echo "mysql -e \"INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';\""
-	echo "mysql -e \"INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';\""
-	echo "mysql -e \"INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';\""
-	echo "mysql -e \"INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';\""
-	echo ""
-	echo "* See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for more details"
-	echo ""
+  echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
+  echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
+  echo -e "\tps_tokudb_admin --enable -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
+  echo -e " * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_installation.html for more installation details\n"
+  echo -e " * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
 fi
 # If upgrade is in question and the server was started before upgrade we need to start it
 # after upgrading TokuDB package and not before because TokuDB will fail on init
@@ -1412,6 +1407,7 @@ fi
 %{_bindir}/tokuftdump
 %{_libdir}/mysql/plugin/ha_tokudb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
+%attr(755, root, root) %{_bindir}/ps_tokudb_admin
 %endif
 
 # ----------------------------------------------------------------------------

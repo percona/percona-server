@@ -29,8 +29,13 @@ function get_source_from_repos() {
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     mv percona-server-5.6 $perconaserver-$buildtype
  
-    # append the tokudb tag to the revno string
-    sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
+    if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
+        echo "revno: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
+    else
+        # append the tokudb tag to the revno string
+        sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
+        if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
+    fi
 
     # make the tokudb source tarball
     bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb
@@ -44,7 +49,7 @@ function get_source_from_repos() {
     target=$PWD/$perconaserver-$buildtype
     pushd $perconaserver.tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    for d in mysql-test storage; do
+    for d in mysql-test storage plugin; do
         if [ -d $d ] ; then
             for f in $(find $d -type f); do
                 targetdir=$(dirname $target/$f)

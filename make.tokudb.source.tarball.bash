@@ -41,14 +41,19 @@ if [ $? -ne 0 ] ; then exit 1; fi
 get_repo Tokutek tokudb-percona-server-5.6 $ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
+get_repo Tokutek tokudb-backup-plugin $ref
+if [ $? -ne 0 ] ; then exit 1; fi
+
 # merge the repos into the staging directory
 if [ ! -d $staging ] ; then
     mkdir $staging
     if [ $? -ne 0 ] ; then exit 1; fi
     cp -r tokudb-engine/storage $staging
     cp -r tokudb-engine/mysql-test $staging
-    cp -r ft-index $staging/storage/tokudb
+    mv ft-index $staging/storage/tokudb
     cp -r tokudb-percona-server-5.6/mysql-test $staging
+    mkdir $staging/plugin
+    mv tokudb-backup-plugin $staging/plugin
 
     # set the tokudb version to the github ref in the cmake file
     pushd $staging/storage/tokudb

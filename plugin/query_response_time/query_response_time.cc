@@ -170,17 +170,17 @@ public:
   {
     my_atomic_rwlock_destroy(&time_collector_lock);
   }
-  uint32 count(uint index)
+  uint32 count(QUERY_TYPE type, uint index)
   {
     my_atomic_rwlock_rdlock(&time_collector_lock);
-    uint32 result= my_atomic_load32((int32*)&m_count[index]);
+    uint32 result= my_atomic_load32((int32*)&m_count[type][index]);
     my_atomic_rwlock_rdunlock(&time_collector_lock);
     return result;
   }
-  uint64 total(uint index)
+  uint64 total(QUERY_TYPE type, uint index)
   {
     my_atomic_rwlock_rdlock(&time_collector_lock);
-    uint64 result= my_atomic_load64((int64*)&m_total[index]);
+    uint64 result= my_atomic_load64((int64*)&m_total[type][index]);
     my_atomic_rwlock_rdunlock(&time_collector_lock);
     return result;
   }
@@ -192,7 +192,7 @@ public:
     memset((void*)&m_total,0,sizeof(m_total));
     my_atomic_rwlock_wrunlock(&time_collector_lock);
   }
-  void collect(uint64 time)
+  void collect(QUERY_TYPE type, uint64 time)
   {
     int i= 0;
     for(int count= m_utility->bound_count(); count > i; ++i)
@@ -200,8 +200,10 @@ public:
       if(m_utility->bound(i) > time)
       {
         my_atomic_rwlock_wrlock(&time_collector_lock);
-        my_atomic_add32((int32*)(&m_count[i]), 1);
-        my_atomic_add64((int64*)(&m_total[i]), time);
+        my_atomic_add32((int32*)(&m_count[0][i]), 1);
+        my_atomic_add64((int64*)(&m_total[0][i]), time);
+        my_atomic_add32((int32*)(&m_count[type][i]), 1);
+        my_atomic_add64((int64*)(&m_total[type][i]), time);
         my_atomic_rwlock_wrunlock(&time_collector_lock);
         break;
       }
@@ -209,12 +211,18 @@ public:
   }
 private:
   utility* m_utility;
-  /* The lock for atomic operations on m_count and m_total.  Only actually
-  used on architectures that do not have atomic implementation of atomic
-  operations. */
+  /* The lock for atomic operations on
+  m_count, m_total, m_r_count, m_r_total, m_w_count, m_w_total.
+  Only actually used on architectures that do not have atomic
+  implementation of atomic operations. */
   my_atomic_rwlock_t time_collector_lock;
-  uint32   m_count[OVERALL_POWER_COUNT + 1];
-  uint64   m_total[OVERALL_POWER_COUNT + 1];
+  /*
+   The first row is for overall statistics,
+   the second row is for 'read' queries,
+   the third row is for 'write' queries.
+  */
+  uint32   m_count[3][OVERALL_POWER_COUNT + 1];
+  uint64   m_total[3][OVERALL_POWER_COUNT + 1];
 };
 
 class collector
@@ -231,7 +239,9 @@ public:
     m_utility.setup(opt_query_response_time_range_base);
     m_time.flush();
   }
-  int fill(THD* thd, TABLE_LIST *tables, COND *cond)
+  int fill(QUERY_TYPE type,
+           THD* thd,
+           TABLE_LIST *tables, COND *cond)
   {
     DBUG_ENTER("fill_schema_query_response_time");
     TABLE        *table= static_cast<TABLE*>(tables->table);
@@ -250,10 +260,10 @@ public:
       else
       {
         print_time(time, sizeof(time), TIME_STRING_FORMAT, this->bound(i));
-        print_time(total, sizeof(total), TOTAL_STRING_FORMAT, this->total(i));
+        print_time(total, sizeof(total), TOTAL_STRING_FORMAT, this->total(type, i));
       }
       fields[0]->store(time,strlen(time),system_charset_info);
-      fields[1]->store(this->count(i));
+      fields[1]->store(this->count(type, i));
       fields[2]->store(total,strlen(total),system_charset_info);
       if (schema_table_store_record(thd, table))
       {
@@ -262,9 +272,9 @@ public:
     }
     DBUG_RETURN(0);
   }
-  void collect(ulonglong time)
+  void collect(QUERY_TYPE type, ulonglong time)
   {
-    m_time.collect(time);
+    m_time.collect(type, time);
   }
   uint bound_count() const
   {
@@ -274,13 +284,13 @@ public:
   {
     return m_utility.bound(index);
   }
-  ulonglong count(uint index)
+  ulonglong count(QUERY_TYPE type, uint index)
   {
-    return m_time.count(index);
+    return m_time.count(type, index);
   }
-  ulonglong total(uint index)
+  ulonglong total(QUERY_TYPE type, uint index)
   {
-    return m_time.total(index);
+    return m_time.total(type, index);
   }
 private:
   utility          m_utility;
@@ -304,12 +314,23 @@ void query_response_time_flush()
 {
   query_response_time::g_collector.flush();
 }
-void query_response_time_collect(ulonglong query_time)
+
+void query_response_time_collect(QUERY_TYPE type,
+                                 ulonglong query_time)
 {
-  query_response_time::g_collector.collect(query_time);
+  query_response_time::g_collector.collect(type, query_time);
 }
 
 int query_response_time_fill(THD* thd, TABLE_LIST *tables, COND *cond)
 {
-  return query_response_time::g_collector.fill(thd,tables,cond);
+  QUERY_TYPE query_type= ANY;
+  if (!strncmp(tables->table->alias,
+              "QUERY_RESPONSE_TIME_READ",
+              sizeof("QUERY_RESPONSE_TIME_READ") - 1))
+    query_type= READ;
+  else if (!strncmp(tables->table->alias,
+                   "QUERY_RESPONSE_TIME_WRITE",
+                   sizeof("QUERY_RESPONSE_TIME_WRITE") - 1))
+    query_type= WRITE;
+  return query_response_time::g_collector.fill(query_type, thd, tables, cond);
 }

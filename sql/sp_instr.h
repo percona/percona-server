@@ -224,6 +224,10 @@ public:
       return m_lex ? m_lex->sql_command : -1;
   }
 
+  const LEX_STRING *get_prepared_stmt_name() const {
+    return m_lex ? &m_lex->prepared_stmt_name : NULL;
+  }
+
 private:
   /**
     Prepare LEX and thread for execution of instruction, if requested open

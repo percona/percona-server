@@ -747,6 +747,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 {
   bool need_subst= false;
   bool rc= false;
+  QUERY_START_TIME_INFO time_info;
 
   DBUG_PRINT("info", ("query: '%.*s'", (int) m_query.length, m_query.str));
 
@@ -756,6 +757,18 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   /* This SP-instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
 #endif
+
+  memset(&time_info, 0, sizeof(time_info));
+
+  if (thd->enable_slow_log)
+  {
+    /*
+      Save start time info for the CALL statement and overwrite it with the
+      current time for log_slow_statement() to log the individual query timing.
+    */
+    thd->get_time(&time_info);
+    thd->set_time();
+  }
 
   /*
     If we can't set thd->query_string at all, we give up on this statement.
@@ -811,11 +824,21 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
   {
     rc= validate_lex_and_execute_core(thd, nextp, false);
 
+    /*
+      thd->utime_after_query can be used for counting
+      statement execution time (for example in
+      query_response_time plugin). thd->update_server_status()
+      updates this value but only if function/procedure
+      budy has been already executed, if we want to measure
+      statement execution time inside function/procedure
+      we have to update this value here independent of
+      value returned by thd->get_stmt_da()->is_eof().
+    */
+    thd->update_server_status();
+
     if (thd->get_stmt_da()->is_eof())
     {
       /* Finalize server status flags after executing a statement. */
-      thd->update_server_status();
-
       thd->protocol->end_statement();
     }
 
@@ -857,6 +880,10 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
   if (!thd->is_error())
     thd->get_stmt_da()->reset_diagnostics_area();
+
+  /* Restore the original query start time */
+  if (thd->enable_slow_log)
+    thd->set_time(&time_info);
 
   return rc || thd->is_error();
 }

@@ -66,6 +66,13 @@
   MY_MAX( (QRT_TOTAL_STRING_POSITIVE_POWER_LENGTH + 1 /* '.' */ + 6 /*QRT_TOTAL_STRING_NEGATIVE_POWER_LENGTH*/), \
        (sizeof(QRT_TIME_OVERFLOW) - 1) )
 
+enum QUERY_TYPE
+{
+  ANY=    0,
+  READ=   1,
+  WRITE=  2
+};
+
 extern ST_SCHEMA_TABLE query_response_time_table;
 
 typedef class Item COND;
@@ -73,7 +80,7 @@ typedef class Item COND;
 extern void query_response_time_init   ();
 extern void query_response_time_free   ();
 extern void query_response_time_flush  ();
-extern void query_response_time_collect(ulonglong query_time);
+extern void query_response_time_collect(QUERY_TYPE type, ulonglong query_time);
 extern int  query_response_time_fill   (THD* thd, TABLE_LIST *tables, COND *cond);
 
 extern ulong   opt_query_response_time_range_base;

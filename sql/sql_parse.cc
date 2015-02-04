@@ -2606,7 +2606,7 @@ mysql_execute_command(THD *thd)
   /* have table map for update for multi-update statement (BUG#37051) */
   bool have_table_map_for_update= FALSE;
 #endif
-  struct system_variables *per_query_variables_backup;
+  struct system_variables *per_query_variables_backup= NULL;
   bool reset_timer= false;
 
   DBUG_ENTER("mysql_execute_command");
@@ -5490,7 +5490,10 @@ finish:
   if (reset_timer)
     reset_statement_timer(thd);
 
-  if (lex->set_statement && !lex->var_list.is_empty()) {
+  if (per_query_variables_backup) {
+    DBUG_ASSERT(lex->set_statement);
+    DBUG_ASSERT(!lex->var_list.is_empty());
+
     List_iterator_fast<set_var_base> it(thd->lex->var_list);
     set_var *var;
 

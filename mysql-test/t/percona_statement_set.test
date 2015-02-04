@@ -1,3 +1,5 @@
+--source include/have_innodb.inc
+--source include/count_sessions.inc
 --echo '# SET STATEMENT ..... FOR ....  TEST'
 ############################ STATEMENT_SET #############################
 #                                                                      #
@@ -28,7 +30,7 @@ DROP TABLE IF EXISTS STATEMENT;
 #Set up current database
 ####################################################################
 --echo '# Setup database'
-CREATE TABLE t1 (v1 INT, v2 INT);
+CREATE TABLE t1 (v1 INT, v2 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (3,4);
 --echo ''
@@ -820,11 +822,55 @@ SELECT @@myisam_sort_buffer_size, @@sort_buffer_size;
 CREATE TABLE STATEMENT(a INT);
 DROP TABLE STATEMENT;
 
+--echo Test for bug 1418049: SET STATEMENT ... FOR <statement> crashes server
+--echo if <statement> needs to commit implicitly and fails
+
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+SET @old_lock_wait_timeout = @@session.lock_wait_timeout;
+SET SESSION lock_wait_timeout = 1;
+
+BEGIN;
+INSERT INTO t2 VALUES (5);
+
+--connect(con1,localhost,root,,)
+--connection con1
+FLUSH TABLES WITH READ LOCK;
+
+--connection default
+--error ER_LOCK_WAIT_TIMEOUT
+SET STATEMENT max_join_size = 0 FOR DROP TABLE t2;
+
+--connection con1
+UNLOCK TABLES;
+--disconnect con1
+--connection default
+COMMIT;
+SET SESSION lock_wait_timeout = @old_lock_wait_timeout;
+
+--echo Test for bug 1387951: SET STATEMENT ... FOR <statement> crashes server
+--echo if <statement> is RW in a RO transaction
+SET @old_tx_read_only = @@session.tx_read_only;
+SET SESSION tx_read_only = TRUE;
+--error ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION
+SET STATEMENT myisam_repair_threads=0 FOR OPTIMIZE TABLE t0;
+SET SESSION tx_read_only = @old_tx_read_only;
+
+--echo Test for bug 1412423: SET STATEMENT ... FOR <statement> crashes server
+--echo if <statement> needs to re-open a temp table and fails
+CREATE TEMPORARY TABLE t3 (a INT PRIMARY KEY) ENGINE=InnoDB;
+HANDLER t3 OPEN;
+--error ER_CANT_REOPEN_TABLE
+SET STATEMENT max_join_size=1000 FOR SELECT * FROM t3;
+DROP TABLE t3;
+
 --echo ''
 --echo '# Cleanup'
-DROP TABLE t1;
+DROP TABLE t1, t2;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
+
+--source include/wait_until_count_sessions.inc

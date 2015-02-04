@@ -8,7 +8,7 @@ DROP PROCEDURE IF EXISTS p4;
 DROP PROCEDURE IF EXISTS p5;
 DROP TABLE IF EXISTS STATEMENT;
 '# Setup database'
-CREATE TABLE t1 (v1 INT, v2 INT);
+CREATE TABLE t1 (v1 INT, v2 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (3,4);
 ''
@@ -852,9 +852,36 @@ SELECT @@myisam_sort_buffer_size, @@sort_buffer_size;
 '#------------------Test 22-----------------------#'
 CREATE TABLE STATEMENT(a INT);
 DROP TABLE STATEMENT;
+Test for bug 1418049: SET STATEMENT ... FOR <statement> crashes server
+if <statement> needs to commit implicitly and fails
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+SET @old_lock_wait_timeout = @@session.lock_wait_timeout;
+SET SESSION lock_wait_timeout = 1;
+BEGIN;
+INSERT INTO t2 VALUES (5);
+FLUSH TABLES WITH READ LOCK;
+SET STATEMENT max_join_size = 0 FOR DROP TABLE t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+COMMIT;
+SET SESSION lock_wait_timeout = @old_lock_wait_timeout;
+Test for bug 1387951: SET STATEMENT ... FOR <statement> crashes server
+if <statement> is RW in a RO transaction
+SET @old_tx_read_only = @@session.tx_read_only;
+SET SESSION tx_read_only = TRUE;
+SET STATEMENT myisam_repair_threads=0 FOR OPTIMIZE TABLE t0;
+ERROR 25006: Cannot execute statement in a READ ONLY transaction.
+SET SESSION tx_read_only = @old_tx_read_only;
+Test for bug 1412423: SET STATEMENT ... FOR <statement> crashes server
+if <statement> needs to re-open a temp table and fails
+CREATE TEMPORARY TABLE t3 (a INT PRIMARY KEY) ENGINE=InnoDB;
+HANDLER t3 OPEN;
+SET STATEMENT max_join_size=1000 FOR SELECT * FROM t3;
+ERROR HY000: Can't reopen table: 't3'
+DROP TABLE t3;
 ''
 '# Cleanup'
-DROP TABLE t1;
+DROP TABLE t1, t2;
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP PROCEDURE p3;

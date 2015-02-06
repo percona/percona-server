@@ -71,11 +71,66 @@ or
 
  root@wheezy:~# apt-get install percona-server-tokudb-5.6
 
+.. _tokudb_quick_install:
 
 Enabling the TokuDB Storage Engine
 ==================================
 
-This storage engine requires manual installation if there is a root password already set up during the new installation or upgrade. 
+Once the TokuDB server package has been installed following output will be shown:
+
+.. code-block:: bash
+
+  * This release of Percona Server is distributed with TokuDB storage engine.
+     * Run the following script to enable the TokuDB storage engine in Percona Server:
+
+      ps_tokudb_admin --enable -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
+
+     * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_installation.html for more installation details
+
+     * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for an introduction to TokuDB
+
+|Percona Server| :rn:`5.6.22-72.0` has implemented ``ps_tokudb_admin`` script to make the enabling the TokuDB storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install the TokuDB storage engine with all the required plugins. After you run the script with required parameters:
+
+.. code-block:: bash
+
+   ps_tokudb_admin --enable -uroot -pPassw0rd
+   
+Following output will be displayed:
+
+.. code-block:: bash
+
+   Checking if Percona server is running with jemalloc enabled...
+   >> Percona server is running with jemalloc enabled.
+
+   Checking transparent huge pages status on the system...
+   >> Transparent huge pages are currently disabled on the system.
+
+   Checking if thp-setting=never option is already set in config file...
+   >> Option thp-setting=never is not set in the config file.
+   >> (needed only if THP is not disabled permanently on the system)
+
+   Checking TokuDB plugin status...
+   >> TokuDB plugin is not installed.
+
+   Adding thp-setting=never option into /etc/mysql/my.cnf
+   >> Successfuly added thp-setting=never option into /etc/mysql/my.cnf
+
+   Installing TokuDB engine...
+   >> Successfuly installed TokuDB plugin.
+
+If the script returns no errors, TokuDB storage engine should be successfully enabled on your server. You can check it out by running:
+
+.. code-block:: mysql
+
+  mysql> SHOW ENGINES;
+  ...
+   | TokuDB | YES | Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology | YES | YES | YES |
+  ...
+
+Enabling the TokuDB Storage Engine Manually
+===========================================
+
+If you're running |Percona Server| :rn:`5.6.22-71.0` this storage engine requires manual installation. 
 
 .. code-block:: mysql
 
@@ -122,7 +177,7 @@ TokuDB storage engine version can be checked with:
    +------------------+
    | @@tokudb_version |
    +------------------+
-   | tokudb-7.1.7-rc7 |
+   | tokudb-7.5.4     |
    +------------------+
    1 row in set (0.00 sec)
 
@@ -139,6 +194,8 @@ Version Specific Information
     TokuDB storage engine available as a separate |Percona Server| package.
  * :rn:`5.6.19-67.0`
     TokuDB storage engine is considered GA quality.
+ * :rn:`5.6.22-72.0` 
+    Implemented ``ps_tokudb_admin`` script to make the installation :ref:`easier <tokudb_quick_install>`
 
 
 Other Reading

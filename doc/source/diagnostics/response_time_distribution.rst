@@ -69,6 +69,19 @@ This means there were: ::
 
   * 1 query with 10.000000 < query execution time < = 100.0000 seconds; total execution time of the 1 query = 55.937094 seconds
 
+.. _rtd_rw_split:
+
+Logging the queries in separate ``READ`` and ``WRITE`` tables
+=============================================================
+
+.. note::
+
+  This feature is considered **BETA** quality.
+
+|Percona Server| :rn:`5.6.22-72.0` is now able to log the queries response times into separate ``READ`` and ``WRITE`` ``INFORMATION_SCHEMA`` tables. The two new tables are named :table:`QUERY_RESPONSE_TIME_READ` and :table:`QUERY_RESPONSE_TIME_WRITE` respectively. The decision on whether a query is a ``read`` or a ``write`` is based on the type of the command. Thus, for example, an ``UPDATE ... WHERE <condition>`` is always logged as a ``write`` query even if ``<condition>`` is always false and thus no actual writes happen during its execution.
+
+Following SQL commands will be considered as ``WRITE`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_WRITE` table: ``CREATE_TABLE``, ``CREATE_INDEX``, ``ALTER_TABLE``, ``TRUNCATE``, ``DROP_TABLE``, ``LOAD``, ``CREATE_DB``, ``DROP_DB``, ``ALTER_DB``, ``RENAME_TABLE``, ``DROP_INDEX``, ``CREATE_VIEW``, ``DROP_VIEW``, ``CREATE_TRIGGER``, ``DROP_TRIGGER``, ``CREATE_EVENT``, ``ALTER_EVENT``, ``DROP_EVENT``, ``UPDATE``, ``UPDATE_MULTI``, ``INSERT``, ``INSERT_SELECT``, ``DELETE``, ``DELETE_MULTI``, ``REPLACE``, ``REPLACE_SELECT``, ``CREATE_USER``, ``RENAME_USER``, ``DROP_USER``, ``ALTER_USER``, ``GRANT``, ``REVOKE``, ``REVOKE_ALL``, ``OPTIMIZE``, ``CREATE_FUNCTION``, ``CREATE_PROCEDURE``, ``CREATE_SPFUNCTION``, ``DROP_PROCEDURE``, ``DROP_FUNCTION``, ``ALTER_PROCEDURE``, ``ALTER_FUNCTION``, ``INSTALL_PLUGIN``, and ``UNINSTALL_PLUGIN``. Commands not listed here are considered as ``READ`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_READ` table.
+
 Installing the plugins
 ======================
 
@@ -86,6 +99,18 @@ This plugin is used for gathering statistics.
 
 This plugin provides the interface (:table:`QUERY_RESPONSE_TIME`) to output gathered statistics.
 
+.. code-block:: mysql
+
+   mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME_READ SONAME 'query_response_time.so';
+
+This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_READ`) to output gathered statistics. **NOTE:** Available in |Percona Server| :rn:`5.6.22-72.0` or later.
+
+.. code-block:: mysql
+
+   mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME_WRITE SONAME 'query_response_time.so';
+
+This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_WRITE`) to output gathered statistics. **NOTE:** Available in |Percona Server| :rn:`5.6.22-72.0` or later.
+
 You can check if plugins are installed correctly by running:
 
 .. code-block:: mysql
@@ -95,6 +120,8 @@ You can check if plugins are installed correctly by running:
    ...
    | QUERY_RESPONSE_TIME         | ACTIVE   | INFORMATION SCHEMA | query_response_time.so | GPL     |
    | QUERY_RESPONSE_TIME_AUDIT   | ACTIVE   | AUDIT              | query_response_time.so | GPL     |
+   | QUERY_RESPONSE_TIME_READ    | ACTIVE   | INFORMATION SCHEMA | query_response_time.so | GPL     |
+   | QUERY_RESPONSE_TIME_WRITE   | ACTIVE   | INFORMATION SCHEMA | query_response_time.so | GPL     |
    +-----------------------------+----------+--------------------+------------------------+---------+
 
 Usage
@@ -147,7 +174,7 @@ Flushing can be done by setting the :variable:`query_response_time_flush` to ``O
 
 ``FLUSH`` does two things:
 
-  * Clears the collected times from the :table:`QUERY_RESPONSE_TIME` table
+  * Clears the collected times from the :table:`QUERY_RESPONSE_TIME`, :table:`QUERY_RESPONSE_TIME_READ`, and :table:`QUERY_RESPONSE_TIME_WRITE` tables
 
   * Reads the value of :variable:`query_response_time_range_base` and uses it to set the range base for the table
 
@@ -168,6 +195,9 @@ Version Specific Information
 
   * :rn:`5.6.21-69.0`:
     Feature ported from |Percona Server| 5.5 as a plugin
+
+  * :rn:`5.6.22-72.0`:
+    Implemented query logging based on ``READ`` and ``WRITE`` queries.
 
 System Variables
 ================
@@ -219,6 +249,18 @@ INFORMATION_SCHEMA Tables
 =========================
 
 .. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME
+
+   :column VARCHAR TIME: Interval range in which the query occurred
+   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
+   :column VARCHAR TOTAL: Total execution time of the queries 
+
+.. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ
+
+   :column VARCHAR TIME: Interval range in which the query occurred
+   :column INT(11) COUNT: Number of queries with execution times that fell into that interval
+   :column VARCHAR TOTAL: Total execution time of the queries 
+
+.. table:: INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE
 
    :column VARCHAR TIME: Interval range in which the query occurred
    :column INT(11) COUNT: Number of queries with execution times that fell into that interval

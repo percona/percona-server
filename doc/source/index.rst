@@ -94,6 +94,7 @@ Flexibility Improvements
    flexibility/slowlog_rotation
    flexibility/mysqlbinlog_change_db
    flexibility/csv_engine_mode
+   flexibility/online_gtid_deployment
 
 Reliability Improvements
 ========================

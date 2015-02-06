@@ -22,7 +22,35 @@ If you still need the data in the TokuDB tables you'll need to alter the tables 
 Removing the plugins
 --------------------
 
-Storage engine requires manual removal: 
+If you're using |Percona Server| :rn:`5.6.22-72.0` or later you can use the ``ps_tokudb_admin`` script to remove the plugins:
+
+.. code-block:: bash
+
+  ps_tokudb_admin --disable -uroot -pPassw0rd
+
+Script output should look like this: 
+
+.. code-block:: bash
+
+  Checking if Percona server is running with jemalloc enabled...
+  >> Percona server is running with jemalloc enabled.
+
+  Checking transparent huge pages status on the system...
+  >> Transparent huge pages are currently disabled on the system.
+
+  Checking if thp-setting=never option is already set in config file...
+  >> Option thp-setting=never is set in the config file.
+
+  Checking TokuDB plugin status...
+  >> TokuDB plugin is installed.
+
+  Removing thp-setting=never option from /etc/mysql/my.cnf
+  >> Successfuly removed thp-setting=never option from /etc/mysql/my.cnf
+
+  Uninstalling TokuDB plugin...
+  >> Successfuly uninstalled TokuDB plugin.
+
+Prior to |Percona Server| :rn:`5.6.22-72.0` TokuDB storage engine requires manual removal: 
 
 .. code-block:: mysql
 

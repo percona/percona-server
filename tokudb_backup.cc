@@ -632,7 +632,7 @@ mysql_declare_plugin(tokudb_backup) {
     "tokudb_backup",
     "Tokutek",
     "Tokutek hot backup",
-    PLUGIN_LICENSE_PROPRIETARY,
+    PLUGIN_LICENSE_GPL,
     tokudb_backup_plugin_init,      // Plugin Init
     tokudb_backup_plugin_deinit,    // Plugin Deinit
     (TOKUDB_BACKUP_PLUGIN_VERSION_MAJOR << 8) + TOKUDB_BACKUP_PLUGIN_VERSION_MINOR,

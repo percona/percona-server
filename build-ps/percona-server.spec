@@ -1460,6 +1460,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Wed Feb 04 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Added ps_tokudb_admin script for TokuDB plugin installation (BLD-212)
+- Fixed TokuDB engine fails after upgrade on centos 5/6 (bug1413956)
+
 * Fri Jan 09 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Upgrading a running server does not restart the service (bug1311840)

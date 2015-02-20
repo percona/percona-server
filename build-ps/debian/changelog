@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.22-rel72.0) unstable; urgency=low
+
+  * Added ps_tokudb_admin script for TokuDB plugin installation (BLD-212)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Wed, 04 Feb 2015 20:14:05 +0100
+
 percona-server-5.6 (5.6.22-rel71.0) unstable; urgency=low
 
   * init script timeout is too short when resizing logs (bug1328262)

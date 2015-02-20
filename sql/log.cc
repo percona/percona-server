@@ -2090,7 +2090,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
     if (opt_log_slow_sp_statements &&
         thd->sp_runtime_ctx &&
         my_b_printf(&log_file,
-                    "# Stored routine: %s\n",
+                    "# Stored_routine: %s\n",
                     thd->sp_runtime_ctx->sp->m_qname.str) == (uint) -1)
       tmp_errno= errno;
 

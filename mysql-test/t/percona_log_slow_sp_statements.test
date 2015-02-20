@@ -38,9 +38,9 @@ EXECUTE stmt;
 --source include/log_grep.inc
 --let grep_pattern=CALL test_
 --source include/log_grep.inc
---let grep_pattern=# Stored routine: test.test_outer
+--let grep_pattern=# Stored_routine: test.test_outer
 --source include/log_grep.inc
---let grep_pattern=# Stored routine: test.test_inner
+--let grep_pattern=# Stored_routine: test.test_inner
 --source include/log_grep.inc
 
 SET GLOBAL log_slow_sp_statements=OFF;
@@ -55,7 +55,7 @@ EXECUTE stmt;
 --source include/log_grep.inc
 --let grep_pattern=CALL test_
 --source include/log_grep.inc
---let grep_pattern=# Stored routine: test.test_
+--let grep_pattern=# Stored_routine: test.test_
 --source include/log_grep.inc
 
 DROP PROCEDURE test_outer;

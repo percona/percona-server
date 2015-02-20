@@ -31,9 +31,9 @@ EXECUTE stmt;
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.sp1 pattern: CALL test_
 [log_grep.inc] lines:   0
-[log_grep.inc] file: percona.slow_extended.sp1 pattern: # Stored routine: test.test_outer
+[log_grep.inc] file: percona.slow_extended.sp1 pattern: # Stored_routine: test.test_outer
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.sp1 pattern: # Stored routine: test.test_inner
+[log_grep.inc] file: percona.slow_extended.sp1 pattern: # Stored_routine: test.test_inner
 [log_grep.inc] lines:   2
 SET GLOBAL log_slow_sp_statements=OFF;
 [log_start.inc] percona.slow_extended.sp2
@@ -54,7 +54,7 @@ EXECUTE stmt;
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.sp2 pattern: CALL test_
 [log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.sp2 pattern: # Stored routine: test.test_
+[log_grep.inc] file: percona.slow_extended.sp2 pattern: # Stored_routine: test.test_
 [log_grep.inc] lines:   0
 DROP PROCEDURE test_outer;
 DROP PROCEDURE test_inner;

@@ -6185,9 +6185,9 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
 
 err:
   if (!write_error)
-    write_error= 1;
   {
     char errbuf[MYSYS_STRERROR_SIZE];
+    write_error= 1;
     sql_print_error(ER(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }

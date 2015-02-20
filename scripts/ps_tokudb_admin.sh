@@ -176,7 +176,6 @@ if [ $STATUS_PLUGIN = 0 ]; then
   printf ">> TokuDB plugin is not installed.\n\n"
 elif [ $STATUS_PLUGIN = 7 ]; then
   printf ">> TokuDB plugin is installed.\n\n"
-  exit 0
 else
   printf ">> TokuDB plugin is partially installed. Please cleanup manually.\n\n"
   exit 1

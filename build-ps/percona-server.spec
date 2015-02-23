@@ -465,12 +465,14 @@ mkdir debug
   # Attempt to remove any optimisation flags from the debug build
   CFLAGS=`echo " ${CFLAGS} " | \
             sed -e 's/ -O[0-9]* / /' \
+                -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
                 -e 's/ -unroll2 / /' \
                 -e 's/ -ip / /' \
                 -e 's/^ //' \
                 -e 's/ $//'`
   CXXFLAGS=`echo " ${CXXFLAGS} " | \
               sed -e 's/ -O[0-9]* / /' \
+                  -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
                   -e 's/ -unroll2 / /' \
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
@@ -479,7 +481,6 @@ mkdir debug
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../ -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
-           -DMYSQL_MAINTAINER_MODE=OFF \
            -DENABLE_DTRACE=OFF \
            -DWITH_EMBEDDED_SERVER=OFF \
            -DWITH_SSL=system \

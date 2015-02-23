@@ -172,6 +172,17 @@ export CXX=${CXX:-g++}
 #
 if [ -n "$(which rpm)" ]; then
   export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
+  # Attempt to remove any optimisation flags from the debug build
+  if test "x$CMAKE_BUILD_TYPE" = "xDebug"
+  then
+    COMMON_FLAGS=`echo " ${COMMON_FLAGS} " | \
+              sed -e 's/ -O[0-9]* / /' \
+                  -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /' \
+                  -e 's/ -unroll2 / /' \
+                  -e 's/ -ip / /' \
+                  -e 's/^ //' \
+                  -e 's/ $//'`
+  fi
 fi
 #
 export CFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"

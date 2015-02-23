@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/04/2014
+.\"      Date: 01/06/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "11/04/2014" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "01/06/2015" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -265,7 +265,6 @@ T}
 .TS
 allbox tab(:);
 l l s s
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
@@ -276,11 +275,6 @@ T{
 \ \&
 T}:T{
 \-\-usage
-T}
-T{
-\ \&
-T}:T{
-\-?
 T}
 .TE
 .sp 1
@@ -303,8 +297,7 @@ to print a list of available options, and then exit\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -314,11 +307,8 @@ T}:T{
 \-\-config_from_node=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -361,17 +351,11 @@ fails with an error\&. (To obtain configuration data from the management node in
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-version
-T}
-T{
-\ \&
-T}:T{
-\-V
 T}
 .TE
 .sp 1
@@ -396,9 +380,7 @@ to print a version information string, and then exit\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -411,16 +393,8 @@ T}:T{
 \-\-connect\-string=connectstring
 T}
 T{
-\ \&
-T}:T{
-\-c
-T}
-T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -451,8 +425,7 @@ localhost:1186\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -460,11 +433,8 @@ T}:T{
 \-\-config\-file=path
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -494,8 +464,7 @@ is invoked, then an absolute path must be used\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -503,11 +472,8 @@ T}:T{
 \-\-mycnf
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -540,9 +506,7 @@ file\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -550,16 +514,8 @@ T}:T{
 \-\-query=string
 T}
 T{
-\ \&
-T}:T{
-\-q
-T}
-T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -617,8 +573,7 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -626,11 +581,8 @@ T}:T{
 \-\-host=name
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -692,8 +644,7 @@ in the same fashion\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -701,11 +652,8 @@ T}:T{
 \-\-ndb\-nodeid=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -736,8 +684,7 @@ is the preferred form\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -745,11 +692,8 @@ T}:T{
 \-\-nodes
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -785,8 +729,7 @@ or
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -794,11 +737,8 @@ T}:T{
 \-\-connections
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -834,8 +774,7 @@ or
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -843,11 +782,8 @@ T}:T{
 \-\-system
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -886,8 +822,7 @@ options\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ lt l s
 ^ ^ l s
@@ -898,11 +833,8 @@ T}:T{
 \-\-type=name
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 enumeration
@@ -948,9 +880,7 @@ ndb_mgmd) are returned\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -958,16 +888,8 @@ T}:T{
 \-\-fields=string
 T}
 T{
-\ \&
-T}:T{
-\-f
-T}
-T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1020,9 +942,7 @@ for the linefeed character), then it must be quoted\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1030,16 +950,8 @@ T}:T{
 \-\-rows=string
 T}
 T{
-\ \&
-T}:T{
-\-r
-T}
-T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1199,8 +1111,7 @@ Default: 0 (Min: 0, Max: 4294967039)
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1208,11 +1119,8 @@ T}:T{
 \-\-configinfo \-\-xml
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -1236,7 +1144,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.5\&.40\-ndb\-7\&.2\&.19"
+<configvariables protocolversion="1" ndbversionstring="5\&.5\&.41\-ndb\-7\&.2\&.19"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -1527,7 +1435,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

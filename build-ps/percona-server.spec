@@ -454,11 +454,7 @@ touch optional-files-devel
 RPM_OPT_FLAGS=
 %endif
 #
-%if %{with tokudb}
-RPM_OPT_FLAGS= 
-%else
 RPM_OPT_FLAGS=$(echo ${RPM_OPT_FLAGS} | sed -e 's|-march=i386|-march=i686|g')
-%endif
 #
 # Needed on centos5 to force debug symbols compatibility with older gdb version
 %if "%rhel" == "5"

@@ -842,6 +842,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
       case ACL_INTERNAL_ACCESS_DENIED:
         if (! no_errors)
         {
+          thd->diff_access_denied_errors++;
           my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                    sctx->priv_user().str, sctx->priv_host().str, db);
         }
@@ -2773,7 +2774,8 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
     */
 
     if (!strcmp(lex_user->user.str,user) &&
-        !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+        grant_proc->host.compare_hostname(lex_user->host.str,
+                                          lex_user->host.str))
     {
       ulong proc_access= grant_proc->privs;
       if (proc_access != 0)
@@ -3007,7 +3009,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     */
 
     if (!strcmp(lex_user->user.str,user) &&
-        !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+        acl_db->host.compare_hostname(lex_user->host.str, lex_user->host.str))
     {
       want_access=acl_db->access;
       if (want_access)
@@ -3077,7 +3079,8 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     */
 
     if (!strcmp(lex_user->user.str,user) &&
-        !my_strcasecmp(system_charset_info, lex_user->host.str, host))
+        grant_table->host.compare_hostname(lex_user->host.str,
+                                           lex_user->host.str))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
@@ -4270,6 +4273,7 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     if (!thd->col_access && check_grant_db(thd, dst_db_name))
     {
+      thd->diff_access_denied_errors++;
       my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                thd->security_context()->priv_user().str,
                thd->security_context()->priv_host().str,
@@ -4347,6 +4351,7 @@ bool check_global_access(THD *thd, ulong want_access)
   if (thd->security_context()->check_access(want_access, true))
     DBUG_RETURN(0);
   get_privilege_desc(command, sizeof(command), want_access);
+  thd->diff_access_denied_errors++;
   my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
   DBUG_RETURN(1);
 #else

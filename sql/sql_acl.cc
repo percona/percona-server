@@ -5685,7 +5685,7 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     */
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
+        compare_hostname(&acl_db->host, lex_user->host.str, lex_user->host.str))
     {
       want_access=acl_db->access;
       if (want_access)
@@ -5755,7 +5755,9 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     */
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
+        compare_hostname(&grant_table->host,
+                         lex_user->host.str,
+                         lex_user->host.str))
     {
       ulong table_access= grant_table->privs;
       if ((table_access | grant_table->cols) != 0)
@@ -5904,7 +5906,9 @@ static int show_routine_grants(THD* thd, LEX_USER *lex_user, HASH *hash,
     */
 
     if (!strcmp(lex_user->user.str,user) &&
-	!my_strcasecmp(system_charset_info, lex_user->host.str, host))
+        compare_hostname(&grant_proc->host,
+                         lex_user->host.str,
+                         lex_user->host.str))
     {
       ulong proc_access= grant_proc->privs;
       if (proc_access != 0)

@@ -277,7 +277,7 @@ fi
 
     if test -e "$PRODUCT_FULL/lib/mysql/plugin/ha_tokudb.so"
     then
-        TARGETTOKU=$(echo $PRODUCT_FULL | sed 's/.Linux/.TokuDB.Linux/')
+        TARGETTOKU=$(echo $PRODUCT_FULL | sed 's/-Linux/-TokuDB.Linux/')
 	find $PRODUCT_FULL ! -type d \( -iname '*toku*' -o -iwholename '*/tokudb*/*' \) > $WORKDIR_ABS/tokudb_plugin.list
         $TAR --owner=0 --group=0 -czf "$WORKDIR_ABS/$TARGETTOKU.tar.gz" -T $WORKDIR_ABS/tokudb_plugin.list
         rm -f $WORKDIR_ABS/tokudb_plugin.list

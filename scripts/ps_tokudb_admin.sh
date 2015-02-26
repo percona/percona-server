@@ -112,9 +112,18 @@ fi
 
 # Check if server is running with jemalloc - if not warn that restart is needed
 printf "Checking if Percona server is running with jemalloc enabled...\n"
-PID_LOCATION=$(mysql -e "show variables like 'pid_file';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null|grep pid_file|awk '{print $2}')
+PID_LIST=$(mysql -e "show variables like 'pid_file';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/tmp/ps_tokudb_admin.err)
+if [ $? -ne 0 ]; then
+  if [ -f /tmp/ps_tokudb_admin.err ]; then
+    cat /tmp/ps_tokudb_admin.err|grep -v "Warning:"
+    rm -f /tmp/ps_tokudb_admin.err
+  fi
+  printf ">> Error checking pid file location!\n";
+  exit 1
+fi
+PID_LOCATION=$(echo "${PID_LIST}"|grep pid_file|awk '{print $2}')
 if [ $? -ne 0 ] || [ "${PID_LOCATION}" == "" ]; then
-  printf ">> Error checking pid file location! Please check username, password and other options...\n";
+  printf ">> Error checking pid file location!\n";
   exit 1
 fi
 PID_NUM=$(cat ${PID_LOCATION})
@@ -202,11 +211,18 @@ fi
 # Add option to disable transparent huge pages into my.cnf
 if [ $ENABLE = 1 -a $STATUS_THP_MYCNF = 0 ]; then
   printf "Adding thp-setting=never option into $MYCNF_LOCATION\n"
-  MYSQLD_SAFE_STATUS=$(grep -c "^\[mysqld_safe\]$" $MYCNF_LOCATION)
+  for MYCNF_SECTION in mysqld_safe MYSQLD_SAFE
+  do
+    MYSQLD_SAFE_STATUS=$(grep -c "^\[${MYCNF_SECTION}\]$" $MYCNF_LOCATION)
+    if [ $MYSQLD_SAFE_STATUS != 0 ]; then
+      MYSQLD_SAFE_SECTION=${MYCNF_SECTION}
+      break
+    fi
+  done
   if [ $MYSQLD_SAFE_STATUS = 0 ]; then
     echo -e "\n[mysqld_safe]\nthp-setting=never" >> $MYCNF_LOCATION
   else
-    sed -i '/^\[mysqld_safe\]$/a thp-setting=never' $MYCNF_LOCATION
+    sed -i "/^\[${MYSQLD_SAFE_SECTION}\]$/a thp-setting=never" $MYCNF_LOCATION
   fi
   if [ $? -eq 0 ]; then
     printf ">> Successfuly added thp-setting=never option into $MYCNF_LOCATION\n\n";
@@ -231,13 +247,15 @@ fi
 # Installing TokuDB plugin
 if [ $ENABLE = 1 -a $STATUS_PLUGIN = 0 ]; then
   printf "Installing TokuDB engine...\n"
-  mysql -e "INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null
+mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBENABLE
+INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
+EOFTOKUDBENABLE
   if [ $? -eq 0 ]; then
     printf ">> Successfuly installed TokuDB plugin.\n\n"
   else
@@ -249,13 +267,15 @@ fi
 # Uninstalling TokuDB plugin
 if [ $DISABLE = 1 -a $STATUS_PLUGIN = 7 ]; then
   printf "Uninstalling TokuDB plugin...\n"
-  mysql -e "UNINSTALL PLUGIN tokudb;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "UNINSTALL PLUGIN tokudb_file_map;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "UNINSTALL PLUGIN tokudb_fractal_tree_info;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "UNINSTALL PLUGIN tokudb_fractal_tree_block_map;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "UNINSTALL PLUGIN tokudb_trx;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "UNINSTALL PLUGIN tokudb_locks;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null &&
-  mysql -e "UNINSTALL PLUGIN tokudb_lock_waits;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null
+mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBDISABLE
+UNINSTALL PLUGIN tokudb;
+UNINSTALL PLUGIN tokudb_file_map;
+UNINSTALL PLUGIN tokudb_fractal_tree_info;
+UNINSTALL PLUGIN tokudb_fractal_tree_block_map;
+UNINSTALL PLUGIN tokudb_trx;
+UNINSTALL PLUGIN tokudb_locks;
+UNINSTALL PLUGIN tokudb_lock_waits;
+EOFTOKUDBDISABLE
   if [ $? -eq 0 ]; then
     printf ">> Successfuly uninstalled TokuDB plugin.\n\n"
   else

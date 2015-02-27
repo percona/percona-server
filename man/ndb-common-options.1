@@ -2,12 +2,12 @@
 .\"     Title: Options Common to MySQL Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/04/2014
+.\"      Date: 01/06/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO MY" "1" "11/04/2014" "MySQL 5\&.5" "MySQL Database System"
+.TH "OPTIONS COMMON TO MY" "1" "01/06/2015" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -241,7 +241,6 @@ options relating to MySQL Cluster\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
@@ -252,11 +251,6 @@ T{
 \ \&
 T}:T{
 \-\-usage
-T}
-T{
-\ \&
-T}:T{
-\-?
 T}
 .TE
 .sp 1
@@ -277,8 +271,7 @@ Prints a short list with descriptions of the available command options\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -286,11 +279,8 @@ T}:T{
 \-\-character\-sets\-dir=path
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -322,9 +312,7 @@ Tells the program where to find character set information\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -337,16 +325,8 @@ T}:T{
 \-\-connect\-string=connectstring
 T}
 T{
-\ \&
-T}:T{
-\-c
-T}
-T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -387,8 +367,7 @@ Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -396,11 +375,8 @@ T}:T{
 \-\-core\-file
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -440,8 +416,7 @@ is disabled by default\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -449,11 +424,8 @@ T}:T{
 \-\-debug=options
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -483,8 +455,7 @@ process\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -492,11 +463,8 @@ T}:T{
 \-\-ndb\-mgmd\-host=host[:port]
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -526,8 +494,7 @@ option instead\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -535,11 +502,8 @@ T}:T{
 \-\-ndb\-nodeid=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -569,8 +533,7 @@ Section\ \&18.1.6.2, \(lqLimits and Differences of MySQL Cluster from Standard M
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -578,11 +541,8 @@ T}:T{
 \-\-ndb\-optimized\-node\-selection
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -611,17 +571,11 @@ Optimize selection of nodes for transactions\&. Enabled by default\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s s
 l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
 \-\-version
-T}
-T{
-\ \&
-T}:T{
-\-V
 T}
 .TE
 .sp 1
@@ -633,7 +587,7 @@ Section\ \&18.5.5, \(lqPerforming a Rolling Restart of a MySQL Cluster\(rq), for
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/21/2014
+.\"      Date: 01/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,7 +78,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.89.\ \& This table describes command-line options for the ndb_restore program
+.B Table\ \&18.91.\ \& This table describes command-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -840,8 +840,7 @@ following a successful restoration\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -849,11 +848,8 @@ T}:T{
 \-\-lossy\-conversions
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -1130,8 +1126,7 @@ for the current directory\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1139,11 +1134,8 @@ T}:T{
 \-\-fields\-enclosed\-by=char
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1171,8 +1163,7 @@ Each column values are enclosed by the string passed to this option (regardless 
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1180,11 +1171,8 @@ T}:T{
 \-\-fields\-optionally\-enclosed\-by
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1217,8 +1205,7 @@ ENUM)\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1226,11 +1213,8 @@ T}:T{
 \-\-fields\-terminated\-by=char
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1283,8 +1267,7 @@ If this option is used, all binary values are output in hexadecimal format\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1292,11 +1275,8 @@ T}:T{
 \-\-fields\-terminated\-by=char
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1517,8 +1497,7 @@ One or more tables from a single database
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1526,11 +1505,8 @@ T}:T{
 \-\-include\-databases=db\-list
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1548,8 +1524,7 @@ T}
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1557,11 +1532,8 @@ T}:T{
 \-\-include\-tables=table\-list
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1674,8 +1646,7 @@ shell> \fBndb_restore [\&.\&.\&.] \-\-include\-databases=db1,db2 \-\-include\-ta
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1683,11 +1654,8 @@ T}:T{
 \-\-exclude\-databases=db\-list
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1705,8 +1673,7 @@ T}
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1714,11 +1681,8 @@ T}:T{
 \-\-exclude\-tables=table\-list
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -2069,8 +2033,7 @@ backup\&. This can be used for restoring a backup made from a cluster running My
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -2078,11 +2041,8 @@ T}:T{
 \-\-rewrite\-database=olddb,newdb
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -2167,8 +2127,7 @@ When restoring from multiple backup databases into a single target database usin
 allbox tab(:);
 l l s s
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBIntroduced\fR
@@ -2181,11 +2140,8 @@ T}:T{
 \-\-exclude\-intermediate\-sql\-tables[=TRUE|FALSE]
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -2245,7 +2201,7 @@ START SLAVE\&. This is a known issue in MySQL Cluster\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/21/2014
+.\"      Date: 01/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,7 +78,7 @@ The following table includes all options that are supported by the MySQL Cluster
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.92.\ \& This table describes command-line options for the ndb_setup.py program
+.B Table\ \&18.94.\ \& This table describes command-line options for the ndb_setup.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -245,8 +245,7 @@ T}
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -254,11 +253,8 @@ T}:T{
 \-\-browser\-start\-page=filename
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -289,8 +285,7 @@ index\&.html\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -298,11 +293,8 @@ T}:T{
 \-\-ca\-certs\-file=filename
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -332,8 +324,7 @@ Specify a file containing a list of client certificates which are allowed to con
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -341,11 +332,8 @@ T}:T{
 \-\-cert\-file=filename
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -376,8 +364,7 @@ cfg\&.pem\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ lt l s
 ^ ^ l s
@@ -389,11 +376,8 @@ T}:T{
 \-\-debug\-level=level
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 enumeration
@@ -469,8 +453,7 @@ Print a help message\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -478,11 +461,8 @@ T}:T{
 \-\-key\-file=file
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -537,8 +517,7 @@ Start the installation and configuration tool, but do not open the Start page in
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -548,11 +527,8 @@ T}:T{
 \-\-port=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -593,8 +569,7 @@ Set the port used by the web server\&. The default is 8081\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ lt l s.
 T{
@@ -608,11 +583,8 @@ T}:T{
 o
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -651,8 +623,7 @@ stderr, rather than to a file, use a
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -660,11 +631,8 @@ T}:T{
 \-\-server\-name=name
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -707,7 +675,7 @@ Make the browser use a secure (HTTPS) connection with the server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

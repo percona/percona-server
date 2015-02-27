@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/21/2014
+.\"      Date: 01/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.76.\ \& This table describes command-line options for the ndbd program
+.B Table\ \&18.78.\ \& This table describes command-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -238,8 +238,7 @@ wherever the latter occurs in this section\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -247,11 +246,8 @@ T}:T{
 \-\-bind\-address=name
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -280,8 +276,7 @@ to bind to a specific network interface (host name or IP address)\&. This option
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -289,11 +284,8 @@ T}:T{
 \-\-daemon
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -332,8 +324,7 @@ on Windows platforms\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -341,11 +332,8 @@ T}:T{
 \-\-nodaemon
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -384,8 +372,7 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -393,11 +380,8 @@ T}:T{
 \-\-foreground
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -438,8 +422,7 @@ on Windows platforms\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -447,11 +430,8 @@ T}:T{
 \-\-initial
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -576,8 +556,7 @@ necessary to do so\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -585,11 +564,8 @@ T}:T{
 \-\-initial\-start
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -655,8 +631,7 @@ option for
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -664,11 +639,8 @@ T}:T{
 \-\-nowait\-nodes=list
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -713,8 +685,7 @@ If you wanted to start up the same cluster as in the previous example without on
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -722,11 +693,8 @@ T}:T{
 \-\-nostart
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -763,7 +731,7 @@ Section\ \&18.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
 allbox tab(:);
 l l s s
 l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -771,11 +739,13 @@ T}:T{
 \-\-install[=name]
 T}
 T{
-\ \&
+\fBPlatform Specific\fR
 T}:T{
-\fBPermitted Values\fR
+Windows
 T}
-:T{
+T{
+\fBPermitted Values\fR
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -831,7 +801,7 @@ option has no effect on non\-Windows platforms\&.
 allbox tab(:);
 l l s s
 l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -839,11 +809,13 @@ T}:T{
 \-\-remove[=name]
 T}
 T{
-\ \&
+\fBPlatform Specific\fR
 T}:T{
-\fBPermitted Values\fR
+Windows
 T}
-:T{
+T{
+\fBPermitted Values\fR
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -879,8 +851,7 @@ option has no effect on non\-Windows platforms\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -890,11 +861,8 @@ T}:T{
 \-\-connect\-retries=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -935,8 +903,7 @@ option\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -946,11 +913,8 @@ T}:T{
 \-\-connect\-delay=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -1151,8 +1115,9 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .PP
 See
 Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for additional information about this issue\&.
-\fBndbd\fR(8), describes other options for
-\fBndbd\fR\&.
+Options Common to MySQL Cluster Programs(1), describes other command\-line options which can be used with
+\fBndbd\fR\&. For information about data node configuration parameters, see
+Section\ \&18.3.2.6, \(lqDefining MySQL Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1180,7 +1145,7 @@ Section\ \&18.1.6, \(lqKnown Limitations of MySQL Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

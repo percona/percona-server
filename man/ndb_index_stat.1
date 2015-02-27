@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_index_stat\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/21/2014
+.\"      Date: 01/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_INDEX_STAT\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_INDEX_STAT\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,7 +36,9 @@ ndb_index_stat \- NDB index statistics utility
 .SH "DESCRIPTION"
 .PP
 \fBndb_index_stat\fR
-\&.\&.\&.
+provides per\-fragment statistical information about indexes on
+NDB
+tables\&. This includes cache version and age, number of index entries per partition, and memory consumption by indexes\&.
 Usage.PP
 To obtain basic index statistics about a given
 NDB
@@ -97,7 +99,8 @@ sampleCount
 is the number of index entries found per partition\&. You can estimate the total number of entries by multiplying this by the number of fragments (shown as
 fragCount)\&.
 .PP
-sampleCount cab be compared with the cardinality of
+sampleCount
+can be compared with the cardinality of
 SHOW INDEX
 or
 INFORMATION_SCHEMA\&.STATISTICS, although the latter two provide a view of the table as a whole, while
@@ -166,7 +169,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.87.\ \& This table describes command-line options for the ndb_index_stat program
+.B Table\ \&18.89.\ \& This table describes command-line options for the ndb_index_stat program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -332,8 +335,8 @@ T}
 .TE
 .sp 1
 .PP
-\fBndb_index_stat statistics options\fR. The following options are used to generate index statistics\&. They work with a given table and database\&. They cannot be mixed with
-ndb_index_stat system options\&.
+\fBndb_index_stat statistics options\fR. The following options are used to generate index statistics\&. They work with a given table and database\&. They cannot be mixed with system options (see
+ndb_index_stat system options)\&.
 .sp
 .RS 4
 .ie n \{\
@@ -350,8 +353,7 @@ ndb_index_stat system options\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -361,11 +363,8 @@ T}:T{
 \-\-database=name
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -401,8 +400,7 @@ The name of the database that contains the table being queried\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -412,11 +410,8 @@ T}:T{
 \-\-delete
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -424,7 +419,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -452,8 +447,7 @@ Delete the index statistics for the given table, stopping any auto\-update that 
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -463,11 +457,8 @@ T}:T{
 \-\-update
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -475,7 +466,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -487,7 +478,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Update the index statistics for the given table, and restart any auto\-update that previously configured\&.
+Update the index statistics for the given table, and restart any auto\-update that was previously configured\&.
 .RE
 .sp
 .RS 4
@@ -503,8 +494,7 @@ Update the index statistics for the given table, and restart any auto\-update th
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -514,11 +504,8 @@ T}:T{
 \-\-dump
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -526,7 +513,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -554,8 +541,7 @@ Dump the contents of the query cache\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -565,11 +551,8 @@ T}:T{
 \-\-query=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -594,8 +577,8 @@ T}
 Perform random range queries on first key attribute (must be int unsigned)\&.
 .RE
 .PP
-\fBndb_index_stat system options\fR. The following options are used to generate and update the statistics tables in the NDB kernel\&. They cannot be mixed with
-ndb_index_stat statistics options\&.
+\fBndb_index_stat system options\fR. The following options are used to generate and update the statistics tables in the NDB kernel\&. None of these options can be mixed with statistics options (see
+ndb_index_stat statistics options)\&.
 .sp
 .RS 4
 .ie n \{\
@@ -610,8 +593,7 @@ ndb_index_stat statistics options\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -621,11 +603,8 @@ T}:T{
 \-\-sys\-drop
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -633,7 +612,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -662,8 +641,7 @@ Drop all statistics tables and events in the NDB kernel\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -673,11 +651,8 @@ T}:T{
 \-\-sys\-create
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -685,7 +660,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -713,8 +688,7 @@ Create all statistics tables and events in the NDB kernel\&. This works only if 
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -724,11 +698,8 @@ T}:T{
 \-\-sys\-create\-if\-not\-exist
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -736,7 +707,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -764,8 +735,7 @@ Create any NDB system statistics tables or events (or both) that do not already 
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -775,11 +745,8 @@ T}:T{
 \-\-sys\-create\-if\-not\-valid
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -787,7 +754,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -815,8 +782,7 @@ Create any NDB system statistics tables or events that do not already exist, aft
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -826,11 +792,8 @@ T}:T{
 \-\-sys\-check
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -838,7 +801,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -866,8 +829,7 @@ Verify that all required system statistics tables and events exist in the NDB ke
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -877,11 +839,8 @@ T}:T{
 \-\-sys\-skip\-tables
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -889,7 +848,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -919,8 +878,7 @@ options to any statistics tables\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -930,11 +888,8 @@ T}:T{
 \-\-sys\-skip\-events
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -942,7 +897,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -972,8 +927,7 @@ options to any events\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -983,11 +937,8 @@ T}:T{
 \-\-verbose
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -995,7 +946,7 @@ T}
 :T{
 \fBDefault\fR
 T}:T{
-true
+false
 T}
 :T{
 \fBMin Value\fR
@@ -1023,8 +974,7 @@ Turn on verbose output\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -1034,11 +984,8 @@ T}:T{
 \-\-loops=#
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -1065,7 +1012,7 @@ Repeat commands this number of times (for use in testing)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

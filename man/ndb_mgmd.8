@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/21/2014
+.\"      Date: 01/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.78.\ \& This table describes command-line options for the ndb_mgmd program
+.B Table\ \&18.80.\ \& This table describes command-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -262,8 +262,7 @@ T}
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -271,11 +270,8 @@ T}:T{
 \-\-bind\-address=ip_address
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -308,8 +304,7 @@ is not specified, the management client attempts to use port 1186\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -317,11 +312,8 @@ T}:T{
 \-\-no\-nodeid\-checks
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -350,8 +342,7 @@ Do not perform any checks of node IDs\&.
 allbox tab(:);
 l l s s
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -364,11 +355,8 @@ T}:T{
 \-\-config\-dir=directory
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -398,8 +386,7 @@ is an alias for this option\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -407,11 +394,8 @@ T}:T{
 \-\-config\-cache[=TRUE|FALSE]
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -555,8 +539,7 @@ is used\&. (Bug #13428853)
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -564,11 +547,8 @@ T}:T{
 \-\-config\-file=file
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 file name
@@ -617,8 +597,7 @@ caused removal of the configuration cache even if the file was not found\&. This
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -626,11 +605,8 @@ T}:T{
 \-\-mycnf
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -662,8 +638,7 @@ file\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -671,11 +646,8 @@ T}:T{
 \-\-daemon
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -709,8 +681,7 @@ on Windows platforms\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -718,11 +689,8 @@ T}:T{
 \-\-interactive
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -754,8 +722,7 @@ client session is started as soon as the management server is running\&. This op
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -763,11 +730,8 @@ T}:T{
 \-\-initial
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -823,8 +787,7 @@ option caused removal of the configuration cache even if the file was not found\
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -832,11 +795,8 @@ T}:T{
 \-\-log\-name=name
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -864,8 +824,7 @@ Provides a name to be used for this node in the cluster log\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -873,11 +832,8 @@ T}:T{
 \-\-nodaemon
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -913,8 +869,7 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -922,11 +877,8 @@ T}:T{
 \-\-print\-full\-config
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -958,8 +910,7 @@ process prints information about the cluster setup including an extensive list o
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -967,11 +918,8 @@ T}:T{
 \-\-reload
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 boolean
@@ -1019,8 +967,7 @@ Section\ \&18.5.5, \(lqPerforming a Rolling Restart of a MySQL Cluster\(rq, for 
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -1030,11 +977,8 @@ T}:T{
 \-\-nowait\-nodes=list
 T}
 T{
-\ \&
-T}:T{
 \fBPermitted Values\fR
-T}
-:T{
+T}:T{
 \fBType\fR
 T}:T{
 numeric
@@ -1259,7 +1203,7 @@ is the process ID file used when running the management server as a daemon\&.
 allbox tab(:);
 l l s s
 l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1267,11 +1211,13 @@ T}:T{
 \-\-install[=name]
 T}
 T{
-\ \&
+\fBPlatform Specific\fR
 T}:T{
-\fBPermitted Values\fR
+Windows
 T}
-:T{
+T{
+\fBPermitted Values\fR
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1322,7 +1268,7 @@ option has no effect on non\-Windows platforms\&.
 allbox tab(:);
 l l s s
 l l s s
-^ l l s
+l l l s
 ^ l l s.
 T{
 \fBCommand\-Line Format\fR
@@ -1330,11 +1276,13 @@ T}:T{
 \-\-remove[=name]
 T}
 T{
-\ \&
+\fBPlatform Specific\fR
 T}:T{
-\fBPermitted Values\fR
+Windows
 T}
-:T{
+T{
+\fBPermitted Values\fR
+T}:T{
 \fBType\fR
 T}:T{
 string
@@ -1358,7 +1306,7 @@ option has no effect on non\-Windows platforms\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

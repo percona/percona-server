@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/21/2014
+.\"      Date: 01/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "11/21/2014" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -143,6 +143,14 @@ option\&. To read remote binary logs, the connection parameter options can be gi
 \fB\-\-user\fR; they are ignored except when you also use the
 \fB\-\-read\-from\-remote\-server\fR
 option\&.
+.PP
+When running
+\fBmysqlbinlog\fR
+against a large binary log, be careful that the filesystem has enough space for the resulting files\&. To configure the directory that
+\fBmysqlbinlog\fR
+uses for temporary files, use the
+TMPDIR
+environment variable\&.
 .PP
 \fBmysqlbinlog\fR
 supports the following options, which can be specified on the command line or in the
@@ -300,9 +308,7 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 .TS
 allbox tab(:);
 l l s s
-l l s s
-^ l l s
-^ l l s
+l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
@@ -312,16 +318,8 @@ T}:T{
 \-\-binlog\-row\-event\-max\-size=#
 T}
 T{
-\ \&
+\fBPermitted Values\fR (64\-bit platforms)
 T}:T{
-\fBPermitted Values\fR
-T}
-:T{
-\fBPlatform Bit Size\fR
-T}:T{
-64
-T}
-:T{
 \fBType\fR
 T}:T{
 numeric
@@ -2984,7 +2982,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

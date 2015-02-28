@@ -5015,6 +5015,11 @@ void THD::leave_locked_tables_mode()
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
+
+    /* Make sure backup locks are not released when leaving LTM */
+    DBUG_ASSERT(!backup_tables_lock.is_acquired());
+    backup_binlog_lock.set_explicit_lock_duration(this);
+
     /* Also ensure that we don't release metadata locks for open HANDLERs. */
     if (handler_tables_hash.records)
       mysql_ha_set_explicit_lock_duration(this);

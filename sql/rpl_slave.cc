@@ -716,6 +716,9 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   THD *thd= current_thd;
   bool binlog_prot_acquired= false;
+  bool trans_started= false;
+
+reacquire_locks:
 
   if (thd && !thd->backup_binlog_lock.is_acquired())
   {
@@ -743,14 +746,27 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
     transaction start to avoid table access deadlocks when START SLAVE
     is executed after RESET SLAVE.
   */
-  if (thd && thd->in_multi_stmt_transaction_mode() &&
+  if (!trans_started && thd && thd->in_multi_stmt_transaction_mode() &&
       (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
        opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  {
     if (trans_begin(thd))
     {
       init_error= 1;
       goto end;
     }
+
+    if (binlog_prot_acquired)
+    {
+      /* Binlog protection lock has been released by trans_begin() */
+      mysql_mutex_unlock(&mi->data_lock);
+      mysql_mutex_unlock(&mi->rli->data_lock);
+
+      trans_started= true;
+
+      goto reacquire_locks;
+    }
+  }
 
   /*
     This takes care of the startup dependency between the master_info

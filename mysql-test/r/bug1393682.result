@@ -1,0 +1,8 @@
+SET SESSION AUTOCOMMIT=0;
+SET @old_master_info_repository=@@GLOBAL.master_info_repository;
+SET @@GLOBAL.master_info_repository="TABLE";
+CREATE TABLE t1(c1 INT UNSIGNED);
+FLUSH LOCAL TABLES t1 WITH READ LOCK;
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
+SET @@GLOBAL.master_info_repository=@old_master_info_repository;
+DROP TABLE t1;

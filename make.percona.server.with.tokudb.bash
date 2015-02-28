@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage() {
-    echo "make.percona.server.with.tokudb.bash percona-server-5.6.19-67.0-618-90 tokudb-7.1.7"
+    echo "make.percona.server.with.tokudb.bash [--use_percona] percona-server-5.6.19-67.0-618-90 tokudb-7.1.7 [debug|release|debug-valgrind]"
 }
 
 # download a github repo as a tarball and expand it in a local directory
@@ -22,12 +22,18 @@ function get_repo() {
 }
 
 function get_source_from_repos() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3
+    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local use_percona=$4
 
     # get percona server source
-    get_repo Tokutek percona-server-5.6 $tokudb
-    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    mv percona-server-5.6 $perconaserver-$buildtype
+    if [ $use_percona = 0 ] ; then
+        get_repo tokutek percona-server-5.6 $tokudb
+        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+        mv percona-server-5.6 $perconaserver-$buildtype
+    else
+        get_repo percona percona-server 5.6
+        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+        mv percona-server $perconaserver-$buildtype
+    fi
  
     if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
         echo "revno: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
@@ -49,7 +55,7 @@ function get_source_from_repos() {
     target=$PWD/$perconaserver-$buildtype
     pushd $perconaserver.tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    for d in mysql-test storage plugin; do
+    for d in mysql-test storage; do
         if [ -d $d ] ; then
             for f in $(find $d -type f); do
                 targetdir=$(dirname $target/$f)
@@ -72,7 +78,7 @@ function get_source_from_repos() {
     popd
 
     # get jemalloc
-    get_repo Tokutek jemalloc 3.6.0
+    get_repo tokutek jemalloc 3.6.0
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     mv jemalloc jemalloc-3.6.0
 }
@@ -96,14 +102,14 @@ function build_tarballs_from_source() {
 }
 
 function make_target() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3
+    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local use_percona=$4
 
     local builddir=$perconaserver-$tokudb-$buildtype
     rm -rf $builddir
     mkdir $builddir
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     pushd $builddir
-    get_source_from_repos $perconaserver $tokudb $buildtype
+    get_source_from_repos $perconaserver $tokudb $buildtype $use_percona
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     build_tarballs_from_source $perconaserver $tokudb $buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
@@ -112,12 +118,15 @@ function make_target() {
     # rm -rf build-$buildtype
 }
 
+use_percona=0
+if [ $# -ge 1 -a $1 = --use_percona ] ; then use_percona=1; shift; fi
+
 if [ $# -lt 2 ] ; then usage; exit 1; fi
 perconaserver=$1
 tokudb=$2
 buildtype=
 if [ $# -eq 3 ] ;then buildtype=$3; fi
 
-if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target $perconaserver $tokudb release; fi
-if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target $perconaserver $tokudb debug; fi
-if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind; fi
+if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target $perconaserver $tokudb release $use_percona; fi
+if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target $perconaserver $tokudb debug $use_percona; fi
+if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind $use_percona; fi

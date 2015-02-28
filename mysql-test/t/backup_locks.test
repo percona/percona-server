@@ -1128,6 +1128,43 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 
+################################################################################
+# Bug #1371827: Sporadic partial-hangup on various queries + related
+#               (same-testcase) crashes/asserts
+################################################################################
+
+CREATE TABLE t(a int) ENGINE=InnoDB;
+
+FLUSH TABLES t FOR EXPORT;
+
+LOCK BINLOG FOR BACKUP;
+
+UNLOCK TABLES;
+
+UNLOCK BINLOG;
+
+DROP TABLE t;
+
+################################################################################
+# Bug #1377093: Assertion `m_lock != __null &&
+#               thd->mdl_context.is_lock_owner(m_namespace, "", "", MDL_SHARED)'
+#               failed. in lock.cc:1140 | abort (sig=6) in
+#               Global_backup_lock::release
+################################################################################
+
+--connect(con,localhost,root,,)
+
+CREATE TABLE t(a INT);
+
+LOCK TABLE t READ;
+
+LOCK BINLOG FOR BACKUP;
+
+--disconnect con
+--connection default
+
+DROP TABLE t;
+
 --echo #-----------------------------------------------------------------------
 --echo # Cleanup
 --echo #-----------------------------------------------------------------------

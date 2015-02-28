@@ -1149,6 +1149,31 @@ void Global_backup_lock::release(THD *thd)
 }
 
 /**
+   Set explicit lock duration for the backup metadata lock.
+
+   @param thd     Reference to connection.
+*/
+
+void Global_backup_lock::set_explicit_lock_duration(THD *thd)
+{
+  DBUG_ENTER("Global_backup_lock::set_explicit_lock_duration");
+
+  if (m_lock)
+  {
+    DBUG_ASSERT(thd->mdl_context.is_lock_owner(m_namespace, "", "",
+                                               MDL_SHARED));
+    thd->mdl_context.set_lock_duration(m_lock, MDL_EXPLICIT);
+  }
+  else
+  {
+    DBUG_ASSERT(!thd->mdl_context.is_lock_owner(m_namespace, "", "",
+                                                MDL_SHARED));
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/**
    Acquire protection against a global backup lock. Wait if a global backup lock
    is active.
 

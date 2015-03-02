@@ -159,6 +159,7 @@ Diagnostics Improvements
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling
    diagnostics/scalability_metrics_plugin
+   diagnostics/extended_show_grants
 
 Obsolete and Removed Features
 =============================

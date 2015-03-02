@@ -254,6 +254,10 @@ fi
     (
         cd "$JEMALLOCDIR"
 
+        unset CFLAGS
+        unset CXXFLAGS
+
+        ./autogen.sh
         ./configure --prefix="/usr/local/$PRODUCT_FULL/" \
                 --libdir="/usr/local/$PRODUCT_FULL/lib/mysql/"
         make $MAKE_JFLAG

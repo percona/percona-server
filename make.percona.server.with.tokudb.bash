@@ -25,7 +25,7 @@ function get_source_from_repos() {
     local perconaserver=$1; local tokudb=$2; local buildtype=$3; local use_tokutek=$4
 
     # get percona server source
-    if [ $use_tokutek -ne 0 ] ; then
+    if [ $use_tokutek -eq 1 ] ; then
         get_repo tokutek percona-server-5.6 $tokudb
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         mv percona-server-5.6 $perconaserver-$buildtype
@@ -41,6 +41,16 @@ function get_source_from_repos() {
         get_repo percona percona-server 5.6
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         mv percona-server $perconaserver-$buildtype
+
+        if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
+            echo "short: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
+        else
+            # append the tokudb tag to the revno string
+            sed -i -e "1,\$s/\(short:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
+            if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
+        fi
+
+        sed -i -e "s/\(PRODUCT_FULL=\"\$PRODUCT_FULL\)/\1-\${REVISION:-}/" $perconaserver-$buildtype/build-ps/build-binary.sh
     fi
 
     # make the tokudb source tarball

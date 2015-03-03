@@ -138,6 +138,7 @@ Management Improvements
    management/changed_page_tracking
    management/pam_plugin
    management/audit_log_plugin
+   management/extended_show_grants
 
 Diagnostics Improvements
 ========================

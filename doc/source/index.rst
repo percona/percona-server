@@ -131,6 +131,7 @@ Management Improvements
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
    management/super_read_only
+   management/extended_show_grants
 
 Diagnostics Improvements
 ========================

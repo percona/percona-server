@@ -1467,6 +1467,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Fri Feb 27 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed RPMs assumes that .pid file is located in datadir (bug1201896)
+- Fixed errors in debug build when maintainer mode is on (bug1408232)
+
 * Wed Feb 04 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Added ps_tokudb_admin script for TokuDB plugin installation (BLD-212)

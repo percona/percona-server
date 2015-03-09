@@ -3,7 +3,7 @@ Section: database
 Priority: extra
 Maintainer: Percona Server Development Team <mysql-dev@percona.com>
 Uploaders: George Lorch <george.lorch@percona.com>,
-           Alexey Bychko <alexey.bychko@percona.com>
+           Tomislav Plavcic <tomislav.plavcic@percona.com>
 Build-Depends: libtool (>= 1.4.2-7),
                procps,
                debhelper (>= 7.0.50~),

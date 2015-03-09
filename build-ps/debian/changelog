@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.41-rel37.1) unstable; urgency=low
+
+  * Fixed errors in debug build when maintainer mode is on (bug1408232)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Fri, 27 Feb 2015 14:43:44 +0100
+
 percona-server-5.5 (5.5.41-rel37.0) unstable; urgency=low
 
   * Fixed init script timeout is too short when resizing logs (bug1328262)

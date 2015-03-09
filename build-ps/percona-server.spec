@@ -1317,6 +1317,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Fri Feb 27 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed RPMs assumes that .pid file is located in datadir (bug1201896)
+- Fixed errors in debug build when maintainer mode is on (bug1408232)
+
 * Fri Jan 09 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Set MYSQL_MAINTAINER_MODE=OFF for debug build (bug1408232)

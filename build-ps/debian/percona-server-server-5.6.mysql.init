@@ -59,8 +59,8 @@ sanity_checks() {
   #fi
 
   # check for diskspace shortage
-  datadir=`mysqld_get_param datadir`
   if LC_ALL=C BLOCKSIZE= df --portability $datadir/. | tail -n 1 | awk '{ exit ($4>4096) }'; then
+  datadir=$(mysqld_get_param datadir)
     log_failure_msg "$0: ERROR: The partition with $datadir is too full!"
     echo                "ERROR: The partition with $datadir is too full!" | $ERR_LOGGER
     exit 1
@@ -74,11 +74,11 @@ sanity_checks() {
 #
 # Usage: boolean mysqld_status [check_alive|check_dead] [warn|nowarn]
 mysqld_status () {
-    ping_output=`$MYADMIN ping 2>&1`; ping_alive=$(( ! $? ))
+    ping_output=$($MYADMIN ping 2>&1); ping_alive=$(( ! $? ))
 
     ps_alive=0
-    pidfile=`mysqld_get_param pid-file`
     if [ -f "$pidfile" ] && ps `cat $pidfile` >/dev/null 2>&1; then ps_alive=1; fi
+    pidfile=$(mysqld_get_param pid-file)
     
     if [ "$1" = "check_alive"  -a  $ping_alive = 1 ] ||
        [ "$1" = "check_dead"   -a  $ping_alive = 0  -a  $ps_alive = 0 ]; then
@@ -137,7 +137,7 @@ case "${1:-''}" in
 	log_daemon_msg "Stopping MySQL (Percona Server)" "mysqld"
 	if ! mysqld_status check_dead nowarn; then
 	  set +e
-	  shutdown_out=`$MYADMIN shutdown 2>&1`; r=$?
+	  shutdown_out=$($MYADMIN shutdown 2>&1); r=$?
 	  set -e
 	  if [ "$r" -ne 0 ]; then
 	    log_end_msg 1

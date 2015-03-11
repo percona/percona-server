@@ -152,6 +152,15 @@ case "${1:-''}" in
 	  fi
         fi
 
+	if ! mysqld_status check_dead nowarn && ! mysqld_status check_alive nowarn; then
+	  # mysql is going down...
+	  for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+	    if mysqld_status check_dead nowarn; then break; fi
+	    sleep 1
+            echo -n " ."
+	  done
+	fi
+
         if ! mysqld_status check_dead warn; then
 	  log_end_msg 1
 	  log_failure_msg "Please stop MySQL (Percona Server) manually and read /usr/share/doc/percona-server-server-5.6/README.Debian.gz!"

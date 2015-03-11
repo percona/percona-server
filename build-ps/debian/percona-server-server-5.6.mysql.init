@@ -22,8 +22,7 @@ test -x "${PERCONA_PREFIX}"/sbin/mysqld || exit 0
 
 . /lib/lsb/init-functions
 
-SELF=$(cd $(dirname $0); pwd -P)/$(basename $0)
-CONF=/etc/mysql/my.cnf
+SELF=$(cd "$(dirname "$0")"; pwd -P)/$(basename "$0")
 MYADMIN="${PERCONA_PREFIX}/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
 
 # priority can be overriden and "-s" adds output to stderr
@@ -59,8 +58,8 @@ sanity_checks() {
   #fi
 
   # check for diskspace shortage
-  if LC_ALL=C BLOCKSIZE= df --portability $datadir/. | tail -n 1 | awk '{ exit ($4>4096) }'; then
   datadir=$(mysqld_get_param datadir)
+  if LC_ALL=C BLOCKSIZE= df --portability "$datadir"/. | tail -n 1 | awk '{ exit ($4>4096) }'; then
     log_failure_msg "$0: ERROR: The partition with $datadir is too full!"
     echo                "ERROR: The partition with $datadir is too full!" | $ERR_LOGGER
     exit 1
@@ -77,8 +76,8 @@ mysqld_status () {
     ping_output=$($MYADMIN ping 2>&1); ping_alive=$(( ! $? ))
 
     ps_alive=0
-    if [ -f "$pidfile" ] && ps `cat $pidfile` >/dev/null 2>&1; then ps_alive=1; fi
     pidfile=$(mysqld_get_param pid-file)
+    if [ -f "$pidfile" ] && ps "$(cat "$pidfile")" >/dev/null 2>&1; then ps_alive=1; fi
     
     if [ "$1" = "check_alive"  -a  $ping_alive = 1 ] ||
        [ "$1" = "check_dead"   -a  $ping_alive = 0  -a  $ps_alive = 0 ]; then

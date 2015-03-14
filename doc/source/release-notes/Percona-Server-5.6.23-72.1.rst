@@ -26,5 +26,5 @@ Bugs Fixed
 
  Some ``--big-test`` MTR tests were failing for |Percona Server| because they weren't updated. Bug fixed :bug:`1419827`.
  
-Other bugs fixed: :bug:`1408232`, and :bug:`1420303`.
+Other bugs fixed: :bug:`1408232`, :bug:`1385036`, :bug:`1386363`, and :bug:`1420303`.
 

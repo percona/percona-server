@@ -11,6 +11,12 @@
 |:Fix Released: :rn:`5.6.23-72.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`69059` - GTIDs lack a reasonable deployment strategy                               |
+|:Launchpad BP: `GTID deploy... <https://blueprints.launchpad.net/percona-server/+spec/gtid-deployment-step>`_|     
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.6.22-72.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`75642` - Extend valid range of dummy certificates ni mysql-test/std_data           |
 |:Launchpad bug: :bug:`1415843`                                                                               |
 |:Upstream state: Verified (checked on 2015-03-03)                                                            |
@@ -77,9 +83,15 @@
 |:Fix Released: :rn:`5.6.21-70.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`73736` - Missing testcase sync in rpl_err_ignoredtable                             |
+|:Launchpad bug: :bug:`1361568`                                                                               |
+|:Upstream state: Open (checked on 2015-03-14)                                                                |
+|:Fix Released: :rn:`5.6.21-69.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`70860` - --tc-heuristic-recover option values are broken                           |
 |:Launchpad bug: :bug:`1334330`                                                                               |
-|:Upstream state: Verified (checked on 2014-01-12)                                                            |
+|:Upstream state: Verified (checked on 2015-03-14)                                                            |
 |:Fix Released: :rn:`5.6.20-68.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -90,13 +102,13 @@
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`67806` - Multiple user level lock per connection                                   |
-|:Launchpad bug: N/A          `                                                                               |
+|:Launchpad bug: :ref:`multiple_user_level_locks`                                                             |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.19-67.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`1118` - Allow multiple concurrent locks with GET_LOCK()                            |
-|:Launchpad bug: N/A                                                                                          |
+|:Launchpad BP: :ref:`multiple_user_level_locks`                                                              |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.19-67.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
@@ -281,6 +293,12 @@
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`75534` - Solve buffer pool mutex contention by splitting it                        |
+|:Launchpad bug: :ref:`innodb_split_buf_pool_mutex`                                                           |
+|:Upstream state: Verified (checked on 2015-03-14)                                                            |
+|:Fix Released: :rn:`5.6.13-60.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`70228` - Is buf_LRU_free_page() really supposed to make non-zip block sticky at ...|
 |:Launchpad bug: :bug:`1220544`                                                                               |
 |:Upstream state: Closed                                                                                      |
@@ -351,6 +369,18 @@
 |:Launchpad bug: :bug:`1179359`                                                                               |
 |:Upstream state: Verified (checked on 2015-03-03)                                                            |
 |:Fix Released: :rn:`5.6.12-60.4`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`67879` - Slave deadlock caused by stop slave, show slave status and global read... |
+|:Launchpad BP: :ref:`show_slave_status_nolock`                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
+|:Upstream fix: 5.6.23                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`56676` - 'show slave status' ,'show global status' hang when 'stop slave' takes... |
+|:Launchpad BP: :ref:`show_slave_status_nolock`                                                               |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71603` - file name is not escaped in binlog for LOAD DATA INFILE statement         |
@@ -600,7 +630,7 @@
 |:Upstream fix: 5.6.15                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
-|:Launchpad bug: N/A                                                                                          |
+|:Launchpad bug: :ref:`temp_tables`                                                                           |
 |:Upstream state: Verified (checked on 2015-03-03)                                                            |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |

@@ -88,7 +88,7 @@ The following values are allowed:
    :cli: Yes
    :conf: Yes
    :scope: Global
-   :Dyn: No
+   :Dyn: Yes
    :vartype: Enumeration
    :default: ``innodb``
    :allowed: ``none``, ``innodb``, ``crc32``, ``strict_none``, ``strict_innodb``, ``strict_crc32``

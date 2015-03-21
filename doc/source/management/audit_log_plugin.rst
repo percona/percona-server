@@ -179,7 +179,7 @@ This variable is used to specify the filename that's going to store the audit lo
      :version 5.5.37-35.0: Implemented
      :cli: Yes
      :scope: Global
-     :dyn: No
+     :dyn: Yes
      :vartype: String
      :default: OFF
 

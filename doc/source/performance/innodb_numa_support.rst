@@ -4,7 +4,7 @@
  Improved ``NUMA`` support
 ===========================
 
-In cases where the buffer pool memory allocation was bigger than size of the node, system would start swapping already allocated memory even if there is available memory on other node. This is would happen if the default :term:`NUMA` memory allocation policy was selected. In that case system would favor one node more than other which caused the node to run out of memory. Changing the allocation policy to interleaving, memory will be allocated in round-robin fashion over the available node. This can be done by using the mysqld_safe :variable:`numa_interleave` option.
+In cases where the buffer pool memory allocation was bigger than size of the node, system would start swapping already allocated memory even if there is available memory on other node. This is would happen if the default :term:`NUMA` memory allocation policy was selected. In that case system would favor one node more than other which caused the node to run out of memory. Changing the allocation policy to interleaving, memory will be allocated in round-robin fashion over the available node. This can be done by using the mysqld_safe :variable:`numa_interleave` option. **NOTE:** In order for this feature to work correctly ``mysqld_safe`` needs to be started as ``root``.
 
 Another improvement implemented is preallocating the pages in the buffer pool on startup with :variable:`innodb_buffer_pool_populate` variable. This forces ``NUMA`` allocation decisions to be made immediately while the buffer cache is clean.
 

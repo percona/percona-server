@@ -246,6 +246,7 @@ btr_cur_latch_leaves(
 	ulint		left_page_no;
 	ulint		right_page_no;
 	buf_block_t*	get_block;
+	buf_block_t*	get_block_left= NULL;
 
 	ut_ad(page && mtr);
 
@@ -278,15 +279,10 @@ btr_cur_latch_leaves(
 			get_block = btr_block_get(
 				space, zip_size, left_page_no,
 				sibling_mode, cursor->index, mtr);
+			get_block_left= get_block;
 
 			SRV_CORRUPT_TABLE_CHECK(get_block, return;);
 
-#ifdef UNIV_BTR_DEBUG
-			ut_a(page_is_comp(get_block->frame)
-			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
-#endif /* UNIV_BTR_DEBUG */
 			if (sibling_mode == RW_NO_LATCH) {
 				/* btr_block_get() called with RW_NO_LATCH will
 				fix the read block in the buffer.  This serves
@@ -306,6 +302,13 @@ btr_cur_latch_leaves(
 		SRV_CORRUPT_TABLE_CHECK(get_block, return;);
 
 #ifdef UNIV_BTR_DEBUG
+		/* Sanity check only after both the blocks are latched. */
+		if (get_block_left) {
+			ut_a(page_is_comp(get_block_left->frame) ==
+				page_is_comp(page));
+			ut_a(btr_page_get_next(get_block_left->frame, mtr) ==
+				page_get_page_no(page));
+		}
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
 #endif /* UNIV_BTR_DEBUG */
 		get_block->check_index_page_at_flush = TRUE;

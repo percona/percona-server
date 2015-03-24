@@ -4857,6 +4857,12 @@ int mysqld_main(int argc, char **argv)
   if (opt_bootstrap)
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
+    /* Signal threads waiting for server to be started */
+    mysql_mutex_lock(&LOCK_server_started);
+    mysqld_server_started= 1;
+    mysql_cond_broadcast(&COND_server_started);
+    mysql_mutex_unlock(&LOCK_server_started);
+
     bootstrap(mysql_stdin);
     unireg_abort(bootstrap_error ? 1 : 0);
   }

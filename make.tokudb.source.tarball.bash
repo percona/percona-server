@@ -70,5 +70,5 @@ if [ $? -ne 0 ] ; then exit 1; fi
 md5sum $staging.tar.gz >$staging.tar.gz.md5
 if [ $? -ne 0 ] ; then exit 1; fi
 
-#cleanup
+# cleanup
 rm -rf tokudb-engine* ft-index* tokudb-percona-server-5.6* $staging

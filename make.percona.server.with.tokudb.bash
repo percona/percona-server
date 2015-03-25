@@ -38,7 +38,7 @@ function get_source_from_repos() {
             if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
         fi
     else
-        get_repo percona percona-server 5.6
+        get_repo percona percona-server $perconaserver
         if [ $? -ne 0 ] ; then test 1 = 0; return; fi
         mv percona-server $perconaserver-$buildtype
 

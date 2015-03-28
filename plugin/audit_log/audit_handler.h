@@ -69,7 +69,7 @@ struct audit_handler_syslog_config_struct
 static inline
 int audit_handler_write(audit_handler_t *handler, const char *buf, size_t len)
 {
-  if (handler->write != NULL)
+  if (handler != NULL && handler->write != NULL)
   {
     return handler->write(handler, buf, len);
   }
@@ -79,7 +79,7 @@ int audit_handler_write(audit_handler_t *handler, const char *buf, size_t len)
 static inline
 int audit_handler_flush(audit_handler_t *handler)
 {
-  if (handler->flush != NULL)
+  if (handler != NULL && handler->flush != NULL)
   {
     return handler->flush(handler);
   }
@@ -89,7 +89,7 @@ int audit_handler_flush(audit_handler_t *handler)
 static inline
 int audit_handler_close(audit_handler_t *handler)
 {
-  if (handler->close != NULL)
+  if (handler != NULL && handler->close != NULL)
   {
     return handler->close(handler);
   }
@@ -100,7 +100,7 @@ static inline
 void audit_handler_set_option(audit_handler_t *handler,
                               audit_handler_option_t opt, void *val)
 {
-  if (handler->set_option != NULL)
+  if (handler != NULL && handler->set_option != NULL)
   {
     handler->set_option(handler, opt, val);
   }

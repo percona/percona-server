@@ -273,22 +273,19 @@ void audit_log_write(const char *buf, size_t len)
 {
   static int write_error= 0;
 
-  if (log_handler != NULL)
+  if (audit_handler_write(log_handler, buf, len) < 0)
   {
-    if (audit_handler_write(log_handler, buf, len) < 0)
+    if (!write_error)
     {
-      if (!write_error)
-      {
-        write_error= 1;
-        fprintf_timestamp(stderr);
-        fprintf(stderr, "Error writing to file %s. ", audit_log_file);
-        perror("Error: ");
-      }
+      write_error= 1;
+      fprintf_timestamp(stderr);
+      fprintf(stderr, "Error writing to file %s. ", audit_log_file);
+      perror("Error: ");
     }
-    else
-    {
-      write_error= 0;
-    }
+  }
+  else
+  {
+    write_error= 0;
   }
 }
 
@@ -618,15 +615,12 @@ int init_new_log_file()
 static
 int reopen_log_file()
 {
-  if (log_handler != NULL)
+  if (audit_handler_flush(log_handler))
   {
-    if (audit_handler_flush(log_handler))
-    {
-      fprintf_timestamp(stderr);
-      fprintf(stderr, "Cannot open file %s. ", audit_log_file);
-      perror("Error: ");
-      return(1);
-    }
+    fprintf_timestamp(stderr);
+    fprintf(stderr, "Cannot open file %s. ", audit_log_file);
+    perror("Error: ");
+    return(1);
   }
 
   return(0);
@@ -818,8 +812,7 @@ void audit_log_rotate_on_size_update(
 {
   ulonglong new_val= *(ulonglong *)(save);
 
-  if (log_handler != NULL)
-    audit_handler_set_option(log_handler, OPT_ROTATE_ON_SIZE, &new_val);
+  audit_handler_set_option(log_handler, OPT_ROTATE_ON_SIZE, &new_val);
 
   audit_log_rotate_on_size= new_val;
 }
@@ -838,8 +831,7 @@ void audit_log_rotations_update(
 {
   ulonglong new_val= *(ulonglong *)(save);
 
-  if (log_handler != NULL)
-    audit_handler_set_option(log_handler, OPT_ROTATIONS, &new_val);
+  audit_handler_set_option(log_handler, OPT_ROTATIONS, &new_val);
 
   audit_log_rotations= new_val;
 }

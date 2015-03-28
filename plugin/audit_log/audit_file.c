@@ -95,9 +95,9 @@ audit_handler_t *audit_handler_file_open(audit_handler_file_config_t *opts)
     handler->set_option= audit_handler_file_set_option;
     goto success;
 error:
-    if (data->use_buffer)
+    if (data->buffer)
     {
-      free(data->buffer);
+      audit_log_buffer_shutdown(data->buffer);
     }
     free(handler);
     handler= NULL;

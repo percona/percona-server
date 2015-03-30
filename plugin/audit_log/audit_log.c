@@ -746,7 +746,7 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
  */
 
 static MYSQL_SYSVAR_STR(file, audit_log_file,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
   "The name of the log file.", NULL, NULL, default_audit_log_file);
 
 static const char *audit_log_policy_names[]=
@@ -871,7 +871,7 @@ static MYSQL_SYSVAR_BOOL(flush, audit_log_flush,
        audit_log_flush_update, 0);
 
 static MYSQL_SYSVAR_STR(syslog_ident, audit_log_syslog_ident,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
   "The string that will be prepended to each log message, "
   "if SYSLOG handler is used.",
   NULL, NULL, default_audit_log_syslog_ident);

@@ -71,8 +71,9 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
 	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
-	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
+	    cmake -DBUILD_CONFIG=mysql_release \
 		\
+		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DWITH_LIBWRAP=ON \
@@ -98,8 +99,9 @@ endif
 	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
 	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
-	    cmake -DCMAKE_INSTALL_PREFIX=/usr \
+	    cmake -DBUILD_CONFIG=mysql_release \
 		\
+		-DCMAKE_INSTALL_PREFIX=/usr \
 		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
 		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 		-DWITH_LIBWRAP=ON \

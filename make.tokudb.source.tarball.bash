@@ -3,7 +3,7 @@
 # make the tokudb source tarball from the Tokutek github repositories
 
 function usage() {
-    echo "make.tokudb.source.tarball.bash percona-server-5.6.19-67.0-618-90 tokudb-7.1.7"
+    echo "make.tokudb.source.tarball.bash Percona-Server-5.6.23.72.1 tokudb-7.5.6 [$tokudb_owner]"
 }
 
 # download a github repo as a tarball and expand it in a local directory
@@ -28,21 +28,27 @@ function get_repo() {
     fi
 }
 
-if [ $# -ne 2 ] ; then usage; exit 1; fi
+tokudb_owner=tokutek
+if [ $# -lt 2 ] ; then usage; exit 1; fi
 staging=$1.tokudb
 ref=$2
+if [ $# -ge 3 ] ; then tokudb_owner=$3; fi
 
-get_repo Tokutek tokudb-engine $ref
+get_repo $tokudb_owner tokudb-engine $ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
-get_repo Tokutek ft-index $ref
+get_repo $tokudb_owner ft-index $ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
-get_repo Tokutek tokudb-percona-server-5.6 $ref
+get_repo $tokudb_owner tokudb-percona-server-5.6 $ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
-get_repo Tokutek tokudb-backup-plugin $ref
-if [ $? -ne 0 ] ; then exit 1; fi
+do_backup=1
+get_repo $tokudb_owner tokudb-backup-plugin $ref
+if [ $? -ne 0 ] ; then
+    do_backup=0
+    echo "warning: tokudb-backup-plugin"
+fi
 
 # merge the repos into the staging directory
 if [ ! -d $staging ] ; then
@@ -53,7 +59,7 @@ if [ ! -d $staging ] ; then
     mv ft-index $staging/storage/tokudb
     cp -r tokudb-percona-server-5.6/mysql-test $staging
     mkdir $staging/plugin
-    mv tokudb-backup-plugin $staging/plugin
+    if [ $do_backup != 0 ] ; then mv tokudb-backup-plugin $staging/plugin; fi
 
     # set the tokudb version to the github ref in the cmake file
     pushd $staging/storage/tokudb

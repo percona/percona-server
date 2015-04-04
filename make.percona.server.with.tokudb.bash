@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage() {
-    echo "make.percona.server.with.tokudb.bash [--use_tokutek] percona-server-5.6.23-72.0 tokudb-7.5.6 [debug|release|debug-valgrind]"
+    echo "make.percona.server.with.tokudb.bash Percona-Server-5.6.23-72.1 tokudb-7.5.6 [debug|release|debug-valgrind [$tokudb_owner]]"
 }
 
 # download a github repo as a tarball and expand it in a local directory
@@ -22,39 +22,25 @@ function get_repo() {
 }
 
 function get_source_from_repos() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local use_tokutek=$4
+    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local tokudb_owner=$4
 
     # get percona server source
-    if [ $use_tokutek -eq 1 ] ; then
-        get_repo tokutek percona-server-5.6 $tokudb
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-        mv percona-server-5.6 $perconaserver-$buildtype
+    get_repo percona percona-server $perconaserver
+    if [ $? -ne 0 ] ; then test 1 = 0; return; fi
+    mv percona-server $perconaserver-$buildtype
 
-        if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
-            echo "revno: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
-        else
-            # append the tokudb tag to the revno string
-            sed -i -e "1,\$s/\(revno:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
-            if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
-        fi
+    if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
+        echo "short: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
     else
-        get_repo percona percona-server $perconaserver
-        if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-        mv percona-server $perconaserver-$buildtype
-
-        if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
-            echo "short: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
-        else
-            # append the tokudb tag to the revno string
-            sed -i -e "1,\$s/\(short:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
-            if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
-        fi
-
-        sed -i -e "s/\(PRODUCT_FULL=\"\$PRODUCT_FULL\)/\1-\${REVISION:-}/" $perconaserver-$buildtype/build-ps/build-binary.sh
+        # append the tokudb tag to the revno string
+        sed -i -e "1,\$s/\(short:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
+        if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
     fi
 
+    sed -i -e "s/\(PRODUCT_FULL=\"\$PRODUCT_FULL\)/\1-\${REVISION:-}/" $perconaserver-$buildtype/build-ps/build-binary.sh
+
     # make the tokudb source tarball
-    bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb
+    bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb $tokudb_owner
     if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
 
     # extract the tokudb source tarball
@@ -88,7 +74,7 @@ function get_source_from_repos() {
     popd
 
     # get jemalloc
-    get_repo tokutek jemalloc 3.6.0
+    get_repo jemalloc jemalloc 3.6.0
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     mv jemalloc jemalloc-3.6.0
 }
@@ -112,14 +98,14 @@ function build_tarballs_from_source() {
 }
 
 function make_target() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local use_tokutek=$4
+    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local tokudb_owner=$4
 
     local builddir=$perconaserver-$tokudb-$buildtype
     rm -rf $builddir
     mkdir $builddir
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     pushd $builddir
-    get_source_from_repos $perconaserver $tokudb $buildtype $use_tokutek
+    get_source_from_repos $perconaserver $tokudb $buildtype $tokudb_owner
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     build_tarballs_from_source $perconaserver $tokudb $buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
@@ -128,15 +114,14 @@ function make_target() {
     # rm -rf build-$buildtype
 }
 
-use_tokutek=0
-if [ $# -ge 1 -a $1 = --use_tokutek ] ; then use_tokutek=1; shift; fi
-
+tokudb_owner=tokutek
 if [ $# -lt 2 ] ; then usage; exit 1; fi
 perconaserver=$1
 tokudb=$2
 buildtype=
-if [ $# -eq 3 ] ;then buildtype=$3; fi
+if [ $# -ge 3 ] ; then buildtype=$3; fi
+if [ $# -ge 4 ] ; then tokudb_owner=$4; fi
 
-if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target $perconaserver $tokudb release $use_tokutek; fi
-if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target $perconaserver $tokudb debug $use_tokutek; fi
-if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind $use_tokutek; fi
+if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target $perconaserver $tokudb release $tokudb_owner; fi
+if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target $perconaserver $tokudb debug $tokudb_owner; fi
+if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind $tokudb_owner; fi

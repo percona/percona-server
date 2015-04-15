@@ -3,7 +3,7 @@
 # make the tokudb source tarball from the Tokutek github repositories
 
 function usage() {
-    echo "make.tokudb.source.tarball.bash Percona-Server-5.6.23.72.1 tokudb-7.5.6 [$tokudb_owner]"
+    echo "make.tokudb.source.tarball.bash Percona-Server-5.6.23.72.1 tokudb-7.5.6"
 }
 
 # download a github repo as a tarball and expand it in a local directory
@@ -30,21 +30,31 @@ function get_repo() {
 
 tokudb_owner=tokutek
 if [ $# -lt 2 ] ; then usage; exit 1; fi
-staging=$1.tokudb
-ref=$2
+if [[ $1 =~ (.*)/(.*) ]] ; then
+    staging=${BASH_REMATCH[2]}.tokudb
+else
+    staging=$1.tokudb
+fi
+if [[ $2 =~ (.*)/(.*) ]] ; then
+    tokudb_owner=${BASH_REMATCH[1]}
+    tokudb_ref=${BASH_REMATCH[2]}
+else
+    tokudb_owner=tokutek
+    tokudb_ref=$2
+fi
 if [ $# -ge 3 ] ; then tokudb_owner=$3; fi
 
-get_repo $tokudb_owner tokudb-engine $ref
+get_repo $tokudb_owner tokudb-engine $tokudb_ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
-get_repo $tokudb_owner ft-index $ref
+get_repo $tokudb_owner ft-index $tokudb_ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
-get_repo $tokudb_owner tokudb-percona-server-5.6 $ref
+get_repo $tokudb_owner tokudb-percona-server-5.6 $tokudb_ref
 if [ $? -ne 0 ] ; then exit 1; fi
 
 do_backup=1
-get_repo $tokudb_owner tokudb-backup-plugin $ref
+get_repo $tokudb_owner tokudb-backup-plugin $tokudb_ref
 if [ $? -ne 0 ] ; then
     do_backup=0
     echo "warning: tokudb-backup-plugin"
@@ -64,7 +74,7 @@ if [ ! -d $staging ] ; then
     # set the tokudb version to the github ref in the cmake file
     pushd $staging/storage/tokudb
     if [ $? -ne 0 ] ; then exit 1; fi
-    echo "SET(TOKUDB_VERSION $ref)" >new.CMakeLists.txt
+    echo "SET(TOKUDB_VERSION $tokudb_ref)" >new.CMakeLists.txt
     cat CMakeLists.txt >>new.CMakeLists.txt
     mv new.CMakeLists.txt CMakeLists.txt
     popd

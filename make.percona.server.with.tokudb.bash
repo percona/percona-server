@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage() {
-    echo "make.percona.server.with.tokudb.bash Percona-Server-5.6.23-72.1 tokudb-7.5.6 [debug|release|debug-valgrind [$tokudb_owner]]"
+    echo "make.percona.server.with.tokudb.bash Percona-Server-5.6.23-72.1 tokudb-7.5.6 [debug|release|debug-valgrind]"
 }
 
 # download a github repo as a tarball and expand it in a local directory
@@ -22,34 +22,34 @@ function get_repo() {
 }
 
 function get_source_from_repos() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local tokudb_owner=$4
+    local buildthype=$1
 
     # get percona server source
-    get_repo percona percona-server $perconaserver
+    get_repo $percona_owner percona-server $percona_ref
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    mv percona-server $perconaserver-$buildtype
+    mv percona-server $percona_ref-$buildtype
 
-    if [ ! -f $perconaserver-$buildtype/Docs/INFO_SRC ] ; then
-        echo "short: $tokudb" >$perconaserver-$buildtype/Docs/INFO_SRC
+    if [ ! -f $percona_ref-$buildtype/Docs/INFO_SRC ] ; then
+        echo "short: $tokudb_ref" >$percona_ref-$buildtype/Docs/INFO_SRC
     else
         # append the tokudb tag to the revno string
-        sed -i -e "1,\$s/\(short:.*\)\$/\1-$tokudb/" $perconaserver-$buildtype/Docs/INFO_SRC
+        sed -i -e "1,\$s/\(short:.*\)\$/\1-$tokudb_ref/" $percona_ref-$buildtype/Docs/INFO_SRC
         if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
     fi
 
-    sed -i -e "s/\(PRODUCT_FULL=\"\$PRODUCT_FULL\)/\1-\${REVISION:-}/" $perconaserver-$buildtype/build-ps/build-binary.sh
+    sed -i -e "s/\(PRODUCT_FULL=\"\$PRODUCT_FULL\)/\1-\${REVISION:-}/" $percona_ref-$buildtype/build-ps/build-binary.sh
 
     # make the tokudb source tarball
-    bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb $tokudb_owner
+    bash -x make.tokudb.source.tarball.bash $perconaserver $tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return ; fi
 
     # extract the tokudb source tarball
-    tar xzf $perconaserver.tokudb.tar.gz
+    tar xzf $percona_ref.tokudb.tar.gz
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
 
     # merge
-    target=$PWD/$perconaserver-$buildtype
-    pushd $perconaserver.tokudb
+    target=$PWD/$percona_ref-$buildtype
+    pushd $percona_ref.tokudb
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     for d in mysql-test storage; do
         if [ -d $d ] ; then
@@ -80,11 +80,10 @@ function get_source_from_repos() {
 }
 
 function build_tarballs_from_source() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3
-
+    local buildtype=$1
     # build
     jemallocdir=$PWD/jemalloc-3.6.0
-    pushd $perconaserver-$buildtype
+    pushd $percona_ref-$buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     buildargs="--with-jemalloc $jemallocdir"
     if [ $buildtype = "debug" ] ; then buildargs="-d $buildargs"; fi
@@ -98,30 +97,41 @@ function build_tarballs_from_source() {
 }
 
 function make_target() {
-    local perconaserver=$1; local tokudb=$2; local buildtype=$3; local tokudb_owner=$4
-
-    local builddir=$perconaserver-$tokudb-$buildtype
+    local buildtype=$1
+    local builddir=$percona_ref-$tokudb_ref-$buildtype
     rm -rf $builddir
     mkdir $builddir
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     pushd $builddir
-    get_source_from_repos $perconaserver $tokudb $buildtype $tokudb_owner
+    get_source_from_repos $buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
-    build_tarballs_from_source $perconaserver $tokudb $buildtype
+    build_tarballs_from_source $buildtype
     if [ $? -ne 0 ] ; then test 1 = 0; return; fi
     popd
-    mv $builddir/$perconaserver-$buildtype/Percona-Server*.gz* .
+    mv $builddir/$percona_ref-$buildtype/Percona-Server*.gz* .
     # rm -rf build-$buildtype
 }
 
-tokudb_owner=tokutek
 if [ $# -lt 2 ] ; then usage; exit 1; fi
 perconaserver=$1
+if [[ $perconaserver =~ (.*)/(.*) ]] ; then
+    percona_owner=${BASH_REMATCH[1]}
+    percona_ref=${BASH_REMATCH[2]}
+else
+    percona_owner=percona
+    percona_ref=$perconaserver
+fi
 tokudb=$2
+if [[ $tokudb =~ (.*)/(.*) ]] ; then
+    tokudb_owner=${BASH_REMATCH[1]}
+    tokudb_ref=${BASH_REMATCH[2]}
+else
+    tokudb_owner=tokutek
+    tokudb_ref=$tokudb
+fi
 buildtype=
 if [ $# -ge 3 ] ; then buildtype=$3; fi
-if [ $# -ge 4 ] ; then tokudb_owner=$4; fi
 
-if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target $perconaserver $tokudb release $tokudb_owner; fi
-if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target $perconaserver $tokudb debug $tokudb_owner; fi
-if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target $perconaserver $tokudb debug-valgrind $tokudb_owner; fi
+if [ -z "$buildtype" -o "$buildtype" = release ] ; then make_target release; fi
+if [ -z "$buildtype" -o "$buildtype" = debug ] ; then make_target debug; fi
+if [ -z "$buildtype" -o "$buildtype" = debug-valgrind ] ; then make_target debug-valgrind; fi

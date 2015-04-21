@@ -990,8 +990,8 @@ public:
     }
     mysql_mutex_lock(&killing_thd->LOCK_thd_data);
     killing_thd->killed= THD::KILL_CONNECTION;
-    MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                   post_kill_notification, (killing_thd));
+    MYSQL_CALLBACK(killing_thd->scheduler, post_kill_notification,
+                   (killing_thd));
     if (killing_thd->is_killable)
     {
       mysql_mutex_lock(&killing_thd->LOCK_current_cond);
@@ -1127,6 +1127,7 @@ static void close_connections(void)
 
   DBUG_VOID_RETURN;
 }
+
 
 void kill_mysql(void)
 {
@@ -9112,11 +9113,13 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_GLOBAL},
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_GLOBAL},
 #if !defined(EMBEDDED_LIBRARY) && !defined(_WIN32)
+  { &key_LOCK_socket_listener_active, "LOCK_socket_listener_active", PSI_FLAG_GLOBAL},
   { &key_LOCK_start_signal_handler, "LOCK_start_signal_handler", PSI_FLAG_GLOBAL},
 #endif
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
   { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
   { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
+  { &key_LOCK_temporary_tables, "THD::LOCK_temporary_tables", 0},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", PSI_FLAG_VOLATILITY_SESSION},
   { &key_LOCK_thd_query, "THD::LOCK_thd_query", PSI_FLAG_VOLATILITY_SESSION},
   { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", PSI_FLAG_VOLATILITY_SESSION},
@@ -9195,7 +9198,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_consistent_snapshot, "LOCK_consistent_snapshot", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
 };
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
@@ -9702,14 +9705,14 @@ PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_fill_schema_schemata;
 PSI_memory_key key_memory_native_functions;
 PSI_memory_key key_memory_JSON;
-PSI_memory_key key_memory_thread_pool_connection;
 
 PSI_memory_key key_memory_userstat_table_stats;
 PSI_memory_key key_memory_userstat_index_stats;
 PSI_memory_key key_memory_userstat_user_stats;
 PSI_memory_key key_memory_userstat_thread_stats;
-
 PSI_memory_key key_memory_userstat_client_stats;
+
+PSI_memory_key key_memory_thread_pool_connection;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -9765,6 +9768,14 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Incident_log_event_message, "Incident_log_event::message", 0},
   { &key_memory_Rows_query_log_event_rows_query, "Rows_query_log_event::rows_query", 0},
 
+  { &key_memory_userstat_table_stats, "userstat_table_stats", 0},
+  { &key_memory_userstat_index_stats, "userstat_index_stats", 0},
+  { &key_memory_userstat_user_stats, "userstat_user_stats", 0},
+  { &key_memory_userstat_thread_stats, "userstat_thread_stats", 0},
+  { &key_memory_userstat_client_stats, "userstat_client_stats", 0},
+
+  { &key_memory_thread_pool_connection, "thread_pool_connection", 0},
+
   { &key_memory_Sort_param_tmp_buffer, "Sort_param::tmp_buffer", 0},
   { &key_memory_Filesort_info_merge, "Filesort_info::merge", 0},
   { &key_memory_Filesort_info_record_pointers, "Filesort_info::record_pointers", 0},
@@ -9819,6 +9830,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
   { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL}, /* Table cache */
   { &key_memory_frm_extra_segment_buff, "frm::extra_segment_buff", 0},
+  { &key_memory_frm_form_pos, "frm::form_pos", 0},
+  { &key_memory_frm_string, "frm::string", 0},
   { &key_memory_LOG_name, "LOG_name", 0},
   { &key_memory_DATE_TIME_FORMAT, "DATE_TIME_FORMAT", 0},
   { &key_memory_DDL_LOG_MEMORY_ENTRY, "DDL_LOG_MEMORY_ENTRY", 0},
@@ -9944,7 +9957,6 @@ void init_server_psi_keys(void)
   stmt_info_rpl.m_name= "relay_log";
   stmt_info_rpl.m_flags= PSI_FLAG_MUTABLE;
   mysql_statement_register(category, &stmt_info_rpl, 1);
-
 #endif
 
   /* Common client and server code. */

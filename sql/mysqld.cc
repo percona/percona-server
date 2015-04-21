@@ -5981,6 +5981,26 @@ int mysqld_main(int argc, char **argv)
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(1);
 
+  /*
+    If super_read_only = 1 and read_only = 0 set in my.cnf or startup params,
+    auto update read_only = 1.
+    Super users are read only meaning normal users must be read only.
+  */
+  if (read_only == FALSE && super_read_only == TRUE)
+  {
+    read_only = TRUE;
+  }
+  /*
+    Originally assigned in get_options().
+    But when super_read_only = 1 and read_only = 1 simultaneously,
+    Event_db_repository::check_system_tables will return false
+    as there are no write permission,
+    causing 'Failed to open table mysql.event' error.
+    So move here after Events::init().
+  */
+  opt_super_readonly= super_read_only;
+  opt_readonly= read_only;
+
   if (opt_bootstrap)
   {
     select_thread_in_use= 0;                    // Allow 'kill' to work
@@ -9478,9 +9498,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.engine_condition_pushdown=
     MY_TEST(global_system_variables.optimizer_switch &
             OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
-
-  opt_super_readonly= super_read_only;
-  opt_readonly= read_only;
 
   return 0;
 }

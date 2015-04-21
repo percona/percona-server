@@ -112,7 +112,7 @@ connection con1;
 insert into t1 values(1);
 
 connection con2;
---error 1213
+--error 1213,1205
 reap;
 select @a;
 # check that the whole transaction was rolled back

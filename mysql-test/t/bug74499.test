@@ -1,0 +1,14 @@
+# Test for MySQL bug #74499: handle_fatal_signal 11 in strmake
+
+CREATE DATABASE test2;
+
+SELECT COUNT(*) FROM mysql.proc WHERE DB='test2' AND NAME='' AND TYPE='';
+
+INSERT INTO mysql.proc VALUES('test2','','','','','CONTAINS_SQL','','','','','BEGIN\r\n \r\nEND','root@%','','','','','utf0','ci','ci','n/a');
+
+--error ER_SP_WRONG_NAME
+DROP DATABASE test2;
+
+DELETE FROM mysql.proc WHERE DB='test2' AND NAME='' AND TYPE='';
+
+DROP DATABASE test2;

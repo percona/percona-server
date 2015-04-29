@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/16/2015
+.\"      Date: 03/25/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -325,8 +325,7 @@ Write column names in results\&.
 .\}
 .\" mysql: column-type-info option
 .\" column-type-info option: mysql
-\fB\-\-column\-type\-info\fR,
-\fB\-m\fR
+\fB\-\-column\-type\-info\fR
 .sp
 Display result set metadata\&.
 .RE
@@ -375,7 +374,7 @@ Compress all information sent between the client and the server if both support 
 .\" connect-expired-password option: mysql
 \fB\-\-connect\-expired\-password\fR
 .sp
-Indicate to the server that the client is can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
+Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
 Section\ \&6.3.6, \(lqPassword Expiration and Sandbox Mode\(rq\&.) This option was added in MySQL 5\&.6\&.12\&.
@@ -460,7 +459,7 @@ Print debugging information and memory and CPU usage statistics when the program
 .\" default-auth option: mysql
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
-The client\-side authentication plugin to use\&. See
+A hint about the client\-side authentication plugin to use\&. See
 Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp

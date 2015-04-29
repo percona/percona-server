@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/16/2015
+.\"      Date: 03/25/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -100,7 +100,9 @@ T{
 .PP
 --nodes
 T}:T{
-Print node information (DB section) only.
+Print node information ([ndbd] or [ndbd default] section of
+      cluster configuration file) only. Cannot be used with --system or
+      --connections.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -109,8 +111,9 @@ T{
 .PP
 --connections
 T}:T{
-Print CONNECTIONS section information only. Cannot be used with
-      --nodes or --system option.
+Print connections information ([tcp], [tcp default], [sci], [sci
+      default], [shm], or [shm default] sections of cluster
+      configuration file) only. Cannot be used with --system or --nodes.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -230,8 +233,8 @@ T{
 .PP
 --system
 T}:T{
-Print SYSTEM section information only. Cannot be used with --nodes
-      or --connections option.
+Print SYSTEM section information only (see ndb_config --configinfo
+      output). Cannot be used with --nodes or --connections.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -707,12 +710,17 @@ T}
 .sp 1
 Tells
 \fBndb_config\fR
-to print information from parameters defined in
-DB
-sections only\&. This option cannot be used together with
-\fB\-\-connections\fR
+to print information relating only to parameters defined in an
+[ndbd]
 or
-\fB\-\-system\fR\&.
+[ndbd default]
+section of the cluster configuration file (see
+Section\ \&18.3.2.6, \(lqDefining MySQL Cluster Data Nodes\(rq)\&.
+.sp
+This option is mutually exclusive with
+\fB\-\-connections\fR
+and
+\fB\-\-system\fR; only one of these 3 options can be used\&.
 .RE
 .sp
 .RS 4
@@ -754,10 +762,22 @@ Tells
 \fBndb_config\fR
 to print
 CONNECTIONS
-information only\&. This option cannot be used together with
+information only\(emthat is, information about parameters found in the
+[tcp],
+[tcp default],
+[sci],
+[sci default],
+[shm], or
+[shm default]
+sections of the cluster configuration file (see
+Section\ \&18.3.2.8, \(lqMySQL Cluster TCP/IP Connections\(rq,
+Section\ \&18.3.2.11, \(lqSCI Transport Connections in MySQL Cluster\(rq, and
+Section\ \&18.3.2.10, \(lqMySQL Cluster Shared-Memory Connections\(rq, for more information)\&.
+.sp
+This option is mutually exclusive with
 \fB\-\-nodes\fR
-or
-\fB\-\-system\fR\&.
+and
+\fB\-\-system\fR; only one of these 3 options can be used\&.
 .RE
 .sp
 .RS 4
@@ -799,13 +819,15 @@ Tells
 \fBndb_config\fR
 to print
 SYSTEM
-information only\&.
+information only\&. This consists of system variables that cannot be changed at run time; thus, there is no corresponding section of the cluster configuration file for them\&. They can be seen (prefixed with
+****** SYSTEM ******) in the output of
+\fBndb_config\fR
+\fB\-\-configinfo\fR\&.
 .sp
-This option cannot be used together with the
+This option is mutually exclusive with
 \fB\-\-nodes\fR
-or
-\fB\-\-system\fR
-options\&.
+and
+\fB\-\-connections\fR; only one of these 3 options can be used\&.
 .RE
 .sp
 .RS 4
@@ -1144,7 +1166,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.22\-ndb\-7\&.3\&.9"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.23\-ndb\-7\&.3\&.9"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">

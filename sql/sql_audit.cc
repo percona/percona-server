@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,27 @@ static mysql_mutex_t LOCK_audit_mask;
 
 static void event_class_dispatch(THD *thd, unsigned int event_class,
                                  const void *event);
+
+
+static inline
+void set_audit_mask(unsigned long *mask, uint event_class)
+{
+  mask[0]= 1;
+  mask[0]<<= event_class;
+}
+
+static inline
+void add_audit_mask(unsigned long *mask, const unsigned long *rhs)
+{
+  mask[0]|= rhs[0];
+}
+
+static inline
+bool check_audit_mask(const unsigned long *lhs,
+                      const unsigned long *rhs)
+{
+  return !(lhs[0] & rhs[0]);
+}
 
 
 typedef void (*audit_handler_t)(THD *thd, uint event_subtype, va_list ap);
@@ -99,8 +120,10 @@ static audit_handler_t audit_handlers[] =
   general_class_handler, connection_class_handler
 };
 
+#ifndef DBUG_OFF
 static const uint audit_handlers_count=
   (sizeof(audit_handlers) / sizeof(audit_handler_t));
+#endif /* DBUG_OFF */
 
 
 /**
@@ -321,8 +344,7 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 {
   st_mysql_audit *data= (st_mysql_audit*) plugin->plugin->info;
   
-  if (!data->class_mask || !data->event_notify ||
-      !data->class_mask[0])
+  if (!data->event_notify || !data->class_mask[0])
   {
     sql_print_error("Plugin '%s' has invalid data.",
                     plugin->name.str);

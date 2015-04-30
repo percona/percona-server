@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/16/2015
+.\"      Date: 03/25/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -150,7 +150,7 @@ T{
 .PP
 -n
 T}:T{
-Back up files from node with this ID
+Restore backup files to node with this ID
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -649,9 +649,12 @@ shell> \fBndb_mgm \-e "SHOW"\fR
 .RE
 .\}
 .PP
-.\" restore_nodeid option (ndb_restore)
+.\" nodeid option (ndb_restore)
+The
+\fB\-\-nodeid\fR
+or
 \fB\-n\fR
-is used to specify the node ID of the data node on which the backups were taken\&.
+is used to specify the node ID of the data node on which the backup should be restored\&.
 .PP
 The first time you run the
 \fBndb_restore\fR

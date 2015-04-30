@@ -2,12 +2,12 @@
 .\"     Title: Options Common to MySQL Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/16/2015
+.\"      Date: 03/25/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO MY" "1" "01/16/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "OPTIONS COMMON TO MY" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -82,14 +82,28 @@ All MySQL Cluster programs accept the options described in this section, with th
 .\}
 \fBndb_print_sys_file\fR
 .RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
 .PP
-Users of earlier MySQL Cluster versions should note that some of these options have been changed to make them consistent with one another as well as with
+Users of earlier MySQL Cluster versions should note that some of these options have been changed to make them consistent with one another, and also with
 \fBmysqld\fR\&. You can use the
 \fB\-\-help\fR
 option with any MySQL Cluster program\(emwith the exception of
 \fBndb_print_backup_file\fR,
 \fBndb_print_schema_file\fR, and
 \fBndb_print_sys_file\fR\(emto view a list of the options which the program supports\&.
+.sp .5v
+.RE
 .PP
 The options in the following table are common to all MySQL Cluster executables (except those noted previously in this section)\&.
 .sp

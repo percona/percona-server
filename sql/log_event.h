@@ -1383,15 +1383,6 @@ public:
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
-  /**
-    Re-implement this function for events which should rollback current group,
-    such as "ROLLBACK" statement, format description event or stop event.
-  */
-  virtual bool should_rollback_current_group() const
-  {
-    return false;
-  }
-
 private:
 
   /*
@@ -2669,14 +2660,6 @@ public:
     return START_V3_HEADER_LEN; //no variable-sized part
   }
 
-  /**
-    New log file rolls the current group back if "created" property is set.
-  */
-  virtual bool should_rollback_current_group() const
-  {
-    return created != 0;
-  }
-
 protected:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -3078,14 +3061,6 @@ public:
   ~Stop_log_event() {}
   Log_event_type get_type_code() { return STOP_EVENT;}
   bool is_valid() const { return 1; }
-
-  /**
-    Always rollback current group
-  */
-  virtual bool should_rollback_current_group() const
-  {
-    return true;
-  }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)

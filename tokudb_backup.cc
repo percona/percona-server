@@ -114,7 +114,13 @@ struct tokudb_backup_error_extra {
 
 static void tokudb_backup_error_fun(int error_number, const char *error_string, void *extra) {
     tokudb_backup_error_extra *be = static_cast<tokudb_backup_error_extra *>(extra);
-    tokudb_backup_set_error(be->_thd, error_number, error_string);
+    char *last_error_string = THDVAR(be->_thd, last_error_string);
+    if (last_error_string == NULL) {
+        tokudb_backup_set_error(be->_thd, error_number, error_string);
+    } else {
+        // append the new error string to the last error string
+        tokudb_backup_set_error_string(be->_thd, error_number, "%s; %s", last_error_string, error_string, NULL);
+    }
 }
 
 static char *tokudb_backup_realpath_with_slash(const char *a) {

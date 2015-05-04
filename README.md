@@ -46,7 +46,7 @@ set tokudb_backup_exclude='/lost\\+found($|/)';
 ```
 ```
 set tokudb_backup_dir='/tmp/backup105';
-\\\
+```
 
 # Monitor progress
 The Tokutek hot backup updates the processlist state with progress information while it is running.

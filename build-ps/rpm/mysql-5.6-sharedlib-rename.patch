@@ -8,7 +8,7 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
 -TARGET_LINK_LIBRARIES(mysql perconaserverclient)
 +TARGET_LINK_LIBRARIES(mysql mysqlclient)
  IF(UNIX)
-   TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
+   TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
  ENDIF(UNIX)
  
  MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)

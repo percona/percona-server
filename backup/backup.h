@@ -5,18 +5,25 @@
 #define BACKUP_H
 
 #ident "Copyright (c) 2012-2013 Tokutek Inc.  All rights reserved."
-#ident "$Id: f3e40716a68df061474b60d63cede2cfc99f7be9 $"
+#ident "$Id: 4edcb140608da110c9a225a606dc13e77301d274 $"
 
 extern "C" {
 
 // These public API's should be in C.
 
-typedef int (*backup_poll_fun_t)(float progress, const char *progress_string, void*poll_extra);
+typedef int (*backup_poll_fun_t)(float progress, const char *progress_string, void *poll_extra);
+
 typedef void (*backup_error_fun_t)(int error_number, const char *error_string, void *error_extra);
+
+// The exclude_copy callback if called for every file that will be copied.
+// When it returns 0, the file is copied.  Otherwise, the file copy is skipped.
+typedef int (*backup_exclude_copy_fun_t)(const char *source_file,void *extra);
 
 int tokubackup_create_backup(const char *source_dirs[], const char *dest_dirs[], int dir_count,
                              backup_poll_fun_t poll_fun, void *poll_extra,
-                             backup_error_fun_t error_fun, void *error_extra) throw() __attribute__((visibility("default")));
+                             backup_error_fun_t error_fun, void *error_extra,
+                             backup_exclude_copy_fun_t check_fun, void *exclude_copy_extra)
+    throw() __attribute__((visibility("default")));
 // Effect: Backup the directories in source_dirs into correspnding dest_dirs.
 // Periodically call poll_fun.
 //  If poll_fun returns 0, then the backup continues.
@@ -41,6 +48,8 @@ int tokubackup_create_backup(const char *source_dirs[], const char *dest_dirs[],
 //   poll_extra: a value passed to poll_fun.
 //   error_fun: a function to call if an error happens
 //   error_extra: a value passed to error_fun.
+//   exclude_copy_fun: a function to call for every file being copied
+//   exclude_copy_extra: a valuue passed to the exclude_copy_fun
 // Return value:  0 if the backup succeeded.  Nonzero if the backup
 //   was stopped early (returning the result from the poll_fun) or the
 //   error code.

@@ -29,7 +29,7 @@ install plugin tokudb_backup soname 'tokudb_backup.so';
 
 # Run a backup
 
-1 Backup to the '/tmp/backup1047' directory.  This blocks until the backup is complete.
+Backup to the '/tmp/backup1047' directory.  This blocks until the backup is complete.
 ```
 set tokudb_backup_dir='/tmp/backup1047';
 ```
@@ -38,6 +38,15 @@ The ```set tokudb_backup_dir``` statement will succeed if the backup was taken. 
 ```
 select @@tokudb_backup_last_error, @@tokudb_backup_last_error_string;
 ```
+
+# Exclude source files
+Lets suppose that you want to exclude all 'lost+found' directories from the backup.  The ```tokudb_backup_exclude``` session variable contains a regular expression that all source file names are compared with.  If the source file name matches the exclude regular expression, then the source file is excluded from the backup.
+```
+set tokudb_backup_exclude='/lost\\+found($|/)';
+```
+```
+set tokudb_backup_dir='/tmp/backup105';
+\\\
 
 # Monitor progress
 The Tokutek hot backup updates the processlist state with progress information while it is running.
@@ -100,6 +109,13 @@ The ```tokudb_backup_throttle``` variable imposes an upper bound on the write ra
 * scope:session
 * type:str
 * comment:error string of the last backup
+
+## tokudb_backup_exclude
+* name:tokudb_backup_exclude
+* readonly:false
+* scope:session
+* type:str
+* comment:exclude source file regular expression
 
 # Build the hot backup plugin from source
 1 Checkout the Percona Server source

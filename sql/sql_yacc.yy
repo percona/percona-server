@@ -6290,7 +6290,7 @@ row_types:
         | TOKU_LZMA_SYM         { $$= ROW_TYPE_TOKU_LZMA; }
         | TOKU_FAST_SYM         { $$= ROW_TYPE_TOKU_FAST; }
         | TOKU_SMALL_SYM        { $$= ROW_TYPE_TOKU_SMALL; }
-        | TOKU_DEFAULT_SYM      { $$= ROW_TYPE_TOKU_ZLIB; }
+        | TOKU_DEFAULT_SYM      { $$= ROW_TYPE_DEFAULT; }
         ;
 
 merge_insert_types:

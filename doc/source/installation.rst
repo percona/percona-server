@@ -8,7 +8,7 @@ Before installing, you might want to read the :doc:`release-notes/release-notes_
 
 Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_, including:
 
- * ``RPM`` packages for *RHEL* 5 and *RHEL* 6
+ * ``RPM`` packages for *RHEL* 5, *RHEL* 6 and *RHEL* 7
 
  * *Debian* packages for *Debian* and *Ubuntu*
 
@@ -144,10 +144,24 @@ source code modified.
 
 Fetch and extract the source tarball. For example: ::
 
-  $ wget http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.15-21.0/source/Percona-Server-5.5.15-rel21.0.tar.gz
-  $ tar xfz Percona-Server-5.5.15-rel21.0.tar.gz
+  $ wget http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-5.5.43-37.2/source/Percona-Server-5.5.42-rel37.1-Linux.x86_64.tar.gz 
+  $ tar xfz Percona-Server-5.5.42-rel37.1-Linux.x86_64.tar.gz
 
 Next, follow the instructions in :ref:`compile_from_source` below.
+
+===================================================
+ Installing |Percona Server| from a Binary Tarball
+===================================================
+
+In |Percona Server| :rn:`5.5.43-37.2` and newer, the single binary tarball was replaced with multiple tarballs depending on the *OpenSSL* library available in the distribution:
+ * ssl100 - for all *Debian/Ubuntu* versions except *Squeeze/Lucid* (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000)``);
+ * ssl098 - only for *Debian Squeeze* and *Ubuntu Lucid* (``libssl.so.0.9.8 => /usr/lib/libssl.so.0.9.8 (0x00007f9b30db6000)``);
+ * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
+ * ssl098e - to be used only for *CentOS* 5 (``libssl.so.6 => /lib64/libssl.so.6 (0x00002aed5b64d000)``).
+
+Fetch and extract the correct binary tarball. For example for *Debian Wheezy*: ::
+
+  $ wget http://www.percona.com/redir/downloads/Percona-Server-5.5/Percona-Server-5.5.43-37.2/binary/tarball/Percona-Server-5.5.43-rel37.2-Linux.x86_64.ssl100.tar.gz
 
 .. _source-from-bzr:
 

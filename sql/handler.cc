@@ -2141,7 +2141,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
 
   /*
     Write tables map once more for trigger as it will be wiped out in
-    Write_rows_log_event::write_row() on slave.
+    Query_log_event::do_apply_event() on slave.
   */
   if (thd->in_sub_stmt == SUB_STMT_TRIGGER)
     error= write_locked_table_maps(thd, true);
@@ -2244,7 +2244,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
 
   /*
      Write tables map once more for trigger as it will be wiped out in
-     Write_rows_log_event::write_row() on slave.
+     Query_log_event::do_apply_event() on slave.
    */
    if (thd->in_sub_stmt == SUB_STMT_TRIGGER)
      error= write_locked_table_maps(thd, true);

@@ -71,6 +71,7 @@ MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 IF(UNIX)
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.c)
+  TARGET_LINK_LIBRARIES(innochecksum ${ZLIB_LIBRARY})
 
   MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
   TARGET_LINK_LIBRARIES(resolve_stack_dump mysys)

@@ -31,6 +31,11 @@ Created 2/2/1994 Heikki Tuuri
 #endif
 #undef THIS_MODULE
 
+#include "ha_prototypes.h"
+#include "buf0checksum.h"
+
+#ifndef UNIV_INNOCHECKSUM
+
 #include "page0cur.h"
 #include "page0zip.h"
 #include "buf0buf.h"
@@ -2812,6 +2817,8 @@ page_find_rec_max_not_deleted(
 	return(prev_rec);
 }
 
+#endif /* #ifndef UNIV_INNOCHECKSUM */
+
 /** Issue a warning when the checksum that is stored in the page is valid,
 but different than the global setting innodb_checksum_algorithm.
 @param[in]	current_algo	current checksum algorithm
@@ -2840,7 +2847,11 @@ page_warn_strict_checksum(
 		ut_error;
 	}
 
+#ifdef UNIV_INNOCHECKSUM
+	fprintf(stderr,
+#else
 	ib_logf(IB_LOG_LEVEL_WARN,
+#endif
 		"innodb_checksum_algorithm is set to \"%s\""
 		" but the page [page id: space=" ULINTPF ","
 		" page number=" ULINTPF "] contains a valid checksum \"%s\"."

@@ -1273,6 +1273,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/dialog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/handlersocket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 
 # %attr(755, root, root) %{_libdir}/mysql/plugin/debug/*.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
@@ -1297,6 +1298,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/handlersocket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 # Audit Log and Scalability Metrics files
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
@@ -1415,6 +1417,7 @@ fi
 %{_libdir}/mysql/plugin/ha_tokudb.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
 %attr(755, root, root) %{_bindir}/ps_tokudb_admin
+%attr(755, root, root) %{_bindir}/tokuft_logprint
 %endif
 
 # ----------------------------------------------------------------------------
@@ -1467,6 +1470,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Wed May 06 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- mysql client is now built with readline (bug1266386)
+
 * Fri Feb 27 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Fixed RPMs assumes that .pid file is located in datadir (bug1201896)

@@ -47,6 +47,7 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "buf0checksum.h"        /* buf_calc_page_*() */
 #include "dict0mem.h"            /* DICT_TF_BITS et al */
 #include "fil0fil.h"             /* FIL_* */
+#include "page0zip.h"            /* page_zip_*() */
 #include "fsp0fsp.h"             /* fsp_flags_get_page_size() &
                                     fsp_flags_get_zip_size() */
 #include "mach0data.h"           /* mach_read_from_4() */
@@ -81,7 +82,8 @@ get_page_size(
                                          and set to start of file */
   byte* buf,                    /*!< in: buffer used to read the page */
   ulong* logical_page_size,     /*!< out: Logical/Uncompressed page size */
-  ulong* physical_page_size)    /*!< out: Physical/Commpressed page size */
+  ulong* physical_page_size,    /*!< out: Physical/Commpressed page size */
+  bool* compressed)             /*!< out: compression flag */
 {
   ulong flags;
 
@@ -109,6 +111,7 @@ get_page_size(
 
   /* fsp_flags_get_zip_size() will return zero if not compressed. */
   *physical_page_size = fsp_flags_get_zip_size(flags);
+  *compressed = (*physical_page_size != 0);
   if (*physical_page_size == 0)
     *physical_page_size= *logical_page_size;
 
@@ -358,6 +361,7 @@ int main(int argc, char **argv)
   unsigned long long int size;   /* size of file (has to be 64 bits) */
   ulint pages;                   /* number of pages in file */
   off_t offset= 0;
+  bool compressed;
 
   printf("InnoDB offline file checksum utility.\n");
 
@@ -397,16 +401,21 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  if (!get_page_size(f, buf, &logical_page_size, &physical_page_size))
+  if (!get_page_size(f, buf, &logical_page_size, &physical_page_size,
+                     &compressed))
   {
     return 1;
   }
 
-  /* This tool currently does not support Compressed tables */
-  if (logical_page_size != physical_page_size)
+  if (compressed)
   {
-    fprintf(stderr, "Error; This file contains compressed pages\n");
-    return 1;
+    printf("Table is compressed\n");
+    printf("Key block size is %lu\n", physical_page_size);
+  }
+  else
+  {
+    printf("Table is uncompressed\n");
+    printf("Page size is %lu\n", physical_page_size);
   }
 
   pages= (ulint) (size / physical_page_size);
@@ -472,39 +481,47 @@ int main(int argc, char **argv)
       return 0;
     }
 
-    /* check the "stored log sequence numbers" */
-    logseq= mach_read_from_4(buf + FIL_PAGE_LSN + 4);
-    logseqfield= mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
-    if (debug)
-      printf("page %lu: log sequence number: first = %lu; second = %lu\n", ct, logseq, logseqfield);
-    if (logseq != logseqfield)
-    {
-      fprintf(stderr, "Fail; page %lu invalid (fails log sequence number check)\n", ct);
-      return 1;
-    }
+    if (compressed) {
+      /* compressed pages */
+      if (!page_zip_verify_checksum(buf, physical_page_size)) {
+        fprintf(stderr, "Fail; page %lu invalid (fails compressed page checksum).\n", ct);
+        return 1;
+      }
+    } else {
+      /* check the "stored log sequence numbers" */
+      logseq= mach_read_from_4(buf + FIL_PAGE_LSN + 4);
+      logseqfield= mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
+      if (debug)
+        printf("page %lu: log sequence number: first = %lu; second = %lu\n", ct, logseq, logseqfield);
+      if (logseq != logseqfield)
+      {
+        fprintf(stderr, "Fail; page %lu invalid (fails log sequence number check)\n", ct);
+        return 1;
+      }
 
-    /* check old method of checksumming */
-    oldcsum= buf_calc_page_old_checksum(buf);
-    oldcsumfield= mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM);
-    if (debug)
-      printf("page %lu: old style: calculated = %lu; recorded = %lu\n", ct, oldcsum, oldcsumfield);
-    if (oldcsumfield != mach_read_from_4(buf + FIL_PAGE_LSN) && oldcsumfield != oldcsum)
-    {
-      fprintf(stderr, "Fail;  page %lu invalid (fails old style checksum)\n", ct);
-      return 1;
-    }
+      /* check old method of checksumming */
+      oldcsum= buf_calc_page_old_checksum(buf);
+      oldcsumfield= mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM);
+      if (debug)
+        printf("page %lu: old style: calculated = %lu; recorded = %lu\n", ct, oldcsum, oldcsumfield);
+      if (oldcsumfield != mach_read_from_4(buf + FIL_PAGE_LSN) && oldcsumfield != oldcsum)
+      {
+        fprintf(stderr, "Fail;  page %lu invalid (fails old style checksum)\n", ct);
+        return 1;
+      }
 
-    /* now check the new method */
-    csum= buf_calc_page_new_checksum(buf);
-    crc32= buf_calc_page_crc32(buf);
-    csumfield= mach_read_from_4(buf + FIL_PAGE_SPACE_OR_CHKSUM);
-    if (debug)
-      printf("page %lu: new style: calculated = %lu; crc32 = %lu; recorded = %lu\n",
-          ct, csum, crc32, csumfield);
-    if (csumfield != 0 && crc32 != csumfield && csum != csumfield)
-    {
-      fprintf(stderr, "Fail; page %lu invalid (fails innodb and crc32 checksum)\n", ct);
-      return 1;
+      /* now check the new method */
+      csum= buf_calc_page_new_checksum(buf);
+      crc32= buf_calc_page_crc32(buf);
+      csumfield= mach_read_from_4(buf + FIL_PAGE_SPACE_OR_CHKSUM);
+      if (debug)
+        printf("page %lu: new style: calculated = %lu; crc32 = %lu; recorded = %lu\n",
+               ct, csum, crc32, csumfield);
+      if (csumfield != 0 && crc32 != csumfield && csum != csumfield)
+      {
+        fprintf(stderr, "Fail; page %lu invalid (fails innodb and crc32 checksum)\n", ct);
+        return 1;
+      }
     }
 
     /* end if this was the last page we were supposed to check */

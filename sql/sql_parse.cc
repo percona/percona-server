@@ -1585,7 +1585,7 @@ void log_slow_statement(THD *thd)
     This code should be run after query_response_time_collect(...)
     function to avoid influence on query_response_time_stats logic.
   */
-  if (opt_log_slow_sp_statements &&
+  if (opt_log_slow_sp_statements > 0 &&
       thd->lex)
   {
     if (thd->lex->sql_command == SQLCOM_CALL)

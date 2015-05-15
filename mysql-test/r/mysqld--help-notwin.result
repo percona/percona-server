@@ -288,10 +288,12 @@ The following options may be given as the first argument:
  query log. [session, query]
  --log-slow-slave-statements 
  Log queries replayed be the slave SQL thread
- --log-slow-sp-statements 
- Log slow statements executed by stored procedure to the
- slow log if it is open.
- (Defaults to on; use --skip-log-slow-sp-statements to disable.)
+ --log-slow-sp-statements[=name] 
+ Choice between logging slow CALL statements, logging
+ individual slow statements inside stored procedures or
+ skipping the logging of stored procedures into the slow
+ log entirely. Values are OFF, ON and OFF_NO_CALLS
+ respectively.
  --log-slow-verbosity=name 
  Choose how verbose the messages to your slow log will be.
  Multiple flags allowed in a comma-separated string.
@@ -932,7 +934,7 @@ log-slow-filter
 log-slow-rate-limit 1
 log-slow-rate-type session
 log-slow-slave-statements FALSE
-log-slow-sp-statements TRUE
+log-slow-sp-statements ON
 log-slow-verbosity 
 log-tc tc.log
 log-tc-size 24576

@@ -2830,7 +2830,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
     if (my_b_write(&log_file, (uchar*) "\n", 1))
         tmp_errno= errno;
 
-    if (opt_log_slow_sp_statements &&
+    if (opt_log_slow_sp_statements == 1 &&
         thd->spcont &&
         my_b_printf(&log_file,
                     "# Stored_routine: %s\n",

@@ -1,4 +1,4 @@
-// This program finds all of the tokudb status dictionary files and deletes the FRM from them.
+// Modify inames in the tokudb.directory
 //
 // Requirements:
 // The directory containing the tokudb environment is passed as a parameter.
@@ -7,9 +7,8 @@
 // Needs the tokudb.* metadata files.
 //
 // Effects:
-// Deletes the FRM row from all of the tokudb status dictionaries.
+// Modifies the inames in tokudb.directory.
 // Creates a new crash recovery log.
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,27 +18,8 @@
 #include <assert.h>
 #include <db.h>
 
-static int delete_frm_from_status(DB_ENV *env, DB_TXN *txn, const char *dname) {
-    int r;
-    DB *db = NULL;
-    r = db_create(&db, env, 0);
-    assert(r == 0);
-
-    r = db->open(db, txn, dname, NULL, DB_BTREE, 0, 0);
-    assert(r == 0);
-
-    uint64_t k = 5;
-    DBT delkey = { .data = &k, .size = sizeof k };
-    r = db->del(db, txn, &delkey, 0);
-    assert(r == 0);
-
-    r = db->close(db, 0);
-    assert(r == 0);
-
-    return 0;
-}
-
-static int find_status_and_delete_frm(DB_ENV *env, DB_TXN *txn) {
+static int fixup_directory(DB_ENV *env, DB_TXN *txn, DB *db) {
+    db = db;
     int r;
     DBC *c = NULL;
     r = env->get_cursor_for_directory(env, txn, &c);
@@ -51,18 +31,19 @@ static int find_status_and_delete_frm(DB_ENV *env, DB_TXN *txn) {
         r = c->c_get(c, &key, &val, DB_NEXT);
         if (r == DB_NOTFOUND)
             break;
-        const char *dname = (const char *) key.data;
-        const char *iname = (const char *) val.data;
-        fprintf(stderr, "dname=%s iname=%s\n", dname, iname);
+        printf("dname=%s oldiname=%s ", (char *) key.data, (char *) val.data);
         assert(r == 0);
 
-        if (strstr(iname, "_status_")) {
-            fprintf(stderr, "delete frm from %s\n", iname);
-            if (1) {
-                r = delete_frm_from_status(env, txn, dname);
-                assert(r == 0);
-            }
-        }
+        // TODO insert iname match and replace here
+        char newiname[strlen((char *) val.data) + 32];
+        sprintf(newiname, "%s", (char *) val.data);
+        printf("newiname=%s\n", newiname);
+        // TODO end patch
+        
+        // this modifies the iname in the row
+        DBT newval = {}; newval.data = newiname; newval.size = strlen(newiname)+1;
+        r = db->put(db, txn, &key, &newval, 0);
+        assert(r == 0);
     }
     free(key.data);
     free(val.data);
@@ -86,7 +67,8 @@ int main(int argc, char *argv[]) {
     assert(r == 0);
 
     env->set_errfile(env, stderr);
-    r = env->open(env, datadir, DB_INIT_LOCK+DB_INIT_MPOOL+DB_INIT_TXN+DB_INIT_LOG + DB_PRIVATE+DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, datadir, DB_INIT_LOCK+DB_INIT_MPOOL+DB_INIT_TXN+DB_INIT_LOG + DB_PRIVATE+DB_CREATE, 
+                  S_IRWXU+S_IRWXG+S_IRWXO);
     // open will fail if the recovery log was not cleanly shutdown
     assert(r == 0);
 
@@ -95,7 +77,10 @@ int main(int argc, char *argv[]) {
     r = env->txn_begin(env, NULL, &txn, 0);
     assert(r == 0);
 
-    r = find_status_and_delete_frm(env, txn);
+    DB *db = env->get_db_for_directory(env);
+    assert(db != NULL);
+
+    r = fixup_directory(env, txn, db);
     assert(r == 0);
 
     r = txn->commit(txn, 0);

@@ -2004,7 +2004,7 @@ bool log_slow_applicable(THD *thd)
     Don't log the CALL statement if slow statements logging
     inside of stored procedures is enabled.
   */
-  if (opt_log_slow_sp_statements && thd->lex)
+  if (opt_log_slow_sp_statements > 0 && thd->lex)
   {
     if (thd->lex->sql_command == SQLCOM_CALL)
     {

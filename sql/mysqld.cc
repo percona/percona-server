@@ -465,7 +465,7 @@ char* opt_secure_file_priv= NULL;
 my_bool opt_secure_file_priv_noarg= FALSE;
 my_bool opt_log_slow_admin_statements= 0;
 my_bool opt_log_slow_slave_statements= 0;
-my_bool opt_log_slow_sp_statements= 0;
+ulong opt_log_slow_sp_statements= 0;
 my_bool opt_slow_query_log_timestamp_always= 0;
 ulonglong opt_slow_query_log_use_global_control= 0;
 ulong opt_slow_query_log_timestamp_precision= 0;
@@ -9081,6 +9081,7 @@ C_MODE_END
 /* defined in sys_vars.cc */
 extern void init_log_slow_verbosity();
 extern void init_slow_query_log_use_global_control();
+extern void init_log_slow_sp_statements();
 
 /**
   Get server options from the command line,
@@ -9247,6 +9248,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
   init_log_slow_verbosity();
   init_slow_query_log_use_global_control();
+  init_log_slow_sp_statements();
   if (opt_short_log_format)
     opt_specialflag|= SPECIAL_SHORT_LOG_FORMAT;
 

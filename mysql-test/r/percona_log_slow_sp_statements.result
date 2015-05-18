@@ -14,6 +14,9 @@ END^
 PREPARE stmt FROM "CALL test_outer()";
 SET GLOBAL log_slow_sp_statements=ON;
 [log_start.inc] percona.slow_extended.sp1
+SELECT "log_always";
+log_always
+log_always
 CALL test_outer();
 1
 1
@@ -25,6 +28,8 @@ EXECUTE stmt;
 2
 2
 [log_stop.inc] percona.slow_extended.sp1
+[log_grep.inc] file: percona.slow_extended.sp1 pattern: log_always
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.sp1 pattern: SELECT 1;
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.sp1 pattern: SELECT 2;
@@ -37,6 +42,9 @@ EXECUTE stmt;
 [log_grep.inc] lines:   2
 SET GLOBAL log_slow_sp_statements=OFF;
 [log_start.inc] percona.slow_extended.sp2
+SELECT "log_always";
+log_always
+log_always
 CALL test_outer();
 1
 1
@@ -48,6 +56,8 @@ EXECUTE stmt;
 2
 2
 [log_stop.inc] percona.slow_extended.sp2
+[log_grep.inc] file: percona.slow_extended.sp2 pattern: log_always
+[log_grep.inc] lines:   1
 [log_grep.inc] file: percona.slow_extended.sp2 pattern: SELECT 1;
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.sp2 pattern: SELECT 2;
@@ -55,6 +65,32 @@ EXECUTE stmt;
 [log_grep.inc] file: percona.slow_extended.sp2 pattern: CALL test_
 [log_grep.inc] lines:   2
 [log_grep.inc] file: percona.slow_extended.sp2 pattern: # Stored_routine: test.test_
+[log_grep.inc] lines:   0
+SET GLOBAL log_slow_sp_statements=OFF_NO_CALLS;
+[log_start.inc] percona.slow_extended.sp3
+SELECT "log_always";
+log_always
+log_always
+CALL test_outer();
+1
+1
+2
+2
+EXECUTE stmt;
+1
+1
+2
+2
+[log_stop.inc] percona.slow_extended.sp3
+[log_grep.inc] file: percona.slow_extended.sp3 pattern: log_always
+[log_grep.inc] lines:   1
+[log_grep.inc] file: percona.slow_extended.sp3 pattern: SELECT 1;
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.sp3 pattern: SELECT 2;
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.sp3 pattern: CALL test_
+[log_grep.inc] lines:   0
+[log_grep.inc] file: percona.slow_extended.sp3 pattern: # Stored_routine: test.test_
 [log_grep.inc] lines:   0
 DROP PROCEDURE test_outer;
 DROP PROCEDURE test_inner;

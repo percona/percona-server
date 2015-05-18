@@ -124,7 +124,7 @@ extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
 extern size_t opt_secure_backup_file_priv_len;
 extern my_bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
-extern my_bool opt_log_slow_sp_statements;
+extern ulong opt_log_slow_sp_statements;
 extern my_bool opt_slow_query_log_timestamp_always;
 extern ulonglong opt_slow_query_log_use_global_control;
 extern ulong opt_slow_query_log_timestamp_precision;

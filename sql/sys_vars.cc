@@ -3369,11 +3369,31 @@ static Sys_var_mybool Sys_log_slow_admin_statements(
        " to the slow log if it is open.",
        GLOBAL_VAR(opt_log_slow_admin_statements), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
-static Sys_var_mybool Sys_log_slow_sp_statements(
+static const char *log_slow_sp_statements_names[]=
+  {"OFF", "ON", "OFF_NO_CALLS", "FALSE", "TRUE", "0", "1", 0};
+static bool fix_log_slow_sp_statements(sys_var */*self*/, THD */*thd*/,
+                                       enum_var_type /*type*/)
+{
+  if(opt_log_slow_sp_statements > 2)
+  {
+    opt_log_slow_sp_statements= (opt_log_slow_sp_statements - 3) % 2;
+  }
+  return false;
+}
+void init_log_slow_sp_statements()
+{
+  fix_log_slow_sp_statements(NULL, NULL, OPT_GLOBAL);
+}
+static Sys_var_enum Sys_log_slow_sp_statements(
        "log_slow_sp_statements",
-       "Log slow statements executed by stored procedure to the slow log if it is open.",
+       "Choice between logging slow CALL statements, logging individual slow "
+       "statements inside stored procedures or skipping the logging of stored "
+       "procedures into the slow log entirely. Values are OFF, ON and "
+       "OFF_NO_CALLS respectively.",
        GLOBAL_VAR(opt_log_slow_sp_statements), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE));
+       log_slow_sp_statements_names, DEFAULT(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_log_slow_sp_statements));
 static Sys_var_mybool Sys_slow_query_log_timestamp_always(
        "slow_query_log_timestamp_always",
        "Timestamp is printed for all records of the slow log even if they are same time.",

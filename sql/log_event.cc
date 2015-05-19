@@ -1402,9 +1402,18 @@ err:
   if (!res)
   {
     DBUG_ASSERT(error != 0);
-    sql_print_error("Error in Log_event::read_log_event(): "
-                    "'%s', data_len: %lu, event_type: %d",
-		    error,data_len,head[EVENT_TYPE_OFFSET]);
+    /* Don't log error if read_log_event invoked from SHOW BINLOG EVENTS */
+#ifdef MYSQL_SERVER
+    THD *thd= current_thd;
+    if (!(thd && thd->lex &&
+          thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS)) {
+#endif
+      sql_print_error("Error in Log_event::read_log_event(): "
+                      "'%s', data_len: %lu, event_type: %d",
+		      error,data_len,head[EVENT_TYPE_OFFSET]);
+#ifdef MYSQL_SERVER
+    }
+#endif
     my_free(buf);
     /*
       The SQL slave thread will check if file->error<0 to know

@@ -1,0 +1,108 @@
+CREATE TABLE t1 (j LONGBLOB) ENGINE = InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+INSERT INTO t1 VALUES (repeat('abcdefghijklmnopqrstuvwxyz',200));
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+INSERT INTO t1 SELECT * from t1;
+# stop the server
+[2]:# Run the innochecksum when file isn't provided.
+# It will print the innochecksum usage similar to --help option.
+InnoDB offline file checksum utility.
+innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v] [-d] <filename>
+	-f	display information about the file format and exit
+	-c	print the count of pages in the file
+	-s n	start on this page number (0 based)
+	-e n	end at this page number (0 based)
+	-p n	check only this page (0 based)
+	-v	verbose (prints progress every 5 seconds)
+	-d	debug mode (prints checksums for each page)
+[3]:# check the short option for "count" and exit
+Table is compressed
+Key block size is #K
+#
+# Restart the DB server
+# restart
+DROP TABLE t1;
+[5]:# Check the innochecksum for compressed table t1 with different key_block_size
+# Test for KEY_BLOCK_SIZE=1
+===> Testing  size=1
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+Table is compressed
+Key block size is 1K
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test for KEY_BLOCK_SIZE=2
+===> Testing  size=2
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+Table is compressed
+Key block size is 2K
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test for for KEY_BLOCK_SIZE=4
+===> Testing  size=4
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+Table is compressed
+Key block size is 4K
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test for for KEY_BLOCK_SIZE=8
+===> Testing  size=8
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+Table is compressed
+Key block size is 8K
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test for KEY_BLOCK_SIZE=16
+===> Testing  size=16
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, msg VARCHAR(255)) ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
+insert into t1 values(1,"I");
+insert into t1 values(2,"AM");
+insert into t1 values(3,"COMPRESSED");
+Table is compressed
+Key block size is 16K
+# restart
+select * from t1;
+id	msg
+1	I
+2	AM
+3	COMPRESSED
+drop table t1;
+# Test[5] completed

@@ -36,30 +36,40 @@ using namespace std;
 # include "page0zip.ic"
 #endif
 #undef THIS_MODULE
+#include "buf0checksum.h"
+#ifndef UNIV_INNOCHECKSUM
 #include "page0page.h"
 #include "mtr0log.h"
-#include "ut0sort.h"
 #include "dict0dict.h"
 #include "btr0cur.h"
-#include "page0types.h"
 #include "log0recv.h"
+#endif /* !UNIV_INNOCHECKSUM */
 #include "zlib.h"
+#include "fil0fil.h"
+#include "ut0sort.h"
+#include "page0types.h"
 #ifndef UNIV_HOTBACKUP
+#ifndef UNIV_INNOCHECKSUM
 # include "buf0buf.h"
-# include "buf0lru.h"
 # include "btr0sea.h"
 # include "dict0boot.h"
 # include "lock0lock.h"
 # include "srv0mon.h"
 # include "srv0srv.h"
+#endif /* !UNIV_INNOCHECKSUM */
+# include "buf0lru.h"
 # include "ut0crc32.h"
 #else /* !UNIV_HOTBACKUP */
-# include "buf0checksum.h"
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_INNOCHECKSUM
+#include "mach0data.h"
+#endif /* UNIV_INNOCHECKSUM */
+
 #ifndef UNIV_HOTBACKUP
+#ifndef UNIV_INNOCHECKSUM
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 UNIV_INTERN page_zip_stat_t		page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 /** Statistics on compression, indexed by index->id */
@@ -69,6 +79,7 @@ UNIV_INTERN ib_mutex_t			page_zip_stat_per_index_mutex;
 #ifdef HAVE_PSI_INTERFACE
 UNIV_INTERN mysql_pfs_key_t		page_zip_stat_per_index_mutex_key;
 #endif /* HAVE_PSI_INTERFACE */
+#endif /* !UNIV_INNOCHECKSUM */
 #endif /* !UNIV_HOTBACKUP */
 
 /* Compression level to be used by zlib. Settable by user. */
@@ -80,6 +91,8 @@ UNIV_INTERN my_bool	page_zip_log_pages = true;
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
+
+#ifndef UNIV_INNOCHECKSUM
 
 /* The infimum and supremum records are omitted from the compressed page.
 On compress, we compare that the records are there, and on uncompress we
@@ -103,6 +116,8 @@ static const byte supremum_extra_data[] = {
 	0x73, 0x75, 0x70, 0x72,
 	0x65, 0x6d, 0x75, 0x6d	/* "supremum" */
 };
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 /** Assert that a block of memory is filled with zero bytes.
 Compare at most sizeof(field_ref_zero) bytes.
@@ -150,6 +165,7 @@ page_zip_fail_func(
 # define page_zip_fail(fmt_args) /* empty */
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
+#ifndef UNIV_INNOCHECKSUM
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.
@@ -4818,6 +4834,7 @@ corrupt:
 
 	return(ptr + 8 + size + trailer_size);
 }
+#endif /* !UNIV_INNOCHECKSUM */
 
 /**********************************************************************//**
 Calculate the compressed page checksum.

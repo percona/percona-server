@@ -302,20 +302,18 @@ public:
             const char *log_name,
             enum_log_type log_type,
             const char *new_name,
-            enum cache_type io_cache_type_arg,
-            bool unique);
+            enum cache_type io_cache_type_arg);
   bool init_and_set_log_file_name(const char *log_name,
                                   const char *new_name,
                                   enum_log_type log_type_arg,
-                                  enum cache_type io_cache_type_arg,
-                                  bool unique);
+                                  enum cache_type io_cache_type_arg);
   void init(enum_log_type log_type_arg,
             enum cache_type io_cache_type_arg);
   void close(uint exiting);
   inline bool is_open() { return log_state != LOG_CLOSED; }
   const char *generate_name(const char *log_name, const char *suffix,
                             bool strip_ext, char *buff);
-  int generate_new_name(char *new_name, const char *log_name, bool unique);
+  int generate_new_name(char *new_name, const char *log_name);
  protected:
   /* LOCK_log is inited by init_pthread_objects() */
   mysql_mutex_t LOCK_log;
@@ -390,7 +388,7 @@ public:
                 key_file_slow_log,
 #endif
                 generate_name(log_name, "-slow.log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, max_slowlog_size > 0);
+                LOG_NORMAL, 0, WRITE_CACHE);
   }
   bool open_query_log(const char *log_name)
   {
@@ -400,7 +398,7 @@ public:
                 key_file_query_log,
 #endif
                 generate_name(log_name, ".log", 0, buf),
-                LOG_NORMAL, 0, WRITE_CACHE, false);
+                LOG_NORMAL, 0, WRITE_CACHE);
   }
   int rotate(ulong max_size, bool *need_purge);
   int new_file();

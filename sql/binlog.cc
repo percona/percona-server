@@ -3268,7 +3268,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_PRINT("enter",("name: %s", log_name));
 
   if (init_and_set_log_file_name(log_name, new_name, LOG_BIN,
-                                 io_cache_type_arg, true))
+                                 io_cache_type_arg))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
@@ -3310,7 +3310,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, LOG_BIN, new_name, io_cache_type_arg, true))
+                      log_name, LOG_BIN, new_name, io_cache_type_arg))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -5085,7 +5085,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     We have to do this here and not in open as we want to store the
     new file name in the current binary log file.
   */
-  if ((error= generate_new_name(new_name, name, log_type == LOG_BIN)))
+  if ((error= generate_new_name(new_name, name)))
     goto end;
   else
   {

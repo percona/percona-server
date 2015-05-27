@@ -1418,7 +1418,7 @@ static void setup_windows_event_source()
     nonzero if not possible to get unique filename.
 */
 
-static int find_uniq_filename(char *name, ulong *next)
+static int find_uniq_filename(char *name, ulong *next, bool need_next)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
@@ -1465,7 +1465,7 @@ updating the index files.", max_found);
     goto end;
   }
 
-  *next= max_found + 1;
+  *next= (need_next || max_found == 0) ? max_found + 1 : max_found;
   if (sprintf(ext_buf, "%06lu", *next) < 0)
   {
     error= 1;
@@ -1518,14 +1518,13 @@ void MYSQL_LOG::init(enum_log_type log_type_arg,
 bool MYSQL_LOG::init_and_set_log_file_name(const char *log_name,
                                            const char *new_name,
                                            enum_log_type log_type_arg,
-                                           enum cache_type io_cache_type_arg,
-                                           bool unique)
+                                           enum cache_type io_cache_type_arg)
 {
   init(log_type_arg, io_cache_type_arg);
 
   if (new_name && !strmov(log_file_name, new_name))
     return TRUE;
-  else if (!new_name && generate_new_name(log_file_name, log_name, unique))
+  else if (!new_name && generate_new_name(log_file_name, log_name))
     return TRUE;
 
   return FALSE;
@@ -1558,8 +1557,7 @@ bool MYSQL_LOG::open(
                      PSI_file_key log_file_key,
 #endif
                      const char *log_name, enum_log_type log_type_arg,
-                     const char *new_name, enum cache_type io_cache_type_arg,
-                     bool unique)
+                     const char *new_name, enum cache_type io_cache_type_arg)
 {
   char buff[FN_REFLEN];
   MY_STAT f_stat;
@@ -1578,7 +1576,7 @@ bool MYSQL_LOG::open(
   }
 
   if (init_and_set_log_file_name(name, new_name,
-                                 log_type_arg, io_cache_type_arg, unique) ||
+                                 log_type_arg, io_cache_type_arg) ||
       DBUG_EVALUATE_IF("fault_injection_init_name", log_type == LOG_BIN, 0))
     goto err;
 
@@ -1759,15 +1757,14 @@ void MYSQL_LOG::cleanup()
 }
 
 
-int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name,
-                                 bool unique)
+int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
 {
   fn_format(new_name, log_name, mysql_data_home, "", 4);
-  if (unique)
+  if (log_type == LOG_BIN || max_slowlog_size > 0)
   {
     if (!fn_ext(log_name)[0])
     {
-      if (find_uniq_filename(new_name, &cur_log_ext))
+      if (find_uniq_filename(new_name, &cur_log_ext, log_type == LOG_BIN))
       {
         my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
                         MYF(ME_FATALERROR), log_name);
@@ -1838,7 +1835,7 @@ void MYSQL_QUERY_LOG::reopen_file()
 #ifdef HAVE_PSI_INTERFACE
        m_log_file_key,
 #endif
-       save_name, log_type, 0, io_cache_type, false);
+       save_name, log_type, 0, io_cache_type);
   my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
@@ -2005,6 +2002,9 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
     char examined_row_buff[21];
     char affected_row_buff[21];
     end= buff;
+
+    if (max_slowlog_size > 0)
+      error= rotate(max_slowlog_size, &need_purge);
 
     if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
     {
@@ -2211,8 +2211,6 @@ bool MYSQL_QUERY_LOG::write(THD *thd, ulonglong current_utime,
                         my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
-    if (max_slowlog_size > 0)
-      error= rotate(max_slowlog_size, &need_purge);
   }
   ulong save_cur_ext = cur_log_ext;
   mysql_mutex_unlock(&LOCK_log);
@@ -2258,7 +2256,7 @@ int MYSQL_QUERY_LOG::new_file()
   if (cur_log_ext == (ulong)-1)
   {
     strcpy(new_name, name);
-    if ((error= generate_new_name(new_name, name, true)))
+    if ((error= generate_new_name(new_name, name)))
       goto end;
   }
   else
@@ -2286,7 +2284,7 @@ int MYSQL_QUERY_LOG::new_file()
                 key_file_query_log,
 #endif
                 name,
-                LOG_NORMAL, new_name, WRITE_CACHE, false);
+                LOG_NORMAL, new_name, WRITE_CACHE);
 
   my_free(old_name);
 

@@ -79,6 +79,9 @@ C_MODE_START
 #define in_addr_t uint32
 #endif
 
+#if defined(HAVE_IPV6) && defined(__APPLE__)
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
 
 C_MODE_END
 #endif

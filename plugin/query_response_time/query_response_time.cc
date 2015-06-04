@@ -303,6 +303,7 @@ static collector g_collector;
 
 void query_response_time_init()
 {
+  query_response_time_flush();
 }
 
 void query_response_time_free()

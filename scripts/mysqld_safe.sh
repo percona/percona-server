@@ -524,7 +524,7 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 #
 if test $load_jemalloc -eq 1
 then
-  for libjemall in "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+  for libjemall in "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
     if [ -r "$libjemall/libjemalloc.so.1" ]; then
       add_mysqld_ld_preload "$libjemall/libjemalloc.so.1"
       break

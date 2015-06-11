@@ -6397,7 +6397,8 @@ static int create_sub_table(
     uint32_t block_size, 
     uint32_t read_block_size,
     toku_compression_method compression_method,
-    bool is_hot_index
+    bool is_hot_index,
+    uint32_t fanout 
     ) 
 {
     TOKUDB_DBUG_ENTER("");
@@ -6425,6 +6426,14 @@ static int create_sub_table(
         error = file->set_readpagesize(file, read_block_size);
         if (error != 0) {
             DBUG_PRINT("error", ("Got error: %d when setting read block size %u for table '%s'", error, read_block_size, table_name));
+            goto exit;
+        }
+    }
+    if (fanout != 0) {
+        error = file->set_fanout(file, fanout);
+        if (error != 0) {
+            DBUG_PRINT("error", ("Got error: %d when setting fanout %u for table '%s'",
+                       error, fanout, table_name));
             goto exit;
         }
     }
@@ -6635,6 +6644,7 @@ int ha_tokudb::create_secondary_dictionary(
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
     uint32_t block_size;
     uint32_t read_block_size;
+    uint32_t fanout;
     THD* thd = ha_thd();
 
     memset(&row_descriptor, 0, sizeof(row_descriptor));
@@ -6673,8 +6683,11 @@ int ha_tokudb::create_secondary_dictionary(
 
     block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
+    fanout = get_tokudb_fanout(thd);
 
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, compression_method, is_hot_index);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size,
+                             read_block_size, compression_method, is_hot_index,
+                             fanout);
 cleanup:    
     tokudb_my_free(newname);
     tokudb_my_free(row_desc_buff);
@@ -6729,6 +6742,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     uint hpk= (form->s->primary_key >= MAX_KEY) ? TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH : 0;
     uint32_t block_size;
     uint32_t read_block_size;
+    uint32_t fanout;
     THD* thd = ha_thd();
 
     memset(&row_descriptor, 0, sizeof(row_descriptor));
@@ -6763,9 +6777,12 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
 
     block_size = get_tokudb_block_size(thd);
     read_block_size = get_tokudb_read_block_size(thd);
+    fanout = get_tokudb_fanout(thd);
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, compression_method, false);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size,
+                             read_block_size, compression_method, false,
+                             fanout);
 cleanup:    
     tokudb_my_free(newname);
     tokudb_my_free(row_desc_buff);

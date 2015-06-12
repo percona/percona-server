@@ -2153,7 +2153,7 @@ public:
   bool acquire(THD *thd);
   void release(THD *thd);
 
-  void set_explicit_lock_duration(THD *thd);
+  void set_explicit_locks_duration(THD *thd);
 
   bool acquire_protection(THD *thd, enum_mdl_duration duration,
                           ulong lock_wait_timeout);

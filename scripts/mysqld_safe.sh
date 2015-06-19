@@ -535,6 +535,19 @@ then
 fi
 
 #
+# Add TokuDB HotBackup library to ld_preload
+#
+if test $load_hotbackup -eq 1
+then
+  for libhb in "${MY_BASEDIR_VERSION}/lib" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+    if [ -r "$libhb/libHotBackup.so" ]; then
+      add_mysqld_ld_preload "$libhb/libHotBackup.so"
+      break
+    fi
+  done
+fi
+
+#
 # Try to find the plugin directory
 #
 

@@ -1409,6 +1409,22 @@ fi
 %{_libdir}/mysql/libmysqlservices.a
 %{_libdir}/*.so
 
+%post -n Percona-Server-devel%{product_suffix}
+# For compatibility after reverting name to libmysql
+for lib in %{shared_lib_sec_name}{.a,_r.a}; do
+if [ ! -f %{_libdir}/mysql/$lib ]; then
+	ln -s %{shared_lib_pri_name}.a %{_libdir}/mysql/$lib;
+fi
+done
+
+%postun -n Percona-Server-devel%{product_suffix}
+# Cleanup of symlinks after uninstall
+for lib in %{shared_lib_sec_name}{.a,_r.a}; do
+if [ -h %{_libdir}/mysql/$lib ]; then
+	rm -f %{_libdir}/mysql/$lib;
+fi
+done
+
 # ----------------------------------------------------------------------------
 %if %{with tokudb}
 %files -n Percona-Server-tokudb%{product_suffix}
@@ -1440,7 +1456,7 @@ for lib in %{shared_lib_pri_name}{.so.18,_r.so.18}; do
 done
 %endif
 # For compatibility between different names of library
-for lib in %{shared_lib_sec_name}{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
+for lib in %{shared_lib_sec_name}{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18,.so,_r.so}; do
 if [ ! -f %{_libdir}/$lib ]; then
         ln -s %{shared_lib_pri_name}.so.18 %{_libdir}/$lib;
 fi
@@ -1454,6 +1470,19 @@ done
 /sbin/ldconfig
 
 %postun -n Percona-Server-shared%{product_suffix}
+# Cleanup of symlinks after uninstall
+for lib in %{shared_lib_sec_name}{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18,.so,_r.so,.so.18.1.0,_r.so.18.1.0}; do
+if [ -h %{_libdir}/$lib ]; then
+	rm -f %{_libdir}/$lib;
+fi
+done
+%if "%rhel" > "6"
+for lib in %{shared_lib_pri_name}{.so.18,_r.so.18}; do
+if [ -h %{_libdir}/$lib ]; then
+	rm -f %{_libdir}/$lib;
+fi
+done
+%endif
 /sbin/ldconfig
 
 # ----------------------------------------------------------------------------

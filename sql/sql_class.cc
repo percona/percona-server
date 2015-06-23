@@ -869,6 +869,7 @@ THD::THD()
    rli_fake(0), rli_slave(NULL),
    user_time(0), in_sub_stmt(0),
    fill_status_recursion_level(0),
+   fill_variables_recursion_level(0),
    order_deterministic(false),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),

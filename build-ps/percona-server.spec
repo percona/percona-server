@@ -1341,6 +1341,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Wed Jun 24 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed missing symlinks for libmysqlclient library (bug1408500)
+
 * Wed May 06 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Set mysql client to be built with bundled readline (bug1201896)

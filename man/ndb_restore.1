@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1013,7 +1013,7 @@ and
 must be run twice\(emonce for each database node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&18.2.8, \(lqUpgrading and Downgrading MySQL Cluster NDB 7.3\(rq, for more information\&.
+Section\ \&18.2.8, \(lqUpgrading and Downgrading MySQL Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -1032,9 +1032,9 @@ It is not possible to restore a backup made from a newer version of MySQL Cluste
 \fBndb_restore\fR
 from the newer MySQL Cluster version to do so\&.
 .PP
-For example, to restore a cluster backup taken from a cluster running MySQL Cluster NDB 7\&.2\&.5 to a cluster running MySQL Cluster NDB 7\&.1\&.21, you must use the
+For example, to restore a cluster backup taken from a cluster running MySQL Cluster NDB 7\&.4\&.5 to a cluster running MySQL Cluster NDB 7\&.3\&.8, you must use the
 \fBndb_restore\fR
-that comes with the MySQL Cluster NDB 7\&.2\&.5 distribution\&.
+that comes with the MySQL Cluster NDB 7\&.4\&.5 distribution\&.
 .sp .5v
 .RE
 .PP

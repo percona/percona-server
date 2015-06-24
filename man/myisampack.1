@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -115,7 +115,7 @@ Each file name argument should be the name of an index (\&.MYI) file\&. If you a
 extension\&.
 .PP
 After you compress a table with
-\fBmyisampack\fR, you should use
+\fBmyisampack\fR, use
 \fBmyisamchk \-rq\fR
 to rebuild its indexes\&.
 \fBmyisamchk\fR(1)\&.
@@ -449,6 +449,13 @@ Original trees:  57  After join: 17
 \- Compressing file
 87\&.14%
 Remember to run myisamchk \-rq on compressed tables
+shell> \fBmyisamchk \-rq station\fR
+\- check record delete\-chain
+\- recovering (with sort) MyISAM\-table \*(Aqstation\*(Aq
+Data records: 1192
+\- Fixing index 1
+\- Fixing index 2
+shell> \fBmysqladmin \-uroot flush\-tables\fR
 shell> \fBls \-l station\&.*\fR
 \-rw\-rw\-r\-\-   1 monty    my         127874 Apr 17 19:00 station\&.MYD
 \-rw\-rw\-r\-\-   1 monty    my          55296 Apr 17 19:04 station\&.MYI
@@ -826,7 +833,7 @@ The number of bits used in the Huffman tree\&.
 .RE
 .PP
 After you run
-\fBmyisampack\fR, you must run
+\fBmyisampack\fR, use
 \fBmyisamchk\fR
 to re\-create any indexes\&. At this time, you can also sort the index blocks and create statistics needed for the MySQL optimizer to work more efficiently:
 .sp

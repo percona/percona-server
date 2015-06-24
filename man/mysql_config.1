@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -195,6 +195,29 @@ The default Unix socket file, defined when configuring MySQL\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql_config: variable option
+.\" variable option: mysql_config
+\fB\-\-variable=\fR\fB\fIvar_name\fR\fR
+.sp
+Display the value of the named configuration variable\&. Permitted
+\fIvar_name\fR
+values are
+pkgincludedir
+(the header file directory),
+pkglibdir
+(the library directory), and
+plugindir
+(the plugin directory)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql_config: version option
 .\" version option: mysql_config
 \fB\-\-version\fR
@@ -214,16 +237,22 @@ shell> \fBmysql_config\fR
 Usage: /usr/local/mysql/bin/mysql_config [options]
 Options:
   \-\-cflags         [\-I/usr/local/mysql/include/mysql \-mcpu=pentiumpro]
+  \-\-cxxflags       [\-I/usr/local/mysql/include/mysql \-mcpu=pentiumpro]
   \-\-include        [\-I/usr/local/mysql/include/mysql]
   \-\-libs           [\-L/usr/local/mysql/lib/mysql \-lmysqlclient
                     \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl]
   \-\-libs_r         [\-L/usr/local/mysql/lib/mysql \-lmysqlclient_r
                     \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl]
+  \-\-plugindir      [/usr/local/mysql/lib/plugin]
   \-\-socket         [/tmp/mysql\&.sock]
   \-\-port           [3306]
   \-\-version        [5\&.6\&.11]
   \-\-libmysqld\-libs [\-L/usr/local/mysql/lib/mysql \-lmysqld
                     \-lpthread \-lm \-lrt \-lssl \-lcrypto \-ldl \-lcrypt]
+  \-\-variable=VAR   VAR is one of:
+          pkgincludedir [/usr/local/mysql/include]
+          pkglibdir     [/usr/local/mysql/lib]
+          plugindir     [/usr/local/mysql/lib/plugin]
 .fi
 .if n \{\
 .RE

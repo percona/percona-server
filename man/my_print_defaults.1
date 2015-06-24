@@ -2,12 +2,12 @@
 .\"     Title: \fBmy_print_defaults\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMY_PRINT_DEFAULTS" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMY_PRINT_DEFAULTS" "1" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -168,7 +168,7 @@ In addition to the groups named on the command line, read groups that have the g
 .sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
-login file\&. A
+login path file\&. A
 \(lqlogin path\(rq
 is an option group that permits only a limited set of options:
 \fBhost\fR,
@@ -193,6 +193,24 @@ utility\&. See
 \fB\-n\fR
 .sp
 Return an empty string\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" my_print_defaults: show option
+.\" show option: my_print_defaults
+\fB\-\-show\fR,
+\fB\-s\fR
+.sp
+As of MySQL 5\&.6\&.25,
+\fBmy_print_defaults\fR
+masks passwords by defaults\&. Use this option to display passwords in cleartext\&.
 .RE
 .sp
 .RS 4

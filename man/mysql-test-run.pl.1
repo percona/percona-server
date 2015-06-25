@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/16/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "03/16/2015" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "05/05/2015" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -167,6 +167,14 @@ testa
 with anything in between\&. In the latter case, the pattern match is not anchored to the beginning of the test name, so it also matches names such as
 xmainytesta\&.
 .PP
+From MySQL 5\&.7 it is possible to put a list of test names in a file and have
+\fBmysql\-test\-run\&.pl\fR
+run those tests, using the option
+\fB\-\-do\-test\-list=\fR\fB\fIfile\fR\fR\&. The tests should be listed one per line in the file, using the fully qualified name
+\fIsuite\fR\&.\fItest\fR\&. A space may be used in place of the period\&. A line beginning with
+#
+indicates a comment and is ignored\&.
+.PP
 To perform setup prior to running tests,
 \fBmysql\-test\-run\&.pl\fR
 needs to invoke
@@ -175,9 +183,7 @@ with the
 \fB\-\-bootstrap\fR
 and
 \fB\-\-skip\-grant\-tables\fR
-options\&. If MySQL was configured with the
-\fB\-\-disable\-grant\-options\fR
-option (only MySQL 5\&.1) or with the compiler flag
+options\&. If MySQL was built with the compiler flag
 \fB\-DDISABLE_GRANT_OPTIONS\fR, then
 \fB\-\-bootstrap\fR,
 \fB\-\-skip\-grant\-tables\fR, and
@@ -248,16 +254,7 @@ l l
 l l
 l l
 l l
-l l
 l l.
-T{
-MTR_VERSION
-T}:T{
-If set to 1, will run the older version 1 of
-                \fBmysql\-test\-run\&.pl\fR\&. This will affect
-                what functionailty is available and what command line
-                options are supported\&.
-T}
 T{
 MTR_MEM
 T}:T{
@@ -290,8 +287,7 @@ Setting of a timeout in minutes or seconds, corresponding to command
                 Avaliable timeout names are TESTCASE,
                 SUITE (both in minutes) and
                 START, SHUTDOWN
-                (both in seconds)\&. These variables are supported from
-                MySQL 5\&.1\&.44\&.
+                (both in seconds)\&.
 T}
 T{
 MYSQL_CONFIG_EDITOR
@@ -357,7 +353,7 @@ T}
 .PP
 The variable
 MTR_PORT_BASE
-was added in MySQL 5\&.1\&.45 as a more logical replacement for
+is a more logical replacement for the original variable
 MTR_BUILD_THREAD\&. It gives the actual port number directly (will be rounded down to a multiple of 10)\&. If you use
 MTR_BUILD_THREAD, the port number is found by multiplying this by 10 and adding 10000\&.
 .PP
@@ -377,14 +373,6 @@ will include any server options added with the
 \fB\-\-mysqld\fR
 option to
 \fBmysql\-test\-run\&.pl\fR, but will not include server options added specifically for the currently running test\&.
-.PP
-If you are running
-\fBmysql\-test\-run\&.pl\fR
-version 1 by setting
-MTR_VERSION, note that this only affects the test driver, not the test client (and its language) or the tests themselves\&.
-.PP
-A few tests might not run with version 1 because they depend on some feature of version 2\&. You may have those tests skipped by adding the test name to the file
-lib/v1/incompatible\&.tests\&. This feature is available from MySQL 5\&.1\&.40\&.
 .PP
 \fBmysql\-test\-run\&.pl\fR
 supports the options in the following list\&. An argument of
@@ -510,9 +498,9 @@ auto) can also be set with the
 MTR_BUILD_THREAD
 environment variable\&.
 .sp
-From MySQL 5\&.1\&.45, the more logical
+This option is kept for backward compatibility\&. The more logical
 \fB\-\-port\-base\fR
-is supported as an alternative\&.
+is recommended instead\&.
 .RE
 .sp
 .RS 4
@@ -564,10 +552,6 @@ Clean up the
 var
 directory with logs and test results etc\&. after the test run, but only if there were no test failures\&. This option only has effect if also running with option
 \fB\-\-mem\fR\&. The intent is to alleviate the problem of using up memory for test results, in cases where many different test runs are being done on the same host\&.
-.sp
-The
-\fB\-\-clean\-vardir\fR
-option is available from MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -836,6 +820,25 @@ using the named debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql-test-run.pl: debug-common option
+.\" debug-common option: mysql-test-run.pl
+\fB\-\-debug\-common\fR
+.sp
+This option works similar to
+\-\-debug
+but turns on debug only for the debug macro keywords
+query, info, error, enter, exit
+which are considered the most commonly used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql-test-run.pl: debug-server option
 .\" debug-server option: mysql-test-run.pl
 \fB\-\-debug\-server\fR
@@ -850,10 +853,6 @@ debug
 under the directory where it\*(Aqs normally located\&. This option does not turn on trace output and is independent of the
 \fBdebug\fR
 option\&.
-.sp
-The
-\fBdebug\-server\fR
-option was added in MySQL 5\&.1\&.56 and 5\&.5\&.10\&.
 .RE
 .sp
 .RS 4
@@ -882,8 +881,6 @@ does not fail if Debug Sync is not compiled in\&.
 .sp
 For information about using the Debug Sync facility for testing, see
 Section\ \&4.14, \(lqThread Synchronization in Test Cases\(rq\&.
-.sp
-This option was added in MySQL 5\&.1\&.41\&.
 .RE
 .sp
 .RS 4
@@ -898,7 +895,7 @@ This option was added in MySQL 5\&.1\&.41\&.
 .\" default-myisam option: mysql-test-run.pl
 \fB\-\-default\-myisam\fR
 .sp
-Use MyISAM as default engine for all except InnoDB\-specific tests\&. This option was added in MySQL 5\&.5 and is on by default\&. It may be changed to off by default in a later release\&. See also
+Use MyISAM as default engine for all except InnoDB\-specific tests\&. This option is on by default in MySQL 5\&.5 and 5\&.6 but it off by default from MySQL 5\&.7\&. See also
 \fB\-\-nodefault\-myisam\fR\&.
 .RE
 .sp
@@ -976,6 +973,30 @@ xmainytestz\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql-test-run.pl: do-test-list option
+.\" do-test-list option: mysql-test-run.pl
+\fB\-\-do\-testlist=\fR\fB\fIfile\fR\fR
+.sp
+Run all tests listed in the file
+\fIfile\fR\&. In this file, tests should be listed one per line in the form
+\fIsuite\fR\&.\fItest\fR
+or alternatively, with a space instead of the period\&. A line beginning with
+#
+will be ignored and can be used for comments\&.
+.sp
+The
+\fB\-\-do\-test\-list\fR
+option is available from MySQL 5\&.7\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql-test-run.pl: embedded-server option
 .\" embedded-server option: mysql-test-run.pl
 \fB\-\-embedded\-server\fR
@@ -1018,13 +1039,30 @@ Specify a file that contains a list of test cases that should be displayed with 
 [ exp\-fail ]
 code rather than
 [ fail ]
-if they fail\&. This option was added in MySQL 5\&.1\&.33\&.
+if they fail\&.
 .sp
 For an example of a file that might be specified using this option, see
 mysql\-test/collections/default\&.experimental\&.
 .sp
-From MySQL 5\&.1\&.51, it\*(Aqs possible to supply more than one
+It is also possible to supply more than one
 \fB\-\-experimental\fR, test cases listed in all the files will be treated as experimental\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: explain-protocol option
+.\" explain-protocol option: mysql-test-run.pl
+\fB\-\-explain\-protocol\fR,
+.sp
+Run
+EXPLAIN EXTENDED
+on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&.
 .RE
 .sp
 .RS 4
@@ -1111,10 +1149,6 @@ causes execution to continue regardless of test case failure\&.
 \fB\-\-force\-restart\fR
 .sp
 Always restart the server(s) between each tast case, whether it\*(Aqs needed or not\&. Will also restart between repeated runs of the same test case\&. This may be useful e\&.g\&. when looking for the source of a memory leak, as there will only have been one test run before the server exits\&.
-.sp
-The
-\fB\-\-force\-restart\fR
-option was added in MySQL version 5\&.1\&.52\&.
 .RE
 .sp
 .RS 4
@@ -1168,8 +1202,6 @@ debugger\&.
 Run tests with the
 \fBgprof\fR
 profiling tool\&.
-\fB\-\-gprof\fR
-was added in 5\&.1\&.45\&.
 .RE
 .sp
 .RS 4
@@ -1187,7 +1219,26 @@ was added in 5\&.1\&.45\&.
 .\" include-ndb option: mysql-test-run.pl
 \fB\-\-include\-ndb\fR
 .sp
-Run also tests that need Cluster\&. This is the default behavior up to MySQL 5\&.1\&.51\&. From MySQL 5\&.1\&.52 this option has been added to re\-enable running Cluster tests\&.
+Run also tests that need Cluster\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: json-explain-protocol option
+.\" json-explain-protocol option: mysql-test-run.pl
+\fB\-\-json\-explain\-protocol\fR,
+.sp
+Run
+EXPLAIN FORMAT=JSON
+on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&. The
+json\-explain\-protocol
+option is available from MySQL 5\&.6\&.
 .RE
 .sp
 .RS 4
@@ -1286,8 +1337,6 @@ var/log/\fItestname\fR\&.progress\&.
 .sp
 The maximum number of simultaneous server connections that may be used per test\&. If not set, the maximum is 128\&. Minimum allowed limit is 8, maximum is 5120\&. Corresponds to the same option for
 \fBmysqltest\fR\&.
-.sp
-This option is available from MySQL 5\&.1\&.45\&.
 .RE
 .sp
 .RS 4
@@ -1414,10 +1463,6 @@ will normally also be propagated to
 \fBmysqld\fR, but there may be cases where you want a setting just for a single run, or you may not want the setting to affect other programs\&. You may use additional
 \fB\-\-mysqld\-env\fR
 options to set more than one variable\&.
-.sp
-The
-\fB\-\-mysqld\-env\fR
-option is available from MySQL 5\&.5\&.10\&.
 .RE
 .sp
 .RS 4
@@ -1468,7 +1513,9 @@ for a description\&.
 .\" nodefault-myisam option: mysql-test-run.pl
 \fB\-\-nodefault\-myisam\fR
 .sp
-Do not override the build\-in default engine to use MyISAM instead for non\-InnoDB tests\&. This option was added in MySQL 5\&.5\&. Since the existing collection of tests were originally adapted for MyISAM as default, many tests will fail when this option is used, because the test behaves differently or produces different output when the engine switches to InnoDB\&.
+For MySQL 5\&.5 or 5\&.6, do not override the build\-in default engine to use MyISAM instead for non\-InnoDB tests\&. Since the existing collection of tests were originally adapted for MyISAM as default, many tests will fail when this option is used, because the test behaves differently or produces different output when the engine switches to InnoDB\&.
+.sp
+From MySQL 5\&.7, the default engine for tests has been changed to InnoDB and this option will have no effect\&.
 .RE
 .sp
 .RS 4
@@ -1554,7 +1601,7 @@ Run tests using
 parallel threads\&. By default, 1 thread is used\&. Use
 \fB\-\-parallel=auto\fR
 for auto\-setting of
-\fIN\fR\&. The auto value was added in MySQL 5\&.1\&.36\&.
+\fIN\fR\&.
 .RE
 .sp
 .RS 4
@@ -1797,7 +1844,7 @@ Do not apply combinations; ignore combinations file or option\&.
 .\" skip-ndb option: mysql-test-run.pl
 \fB\-\-skip\-ndb\fR
 .sp
-Do not start NDB Cluster; skip Cluster test cases\&. From MySQL 5\&.1\&.52, this is the default and so this option does not do anything but is kept for backward compatibility\&.
+Do not start NDB Cluster; skip Cluster test cases\&. This option only has effect if you do have NDB, if not it will have no effect as it cannot run those tests anyway\&.
 .RE
 .sp
 .RS 4
@@ -2020,14 +2067,6 @@ This is similar to
 \fB\-\-start\fR, but
 \fBmysql\-test\-run\&.pl\fR
 terminates once the server has been started, leaving just the server process running\&.
-.sp
-Tha
-\fB\-\-start\-and\-exit\fR
-was available with version 1 of
-\fBmysql\-test\-run\&.pl\fR
-(unlike
-\fB\-\-start\fR
-which came with version 2), and is again supported in version 2 from MySQL 5\&.1\&.51\&.
 .RE
 .sp
 .RS 4
@@ -2279,6 +2318,25 @@ Running of unit tests was enabled from MySQL 5\&.5\&.11\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysql-test-run.pl: unit-tests-report option
+.\" unit-tests-report option: mysql-test-run.pl
+\fB\-\-unit\-tests\-report\fR
+.sp
+Extend the unit test run by also outputting the log from the test run, independently of whether it succeeded or not\&. This option implies
+\fB\-\-unit\-tests\fR
+so it is not necessary to specify both\&. The
+\fB\-\-unit\-tests\-report\fR
+option is available in MySQL 5\&.5 from version 5\&.5\&.44, in 5\&.6 from version 5\&.6\&.25 as well as in MySQL 5\&.7\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysql-test-run.pl: user option
 .\" user option: mysql-test-run.pl
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
@@ -2307,10 +2365,6 @@ arguemnts, if any\&. Only works in combination with
 \fB\-\-start\-and\-exit\fR
 or
 \fB\-\-start\-dirty\fR, and only if no test name is given\&.
-.sp
-The
-\fB\-\-user\-args\fR
-option was added in MySQL 5\&.1\&.51\&.
 .RE
 .sp
 .RS 4
@@ -2336,7 +2390,7 @@ options require that the executables have been build with
 \fBvalgrind\fR
 support\&.
 .sp
-When the server is run with valgrind, an extra pass over the server log file(s) will be performed after all tests are run, and any report with problems that have been reported at server shutdown will be extracted and printed\&. The most common warnings are memory leaks\&. With each report will also be listed all tests that were run since previous server restart; one of these is likely to have caused the problem\&. This reporting was added in MySQL 5\&.1\&.45\&.
+When the server is run with valgrind, an extra pass over the server log file(s) will be performed after all tests are run, and any report with problems that have been reported at server shutdown will be extracted and printed\&. The most common warnings are memory leaks\&. With each report will also be listed all tests that were run since previous server restart; one of these is likely to have caused the problem\&.
 .sp
 From MySQL 5\&.5\&.13, a final "pseudo" test named
 valgrind_report
@@ -2512,8 +2566,6 @@ If
 or
 \fB\-\-start\-dirty\fR
 is used, wait for all servers to exit before termination\&. Otherise, it will terminate if one (of several) servers is restarted\&.
-.sp
-This option was added in MySQL 5\&.1\&.36\&.
 .RE
 .sp
 .RS 4

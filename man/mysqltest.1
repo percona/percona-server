@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqltest\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/16/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQLTEST\FR" "1" "03/16/2015" "MySQL" "MySQL Database System"
+.TH "\FBMYSQLTEST\FR" "1" "05/05/2015" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -295,6 +295,23 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqltest: explain-protocol option
+.\" explain-protocol option: mysqltest
+\fB\-\-explain\-protocol\fR,
+.sp
+Run
+EXPLAIN EXTENDED
+on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqltest: host option
 .\" host option: mysqltest
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
@@ -321,6 +338,25 @@ Include the contents of the given file before processing the contents of the tes
 test files\&. This option has the same effect as putting a
 \-\-source \fIfile_name\fR
 command as the first line of the test file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: json-explain-protocol option
+.\" json-explain-protocol option: mysqltest
+\fB\-\-json\-explain\-protocol\fR,
+.sp
+Run
+EXPLAIN FORMAT=JSON
+on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&. The
+json\-explain\-protocol
+option is available from MySQL 5\&.6\&.
 .RE
 .sp
 .RS 4
@@ -382,8 +418,6 @@ The maximum number of connection attempts when connecting to server\&.
 \fB\-\-max\-connections=\fR\fB\fInum\fR\fR
 .sp
 The maximum number of simultaneous server connections per client (that is, per test)\&. If not set, the maximum is 128\&. Minimum allowed limit is 8, maximum is 5120\&.
-.sp
-This option is available from MySQL 5\&.1\&.45\&.
 .RE
 .sp
 .RS 4
@@ -480,7 +514,7 @@ is default\&.
 .sp
 The
 \fB\-\-protocol\fR
-option is available from MySQL 5\&.1\&.51\&. It is ignored if running with the embedded server\&.
+option is ignored if running with the embedded server\&.
 .RE
 .sp
 .RS 4
@@ -737,7 +771,7 @@ seconds\&. This option does not affect
 real_sleep
 commands\&.
 .sp
-As of MySQL 5\&.0\&.23, an option value of 0 can be used, which effectively disables
+An option value of 0 can also be used, which effectively disables
 sleep
 commands in the test case\&.
 .RE
@@ -904,7 +938,7 @@ Display version information and exit\&.
 .sp
 Every
 SELECT
-statement is wrapped inside a view\&. This option was added in MySQL 5\&.0\&.19\&.
+statement is wrapped inside a view\&.
 .RE
 .SH "COPYRIGHT"
 .br

@@ -24,7 +24,7 @@ user()	current_user()
 grantee@localhost	grantee@localhost
 SHOW GRANTS;
 Grants for grantee@localhost
-GRANT USAGE ON *.* TO 'grantee'@'localhost' IDENTIFIED BY PASSWORD
+GRANT USAGE ON *.* TO 'grantee'@'localhost' IDENTIFIED BY PASSWORD <secret>
 GRANT ALL PRIVILEGES ON `db2`.* TO 'grantee'@'%' WITH GRANT OPTION
 GRANT SELECT (a) ON `db3`.`t2` TO 'grantee'@'%' WITH GRANT OPTION
 GRANT ALL PRIVILEGES ON `db3`.`t1` TO 'grantee'@'%' WITH GRANT OPTION

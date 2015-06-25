@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2015
+.\"      Date: 05/05/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "03/25/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -304,7 +304,7 @@ localhost\&.
 .sp
 Read options from the named login path in the
 \&.mylogin\&.cnf
-login file\&. A
+login path file\&. A
 \(lqlogin path\(rq
 is an option group that permits only a limited set of options:
 \fBhost\fR,
@@ -2606,10 +2606,10 @@ does not dump the
 INFORMATION_SCHEMA
 or
 performance_schema
-database by default\&. To dump either of these, name it explicitly on the command line and also use the
-\fB\-\-skip\-lock\-tables\fR
-option\&. You can also name them with the
+database by default\&. To dump either of these, name it explicitly on the command line\&. You can also name it with the
 \fB\-\-databases\fR
+option\&. Also, use the
+\fB\-\-skip\-lock\-tables\fR
 option\&.
 .PP
 \fBmysqldump\fR

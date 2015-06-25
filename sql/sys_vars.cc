@@ -576,6 +576,15 @@ static Sys_var_charptr Sys_my_bind_addr(
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
+static Sys_var_charptr Sys_my_proxy_protocol_networks(
+       "proxy_protocol_networks", "Enable proxy protocol for these source "
+       "networks. The syntax is a comma separated list of IPv4 and IPv6 "
+       "networks. If the network doesn't contain mask, it is considered to be "
+       "a single host. \"*\" represents all networks and must the only "
+       "directive on the line.",
+       READ_ONLY GLOBAL_VAR(my_proxy_protocol_networks),
+       CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(""));
+
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
   check_binlog_cache_size(thd);

@@ -18,7 +18,7 @@ System Variables
 
 .. variable:: innodb_adaptive_hash_index_partitions
 
-   :version 5.6.13-60.6: Ported from |Percona Server| 5.6
+   :version 5.6.13-60.6: Ported from |Percona Server| 5.5
    :cli: Yes
    :conf: Yes
    :scope: Global

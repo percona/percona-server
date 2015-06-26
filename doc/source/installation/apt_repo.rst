@@ -35,14 +35,15 @@ Debian
 
  * 6.0 (squeeze)
  * 7.0 (wheezy)
+ * 8.0 (jessie)
 
 Ubuntu
 ------
 
- * 10.04LTS (lucid)
  * 12.04LTS (precise)
  * 14.04LTS (trusty)
  * 14.10 (utopic)
+ * 15.04 (vivid)
 
 Percona `apt` Testing repository
 =================================

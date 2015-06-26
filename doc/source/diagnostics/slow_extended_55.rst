@@ -28,6 +28,8 @@ Version Specific Information
      * New :variable:`slow_query_log_always_write_time` variable introduced.
   * :rn:`5.5.41-37.0`:
      * Implemented improved slow log reporting for queries in stored procedures.
+  * :rn:`5.5.44-37.3`:
+     * :variable:`log_slow_sp_statements` now supports skipping the logging of stored procedures into the slow log entirely with new ``OFF_NO_CALLS`` option.
 
 Other Information
 =================
@@ -147,10 +149,10 @@ To stop the logging from the slave thread, you should just change the global val
      :scope: Global
      :dyn: Yes
      :vartype: Boolean
-     :default: TRUE
-     :range: TRUE/FALSE
+     :default: ON
+     :range: ON/OFF/OFF_NO_CALLS
 
-If ``TRUE``, statements executed by stored procedures are logged to the slow if it is open.
+This variable controls the logging of stored procedures in the slow query log. The options are to log the ``CALL`` statements, to log the individual statements in the stored procedure, or to log neither. These options correspond to values ``OFF``, ``ON``, and ``OFF_NO_CALLS`` respectively.
 
 .. _improved_sp_reporting:
 
@@ -158,6 +160,8 @@ Prior to :rn:`5.5.41-37.0` implementation of logging stored procedures was loggi
  * Each query from a stored procedure is now logged to the slow query log individually
  * ``CALL`` itself isn't logged to the slow query log anymore as this would be counting twice for the same query which would lead to incorrect results
  * Queries that were called inside of stored procedures are annotated in the slow query log with the stored procedure name in which they run.
+
+In :rn:`5.5.44-37.3` new ``OFF_NO_CALLS`` option has been implemented that can be used for skipping the logging of stored procedures into the slow log entirely.
 
 Example of the improved stored procedure slow query log entry: 
 

@@ -509,9 +509,6 @@ static int increment_connection_count(THD* thd, bool use_lock)
   const char* client_string= get_client_host(thd);
   int return_value=          0;
 
-  if (!opt_userstat)
-    return return_value;
-
   if (acl_is_utility_user(thd->security_context()->user().str,
 			  thd->security_context()->host().str,
 			  thd->security_context()->ip().str))
@@ -1046,6 +1043,7 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
   SYNOPSIS
     check_connection()
     thd  thread handle
+    extra_port_connection if true, the client is connecting on extra_port
 
   RETURN
      0  success, thd is updated.
@@ -1277,6 +1275,7 @@ static int check_connection(THD *thd, bool extra_port_connection)
   SYNOPSIS
    login_connection()
    thd        Thread handler
+   extra_port_connection if true, the client is connecting on extra_port
 
   NOTES
     Connection is not closed in case of errors

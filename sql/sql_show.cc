@@ -2581,6 +2581,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   DBUG_ENTER("fill_schema_processlist");
 
+  DEBUG_SYNC(thd, "before_fill_schema_processlist");
+
   Fill_process_list fill_process_list(thd, tables);
   if (!thd->killed)
   {

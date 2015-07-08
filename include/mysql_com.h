@@ -166,8 +166,8 @@ enum enum_server_command
                                               table */
 #define REFRESH_THREAD_STATS    0x2000000L /* Refresh thread stats my_hash
                                               table */
-#define REFRESH_FLUSH_PAGE_BITMAPS 0x400000L
-#define REFRESH_RESET_PAGE_BITMAPS 0x800000L
+#define REFRESH_FLUSH_PAGE_BITMAPS 0x4000000L
+#define REFRESH_RESET_PAGE_BITMAPS 0x8000000L
 
 #define PURGE_BITMAPS_TO_LSN 1
 

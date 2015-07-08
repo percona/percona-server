@@ -2048,7 +2048,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       /* TIME_MS */
-      table->field[8]->store(((tmp->start_utime ?
+      table->field[8]->store(((tmp->start_utime < now_utime ?
                                now_utime - tmp->start_utime : 0)/ 1000));
 
       mysql_mutex_lock(&tmp->LOCK_thd_data);

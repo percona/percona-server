@@ -496,8 +496,13 @@ protected:
       m_pending->set_flags(Rows_log_event::STMT_END_F);
       if (int error= write_event(thd, m_pending))
         return error;
-      thd->clear_binlog_table_maps();
     }
+    /**
+      Clear binlog table maps even if the number of pending events is null.
+      This is neccessary for savepoints for which the number of pending
+      events is zeroed out.
+    */
+    thd->clear_binlog_table_maps();
     return 0;
   }
 

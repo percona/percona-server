@@ -34,6 +34,7 @@
                       // reset_host_errors
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
+#include "debug_sync.h"
 
 #include <algorithm>
 
@@ -482,9 +483,6 @@ static int increment_connection_count(THD* thd, bool use_lock)
   char* user_string=         get_valid_user_string(thd->main_security_ctx.user);
   const char* client_string= get_client_host(thd);
   int return_value=          0;
-
-  if (!opt_userstat)
-    return return_value;
 
   if (acl_is_utility_user(thd->security_ctx->user,
                           thd->security_ctx->get_host()->ptr(),
@@ -1512,6 +1510,14 @@ void do_handle_one_connection(THD *thd_arg)
   thd->thread_stack= (char*) &thd;
   if (setup_connection_thread_globals(thd))
     return;
+
+  DBUG_EXECUTE_IF("after_thread_setup",
+                  {
+                  const char act[]=
+                  "now signal thread_setup";
+                  DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                     STRING_WITH_LEN(act)));
+                  };);
 
   for (;;)
   {

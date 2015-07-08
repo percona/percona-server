@@ -2222,6 +2222,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
   ulonglong now_utime= my_micro_time_and_time(&now);
   DBUG_ENTER("fill_process_list");
 
+  DEBUG_SYNC(thd, "before_fill_schema_processlist");
+
   user= thd->security_ctx->master_access & PROCESS_ACL ?
         NullS : thd->security_ctx->priv_user;
 
@@ -2325,13 +2327,12 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
         table->field[7]->store(tmp->query(), width, cs);
         table->field[7]->set_notnull();
       }
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       /* TIME_MS */
-      table->field[8]->store(((tmp->start_utime ?
-                               now_utime - tmp->start_utime : 0)/ 1000));
+      ulonglong tmp_start_utime= tmp->start_utime;
+      table->field[8]->store(((tmp_start_utime < now_utime ?
+                               now_utime - tmp_start_utime : 0)/ 1000));
 
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
       /* ROWS_SENT */
       table->field[9]->store((ulonglong) tmp->get_sent_row_count());
       /* ROWS_EXAMINED */

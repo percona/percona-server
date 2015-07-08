@@ -6,7 +6,7 @@
 
 Percona is glad to announce the release of |Percona Server| 5.6.25-73.0 on June 29th, 2015 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.25-73.0/>`_ and from the :doc:`Percona Software Repositories </installation>`).
 
-Based on `MySQL 5.6.25 <http://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-25.html>`_, including all the bug fixes in it, |Percona Server| 5.6.25-73.0 is the current GA release in the |Percona Server| 5.6 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.6.25-73.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.6.24-72.2>`_.
+Based on `MySQL 5.6.25 <http://dev.mysql.com/doc/relnotes/mysql/5.6/en/news-5-6-25.html>`_, including all the bug fixes in it, |Percona Server| 5.6.25-73.0 is the current GA release in the |Percona Server| 5.6 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.6.25-73.0 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.6.25-73.0>`_.
 
 New Features
 ============

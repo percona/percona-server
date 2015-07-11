@@ -1,6 +1,7 @@
 --source include/have_statement_timeout.inc
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+--source include/count_sessions.inc
 
 SET @old_session_max_statement_time = @@SESSION.max_statement_time;
 
@@ -147,8 +148,25 @@ SELECT GET_LOCK('lock', 1);
 connection con1;
 SELECT GET_LOCK('lock', 1);
 
+#
+# Bug 1370002 (virtual THD::~THD(): Assertion `timer == __null' failed in sql_class.cc:1799
+# | abort (sig=6) in THD::~THD)
+#
+
+XA START '';
+SET @@session.max_statement_time=65535;
+--error ER_XAER_RMFAIL
+# Bug case 1: early return from mysql_execute_command case SQLCOM_LOCK_TABLES
+# does not reset the timer
+LOCK TABLES t WRITE;
+XA END '';
+XA PREPARE '';
+XA COMMIT '';
 disconnect con1;
+
 connection default;
 SELECT RELEASE_LOCK('lock');
 DROP TABLE t1;
 SET @@SESSION.max_statement_time = @old_session_max_statement_time;
+
+--source include/wait_until_count_sessions.inc

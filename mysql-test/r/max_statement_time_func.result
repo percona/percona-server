@@ -109,6 +109,13 @@ GET_LOCK('lock', 1)
 SELECT GET_LOCK('lock', 1);
 GET_LOCK('lock', 1)
 NULL
+XA START '';
+SET @@session.max_statement_time=65535;
+LOCK TABLES t WRITE;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+XA END '';
+XA PREPARE '';
+XA COMMIT '';
 SELECT RELEASE_LOCK('lock');
 RELEASE_LOCK('lock')
 1

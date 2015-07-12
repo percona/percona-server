@@ -4198,8 +4198,12 @@ end_with_restore_list:
         Can we commit safely? If not, return to avoid releasing
         transactional metadata locks.
       */
-      if (trans_check_state(thd))
+      if (trans_check_state(thd)) {
+        /* Cannot happen, but still reset this for safety */
+        if (reset_timer)
+          reset_statement_timer(thd);
         DBUG_RETURN(-1);
+      }
       res= trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
       thd->mdl_context.release_transactional_locks();
@@ -4242,7 +4246,11 @@ end_with_restore_list:
       transactional metadata locks.
     */
     if (trans_check_state(thd))
+    {
+      if (reset_timer)
+        reset_statement_timer(thd);
       DBUG_RETURN(-1);
+    }
     /* We must end the transaction first, regardless of anything */
     res= trans_commit_implicit(thd);
     thd->locked_tables_list.unlock_locked_tables(thd);

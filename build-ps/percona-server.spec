@@ -272,6 +272,7 @@ BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
 BuildRequires:  systemd
 %endif
 Patch0:         mysql-5.6-sharedlib-rename.patch
+Patch1:         mysql-5.6-libmysqlclient-symbols.patch
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -433,6 +434,7 @@ and applications need to dynamically load and use Percona Server.
 
 %if "%rhel" > "6"
 %patch0 -p1
+%patch1 -p1
 %endif
 
 ##############################################################################
@@ -1499,6 +1501,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Wed Jul 15 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed symbol versioning for rhel7 in 5.6 rpm (bug1420691)
+
 * Wed May 06 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - mysql client is now built with readline (bug1266386)

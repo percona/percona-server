@@ -2220,8 +2220,12 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
   int error=0;
   THD_TRANS *trans= (thd->in_sub_stmt ? &thd->transaction.stmt :
                                         &thd->transaction.all);
-  Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_savepoint");
+
+  if (mysql_bin_log.is_open())
+    register_binlog_handler(thd, thd->in_multi_stmt_transaction_mode());
+
+  Ha_trx_info *ha_info= trans->ha_list;
 
   for (; ha_info; ha_info= ha_info->next())
   {

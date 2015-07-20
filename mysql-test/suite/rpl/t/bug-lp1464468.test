@@ -1,0 +1,44 @@
+# Bug lp:1464468
+# Slave crash with malformed binlog event
+
+--source include/have_innodb.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+DROP TABLE IF EXISTS `t`;
+
+CREATE TABLE `t` (
+  `f1` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB;
+
+DROP TRIGGER IF EXISTS t_insert_trig;
+
+--delimiter |
+CREATE TRIGGER t_insert_trig AFTER INSERT ON t
+	FOR EACH ROW 
+		BEGIN
+    
+      DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	    BEGIN
+   		  ROLLBACK TO savepoint_1;
+# If the bug is not fixed then debug build will crash here with assertion.
+	    END;
+
+		  SAVEPOINT savepoint_1;
+
+      INSERT INTO dummy VALUES (1);
+
+		END |
+--delimiter ;
+
+INSERT INTO `t` VALUES (2);
+INSERT INTO `t` VALUES (3);
+
+DROP TABLE `t`;
+
+--source include/show_binlog_events.inc
+--sync_slave_with_master
+
+--source include/rpl_end.inc

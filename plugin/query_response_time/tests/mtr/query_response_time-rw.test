@@ -24,6 +24,23 @@ BEGIN
   SELECT DML_FUNC();
 END|
 
+CREATE PROCEDURE PREPARE_EXECUTE_PROC()
+BEGIN
+
+  PREPARE p_stmt_select FROM "SELECT 1";
+  PREPARE p_stmt_insert FROM "INSERT INTO t1 (b) VALUES (1), (2)";
+  PREPARE p_stmt_update FROM "UPDATE t1 SET b = 1";
+
+  EXECUTE p_stmt_select;
+  EXECUTE p_stmt_insert;
+  EXECUTE p_stmt_update;
+
+  DEALLOCATE PREPARE p_stmt_select;
+  DEALLOCATE PREPARE p_stmt_insert;
+  DEALLOCATE PREPARE p_stmt_update;
+
+END|
+
 --delimiter ;
 
 --let $i=2
@@ -88,7 +105,16 @@ while ($i)
   --source query_response_time-rw-begin.inc
   CALL NESTED_PROC();
   --source query_response_time-rw-end.inc
-  
+
+  --echo
+  --echo ==============================================
+  --echo = Test for PREPARE-EXECUTE in stored procedure
+  --echo ==============================================
+  --echo
+  --source query_response_time-rw-begin.inc
+  CALL PREPARE_EXECUTE_PROC();
+  --source query_response_time-rw-end.inc
+
   --echo
   --echo ============================
   --echo = Test for 'PREPARE'
@@ -199,3 +225,4 @@ while ($i)
 SET default_storage_engine=default;
 DROP FUNCTION DML_FUNC;
 DROP PROCEDURE NESTED_PROC;
+DROP PROCEDURE PREPARE_EXECUTE_PROC;

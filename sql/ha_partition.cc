@@ -3471,6 +3471,12 @@ handler *ha_partition::clone(const char *name, MEM_ROOT *mem_root)
   ha_partition *new_handler;
 
   DBUG_ENTER("ha_partition::clone");
+
+  /* If this->table == NULL, then the current handler has been created but not
+  opened. Prohibit cloning such handler. */
+  if (!table)
+    DBUG_RETURN(NULL);
+
   new_handler= new (mem_root) ha_partition(ht, table_share, m_part_info,
                                            this, mem_root);
   if (!new_handler)

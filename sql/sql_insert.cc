@@ -2353,6 +2353,7 @@ bool Query_result_insert::send_eof()
 
   error= (bulk_insert_started ?
           table->file->ha_end_bulk_insert() : 0);
+  bulk_insert_started= false;
   if (!error && thd->is_error())
     error= thd->get_stmt_da()->mysql_errno();
 
@@ -2461,8 +2462,10 @@ void Query_result_insert::abort_result_set()
       if tables are not locked yet (bulk insert is not started yet
       in this case).
     */
-    if (bulk_insert_started)
+    if (bulk_insert_started) {
       table->file->ha_end_bulk_insert();
+      bulk_insert_started= false;
+    }
 
     /*
       If at least one row has been inserted/modified and will stay in
@@ -3139,6 +3142,7 @@ bool Sql_cmd_insert::execute(THD *thd)
                   };);
 
   thd->lex->clear_values_map();
+  DEBUG_SYNC(thd, "after_mysql_insert");
   return res;
 }
 

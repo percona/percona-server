@@ -1989,7 +1989,8 @@ public:
     pushed_idx_cond_keyno(MAX_KEY), rows_read(0), rows_changed(0),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
+    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL),
+    cloned(false)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
@@ -3355,6 +3356,13 @@ protected:
   void set_ha_share_ptr(Handler_share *arg_ha_share);
   void lock_shared_ha_data();
   void unlock_shared_ha_data();
+
+private:
+  /**
+    If true, the current handler is a clone. In that case certain invariants
+    such as table->in_use == current_thd are relaxed to support cloning a
+    handler belonging to a different thread. */
+  bool cloned;
 };
 
 

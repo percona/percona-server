@@ -2625,6 +2625,9 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
                                               ALIGN_SIZE(ref_length)*2)))
     goto err;
+
+  new_handler->cloned= true;
+
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
@@ -2654,6 +2657,8 @@ void **handler::ha_data(THD *thd) const
 
 THD *handler::ha_thd(void) const
 {
+  if (unlikely(cloned))
+    return current_thd;
   DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
   return (table && table->in_use) ? table->in_use : current_thd;
 }

@@ -1397,7 +1397,8 @@ public:
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), rows_read(0), rows_changed(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL)
+    m_psi(NULL),
+    cloned(false)
     {
       memset(index_rows_read, 0, sizeof(index_rows_read));
     }
@@ -2293,6 +2294,13 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
+
+private:
+  /**
+    If true, the current handler is a clone. In that case certain invariants
+    such as table->in_use == current_thd are relaxed to support cloning a
+    handler belonging to a different thread. */
+  bool cloned;
 };
 
 

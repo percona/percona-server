@@ -727,6 +727,7 @@ SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_crypt, have_compress;
 SHOW_COMP_OPTION have_profiling;
 SHOW_COMP_OPTION have_backup_locks;
+SHOW_COMP_OPTION have_backup_safe_binlog_info;
 SHOW_COMP_OPTION have_snapshot_cloning;
 
 ulonglong opt_log_warnings_suppress= 0;
@@ -8765,6 +8766,7 @@ static int mysql_init_variables(void)
 #endif
 
   have_backup_locks= SHOW_OPTION_YES;
+  have_backup_safe_binlog_info= SHOW_OPTION_YES;
   have_snapshot_cloning= SHOW_OPTION_YES;
 
 #if defined(__WIN__)

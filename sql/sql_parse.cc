@@ -2514,11 +2514,13 @@ err:
 
   @param thd     Thread context.
 
-  @return FALSE on success, TRUE in case of error.
+  @return false on success, true in case of error.
 */
 
 static bool lock_tables_for_backup(THD *thd)
 {
+  bool res;
+
   DBUG_ENTER("lock_tables_for_backup");
 
   if (check_global_access(thd, RELOAD_ACL))
@@ -2548,7 +2550,15 @@ static bool lock_tables_for_backup(THD *thd)
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(thd->backup_tables_lock.acquire(thd));
+  res= thd->backup_tables_lock.acquire(thd);
+
+  if (ha_store_binlog_info(thd))
+  {
+    thd->backup_tables_lock.release(thd);
+    res= true;
+  }
+
+  DBUG_RETURN(res);
 }
 
 /**

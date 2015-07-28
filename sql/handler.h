@@ -792,6 +792,7 @@ struct handlerton
      @retval true Error
    */
    bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
+   int (*store_binlog_info)(handlerton *hton, THD *thd);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    /*
      The flag values are defined in sql_partition.h.
@@ -4274,6 +4275,7 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
+int ha_store_binlog_info(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);

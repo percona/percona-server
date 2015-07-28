@@ -1260,6 +1260,7 @@ THD::THD(bool enable_plugins)
 #ifndef EMBEDDED_LIBRARY
   mysql_audit_init_thd(this);
 #endif
+  net.vio=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= 0;
   m_release_resources_done= false;
@@ -1271,6 +1272,8 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_temporary_tables, &LOCK_temporary_tables,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
@@ -2068,6 +2071,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
+  mysql_mutex_destroy(&LOCK_temporary_tables);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_current_cond);
   mysql_cond_destroy(&COND_thr_lock);
@@ -4511,6 +4515,7 @@ void THD::inc_examined_row_count(ha_rows count)
 void THD::inc_status_created_tmp_disk_tables()
 {
   status_var.created_tmp_disk_tables++;
+  query_plan_flags|= QPLAN_TMP_DISK;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
@@ -4635,6 +4640,7 @@ void THD::set_query(const LEX_CSTRING& query_arg)
   PSI_THREAD_CALL(set_thread_info)(query_arg.str, query_arg.length);
 #endif
 }
+
 
 /**
   Leave explicit LOCK TABLES or prelocked mode and restore value of

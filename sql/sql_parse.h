@@ -139,7 +139,7 @@ bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 class Find_thd_with_id: public Find_THD_Impl
 {
 public:
-  Find_thd_with_id(ulong value, bool daemon_allowed = false):
+  Find_thd_with_id(ulong value, bool daemon_allowed):
     m_id(value), m_daemon_allowed(daemon_allowed) {}
   virtual bool operator()(THD *thd)
   {

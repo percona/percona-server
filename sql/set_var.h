@@ -355,6 +355,7 @@ extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
 extern SHOW_COMP_OPTION have_backup_locks;
+extern SHOW_COMP_OPTION have_backup_safe_binlog_info;
 extern SHOW_COMP_OPTION have_snapshot_cloning;
 
 /*
@@ -390,3 +391,4 @@ int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
 
 #endif
+

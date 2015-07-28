@@ -4112,6 +4112,10 @@ static Sys_var_have Sys_have_backup_locks(
        "have_backup_locks", "have_backup_locks",
        READ_ONLY GLOBAL_VAR(have_backup_locks), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_backup_safe_binlog_info(
+       "have_backup_safe_binlog_info", "have_backup_safe_binlog_info",
+       READ_ONLY GLOBAL_VAR(have_backup_safe_binlog_info), NO_CMD_LINE);
+
 static Sys_var_have Sys_have_snapshot_cloning(
        "have_snapshot_cloning", "have_snapshot_cloning",
        READ_ONLY GLOBAL_VAR(have_snapshot_cloning), NO_CMD_LINE);

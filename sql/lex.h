@@ -600,6 +600,7 @@ static SYMBOL symbols[] = {
   { "TO",		SYM(TO_SYM)},
   { "TOKUDB_UNCOMPRESSED",     SYM(TOKU_UNCOMPRESSED_SYM)},
   { "TOKUDB_ZLIB",             SYM(TOKU_ZLIB_SYM)},
+  { "TOKUDB_SNAPPY",           SYM(TOKU_SNAPPY_SYM)},
   { "TOKUDB_QUICKLZ",          SYM(TOKU_QUICKLZ_SYM)},
   { "TOKUDB_LZMA",             SYM(TOKU_LZMA_SYM)},
   { "TOKUDB_FAST",             SYM(TOKU_FAST_SYM)},

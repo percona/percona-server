@@ -24,7 +24,7 @@ count(*)
 1
 DROP TABLE t1;
 DROP TABLE t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'
 CREATE TABLE t1 (
 sca_code char(6) NOT NULL,
 cat_code char(6) NOT NULL,

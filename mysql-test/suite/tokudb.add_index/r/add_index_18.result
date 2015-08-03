@@ -16,7 +16,7 @@ c	z
 16	20
 18	10
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -42,7 +42,7 @@ t	r
 36	18
 40	20
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8

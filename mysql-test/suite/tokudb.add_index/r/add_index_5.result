@@ -16,7 +16,7 @@ c	r	a	b
 16	4	2	8
 18	2	1	9
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -42,7 +42,7 @@ c	r	a	b
 2	18	9	1
 0	20	10	0
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -68,7 +68,7 @@ c	r	a	b
 16	4	2	8
 18	2	1	9
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -95,7 +95,7 @@ c	r	a	b
 16	4	2	8
 18	2	1	9
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -121,7 +121,7 @@ z	a	b
 90	9	1
 100	10	0
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -147,7 +147,7 @@ c	r	a	b
 16	4	2	8
 18	2	1	9
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8

@@ -1,0 +1,20 @@
+{
+        tls_variables_1
+        Memcheck:Leak
+        fun:memalign
+        fun:__tls_get_addr
+}
+{
+        tls_variables_2
+        Memcheck:Leak
+        fun:memalign
+        fun:tls_get_addr_tail
+}
+{
+        dlclose_dlerror_run_calloc
+        Memcheck:Leak
+        fun:calloc
+        fun:_dlerror_run
+        fun:dlclose
+}
+

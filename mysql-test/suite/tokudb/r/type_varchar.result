@@ -1,8 +1,6 @@
-SET DEFAULT_STORAGE_ENGINE='tokudb';
-drop table if exists t1, t2, vchar;
-set tokudb_load_save_space=1;
+set default_storage_engine='tokudb';
+drop table if exists t1, t2;
 create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
-create table vchar (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);
 truncate table vchar;
 show create table t1;
 Table	Create Table
@@ -11,7 +9,7 @@ t1	CREATE TABLE `t1` (
   `c` char(3) DEFAULT NULL,
   `e` enum('abc','def','ghi') DEFAULT NULL,
   `t` text
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show create table vchar;
 Table	Create Table
 vchar	CREATE TABLE `vchar` (
@@ -19,7 +17,7 @@ vchar	CREATE TABLE `vchar` (
   `c` char(3) DEFAULT NULL,
   `e` enum('abc','def','ghi') DEFAULT NULL,
   `t` text
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 insert into t1 values ('abc', 'de', 'ghi', 'jkl');
 insert into t1 values ('abc ', 'de ', 'ghi', 'jkl ');
 insert into t1 values ('abc    ', 'd  ', 'ghi', 'jkl    ');
@@ -34,8 +32,8 @@ length(v)	length(c)	length(e)	length(t)
 select length(v),length(c),length(e),length(t) from vchar;
 length(v)	length(c)	length(e)	length(t)
 3	2	3	3
-4	2	3	4
-7	1	3	7
+3	2	3	4
+3	1	3	7
 alter table vchar add i int;
 show create table vchar;
 Table	Create Table
@@ -45,12 +43,12 @@ vchar	CREATE TABLE `vchar` (
   `e` enum('abc','def','ghi') DEFAULT NULL,
   `t` text,
   `i` int(11) DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 select length(v),length(c),length(e),length(t) from vchar;
 length(v)	length(c)	length(e)	length(t)
 3	2	3	3
-4	2	3	4
-7	1	3	7
+3	2	3	4
+3	1	3	7
 drop table t1, vchar;
 create table t1 (v varchar(20));
 insert into t1 values('a ');
@@ -105,16 +103,14 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	257	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	257	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	257	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	257	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	257	NULL	3	Using where; Using index
-alter table t1 drop index v;
+1	SIMPLE	t1	range	v	v	257	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(255);
-alter table t1 add index v(v);
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -131,16 +127,14 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	258	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	258	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	258	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	258	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	258	NULL	3	Using where; Using index
-alter table t1 drop index v;
+1	SIMPLE	t1	range	v	v	258	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(256);
-alter table t1 add index v(v);
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -157,16 +151,14 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	259	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	259	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	259	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	259	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	259	NULL	3	Using where; Using index
-alter table t1 drop index v;
+1	SIMPLE	t1	range	v	v	259	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(257);
-alter table t1 add index v(v);
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -183,16 +175,14 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	260	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	260	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	260	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	260	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	260	NULL	3	Using where; Using index
-alter table t1 drop index v;
+1	SIMPLE	t1	range	v	v	260	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(258);
-alter table t1 add index v(v);
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -209,16 +199,14 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	261	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	261	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	261	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	261	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	261	NULL	3	Using where; Using index
-alter table t1 drop index v;
+1	SIMPLE	t1	range	v	v	261	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(259);
-alter table t1 add index v(v);
 select * from t1 where v like 'This is a test' order by v;
 v
 This is a test
@@ -235,13 +223,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	262	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	262	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	262	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	262	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	262	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	262	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(258);
 select * from t1 where v like 'This is a test' order by v;
 v
@@ -259,13 +247,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	261	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	261	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	261	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	261	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	261	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	261	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(257);
 select * from t1 where v like 'This is a test' order by v;
 v
@@ -283,13 +271,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	260	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	260	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	260	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	260	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	260	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	260	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(256);
 select * from t1 where v like 'This is a test' order by v;
 v
@@ -307,13 +295,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	259	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	259	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	259	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	259	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	259	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	259	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(255);
 select * from t1 where v like 'This is a test' order by v;
 v
@@ -331,13 +319,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	258	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	258	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	258	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	258	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	258	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	258	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(254);
 select * from t1 where v like 'This is a test' order by v;
 v
@@ -355,13 +343,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	257	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	257	NULL	NA	Using where; Using index
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	257	const	3	Using where; Using index
+1	SIMPLE	t1	ref	v	v	257	const	NA	Using where; Using index
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	257	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	v	v	257	NULL	NA	Using where; Using index
 alter table t1 change v v varchar(253);
 alter table t1 change v v varchar(254), drop key v;
 alter table t1 change v v varchar(300), add key (v(10));
@@ -381,13 +369,13 @@ Some sample data
 Some samples
 explain select * from t1 where v like 'This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	13	NULL	4	Using where; Using filesort
+1	SIMPLE	t1	range	v	v	13	NULL	NA	Using where; Using filesort
 explain select * from t1 where v='This is a test' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	13	const	4	Using where
+1	SIMPLE	t1	ref	v	v	13	const	NA	Using where
 explain select * from t1 where v like 'S%' order by v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	v	v	13	NULL	3	Using where; Using filesort
+1	SIMPLE	t1	range	v	v	13	NULL	NA	Using where; Using filesort
 drop table t1;
 create table t1 (pkcol varchar(16), othercol varchar(16), primary key (pkcol));
 insert into t1 values ('test', 'something');
@@ -412,21 +400,21 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` varchar(65500) DEFAULT NULL,
   KEY `index1` (`f1`(10))
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 alter table t1 modify f1 varchar(255);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` varchar(255) DEFAULT NULL,
   KEY `index1` (`f1`(10))
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 alter table t1 modify f1 tinytext;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` tinytext,
   KEY `index1` (`f1`(10))
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(f1 VARCHAR(100) DEFAULT 'test');
@@ -435,37 +423,6 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(f1 CHAR(100) DEFAULT 'test');
 INSERT INTO t1 VALUES(SUBSTR(f1, 1, 3));
 DROP TABLE IF EXISTS t1;
-drop table if exists t1, t2, t3;
-create table t3 (
-id int(11),
-en varchar(255) character set utf8,
-cz varchar(255) character set utf8
-);
-truncate table t3;
-insert into t3 (id, en, cz) values 
-(1,'en string 1','cz string 1'),
-(2,'en string 2','cz string 2'),
-(3,'en string 3','cz string 3');
-create table t1 ( 
-id int(11),
-name_id int(11)
-);
-insert into t1 (id, name_id) values (1,1), (2,3), (3,3);
-create table t2 (id int(11));
-insert into t2 (id) values (1), (2), (3);
-select t1.*, t2.id, t3.en, t3.cz from t1 left join t2 on t1.id=t2.id
-left join t3 on t1.id=t3.id order by t3.id;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	id	id	3	11	1	Y	32768	0	63
-def	test	t1	t1	name_id	name_id	3	11	1	Y	32768	0	63
-def	test	t2	t2	id	id	3	11	1	Y	32768	0	63
-def	test	t3	t3	en	en	253	255	11	Y	0	0	8
-def	test	t3	t3	cz	cz	253	255	11	Y	0	0	8
-id	name_id	id	en	cz
-1	1	1	en string 1	cz string 1
-2	3	2	en string 2	cz string 2
-3	3	3	en string 3	cz string 3
-drop table t1, t2, t3;
 CREATE TABLE t1 (a CHAR(2));
 INSERT INTO t1 VALUES (10), (50), (30), ('1a'), (60), ('t');
 SELECT a,(a + 0) FROM t1 ORDER BY a;
@@ -488,8 +445,9 @@ a	(a DIV 2)
 60	30
 t	0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '1a'
-Warning	1292	Truncated incorrect INTEGER value: 't '
+Warning	1292	Truncated incorrect DECIMAL value: '1a'
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
+Warning	1292	Truncated incorrect DECIMAL value: 't '
 SELECT a,CAST(a AS SIGNED) FROM t1 ORDER BY a;
 a	CAST(a AS SIGNED)
 10	10
@@ -501,4 +459,24 @@ t	0
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '1a'
 Warning	1292	Truncated incorrect INTEGER value: 't'
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(16));
+INSERT INTO t1 VALUES ('5'), ('s'), ('');
+SELECT 5 = a FROM t1;
+5 = a
+1
+0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 's'
+DROP TABLE t1;
+CREATE TABLE t1 (a CHAR(16));
+INSERT INTO t1 VALUES ('5'), ('s'), ('');
+SELECT 5 = a FROM t1;
+5 = a
+1
+0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 's               '
 DROP TABLE t1;

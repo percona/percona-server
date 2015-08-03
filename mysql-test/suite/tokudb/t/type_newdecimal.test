@@ -1,4 +1,5 @@
-SET DEFAULT_STORAGE_ENGINE='tokudb';
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -35,6 +36,7 @@ drop table t1;
 #
 create table t1 select if(1, 1.1, 1.2), if(0, 1.1, 1.2), if(0.1, 1.1, 1.2), if(0, 1, 1.1), if(0, NULL, 1.2), if(1, 0.22e1, 1.1), if(1E0, 1.1, 1.2);
 select * from t1;
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
@@ -43,6 +45,7 @@ drop table t1;
 #
 create table t1 select nullif(1.1, 1.1), nullif(1.1, 1.2), nullif(1.1, 0.11e1), nullif(1.0, 1), nullif(1, 1.0), nullif(1, 1.1);
 select * from t1;
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
@@ -88,6 +91,7 @@ drop table t1;
 # test that functions create decimal fields
 #
 create table t1 select round(15.4,-1), truncate(-5678.123451,-3), abs(-1.1), -(-1.1);
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
@@ -680,6 +684,7 @@ select truncate(99999999999999999999999999999999999999,-31);
 #
 create table t1 as select 0.5;
 #
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 #-- should return:
 #+-------+-----------------------------------+
@@ -966,10 +971,12 @@ create table t1 (sl decimal(0,38));
 --error 1427
 create table t1 (sl decimal(0,30));
 create table t1 (sl decimal(5, 5));
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 # Test limits
 create table t1 (sl decimal(65, 30));
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
@@ -995,6 +1002,7 @@ drop table t1;
 create table t1 (
         f0 decimal (30,30) zerofill not null DEFAULT 0,
         f1 decimal (0,0) zerofill not null default 0);
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t1;
 drop table t1;
 
@@ -1043,6 +1051,7 @@ CREATE TABLE t1 (
    my_varchar VARCHAR(50),
    my_decimal DECIMAL(65,30)
 );
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 SHOW CREATE TABLE t1;
 
 let $max_power= 32;
@@ -1055,10 +1064,8 @@ while ($max_power)
 }
 SELECT my_float, my_double, my_varchar FROM t1;
 
-# Expected result   0.000000000011754943372854760000
-# On windows we get 0.000000000011754943372854770000
-# use replace_result to correct it
---replace_result 0.000000000011754943372854770000 0.000000000011754943372854760000
+# The following statement produces results with garbage past
+# the significant digits. Improving it is a part of the WL#3977.
 SELECT CAST(my_float   AS DECIMAL(65,30)), my_float FROM t1;
 SELECT CAST(my_double  AS DECIMAL(65,30)), my_double FROM t1;
 SELECT CAST(my_varchar AS DECIMAL(65,30)), my_varchar FROM t1;
@@ -1093,6 +1100,7 @@ create table t1 (c1 decimal(64));
 --disable_ps_protocol
 insert into t1 values(
 89000000000000000000000000000000000000000000000000000000000000000000000000000000000000000);
+--error ER_DATA_OUT_OF_RANGE
 insert into t1 values(
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999 *
 99999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999);
@@ -1227,6 +1235,47 @@ DESC t1;
 SELECT f1 FROM t1;
 DROP TABLE t1;
 
+#
+# Bug #36270: incorrect calculation result - works in 4.1 but not in 5.0 or 5.1
+#
+
+# show that if we need to truncate the scale of an operand, we pick the
+# right one (that is, we discard the least significant decimal places)
+select (1.20396873 * 0.89550000 * 0.68000000 * 1.08721696 * 0.99500000 *
+        1.01500000 * 1.01500000 * 0.99500000);
+
+#
+# Bug #31616 div_precision_increment description looks wrong 
+#
+
+create table t1 as select 5.05 / 0.014;
+show warnings;
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
+show create table t1;
+select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#12563865
+--echo # ROUNDED,TMP_BUF,DECIMAL_VALUE STACK CORRUPTION IN ALL VERSIONS >=5.0
+--echo #
+
+let $nine_81=
+999999999999999999999999999999999999999999999999999999999999999999999999999999999;
+
+eval SELECT substring(('M') FROM ($nine_81)) AS foo;
+eval SELECT min($nine_81) AS foo;
+eval SELECT multipolygonfromtext(('4294967294.1'),($nine_81)) AS foo;
+eval SELECT convert(($nine_81), decimal(30,30)) AS foo;
+eval SELECT bit_xor($nine_81) AS foo;
+eval SELECT -($nine_81) AS foo;
+eval SELECT date_sub(($nine_81),
+                     interval ((SELECT date_add((0x77500000),
+                                                 interval ('Oml') second)))
+                     day_minute)
+AS foo;
+eval SELECT truncate($nine_81, 28) AS foo;
+
 --echo End of 5.0 tests
 
 #
@@ -1239,3 +1288,315 @@ select cast(-3.4 as decimal(2,1));
 select cast(99.6 as decimal(2,0));
 select cast(-13.4 as decimal(2,1));
 select cast(98.6 as decimal(2,0));
+
+--echo #
+--echo # Bug #45262: Bad effects with CREATE TABLE and DECIMAL
+--echo #
+
+CREATE TABLE t1 SELECT .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS my_col;
+DESCRIBE t1;
+SELECT my_col FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT 1 + .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS my_col;
+DESCRIBE t1;
+SELECT my_col FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT 1 * .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS my_col;
+DESCRIBE t1;
+SELECT my_col FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT 1 / .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS my_col;
+DESCRIBE t1;
+SELECT my_col FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT 1 % .123456789123456789123456789123456789123456789123456789123456789123456789123456789 AS my_col;
+DESCRIBE t1;
+SELECT my_col FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#45261: Crash, stored procedure + decimal
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 SELECT
+  /* 81 */ 100000000000000000000000000000000000000000000000000000000000000000000000000000001
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 81 */ 100000000000000000000000000000000000000000000000000000000000000000000000000000001.
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 81 */ 100000000000000000000000000000000000000000000000000000000000000000000000000000001.1 /* 1 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 82 */ 1000000000000000000000000000000000000000000000000000000000000000000000000000000001
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 40 */ 1000000000000000000000000000000000000001.1000000000000000000000000000000000000001 /* 40 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 1 */ 1.10000000000000000000000000000000000000000000000000000000000000000000000000000001 /* 80 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 1 */ 1.100000000000000000000000000000000000000000000000000000000000000000000000000000001 /* 81 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  .100000000000000000000000000000000000000000000000000000000000000000000000000000001 /* 81 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 45 */ 123456789012345678901234567890123456789012345.123456789012345678901234567890123456789012345 /* 45 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 65 */ 12345678901234567890123456789012345678901234567890123456789012345.1 /* 1 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  /* 66 */ 123456789012345678901234567890123456789012345678901234567890123456.1 /* 1 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT
+  .123456789012345678901234567890123456789012345678901234567890123456 /* 66 */
+  AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 AS SELECT 123.1234567890123456789012345678901 /* 31 */ AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 SELECT 1.1 + CAST(1 AS DECIMAL(65,30)) AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Test that the integer and decimal parts are properly calculated.
+--echo #
+
+CREATE TABLE t1 (a DECIMAL(30,30));
+INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
+CREATE TABLE t2 SELECT MIN(a + 0.0000000000000000000000000000001) AS c1 FROM t1;
+DESC t2;
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (a DECIMAL(30,30));
+INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
+CREATE TABLE t2 SELECT IFNULL(a + 0.0000000000000000000000000000001, NULL) AS c1 FROM t1;
+DESC t2;
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (a DECIMAL(30,30));
+INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
+CREATE TABLE t2 SELECT CASE a WHEN 0.1 THEN 0.0000000000000000000000000000000000000000000000000000000000000000001 END AS c1 FROM t1;
+DESC t2;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Test that variables get maximum precision.
+--echo #
+
+SET @decimal= 1.1;
+CREATE TABLE t1 SELECT @decimal AS c1;
+DESC t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #45261 : Crash, stored procedure + decimal
+--echo # Original test by the reporter.
+--echo #
+
+--echo # should not crash
+CREATE TABLE t1 
+SELECT .123456789012345678901234567890123456789012345678901234567890123456 AS a;
+DROP TABLE t1;
+
+delimiter |;
+CREATE PROCEDURE test_proc()
+BEGIN
+  # The las non critical CUSER definition is:
+  # DECLARE mycursor CURSOR FOR SELECT 1 % 
+  # .12345678912345678912345678912345678912345678912345678912345678912 AS my_col;
+  DECLARE mycursor CURSOR FOR 
+SELECT 1 % 
+.123456789123456789123456789123456789123456789123456789123456789123456789123456789 
+  AS my_col;
+
+  OPEN mycursor;
+  CLOSE mycursor;
+END|
+delimiter ;|
+--echo # should not crash
+CALL test_proc();
+DROP PROCEDURE test_proc;
+
+--echo #
+--echo # Bug #48370  Absolutely wrong calculations with GROUP BY and 
+--echo # decimal fields when using IF
+--echo #
+
+CREATE TABLE currencies (id int, rate decimal(16,4), 
+  PRIMARY KEY (id), KEY (rate));
+
+INSERT INTO currencies VALUES (11,0.7028);
+INSERT INTO currencies VALUES (1,1);
+
+CREATE TABLE payments (
+  id int,
+  supplier_id int,
+  status int,
+  currency_id int,
+  vat decimal(7,4),
+  PRIMARY KEY (id),
+  KEY currency_id (currency_id),
+  KEY supplier_id (supplier_id)
+);
+
+INSERT INTO payments (id,status,vat,supplier_id,currency_id) VALUES
+(3001,2,0.0000,344,11), (1,2,0.0000,1,1);
+
+CREATE TABLE sub_tasks (
+  id int,
+  currency_id int,
+  price decimal(16,4),
+  discount decimal(10,4),
+  payment_id int,
+  PRIMARY KEY (id),
+  KEY currency_id (currency_id),
+  KEY payment_id (payment_id)
+) ;
+
+INSERT INTO sub_tasks (id, price, discount, payment_id, currency_id) VALUES
+(52, 12.60, 0, 3001, 11), (56, 14.58, 0, 3001, 11);
+
+--echo # should return 1 and the same values in col 2 and 3
+select STRAIGHT_JOIN
+  (1 + PAY.vat) AS mult,
+  SUM(ROUND((SUB.price - ROUND(ROUND(SUB.price, 2) * SUB.discount, 2)) * 
+            CUR.rate / CUR.rate, 2)
+  ) v_net_with_discount,
+
+  SUM(ROUND((SUB.price - ROUND(ROUND(SUB.price, 2) * SUB.discount, 1)) *
+            CUR.rate / CUR.rate , 2) 
+      * (1 + PAY.vat)
+  ) v_total
+from
+   currencies CUR, payments PAY, sub_tasks SUB
+where
+  SUB.payment_id = PAY.id and
+  PAY.currency_id = CUR.id and
+  PAY.id > 2
+group by PAY.id + 1;
+
+DROP TABLE currencies, payments, sub_tasks;
+
+--echo #
+--echo # BUG#52171: distinct aggregates on unsigned decimal fields trigger assertions
+--echo #
+
+CREATE TABLE t1 (a DECIMAL(4,4) UNSIGNED);
+INSERT INTO t1 VALUES (0);
+SELECT AVG(DISTINCT a) FROM t1;
+SELECT SUM(DISTINCT a) FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#55436: buffer overflow in debug binary of dbug_buff in
+--echo #            Field_new_decimal::store_value
+--echo #
+
+# this threw memory warnings on Windows. Also make sure future changes
+# don't change these results, as per usual.
+SET SQL_MODE='';
+CREATE TABLE t1(f1 DECIMAL(44,24)) ENGINE=MYISAM;
+INSERT INTO t1 SET f1 = -64878E-85;
+SELECT f1 FROM t1;
+DROP TABLE IF EXISTS t1;
+
+
+
+--echo End of 5.1 tests
+
+--echo #
+--echo # BUG#12911710 - VALGRIND FAILURE IN 
+--echo # ROW-DEBUG:PERFSCHEMA.SOCKET_SUMMARY_BY_INSTANCE_FUNC 
+--echo #
+
+CREATE TABLE t1(d1 DECIMAL(60,0) NOT NULL,
+                d2 DECIMAL(60,0) NOT NULL);
+
+INSERT INTO t1 (d1, d2) VALUES(0.0, 0.0);
+SELECT d1 * d2 FROM t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # Bug#13375823 - FSP(DECIMAL) RESULT DIFFERENCE WITH QUERY USING UNION ALL
+--echo #
+CREATE TABLE t1 (a DECIMAL(20,3) NOT NULL);
+INSERT INTO t1 VALUES (20000716055804.035);
+INSERT INTO t1 VALUES (20080821000000.000);
+INSERT INTO t1 VALUES (0);
+SELECT GREATEST(a, 1323) FROM t1;
+(SELECT GREATEST(a, 1323) FROM t1) UNION ALL (SELECT GREATEST(a, 1323) FROM t1 LIMIT 0);
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

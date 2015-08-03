@@ -1,11 +1,11 @@
-SET DEFAULT_STORAGE_ENGINE='tokudb';
+set default_storage_engine='tokudb';
 drop table if exists t1,t2;
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 10	10.0	10.	.1e+2	100.0e-1
 10	10.0	10	10	10
-SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
-6e-05	-6e-05	--6e-05	-6e-05+1.000000
-6e-05	-6e-05	6e-05	0.99994
+SELECT 6e-16, -6e-16, --6e-16, -6e-16+1.000000;
+6e-16	-6e-16	--6e-16	-6e-16+1.000000
+6e-16	-6e-16	6e-16	0.9999999999999994
 SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
 1e1	1.e1	1.0e1	1e+1	1.e+1	1.0e+1	1e-1	1.e-1	1.0e-1
 10	10	10	10	10	10	0.1	0.1	0.1
@@ -32,16 +32,16 @@ select * from t1;
 f1	f2
 10	10
 100000	100000
-1.23457e+09	1234567890
-1e+10	10000000000
-1e+15	1e+15
-1e+20	1e+20
-3.40282e+38	1e+50
-3.40282e+38	1e+150
+1234570000	1234567890
+10000000000	10000000000
+1e15	1e15
+1e20	1e20
+3.40282e38	1e50
+3.40282e38	1e150
 -10	-10
-1e-05	1e-05
-1e-10	1e-10
-1e-15	1e-15
+0.00001	0.00001
+0.0000000001	0.0000000001
+0.000000000000001	0.000000000000001
 1e-20	1e-20
 0	1e-50
 0	1e-150
@@ -88,7 +88,7 @@ col
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
 select * from t2;
 col1	col2	col3	col4
-140.36	121.00000	121	3.47850542618522e-07
+140.36	121.00000	121	0.00000034785054261852176
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -96,7 +96,7 @@ t2	CREATE TABLE `t2` (
   `col2` double(22,5) DEFAULT NULL,
   `col3` double DEFAULT NULL,
   `col4` double DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1,t2;
 create table t1 (a float);
 insert into t1 values (1);
@@ -202,9 +202,9 @@ insert into t1 values (2e5),(2e6),(2e-4),(2e-5);
 select * from t1;
 c
 200000
-2e+06
+2e6
 0.0002
-2e-05
+2e-5
 drop table t1;
 CREATE TABLE t1 (
 reckey int unsigned NOT NULL,
@@ -239,7 +239,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `d` double DEFAULT NULL
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1, t2, t3;
 create table t1 select  105213674794682365.00 + 0.0 x;
 show warnings;
@@ -268,7 +268,7 @@ select 1e-308, 1.00000001e-300, 100000000e-300;
 1e-308	1.00000001e-300	1e-292
 select 10e307;
 10e307
-1e+308
+1e308
 create table t1(a int, b double(8, 2));
 insert into t1 values
 (1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75), 
@@ -310,7 +310,7 @@ s
 alter table t1 add key (a, b);
 explain select sum(b) s from t1 group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	a	14	NULL	26	Using index
+1	SIMPLE	t1	index	a	a	14	NULL	26	Using index
 select sum(b) s from t1 group by a;
 s
 0.00
@@ -370,12 +370,12 @@ Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 2
 select f1 + 0e0 from t1;
 f1 + 0e0
-1e+199
--1e+199
-1e+200
--1e+200
-1e+200
--1e+200
+1e199
+-1e199
+1e200
+-1e200
+1e200
+-1e200
 drop table t1;
 create table t1 (f1 float(30, 0));
 insert into t1 values (1e29), (-1e29);
@@ -386,11 +386,83 @@ Warning	1264	Out of range value for column 'f1' at row 1
 Warning	1264	Out of range value for column 'f1' at row 2
 select f1 + 0e0 from t1;
 f1 + 0e0
-1.00000001504747e+29
--1.00000001504747e+29
-1.00000001504747e+30
--1.00000001504747e+30
-1.00000001504747e+30
--1.00000001504747e+30
+1.0000000150474662e29
+-1.0000000150474662e29
+1.0000000150474662e30
+-1.0000000150474662e30
+1.0000000150474662e30
+-1.0000000150474662e30
 drop table t1;
+create table t1 (c char(6));
+insert into t1 values (2e6),(2e-5);
+select * from t1;
+c
+2e6
+2e-5
+drop table t1;
+CREATE TABLE d1 (d DOUBLE);
+INSERT INTO d1 VALUES (1.7976931348623157E+308);
+SELECT * FROM d1;
+d
+1.7976931348623157e308
+INSERT INTO d1 VALUES (1.79769313486232e+308);
+ERROR 22007: Illegal double '1.79769313486232e+308' value found during parsing
+SELECT * FROM d1;
+d
+1.7976931348623157e308
+DROP TABLE d1;
+create table t1 (a char(20));
+insert into t1 values (1.225e-05);
+select a+0 from t1;
+a+0
+0.00001225
+drop table t1;
+create table t1(d double, u bigint unsigned);
+insert into t1(d) values (9.22337203685479e18),
+(1.84e19);
+update t1 set u = d;
+select u from t1;
+u
+9223372036854790144
+18400000000000000000
+drop table t1;
+CREATE TABLE t1 (f1 DOUBLE);
+INSERT INTO t1 VALUES(-1.79769313486231e+308);
+SELECT f1 FROM t1;
+f1
+-1.79769313486231e308
+DROP TABLE t1;
+#
+# Bug#12406055 BUFFER OVERFLOW OF VARIABLE 'BUFF' IN STRING::SET_REAL
+# 
+# Ignoring output from misc. float operations
+select format(-1.7976931348623157E+307,256) as foo;
+select least(-1.1111111111111111111111111,
+- group_concat(1.7976931348623157E+308)) as foo;
+select concat((truncate((-1.7976931348623157E+307),(0x1e))),
+(99999999999999999999999999999999999999999999999999999999999999999)) into @a;
 End of 5.0 tests
+#
+# Bug#12368853 FORMAT() CRASHES WITH LARGE NUMBERS AFTER TRUNCATE...
+#
+select format(truncate('1.7976931348623157E+308',-12),1,'fr_BE') as foo;
+foo
+0
+#
+# Bug #13500371 63704: CONVERSION OF '1.' TO A NUMBER GIVES ERROR 1265
+# (WARN_DATA_TRUNCATED)
+#
+CREATE TABLE t1 (f FLOAT);
+INSERT INTO t1 VALUES ('1.');
+INSERT INTO t1 VALUES ('2.0.');
+Warnings:
+Warning	1265	Data truncated for column 'f' at row 1
+INSERT INTO t1 VALUES ('.');
+Warnings:
+Warning	1265	Data truncated for column 'f' at row 1
+SELECT * FROM t1 ORDER BY f;
+f
+0
+1
+2
+DROP TABLE t1;

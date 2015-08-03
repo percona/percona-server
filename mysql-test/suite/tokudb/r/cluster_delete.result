@@ -180,7 +180,7 @@ a	b	c	d
 9	90	900	9000
 explain select * from t1 where c > 750;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
 select * from t1 where c > 750;
 a	b	c	d
 9	90	900	9000
@@ -198,7 +198,7 @@ a	b
 9	90
 explain select a,b from t1 where c > 750;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
+1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
 select a,c from t1 where c > 750;
 a	c
 9	900

@@ -1,4 +1,5 @@
-SET DEFAULT_STORAGE_ENGINE='tokudb';
+source include/have_tokudb.inc;
+set default_storage_engine='tokudb';
 # Description
 # -----------
 # Numeric floating point.
@@ -8,7 +9,7 @@ drop table if exists t1,t2;
 --enable_warnings
 
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
-SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
+SELECT 6e-16, -6e-16, --6e-16, -6e-16+1.000000;
 SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
 SELECT 0.001e+1,0.001e-1, -0.001e+01,-0.001e-01;
 SELECT 123.23E+02,-123.23E-02,"123.23E+02"+0.0,"-123.23E-02"+0.0;
@@ -49,6 +50,7 @@ create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round
 --disable_ps_protocol
 select * from t2;
 --enable_ps_protocol
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t2;
 drop table t1,t2;
 
@@ -153,6 +155,7 @@ insert into t1 values ("100000000.0");
 insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
 select * from t3;
+replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
 show create table t3;
 drop table t1, t2, t3;
 
@@ -253,4 +256,94 @@ insert into t1 values (2e30), (-2e30);
 select f1 + 0e0 from t1;
 drop table t1;
 
+#
+# Bug #12860 "Difference in zero padding of exponent between Unix and Windows"
+#
+
+create table t1 (c char(6));
+insert into t1 values (2e6),(2e-5);
+select * from t1;
+drop table t1;
+
+#
+# Bug #21497 "DOUBLE truncated to unusable value"
+#
+
+CREATE TABLE d1 (d DOUBLE);
+INSERT INTO d1 VALUES (1.7976931348623157E+308);
+SELECT * FROM d1;
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+INSERT INTO d1 VALUES (1.79769313486232e+308);
+SELECT * FROM d1;
+DROP TABLE d1;
+
+#
+# Bug #26788 "mysqld (debug) aborts when inserting specific numbers into char 
+#             fields"
+#
+
+create table t1 (a char(20));
+insert into t1 values (1.225e-05);
+select a+0 from t1;
+drop table t1;
+
+# 
+# Bug #27483: Casting 'scientific notation type' to 'unsigned bigint' fails on 
+#             windows.
+#
+
+create table t1(d double, u bigint unsigned);
+
+insert into t1(d) values (9.22337203685479e18),
+                         (1.84e19);
+
+update t1 set u = d;
+select u from t1;
+
+drop table t1;
+
+#
+# Bug #21205: Different number of digits for float/doble/real in --ps-protocol
+#
+
+CREATE TABLE t1 (f1 DOUBLE);
+INSERT INTO t1 VALUES(-1.79769313486231e+308);
+SELECT f1 FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#12406055 BUFFER OVERFLOW OF VARIABLE 'BUFF' IN STRING::SET_REAL
+--echo # 
+
+--echo # Ignoring output from misc. float operations
+--disable_result_log
+
+let $nine_65=
+99999999999999999999999999999999999999999999999999999999999999999;
+
+select format(-1.7976931348623157E+307,256) as foo;
+select least(-1.1111111111111111111111111,
+             - group_concat(1.7976931348623157E+308)) as foo;
+eval select concat((truncate((-1.7976931348623157E+307),(0x1e))),
+                   ($nine_65)) into @a;
+--enable_result_log
+
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug#12368853 FORMAT() CRASHES WITH LARGE NUMBERS AFTER TRUNCATE...
+--echo #
+
+select format(truncate('1.7976931348623157E+308',-12),1,'fr_BE') as foo;
+
+--echo #
+--echo # Bug #13500371 63704: CONVERSION OF '1.' TO A NUMBER GIVES ERROR 1265
+--echo # (WARN_DATA_TRUNCATED)
+--echo #
+
+CREATE TABLE t1 (f FLOAT);
+INSERT INTO t1 VALUES ('1.');
+INSERT INTO t1 VALUES ('2.0.');
+INSERT INTO t1 VALUES ('.');
+SELECT * FROM t1 ORDER BY f;
+DROP TABLE t1;

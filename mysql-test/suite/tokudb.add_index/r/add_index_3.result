@@ -29,7 +29,7 @@ c	r	a	b
 16	4	2	8
 18	2	1	9
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	
+1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
 a	str	b	c	z	y	x	r	s	t	d
 1	s	9	18	10	100	1000	2	3	4	AB
 2	s	8	16	20	200	2000	4	6	8	AB

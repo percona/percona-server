@@ -55,19 +55,19 @@ a	b
 a	1
 a	2
 a	3
-a	7
-a	13
+a	19
+a	39
 b	2
-b	4
-b	8
+b	7
+b	23
 c	1
-c	5
-c	9
-d	10
-d	12
-d	13
-e	6
-k	11
+c	11
+c	27
+d	31
+d	37
+d	39
+e	15
+k	35
 drop table t1;
 create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ordid), index(ord,ordid));
 insert into t1 (ordid,ord) values (NULL,'sdj'),(NULL,'sdj');
@@ -80,13 +80,13 @@ create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null
 insert into t1 values (NULL,'sdj'),(NULL,'sdj'),(NULL,"abc"),(NULL,'abc'),(NULL,'zzz'),(NULL,'sdj'),(NULL,'abc');
 select * from t1;
 ordid	ord
-3	abc
-4	abc
-7	abc
+15	abc
+22	abc
+43	abc
 1	sdj
-2	sdj
-6	sdj
-5	zzz
+8	sdj
+36	sdj
+29	zzz
 drop table t1;
 create table t1 (sid char(5), id int(2) NOT NULL auto_increment, key(sid,  id));
 create table t2 (sid char(20), id int(2));
@@ -144,7 +144,7 @@ explain extended select last_insert_id();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select last_insert_id() AS `last_insert_id()`
+Note	1003	/* select#1 */ select last_insert_id() AS `last_insert_id()`
 insert into t1 set i = 254;
 ERROR 23000: Duplicate entry '254' for key 'PRIMARY'
 select last_insert_id();

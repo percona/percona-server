@@ -1970,6 +1970,21 @@ static Sys_var_ulong Sys_pseudo_thread_id(
        BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
        ON_CHECK(check_has_super));
 
+static bool fix_pseudo_server_id(sys_var *self, THD *thd, enum_var_type type)
+{
+  thd->server_id= thd->variables.pseudo_server_id != 0 ?
+                  thd->variables.pseudo_server_id : server_id;
+  return false;
+}
+
+static Sys_var_ulong Sys_pseudo_server_id(
+       "pseudo_server_id",
+       "Override server_id for currrent session",
+       SESSION_ONLY(pseudo_server_id),
+       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
+       ON_CHECK(check_has_super), ON_UPDATE(fix_pseudo_server_id));
+
 static bool fix_max_join_size(sys_var *self, THD *thd, enum_var_type type)
 {
   SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
@@ -2785,7 +2800,8 @@ static Sys_var_charptr Sys_secure_file_priv(
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {
   server_id_supplied = 1;
-  thd->server_id= server_id;
+  thd->server_id= thd->variables.pseudo_server_id != 0 ?
+                  thd->variables.pseudo_server_id : server_id;
   return false;
 }
 static Sys_var_ulong Sys_server_id(

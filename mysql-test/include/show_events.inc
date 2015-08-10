@@ -55,11 +55,17 @@ if ($binlog_limit != '')
 --let $output_file= GENERATE
 --source include/write_result_to_file.inc
 
+--let $regex=s{([^\t]*\t)[^\t]*(\t[^\t]*\t)[^\t]*\t[^\t]*(\t[^\t]*)}{DOLLAR1#DOLLAR2#\t#DOLLAR3};
+if ($keep_server_id)
+{
+  --let $regex=s{([^\t]*\t)[^\t]*(\t[^\t]*\t)([^\t]*\t)[^\t]*(\t[^\t]*)}{DOLLAR1#DOLLAR2\tDOLLAR3\t#DOLLAR4};
+}
+
 # Filter the file through the following script.
 --delimiter ||
 let $script=
   # todo: use select_columns instead (requires updating all result files)
-  s{([^\t]*\t)[^\t]*(\t[^\t]*\t)[^\t]*\t[^\t]*(\t[^\t]*)}{DOLLAR1#DOLLAR2#\t#DOLLAR3};
+  $regex
   s{/\* xid=.* \*/}{/\* XID \*/};
   s{table_id: [0-9]+}{table_id: #};
   s{file_id=[0-9]+}{file_id=#};

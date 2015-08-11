@@ -9,6 +9,18 @@ CREATE PROCEDURE NESTED_PROC()
 BEGIN
 SELECT DML_FUNC();
 END|
+CREATE PROCEDURE PREPARE_EXECUTE_PROC()
+BEGIN
+PREPARE p_stmt_select FROM "SELECT 1";
+PREPARE p_stmt_insert FROM "INSERT INTO t1 (b) VALUES (1), (2)";
+PREPARE p_stmt_update FROM "UPDATE t1 SET b = 1";
+EXECUTE p_stmt_select;
+EXECUTE p_stmt_insert;
+EXECUTE p_stmt_update;
+DEALLOCATE PREPARE p_stmt_select;
+DEALLOCATE PREPARE p_stmt_insert;
+DEALLOCATE PREPARE p_stmt_update;
+END|
 SET default_storage_engine=InnoDB;
 
 ============================
@@ -98,6 +110,33 @@ SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ WHERE count != 0;
 TIME	COUNT	TOTAL
       0.000001	1	      0.000000
       1.000000	2	      1.000000
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE WHERE count != 0;
+TIME	COUNT	TOTAL
+      1.000000	2	      1.000000
+
+==============================================
+= Test for PREPARE-EXECUTE in stored procedure
+==============================================
+
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME WHERE count != 0;
+TIME	COUNT	TOTAL
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ WHERE count != 0;
+TIME	COUNT	TOTAL
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE WHERE count != 0;
+TIME	COUNT	TOTAL
+------------------Test body begin--------------------
+CALL PREPARE_EXECUTE_PROC();
+1
+1
+------------------Test body end----------------------
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME WHERE count != 0;
+TIME	COUNT	TOTAL
+      0.000001	1	      0.000000
+      1.000000	10	      5.000000
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ WHERE count != 0;
+TIME	COUNT	TOTAL
+      0.000001	1	      0.000000
+      1.000000	8	      4.000000
 SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE WHERE count != 0;
 TIME	COUNT	TOTAL
       1.000000	2	      1.000000
@@ -203,10 +242,10 @@ TIME	COUNT	TOTAL
 BEGIN;
 SELECT * FROM t1;
 a	b
-5	1
-6	1
 7	1
 8	1
+9	1
+10	1
 COMMIT;
 ------------------Test body end----------------------
 SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME WHERE count != 0;
@@ -231,12 +270,12 @@ INSERT INTO t1 (b) VALUES (1), (2);
 UPDATE t1 SET b = 1;
 SELECT * FROM t1;
 a	b
-5	1
-6	1
 7	1
 8	1
 9	1
 10	1
+11	1
+12	1
 DELETE FROM t1;
 COMMIT;
 ------------------Test body end----------------------
@@ -479,6 +518,33 @@ SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE WHERE count != 0;
 TIME	COUNT	TOTAL
       1.000000	2	      1.000000
 
+==============================================
+= Test for PREPARE-EXECUTE in stored procedure
+==============================================
+
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME WHERE count != 0;
+TIME	COUNT	TOTAL
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ WHERE count != 0;
+TIME	COUNT	TOTAL
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE WHERE count != 0;
+TIME	COUNT	TOTAL
+------------------Test body begin--------------------
+CALL PREPARE_EXECUTE_PROC();
+1
+1
+------------------Test body end----------------------
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME WHERE count != 0;
+TIME	COUNT	TOTAL
+      0.000001	1	      0.000000
+      1.000000	10	      5.000000
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_READ WHERE count != 0;
+TIME	COUNT	TOTAL
+      0.000001	1	      0.000000
+      1.000000	8	      4.000000
+SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME_WRITE WHERE count != 0;
+TIME	COUNT	TOTAL
+      1.000000	2	      1.000000
+
 ============================
 = Test for 'PREPARE'
 ============================
@@ -580,10 +646,10 @@ TIME	COUNT	TOTAL
 BEGIN;
 SELECT * FROM t1;
 a	b
-5	1
-6	1
 7	1
 8	1
+9	1
+10	1
 COMMIT;
 ------------------Test body end----------------------
 SELECT * FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME WHERE count != 0;
@@ -608,12 +674,12 @@ INSERT INTO t1 (b) VALUES (1), (2);
 UPDATE t1 SET b = 1;
 SELECT * FROM t1;
 a	b
-5	1
-6	1
 7	1
 8	1
 9	1
 10	1
+11	1
+12	1
 DELETE FROM t1;
 COMMIT;
 ------------------Test body end----------------------
@@ -763,3 +829,4 @@ DROP TABLE t2;
 SET default_storage_engine=default;
 DROP FUNCTION DML_FUNC;
 DROP PROCEDURE NESTED_PROC;
+DROP PROCEDURE PREPARE_EXECUTE_PROC;

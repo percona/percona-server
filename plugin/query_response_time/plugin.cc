@@ -149,7 +149,16 @@ static void query_response_time_audit_notify(MYSQL_THD thd,
       thd->lex->sql_command;
     if (sql_command == SQLCOM_EXECUTE)
     {
-      LEX_STRING *name= &thd->lex->prepared_stmt_name;
+      const LEX_STRING *name=
+        (
+          thd->sp_runtime_ctx &&
+          thd->stmt_arena &&
+          ((sp_lex_instr *)thd->stmt_arena)->get_prepared_stmt_name()
+        )                                                               ?
+        /* If we are inside of SP */
+        ((sp_lex_instr *)thd->stmt_arena)->get_prepared_stmt_name()     :
+        /* otherwise */
+        &thd->lex->prepared_stmt_name;
       Statement *stmt=
         (Statement *)thd->stmt_map.find_by_name(name);
       sql_command= stmt->lex->sql_command;

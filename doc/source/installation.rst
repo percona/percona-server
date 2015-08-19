@@ -1,146 +1,60 @@
 .. _installation:
 
-===============================================
- Installing |Percona Server| 5.6 from Binaries
-===============================================
+===============================
+Installing |Percona Server| 5.6
+===============================
+
+This page provides the information on how to you can install |Percona Server|. Following options are available: 
+
+* :ref:`installing_from_binaries` (recommended)
+* :ref:`installing_from_binary_tarball`
+* :ref:`installing_from_source_tarball`
+* :ref:`source_from_git`
+* :ref:`compile_from_source`
 
 Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
-Ready-to-use binaries are available from the |Percona Server| `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_, including:
+.. _installing_from_binaries:
 
- * ``RPM`` packages for *RHEL* 5, *RHEL* 6 and *RHEL* 7
+Installing |Percona Server| from Repositories
+=============================================
 
- * *Debian* packages for *Debian* and *Ubuntu*
+|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommend way of installing where possible.
 
- * Generic ``.tar.gz`` packages
-
-Using Percona Software Repositories
-===================================
+Following guides describe the installation process for using the official Percona repositories for :file:`.deb` and :file:`.rpm` packages.
 
 .. toctree::
    :maxdepth: 1
+   :titlesonly:
 
-   installation/apt_repo
-   installation/yum_repo
+   installation/apt_repo 
+   installation/yum_repo 
 
-|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |XtraDB|, |XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager.
+.. _installing_from_binary_tarball:
 
-This is the recommend way of installing where possible.
-
-``YUM``-Based Systems
----------------------
-
-Once the repository is set up, use the following commands: ::
-
-      $ yum install Percona-Server-client-56 Percona-Server-server-56
-
-``DEB``-Based Systems
----------------------
-
-Once the repository is set up, use the following commands: ::
-
-      $ sudo apt-get install percona-server-server-5.6
-
-Using Standalone Packages
-=========================
-
-``RPM``-Based Systems
----------------------
-
-Download the packages of the desired series for your architecture from `here <http://www.percona.com/downloads/Percona-Server-5.6/>`_.
-
-For example, at the moment of writing, a way of doing this is: ::
-
-  $ wget -r -l 1 -nd -A rpm -R "*devel*,*debuginfo*"  \ 
-  http://www.percona.com/downloads/Percona-Server-5.6/LATEST/RPM/rhel6/x86_64/
-
-Install them in one command: ::
-
-  $ rpm -ivh Percona-Server-shared-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm \ 
-  Percona-Server-client-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm \
-  Percona-Server-server-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
-
-If you don't install all "at the same time", you will need to do it in a specific order - ``shared``, ``client``, ``server``: ::
-
-  $ rpm -ivh Percona-Server-shared-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
-  $ rpm -ivh Percona-Server-client-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
-  $ rpm -ivh Percona-Server-server-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
-
-Otherwise, the dependencies won't be met and the installation will fail.
-
-What's in each RPM?
--------------------
-
-Each of the |Percona Server| RPM packages have a particular purpose.
-
-The ``Percona-Server-server`` package contains the server itself (the
-``mysqld`` binary).
-
-The ``Percona-Server-56-debuginfo`` package contains debug symbols for
-use debugging the database server.
-
-The ``Percona-Server-client`` package contains the command line
-client.
-
-The ``Percona-Server-devel`` package contains the header files needed
-to compile software using the client library.
-
-The ``Percona-Server-shared`` package includes the client shared
-library.
-
-The ``Percona-Server-shared-compat`` package includes shared libraries
-for software compiled against old versions of the client library.
-
-The ``Percona-Server-test`` package includes the test suite for
-|Percona Server|.
-
-``DEB``-Based Systems
----------------------
-
-Download the packages of the desired series for your architecture from `here <http://www.percona.com/downloads/Percona-Server-5.6/>`_.
-
-For example, at the moment of writing, for *Ubuntu* 12.04LTS on ``x86_64``, a way of doing this is: ::
-
-  $ wget -r -l 1 -nd -A deb -R "*dev*" \
-  http://www.percona.com/downloads/Percona-Server-5.6/LATEST/deb/precise/x86_64/
-
-Install them in one command: ::
-
-  $ sudo dpkg -i *.deb
-
-The installation won't succeed as there will be missing dependencies. To handle this, use: ::
-
-  $ apt-get -f install
-
-All dependencies will be installed and the |Percona Server|
-installation will be finished by :command:`apt`.
-
-What's in each DEB package?
----------------------------
-
-The ``percona-server-server`` package contains the database server
-itself, the ``mysqld`` binary and associated files.
-
-The ``percona-server-common`` package contains files common to the
-server and client.
-
-The ``percona-server-client`` package contains the command line
-client.
-
-The ``percona-server-dfsg`` package contains....
-
-The ``libperconaserverclient-dev`` package contains header files needed to
-compile software to use the client library.
-
-The ``libperconaserverclient18`` package contains the client shared
-library. The ``18`` is a reference to the version of the shared
-library. The version is incremented when there is a ABI change that
-requires software using the client library to be recompiled or their
-source code modified.
-
+Installing |Percona Server| from a Binary Tarball
 ===================================================
- Installing |Percona Server| from a Source Tarball
-===================================================
+
+In |Percona Server| :rn:`5.6.24-72.2` and newer, the single binary tarball was replaced with multiple tarballs depending on the *OpenSSL* library available in the distribution:
+
+ * ssl100 - for all *Debian/Ubuntu* versions except *Debian Squeeze* (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000)``);
+ * ssl098 - only for *Debian Squeeze* (``libssl.so.0.9.8 => /usr/lib/libssl.so.0.9.8 (0x00007f9b30db6000)``);
+ * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
+ * ssl098e - to be used only for *CentOS* 5 (``libssl.so.6 => /lib64/libssl.so.6 (0x00002aed5b64d000)``).
+
+You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/tarball/>`_ on the download page.
+
+Fetch and extract the correct binary tarball. For example for *Debian Wheezy*: 
+
+.. code-block:: bash
+
+  $ wget http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.24-72.2/binary/tarball/Percona-Server-5.6.24-rel72.2-Linux.x86_64.ssl100.tar.gz
+
+
+.. _installing_from_source_tarball:
+
+Installing |Percona Server| from a Source Tarball
+=================================================
 
 Fetch and extract the source tarball. For example: ::
 
@@ -149,46 +63,24 @@ Fetch and extract the source tarball. For example: ::
 
 Next, follow the instructions in :ref:`compile_from_source` below.
 
-===================================================
- Installing |Percona Server| from a Binary Tarball
-===================================================
+.. _source_from_git:
 
-In |Percona Server| :rn:`5.6.24-72.2` and newer, the single binary tarball was replaced with multiple tarballs depending on the *OpenSSL* library available in the distribution:
- * ssl100 - for all *Debian/Ubuntu* versions except *Squeeze/Lucid* (``libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000)``);
- * ssl098 - only for *Debian Squeeze* and *Ubuntu Lucid* (``libssl.so.0.9.8 => /usr/lib/libssl.so.0.9.8 (0x00007f9b30db6000)``);
- * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
- * ssl098e - to be used only for *CentOS* 5 (``libssl.so.6 => /lib64/libssl.so.6 (0x00002aed5b64d000)``).
+Installing |Percona Server| from the Git Source Tree
+====================================================
 
-Fetch and extract the correct binary tarball. For example for *Debian Wheezy*: ::
+Percona uses the `Github <http://github.com/>`_ revision
+control system for development. To build the latest |Percona Server|
+from the source tree you will need ``git`` installed on your system.
 
-  $ wget http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.24-72.2/binary/tarball/Percona-Server-5.6.24-rel72.2-Linux.x86_64.ssl100.tar.gz
+You can now fetch the latest |Percona Server| 5.6 sources. 
 
-.. _source-from-bzr:
+.. code-block:: bash
 
-=========================================================
- Installing |Percona Server| from the Bazaar Source Tree
-=========================================================
+  $ git clone https://github.com/percona/percona-server.git
+  $ cd percona-server
+  $ git checkout 5.6
 
-Percona uses the `Bazaar <http://www.bazaar-vcs.org>`_ revision
-control system for development. To build the latest Percona Server
-from the source tree you will need Bazaar installed on your system.
-
-Good practice is to use a shared repository, create one like this: ::
-
-  $ bzr init-repo ~/percona-server
-
-You can now fetch the latest |Percona Server| 5.6 sources. In the
-future, we will provide instructions for fetching each specific
-|Percona Server| version and building it, but currently we will just
-talk about building the latest |Percona Server| 5.6 development tree. ::
-
-  $ cd ~/percona-server
-  $ bzr branch lp:percona-server/5.6
-
-Fetching all the history of Percona Server 5.6 may take a long time,
-up to 20 or 30 minutes is not uncommon.
-
-If you are going to be making changes to Percona Server 5.6 and wanting
+If you are going to be making changes to |Percona Server| 5.6 and wanting
 to distribute the resulting work, you can generate a new source tarball
 (exactly the same way as we do for release): ::
 
@@ -199,9 +91,8 @@ Next, follow the instructions in :ref:`compile_from_source` below.
 
 .. _compile_from_source:
 
-=======================================
- Compiling |Percona Server| from Source
-=======================================
+Compiling |Percona Server| from Source
+======================================
 
 After either fetching the source repository or extracting a source tarball
 (from Percona or one you generated yourself), you will now need to
@@ -226,14 +117,13 @@ Install: ::
 
 Percona Server 5.6 will now be installed on your system.
 
-=================================================
- Building |Percona Server| Debian/Ubuntu packages
-=================================================
+Building |Percona Server| Debian/Ubuntu packages
+================================================
 
 If you wish to build your own Percona Server Debian/Ubuntu (dpkg) packages,
 you first need to start with a source tarball, either from the Percona
 website or by generating your own by following the instructions above(
-:ref:`source-from-bzr`).
+:ref:`source_from_git`).
 
 Extract the source tarball: ::
 

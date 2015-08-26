@@ -2701,7 +2701,11 @@ mysql_execute_command(THD *thd)
         lex->sql_command != SQLCOM_ROLLBACK &&
         lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
         !rpl_filter->db_ok(thd->db))
+    {
+      /* we warn the slave SQL thread */
+      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
       DBUG_RETURN(0);
+    }
 
     if (lex->sql_command == SQLCOM_DROP_TRIGGER)
     {

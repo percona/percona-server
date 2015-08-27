@@ -188,6 +188,7 @@ static my_bool tokudb_directio = FALSE;
 static my_bool tokudb_checkpoint_on_flush_logs = FALSE;
 static ulonglong tokudb_cache_size = 0;
 static ulonglong tokudb_max_lock_memory = 0;
+static my_bool tokudb_enable_partial_eviction = TRUE;
 static char *tokudb_home;
 static char *tokudb_tmp_dir;
 static char *tokudb_log_dir;
@@ -493,6 +494,10 @@ static int tokudb_init_func(void *p) {
     assert(r == 0);
 
     r = db_env->set_lock_timeout(db_env, DEFAULT_TOKUDB_LOCK_TIMEOUT, tokudb_get_lock_wait_time_callback);
+    assert(r == 0);
+
+    r = db_env->evictor_set_enable_partial_eviction(db_env,
+                                                    tokudb_enable_partial_eviction);
     assert(r == 0);
 
     db_env->set_killed_callback(db_env, DEFAULT_TOKUDB_KILLED_TIME, tokudb_get_killed_time_callback, tokudb_killed_callback);
@@ -1282,7 +1287,9 @@ static void tokudb_cleanup_log_files(void) {
 
 
 // system variables
-static void tokudb_cleaner_period_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
+static void tokudb_cleaner_period_update(THD* thd,
+                                         struct st_mysql_sys_var* sys_var,
+                                         void* var, const void * save) {
     ulong * cleaner_period = (ulong *) var;
     *cleaner_period = *(const ulonglong *) save;
     int r = db_env->cleaner_set_period(db_env, *cleaner_period);
@@ -1296,7 +1303,9 @@ static MYSQL_SYSVAR_ULONG(cleaner_period, tokudb_cleaner_period,
     NULL, tokudb_cleaner_period_update, DEFAULT_CLEANER_PERIOD,
     0, ~0UL, 0);
 
-static void tokudb_cleaner_iterations_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
+static void tokudb_cleaner_iterations_update(THD* thd,
+                                             struct st_mysql_sys_var* sys_var,
+                                             void* var, const void* save) {
     ulong * cleaner_iterations = (ulong *) var;
     *cleaner_iterations = *(const ulonglong *) save;
     int r = db_env->cleaner_set_iterations(db_env, *cleaner_iterations);
@@ -1310,7 +1319,9 @@ static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
     NULL, tokudb_cleaner_iterations_update, DEFAULT_CLEANER_ITERATIONS,
     0, ~0UL, 0);
 
-static void tokudb_checkpointing_period_update(THD * thd, struct st_mysql_sys_var * sys_var, void * var, const void * save) {
+static void tokudb_checkpointing_period_update(THD* thd,
+                                               struct st_mysql_sys_var* sys_var,
+                                               void* var, const void* save) {
     uint * checkpointing_period = (uint *) var;
     *checkpointing_period = *(const ulonglong *) save;
     int r = db_env->checkpointing_set_period(db_env, *checkpointing_period);
@@ -1323,48 +1334,99 @@ static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period,
     0, ~0U, 0);
 
 static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
-    PLUGIN_VAR_READONLY,
-    "TokuDB Enable Direct I/O ",
+    PLUGIN_VAR_READONLY, "TokuDB Enable Direct I/O ",
     NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_BOOL(checkpoint_on_flush_logs, tokudb_checkpoint_on_flush_logs,
-    0,
-    "TokuDB Checkpoint on Flush Logs ",
+    0, "TokuDB Checkpoint on Flush Logs ",
     NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
-    PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
+    PLUGIN_VAR_READONLY, "TokuDB cache table size",
+    NULL, NULL, 0,
     0, ~0ULL, 0);
 
-static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0ULL, 0);
-static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0UL, 0);
+static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory,
+    PLUGIN_VAR_READONLY, "TokuDB max memory for locks",
+    NULL, NULL, 0,
+    0, ~0ULL, 0);
 
-static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
+static void tokudb_enable_partial_eviction_update(THD* thd,
+                                             struct st_mysql_sys_var* sys_var,
+                                             void* var, const void* save) {
+    my_bool * enable_partial_eviction = (my_bool *) var;
+    *enable_partial_eviction = *(const my_bool *) save;
+    int r = db_env->evictor_set_enable_partial_eviction(db_env, *enable_partial_eviction);
+    assert(r == 0);
+}
 
-static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB Data Directory", NULL, NULL, NULL);
+static MYSQL_SYSVAR_BOOL(enable_partial_eviction, tokudb_enable_partial_eviction,
+    0, "TokuDB enable partial node eviction", 
+    NULL, tokudb_enable_partial_eviction_update, TRUE);
 
-static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Version", NULL, NULL, NULL);
+static MYSQL_SYSVAR_ULONG(debug, tokudb_debug,
+    0, "TokuDB Debug",
+    NULL, NULL, 0,
+    0, ~0UL, 0);
 
-static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0U, 0);
-static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0U, 0);
-static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
-static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir,
+    PLUGIN_VAR_READONLY, "TokuDB Log Directory",
+    NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir,
+    PLUGIN_VAR_READONLY, "TokuDB Data Directory",
+    NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_STR(version, tokudb_version,
+    PLUGIN_VAR_READONLY, "TokuDB Version",
+    NULL, NULL, NULL);
+
+static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency,
+    0, "TokuDB frequency that show processlist updates status of writes",
+    NULL, NULL, 1000,
+    0, ~0U, 0);
+
+static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency,
+    0, "TokuDB frequency that show processlist updates status of reads",
+    NULL, NULL, 10000,
+    0, ~0U, 0);
+
+static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent,
+    PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)",
+    NULL, NULL, 5,
+    0, 100, 0);
+
+static MYSQL_SYSVAR_STR(tmp_dir, tokudb_tmp_dir,
+    PLUGIN_VAR_READONLY, "Tokudb Tmp Dir",
+    NULL, NULL, NULL);
 
 #if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-static MYSQL_SYSVAR_STR(gdb_path, tokudb_gdb_path, PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG, "TokuDB path to gdb for extra debug info on fatal signal", NULL, NULL, "/usr/bin/gdb");
-static MYSQL_SYSVAR_BOOL(gdb_on_fatal, tokudb_gdb_on_fatal, 0, "TokuDB enable gdb debug info on fatal signal", NULL, NULL, true);
+static MYSQL_SYSVAR_STR(gdb_path, tokudb_gdb_path,
+    PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG, "TokuDB path to gdb for extra debug info on fatal signal",
+    NULL, NULL, "/usr/bin/gdb");
+
+static MYSQL_SYSVAR_BOOL(gdb_on_fatal, tokudb_gdb_on_fatal,
+    0, "TokuDB enable gdb debug info on fatal signal",
+    NULL, NULL, true);
 #endif
 
-static void tokudb_fsync_log_period_update(THD *thd, struct st_mysql_sys_var *sys_var, void *var, const void *save) {
+static void tokudb_fsync_log_period_update(THD* thd,
+                                           struct st_mysql_sys_var* sys_var,
+                                           void* var, const void* save) {
     uint32 *period = (uint32 *) var;
     *period = *(const ulonglong *) save;
     db_env->change_fsync_log_period(db_env, *period);
 }
 
-static MYSQL_SYSVAR_UINT(fsync_log_period, tokudb_fsync_log_period, 0, "TokuDB fsync log period", NULL, tokudb_fsync_log_period_update, 0, 0, ~0U, 0);
+static MYSQL_SYSVAR_UINT(fsync_log_period, tokudb_fsync_log_period,
+    0, "TokuDB fsync log period",
+    NULL, tokudb_fsync_log_period_update, 0,
+    0, ~0U, 0);
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock_memory),
+    MYSQL_SYSVAR(enable_partial_eviction),
     MYSQL_SYSVAR(data_dir),
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(debug),

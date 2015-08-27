@@ -187,6 +187,9 @@ static uint32_t tokudb_env_flags = 0;
 static my_bool tokudb_directio = FALSE;
 static my_bool tokudb_checkpoint_on_flush_logs = FALSE;
 static ulonglong tokudb_cache_size = 0;
+static uint32_t tokudb_client_pool_threads = 0;
+static uint32_t tokudb_cachetable_pool_threads = 0;
+static uint32_t tokudb_checkpoint_pool_threads = 0;
 static ulonglong tokudb_max_lock_memory = 0;
 static my_bool tokudb_enable_partial_eviction = TRUE;
 static char *tokudb_home;
@@ -455,6 +458,24 @@ static int tokudb_init_func(void *p) {
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (tokudb_debug & TOKUDB_DEBUG_INIT) 
         TOKUDB_TRACE("tokudb_cache_size=%lld r=%d", ((unsigned long long) gbytes << 30) + bytes, r);
+
+    r = db_env->set_client_pool_threads(db_env, tokudb_client_pool_threads);
+    if (r) {
+        DBUG_PRINT("info", ("set_client_pool_threads %d\n", r));
+        goto error;
+    }
+
+    r = db_env->set_cachetable_pool_threads(db_env, tokudb_cachetable_pool_threads);
+    if (r) {
+        DBUG_PRINT("info", ("set_cachetable_pool_threads %d\n", r));
+        goto error;
+    }
+
+    r = db_env->set_checkpoint_pool_threads(db_env, tokudb_checkpoint_pool_threads);
+    if (r) {
+        DBUG_PRINT("info", ("set_checkpoint_pool_threads %d\n", r));
+        goto error;
+    }
 
     if (db_env->set_redzone) {
         r = db_env->set_redzone(db_env, tokudb_fs_reserve_percent);
@@ -1351,6 +1372,18 @@ static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory,
     NULL, NULL, 0,
     0, ~0ULL, 0);
 
+static MYSQL_SYSVAR_UINT(client_pool_threads, tokudb_client_pool_threads,
+    PLUGIN_VAR_READONLY, "TokuDB client ops thread pool size", NULL, NULL, 0,
+    0, 1024, 0);
+
+static MYSQL_SYSVAR_UINT(cachetable_pool_threads, tokudb_cachetable_pool_threads,
+    PLUGIN_VAR_READONLY, "TokuDB cachetable ops thread pool size", NULL, NULL, 0,
+    0, 1024, 0);
+
+static MYSQL_SYSVAR_UINT(checkpoint_pool_threads, tokudb_checkpoint_pool_threads,
+    PLUGIN_VAR_READONLY, "TokuDB checkpoint ops thread pool size", NULL, NULL, 0,
+    0, 1024, 0);
+
 static void tokudb_enable_partial_eviction_update(THD* thd,
                                              struct st_mysql_sys_var* sys_var,
                                              void* var, const void* save) {
@@ -1425,6 +1458,9 @@ static MYSQL_SYSVAR_UINT(fsync_log_period, tokudb_fsync_log_period,
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
+    MYSQL_SYSVAR(client_pool_threads),
+    MYSQL_SYSVAR(cachetable_pool_threads),
+    MYSQL_SYSVAR(checkpoint_pool_threads),
     MYSQL_SYSVAR(max_lock_memory),
     MYSQL_SYSVAR(enable_partial_eviction),
     MYSQL_SYSVAR(data_dir),

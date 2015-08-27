@@ -9,6 +9,7 @@ TokuDB storage engine provides new compression options for TokuDB tables.
 These options are defined on per-table basis by setting ``ROW_FORMAT`` during a ``CREATE TABLE`` or ``ALTER TABLE``. If no value is specified for ``ROW_FORMAT`` ``zlib`` compression is used by default. Currently available formats are:
 
  * ``TOKUDB_ZLIB`` - This compression is using ``zlib`` library and provides mid-range compression with medium CPU utilization.
+ * ``TOKUDB_SNAPPY`` - This compression is using ``snappy`` library and provides good compression with low CPU utilization.
  * ``TOKUDB_QUICKLZ`` - This compression is using ``quicklz`` library and provides light compression with low CPU utilization.
  * ``TOKUDB_LZMA`` - This compression is using ``lzma`` library and provides the highest compression with high CPU utilization.
  * ``TOKUDB_UNCOMPRESSED`` - This option disables the compression.

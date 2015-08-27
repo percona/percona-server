@@ -185,6 +185,7 @@ static uint32_t tokudb_env_flags = 0;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
 static my_bool tokudb_directio = FALSE;
+static my_bool tokudb_compress_buffers_before_eviction = TRUE;
 static my_bool tokudb_checkpoint_on_flush_logs = FALSE;
 static ulonglong tokudb_cache_size = 0;
 static uint32_t tokudb_client_pool_threads = 0;
@@ -492,6 +493,7 @@ static int tokudb_init_func(void *p) {
     assert(r == 0);
     db_env->set_update(db_env, tokudb_update_fun);
     db_env_set_direct_io(tokudb_directio == TRUE);
+    db_env_set_compress_buffers_before_eviction(tokudb_compress_buffers_before_eviction == TRUE);
     db_env->change_fsync_log_period(db_env, tokudb_fsync_log_period);
     db_env->set_lock_timeout_callback(db_env, tokudb_lock_timeout_callback);
     db_env->set_loader_memory_size(db_env, tokudb_get_loader_memory_size_callback);
@@ -1358,6 +1360,12 @@ static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
     PLUGIN_VAR_READONLY, "TokuDB Enable Direct I/O ",
     NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(compress_buffers_before_eviction,
+    tokudb_compress_buffers_before_eviction,
+    PLUGIN_VAR_READONLY,
+    "TokuDB Enable buffer compression before partial eviction",
+    NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_BOOL(checkpoint_on_flush_logs, tokudb_checkpoint_on_flush_logs,
     0, "TokuDB Checkpoint on Flush Logs ",
     NULL, NULL, FALSE);
@@ -1491,6 +1499,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(fanout),
     MYSQL_SYSVAR(row_format),
     MYSQL_SYSVAR(directio),
+    MYSQL_SYSVAR(compress_buffers_before_eviction),
     MYSQL_SYSVAR(checkpoint_on_flush_logs),
 #if TOKU_INCLUDE_UPSERT
     MYSQL_SYSVAR(disable_slow_update),

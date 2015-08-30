@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 05/05/2015
+.\"      Date: 07/14/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -88,7 +88,7 @@ T{
 --initial
 T}:T{
 Perform initial start of ndbd, including cleaning the file system.
-      Consult the documentation before using this option
+          Consult the documentation before using this option
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -99,8 +99,8 @@ T{
 .PP
 -n
 T}:T{
-Don't start ndbd immediately; ndbd waits for command to start
-      from ndb_mgmd
+Don't start ndbd immediately; ndbd waits for command to start from
+          ndb_mgmd
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -130,7 +130,7 @@ T{
 --foreground
 T}:T{
 Run ndbd in foreground, provided for debugging purposes (implies
-      --nodaemon)
+          --nodaemon)
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -139,8 +139,8 @@ T{
 .PP
 --nowait-nodes=list
 T}:T{
-Do not wait for these data nodes to start (takes comma-separated
-      list of node IDs). Also requires --ndb-nodeid to be used.
+Do not wait for these data nodes to start (takes comma-separated list of
+          node IDs). Also requires --ndb-nodeid to be used.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -167,8 +167,8 @@ T{
 .PP
 --install[=name]
 T}:T{
-Used to install the data node process as a Windows service. Does
-      not apply on non-Windows platforms.
+Used to install the data node process as a Windows service. Does not
+          apply on non-Windows platforms.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -177,8 +177,8 @@ T{
 .PP
 --remove[=name]
 T}:T{
-Used to remove a data node process that was previously installed
-      as a Windows service. Does not apply on non-Windows platforms.
+Used to remove a data node process that was previously installed as a
+          Windows service. Does not apply on non-Windows platforms.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -187,8 +187,8 @@ T{
 .PP
 --connect-retries=#
 T}:T{
-Number of times to try contacting the management server; set to -1
-      to keep trying indefinitely
+Number of times to try contacting the management server; set to -1 to
+          keep trying indefinitely
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -197,8 +197,7 @@ T{
 .PP
 --connect-delay=#
 T}:T{
-Time to wait between attempts to contact a management server, in
-      seconds
+Time to wait between attempts to contact a management server, in seconds
 T}:T{
 .PP
 All MySQL 5.6 based releases

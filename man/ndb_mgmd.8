@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 05/05/2015
+.\"      Date: 07/14/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -88,9 +88,9 @@ T{
 .PP
 -f
 T}:T{
-Specify the cluster configuration file; in NDB-6.4.0 and later,
-      needs --reload or --initial to override configuration cache if
-      present
+Specify the cluster configuration file; in NDB-6.4.0 and later, needs
+          --reload or --initial to override configuration cache if
+          present
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -101,8 +101,7 @@ T{
 .PP
 --config-dir=directory
 T}:T{
-Specify the cluster management server's configuration cache
-      directory
+Specify the cluster management server's configuration cache directory
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -152,7 +151,7 @@ T{
 --interactive
 T}:T{
 Run ndb_mgmd in interactive mode (not officially supported in
-      production; for testing purposes only)
+          production; for testing purposes only)
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -161,8 +160,8 @@ T{
 .PP
 --log-name=name
 T}:T{
-A name to use when writing messages applying to this node in the
-      cluster log.
+A name to use when writing messages applying to this node in the cluster
+          log.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -189,8 +188,8 @@ T{
 .PP
 --reload
 T}:T{
-Causes the management server to compare the configuration file
-      with its configuration cache
+Causes the management server to compare the configuration file with its
+          configuration cache
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -199,8 +198,8 @@ T{
 .PP
 --initial
 T}:T{
-Causes the management server reload its configuration data from
-      the configuration file, bypassing the configuration cache
+Causes the management server reload its configuration data from the
+          configuration file, bypassing the configuration cache
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -209,8 +208,8 @@ T{
 .PP
 --nowait-nodes=list
 T}:T{
-Do not wait for these management nodes when starting this
-      management server. Also requires --ndb-nodeid to be used.
+Do not wait for these management nodes when starting this management
+          server. Also requires --ndb-nodeid to be used.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -228,8 +227,8 @@ T{
 .PP
 --install[=name]
 T}:T{
-Used to install the management server process as a Windows
-      service. Does not apply on non-Windows platforms.
+Used to install the management server process as a Windows service. Does
+          not apply on non-Windows platforms.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -238,10 +237,10 @@ T{
 .PP
 --remove[=name]
 T}:T{
-Used to remove a management server process that was previously
-      installed as a Windows service, optionally specifying the name of
-      the service to be removed. Does not apply on non-Windows
-      platforms.
+Used to remove a management server process that was previously installed
+          as a Windows service, optionally specifying the name of the
+          service to be removed. Does not apply on non-Windows
+          platforms.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -1154,11 +1153,13 @@ ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
 Section\ \&18.5, \(lqManagement of MySQL Cluster\(rq\&.
 .sp
-When the size of the cluster log reaches one million bytes, the file is renamed to
+By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where
 \fIseq_id\fR
 is the sequence number of the cluster log file\&. (For example: If files with the sequence numbers 1, 2, and 3 already exist, the next log file is named using the number
-4\&.)
+4\&.) You can change the size and number of files, and other characteristics of the cluster log, using the
+LogDestination
+configuration parameter\&.
 .RE
 .sp
 .RS 4

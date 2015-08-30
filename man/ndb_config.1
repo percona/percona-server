@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 05/05/2015
+.\"      Date: 07/14/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "05/05/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -100,9 +100,9 @@ T{
 .PP
 --nodes
 T}:T{
-Print node information ([ndbd] or [ndbd default] section of
-      cluster configuration file) only. Cannot be used with --system or
-      --connections.
+Print node information ([ndbd] or [ndbd default] section of cluster
+          configuration file) only. Cannot be used with --system or
+          --connections.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -112,8 +112,9 @@ T{
 --connections
 T}:T{
 Print connections information ([tcp], [tcp default], [sci], [sci
-      default], [shm], or [shm default] sections of cluster
-      configuration file) only. Cannot be used with --system or --nodes.
+          default], [shm], or [shm default] sections of cluster
+          configuration file) only. Cannot be used with --system or
+          --nodes.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -211,9 +212,9 @@ T{
 .PP
 --configinfo
 T}:T{
-Dumps information about all NDB configuration parameters in text
-      format with default, maximum, and minimum values. Use with --xml
-      to obtain XML output.
+Dumps information about all NDB configuration parameters in text format
+          with default, maximum, and minimum values. Use with --xml to
+          obtain XML output.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -222,9 +223,9 @@ T{
 .PP
 --configinfo --xml
 T}:T{
-Use --xml with --configinfo to obtain a dump of all NDB
-      configuration parameters in XML format with default, maximum, and
-      minimum values.
+Use --xml with --configinfo to obtain a dump of all NDB configuration
+          parameters in XML format with default, maximum, and minimum
+          values.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -234,7 +235,7 @@ T{
 --system
 T}:T{
 Print SYSTEM section information only (see ndb_config --configinfo
-      output). Cannot be used with --nodes or --connections.
+          output). Cannot be used with --nodes or --connections.
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -243,8 +244,8 @@ T{
 .PP
 --config_from_node=#
 T}:T{
-Obtain configuration data from the node having this ID (must be a
-      data node).
+Obtain configuration data from the node having this ID (must be a data
+          node).
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -1082,17 +1083,6 @@ Where applicable, the parameter\*(Aqs default, minimum, and maximum values
 .sp -1
 .IP \(bu 2.3
 .\}
-A brief description of the parameter\*(Aqs purpose, effects, and usage
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 MySQL Cluster release version and build information
 .RE
 .sp
@@ -1166,7 +1156,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.24\-ndb\-7\&.3\&.9"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.25\-ndb\-7\&.3\&.10"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -1260,6 +1250,29 @@ restart
 attribute is included only if the restart type is
 system
 (meaning that all cluster nodes must be shut down at the same time, then restarted)\&.
+.sp
+Beginning with MySQL Cluster NDB 7\&.4\&.7, deprecated parameters are indicated in the XML output with the addition of a
+deprecated
+attribute, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<param name="NoOfDiskPagesToDiskAfterRestartACC" comment="DiskCheckpointSpeed" 
+       type="unsigned" default="20" min="1" max="4294967039" \fIdeprecated="true"\fR/>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+In such cases, the
+comment
+refers to one or more parameters that supersede the deprecated parameter\&. Similarly to
+initial, the
+deprecated
+attribute is indicated only when the parameter is deprecated, with
+deprecated="true", and does not appear at all for parameters which are not deprecated\&. (Bug #21127135)
 .if n \{\
 .sp
 .\}

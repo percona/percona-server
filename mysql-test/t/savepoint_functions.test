@@ -1,0 +1,28 @@
+--echo SAVEPOINT in a stored function should be forbidden
+--delimiter |
+CREATE FUNCTION f1 () RETURNS INT BEGIN
+       SAVEPOINT s;
+       RETURN 1;
+END|
+--delimiter ;
+
+--error ER_NOT_SUPPORTED_YET
+SELECT f1();
+
+DROP FUNCTION f1;
+
+--echo ROLLBACK TO SAVEPOINT in a stored function should be forbidden
+--delimiter |
+CREATE FUNCTION f2 () RETURNS INT BEGIN
+       ROLLBACK TO SAVEPOINT s;
+       RETURN 1;
+END|
+--delimiter ;
+
+BEGIN;
+SAVEPOINT s;
+--error ER_NOT_SUPPORTED_YET
+SELECT f2();
+COMMIT;
+
+DROP FUNCTION f2;

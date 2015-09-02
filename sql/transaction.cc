@@ -535,6 +535,20 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
       !opt_using_transactions)
     DBUG_RETURN(FALSE);
 
+  if (unlikely(thd->in_sub_stmt & SUB_STMT_TRIGGER))
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "savepoints in triggers");
+    DBUG_RETURN(TRUE);
+  }
+
+  if (unlikely(thd->in_sub_stmt & SUB_STMT_FUNCTION))
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "savepoints in functions");
+    DBUG_RETURN(TRUE);
+  }
+
+  DBUG_ASSERT(!thd->in_sub_stmt);
+
   enum xa_states xa_state= thd->transaction.xid_state.xa_state;
   if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
   {
@@ -618,6 +632,20 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
+
+  if (unlikely(thd->in_sub_stmt & SUB_STMT_TRIGGER))
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "savepoints in triggers");
+    DBUG_RETURN(TRUE);
+  }
+
+  if (unlikely(thd->in_sub_stmt & SUB_STMT_FUNCTION))
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "savepoints in functions");
+    DBUG_RETURN(TRUE);
+  }
+
+  DBUG_ASSERT(!thd->in_sub_stmt);
 
   if (sv == NULL)
   {

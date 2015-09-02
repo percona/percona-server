@@ -31,19 +31,19 @@ What's in each RPM package?
 
 Each of the |Percona Server| RPM packages have a particular purpose.
 
-The ``Percona-Server-server`` package contains the server itself (the ``mysqld`` binary).
+The ``Percona-Server-server-55`` package contains the server itself (the ``mysqld`` binary).
 
-The ``Percona-Server-debuginfo`` package contains debug symbols for the server.
+The ``Percona-Server-55-debuginfo`` package contains debug symbols for the server.
 
-The ``Percona-Server-client`` package contains the command line client.
+The ``Percona-Server-client-55`` package contains the command line client.
 
-The ``Percona-Server-devel`` package contains the header files needed to compile software using the client library.
+The ``Percona-Server-devel-55`` package contains the header files needed to compile software using the client library.
 
-The ``Percona-Server-shared`` package includes the client shared library.
+The ``Percona-Server-shared-55`` package includes the client shared library.
 
 The ``Percona-Server-shared-compat`` package includes shared libraries for software compiled against old versions of the client library. Following libraries are included in this package: ``libmysqlclient.so.12``, ``libmysqlclient.so.14``, ``libmysqlclient.so.15``, and ``libmysqlclient.so.16``.
 
-The ``Percona-Server-test`` package includes the test suite for |Percona Server|.
+The ``Percona-Server-test-55`` package includes the test suite for |Percona Server|.
 
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
@@ -76,7 +76,7 @@ Installing |Percona Server| from Percona ``yum`` repository
 
 2. Testing the repository
    
-   Make sure packages are downloaded from the repository, by executing the following command: 
+   Make sure packages are now available from the repository, by executing the following command: 
 
    .. code-block:: bash
 
@@ -107,10 +107,13 @@ Installing |Percona Server| from Percona ``yum`` repository
 Percona `yum` Testing repository
 --------------------------------
 
-Percona offers pre-release builds from the testing repository. To subscribe to the testing repository, you'll need to enable the testing repository in :file:`/etc/yum.repos.d/percona-release.repo` (both ``$basearch`` and ``noarch``). **NOTE:** You'll need to install the Percona repository first if this hasn't been done already.
+Percona offers pre-release builds from our testing repository. To subscribe to the testing repository, you'll need to enable the testing repository in :file:`/etc/yum.repos.d/percona-release.repo`. To do so, set both ``percona-testing-$basearch`` and ``percona-testing-noarch`` to ``enabled = 1`` (Note that there are 3 sections in this file: release, testing and experimental - in this case it is the second section that requires updating). **NOTE:** You'll need to install the Percona repository first (ref above) if this hasn't been done already.
 
-Installing |Percona Server| using standalone packages
-=====================================================
+
+.. _standalone_rpm:
+
+Installing |Percona Server| using downloaded rpm packages
+=========================================================
 
 1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.5.44-37.3 release packages for *CentOS* 6:
 

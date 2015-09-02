@@ -29,19 +29,19 @@ Supported Platforms:
 What's in each DEB package?
 ===========================
 
-The ``percona-server-server`` package contains the database server itself, the ``mysqld`` binary and associated files.
+The ``percona-server-server-5.5`` package contains the database server itself, the ``mysqld`` binary and associated files.
 
-The ``percona-server-common`` package contains files common to the server and client.
+The ``percona-server-common-5.5`` package contains files common to the server and client.
 
-The ``percona-server-client`` package contains the command line client.
+The ``percona-server-client-5.5`` package contains the command line client.
 
-The ``percona-server-dbg`` package contains debug symbols for the server.
+The ``percona-server-5.5-dbg`` package contains debug symbols for the server.
 
-The ``percona-server-test`` package contains the database test suite.
+The ``percona-server-test-5.5`` package contains the database test suite.
 
-The ``percona-server-source`` package contains the server source.
+The ``percona-server-source-5.5`` package contains the server source.
 
-The ``libperconaserverclient-dev`` package contains header files needed to compile software to use the client library.
+The ``libperconaserverclient18-dev`` package contains header files needed to compile software to use the client library.
 
 The ``libperconaserverclient18`` package contains the client shared library. The ``18`` is a reference to the version of the shared library. The version is incremented when there is a ABI change that requires software using the client library to be recompiled or its source code modified.
                    
@@ -55,6 +55,10 @@ Installing |Percona Server| from Percona ``apt`` repository
   .. code-block:: bash
 
     $ sudo apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
+
+  .. note::
+
+    In case you're getting timeouts when using ``keys.gnupg.net`` as an alternative you can fetch the key from ``keyserver.ubuntu.com``. 
 
 2. Create the :program:`apt` source list for Percona's repository:
 
@@ -102,8 +106,10 @@ In some cases you might need to "pin" the selected packages to avoid the upgrade
 
 For more information about the pinning you can check the official `debian wiki <http://wiki.debian.org/AptPreferences>`_.
 
-Installing |Percona Server| using standalone packages
-=====================================================
+.. _standalone_deb:
+
+Installing |Percona Server| using downloaded deb packages
+=========================================================
 
 Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.5/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.5.44-37.3 release packages for *Debian* 8.0:  
 

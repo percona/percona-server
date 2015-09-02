@@ -7,6 +7,7 @@ Installing |Percona Server| 5.5
 This page provides the information on how to you can install |Percona Server|. Following options are available: 
 
 * :ref:`installing_from_binaries` (recommended)
+* Installing |Percona Server| from Downloaded `:ref:`rpm <standalone_rpm>` or :ref:`apt <standalone_deb>` Packages
 * :ref:`installing_from_binary_tarball`
 * :ref:`installing_from_source_tarball`
 * :ref:`source_from_git`

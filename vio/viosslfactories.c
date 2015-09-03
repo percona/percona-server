@@ -23,7 +23,7 @@ static my_bool     ssl_error_strings_loaded= FALSE;
 /*
   Diffie-Hellman key.
   Generated using: >openssl dhparam -5 -C 2048
- 
+
   -----BEGIN DH PARAMETERS-----
   MIIBCAKCAQEAil36wGZ2TmH6ysA3V1xtP4MKofXx5n88xq/aiybmGnReZMviCPEJ
   46+7VCktl/RZ5iaDH1XNG1dVQmznt9pu2G3usU+k1/VB4bQL4ZgW4u0Wzxh9PyXD

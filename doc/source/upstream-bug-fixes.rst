@@ -509,6 +509,12 @@
 |:Fix Released: :rn:`5.5.8-20.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`75534` - Solve buffer pool mutex contention by splitting it                        |
+|:Launchpad bug: :ref:`innodb_split_buf_pool_mutex`                                                           |
+|:Upstream state: Verified (checked on 2015-09-01)                                                            |
+|:Fix Released: :rn:`5.5.8-20.0`                                                                              |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`54790` - Use of non-blocking mode for sockets limits performance                   |
 |:Launchpad bug: :bug:`606810`                                                                                |
 |:Upstream state: Closed                                                                                      |

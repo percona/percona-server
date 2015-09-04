@@ -12290,8 +12290,8 @@ ha_innobase::check(
 		thd_set_kill_status(user_thd);
 	}
 
-	if (UNIV_UNLIKELY(share->ib_table->is_corrupt)) {
-		return(HA_ADMIN_CORRUPT);
+	if (UNIV_UNLIKELY(prebuilt->table && prebuilt->table->corrupted)) {
+		DBUG_RETURN(HA_ADMIN_CORRUPT);
 	}
 
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);

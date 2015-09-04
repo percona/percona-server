@@ -1,0 +1,19 @@
+SAVEPOINT in a stored function should be forbidden
+CREATE FUNCTION f1 () RETURNS INT BEGIN
+SAVEPOINT s;
+RETURN 1;
+END|
+SELECT f1();
+ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
+DROP FUNCTION f1;
+ROLLBACK TO SAVEPOINT in a stored function should be forbidden
+CREATE FUNCTION f2 () RETURNS INT BEGIN
+ROLLBACK TO SAVEPOINT s;
+RETURN 1;
+END|
+BEGIN;
+SAVEPOINT s;
+SELECT f2();
+ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
+COMMIT;
+DROP FUNCTION f2;

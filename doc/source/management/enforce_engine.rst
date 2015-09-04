@@ -32,6 +32,10 @@ System Variables
      :vartype: String
      :default: NULL
 
+.. note:: 
+
+  This variable is not case sensitive.
+
 Example
 =======
 

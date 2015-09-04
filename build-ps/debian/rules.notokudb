@@ -70,7 +70,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
 	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
-	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-g -felide-constructors -fexceptions -fno-rtti -fno-strict-aliasing"} \
 	    cmake -DBUILD_CONFIG=mysql_release \
 		\
 		-DCMAKE_INSTALL_PREFIX=/usr \
@@ -89,9 +89,8 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
-		-DWITH_PAM=ON -DWITH_EXTRA_CHARSETS=all \
-		-DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF \
-		-DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKU_DEBUG_PARANOID=ON ..'
+		-DWITH_PAM=ON \
+		-DWITH_EXTRA_CHARSETS=all ..'
 endif
 
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
@@ -99,7 +98,7 @@ endif
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
 	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
-	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fexceptions -fno-rtti -fno-strict-aliasing"} \
 	    cmake -DBUILD_CONFIG=mysql_release \
 		\
 		-DCMAKE_INSTALL_PREFIX=/usr \
@@ -118,10 +117,8 @@ endif
 		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
-		-DWITH_PAM=ON -DWITH_EXTRA_CHARSETS=all \
-		-DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF \
-		-DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKU_DEBUG_PARANOID=OFF ..'
-		
+		-DWITH_PAM=ON \
+		-DWITH_EXTRA_CHARSETS=all ..'
 	touch $@
 
 build: build-arch build-indep

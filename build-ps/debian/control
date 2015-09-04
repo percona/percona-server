@@ -30,6 +30,20 @@ Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Bzr: lp:percona-server/5.6
 
+Package: percona-server-tokudb-5.6
+Section: database
+Architecture: any
+Depends: percona-server-server-5.6 (= ${binary:Version}), libjemalloc1 (>= 3.3.0), ${misc:Depends}
+Description: TokuDB engine plugin for Percona Server 
+ .
+ TokuDB is a storage engine for MySQL and MariaDB that is specifically 
+ designed for high performance on write-intensive workloads. It achieves 
+ this via Fractal Tree indexing. TokuDB is a scalable, ACID and MVCC compliant 
+ storage engine that provides indexing-based query improvements, offers online 
+ schema modifications, and reduces slave lag for both hard disk drives and flash memory.
+ .
+ This package includes the TokuDB plugin library.
+
 Package: libperconaserverclient18.1
 Section: libs
 Architecture: any

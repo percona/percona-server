@@ -18,7 +18,7 @@ niceness=0
 mysqld_ld_preload=
 mysqld_ld_library_path=
 load_jemalloc=1
-load_hotbackup=1
+load_hotbackup=0
 flush_caches=0
 numa_interleave=0
 # Change (disable) transparent huge pages (TokuDB requirement)
@@ -246,6 +246,7 @@ parse_arguments() {
       --open_files_limit=*) open_files="$val" ;;
       --skip-kill-mysqld*) KILL_MYSQLD=0 ;;
       --thp-setting=*) thp_setting="$val" ;;
+      --preload-hotbackup) load_hotbackup=1 ;;
       --syslog) want_syslog=1 ;;
       --skip-syslog) want_syslog=0 ;;
       --syslog-tag=*) syslog_tag="$val" ;;

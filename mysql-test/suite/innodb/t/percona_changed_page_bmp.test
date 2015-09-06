@@ -267,6 +267,9 @@ call mtr.add_suppression("Info table is not ready to be used");
 --exec echo "restart:--innodb-data-home-dir=$MYSQLTEST_VARDIR/tmpdatadir" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
+# problems without trailing path separator (bug 1364315)
+select * from information_schema.innodb_changed_pages;
+
 file_exists $MYSQLTEST_VARDIR/tmpdatadir/ib_modified_log_1_0.xdb;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLTEST_VARDIR/tmpdatadir ib_modified_log*;

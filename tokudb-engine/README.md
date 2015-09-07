@@ -40,7 +40,7 @@ To build a complete set of Percona Server and TokuDB, follow the instructions at
 Contribute
 ----------
 
-Please report TokuDB bugs at https://tokutek.atlassian.net/browse/DB.
+Please report TokuDB bugs to the [issue tracker][jira].
 
 We have two publicly accessible mailing lists:
 
@@ -48,6 +48,11 @@ We have two publicly accessible mailing lists:
    questions about the use of TokuDB.
  - tokudb-dev@googlegroups.com is for discussion of the development of
    TokuDB.
+
+All source code and test contributions must be provided under a [BSD 2-Clause][bsd-2] license. For any small change set, the license text may be contained within the commit comment and the pull request. For larger contributions, the license must be presented in a COPYING.<feature_name> file in the root of the tokudb-engine project. Please see the [BSD 2-Clause license template][bsd-2] for the content of the license text.
+
+[jira]: https://tokutek.atlassian.net/browse/DB/
+[bsd-2]: http://opensource.org/licenses/BSD-2-Clause/
 
 License
 -------

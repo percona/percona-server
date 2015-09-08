@@ -14,6 +14,10 @@ SET innodb_fake_changes=default;
 SHOW VARIABLES LIKE 'innodb_fake_changes';
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
 
+#-------------------------------------------------------------------------------
+#
+# create test bed
+#
 --echo # Explicit COMMIT should fail when innodb_fake_changes is enabled
 --echo # DML should be fine
 SET @@GLOBAL.userstat=TRUE;
@@ -46,7 +50,6 @@ INSERT INTO t1 VALUES (1,1);
 --source include/start_fake_changes.inc
 
 # Test with autocommit
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t1;
 --error ER_ERROR_DURING_COMMIT
 INSERT INTO t1 VALUES (2,2);
@@ -138,7 +141,6 @@ INSERT INTO t2 VALUES (1, 1);
 --source include/start_fake_changes.inc
 
 # Test with autocommit
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t2;
 --error ER_ERROR_DURING_COMMIT
 INSERT INTO t2 VALUES (2,2);
@@ -255,7 +257,6 @@ INSERT INTO t3 VALUES (1, '');
 --source include/start_fake_changes.inc
 
 # Test with autocommit
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t3;
 --error ER_ERROR_DURING_COMMIT
 INSERT INTO t3 VALUES (2,lpad('a',10000, 'b'));
@@ -368,5 +369,264 @@ COMMIT;
 
 DROP TABLE t1, t3;
 
+#-------------------------------------------------------------------------------
+#
+# Scenario will try to insert data that will cause split of a node something
+# which will not happen in real if fake_changes = 1.
+# Note: test-case below will exercise pessmisitic insert case for 16K page
+# size but for 4K and 8K will not exercise pessmisitic insert with fake change
+# enabled but even the normal insert fail for fake_change mode.
+#
+
+# clustered index split
+use test;
+create table t1 (i int, j blob, primary key pk(i)) engine=innodb;
+insert into t1 values (1, repeat('a', 8000));
+insert into t1 values (2, repeat('b', 8000));
+set session innodb_fake_changes = 1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (3, repeat('c', 8000));
+set session innodb_fake_changes = 0;
+drop table t1;
+#
+#
+
+# secondary index split
+create table t1 (
+	i int, j varchar(500), primary key pk(i), unique index sk(j)
+	) engine=innodb;
+#
+delimiter |;
+create procedure populate_t1()
+begin
+	declare i int default 1;
+	while (i <= 36) DO
+	insert into t1 values (i, repeat(i, 250));
+	set i = i + 1;
+end while;
+end|
+delimiter ;|
+#
+begin; call populate_t1(); commit;
+set session innodb_fake_changes = 1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (37, repeat(37, 250));
+set session innodb_fake_changes = 0;
+drop procedure populate_t1;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Scenario that try to discard tablespace with fake_change one.
+# Discard tablespace is DDL operation which is blocked in fake_change mode.
+# Scenario also test other variants of alter table.
+#
+let save_file_per_table = `select @@innodb_file_per_table`;
+set global innodb_file_per_table = 1;
+#
+use test;
+create table t1 (i int, key(i)) engine=innodb;
+set session innodb_fake_changes = 1;
+--error ER_ILLEGAL_HA
+alter table t1 discard tablespace;
+--error ER_ERROR_DURING_COMMIT
+alter table t1 add column b char;
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+--error ER_ILLEGAL_HA
+alter table t1 add column b char, algorithm=copy;
+--error ER_ERROR_DURING_COMMIT
+alter table t1 add column b char, algorithm=default;
+set session innodb_fake_changes = 0;
+drop table t1;
+#
+eval set global innodb_file_per_table = $save_file_per_table;
+
+#-------------------------------------------------------------------------------
+#
+# Scenario to exercise update such that it causes ordering change in clustered
+# index key initiating delete + insertion action to complete update.
+# For fake-change record is not actually delete marked but assumed to be
+# delete marked and path is choosen accordingly.
+#
+use test;
+create table t1 (a int, primary key pk(a));
+alter table t1 add column b char;
+create index bx on t1(b);
+insert into t1 values (1, 0x41), (2, 0x41);
+set session innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+update t1 set a = upper(a), b = lower(b);
+set session innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# If fake-change mode is set to on or off after transaction starts then
+# transaction shouldn't honor the change instead it transaction should always
+# operate honoring the setting while it started.
+#
+use test;
+create table t1 (c1 int);
+insert into t1 values (10);
+select * from t1;
+set session innodb_fake_changes = 1;
+begin;
+insert into t1 values (10);
+select * from t1;
+set session innodb_fake_changes = 0;
+replace into t1(c1) values (10);
+# this should fail as trx has register fake-change = 1 while starting.
+--error ER_ERROR_DURING_COMMIT
+commit;
+select * from t1;
+#
+begin;
+insert into t1 values (11);
+insert into t1 values (12);
+set session innodb_fake_changes = 1;
+# this should pass as trx has register fake-change = 0 while starting.
+commit;
+set session innodb_fake_changes = 0;
+select * from t1;
+#
+begin;
+set session innodb_fake_changes = 1;
+insert into t1 values (11);
+insert into t1 values (12);
+# this should fail as trx has register fake-change = 1 while starting.
+# note: begin doesn't start a transaction but insert does.
+--error ER_ERROR_DURING_COMMIT
+commit;
+#
+set session innodb_fake_changes = 0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Rename of table is blocked with fake-change enabled.
+#
+use test;
+create table t1 (i int) engine=innodb;
+rename table t1 to t2;
+select * from t2;
+#
+set session innodb_fake_changes = 1;
+--error ER_NOT_SUPPORTED_YET
+rename table t2 to t1;
+#
+set session innodb_fake_changes = 0;
+drop table t2;
+
+#-------------------------------------------------------------------------------
+#
+# Big-record based insertion and update use-case under fake-change mode.
+#
+use test;
+create table t1 (i int, b blob, primary key pk(i)) engine=innodb;
+set session innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (1, repeat('a', 20000));
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (2, repeat('b', 20000));
+--error ER_ERROR_DURING_COMMIT
+update t1 set b = repeat('c', 20000);
+set session innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Scenario is meant to check following scenarios:
+# SELECT is allowed to function normally if fake_changes = ON as it is readonly
+# CREATE...SELECT * from <table>; is allowed to work if CREATE is done using
+# other SE but SELECT may be working on InnoDB.
+#
+
+# create ... select * from
+create table t1 (i int) engine=innodb;
+insert into t1 values (1), (2);
+set session innodb_fake_changes = 1;
+#
+select * from t1;
+let save_session_engine = `select @@session.default_storage_engine`;
+set @@session.default_storage_engine=innodb;
+--error ER_ILLEGAL_HA
+create table t3 select * from t1;
+#
+set @@session.default_storage_engine=myisam;
+create table t2 select * from t1;
+show create table t2;
+select * from t2;
+drop table t2;
+#
+set session innodb_fake_changes = 0;
+eval set @@session.default_storage_engine=$save_session_engine;
+drop table t1;
+#
+#
+
+# insert into select
+create table t1 (i int, j int) engine=innodb;
+insert into t1 values (1, 10), (2, 20), (3, 30);
+select * from t1;
+#
+set session innodb_fake_changes = 1;
+select * from t1;
+#
+begin;
+select * from t1;
+--error ER_ERROR_DURING_COMMIT
+commit;
+#
+--error ER_ERROR_DURING_COMMIT
+insert into t1 select * from t1;
+#
+select * from t1;
+set session innodb_fake_changes = 0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Scenario will test use of fts with fake-change mode enabled.
+#
+
+# fts operation with fake-changes = on
+use test;
+create table t1 (i int, c char(100), fulltext fts(c)) engine=innodb;
+insert into t1 values (1, 'it is raining outside');
+insert into t1 values (2, 'good to see some rain during rainy season');
+select * from t1;
+#
+set session innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (3, 'climate has turned really rainy and humid too');
+select * from t1 where match(c) against ('rainy');
+#
+--error ER_ERROR_DURING_COMMIT
+update t1 set c='some test foobar' where match c against ('rain');
+--error ER_ERROR_DURING_COMMIT
+delete from t1 where MATCH(c) AGAINST ("rainy");
+select * from t1;
+#
+set session innodb_fake_changes=0;
+drop table t1;
+#
+#
+
+# fts operation with explicit doc-id and fake-changes = on.
+create table t1 (
+	FTS_DOC_ID bigint unsigned key,
+	title char(1),
+	body text, fulltext(title,body)) engine=innodb;
+#
+set session innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values(1,2,11),(1,2,7);
+set session innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# cleanup test bed
+#
 SET @@GLOBAL.userstat= default;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=default;

@@ -1521,6 +1521,19 @@ thd_supports_xa(
 }
 
 /******************************************************************//**
+Check the status of fake changes mode (innodb_fake_changes)
+@return	true	if fake change mode is enabled. */
+UNIV_INTERN
+ibool
+thd_fake_changes(
+/*=============*/
+	THD*	thd)	/*!< in: thread handle, or NULL to query
+			the global innodb_supports_xa */
+{
+	return(THDVAR((THD*) thd, fake_changes));
+}
+
+/******************************************************************//**
 Returns the lock wait timeout for the current connection.
 @return	the lock wait timeout, in seconds */
 UNIV_INTERN
@@ -2329,7 +2342,15 @@ innobase_trx_init(
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
 
-	trx->fake_changes = THDVAR(thd, fake_changes);
+	/* Transaction on start caches the fake_changes state and uses it for
+	complete transaction lifetime.
+	There are some APIs that doesn't need an active transaction object
+	but transaction object are just use as a cache object/data carrier.
+	Before using transaction object for such APIs refresh the state of
+	fake_changes. */
+	if (trx->state == TRX_STATE_NOT_STARTED) {
+		trx->fake_changes = thd_fake_changes(thd);
+	}
 
 #ifdef EXTENDED_SLOWLOG
 	if (thd_log_slow_verbosity(thd) & (1ULL << SLOG_V_INNODB)) {
@@ -4125,15 +4146,26 @@ innobase_commit(
 	/* No-op in XtraDB */
 	trx_search_latch_release_if_reserved(trx);
 
-	if (UNIV_UNLIKELY(trx->fake_changes &&
-	    (commit_trx ||
-	     (!thd_test_options(thd,
+	/* If fake-changes mode = ON then allow
+	SELECT (they are read-only) and
+	CREATE ... SELECT * from table (Well this doesn't open up DDL for InnoDB
+	as ha_innobase::create will return appropriate error if fake-change = ON
+	but if create is trying to use other SE and SELECT is executing on
+	InnoDB table then we allow SELECT to proceed.
+	Ideally, statement like this should be marked CREATE_SELECT like
+	INSERT_SELECT but unfortunately it doesn't). */
+	if (UNIV_UNLIKELY(trx->fake_changes
+			  && (thd_sql_command(thd) != SQLCOM_SELECT
+			      && thd_sql_command(thd) != SQLCOM_CREATE_TABLE)
+			  && (commit_trx || (!thd_test_options(thd,
 				OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))) {
 
 		/* rollback implicitly */
 		innobase_rollback(hton, thd, commit_trx);
+
 		/* because debug assertion code complains, if something left */
 		thd->get_stmt_da()->reset_diagnostics_area();
+
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 	/* Transaction is deregistered only in a commit or a rollback. If
@@ -10615,6 +10647,10 @@ ha_innobase::discard_or_import_tablespace(
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
+
+	if (UNIV_UNLIKELY(prebuilt->trx->fake_changes)) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 
 	dict_table = prebuilt->table;

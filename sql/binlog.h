@@ -603,7 +603,7 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache);
+  int  do_write_cache(THD *thd, IO_CACHE *cache);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);

@@ -241,10 +241,15 @@ trx_create(void)
 
 	trx->support_xa = TRUE;
 
+	trx->fake_changes = FALSE;
+
 	trx->check_foreigns = TRUE;
 	trx->check_unique_secondary = TRUE;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	trx->idle_start = 0;
+	trx->last_stmt_start = 0;
 
 	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
@@ -256,6 +261,15 @@ trx_create(void)
 		256, MEM_HEAP_FOR_LOCK_HEAP);
 
 	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+	trx->io_reads = 0;
+	trx->io_read = 0;
+	trx->io_reads_wait_timer = 0;
+	trx->lock_que_wait_timer = 0;
+	trx->innodb_que_wait_timer = 0;
+	trx->distinct_page_access = 0;
+	trx->distinct_page_access_hash = NULL;
+	trx->take_stats = FALSE;
 
 	trx->xid.formatID = -1;
 
@@ -318,6 +332,12 @@ trx_allocate_for_mysql(void)
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	mutex_exit(&trx_sys->mutex);
+
+	if (UNIV_UNLIKELY(trx->take_stats)) {
+		trx->distinct_page_access_hash
+			= static_cast<byte *>(mem_alloc(DPAH_SIZE));
+		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
+	}
 
 	return(trx);
 }
@@ -397,6 +417,13 @@ trx_free_for_background(
 /*====================*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
+
+	if (trx->distinct_page_access_hash)
+	{
+		mem_free(trx->distinct_page_access_hash);
+		trx->distinct_page_access_hash= NULL;
+	}
+
 	if (trx->declared_to_be_inside_innodb) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -475,6 +502,12 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
+	if (trx->distinct_page_access_hash)
+	{
+		mem_free(trx->distinct_page_access_hash);
+		trx->distinct_page_access_hash= NULL;
+	}
+
 	mutex_enter(&trx_sys->mutex);
 
 	ut_ad(trx->in_mysql_trx_list);
@@ -1026,6 +1059,12 @@ trx_start_low(
 	trx->state = TRX_STATE_ACTIVE;
 
 	trx->id = trx_sys_get_new_trx_id();
+
+	/* Cache the state of fake_changes that transaction will use for
+	lifetime. Any change in session/global fake_changes configuration during
+	lifetime of transaction will not be honored by already started
+	transaction. */
+	trx->fake_changes = thd_fake_changes(trx->mysql_thd);
 
 	ut_ad(!trx->in_rw_trx_list);
 	ut_ad(!trx->in_ro_trx_list);
@@ -1722,9 +1761,21 @@ trx_commit_or_rollback_prepare(
 
 		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
+			ulint		sec;
+			ulint		ms;
+			ib_uint64_t	now;
+
 			ut_a(trx->lock.wait_thr != NULL);
 			trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
 			trx->lock.wait_thr = NULL;
+
+			if (UNIV_UNLIKELY(trx->take_stats)) {
+				ut_usectime(&sec, &ms);
+				now = (ib_uint64_t)sec * 1000000 + ms;
+				trx->lock_que_wait_timer
+					+= (ulint)
+					(now - trx->lock_que_wait_ustarted);
+			}
 
 			trx->lock.que_state = TRX_QUE_RUNNING;
 		}

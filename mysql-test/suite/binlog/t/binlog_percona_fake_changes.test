@@ -30,11 +30,8 @@ let $binlog_pos_1= query_get_value("SHOW MASTER STATUS", Position, 1);
 
 SET innodb_fake_changes=1;
 
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t1;
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t2;
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t3;
 
 --error ER_ERROR_DURING_COMMIT

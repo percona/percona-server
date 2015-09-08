@@ -486,9 +486,7 @@ btr_cur_optimistic_latch_leaves(
 			if (btr_page_get_prev(buf_block_get_frame(block), mtr)
 			    == left_page_no) {
 				/* adjust buf_fix_count */
-				buf_page_mutex_enter(block);
 				buf_block_buf_fix_dec(block);
-				buf_page_mutex_exit(block);
 
 				*latch_mode = mode;
 				return(true);
@@ -505,9 +503,7 @@ btr_cur_optimistic_latch_leaves(
 		}
 unpin_failed:
 		/* unpin the block */
-		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		buf_page_mutex_exit(block);
 
 		return(false);
 
@@ -3449,6 +3445,9 @@ btr_cur_pessimistic_insert(
 
 	if (!(flags & BTR_NO_UNDO_LOG_FLAG)
 	    || dict_table_is_intrinsic(index->table)) {
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
+
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the insert will not fail because
 		of lack of space */
@@ -5311,6 +5310,8 @@ btr_cur_pessimistic_delete(
 		of the index tree, so that the node pointer updates will
 		not fail because of lack of space */
 
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
+
 		ulint	n_extents = cursor->tree_height / 32 + 1;
 
 		success = fsp_reserve_free_extents(&n_reserved,
@@ -6203,6 +6204,14 @@ btr_estimate_number_of_different_key_vals(
 		page = btr_cur_get_page(&cursor);
 
 		SRV_CORRUPT_TABLE_CHECK(page, goto exit_loop;);
+		DBUG_EXECUTE_IF("ib_corrupt_page_while_stats_calc",
+				page = NULL;);
+
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
+			mtr_commit(&mtr);
+			goto exit_loop;
+		});
 
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 

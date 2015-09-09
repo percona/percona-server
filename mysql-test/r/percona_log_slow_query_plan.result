@@ -1,9 +1,14 @@
+SET @innodb_stats_auto_recalc_save = @@innodb_stats_auto_recalc;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
 FLUSH STATUS;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(
 a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 b INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(NULL, 10), (NULL, 5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SET SESSION long_query_time=0;
 SET SESSION min_examined_row_limit=0;
 SET SESSION log_slow_verbosity='microtime,query_plan';
@@ -51,6 +56,9 @@ INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
 Variable_name	Value
 Sort_merge_passes	0
@@ -79,14 +87,17 @@ INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 [log_start.inc] percona_slow_query_log.query_plan_3
 SELECT * FROM t2 ORDER BY a;
 [log_stop.inc] percona_slow_query_log.query_plan_3
-[log_grep.inc] file: percona_slow_query_log.query_plan_3 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 6$
+[log_grep.inc] file: percona_slow_query_log.query_plan_3 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4$
 [log_grep.inc] lines:   1
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
 Variable_name	Value
-Sort_merge_passes	8
+Sort_merge_passes	6
 SET SESSION sort_buffer_size=default;
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
@@ -125,6 +136,9 @@ Select_scan	48
 SET SESSION log_slow_filter=default;
 CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (1), (2), (3);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 SHOW SESSION STATUS LIKE 'Select_full_join';
 Variable_name	Value
 Select_full_join	0
@@ -224,6 +238,9 @@ Created_tmp_disk_tables	0
 SET SESSION log_slow_filter=default;
 CREATE TABLE t4(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 INSERT INTO t4 VALUES (1, "aaa"), (2, "bbb"), (3, "ccc");
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index; Using temporary; Using filesort
@@ -266,3 +283,4 @@ SET SESSION long_query_time=default;
 SET SESSION min_examined_row_limit=default;
 SET SESSION log_slow_verbosity=default;
 DROP TABLE t1, t2, t3, t4;
+SET GLOBAL innodb_stats_auto_recalc = @innodb_stats_auto_recalc_save;

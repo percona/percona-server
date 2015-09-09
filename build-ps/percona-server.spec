@@ -29,6 +29,7 @@
 %define redhatversion %(lsb_release -rs | awk -F. '{ print $1}')
 %define percona_server_version @@PERCONA_VERSION@@
 %define revision @@REVISION@@
+%define tokudb_backup_version @@TOKUDB_BACKUP_VERSION@@
 
 #
 %bcond_with tokudb
@@ -46,7 +47,7 @@
 
 #
 %if %{with tokudb}
-  %define TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF
+  %define TOKUDB_FLAGS -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=%{tokudb_backup_version}
   %define TOKUDB_DEBUG_ON -DTOKU_DEBUG_PARANOID=ON
   %define TOKUDB_DEBUG_OFF -DTOKU_DEBUG_PARANOID=OFF
 %else
@@ -260,9 +261,6 @@ Release:        %{release}
 Distribution:   %{distro_description}
 License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
-%if %{with tokudb}
-Source1:        http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tokudb.tar.gz
-%endif
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
@@ -428,9 +426,6 @@ and applications need to dynamically load and use Percona Server.
 ##############################################################################
 %prep
 %setup -n %{src_dir}
-%if %{with tokudb}
-%setup -n %{src_dir} -T -D -b 1
-%endif
 
 %if "%rhel" > "6"
 %patch0 -p1
@@ -619,7 +614,7 @@ install -D -m 0644 $MBD/build-ps/rpm/my.cnf $RBR%{_sysconfdir}/my.cnf
 %endif
 
 #
-%{__rm} -f $RBR/%{_prefix}/README*
+%{__rm} -f $RBR/%{_prefix}/README
 #
 # Delete the symlinks to the libraries from the libdir. These are created by
 # ldconfig(8) afterwards.
@@ -1409,7 +1404,8 @@ fi
 %{_libdir}/mysql/%{shared_lib_pri_name}.a
 %{_libdir}/mysql/%{shared_lib_pri_name}_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/*.so
+%{_libdir}/%{shared_lib_pri_name}.so
+%{_libdir}/%{shared_lib_pri_name}_r.so
 
 %post -n Percona-Server-devel%{product_suffix}
 # For compatibility after reverting name to libmysql
@@ -1436,6 +1432,14 @@ done
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
 %attr(755, root, root) %{_bindir}/ps_tokudb_admin
 %attr(755, root, root) %{_bindir}/tokuft_logprint
+%attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
+%attr(755, root, root) %{_libdir}/libHotBackup.so
+%{_includedir}/backup.h
+%doc %{_prefix}/README.md
+%doc %{_prefix}/COPYING.AGPLv3
+%doc %{_prefix}/COPYING.GPLv2
+%doc %{_prefix}/PATENTS
 %endif
 
 # ----------------------------------------------------------------------------

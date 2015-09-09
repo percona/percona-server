@@ -8,6 +8,7 @@ PS_VERSION_EXTRA = '@@PERCONA_VERSION_EXTRA@@'
 REVISION = '@@REVISION@@'
 COMPILATION_COMMENT_RELEASE = "Percona Server (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
 COMPILATION_COMMENT_DEBUG = "Percona Server - Debug (GPL), Release $(PS_VERSION_EXTRA), Revision $(REVISION)"
+TOKUDB_BACKUP_VERSION = "@@TOKUDB_BACKUP_VERSION@@"
 
 TMP=$(CURDIR)/debian/tmp/
 TMPD=$(CURDIR)/debian/tmp-debug/
@@ -28,6 +29,10 @@ DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
 DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
 DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+TOKUDB_OPTS_DEFAULT ?= -DWITH_VALGRIND=OFF -DUSE_VALGRIND=OFF -DDEBUG_EXTNAME=OFF -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=$(TOKUDB_BACKUP_VERSION)
+TOKUDB_OPTS_RELEASE ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=OFF
+TOKUDB_OPTS_DEBUG ?= $(TOKUDB_OPTS_DEFAULT) -DTOKU_DEBUG_PARANOID=ON
 
 EXPORTED_SOURCE_TARBALL = debian/percona-server-source-5.6.tar.gz
 
@@ -70,7 +75,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
 	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
-	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-g -felide-constructors -fexceptions -fno-rtti -fno-strict-aliasing"} \
 	    cmake -DBUILD_CONFIG=mysql_release \
 		\
 		-DCMAKE_INSTALL_PREFIX=/usr \
@@ -90,7 +95,7 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
 		-DWITH_PAM=ON \
-		-DWITH_EXTRA_CHARSETS=all ..'
+		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_DEBUG) ..'
 endif
 
 	( test -d $(builddir) || mkdir $(builddir) ) && cd $(builddir) && \
@@ -98,7 +103,7 @@ endif
 	    	CC=$${MYSQL_BUILD_CC:-gcc} \
 	    	CFLAGS=$${MYSQL_BUILD_CFLAGS:-"-O2 -g -fno-strict-aliasing"} \
 	    	CXX=$${MYSQL_BUILD_CXX:-g++} \
-	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fno-exceptions -fno-rtti -fno-strict-aliasing"} \
+	    	CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O3 -g -felide-constructors -fexceptions -fno-rtti -fno-strict-aliasing"} \
 	    cmake -DBUILD_CONFIG=mysql_release \
 		\
 		-DCMAKE_INSTALL_PREFIX=/usr \
@@ -118,7 +123,7 @@ endif
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
 		-DWITH_PAM=ON \
-		-DWITH_EXTRA_CHARSETS=all ..'
+		-DWITH_EXTRA_CHARSETS=all $(TOKUDB_OPTS_RELEASE) ..'
 	touch $@
 
 build: build-arch build-indep

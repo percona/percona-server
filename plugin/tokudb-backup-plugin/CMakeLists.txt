@@ -1,3 +1,19 @@
+# TokuDB only supports x86-64 and cmake-2.8.9+
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND
+    NOT CMAKE_VERSION VERSION_LESS "2.8.9" AND
+   NOT WITHOUT_TOKUDB AND NOT WITHOUT_TOKUDB_STORAGE_ENGINE)
+CHECK_CXX_SOURCE_COMPILES(
+"
+struct a {int b; int c; };
+struct a d = { .b=1, .c=2 };
+int main() { return 0; }
+" TOKUDB_OK)
+ENDIF()
+
+IF(NOT TOKUDB_OK)
+  RETURN()
+ENDIF()
+
 # disable -Wvla
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -33,4 +49,9 @@ ELSE()
   MESSAGE(STATUS "tokudb-backup-plugin no backup ${CMAKE_CURRENT_SOURCE_DIR}")
 ENDIF()
 MYSQL_ADD_PLUGIN(tokudb_backup ${TOKUDB_BACKUP_SOURCES} MODULE_ONLY MODULE_OUTPUT_NAME "tokudb_backup")
-INSTALL(FILES README_tokudb_backup DESTINATION ${INSTALL_DOCDIR})
+#
+# RPM installs documentation directly from the source tree
+#
+IF(NOT INSTALL_LAYOUT MATCHES "RPM")
+  INSTALL(FILES README_tokudb_backup DESTINATION ${INSTALL_DOCDIR})
+ENDIF()

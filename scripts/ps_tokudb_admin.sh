@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Script for installing TokuDB plugin in Percona Server
+# Script for installing TokuDB engine and TokuBackup in Percona Server
 #
 set -u
 
@@ -17,14 +17,19 @@ STATUS_THP_MYCNF=0
 STATUS_PLUGIN=0
 ENABLE=0
 DISABLE=0
+ENABLE_TOKUBACKUP=0
+DISABLE_TOKUBACKUP=0
+STATUS_HOTBACKUP_MYCNF=0
+STATUS_HOTBACKUP_PLUGIN=0
 MYCNF_LOCATION=
 MYSQLD_SAFE_STATUS=0
+LIBHOTBACKUP_STATUS=0
 
 # Check if we have a functional getopt(1)
 if ! getopt --test
   then
-  go_out="$(getopt --options=u:p::S:h:P:ed \
-  --longoptions=user:,password::,socket:,host:,port:,enable,disable,help \
+  go_out="$(getopt --options=u:p::S:h:P:edbr \
+  --longoptions=user:,password::,socket:,host:,port:,enable,disable,enable-backup,disable-backup,help \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -76,8 +81,17 @@ do
     shift
     DISABLE=1
     ;;
+    -b | --enable-backup )
+    shift
+    ENABLE_TOKUBACKUP=1
+    ;;
+    -r | --disable-backup )
+    shift
+    DISABLE_TOKUBACKUP=1
+    ;;
     --help )
     printf "This script is used for installing and uninstalling TokuDB plugin for Percona Server 5.6.\n"
+    printf "It can also be used to install or uninstall the Percona TokuBackup plugin (requires mysql server restart).\n"
     printf "If transparent huge pages are enabled on the system it adds thp-setting=never option to my.cnf\n"
     printf "to disable it on runtime.\n\n"
     printf "Valid options are:\n"
@@ -87,7 +101,9 @@ do
     printf "  --host=host_name, -h host_name\t connect to given host\n"
     printf "  --port=port_num, -P port_num\t\t port number to use for connection\n"
     printf "  --enable, -e\t\t\t\t enable TokuDB plugin and disable transparent huge pages in my.cnf\n"
+    printf "  --enable-backup, -b\t\t\t enable Percona TokuBackup and add preload-hotbackup option to my.cnf\n"
     printf "  --disable, d\t\t\t\t disable TokuDB plugin and remove thp-setting=never option in my.cnf\n"
+    printf "  --disable-backup, r\t\t\t disable Percona TokuBackup and remove preload-hotbackup option in my.cnf\n"
     printf "  --help\t\t\t\t show this help\n\n"
     printf "For TokuDB requirements and manual steps for installation please visit this webpage:\n"
     printf "http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_installation.html\n\n"
@@ -105,56 +121,104 @@ fi
 if [ $ENABLE = 1 -a $DISABLE = 1 ]; then
   printf "ERROR: Only --enable OR --disable can be specified - not both!\n"
   exit 1
-elif [ $ENABLE = 0 -a $DISABLE = 0 ]; then
-  printf "ERROR: You should specify --enable or --disable option. Use --help for printing options.\n"
+elif [ $ENABLE = 0 -a $DISABLE = 0 -a $ENABLE_TOKUBACKUP = 0 -a $DISABLE_TOKUBACKUP = 0 ]; then
+  printf "ERROR: You should specify --enable,--disable,--enable-backup or --disable-backup option. Use --help for printing options.\n"
   exit 1
+elif [ $ENABLE_TOKUBACKUP = 1 -a $DISABLE_TOKUBACKUP = 1 ]; then
+  printf "ERROR: Only --enable-backup OR --disable-backup can be specified - not both!\n\n"
+  exit 1
+fi
+
+# Check SELinux status - needs to be disabled/permissive for LD_PRELOAD
+if [ -n "$(which sestatus)" ]; then
+  printf "Checking SELinux status...\n"
+  STATUS_SELINUX=$(sestatus | grep "SELinux status:" | awk '{print $3}')
+  if [ $STATUS_SELINUX = "enabled" ]; then
+    MODE_SELINUX=$(sestatus | grep "Current mode:" | awk '{print $3}')
+    if [ $MODE_SELINUX = "enforcing"  ]; then
+      printf "ERROR: SELinux is in enforcing mode and needs to be disabled (or put into permissive mode) for TokuDB to work correctly.\n\n"
+      exit 1
+    else
+      printf "INFO: SELinux is in permissive mode.\n\n"
+    fi
+  else
+    printf "INFO: SELinux is disabled.\n\n"
+  fi
+fi
+
+# List plugins
+LIST_ENGINE=$(mysql -e "show plugins;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
+if [ $? -ne 0 ]; then
+  printf "ERROR: Failed to list mysql plugins! Please check username, password and other options...\n";
+  exit 1
+fi
+
+# Get PID number for checking preloads
+if [ $ENABLE = 1 -o $ENABLE_TOKUBACKUP = 1 ]; then
+  PID_LIST=$(mysql -e "show variables like 'pid_file';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/tmp/ps_tokudb_admin.err)
+  if [ $? -ne 0 ]; then
+    if [ -f /tmp/ps_tokudb_admin.err ]; then
+      cat /tmp/ps_tokudb_admin.err|grep -v "Warning:"
+      rm -f /tmp/ps_tokudb_admin.err
+    fi
+    printf "ERROR: Pid file location unknown!\n";
+    exit 1
+  fi
+  PID_LOCATION=$(echo "${PID_LIST}"|grep pid_file|awk '{print $2}')
+  if [ $? -ne 0 ] || [ "${PID_LOCATION}" == "" ]; then
+    printf "ERROR: Pid file location unknown!\n";
+    exit 1
+  fi
+  PID_NUM=$(cat ${PID_LOCATION})
 fi
 
 # Check if server is running with jemalloc - if not warn that restart is needed
-printf "Checking if Percona server is running with jemalloc enabled...\n"
-PID_LIST=$(mysql -e "show variables like 'pid_file';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/tmp/ps_tokudb_admin.err)
-if [ $? -ne 0 ]; then
-  if [ -f /tmp/ps_tokudb_admin.err ]; then
-    cat /tmp/ps_tokudb_admin.err|grep -v "Warning:"
-    rm -f /tmp/ps_tokudb_admin.err
+if [ $ENABLE = 1 ]; then
+  printf "Checking if Percona Server is running with jemalloc enabled...\n"
+  JEMALLOC_STATUS=$(grep -c jemalloc /proc/${PID_NUM}/environ)
+  if [ $JEMALLOC_STATUS = 0 ]; then
+    printf "ERROR: Percona Server is not running with jemalloc, please restart mysql service to enable it and then run this script...\n\n";
+    exit 1
+  else
+    printf "INFO: Percona Server is running with jemalloc enabled.\n\n";
   fi
-  printf "ERROR: Pid file location unknown!\n";
-  exit 1
-fi
-PID_LOCATION=$(echo "${PID_LIST}"|grep pid_file|awk '{print $2}')
-if [ $? -ne 0 ] || [ "${PID_LOCATION}" == "" ]; then
-  printf "ERROR: Pid file location unknown!\n";
-  exit 1
-fi
-PID_NUM=$(cat ${PID_LOCATION})
-JEMALLOC_STATUS=$(grep -c jemalloc /proc/${PID_NUM}/environ)
-if [ $JEMALLOC_STATUS = 0 ]; then
-  printf "ERROR: Percona server is not running with jemalloc, please restart server to enable it and then run this script...\n\n";
-  exit 1
-else
-  printf "INFO: Percona server is running with jemalloc enabled.\n\n";
 fi
 
 # Check transparent huge pages status on the system
-printf "Checking transparent huge pages status on the system...\n"
-if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
-  CONTENT_TRANSHP=$(</sys/kernel/mm/transparent_hugepage/enabled)
-  STATUS_THP_SYSTEM=$(echo $CONTENT_TRANSHP | grep -cv '\[never\]')
-fi
-if [ $STATUS_THP_SYSTEM = 0 ]; then
-  printf "INFO: Transparent huge pages are currently disabled on the system.\n\n"
-else
-  printf "INFO: Transparent huge pages are enabled (should be disabled).\n\n"
+if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
+  printf "Checking transparent huge pages status on the system...\n"
+  if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
+    CONTENT_TRANSHP=$(</sys/kernel/mm/transparent_hugepage/enabled)
+    STATUS_THP_SYSTEM=$(echo $CONTENT_TRANSHP | grep -cv '\[never\]')
+  fi
+  if [ $STATUS_THP_SYSTEM = 0 ]; then
+    printf "INFO: Transparent huge pages are currently disabled on the system.\n\n"
+  else
+    printf "INFO: Transparent huge pages are enabled (should be disabled).\n\n"
+  fi
 fi
 
 # Check thp-setting=never option in my.cnf
-printf "Checking if thp-setting=never option is already set in config file...\n"
-STATUS_THP_MYCNF=$(my_print_defaults server mysqld mysqld_safe|grep -c thp-setting=never)
-if [ $STATUS_THP_MYCNF = 0 ]; then
-  printf "INFO: Option thp-setting=never is not set in the config file.\n"
-  printf "      (needed only if THP is not disabled permanently on the system)\n\n"
-else
-  printf "INFO: Option thp-setting=never is set in the config file.\n\n"
+if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
+  printf "Checking if thp-setting=never option is already set in config file...\n"
+  STATUS_THP_MYCNF=$(my_print_defaults server mysqld mysqld_safe|grep -c thp-setting=never)
+  if [ $STATUS_THP_MYCNF = 0 ]; then
+    printf "INFO: Option thp-setting=never is not set in the config file.\n"
+    printf "      (needed only if THP is not disabled permanently on the system)\n\n"
+  else
+    printf "INFO: Option thp-setting=never is set in the config file.\n\n"
+  fi
+fi
+
+# Check preload-hotbackup option in my.cnf
+if [ $ENABLE_TOKUBACKUP = 1 -o $DISABLE_TOKUBACKUP = 1 ]; then
+  printf "Checking if preload-hotbackup option is already set in config file...\n"
+  STATUS_HOTBACKUP_MYCNF=$(my_print_defaults server mysqld mysqld_safe|grep -c preload-hotbackup)
+  if [ $STATUS_HOTBACKUP_MYCNF = 0 ]; then
+    printf "INFO: Option preload-hotbackup is not set in the config file.\n\n"
+  else
+    printf "INFO: Option preload-hotbackup is set in the config file.\n\n"
+  fi
 fi
 
 # Check location of my.cnf
@@ -173,21 +237,67 @@ else
   echo -n "" >> ${MYCNF_LOCATION}
 fi
 
-# Check TokuDB plugin status
-printf "Checking TokuDB plugin status...\n"
-LIST_ENGINE=$(mysql -e "show plugins;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
-if [ $? -ne 0 ]; then
-  printf "ERROR: Failed to check TokuDB plugin status! Please check username, password and other options...\n";
-  exit 1
+# Check TokuDB engine plugin status
+if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
+  printf "Checking TokuDB engine plugin status...\n"
+  STATUS_PLUGIN=$(echo "$LIST_ENGINE" | grep -c "TokuDB")
+  if [ $STATUS_PLUGIN = 0 ]; then
+    printf "INFO: TokuDB engine plugin is not installed.\n\n"
+  elif [ $STATUS_PLUGIN = 7 ]; then
+    printf "INFO: TokuDB engine plugin is installed.\n\n"
+  else
+    printf "ERROR: TokuDB engine plugin is partially installed. Please cleanup manually.\n\n"
+    exit 1
+  fi
 fi
-STATUS_PLUGIN=$(echo "$LIST_ENGINE" | grep -c "TokuDB")
-if [ $STATUS_PLUGIN = 0 ]; then
-  printf "INFO: TokuDB plugin is not installed.\n\n"
-elif [ $STATUS_PLUGIN = 7 ]; then
-  printf "INFO: TokuDB plugin is installed.\n\n"
-else
-  printf "ERROR: TokuDB plugin is partially installed. Please cleanup manually.\n\n"
-  exit 1
+
+# Check TokuDB backup plugin status
+if [ $ENABLE_TOKUBACKUP = 1 -o $DISABLE_TOKUBACKUP = 1 ]; then
+  printf "Checking TokuBackup plugin status...\n"
+  STATUS_HOTBACKUP_PLUGIN=$(echo "$LIST_ENGINE" | grep -c "tokudb_backup")
+  if [ $STATUS_HOTBACKUP_PLUGIN = 0 ]; then
+    printf "INFO: TokuBackup plugin is not installed.\n\n"
+  else
+    printf "INFO: TokuBackup plugin is installed.\n\n"
+  fi
+fi
+
+# Add option to preload libHotBackup.so into my.cnf
+if [ $ENABLE_TOKUBACKUP = 1 -a $STATUS_HOTBACKUP_MYCNF = 0 ]; then
+  printf "Adding preload-hotbackup option into $MYCNF_LOCATION\n"
+  for MYCNF_SECTION in mysqld_safe MYSQLD_SAFE
+  do
+    MYSQLD_SAFE_STATUS=$(grep -c "^\[${MYCNF_SECTION}\]$" $MYCNF_LOCATION)
+    if [ $MYSQLD_SAFE_STATUS != 0 ]; then
+      MYSQLD_SAFE_SECTION=${MYCNF_SECTION}
+      break
+    fi
+  done
+  if [ $MYSQLD_SAFE_STATUS = 0 ]; then
+    echo -e "\n[mysqld_safe]\npreload-hotbackup" >> $MYCNF_LOCATION
+  else
+    sed -i "/^\[${MYSQLD_SAFE_SECTION}\]$/a preload-hotbackup" $MYCNF_LOCATION
+  fi
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully added preload-hotbackup option into $MYCNF_LOCATION\n";
+    printf "PLEASE RESTART MYSQL SERVICE AND RUN THIS SCRIPT AGAIN TO FINISH INSTALLATION!\n\n";
+    exit 0
+  else
+    printf "ERROR: Failed to add preload-hotbackup option into $MYCNF_LOCATION\n\n";
+    exit 1
+  fi
+fi
+
+# Check if server is running with libHotBackup.so preloaded - if not warn that restart is needed
+if [ $ENABLE_TOKUBACKUP = 1 ]; then
+  printf "Checking if Percona Server is running with libHotBackup.so preloaded...\n"
+  LIBHOTBACKUP_STATUS=$(grep -c libHotBackup.so /proc/${PID_NUM}/environ)
+  if [ $LIBHOTBACKUP_STATUS = 0 ]; then
+    printf "ERROR: Percona Server is not running with libHotBackup.so preloaded, please restart mysql service to enable it and then run this script again...\n\n";
+    exit 1
+  else
+    printf "INFO: Percona Server is running with libHotBackup.so preloaded.\n\n";
+  fi
 fi
 
 # Disable transparent huge pages in the current session so
@@ -244,7 +354,19 @@ if [ $DISABLE = 1 -a $STATUS_THP_MYCNF = 1 ]; then
   fi
 fi
 
-# Installing TokuDB plugin
+# Remove option for preloading libHotBackup.so from my.cnf
+if [ $DISABLE_TOKUBACKUP = 1 -a $STATUS_HOTBACKUP_MYCNF = 1 ]; then
+  printf "Removing preload-hotbackup option from $MYCNF_LOCATION\n"
+  sed -i '/^preload-hotbackup$/d' $MYCNF_LOCATION
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully removed preload-hotbackup option from $MYCNF_LOCATION\n\n";
+  else
+    printf "ERROR: Failed to remove preload-hotbackup option from $MYCNF_LOCATION\n\n";
+    exit 1
+  fi
+fi
+
+# Installing TokuDB engine plugin
 if [ $ENABLE = 1 -a $STATUS_PLUGIN = 0 ]; then
   printf "Installing TokuDB engine...\n"
 mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBENABLE
@@ -257,16 +379,44 @@ INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
 INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
 EOFTOKUDBENABLE
   if [ $? -eq 0 ]; then
-    printf "INFO: Successfully installed TokuDB plugin.\n\n"
+    printf "INFO: Successfully installed TokuDB engine plugin.\n\n"
   else
-    printf "ERROR: Failed to install TokuDB plugin. Please check error log.\n\n"
+    printf "ERROR: Failed to install TokuDB engine plugin. Please check error log.\n\n"
     exit 1
   fi
 fi
 
-# Uninstalling TokuDB plugin
+# Installing TokuDB backup plugin
+if [ $ENABLE_TOKUBACKUP = 1 -a $STATUS_HOTBACKUP_PLUGIN = 0 ]; then
+  printf "Installing TokuBackup plugin...\n"
+mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUBACKUPENABLE
+INSTALL PLUGIN tokudb_backup SONAME 'tokudb_backup.so';
+EOFTOKUBACKUPENABLE
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully installed TokuBackup plugin.\n\n"
+  else
+    printf "ERROR: Failed to install TokuBackup plugin. Please check error log.\n\n"
+    exit 1
+  fi
+fi
+
+# Uninstalling TokuDB backup plugin
+if [ $DISABLE_TOKUBACKUP = 1 -a $STATUS_HOTBACKUP_PLUGIN = 1 ]; then
+  printf "Uninstalling TokuBackup plugin...\n"
+mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUBACKUPDISABLE
+UNINSTALL PLUGIN tokudb_backup;
+EOFTOKUBACKUPDISABLE
+  if [ $? -eq 0 ]; then
+    printf "INFO: Successfully uninstalled TokuBackup plugin.\n\n"
+  else
+    printf "ERROR: Failed to uninstall TokuBackup plugin. Please check error log.\n\n"
+    exit 1
+  fi
+fi
+
+# Uninstalling TokuDB engine plugin
 if [ $DISABLE = 1 -a $STATUS_PLUGIN = 7 ]; then
-  printf "Uninstalling TokuDB plugin...\n"
+  printf "Uninstalling TokuDB engine plugin...\n"
 mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBDISABLE
 UNINSTALL PLUGIN tokudb;
 UNINSTALL PLUGIN tokudb_file_map;
@@ -277,9 +427,9 @@ UNINSTALL PLUGIN tokudb_locks;
 UNINSTALL PLUGIN tokudb_lock_waits;
 EOFTOKUDBDISABLE
   if [ $? -eq 0 ]; then
-    printf "INFO: Successfully uninstalled TokuDB plugin.\n\n"
+    printf "INFO: Successfully uninstalled TokuDB engine plugin.\n\n"
   else
-    printf "ERROR: Failed to uninstall TokuDB plugin. Please check error log.\n\n"
+    printf "ERROR: Failed to uninstall TokuDB engine plugin. Please check error log.\n\n"
     exit 1
   fi
 fi

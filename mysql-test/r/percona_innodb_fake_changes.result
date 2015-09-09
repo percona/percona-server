@@ -678,5 +678,35 @@ SHOW INDEXES IN t3;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t3	0	PRIMARY	1	a	A	1	NULL	NULL		BTREE		
 DROP TABLE t1, t3;
+use test;
+create table t1 (i int, j blob, primary key pk(i)) engine=innodb;
+insert into t1 values (1, repeat('a', 8000));
+insert into t1 values (2, repeat('b', 8000));
+set session innodb_fake_changes = 1;
+insert into t1 values (3, repeat('c', 8000));
+ERROR HY000: Got error 131 during COMMIT
+set session innodb_fake_changes = 0;
+drop table t1;
+use test;
+create table t1 (
+i int, j varchar(500), primary key pk(i), unique index sk(j)
+) engine=innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 36) DO
+insert into t1 values (i, repeat(i, 250));
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+commit;
+set session innodb_fake_changes = 1;
+insert into t1 values (37, repeat(37, 250));
+ERROR HY000: Got error 131 during COMMIT
+set session innodb_fake_changes = 0;
+drop procedure populate_t1;
+drop table t1;
 SET @@GLOBAL.userstat= default;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=default;

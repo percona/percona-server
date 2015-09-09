@@ -14,6 +14,10 @@ SET innodb_fake_changes=default;
 SHOW VARIABLES LIKE 'innodb_fake_changes';
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
 
+#-------------------------------------------------------------------------------
+#
+# create test bed
+#
 --echo # Explicit COMMIT should fail when innodb_fake_changes is enabled
 --echo # DML should be fine
 SET @@GLOBAL.userstat=TRUE;
@@ -368,5 +372,56 @@ COMMIT;
 
 DROP TABLE t1, t3;
 
+#-------------------------------------------------------------------------------
+#
+# Scenario will try to insert data that will cause split of a node something
+# which will not happen in real if fake_changes = 1.
+# Note: test-case below will exercise pessmisitic insert case for 16K page
+# size but for 4K and 8K will not exercise pessmisitic insert with fake change
+# enabled but even the normal insert fail for fake_change mode.
+#
+
+# clustered index split
+use test;
+create table t1 (i int, j blob, primary key pk(i)) engine=innodb;
+insert into t1 values (1, repeat('a', 8000));
+insert into t1 values (2, repeat('b', 8000));
+set session innodb_fake_changes = 1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (3, repeat('c', 8000));
+set session innodb_fake_changes = 0;
+drop table t1;
+#
+#
+
+# secondary index split
+use test;
+create table t1 (
+	i int, j varchar(500), primary key pk(i), unique index sk(j)
+	) engine=innodb;
+#
+delimiter |;
+create procedure populate_t1()
+begin
+	declare i int default 1;
+	while (i <= 36) DO
+	insert into t1 values (i, repeat(i, 250));
+	set i = i + 1;
+end while;
+end|
+delimiter ;|
+#
+begin; call populate_t1(); commit;
+set session innodb_fake_changes = 1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (37, repeat(37, 250));
+set session innodb_fake_changes = 0;
+drop procedure populate_t1;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# cleanup test bed
+#
 SET @@GLOBAL.userstat= default;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=default;

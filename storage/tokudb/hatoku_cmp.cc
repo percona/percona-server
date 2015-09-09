@@ -1026,7 +1026,7 @@ static int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
         // The second byte for each field is the type
         //
         TOKU_TYPE type = mysql_to_toku_type(field);
-        assert (type < 256);
+        assert ((int)type < 256);
         *pos = (uchar)(type & 255);
         pos++;
 

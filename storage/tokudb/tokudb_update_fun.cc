@@ -424,7 +424,10 @@ static int tokudb_hcad_update_fun(
         max_num_bytes, 
         MYF(MY_FAE)
         );
-    if (new_val_data == NULL) { goto cleanup; }
+    if (new_val_data == NULL) {
+        error = ENOMEM;
+        goto cleanup;
+    }
 
     old_fixed_field_ptr = (uchar *) old_val->data;
     old_fixed_field_ptr += old_num_null_bytes;

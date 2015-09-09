@@ -131,7 +131,7 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
                 TOKUDB_HANDLER_TRACE("%.*s rows %" PRIu64 " deleted %" PRIu64,
                                      namelen, name, rows, deleted_rows);
                 for (uint j = 0; j < num_key_parts; j++)
-                    TOKUDB_HANDLER_TRACE("%lu", rec_per_key[total_key_parts+j]);
+                    TOKUDB_HANDLER_TRACE("%" PRIu64, rec_per_key[total_key_parts+j]);
             }
             total_key_parts += num_key_parts;
         } 

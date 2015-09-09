@@ -421,6 +421,24 @@ drop table t1;
 
 #-------------------------------------------------------------------------------
 #
+# Scenario that try to discard tablespace with fake_change one.
+# Discard tablespace is DDL operation which is blocked in fake_change mode.
+#
+let save_file_per_table = `select @@innodb_file_per_table`;
+set global innodb_file_per_table = 1;
+#
+use test;
+create table t1 (i int, key(i)) engine=innodb;
+set innodb_fake_changes = 1;
+--error ER_ILLEGAL_HA
+alter table t1 discard tablespace;
+set innodb_fake_changes = 0;
+drop table t1;
+#
+eval set global innodb_file_per_table = $save_file_per_table;
+
+#-------------------------------------------------------------------------------
+#
 # cleanup test bed
 #
 SET @@GLOBAL.userstat= default;

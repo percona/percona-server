@@ -10617,6 +10617,10 @@ ha_innobase::discard_or_import_tablespace(
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
+	if (UNIV_UNLIKELY(prebuilt->trx->fake_changes)) {
+		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+	}
+
 	dict_table = prebuilt->table;
 
 	if (dict_table->space == TRX_SYS_SPACE) {

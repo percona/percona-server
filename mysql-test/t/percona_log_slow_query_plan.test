@@ -3,6 +3,11 @@
 #
 --source include/have_innodb.inc
 
+# turning off background stats recalculation in order to make "Merge_passes: xxx"
+# output in the slow query log more deterministic
+SET @innodb_stats_auto_recalc_save = @@innodb_stats_auto_recalc;
+SET GLOBAL innodb_stats_auto_recalc = OFF;
+
 FLUSH STATUS;
 
 --disable_warnings
@@ -14,6 +19,7 @@ CREATE TABLE t1(
        b INT) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES(NULL, 10), (NULL, 5);
+ANALYZE TABLE t1;
 
 SET SESSION long_query_time=0;
 SET SESSION min_examined_row_limit=0;
@@ -69,6 +75,8 @@ INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 
+ANALYZE TABLE t2;
+
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
 --replace_column 9 ROWS
 EXPLAIN SELECT * FROM t2 ORDER BY a;
@@ -108,13 +116,16 @@ INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
+
+ANALYZE TABLE t2;
+
 --let log_file=percona_slow_query_log.query_plan_3
 --source include/log_start.inc
 --disable_result_log
 SELECT * FROM t2 ORDER BY a;
 --enable_result_log
 --source include/log_stop.inc
---let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 6\$
+--let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4\$
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
@@ -166,6 +177,8 @@ SET SESSION log_slow_filter=default;
 #
 CREATE TABLE t3(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t3 VALUES (1), (2), (3);
+
+ANALYZE TABLE t3;
 
 SHOW SESSION STATUS LIKE 'Select_full_join';
 --let log_file=percona_slow_query_log.query_plan_6
@@ -262,6 +275,8 @@ SET SESSION log_slow_filter=default;
 CREATE TABLE t4(a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 INSERT INTO t4 VALUES (1, "aaa"), (2, "bbb"), (3, "ccc");
 
+ANALYZE TABLE t4;
+
 EXPLAIN SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
 --let log_file=percona_slow_query_log.query_plan_10
 --source include/log_start.inc
@@ -299,4 +314,7 @@ SET SESSION min_examined_row_limit=default;
 SET SESSION log_slow_verbosity=default;
 
 DROP TABLE t1, t2, t3, t4;
+
+SET GLOBAL innodb_stats_auto_recalc = @innodb_stats_auto_recalc_save;
+
 --source include/log_cleanup.inc

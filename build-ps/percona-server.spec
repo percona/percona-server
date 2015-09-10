@@ -1505,6 +1505,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Thu Sep 10 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Included Percona-TokuBackup into TokuDB package
+
 * Wed Jul 15 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Fixed symbol versioning for rhel7 in 5.6 rpm (bug1420691)

@@ -615,6 +615,12 @@ install -D -m 0644 $MBD/build-ps/rpm/my.cnf $RBR%{_sysconfdir}/my.cnf
 
 #
 %{__rm} -f $RBR/%{_prefix}/README
+%if %{with tokudb}
+%{__rm} -f $RBR/%{_prefix}/README.md
+%{__rm} -f $RBR/%{_prefix}/COPYING.AGPLv3
+%{__rm} -f $RBR/%{_prefix}/COPYING.GPLv2
+%{__rm} -f $RBR/%{_prefix}/PATENTS
+%endif
 #
 # Delete the symlinks to the libraries from the libdir. These are created by
 # ldconfig(8) afterwards.
@@ -1436,10 +1442,10 @@ done
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
 %attr(755, root, root) %{_libdir}/libHotBackup.so
 %{_includedir}/backup.h
-%doc %{_prefix}/README.md
-%doc %{_prefix}/COPYING.AGPLv3
-%doc %{_prefix}/COPYING.GPLv2
-%doc %{_prefix}/PATENTS
+%doc storage/tokudb/PerconaFT/README.md
+%doc storage/tokudb/PerconaFT/COPYING.AGPLv3
+%doc storage/tokudb/PerconaFT/COPYING.GPLv2
+%doc storage/tokudb/PerconaFT/PATENTS
 %endif
 
 # ----------------------------------------------------------------------------

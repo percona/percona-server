@@ -942,8 +942,6 @@ buf_flush_write_block_low(
 		ut_a(page_zip_verify_checksum(frame, zip_size));
 
 		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
-
-		ut_a(page_zip_verify_checksum(frame, zip_size));
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;

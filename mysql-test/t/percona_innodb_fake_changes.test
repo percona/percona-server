@@ -14,9 +14,14 @@ SET innodb_fake_changes=default;
 SHOW VARIABLES LIKE 'innodb_fake_changes';
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
 
+#-------------------------------------------------------------------------------
+#
+# create test bed
+#
 --echo # Explicit COMMIT should fail when innodb_fake_changes is enabled
 --echo # DML should be fine
 SET @@GLOBAL.userstat=TRUE;
+
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 
@@ -365,4 +370,26 @@ COMMIT;
 
 DROP TABLE t1, t3;
 
+#-------------------------------------------------------------------------------
+#
+# Scenario to exercise update such that it causes ordering change in clustered
+# index key initiating delete + insertion action to complete update.
+# For fake-change record is not actually delete marked but assumed to be
+# delete marked and path is choosen accordingly.
+#
+use test;
+create table t1 (a int, primary key pk(a));
+alter table t1 add column b char;
+create index bx on t1(b);
+insert into t1 values (1, 0x41), (2, 0x41);
+set innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+update t1 set a = upper(a), b = lower(b);
+set innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# cleanup test bed
+#
 SET @@GLOBAL.userstat= default;

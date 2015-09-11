@@ -261,7 +261,13 @@ row_ins_sec_index_entry_by_modify(
 	update = row_upd_build_sec_rec_difference_binary(
 		rec, cursor->index, *offsets, entry, heap);
 
-	if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
+	/* If operating in fake_change mode then flow will not mark the record
+	deleted but will still assume it and take delete-mark path. Condition
+	below has a different path if record is not marked deleted but we need
+	to still by-pass it given that original flow has taken this path for
+	fake_change mode execution assuming record is delete-marked. */
+	if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))
+	    && UNIV_UNLIKELY(!thr_get_trx(thr)->fake_changes)) {
 		/* We should never insert in place of a record that
 		has not been delete-marked. The only exception is when
 		online CREATE INDEX copied the changes that we already

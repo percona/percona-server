@@ -521,7 +521,7 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
     }
     free(dest_dir_path);
 
-    struct source_dirs sources;
+    source_dirs sources;
     sources.find_and_allocate_dirs(thd);
 
     if (sources.check_dirs_layout(thd) == false) {

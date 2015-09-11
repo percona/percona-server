@@ -10,7 +10,12 @@ int main() { return 0; }
 " TOKUDB_OK)
 ENDIF()
 
-IF(NOT TOKUDB_OK)
+include(CheckSymbolExists)
+check_symbol_exists(O_DIRECT "fcntl.h" HAVE_O_DIRECT)
+check_symbol_exists(CLOCK_REALTIME "time.h" HAVE_CLOCK_MONOTONIC)
+
+IF(NOT TOKUDB_OK OR NOT HAVE_O_DIRECT OR NOT HAVE_CLOCK_MONOTONIC OR APPLE)
+  MESSAGE(STATUS "Not building tokudb-backup-plugin")
   RETURN()
 ENDIF()
 

@@ -288,7 +288,7 @@ static int free_share(TOKUDB_SHARE * share) {
     }
 
 const char *ha_tokudb::table_type() const {
-    extern const char * const tokudb_hton_name;
+    extern const char *tokudb_hton_name;
     return tokudb_hton_name;
 } 
 
@@ -630,21 +630,6 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar 
 
     return autoinc_type == unsigned_type ?  
            unsigned_autoinc : (ulonglong) signed_autoinc;
-}
-
-static inline bool
-is_null_field( TABLE* table, Field* field, const uchar* record) {
-    uint null_offset;
-    bool ret_val;
-    if (!field->real_maybe_null()) {
-        ret_val = false;
-        goto exitpt;
-    }
-    null_offset = get_null_offset(table,field);
-    ret_val = (record[null_offset] & field->null_bit) ? true: false;
-
-exitpt:
-    return ret_val;
 }
 
 static inline ulong field_offset(Field* field, TABLE* table) {

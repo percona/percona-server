@@ -199,7 +199,7 @@ static char *tokudb_log_dir;
 // static long tokudb_lock_scan_time = 0;
 // static ulong tokudb_region_size = 0;
 // static ulong tokudb_cache_parts = 1;
-const char *tokudb_hton_name = "TokuDB";
+const char * tokudb_hton_name = "TokuDB";
 static uint32_t tokudb_checkpointing_period;
 static uint32_t tokudb_fsync_log_period;
 uint32_t tokudb_write_status_frequency;

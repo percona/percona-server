@@ -2484,7 +2484,9 @@ err_exit:
 			dtuple_big_rec_free(big_rec);
 		}
 
-		if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
+		if (err == DB_SUCCESS
+		    && dict_index_is_online_ddl(index)
+		    && !UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 			row_log_table_insert(rec, index, offsets);
 		}
 
@@ -2549,7 +2551,8 @@ err_exit:
 			dtuple_convert_back_big_rec(index, entry, big_rec);
 		} else {
 			if (err == DB_SUCCESS
-			    && dict_index_is_online_ddl(index)) {
+			    && dict_index_is_online_ddl(index)
+			    && !UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 				row_log_table_insert(
 					insert_rec, index, offsets);
 			}

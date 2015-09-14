@@ -1,0 +1,10 @@
+set global innodb_limit_optimistic_insert_debug=2;
+use test;
+create table t1 (c1 int, c2 char(5)) engine=innodb;
+insert into t1 values (), (), (), (), (), (), (), (), (), (), (), (), (), (), ();
+set innodb_fake_changes = 1;
+insert into t1(c1) values (2);
+ERROR HY000: Got error 131 during COMMIT
+set innodb_fake_changes = 0;
+drop table t1;
+set global innodb_limit_optimistic_insert_debug = 0;

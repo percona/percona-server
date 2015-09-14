@@ -284,8 +284,13 @@ btr_cur_latch_leaves(
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
-			ut_a(btr_page_get_next(get_block->frame, mtr)
-			     == page_get_page_no(page));
+
+			/* For fake_change mode we avoid a detailed validation
+			as it operate in tweaked format where-in validation
+			may fail. */
+			ut_a(sibling_mode == RW_NO_LATCH
+			     || btr_page_get_next(get_block->frame, mtr)
+				== page_get_page_no(page));
 #endif /* UNIV_BTR_DEBUG */
 			if (sibling_mode == RW_NO_LATCH) {
 				/* btr_block_get() called with RW_NO_LATCH will

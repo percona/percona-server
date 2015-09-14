@@ -439,6 +439,24 @@ eval set global innodb_file_per_table = $save_file_per_table;
 
 #-------------------------------------------------------------------------------
 #
+# Scenario to exercise update such that it causes ordering change in clustered
+# index key initiating delete + insertion action to complete update.
+# For fake-change record is not actually delete marked but assumed to be
+# delete marked and path is choosen accordingly.
+#
+use test;
+create table t1 (a int, primary key pk(a));
+alter table t1 add column b char;
+create index bx on t1(b);
+insert into t1 values (1, 0x41), (2, 0x41);
+set innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+update t1 set a = upper(a), b = lower(b);
+set innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
 # cleanup test bed
 #
 SET @@GLOBAL.userstat= default;

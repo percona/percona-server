@@ -122,6 +122,10 @@ case "${1:-''}" in
 	        # Now start mysqlcheck or whatever the admin wants.
 	        output=$(/etc/mysql/debian-start)
 		[ -n "$output" ] && log_action_msg "$output"
+		# Set mysql as owner of mysql_upgrade_info file - TokuBackup needs this to work (BLD-297)
+		# Needed here because debian-start runs mysql_upgrade
+		datadir=`mysqld_get_param datadir`
+		if [ -f "$datadir/mysql_upgrade_info" ]; then chown mysql:mysql "$datadir/mysql_upgrade_info"; fi
 	    else
 	        log_end_msg 1
 		log_failure_msg "Please take a look at the syslog"

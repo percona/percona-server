@@ -557,4 +557,14 @@ SELECT @table_rows_changed_x_indexes_2 - @table_rows_changed_x_indexes_1 AS shou
 should_be_0
 0
 DROP TABLE t1, t3;
+use test;
+create table t1 (a int, primary key pk(a));
+alter table t1 add column b char;
+create index bx on t1(b);
+insert into t1 values (1, 0x41), (2, 0x41);
+set innodb_fake_changes=1;
+update t1 set a = upper(a), b = lower(b);
+ERROR HY000: Got error 131 during COMMIT
+set innodb_fake_changes=0;
+drop table t1;
 SET @@GLOBAL.userstat= default;

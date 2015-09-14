@@ -1,0 +1,31 @@
+
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+# Test-Case aims at testing sibilings prefetch as part of pessmisitic insert
+# with fake-change mode = ON.
+
+
+
+#-------------------------------------------------------------------------------
+#
+# Create test-bed
+#
+let opt_insert_debug = `select @@innodb_limit_optimistic_insert_debug`;
+set global innodb_limit_optimistic_insert_debug=2;
+
+use test;
+create table t1 (c1 int, c2 char(5)) engine=innodb;
+insert into t1 values (), (), (), (), (), (), (), (), (), (), (), (), (), (), ();
+set innodb_fake_changes = 1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1(c1) values (2);
+set innodb_fake_changes = 0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Remove test-bed
+#
+eval set global innodb_limit_optimistic_insert_debug = $opt_insert_debug;

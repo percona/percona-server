@@ -567,4 +567,52 @@ update t1 set a = upper(a), b = lower(b);
 ERROR HY000: Got error 131 during COMMIT
 set innodb_fake_changes=0;
 drop table t1;
+use test;
+create table t1 (c1 int);
+insert into t1 values (10);
+select * from t1;
+c1
+10
+set innodb_fake_changes = 1;
+begin;
+insert into t1 values (10);
+select * from t1;
+c1
+10
+set innodb_fake_changes = 0;
+replace into t1(c1) values (10);
+commit;
+ERROR HY000: Got error 131 during COMMIT
+select * from t1;
+c1
+10
+begin;
+insert into t1 values (11);
+insert into t1 values (12);
+set innodb_fake_changes = 1;
+commit;
+set innodb_fake_changes = 0;
+select * from t1;
+c1
+10
+11
+12
+begin;
+set innodb_fake_changes = 1;
+insert into t1 values (11);
+insert into t1 values (12);
+commit;
+ERROR HY000: Got error 131 during COMMIT
+set innodb_fake_changes = 0;
+drop table t1;
+use test;
+create table t1 (i int) engine=innodb;
+rename table t1 to t2;
+select * from t2;
+i
+set innodb_fake_changes = 1;
+rename table t2 to t1;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE'
+set innodb_fake_changes = 0;
+drop table t2;
 SET @@GLOBAL.userstat= default;

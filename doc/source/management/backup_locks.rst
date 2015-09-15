@@ -24,6 +24,10 @@ If an "unsafe" statement is executed in the same connection that is holding a ``
 
 ``LOCK BINLOG FOR BACKUP`` uses another new MDL lock type to block all operations that might change either binary log position or ``Exec_Master_Log_Pos`` or ``Exec_Gtid_Set`` (i.e. master binary log coordinates corresponding to the current SQL thread state on a replication slave) as reported by ``SHOW MASTER``/``SLAVE STATUS``. More specifically, a commit will only be blocked if the binary log is enabled (both globally, and for connection with sql_log_bin), or if commit is performed by a slave thread and would advance ``Exec_Master_Log_Pos`` or ``Executed_Gtid_Set``. Connections that are currently blocked on the global binlog lock can be identified by the ``Waiting for binlog lock`` status in ``PROCESSLIST``.
 
+.. _backup-safe_binlog_information:
+
+Starting with |Percona Server| :rn:`5.6.26-74.0` ``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to |InnoDB|. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in |InnoDB| are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
+
 ``UNLOCK BINLOG``
 ------------------
 
@@ -87,6 +91,18 @@ System Variables
      :default: YES
 
 This is a server variable implemented to help other utilities decide what locking strategy can be implemented for a server. When available, the backup locks feature is supported by the server and the variable value is always ``YES``.
+
+.. variable:: have_backup_safe_binlog_info
+
+     :version 5.6.26-74.0: Implemented
+     :cli: Yes
+     :conf: No
+     :scope: Global
+     :dyn: No
+     :vartype: Boolean
+     :default: YES
+
+This is a server variable implemented to help other utilities decide if ``LOCK BINLOG FOR BACKUP`` can be avoided in some cases. When the necessary server-side functionality is available, this server system variable exists and its value is always ``YES``.
 
 Status Variables
 ================

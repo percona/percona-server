@@ -7,7 +7,7 @@ Installing |Percona Server| 5.6
 This page provides the information on how to you can install |Percona Server|. Following options are available: 
 
 * :ref:`installing_from_binaries` (recommended)
-* Installing |Percona Server| from Downloaded `:ref:`rpm <standalone_rpm>` or :ref:`apt <standalone_deb>` Packages
+* Installing |Percona Server| from Downloaded :ref:`rpm <standalone_rpm>` or :ref:`apt <standalone_deb>` Packages
 * :ref:`installing_from_binary_tarball`
 * :ref:`installing_from_source_tarball`
 * :ref:`source_from_git`
@@ -80,6 +80,8 @@ You can now fetch the latest |Percona Server| 5.6 sources.
   $ git clone https://github.com/percona/percona-server.git
   $ cd percona-server
   $ git checkout 5.6
+  $ git submodule init
+  $ git submodule update
 
 If you are going to be making changes to |Percona Server| 5.6 and wanting
 to distribute the resulting work, you can generate a new source tarball

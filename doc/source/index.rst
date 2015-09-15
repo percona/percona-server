@@ -96,6 +96,7 @@ Flexibility Improvements
    flexibility/csv_engine_mode
    flexibility/online_gtid_deployment
    flexibility/proxy_protocol_support
+   flexibility/per_session_server-id
 
 Reliability Improvements
 ========================
@@ -164,8 +165,10 @@ TokuDB
    tokudb/tokudb_intro
    tokudb/tokudb_installation
    tokudb/using_tokudb
-   tokudb/tokudb_compression
-   tokudb/tokudb_multiple_clustering_keys
+   tokudb/tokudb_variables
+   tokudb/tokudb_troubleshooting
+   tokudb/toku_backup
+   tokudb/tokudb_faq
    tokudb/removing_tokudb
 
 Reference

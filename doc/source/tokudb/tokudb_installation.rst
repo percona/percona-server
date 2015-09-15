@@ -4,17 +4,13 @@
  TokuDB Installation
 =====================
 
-|Percona Server| is technically compatible with the separately available TokuDB storage engine package. TokuDB engine is not packaged with any |Percona Server| 5.6 download. The TokuDB engine must be separately downloaded and then enabled as a plug-in component.  This package can be installed alongside with standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
+|Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
 
-The `TokuDB <http://www.tokutek.com/products/tokudb-for-mysql/>`_ storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
+The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
-Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.6/LATEST/>`_ TokuDB engine should be used with |Percona Server| 5.6. A TokuDB engine downloaded from other sources may not be compatible.
+Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.6/LATEST/>`_ |TokuDB| engine should be used with |Percona Server| 5.6. A |TokuDB| engine downloaded from other sources may not be compatible.
 
-The TokuDB engine is released by Tokutek Inc. under a modified form of the GNU GPL v2 license. You can view a copy of the modified license `here <https://github.com/Tokutek/ft-index/blob/master/README-TOKUDB>`_.
-
-TokuDB Hot Backup is a proprietary, commercial product available for download only from `Tokutek.com <http://www.tokutek.com/products/mysql-download-for-mysql-mariadb/>`_. It is not available for download from Percona.
-
-TokuDB is currently supported only for 64-bit Linux distributions. It is not available for Debian 6.0 (squeeze) and Ubuntu 10.04 (lucid) due to conflicts with the gcc version required by TokuDB.
+|TokuDB| is currently supported only for 64-bit Linux distributions. It is not available for Debian 6.0 (squeeze) due to conflicts with the :program:`gcc` version required by |TokuDB|.
 
 
 Prerequisites 
@@ -23,9 +19,9 @@ Prerequisites
 ``libjemalloc`` library
 -----------------------
 
-TokuDB storage engine requires ``libjemalloc`` library 3.3.0 or greater. If the version in the distribution repository is lower than that you can use one from :ref:`Percona Software Repositories <installation>` or download it from somewhere else.
+|TokuDB| storage engine requires ``libjemalloc`` library 3.3.0 or greater. If the version in the distribution repository is lower than that you can use one from :ref:`Percona Software Repositories <installation>` or download it from somewhere else.
 
-If the ``libjemalloc`` wasn't installed and enabled before it will be automatically installed when installing the TokuDB storage engine package by using the ``apt`` or ``yum`` package manager, but |Percona Server| instance should be restarted for ``libjemalloc`` to be loaded. This way ``libjemalloc`` will be loaded with ``LD_PRELOAD``. You can also enable ``libjemalloc`` by specifying :variable:`malloc-lib` variable in the ``[mysqld_safe]`` section of the :file:`my.cnf` file: :: 
+If the ``libjemalloc`` wasn't installed and enabled before it will be automatically installed when installing the |TokuDB| storage engine package by using the :program:`apt`` or :program:`yum` package manager, but |Percona Server| instance should be restarted for ``libjemalloc`` to be loaded. This way ``libjemalloc`` will be loaded with ``LD_PRELOAD``. You can also enable ``libjemalloc`` by specifying :variable:`malloc-lib` variable in the ``[mysqld_safe]`` section of the :file:`my.cnf` file: :: 
 
   [mysqld_safe]
   malloc-lib= /path/to/jemalloc
@@ -34,7 +30,7 @@ If the ``libjemalloc`` wasn't installed and enabled before it will be automatica
 Transparent huge pages
 ----------------------
 
-TokuDB won't be able to start if the transparent huge pages are enabled. `Transparent huge pages <https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-memory-transhuge.html>`_ is feature available in the newer kernel versions. You can check if the Transparent huge pages are enabled with: ::
+|TokuDB| won't be able to start if the transparent huge pages are enabled. `Transparent huge pages <https://access.redhat.com/site/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Performance_Tuning_Guide/s-memory-transhuge.html>`_ is feature available in the newer kernel versions. You can check if the Transparent huge pages are enabled with: ::
   
   $ cat /sys/kernel/mm/transparent_hugepage/enabled
 
@@ -57,9 +53,9 @@ You can disable the transparent huge pages by running the following command as r
 Installation
 ============
 
-TokuDB storage engine for |Percona Server| is currently available in our :ref:`apt <apt_repo>` and :ref:`yum <yum_repo>` repositories.
+|TokuDB| storage engine for |Percona Server| is currently available in our :ref:`apt <apt_repo>` and :ref:`yum <yum_repo>` repositories.
 
-You can install the |Percona Server| with TokuDB engine by using the apt/yum commands:
+You can install the |Percona Server| with |TokuDB| engine by using the apt/yum commands:
 
 .. code-block:: bash
 
@@ -76,7 +72,7 @@ or
 Enabling the TokuDB Storage Engine
 ==================================
 
-Once the TokuDB server package has been installed following output will be shown:
+Once the |TokuDB| server package has been installed following output will be shown:
 
 .. code-block:: bash
 
@@ -89,7 +85,7 @@ Once the TokuDB server package has been installed following output will be shown
 
      * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for an introduction to TokuDB
 
-|Percona Server| :rn:`5.6.22-72.0` has implemented ``ps_tokudb_admin`` script to make the enabling the TokuDB storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install the TokuDB storage engine with all the required plugins. After you run the script with required parameters:
+|Percona Server| :rn:`5.6.22-72.0` has implemented ``ps_tokudb_admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. After you run the script with required parameters:
 
 .. code-block:: bash
 
@@ -118,7 +114,7 @@ Following output will be displayed:
    Installing TokuDB engine...
    >> Successfuly installed TokuDB plugin.
 
-If the script returns no errors, TokuDB storage engine should be successfully enabled on your server. You can check it out by running:
+If the script returns no errors, |TokuDB| storage engine should be successfully enabled on your server. You can check it out by running:
 
 .. code-block:: mysql
 
@@ -151,7 +147,7 @@ After the engine has been installed it should be present in the engines list. To
  | TokuDB | YES | Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology | YES | YES | YES |
  ...
 
-To check if all the TokuDB plugins have been installed correctly you should run:
+To check if all the |TokuDB| plugins have been installed correctly you should run:
 
 .. code-block:: mysql
 
@@ -169,7 +165,7 @@ To check if all the TokuDB plugins have been installed correctly you should run:
 TokuDB Version
 ==============
 
-TokuDB storage engine version can be checked with: 
+|TokuDB| storage engine version can be checked with: 
 
 .. code-block:: mysql
   
@@ -182,10 +178,14 @@ TokuDB storage engine version can be checked with:
    1 row in set (0.00 sec)
 
 
+.. note:: 
+
+  |TokuDB| storage engine has the same version as |Percona Server| after :rn:`5.6.26-74.0` release.
+
 Upgrade
 =======
 
-Installing the TokuDB package is compatible with existing server setup and databases.
+Installing the |TokuDB| package is compatible with existing server setup and databases.
 
 Version Specific Information
 ============================
@@ -197,8 +197,3 @@ Version Specific Information
  * :rn:`5.6.22-72.0` 
     Implemented ``ps_tokudb_admin`` script to make the installation :ref:`easier <tokudb_quick_install>`
 
-
-Other Reading
-=============
-
-* `Official TokuDB Documentation <http://www.tokutek.com/resources/product-docs/>`_

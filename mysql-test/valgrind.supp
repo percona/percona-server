@@ -931,3 +931,18 @@
    fun:mi_arena.*
    fun:malloc_info
 }
+
+# TokuDB suppressions
+{
+   tls_variables_1
+   Memcheck:Leak
+   fun:memalign
+   fun:__tls_get_addr
+}
+
+{
+   tls_variables_2
+   Memcheck:Leak
+   fun:memalign
+   fun:tls_get_addr_tail
+}

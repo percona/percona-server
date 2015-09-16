@@ -390,6 +390,64 @@ drop table t1;
 
 #-------------------------------------------------------------------------------
 #
+# If fake-change mode is set to on or off after transaction starts then
+# transaction shouldn't honor the change instead it transaction should always
+# operate honoring the setting while it started.
+#
+use test;
+create table t1 (c1 int);
+insert into t1 values (10);
+select * from t1;
+set innodb_fake_changes = 1;
+begin;
+insert into t1 values (10);
+select * from t1;
+set innodb_fake_changes = 0;
+replace into t1(c1) values (10);
+# this should fail as trx has register fake-change = 1 while starting.
+--error ER_ERROR_DURING_COMMIT
+commit;
+select * from t1;
+#
+begin;
+insert into t1 values (11);
+insert into t1 values (12);
+set innodb_fake_changes = 1;
+# this should pass as trx has register fake-change = 0 while starting.
+commit;
+set innodb_fake_changes = 0;
+select * from t1;
+#
+begin;
+set innodb_fake_changes = 1;
+insert into t1 values (11);
+insert into t1 values (12);
+# this should fail as trx has register fake-change = 1 while starting.
+# note: begin doesn't start a transaction but insert does.
+--error ER_ERROR_DURING_COMMIT
+commit;
+#
+set innodb_fake_changes = 0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Rename of table is blocked with fake-change enabled.
+#
+use test;
+create table t1 (i int) engine=innodb;
+rename table t1 to t2;
+select * from t2;
+#
+set innodb_fake_changes = 1;
+--error ER_NOT_SUPPORTED_YET
+rename table t2 to t1;
+#
+set innodb_fake_changes = 0;
+drop table t2;
+
+#-------------------------------------------------------------------------------
+#
 # cleanup test bed
 #
 SET @@GLOBAL.userstat= default;

@@ -515,6 +515,22 @@ drop table t2;
 
 #-------------------------------------------------------------------------------
 #
+# Big-record based insertion and update use-case under fake-change mode.
+#
+use test;
+create table t1 (i int, b blob, primary key pk(i)) engine=innodb;
+set innodb_fake_changes=1;
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (1, repeat('a', 20000));
+--error ER_ERROR_DURING_COMMIT
+insert into t1 values (2, repeat('b', 20000));
+--error ER_ERROR_DURING_COMMIT
+update t1 set b = repeat('c', 20000);
+set innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
 # cleanup test bed
 #
 SET @@GLOBAL.userstat= default;

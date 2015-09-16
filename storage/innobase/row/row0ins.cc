@@ -2488,11 +2488,14 @@ err_exit:
 			effectively "roll back" the operation. */
 			ut_a(err == DB_SUCCESS);
 			dtuple_big_rec_free(big_rec);
+		} else if (big_rec != NULL
+			   && UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+			dtuple_big_rec_free(big_rec);
 		}
 
 		if (err == DB_SUCCESS
 		    && dict_index_is_online_ddl(index)
-		    && !UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
+		    && UNIV_LIKELY(!thr_get_trx(thr)->fake_changes)) {
 			row_log_table_insert(rec, index, offsets);
 		}
 
@@ -2536,8 +2539,8 @@ err_exit:
 
 			if (UNIV_UNLIKELY(thr_get_trx(thr)->fake_changes)) {
 
-				/* skip store extern */
-				mem_heap_free(big_rec->heap);
+				dtuple_convert_back_big_rec(
+					index, entry, big_rec);
 				goto func_exit;
 			}
 

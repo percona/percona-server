@@ -1388,9 +1388,6 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad((thr && thr_get_trx(thr)->fake_changes)
-	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-
 	leaf = page_is_leaf(page);
 
 	/* Calculate the record size when entry is converted to a record */

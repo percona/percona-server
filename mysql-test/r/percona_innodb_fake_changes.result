@@ -775,5 +775,16 @@ rename table t2 to t1;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE'
 set innodb_fake_changes = 0;
 drop table t2;
+use test;
+create table t1 (i int, b blob, primary key pk(i)) engine=innodb;
+set innodb_fake_changes=1;
+insert into t1 values (1, repeat('a', 20000));
+ERROR HY000: Got error 131 during COMMIT
+insert into t1 values (2, repeat('b', 20000));
+ERROR HY000: Got error 131 during COMMIT
+update t1 set b = repeat('c', 20000);
+ERROR HY000: Got error 131 during COMMIT
+set innodb_fake_changes=0;
+drop table t1;
 SET @@GLOBAL.userstat= default;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=default;

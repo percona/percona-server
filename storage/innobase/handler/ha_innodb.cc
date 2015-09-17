@@ -3665,12 +3665,26 @@ innobase_commit(
 	/* No-op in XtraDB */
 	trx_search_latch_release_if_reserved(trx);
 
+	/* If fake-changes mode = ON then allow
+	SELECT (they are read-only) and
+	CREATE ... SELECT * from table (Well this doesn't open up DDL for InnoDB
+	as ha_innobase::create will return appropriate error if fake-change = ON
+	but if create is trying to use other SE and SELECT is executing on
+	InnoDB table then we allow SELECT to proceed.
+	Ideally, statement like this should be marked CREATE_SELECT like
+	INSERT_SELECT but unfortunately it doesn't). */
 	if (UNIV_UNLIKELY(trx->fake_changes
+			  && (thd_sql_command(thd) != SQLCOM_SELECT
+			      && thd_sql_command(thd) != SQLCOM_CREATE_TABLE)
 			  && (all || (!thd_test_options(thd,
 				OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))))) {
 
-		innobase_rollback(hton, thd, all); /* rollback implicitly */
-		thd->stmt_da->reset_diagnostics_area(); /* because debug assertion code complains, if something left */
+		/* rollback implicitly */
+		innobase_rollback(hton, thd, all);
+
+		/* because debug assertion code complains, if something left */
+		thd->stmt_da->reset_diagnostics_area();
+
 		DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 	}
 	/* Transaction is deregistered only in a commit or a rollback. If

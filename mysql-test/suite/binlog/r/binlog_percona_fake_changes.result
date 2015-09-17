@@ -11,11 +11,14 @@ INSERT INTO t3 VALUES (1,'');
 RESET MASTER;
 SET innodb_fake_changes=1;
 SELECT * FROM t1;
-ERROR HY000: Got error 131 during COMMIT
+a	b
+1	1
 SELECT * FROM t2;
-ERROR HY000: Got error 131 during COMMIT
+a	b
+1	1
 SELECT * FROM t3;
-ERROR HY000: Got error 131 during COMMIT
+a	b
+1	
 INSERT INTO t1 VALUES (2,2);
 ERROR HY000: Got error 131 during COMMIT
 INSERT INTO t2 VALUES (2,2);

@@ -690,7 +690,6 @@ insert into t1 values (3, repeat('c', 8000));
 ERROR HY000: Got error 131 during COMMIT
 set session innodb_fake_changes = 0;
 drop table t1;
-use test;
 create table t1 (
 i int, j varchar(500), primary key pk(i), unique index sk(j)
 ) engine=innodb;
@@ -714,10 +713,10 @@ drop table t1;
 set global innodb_file_per_table = 1;
 use test;
 create table t1 (i int, key(i)) engine=innodb;
-set innodb_fake_changes = 1;
+set session innodb_fake_changes = 1;
 alter table t1 discard tablespace;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
-set innodb_fake_changes = 0;
+set session innodb_fake_changes = 0;
 drop table t1;
 set global innodb_file_per_table = 1;
 use test;
@@ -725,10 +724,10 @@ create table t1 (a int, primary key pk(a));
 alter table t1 add column b char;
 create index bx on t1(b);
 insert into t1 values (1, 0x41), (2, 0x41);
-set innodb_fake_changes=1;
+set session innodb_fake_changes=1;
 update t1 set a = upper(a), b = lower(b);
 ERROR HY000: Got error 131 during COMMIT
-set innodb_fake_changes=0;
+set session innodb_fake_changes=0;
 drop table t1;
 use test;
 create table t1 (c1 int);
@@ -736,13 +735,13 @@ insert into t1 values (10);
 select * from t1;
 c1
 10
-set innodb_fake_changes = 1;
+set session innodb_fake_changes = 1;
 begin;
 insert into t1 values (10);
 select * from t1;
 c1
 10
-set innodb_fake_changes = 0;
+set session innodb_fake_changes = 0;
 replace into t1(c1) values (10);
 commit;
 ERROR HY000: Got error 131 during COMMIT
@@ -752,42 +751,42 @@ c1
 begin;
 insert into t1 values (11);
 insert into t1 values (12);
-set innodb_fake_changes = 1;
+set session innodb_fake_changes = 1;
 commit;
-set innodb_fake_changes = 0;
+set session innodb_fake_changes = 0;
 select * from t1;
 c1
 10
 11
 12
 begin;
-set innodb_fake_changes = 1;
+set session innodb_fake_changes = 1;
 insert into t1 values (11);
 insert into t1 values (12);
 commit;
 ERROR HY000: Got error 131 during COMMIT
-set innodb_fake_changes = 0;
+set session innodb_fake_changes = 0;
 drop table t1;
 use test;
 create table t1 (i int) engine=innodb;
 rename table t1 to t2;
 select * from t2;
 i
-set innodb_fake_changes = 1;
+set session innodb_fake_changes = 1;
 rename table t2 to t1;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE'
-set innodb_fake_changes = 0;
+set session innodb_fake_changes = 0;
 drop table t2;
 use test;
 create table t1 (i int, b blob, primary key pk(i)) engine=innodb;
-set innodb_fake_changes=1;
+set session innodb_fake_changes=1;
 insert into t1 values (1, repeat('a', 20000));
 ERROR HY000: Got error 131 during COMMIT
 insert into t1 values (2, repeat('b', 20000));
 ERROR HY000: Got error 131 during COMMIT
 update t1 set b = repeat('c', 20000);
 ERROR HY000: Got error 131 during COMMIT
-set innodb_fake_changes=0;
+set session innodb_fake_changes=0;
 drop table t1;
 create table t1 (i int) engine=innodb;
 insert into t1 values (1), (2);
@@ -814,7 +813,6 @@ drop table t2;
 set session innodb_fake_changes = 0;
 set @@session.default_storage_engine=InnoDB;
 drop table t1;
-use test;
 create table t1 (i int, j int) engine=innodb;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 select * from t1;
@@ -844,6 +842,39 @@ i	j
 2	20
 3	30
 set session innodb_fake_changes = 0;
+drop table t1;
+use test;
+create table t1 (i int, c char(100), fulltext fts(c)) engine=innodb;
+insert into t1 values (1, 'it is raining outside');
+insert into t1 values (2, 'good to see some rain during rainy season');
+select * from t1;
+i	c
+1	it is raining outside
+2	good to see some rain during rainy season
+set session innodb_fake_changes=1;
+insert into t1 values (3, 'climate has turned really rainy and humid too');
+ERROR HY000: Got error 131 during COMMIT
+select * from t1 where match(c) against ('rainy');
+i	c
+2	good to see some rain during rainy season
+update t1 set c='some test foobar' where match c against ('rain');
+ERROR HY000: Got error 131 during COMMIT
+delete from t1 where MATCH(c) AGAINST ("rainy");
+ERROR HY000: Got error 131 during COMMIT
+select * from t1;
+i	c
+1	it is raining outside
+2	good to see some rain during rainy season
+set session innodb_fake_changes=0;
+drop table t1;
+create table t1 (
+FTS_DOC_ID bigint unsigned key,
+title char(1),
+body text, fulltext(title,body)) engine=innodb;
+set session innodb_fake_changes=1;
+insert into t1 values(1,2,11),(1,2,7);
+ERROR HY000: Got error 131 during COMMIT
+set session innodb_fake_changes=0;
 drop table t1;
 SET @@GLOBAL.userstat= default;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=default;

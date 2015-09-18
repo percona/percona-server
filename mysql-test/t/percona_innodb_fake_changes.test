@@ -50,7 +50,6 @@ INSERT INTO t1 VALUES (1,1);
 --source include/start_fake_changes.inc
 
 # Test with autocommit
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t1;
 --error ER_ERROR_DURING_COMMIT
 INSERT INTO t1 VALUES (2,2);
@@ -142,7 +141,6 @@ INSERT INTO t2 VALUES (1, 1);
 --source include/start_fake_changes.inc
 
 # Test with autocommit
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t2;
 --error ER_ERROR_DURING_COMMIT
 INSERT INTO t2 VALUES (2,2);
@@ -259,7 +257,6 @@ INSERT INTO t3 VALUES (1, '');
 --source include/start_fake_changes.inc
 
 # Test with autocommit
---error ER_ERROR_DURING_COMMIT
 SELECT * FROM t3;
 --error ER_ERROR_DURING_COMMIT
 INSERT INTO t3 VALUES (2,lpad('a',10000, 'b'));
@@ -527,6 +524,54 @@ insert into t1 values (2, repeat('b', 20000));
 --error ER_ERROR_DURING_COMMIT
 update t1 set b = repeat('c', 20000);
 set innodb_fake_changes=0;
+drop table t1;
+
+#-------------------------------------------------------------------------------
+#
+# Scenario is meant to check following scenarios:
+# SELECT is allowed to function normally if fake_changes = ON as it is readonly
+# CREATE...SELECT * from <table>; is allowed to work if CREATE is done using
+# other SE but SELECT may be working on InnoDB.
+#
+create table t1 (i int) engine=innodb;
+insert into t1 values (1), (2);
+set session innodb_fake_changes = 1;
+#
+select * from t1;
+let save_session_engine = `select @@session.default_storage_engine`;
+set @@session.default_storage_engine=innodb;
+--error ER_ILLEGAL_HA
+create table t3 select * from t1;
+#
+set @@session.default_storage_engine=myisam;
+create table t2 select * from t1;
+show create table t2;
+select * from t2;
+drop table t2;
+#
+set session innodb_fake_changes = 0;
+eval set @@session.default_storage_engine=$save_session_engine;
+drop table t1;
+#
+#
+use test;
+create table t1 (i int, j int) engine=innodb;
+insert into t1 values (1, 10), (2, 20), (3, 30);
+select * from t1;
+#
+set session innodb_fake_changes = 1;
+select * from t1;
+#
+begin;
+select * from t1;
+--error ER_ERROR_DURING_COMMIT
+commit;
+#
+--error ER_ERROR_DURING_COMMIT
+insert into t1 select * from t1;
+#
+select * from t1;
+set session innodb_fake_changes = 0;
 drop table t1;
 
 #-------------------------------------------------------------------------------

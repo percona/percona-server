@@ -419,6 +419,7 @@ drop table t1;
 #
 # Scenario that try to discard tablespace with fake_change one.
 # Discard tablespace is DDL operation which is blocked in fake_change mode.
+# Scenario also test other variants of alter table.
 #
 let save_file_per_table = `select @@innodb_file_per_table`;
 set global innodb_file_per_table = 1;
@@ -428,6 +429,13 @@ create table t1 (i int, key(i)) engine=innodb;
 set session innodb_fake_changes = 1;
 --error ER_ILLEGAL_HA
 alter table t1 discard tablespace;
+--error ER_ERROR_DURING_COMMIT
+alter table t1 add column b char;
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+--error ER_ILLEGAL_HA
+alter table t1 add column b char, algorithm=copy;
+--error ER_ERROR_DURING_COMMIT
+alter table t1 add column b char, algorithm=default;
 set session innodb_fake_changes = 0;
 drop table t1;
 #

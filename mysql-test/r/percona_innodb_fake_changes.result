@@ -716,6 +716,12 @@ create table t1 (i int, key(i)) engine=innodb;
 set session innodb_fake_changes = 1;
 alter table t1 discard tablespace;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
+alter table t1 add column b char;
+ERROR HY000: Got error 131 during COMMIT
+alter table t1 add column b char, algorithm=copy;
+ERROR HY000: Table storage engine for '#sql-temporary' doesn't have this option
+alter table t1 add column b char, algorithm=default;
+ERROR HY000: Got error 131 during COMMIT
 set session innodb_fake_changes = 0;
 drop table t1;
 set global innodb_file_per_table = 1;

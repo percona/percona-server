@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.26-rel74.0) unstable; urgency=low
+
+  * Included Percona-TokuBackup into TokuDB package
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Thu, 10 Sep 2015 11:09:00 +0200
+
 percona-server-5.6 (5.6.24-rel72.2) unstable; urgency=low
 
   * Fixed PS .deb binaries are built without fast mutexes (bug1433980)

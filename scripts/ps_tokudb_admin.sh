@@ -25,6 +25,10 @@ MYCNF_LOCATION=
 MYSQLD_SAFE_STATUS=0
 LIBHOTBACKUP_STATUS=0
 
+SCRIPT_PWD=$(cd `dirname $0` && pwd)
+MYSQL_CLIENT_BIN="${SCRIPT_PWD}/mysql"
+MYSQL_DEFAULTS_BIN="${SCRIPT_PWD}/my_print_defaults"
+
 # Check if we have a functional getopt(1)
 if ! getopt --test
   then
@@ -146,16 +150,9 @@ if [ -n "$(which sestatus)" ]; then
   fi
 fi
 
-# List plugins
-LIST_ENGINE=$(mysql -e "show plugins;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
-if [ $? -ne 0 ]; then
-  printf "ERROR: Failed to list mysql plugins! Please check username, password and other options...\n";
-  exit 1
-fi
-
 # Get PID number for checking preloads
 if [ $ENABLE = 1 -o $ENABLE_TOKUBACKUP = 1 ]; then
-  PID_LIST=$(mysql -e "show variables like 'pid_file';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/tmp/ps_tokudb_admin.err)
+  PID_LIST=$($MYSQL_CLIENT_BIN -e "show variables like 'pid_file';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/tmp/ps_tokudb_admin.err)
   if [ $? -ne 0 ]; then
     if [ -f /tmp/ps_tokudb_admin.err ]; then
       cat /tmp/ps_tokudb_admin.err|grep -v "Warning:"
@@ -170,6 +167,13 @@ if [ $ENABLE = 1 -o $ENABLE_TOKUBACKUP = 1 ]; then
     exit 1
   fi
   PID_NUM=$(cat ${PID_LOCATION})
+fi
+
+# List plugins
+LIST_ENGINE=$($MYSQL_CLIENT_BIN -e "show plugins;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
+if [ $? -ne 0 ]; then
+  printf "ERROR: Failed to list mysql plugins! Please check username, password and other options...\n";
+  exit 1
 fi
 
 # Check if server is running with jemalloc - if not warn that restart is needed
@@ -201,7 +205,7 @@ fi
 # Check thp-setting=never option in my.cnf
 if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
   printf "Checking if thp-setting=never option is already set in config file...\n"
-  STATUS_THP_MYCNF=$(my_print_defaults server mysqld mysqld_safe|grep -c thp-setting=never)
+  STATUS_THP_MYCNF=$($MYSQL_DEFAULTS_BIN server mysqld mysqld_safe|grep -c thp-setting=never)
   if [ $STATUS_THP_MYCNF = 0 ]; then
     printf "INFO: Option thp-setting=never is not set in the config file.\n"
     printf "      (needed only if THP is not disabled permanently on the system)\n\n"
@@ -213,7 +217,7 @@ fi
 # Check preload-hotbackup option in my.cnf
 if [ $ENABLE_TOKUBACKUP = 1 -o $DISABLE_TOKUBACKUP = 1 ]; then
   printf "Checking if preload-hotbackup option is already set in config file...\n"
-  STATUS_HOTBACKUP_MYCNF=$(my_print_defaults server mysqld mysqld_safe|grep -c preload-hotbackup)
+  STATUS_HOTBACKUP_MYCNF=$($MYSQL_DEFAULTS_BIN server mysqld mysqld_safe|grep -c preload-hotbackup)
   if [ $STATUS_HOTBACKUP_MYCNF = 0 ]; then
     printf "INFO: Option preload-hotbackup is not set in the config file.\n\n"
   else
@@ -369,7 +373,7 @@ fi
 # Installing TokuDB engine plugin
 if [ $ENABLE = 1 -a $STATUS_PLUGIN = 0 ]; then
   printf "Installing TokuDB engine...\n"
-mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBENABLE
+$MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBENABLE
 INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';
 INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';
 INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';
@@ -389,7 +393,7 @@ fi
 # Installing TokuDB backup plugin
 if [ $ENABLE_TOKUBACKUP = 1 -a $STATUS_HOTBACKUP_PLUGIN = 0 ]; then
   printf "Installing TokuBackup plugin...\n"
-mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUBACKUPENABLE
+$MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUBACKUPENABLE
 INSTALL PLUGIN tokudb_backup SONAME 'tokudb_backup.so';
 EOFTOKUBACKUPENABLE
   if [ $? -eq 0 ]; then
@@ -403,7 +407,7 @@ fi
 # Uninstalling TokuDB backup plugin
 if [ $DISABLE_TOKUBACKUP = 1 -a $STATUS_HOTBACKUP_PLUGIN = 1 ]; then
   printf "Uninstalling TokuBackup plugin...\n"
-mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUBACKUPDISABLE
+$MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUBACKUPDISABLE
 UNINSTALL PLUGIN tokudb_backup;
 EOFTOKUBACKUPDISABLE
   if [ $? -eq 0 ]; then
@@ -417,7 +421,7 @@ fi
 # Uninstalling TokuDB engine plugin
 if [ $DISABLE = 1 -a $STATUS_PLUGIN = 7 ]; then
   printf "Uninstalling TokuDB engine plugin...\n"
-mysql -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBDISABLE
+$MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBDISABLE
 UNINSTALL PLUGIN tokudb;
 UNINSTALL PLUGIN tokudb_file_map;
 UNINSTALL PLUGIN tokudb_fractal_tree_info;

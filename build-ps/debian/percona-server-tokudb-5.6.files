@@ -7,3 +7,4 @@ usr/lib/*/libHotBackup.so
 usr/bin/tokuft_logprint
 usr/lib/mysql/plugin/tokudb_backup.so
 usr/lib/mysql/plugin/debug/tokudb_backup.so
+usr/include/backup.h

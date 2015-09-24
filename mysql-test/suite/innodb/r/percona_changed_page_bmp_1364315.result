@@ -1,0 +1,9 @@
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("Creating foreign key constraint system tables");
+call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
+call mtr.add_suppression("Info table is not ready to be used");
+1st restart
+select count(*) > 1 from information_schema.innodb_changed_pages;
+count(*) > 1
+1
+2nd restart

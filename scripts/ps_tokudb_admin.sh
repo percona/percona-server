@@ -179,8 +179,9 @@ fi
 # Check if server is running with jemalloc - if not warn that restart is needed
 if [ $ENABLE = 1 ]; then
   printf "Checking if Percona Server is running with jemalloc enabled...\n"
-  JEMALLOC_STATUS=$(grep -c jemalloc /proc/${PID_NUM}/environ)
-  if [ $JEMALLOC_STATUS = 0 ]; then
+  grep -qc jemalloc /proc/${PID_NUM}/environ || ldd $(which mysqld) | grep -qc jemalloc
+  JEMALLOC_STATUS=$?
+  if [ $JEMALLOC_STATUS = 1 ]; then
     printf "ERROR: Percona Server is not running with jemalloc, please restart mysql service to enable it and then run this script...\n\n";
     exit 1
   else

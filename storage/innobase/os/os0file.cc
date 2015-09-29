@@ -1322,9 +1322,11 @@ os_file_create_simple_no_error_handling_func(
 				null-terminated string */
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY,
-				OS_FILE_READ_WRITE, or
-				OS_FILE_READ_ALLOW_DELETE; the last option is
-				used by a backup program reading the file */
+				OS_FILE_READ_WRITE,
+				OS_FILE_READ_ALLOW_DELETE (used by a backup
+				program reading the file), or
+				OS_FILE_READ_WRITE_CACHED (disable O_DIRECT
+				if it would be enabled otherwise) */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
 	os_file_t	file;
@@ -1360,7 +1362,8 @@ os_file_create_simple_no_error_handling_func(
 		access = GENERIC_READ;
 	} else if (srv_read_only_mode) {
 		access = GENERIC_READ;
-	} else if (access_type == OS_FILE_READ_WRITE) {
+	} else if (access_type == OS_FILE_READ_WRITE
+		   || access_type == OS_FILE_READ_WRITE_CACHED) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
 
@@ -1413,7 +1416,8 @@ os_file_create_simple_no_error_handling_func(
 		} else {
 
 			ut_a(access_type == OS_FILE_READ_WRITE
-			     || access_type == OS_FILE_READ_ALLOW_DELETE);
+			     || access_type == OS_FILE_READ_ALLOW_DELETE
+			     || access_type == OS_FILE_READ_WRITE_CACHED);
 
 			create_flag = O_RDWR;
 		}
@@ -1448,7 +1452,9 @@ os_file_create_simple_no_error_handling_func(
 	if (!srv_read_only_mode
 	    && *success
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
-		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
+		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC
+		|| srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT)
+	    && access_type != OS_FILE_READ_WRITE_CACHED) {
 
 		os_file_set_nocache(file, name, mode_str);
 	}
@@ -1456,7 +1462,8 @@ os_file_create_simple_no_error_handling_func(
 #ifdef USE_FILE_LOCK
 	if (!srv_read_only_mode
 	    && *success
-	    && access_type == OS_FILE_READ_WRITE
+	    && (access_type == OS_FILE_READ_WRITE
+		|| access_type == OS_FILE_READ_WRITE_CACHED)
 	    && os_file_lock(file, name)) {
 
 		*success = FALSE;

@@ -1,4 +1,4 @@
-.. _using-tokudb:
+.. _using_tokudb:
 
 ============
 Using TokuDB
@@ -26,6 +26,8 @@ TokuDB's fast indexing enables fast queries through the use of rich indexes, suc
 * `How Clustering Indexes Sometimes Helps UPDATE and DELETE Performance <https://www.percona.com/blog/2009/06/04/how_clustering_indexes_sometimes_help_update_and_delete_performance/>`_ 
 
 * *High Performance MySQL, 3rd Edition* by Baron Schwartz, Peter Zaitsev, Vadim Tkachenko, Copyright 2012, O'Reilly Media. See Chapter 5, *Indexing for High Performance*.
+
+.. _tokudb_multiple_clustering_keys:
 
 Clustering Secondary Indexes
 ----------------------------

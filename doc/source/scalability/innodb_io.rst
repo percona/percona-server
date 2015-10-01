@@ -107,7 +107,16 @@ The following values are allowed:
     will use CRC32 for log block checksums. Checksums will also benefit from hardware acceleration provided by recent Intel CPUs.
 
   * ``strict_*``:
-    Normally, |XtraDB| or |Percona XtraBackup| will tolerate checksums created with other algorithms than is currently specified with the :variable:`innodb_log_checksum_algorithm` option. That is, if checksums don't match when reading the redo log on recovery, the block is considered corrupted only if no algorithm produces the value matching the checksum stored in the log block header. This can be disabled by prepending the value with the ``strict_`` suffix, e.g. ``strict_none``, ``strict_crc32`` or ``strict_innodb`` will only accept checksums created using the corresponding algorithms, but not the other ones.
+    Normally, |XtraDB| or |Percona XtraBackup| will tolerate checksums created with other algorithms than is currently specified with the :variable:`innodb_log_checksum_algorithm` option. That is, if checksums don't match when reading the redo log on recovery, the block is considered corrupted only if no algorithm produces the value matching the checksum stored in the log block header. This can be disabled by prepending the value with the ``strict_`` suffix, e.g. ``strict_none``, ``strict_crc32`` or ``strict_innodb`` will only accept checksums created using the corresponding algorithms, but not the other ones. To ensure that any log data written using the previous algorithm is fully overwritten before strictness becomes effective following migration procedure to a strict log block checksum should be used: 
+
+    - note the current LSN;
+
+    - set the log block checksum algorithm to the non-strict version of the desired algorithm;
+
+    - wait until the current LSN advances to at least the previous LSN + log capacity;
+
+    - set the log block checksum algorithm to the strict version of the desired algorithm.
+
 
 Status Variables
 ----------------

@@ -4,7 +4,7 @@
  Support for PROXY protocol
 ============================
 
-The proxy protocol allows an intermediate proxying server between the server and the ultimate client (i.e. HAProxy) to provide the source client address to the server, which normally would only see the proxying server address instead. The correct source client address then might be used in ``mysql.user`` for access control, provide more exact information for the error log, audit plugins etc.
+The proxy protocol allows an intermediate proxying server speaking proxy protocol (ie. HAProxy) between the server and the ultimate client (i.e. mysql client etc) to provide the source client address to the server, which normally would only see the proxying server address instead.
 
 As the proxy protocol amounts to spoofing the client address, it is disabled by default, and can be enabled on per-host or per-network basis for the trusted source addresses where trusted proxy servers are known to run. Unproxied connections are not allowed from these source addresses.
 

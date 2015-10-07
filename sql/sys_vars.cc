@@ -2747,7 +2747,9 @@ static Sys_var_ulong Sys_query_cache_min_res_unit(
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
 {
-  if (query_cache.is_disabled())
+  if (var->save_result.ulonglong_value == 0)
+    return false;
+  else if (query_cache.is_disabled())
   {
     my_error(ER_QUERY_CACHE_DISABLED, MYF(0));
     return true;

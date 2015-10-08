@@ -1,4 +1,3 @@
-SET @old_debug=@@global.debug;
 SET GLOBAL debug="+d,seed_slow_log_random";
 SET GLOBAL long_query_time=0;
 SET GLOBAL log_slow_rate_type='session';

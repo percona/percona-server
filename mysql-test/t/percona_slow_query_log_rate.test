@@ -9,7 +9,7 @@ let $old_log_slow_rate_limit=`SELECT @@global.log_slow_rate_limit`;
 let $old_slow_query_log_always_write_time=`SELECT @@global.slow_query_log_always_write_time`;
 
 # Force deterministic random pattern of slow log filter for new connections
-SET @old_debug=@@global.debug;
+let $old_debug=`SELECT @@global.debug`;
 SET GLOBAL debug="+d,seed_slow_log_random";
 
 SET GLOBAL long_query_time=0;
@@ -32,7 +32,7 @@ SET GLOBAL log_slow_rate_limit=2;
 --source include/percona_slow_query_log_rate.inc
 
 --disable_query_log
-SET GLOBAL debug=@old_debug;
+eval SET GLOBAL debug='$old_debug';
 eval SET GLOBAL long_query_time=$old_long_query_time;
 eval SET GLOBAL log_slow_rate_type=$old_log_slow_rate_type;
 eval SET GLOBAL log_slow_rate_limit=$old_log_slow_rate_limit;

@@ -6,7 +6,7 @@
 
 .. warning::
 
-  This feature has been deprecated after |Percona Server| :rn:`5.5.28-29.2` and it will not be available in |Percona Server| 5.6, because the innodb_checksum_algorithm feature in |MySQL| 5.6 makes it redundant.
+  This feature has been deprecated after |Percona Server| :rn:`5.5.28-29.2` and it will not be available in |Percona Server| 5.6, because the innodb_checksum_algorithm feature in |MySQL| 5.6 makes it redundant. If this feature was enabled, turning it off before the upgrade requires table(s) to be dumped and imported, since otherwise it will fail to start on data files created when :variable:`innodb_fast_checksum` was enabled. As an alternative you can use :program:`innochecksum` from |MySQL| 5.7 as described in this `blogpost <http://dbadojo.com/2015/07/16/innodb_fast_checksum_mysql56_upgrade/>`_.
 
 |InnoDB| writes a checksum at the end of each data page in order to detect data files corruption. However computing this checksum requires CPU cycles and in some circumstances this extra overhead can become significant.
 

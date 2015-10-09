@@ -22,6 +22,10 @@ The following is a summary of the more relevant changes in the 5.6 series. For m
 
  Upgrading the from older |Percona Server| version that doesn't have default (16k) |InnoDB| page size is not recommended. This could happen if the variable `innodb_page_size <http://www.percona.com/doc/percona-server/5.5/flexibility/innodb_files_extend.html>`_ was set to non-default value.
 
+.. note:: 
+
+ In place upgrade is not possible if :ref:`Fast InnoDB Checksum <ps55:innodb_fast_checksum_page>` feature has been used. If this feature was enabled, turning it off before the upgrade requires table(s) to be dumped and imported, since the server will fail to start on data files created when :variable:`innodb_fast_checksums` was enabled. As an alternative you can use :program:`innochecksum` from |MySQL| 5.7 as described in this `blogpost <http://dbadojo.com/2015/07/16/innodb_fast_checksum_mysql56_upgrade/>`_. 
+
 Upgrading using the Percona repositories
 ========================================
 

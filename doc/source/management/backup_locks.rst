@@ -75,7 +75,7 @@ Option :option:`lock-for-backup` is mutually exclusive with :option:`lock-all-ta
 
 If the backup locks feature is not supported by the target server, but :option:`lock-for-backup` is specified on the command line, ``mysqldump`` aborts with an error.
 
-If :option:`master-data` is used together with :option:`single-transaction`, :option:`lock-for-backup` does not have any effect, i.e. ``FLUSH TABLES WITH READ LOCK`` will still be used to get the binary log coordinates. This limitation will be removed after implementing the following `blueprint <https://blueprints.launchpad.net/percona-server/+spec/enhancements-for-start-transaction-with-consistent>`_.
+If :option:`master-data` is used together with :option:`single-transaction`, :option:`lock-for-backup` does not have any effect, i.e. ``FLUSH TABLES WITH READ LOCK`` will still be used to get the binary log coordinates. This limitation has been removed in |Percona Server| :rn:`5.6.17-66.0` by implementing :ref:`start_transaction_with_consistent_snapshot` feature.
 
 System Variables
 ================

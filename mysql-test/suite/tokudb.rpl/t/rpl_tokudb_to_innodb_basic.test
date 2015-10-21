@@ -1,0 +1,8 @@
+--source include/master-slave.inc
+--source include/have_innodb.inc
+--source include/have_tokudb.inc
+
+let $master_engine=tokudb;
+let $slave_engine=innodb;
+
+--source suite/tokudb.rpl/include/rpl_tokudb_innodb.inc

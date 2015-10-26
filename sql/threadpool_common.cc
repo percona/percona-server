@@ -238,6 +238,7 @@ int threadpool_add_connection(THD *thd)
     }
   }
   worker_context.restore();
+  thd->system_tid = -1;
   return retval;
 }
 
@@ -340,6 +341,7 @@ end:
   }
 
   worker_context.restore();
+  thd->system_tid = -1;
   return retval;
 }
 

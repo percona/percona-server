@@ -22,6 +22,10 @@
 #include <m_string.h>
 #include <thr_alarm.h>
 
+#ifdef __linux__
+#include <sys/syscall.h>
+#endif
+
 #if (defined(__BSD__) || defined(_BSDI_VERSION))
 #define SCHED_POLICY SCHED_RR
 #else
@@ -464,4 +468,13 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
 int pthread_dummy(int ret)
 {
   return ret;
+}
+
+my_system_tid my_current_system_tid()
+{
+#ifdef __linux__
+  return (my_system_tid)syscall(SYS_gettid);
+#else
+  return -1;
+#endif
 }

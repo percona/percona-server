@@ -1897,7 +1897,8 @@ t1	CREATE TABLE `t1` (
   `INFO` longtext,
   `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
-  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0'
+  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `TID` bigint(21) unsigned DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 drop table t1;
 create temporary table t1 like information_schema.processlist;
@@ -1914,7 +1915,8 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `INFO` longtext,
   `TIME_MS` bigint(21) NOT NULL DEFAULT '0',
   `ROWS_SENT` bigint(21) unsigned NOT NULL DEFAULT '0',
-  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0'
+  `ROWS_EXAMINED` bigint(21) unsigned NOT NULL DEFAULT '0',
+  `TID` bigint(21) unsigned DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 like information_schema.character_sets;

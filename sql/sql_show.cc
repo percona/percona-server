@@ -2337,6 +2337,12 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
       table->field[9]->store((ulonglong) tmp->get_sent_row_count());
       /* ROWS_EXAMINED */
       table->field[10]->store((ulonglong) tmp->get_examined_row_count());
+      /* TID */
+      if(tmp->system_tid != -1)
+      {
+        table->field[11]->store((ulonglong) tmp->system_tid, TRUE);
+        table->field[11]->set_notnull();
+      }
       mysql_mutex_unlock(&tmp->LOCK_thd_data);
 
       if (schema_table_store_record(thd, table))
@@ -8816,6 +8822,8 @@ ST_FIELD_INFO processlist_fields_info[]=
    MY_I_S_UNSIGNED, "Rows_sent", SKIP_OPEN_TABLE},
   {"ROWS_EXAMINED", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
    MY_I_S_UNSIGNED, "Rows_examined", SKIP_OPEN_TABLE},
+  {"TID", 21, MYSQL_TYPE_LONGLONG, 0, (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED),
+   "Tid", SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 

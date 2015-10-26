@@ -1064,6 +1064,7 @@ THD::THD(bool enable_plugins)
   current_linfo =  0;
   slave_thread = 0;
   memset(&variables, 0, sizeof(variables));
+  system_tid = -1;
   thread_id= 0;
   one_shot_set= 0;
   file_id = 0;
@@ -2126,6 +2127,7 @@ bool THD::store_globals()
   */
   mysys_var->id= thread_id;
   real_id= pthread_self();                      // For debugging
+  system_tid = my_current_system_tid();
   vio_set_thread_id(net.vio, real_id);
   /*
     We have to call thr_lock_info_init() again here as THD may have been

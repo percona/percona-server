@@ -20,6 +20,10 @@
 
 #include "my_global.h"                          /* myf */
 
+#ifdef __linux__
+#include <sys/types.h>
+#endif
+
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif
@@ -796,6 +800,13 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 /* Define it to something */
 #define ESRCH 1
 #endif
+
+#ifdef __linux__
+typedef pid_t my_system_tid;
+#else
+typedef int my_system_tid;
+#endif
+extern my_system_tid my_current_system_tid();
 
 typedef ulong my_thread_id;
 

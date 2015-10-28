@@ -7223,7 +7223,7 @@ ha_innobase::write_row(
 
 	DBUG_ENTER("ha_innobase::write_row");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (prebuilt->trx != trx) {
@@ -7781,7 +7781,7 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
@@ -7927,7 +7927,7 @@ ha_innobase::delete_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
@@ -10309,7 +10309,7 @@ ha_innobase::create(
 
 	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
 		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
-	} else if (srv_read_only_mode) {
+	} else if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
@@ -10645,7 +10645,7 @@ ha_innobase::discard_or_import_tablespace(
 	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -10743,7 +10743,7 @@ ha_innobase::truncate()
 
 	DBUG_ENTER("ha_innobase::truncate");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -11119,7 +11119,7 @@ ha_innobase::rename_table(
 
 	DBUG_ENTER("ha_innobase::rename_table");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
@@ -15227,6 +15227,12 @@ innodb_internal_table_validate(
 		}
 
 		dict_table_close(user_table, FALSE, TRUE);
+
+		DBUG_EXECUTE_IF("innodb_evict_autoinc_table",
+			mutex_enter(&dict_sys->mutex);
+			dict_table_remove_from_cache_low(user_table, TRUE);
+			mutex_exit(&dict_sys->mutex);
+		);
 	}
 
 	return(ret);
@@ -17304,6 +17310,11 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
+static MYSQL_SYSVAR_BOOL(buffer_pool_populate, srv_numa_interleave,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Depricated. This option is temporary alias of --innodb-numa-interleave.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ENUM(foreground_preflush, srv_foreground_preflush,
   PLUGIN_VAR_OPCMDARG,
   "The algorithm InnoDB uses for the query threads at sync preflush.  "
@@ -17741,6 +17752,13 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
+#ifdef HAVE_LIBNUMA
+static MYSQL_SYSVAR_BOOL(numa_interleave, srv_numa_interleave,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Use NUMA interleave memory policy to allocate InnoDB buffer pool.",
+  NULL, NULL, FALSE);
+#endif // HAVE_LIBNUMA
+
 static MYSQL_SYSVAR_BOOL(api_enable_binlog, ib_binlog_enabled,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Enable binlog for applications direct access InnoDB through InnoDB APIs",
@@ -17971,6 +17989,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(buffer_pool_populate),
   MYSQL_SYSVAR(buffer_pool_instances),
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
@@ -18083,6 +18102,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
+#ifdef HAVE_LIBNUMA
+  MYSQL_SYSVAR(numa_interleave),
+#endif // HAVE_LIBNUMA
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(change_buffer_max_size),
   MYSQL_SYSVAR(track_changed_pages),

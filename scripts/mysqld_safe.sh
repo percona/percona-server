@@ -20,6 +20,7 @@ mysqld_ld_library_path=
 load_jemalloc=1
 load_hotbackup=0
 flush_caches=0
+numa_interleave=0
 # Change (disable) transparent huge pages (TokuDB requirement)
 thp_setting=
 
@@ -97,6 +98,8 @@ Usage: $0 [OPTIONS]
   --syslog-tag=TAG           Pass -t "mysqld-TAG" to 'logger'
   --flush-caches             Flush and purge buffers/caches before
                              starting the server
+  --numa-interleave          Run mysqld with its memory interleaved
+                             on all NUMA nodes
 ${thp_usage}
 
 All other options are passed to the mysqld program.
@@ -249,6 +252,7 @@ parse_arguments() {
       --syslog-tag=*) syslog_tag="$val" ;;
       --timezone=*) TZ="$val"; export TZ; ;;
       --flush-caches=*) flush_caches="$val" ;;
+      --numa-interleave=*) numa_interleave="$val" ;;
 
       --help) usage ;;
 
@@ -701,6 +705,11 @@ fi
 if test -n "$mysql_tcp_port"
 then
   append_arg_to_args "--port=$mysql_tcp_port"
+fi
+
+if test -n "$numa_interleave"
+then
+  append_arg_to_args "--innodb-numa-interleave=1"
 fi
 
 if test $niceness -eq 0

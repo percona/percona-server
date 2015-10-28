@@ -231,6 +231,9 @@ RESET CHANGED_PAGE_BITMAPS;
 
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 
+# A restart to allow data files to sync with redo log after the forced recovery
+--source include/restart_mysqld.inc
+
 #
 # Test that --innodb-read-only works
 #

@@ -7707,7 +7707,7 @@ void register_binlog_handler(THD *thd, bool trx)
     if the binary log is set as read/write.
   */
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
-  if (cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
+  if (cache_mngr && cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
   {
     /*
       Set an implicit savepoint in order to be able to truncate a trx-cache.

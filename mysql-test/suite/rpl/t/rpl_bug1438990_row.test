@@ -1,5 +1,0 @@
---source include/have_innodb.inc
---source include/master-slave.inc
---source include/have_binlog_format_row.inc
-
---source suite/rpl/include/rpl_bug1438990.inc

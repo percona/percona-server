@@ -104,27 +104,24 @@ set autocommit= 0|
 begin |
 insert into t1 values (1)|
 savepoint x|
---error ER_NOT_SUPPORTED_YET
+--error ER_SP_DOES_NOT_EXIST
 set @a:= bug13825_0()|
---error ER_NOT_SUPPORTED_YET
+--error ER_SP_DOES_NOT_EXIST
 insert into t2 values (2)|
 --error ER_SP_DOES_NOT_EXIST
 set @a:= bug13825_1()|
 --error ER_SP_DOES_NOT_EXIST
 update t2 set i = 2|
---error ER_NOT_SUPPORTED_YET
 set @a:= bug13825_2()|
 select * from t1|
 rollback to savepoint x|
 select * from t1|
---error ER_NOT_SUPPORTED_YET
 delete from t2|
 select * from t1|
 rollback to savepoint x|
 select * from t1|
 # Of course savepoints set in function should not be visible from its caller
 release savepoint x|
---error ER_NOT_SUPPORTED_YET
 set @a:= bug13825_2()|
 select * from t1|
 --error ER_SP_DOES_NOT_EXIST
@@ -151,11 +148,9 @@ commit|
 set autocommit= 1|
 # Let us test that savepoints work inside of functions
 # even in auto-commit mode
---error ER_NOT_SUPPORTED_YET
 select bug13825_3(0)|
 select * from t1|
 delete from t1|
---error ER_NOT_SUPPORTED_YET
 select bug13825_3(1)|
 select * from t1|
 delete from t1|
@@ -164,7 +159,6 @@ delete from t1|
 set autocommit= 0|
 begin|
 insert into t1 values (1)|
---error ER_NOT_SUPPORTED_YET
 set @a:= bug13825_4()|
 select * from t1|
 delete from t1|
@@ -173,7 +167,6 @@ set autocommit= 1|
 # Other curious case: savepoint in the middle of statement
 drop table t2|
 create table t2 (i int) |
---error ER_NOT_SUPPORTED_YET
 insert into t1 values (1), (bug13825_5(2)), (3)|
 select * from t1|
 select * from t2|

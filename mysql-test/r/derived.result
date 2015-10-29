@@ -1576,7 +1576,7 @@ count(*)
 1000
 show status like 'Handler_write';
 Variable_name	Value
-Handler_write	21
+Handler_write	11
 set @@max_heap_table_size= @save_heap_size;
 SET @@optimizer_switch= @optimizer_switch_saved;
 drop table t1;

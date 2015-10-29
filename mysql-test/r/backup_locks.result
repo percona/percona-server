@@ -899,6 +899,16 @@ FLUSH TABLES WITH READ LOCK;
 ERROR HY000: Can't execute the query because you have a conflicting backup lock
 UNLOCK TABLES;
 DROP TABLE t1;
+CREATE TABLE t(a int) ENGINE=InnoDB;
+FLUSH TABLES t FOR EXPORT;
+LOCK BINLOG FOR BACKUP;
+UNLOCK TABLES;
+UNLOCK BINLOG;
+DROP TABLE t;
+CREATE TABLE t(a INT);
+LOCK TABLE t READ;
+LOCK BINLOG FOR BACKUP;
+DROP TABLE t;
 #-----------------------------------------------------------------------
 # Cleanup
 #-----------------------------------------------------------------------

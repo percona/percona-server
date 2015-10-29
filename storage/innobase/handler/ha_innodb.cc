@@ -20984,7 +20984,12 @@ static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
 #endif
   ,
   "Track the redo log for changed pages and output a changed page bitmap",
-  NULL, NULL, FALSE);
+#ifdef UNIV_DEBUG
+  innodb_track_changed_pages_validate,
+#else
+  NULL,
+#endif
+  NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONGLONG(max_bitmap_file_size, srv_max_bitmap_file_size,
     PLUGIN_VAR_RQCMDARG,

@@ -1411,7 +1411,7 @@ void THD::update_stats(bool ran_command)
         if (!sent_row_count_2)
           diff_empty_queries++;
       }
-      else if (!sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
+      else if ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) != 0)
       {
         // 'SHOW ' commands become SQLCOM_SELECT.
         diff_other_commands++;

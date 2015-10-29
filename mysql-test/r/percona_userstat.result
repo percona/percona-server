@@ -101,4 +101,47 @@ ALTER TABLE t2 MODIFY c1 FLOAT;
 SELECT * FROM INFORMATION_SCHEMA.TABLE_STATISTICS WHERE TABLE_NAME='t2';
 TABLE_SCHEMA	TABLE_NAME	ROWS_READ	ROWS_CHANGED	ROWS_CHANGED_X_INDEXES
 DROP TABLE t2;
+SELECT
+Select_commands, Update_commands, Other_commands, Rows_fetched
+INTO
+@initial_select_commands, @initial_update_commands, @initial_other_commands, @initial_rows_fetched
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+SELECT
+Select_commands = @initial_select_commands + 1 AS select_must_be_true_2,
+Update_commands = @initial_update_commands     AS update_must_be_true_2,
+Other_commands  = @initial_other_commands      AS other_must_be_true_2,
+Rows_fetched    = @initial_rows_fetched        AS rows_must_be_true_2
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+select_must_be_true_2	update_must_be_true_2	other_must_be_true_2	rows_must_be_true_2
+1	1	1	1
+SELECT 'something';
+something
+something
+SELECT
+Select_commands = @initial_select_commands + 3 AS select_must_be_true_4,
+Update_commands = @initial_update_commands     AS update_must_be_true_4,
+Other_commands  = @initial_other_commands      AS other_must_be_true_4,
+Rows_fetched    = @initial_rows_fetched    + 2 AS rows_must_be_true_4
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+select_must_be_true_4	update_must_be_true_4	other_must_be_true_4	rows_must_be_true_4
+1	1	1	1
+SHOW VARIABLES LIKE 'userstat';
+Variable_name	Value
+userstat	ON
+SELECT
+Select_commands = @initial_select_commands + 4 AS select_must_be_true_6,
+Update_commands = @initial_update_commands     AS update_must_be_true_6,
+Other_commands  = @initial_other_commands  + 1 AS other_must_be_true_6,
+Rows_fetched    = @initial_rows_fetched    + 3 AS rows_must_be_true_6
+FROM
+INFORMATION_SCHEMA.USER_STATISTICS
+;
+select_must_be_true_6	update_must_be_true_6	other_must_be_true_6	rows_must_be_true_6
+1	1	1	1
 SET GLOBAL userstat= @userstat_old;

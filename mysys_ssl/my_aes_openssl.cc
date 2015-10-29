@@ -123,9 +123,13 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
     goto aes_error;                             /* Error */
   if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
     goto aes_error;                             /* Error */
-  if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
-    goto aes_error;                             /* Error */
-
+  if (source_length > 0) /* workaround for old OpenSSL versions */
+  {
+    if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
+      goto aes_error;                             /* Error */
+  }
+  else
+    u_len= 0;
   if (!EVP_EncryptFinal(&ctx, dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 

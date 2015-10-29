@@ -18,4 +18,5 @@ SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
 --echo ####################################
+--replace_column 2, ?
 SELECT event_name, digest, digest_text, sql_text FROM events_statements_history_long;

@@ -1,0 +1,4 @@
+select variable_name from information_schema.session_variables where variable_name=
+(select variable_name from information_schema.session_variables where variable_name= 'BASEDIR');
+variable_name
+BASEDIR

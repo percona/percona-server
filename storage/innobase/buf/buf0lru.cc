@@ -1419,6 +1419,7 @@ loop:
 		      || (srv_shutdown_state != SRV_SHUTDOWN_NONE
 			  && srv_shutdown_state != SRV_SHUTDOWN_CLEANUP));
 	}
+
 	mutex_enter(&buf_pool->flush_state_mutex);
 
 	if (buf_pool->init_flush[BUF_FLUSH_LRU]

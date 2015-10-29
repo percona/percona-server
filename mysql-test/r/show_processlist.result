@@ -11,11 +11,11 @@ connect connection2,localhost,root,,test,$MASTER_MYPORT,;
 connect connection3,localhost,root,,test,$MASTER_MYPORT,;
 SET DEBUG_SYNC='now SIGNAL go';
 connection default;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
 SET DEBUG_SYNC='after_copying_threads SIGNAL parked1 WAIT_FOR go';
 SHOW PROCESSLIST;
 connection connection1;
@@ -25,19 +25,19 @@ connect connection4,localhost,root,,test,$MASTER_MYPORT,;
 connect connection5,localhost,root,,test,$MASTER_MYPORT,;
 SET DEBUG_SYNC='now SIGNAL go';
 connection default;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
-<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
+<Id>	root	<Host>	test	<Command>	<Time>	<State>	<Info>	X	X
 "Cleanup"
 SET DEBUG_SYNC='RESET';
 disconnect connection1;

@@ -1,0 +1,45 @@
+# Test for MySQL bug 74615: GRANT crashes server if mysql.user table is malformed
+call mtr.add_suppression("Did not write failed");
+
+ALTER TABLE mysql.user RENAME mysql.user_bak;
+
+CREATE TABLE mysql.user(Host char binary DEFAULT'',User char binary DEFAULT'',
+Password char collate latin1_bin DEFAULT'',Select_priv enum('','')COLLATE utf8_general_ci DEFAULT'',
+Insert_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Update_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Delete_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Create_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Drop_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Reload_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Shutdown_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Process_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+File_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Grant_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+References_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Index_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Alter_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Show_db_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Super_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Create_tmp_t_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Lock_ts_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Execute_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Repl_slave_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Repl_client_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Create_v_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Show_v_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Create_routine_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Alter_routine_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Create_user_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Event_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+Trigger_priv enum('','') COLLATE utf8_general_ci DEFAULT'',
+ssl_type ENUM('','X509','') COLLATE utf8_general_ci DEFAULT'',ssl_cipher BLOB,
+x509_issuer BLOB,x509_subject BLOB,max_questions int unsigned,max_updates int unsigned,
+max_connections int unsigned,max_user_connections int unsigned,
+PRIMARY KEY Host (Host,User)) engine=MyISAM COLLATE utf8_bin comment='Users and global privileges';
+
+--error ER_BAD_FIELD_ERROR
+grant select on test.* to''@'santa.claus.ipv4.example.com';
+
+DROP TABLE mysql.user;
+
+ALTER TABLE mysql.user_bak RENAME mysql.user;

@@ -359,6 +359,9 @@ Summary:        Percona Server - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
 Conflicts:      Percona-SQL-devel-50 Percona-Server-devel-51
+%if "%rhel" > "6"
+Obsoletes:      mariadb-devel
+%endif
 
 %description -n Percona-Server-devel%{product_suffix}
 This package contains the development header files and libraries necessary

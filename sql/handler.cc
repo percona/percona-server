@@ -7462,8 +7462,6 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
    SYNOPSIS
      write_locked_table_maps()
        thd     Pointer to THD structure
-       force   if true write table map even it was written earlier,
-               default value is false
 
    DESCRIPTION
        This function will generate and write table maps for all tables

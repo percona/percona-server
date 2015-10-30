@@ -86,37 +86,40 @@ begin |
 insert into t1 values (1)|
 savepoint x|
 set @a:= bug13825_0()|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
+ERROR 42000: SAVEPOINT x does not exist
 insert into t2 values (2)|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in triggers'
+ERROR 42000: SAVEPOINT x does not exist
 set @a:= bug13825_1()|
 ERROR 42000: SAVEPOINT x does not exist
 update t2 set i = 2|
 ERROR 42000: SAVEPOINT x does not exist
 set @a:= bug13825_2()|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
 select * from t1|
 i
 1
+2
+4
 rollback to savepoint x|
 select * from t1|
 i
 1
 delete from t2|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in triggers'
 select * from t1|
 i
 1
+2
+4
 rollback to savepoint x|
 select * from t1|
 i
 1
 release savepoint x|
 set @a:= bug13825_2()|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
 select * from t1|
 i
 1
+2
+4
 rollback to savepoint x|
 ERROR 42000: SAVEPOINT x does not exist
 delete from t1|
@@ -144,20 +147,26 @@ delete from t1|
 commit|
 set autocommit= 1|
 select bug13825_3(0)|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
+bug13825_3(0)
+0
 select * from t1|
 i
+1
+2
+3
 delete from t1|
 select bug13825_3(1)|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
+bug13825_3(1)
+1
 select * from t1|
 i
+1
+3
 delete from t1|
 set autocommit= 0|
 begin|
 insert into t1 values (1)|
 set @a:= bug13825_4()|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
 select * from t1|
 i
 1
@@ -167,11 +176,14 @@ set autocommit= 1|
 drop table t2|
 create table t2 (i int) |
 insert into t1 values (1), (bug13825_5(2)), (3)|
-ERROR 42000: This version of MySQL doesn't yet support 'savepoints in functions'
 select * from t1|
 i
+1
+2
+3
 select * from t2|
 i
+3
 drop function bug13825_0|
 drop function bug13825_1|
 drop function bug13825_2|

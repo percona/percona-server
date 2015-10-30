@@ -707,6 +707,11 @@ then
   append_arg_to_args "--port=$mysql_tcp_port"
 fi
 
+if test -n "$numa_interleave"
+then
+  append_arg_to_args "--innodb-numa-interleave=1"
+fi
+
 if test $niceness -eq 0
 then
   NOHUP_NICENESS="nohup"
@@ -892,31 +897,6 @@ fi
 #fi
 
 cmd="`mysqld_ld_preload_text`$NOHUP_NICENESS"
-
-#
-# Set mysqld's memory interleave policy.
-#
-
-if @TARGET_LINUX@ && test $numa_interleave -eq 1
-then
-  # Locate numactl, ensure it exists.
-  if ! my_which numactl > /dev/null 2>&1
-  then
-    log_error "numactl command not found, required for --numa-interleave"
-    exit 1
-  # Attempt to run a command, ensure it works.
-  elif ! numactl --interleave=all true
-  then
-    log_error "numactl failed, check if numactl is properly installed"
-  fi
-
-  # Launch mysqld with numactl.
-  cmd="$cmd numactl --interleave=all"
-elif test $numa_interleave -eq 1
-then
-  log_error "--numa-interleave is not supported on this platform"
-  exit 1
-fi
 
 for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
   "--datadir=$DATADIR" "--plugin-dir=$plugin_dir" "$USER_OPTION"

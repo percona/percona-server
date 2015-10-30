@@ -3,7 +3,6 @@ mvcc-20: tokutek
 mvcc-27: tokutek
 storage_engine_default: tokudb is not the default storage engine
 cluster_key_part : https://tokutek.atlassian.net/browse/DB-720
-savepoint-4 : percona testcase disabled until savepoints in triggers and stored functions fixed
 fast_update_blobs : https://tokutek.atlassian.net/browse/DB-871
 fast_update_blobs_fixed_varchar : https://tokutek.atlassian.net/browse/DB-871
 fast_update_blobs_with_varchar : https://tokutek.atlassian.net/browse/DB-871

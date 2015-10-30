@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@ TARGET_LINK_LIBRARIES(mysqldump perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 TARGET_LINK_LIBRARIES(mysqlimport perconaserverclient)
+SET_SOURCE_FILES_PROPERTIES(mysqlimport.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
 
 MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c)
 TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient)

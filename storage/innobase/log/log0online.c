@@ -544,7 +544,7 @@ log_online_start_bitmap_file(void)
 							innodb_file_bmp_key,
 							log_bmp_sys->out.name,
 							OS_FILE_CREATE,
-							OS_FILE_READ_WRITE,
+							OS_FILE_READ_WRITE_CACHED,
 							&success);
 	}
 	if (UNIV_UNLIKELY(!success)) {
@@ -704,7 +704,7 @@ log_online_read_init(void)
 	log_bmp_sys->out.file
 		= os_file_create_simple_no_error_handling
 		(innodb_file_bmp_key, log_bmp_sys->out.name, OS_FILE_OPEN,
-		 OS_FILE_READ_WRITE, &success);
+		 OS_FILE_READ_WRITE_CACHED, &success);
 
 	if (!success) {
 

@@ -643,7 +643,7 @@ rm -rf $RBR%{_sysconfdir}/init.d/mysql
 if [ -x %{_bindir}/my_print_defaults ]
 then
   mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1`
-  PID_FILE_PATT=`%{_bindir}/my_print_defaults server mysqld | grep '^--pid-file=' | sed -n 's/--pid-file=//p'`
+  PID_FILE_PATT=`%{_bindir}/my_print_defaults server mysqld | grep '^--pid-file=' | sed -n 's/--pid-file=//p' | sort -u`
 fi
 if [ -z "$mysql_datadir" ]
 then

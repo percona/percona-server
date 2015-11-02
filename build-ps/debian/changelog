@@ -1,3 +1,9 @@
+percona-server-5.5 (5.5.46-rel37.5) unstable; urgency=low
+
+  * Create default file for debian init script timeout params (bug1434022)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Mon, 02 Nov 2015 17:07:40 +0100
+
 percona-server-5.5 (5.5.43-rel37.2) unstable; urgency=low
 
   * Fixed PS .deb binaries are built without fast mutexes (bug1433980)

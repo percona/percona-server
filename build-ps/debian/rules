@@ -247,6 +247,9 @@ install: build
 	# FIXME install -m 0755 debian/additions/echo_stderr $(TMP)/usr/share/mysql/
 	install -m 0755 debian/additions/debian-start $(TMP)/etc/mysql/
 	install -m 0755 debian/additions/debian-start.inc.sh $(TMP)/usr/share/mysql/
+	# install default file for init script timeout params
+	install -d $(TMP)/etc/default
+	install -m 0644 debian/additions/default-mysql $(TMP)/etc/default/mysql
 
 	# install AppArmor profile
 	# FIXME install -D -m 644 debian/apparmor-profile $(TMP)/etc/apparmor.d/usr.sbin.mysqld

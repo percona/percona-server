@@ -54,3 +54,4 @@ usr/share/man/man8/mysqld.8
 usr/share/mysql
 etc/mysql/debian-start
 usr/share/mysql/debian-start.inc.sh
+etc/default/mysql

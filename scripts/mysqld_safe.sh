@@ -20,7 +20,7 @@ mysqld_ld_library_path=
 load_jemalloc=1
 load_hotbackup=0
 flush_caches=0
-numa_interleave=0
+numa_interleave=
 # Change (disable) transparent huge pages (TokuDB requirement)
 thp_setting=
 

@@ -15,6 +15,8 @@ Version Specific Information
 
  * :rn:`5.6.11-60.3`
     Improved ``NUMA`` support implemented. This feature was ported from Twitter's |MySQL| patches.
+ * :rn:`5.6.27-75.0`
+    Variables :variable:`innodb_buffer_pool_populate` and :variable:`numa_interleave` have been mapped to the upstream implementation of the new `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable.
 
 System Variables
 ================
@@ -30,7 +32,7 @@ System Variables
      :default: OFF
      :range: ON/OFF
 
-When this variable is enabled, |InnoDB| preallocates pages in the buffer pool on startup to force ``NUMA`` allocation decisions to be made immediately while the buffer cache is clean.
+When this variable is enabled, |InnoDB| preallocates pages in the buffer pool on startup to force ``NUMA`` allocation decisions to be made immediately while the buffer cache is clean. **NOTE:** This variable has been mapped to the upstream `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable in :rn:`5.6.27-75.0` and it will be removed in |Percona Server| 5.7.
 
 Command-line Options for mysqld_safe
 ====================================
@@ -57,7 +59,7 @@ When enabled this will flush and purge buffers/caches before starting the server
      :default: OFF
      :range: ON/OFF
 
-When this option is enabled, mysqld will run with its memory interleaved on all ``NUMA`` nodes by starting it with ``numactl --interleave=all``. In case there is just 1 CPU/node, allocations will be "interleaved" between that node.
+When this option is enabled, mysqld will run with its memory interleaved on all ``NUMA`` nodes by starting it with ``numactl --interleave=all``. In case there is just 1 CPU/node, allocations will be "interleaved" between that node. **NOTE:** This variable has been mapped to the upstream `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable in :rn:`5.6.27-75.0` and it will be removed in |Percona Server| 5.7. 
 
 Other Reading
 =============

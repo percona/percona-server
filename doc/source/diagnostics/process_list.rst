@@ -23,6 +23,10 @@ Version Specific Information
 
     * Added ``ROWS_SENT`` and ``ROWS_EXAMINED`` columns to table ``PROCESSLIST``.`
 
+  * :rn:`5.6.27-75.0`
+
+    * Added ``TID`` column to table ``PROCESSLIST``.
+
 INFORMATION_SCHEMA Tables
 =========================
 
@@ -42,6 +46,7 @@ INFORMATION_SCHEMA Tables
    :column ROWS_EXAMINED: The number of rows examined by the statement being executed (*NOTE:* This column is not updated for each examined row so it does not necessarily show an up-to-date value while the statement is executing. It only shows a correct value after the statement has completed.).
    :column ROWS_SENT: The number of rows sent by the statement being executed.
    :column ROWS_READ: The number of rows read by the statement being executed.
+   :column TID: The Linux Thread ID. For Linux, this corresponds to light-weight process ID (LWP ID) and can be seen in the ``ps -L`` output. In case when :ref:`threadpool` is enabled, "TID" is not null for only currently executing statements and statements received via "extra" connection.
 
 
 Example Output

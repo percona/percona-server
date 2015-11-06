@@ -1514,6 +1514,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Tue Nov 03 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed yum update fails and complains about duplicate pid (#1454917)
+- Percona Server fails to install on centos 7 if mariadb-devel package installed (#1499721)
+
 * Thu Sep 10 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Included Percona-TokuBackup into TokuDB package

@@ -72,5 +72,4 @@ DROP TABLE t;
 SHOW SLAVE STATUS NOLOCK;
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1287	'SHOW SLAVE STATUS NOLOCK' is deprecated and will be removed in a future release. Please use SHOW SLAVE STATUS NONBLOCKING instead
 include/rpl_end.inc

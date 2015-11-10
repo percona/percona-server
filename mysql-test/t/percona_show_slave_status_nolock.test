@@ -87,7 +87,8 @@ connection master;
 DROP TABLE t;
 sync_slave_with_master;
 
-# Test NOLOCK syntax deprecation warning
+# 'SHOW SLAVE STATUS NOLOCK' should be treated identically to 'SHOW SLAVE STATUS NONBLOCKING'
+# and should not produce any deprecation warnings
 --disable_result_log
 SHOW SLAVE STATUS NOLOCK;
 --enable_result_log

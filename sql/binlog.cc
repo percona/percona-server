@@ -7615,9 +7615,9 @@ void MYSQL_BIN_LOG::set_status_variables(THD *thd)
 
 void MYSQL_BIN_LOG::xlock(void)
 {
-  DBUG_ASSERT(!snapshot_lock_acquired);
-
   mysql_mutex_lock(&LOCK_log);
+
+  DBUG_ASSERT(!snapshot_lock_acquired);
 
   /*
     We must ensure that no writes to binlog and no commits to storage engines

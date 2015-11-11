@@ -25,7 +25,8 @@ Build-Depends: libtool (>= 1.4.2-7),
                g++ (>= 4.4),
                libaio-dev[linux-any],
                libpam-dev,
-               libssl-dev
+               libssl-dev,
+               libnuma-dev
 Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Bzr: lp:percona-server/5.6

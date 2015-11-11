@@ -265,7 +265,7 @@ URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
 Vendor:         %{percona_server_vendor}
 Provides:       mysql-server
-BuildRequires:  %{distro_buildreq} pam-devel openssl-devel
+BuildRequires:  %{distro_buildreq} pam-devel openssl-devel numactl-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
 %endif

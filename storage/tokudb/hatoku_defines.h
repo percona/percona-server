@@ -198,7 +198,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #endif
 
 // Branch prediction macros.
-// If supported by the compiler, will hint in inctruction caching for likely
+// If supported by the compiler, will hint in instruction caching for likely
 // branching. Should only be used where there is a very good idea of the correct
 // branch heuristics as determined by profiling. Mostly copied from InnoDB.
 // Use:
@@ -222,6 +222,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // Tell the compiler that cond is unlikely to hold
 #define TOKUDB_UNLIKELY(cond) TOKUDB_EXPECT(cond, 0)
 
+// Tell the compiler that the function/argument is unused
+#define TOKUDB_UNUSED(_uu) _uu __attribute__((unused))
 // mysql 5.6.15 removed the test macro, so we define our own
 #define tokudb_test(e) ((e) ? 1 : 0)
 

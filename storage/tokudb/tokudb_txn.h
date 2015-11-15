@@ -29,6 +29,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "hatoku_defines.h"
 #include "tokudb_debug.h"
+#include "tokudb_sysvars.h"
 
 typedef enum {
     hatoku_iso_not_set = 0,
@@ -117,15 +118,18 @@ inline int txn_begin(
         DB_TXN* this_txn = *txn;
         this_txn->set_client_id(this_txn, thd_get_thread_id(thd));
     }
-    if ((tokudb_debug & TOKUDB_DEBUG_TXN)) {
-        TOKUDB_TRACE("begin txn %p %p %u r=%d", parent, *txn, flags, r);
-    }
+    TOKUDB_TRACE_FOR_FLAGS(
+        TOKUDB_DEBUG_TXN,
+        "begin txn %p %p %u r=%d",
+        parent,
+        *txn,
+        flags,
+        r);
     return r;
 }
 
 inline void commit_txn(DB_TXN* txn, uint32_t flags) {
-    if (tokudb_debug & TOKUDB_DEBUG_TXN)
-        TOKUDB_TRACE("commit txn %p", txn);
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "commit txn %p", txn);
     int r = txn->commit(txn, flags);
     if (r != 0) {
         sql_print_error(
@@ -137,8 +141,7 @@ inline void commit_txn(DB_TXN* txn, uint32_t flags) {
 }
 
 inline void abort_txn(DB_TXN* txn) {
-    if (tokudb_debug & TOKUDB_DEBUG_TXN)
-        TOKUDB_TRACE("abort txn %p", txn);
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "abort txn %p", txn);
     int r = txn->abort(txn);
     if (r != 0) {
         sql_print_error(

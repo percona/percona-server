@@ -23,6 +23,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
+#include "tokudb_sysvars.h"
 #include "toku_time.h"
 
 struct analyze_progress_extra {
@@ -42,7 +43,7 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
         return ER_ABORTING_CONNECTION;
 
     time_t t_now = time(0);
-    time_t t_limit = THDVAR(thd, analyze_time);
+    time_t t_limit = tokudb::sysvars::analyze_time(thd);
     time_t t_start = extra->t_start;
     if (t_limit > 0 && t_now - t_start > t_limit)
         return ETIME;
@@ -70,7 +71,8 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     int result = HA_ADMIN_OK;
 
     // stub out analyze if optimize is remapped to alter recreate + analyze
-    if (thd_sql_command(thd) != SQLCOM_ANALYZE && thd_sql_command(thd) != SQLCOM_ALTER_TABLE) {
+    if (thd_sql_command(thd) != SQLCOM_ANALYZE &&
+        thd_sql_command(thd) != SQLCOM_ALTER_TABLE) {
         TOKUDB_HANDLER_DBUG_RETURN(result);
     }
 
@@ -86,58 +88,109 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
             uint64_t num_key_parts = get_key_parts(key_info);
             const char *key_name = i == primary_key ? "primary" : key_info->name;
             struct analyze_progress_extra analyze_progress_extra = {
-                thd, share, table_share, i, key_name, time(0), write_status_msg
+                thd,
+                share,
+                table_share,
+                i,
+                key_name,
+                time(0),
+                write_status_msg
             };
             bool is_unique = false;
             if (i == primary_key || (key_info->flags & HA_NOSAME))
                 is_unique = true;
             uint64_t rows = 0;
             uint64_t deleted_rows = 0;
-            int error = tokudb::analyze_card(share->key_file[i], txn, is_unique, num_key_parts, &rec_per_key[total_key_parts],
-                                             tokudb_cmp_dbt_key_parts, analyze_progress, &analyze_progress_extra,
-                                             &rows, &deleted_rows);
-            sql_print_information("tokudb analyze %d %" PRIu64 " %" PRIu64, error, rows, deleted_rows);
+            int error =
+                tokudb::analyze_card(
+                    share->key_file[i],
+                    txn,
+                    is_unique,
+                    num_key_parts,
+                    &rec_per_key[total_key_parts],
+                    tokudb_cmp_dbt_key_parts,
+                    analyze_progress,
+                    &analyze_progress_extra,
+                    &rows,
+                    &deleted_rows);
+            sql_print_information(
+                "tokudb analyze %d %" PRIu64 " %" PRIu64,
+                error,
+                rows,
+                deleted_rows);
             if (error != 0 && error != ETIME) {
                 result = HA_ADMIN_FAILED;
             }
             if (error != 0 && rows == 0 && deleted_rows > 0) {
                 result = HA_ADMIN_FAILED;
             }
-            double f = THDVAR(thd, analyze_delete_fraction);
-            if (result == HA_ADMIN_FAILED || (double) deleted_rows > f * (rows + deleted_rows)) {
+            double f = tokudb::sysvars::analyze_delete_fraction(thd);
+            if (result == HA_ADMIN_FAILED ||
+                (double)deleted_rows > f * (rows + deleted_rows)) {
                 char name[256]; int namelen;
-                namelen = snprintf(name, sizeof name, "%.*s.%.*s.%s",
-                                  (int) table_share->db.length, table_share->db.str,
-                                  (int) table_share->table_name.length, table_share->table_name.str,
-                                  key_name);
+                namelen = snprintf(
+                    name,
+                    sizeof(name),
+                    "%.*s.%.*s.%s",
+                    (int)table_share->db.length,
+                    table_share->db.str,
+                    (int)table_share->table_name.length,
+                    table_share->table_name.str,
+                    key_name);
                 thd->protocol->prepare_for_resend();
                 thd->protocol->store(name, namelen,  system_charset_info);
                 thd->protocol->store("analyze", 7, system_charset_info);
                 thd->protocol->store("info", 4, system_charset_info);
-                char rowmsg[256]; int rowmsglen;
-                rowmsglen = snprintf(rowmsg, sizeof rowmsg, "rows processed %" PRIu64 " rows deleted %" PRIu64, rows, deleted_rows);
+                char rowmsg[256];
+                int rowmsglen;
+                rowmsglen = snprintf(
+                    rowmsg,
+                    sizeof(rowmsg),
+                    "rows processed %" PRIu64 " rows deleted %" PRIu64,
+                    rows,
+                    deleted_rows);
                 thd->protocol->store(rowmsg, rowmsglen, system_charset_info);
                 thd->protocol->write();
 
-                sql_print_information("tokudb analyze on %.*s %.*s",
-                                      namelen, name, rowmsglen, rowmsg);
+                sql_print_information(
+                    "tokudb analyze on %.*s %.*s",
+                    namelen,
+                    name,
+                    rowmsglen,
+                    rowmsg);
             }
-            if (tokudb_debug & TOKUDB_DEBUG_ANALYZE) {
+            if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_ANALYZE))) {
                 char name[256]; int namelen;
-                namelen = snprintf(name, sizeof name, "%.*s.%.*s.%s",
-                                  (int) table_share->db.length, table_share->db.str,
-                                  (int) table_share->table_name.length, table_share->table_name.str,
-                                  key_name);
-                TOKUDB_HANDLER_TRACE("%.*s rows %" PRIu64 " deleted %" PRIu64,
-                                     namelen, name, rows, deleted_rows);
+                namelen = snprintf(
+                    name,
+                    sizeof(name),
+                    "%.*s.%.*s.%s",
+                    (int)table_share->db.length,
+                    table_share->db.str,
+                    (int)table_share->table_name.length,
+                    table_share->table_name.str,
+                    key_name);
+                TOKUDB_HANDLER_TRACE(
+                    "%.*s rows %" PRIu64 " deleted %" PRIu64,
+                    namelen,
+                    name,
+                    rows,
+                    deleted_rows);
                 for (uint j = 0; j < num_key_parts; j++)
-                    TOKUDB_HANDLER_TRACE("%" PRIu64, rec_per_key[total_key_parts+j]);
+                    TOKUDB_HANDLER_TRACE(
+                        "%" PRIu64,
+                        rec_per_key[total_key_parts+j]);
             }
             total_key_parts += num_key_parts;
-        } 
+        }
     }
     if (result == HA_ADMIN_OK) {
-        int error = tokudb::set_card_in_status(share->status_block, txn, total_key_parts, rec_per_key);
+        int error =
+            tokudb::set_card_in_status(
+                share->status_block,
+                txn,
+                total_key_parts,
+                rec_per_key);
         if (error) 
             result = HA_ADMIN_FAILED;
     }
@@ -146,9 +199,9 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
 }
 
 typedef struct hot_optimize_context {
-    THD *thd;
+    THD* thd;
     char* write_status_msg;
-    ha_tokudb *ha;
+    ha_tokudb* ha;
     uint progress_stage;
     uint current_table;
     uint num_tables;
@@ -160,11 +213,18 @@ typedef struct hot_optimize_context {
 static int hot_optimize_progress_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
     if (thd_killed(context->thd)) {
-        sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
+        sprintf(
+            context->write_status_msg,
+            "The process has been killed, aborting hot optimize.");
         return ER_ABORTING_CONNECTION;
     }
     float percentage = progress * 100;
-    sprintf(context->write_status_msg, "Optimization of index %u of %u about %.lf%% done", context->current_table + 1, context->num_tables, percentage);
+    sprintf(
+        context->write_status_msg,
+        "Optimization of index %u of %u about %.lf%% done",
+        context->current_table + 1,
+        context->num_tables,
+        percentage);
     thd_proc_info(context->thd, context->write_status_msg);
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     if (context->progress_stage < context->current_table) {
@@ -193,10 +253,10 @@ static int hot_optimize_progress_fun(void *extra, float progress) {
 }
 
 // flatten all DB's in this table, to do so, peform hot optimize on each db
-int ha_tokudb::do_optimize(THD *thd) {
+int ha_tokudb::do_optimize(THD* thd) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
     int error = 0;
-    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
+    const char* orig_proc_info = tokudb_thd_get_proc_info(thd);
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
 
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
@@ -207,10 +267,15 @@ int ha_tokudb::do_optimize(THD *thd) {
 
     // for each DB, run optimize and hot_optimize
     for (uint i = 0; i < curr_num_DBs; i++) {
-        // only optimize the index if it matches the optimize_index_name session variable
-        const char *optimize_index_name = THDVAR(thd, optimize_index_name);
+        // only optimize the index if it matches the optimize_index_name
+        // session variable
+        const char* optimize_index_name =
+            tokudb::sysvars::optimize_index_name(thd);
         if (optimize_index_name) {
-            const char *this_index_name = i >= table_share->keys ? "primary" : table_share->key_info[i].name;
+            const char* this_index_name =
+                i >= table_share->keys ?
+                    "primary" :
+                    table_share->key_info[i].name;
             if (strcasecmp(optimize_index_name, this_index_name) != 0) {
                 continue;
             }
@@ -229,11 +294,18 @@ int ha_tokudb::do_optimize(THD *thd) {
         hc.ha = this;
         hc.current_table = i;
         hc.num_tables = curr_num_DBs;
-        hc.progress_limit = THDVAR(thd, optimize_index_fraction);
+        hc.progress_limit = tokudb::sysvars::optimize_index_fraction(thd);
         hc.progress_last_time = toku_current_time_microsec();
-        hc.throttle = THDVAR(thd, optimize_throttle);
+        hc.throttle = tokudb::sysvars::optimize_throttle(thd);
         uint64_t loops_run;
-        error = db->hot_optimize(db, NULL, NULL, hot_optimize_progress_fun, &hc, &loops_run);
+        error =
+            db->hot_optimize(
+                db,
+                NULL,
+                NULL,
+                hot_optimize_progress_fun,
+                &hc,
+                &loops_run);
         if (error) {
             goto cleanup;
         }
@@ -248,7 +320,7 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
+int ha_tokudb::optimize(THD* thd, HA_CHECK_OPT* check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
     int error;
 #if TOKU_OPTIMIZE_WITH_RECREATE
@@ -260,23 +332,30 @@ int ha_tokudb::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
 }
 
 struct check_context {
-    THD *thd;
+    THD* thd;
 };
 
-static int ha_tokudb_check_progress(void *extra, float progress) {
-    struct check_context *context = (struct check_context *) extra;
+static int ha_tokudb_check_progress(void* extra, float progress) {
+    struct check_context* context = (struct check_context*)extra;
     int result = 0;
     if (thd_killed(context->thd))
         result = ER_ABORTING_CONNECTION;
     return result;
 }
 
-static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
+static void ha_tokudb_check_info(THD* thd, TABLE* table, const char* msg) {
     if (thd->vio_ok()) {
-        char tablename[table->s->db.length + 1 + table->s->table_name.length + 1];
-        snprintf(tablename, sizeof tablename, "%.*s.%.*s",
-                 (int) table->s->db.length, table->s->db.str,
-                 (int) table->s->table_name.length, table->s->table_name.str);
+        char tablename[
+            table->s->db.length + 1 +
+            table->s->table_name.length + 1];
+        snprintf(
+            tablename,
+            sizeof(tablename),
+            "%.*s.%.*s",
+            (int)table->s->db.length,
+            table->s->db.str,
+            (int)table->s->table_name.length,
+            table->s->table_name.str);
         thd->protocol->prepare_for_resend();
         thd->protocol->store(tablename, strlen(tablename), system_charset_info);
         thd->protocol->store("check", 5, system_charset_info);
@@ -286,9 +365,9 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     }
 }
 
-int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
+int ha_tokudb::check(THD* thd, HA_CHECK_OPT* check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
-    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
+    const char* orig_proc_info = tokudb_thd_get_proc_info(thd);
     int result = HA_ADMIN_OK;
     int r;
 
@@ -305,38 +384,72 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
         result = HA_ADMIN_INTERNAL_ERROR;
     if (result == HA_ADMIN_OK) {
         uint32_t num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
-        snprintf(write_status_msg, sizeof write_status_msg, "%s primary=%d num=%d", share->table_name, primary_key, num_DBs);
-        if (tokudb_debug & TOKUDB_DEBUG_CHECK) {
+        snprintf(
+            write_status_msg,
+            sizeof(write_status_msg),
+            "%s primary=%d num=%d",
+            share->table_name,
+            primary_key,
+            num_DBs);
+        if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_CHECK))) {
             ha_tokudb_check_info(thd, table, write_status_msg);
             time_t now = time(0);
             char timebuf[32];
-            TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
+            TOKUDB_HANDLER_TRACE(
+                "%.24s %s",
+                ctime_r(&now, timebuf),
+                write_status_msg);
         }
         for (uint i = 0; i < num_DBs; i++) {
             DB *db = share->key_file[i];
-            const char *kname = i == primary_key ? "primary" : table_share->key_info[i].name;
-            snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u", share->table_name, kname, i);
+            const char* kname =
+                i == primary_key ? "primary" : table_share->key_info[i].name;
+            snprintf(
+                write_status_msg,
+                sizeof(write_status_msg),
+                "%s key=%s %u",
+                share->table_name,
+                kname,
+                i);
             thd_proc_info(thd, write_status_msg);
-            if (tokudb_debug & TOKUDB_DEBUG_CHECK) {
+            if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_CHECK))) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 time_t now = time(0);
                 char timebuf[32];
-                TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
+                TOKUDB_HANDLER_TRACE(
+                    "%.24s %s",
+                    ctime_r(&now, timebuf),
+                    write_status_msg);
             }
             struct check_context check_context = { thd };
-            r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, (tokudb_debug & TOKUDB_DEBUG_CHECK) != 0, keep_going);
+            r = db->verify_with_progress(
+                db,
+                ha_tokudb_check_progress,
+                &check_context,
+                (tokudb::sysvars::debug & TOKUDB_DEBUG_CHECK) != 0,
+                keep_going);
             if (r != 0) {
                 char msg[32 + strlen(kname)];
                 sprintf(msg, "Corrupt %s", kname);
                 ha_tokudb_check_info(thd, table, msg);
             }
-            snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u result=%d", share->table_name, kname, i, r);
+            snprintf(
+                write_status_msg,
+                sizeof(write_status_msg),
+                "%s key=%s %u result=%d",
+                share->table_name,
+                kname,
+                i,
+                r);
             thd_proc_info(thd, write_status_msg);
-            if (tokudb_debug & TOKUDB_DEBUG_CHECK) {
+            if (TOKUDB_UNLIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_CHECK))) {
                 ha_tokudb_check_info(thd, table, write_status_msg);
                 time_t now = time(0);
                 char timebuf[32];
-                TOKUDB_HANDLER_TRACE("%.24s %s", ctime_r(&now, timebuf), write_status_msg);
+                TOKUDB_HANDLER_TRACE(
+                    "%.24s %s",
+                    ctime_r(&now, timebuf),
+                    write_status_msg);
             }
             if (result == HA_ADMIN_OK && r != 0) {
                 result = HA_ADMIN_CORRUPT;

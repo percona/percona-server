@@ -24,12 +24,31 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include "tokudb_information_schema.h"
 #include "hatoku_hton.h"
+#include "tokudb_information_schema.h"
+#include "sql_time.h"
+#include "tokudb_background.h"
 
 
 namespace tokudb {
 namespace information_schema {
+
+static void field_store_time_t(Field* field, time_t time) {
+    MYSQL_TIME  my_time;
+    struct tm tm_time;
+
+    if (time) {
+        localtime_r(&time, &tm_time);
+        localtime_to_TIME(&my_time, &tm_time);
+        my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
+        field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME);
+        field->set_notnull();
+    } else {
+        memset(&my_time, 0, sizeof(my_time));
+        field->store_time(&my_time, MYSQL_TIMESTAMP_DATETIME);
+        field->set_null();
+    }
+}
 
 st_mysql_information_schema trx_information_schema = {
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
@@ -1038,6 +1057,141 @@ st_mysql_plugin fractal_tree_block_map = {
     PLUGIN_LICENSE_GPL,
     fractal_tree_block_map_init,     /* plugin init */
     fractal_tree_block_map_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+#ifdef MARIA_PLUGIN_INTERFACE_VERSION
+    tokudb::sysvars::version,
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+#else
+    NULL,                      /* config options */
+    0,                         /* flags */
+#endif
+};
+
+
+st_mysql_information_schema background_job_status_information_schema = {
+    MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+};
+
+ST_FIELD_INFO background_job_status_field_info[] = {
+    {"id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"database_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"job_type", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"job_params", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"scheduler", 32, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"scheduled_time", 0, MYSQL_TYPE_DATETIME, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"started_time", 0, MYSQL_TYPE_DATETIME, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
+    {"status", 256, MYSQL_TYPE_STRING, 0, MY_I_S_MAYBE_NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+struct background_job_status_extra {
+    THD* thd;
+    TABLE* table;
+};
+
+void background_job_status_callback(
+    uint64_t id,
+    const char* database_name,
+    const char* table_name,
+    const char* type,
+    const char* params,
+    const char* status,
+    bool user_scheduled,
+    time_t scheduled_time,
+    time_t started_time,
+    void* extra) {
+
+    background_job_status_extra* e =
+        reinterpret_cast<background_job_status_extra*>(extra);
+
+    THD* thd = e->thd;
+    TABLE* table = e->table;
+
+    table->field[0]->store(id, false);
+    table->field[1]->store(
+        database_name,
+        strlen(database_name),
+        system_charset_info);
+    table->field[2]->store(table_name, strlen(table_name), system_charset_info);
+    table->field[3]->store(type, strlen(type), system_charset_info);
+    table->field[4]->store(params, strlen(params), system_charset_info);
+    if (user_scheduled)
+        table->field[5]->store("USER", sizeof("USER"), system_charset_info);
+    else
+        table->field[5]->store("AUTO", sizeof("AUTO"), system_charset_info);
+
+    field_store_time_t(table->field[6], scheduled_time);
+    field_store_time_t(table->field[7], started_time);
+    if (status[0] != '\0') {
+        table->field[8]->store(status, strlen(status), system_charset_info);
+        table->field[8]->set_notnull();
+    } else {
+        table->field[8]->store(NULL, 0, system_charset_info);
+        table->field[8]->set_null();
+    }
+
+    schema_table_store_record(thd, table);
+}
+
+int report_background_job_status(TABLE *table, THD *thd) {
+    int error = 0;
+    background_job_status_extra extra = {
+        thd,
+        table
+    };
+    tokudb::background::_job_manager->iterate_jobs(
+        background_job_status_callback,
+        &extra);
+    return error;
+}
+
+#if MYSQL_VERSION_ID >= 50600
+int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    TOKUDB_DBUG_ENTER("");
+    int error;
+    TABLE* table = tables->table;
+
+    tokudb_hton_initialized_lock.lock_read();
+
+    if (!tokudb_hton_initialized) {
+        error = ER_PLUGIN_IS_NOT_LOADED;
+        my_error(error, MYF(0), tokudb_hton_name);
+    } else {
+        error = report_background_job_status(table, thd);
+        if (error)
+            my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
+    }
+
+    tokudb_hton_initialized_lock.unlock();
+    TOKUDB_DBUG_RETURN(error);
+}
+
+int background_job_status_init(void* p) {
+    ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*)p;
+    schema->fields_info = background_job_status_field_info;
+    schema->fill_table = background_job_status_fill_table;
+    return 0;
+}
+
+int background_job_status_done(void* p) {
+    return 0;
+}
+
+st_mysql_plugin background_job_status = {
+    MYSQL_INFORMATION_SCHEMA_PLUGIN,
+    &background_job_status_information_schema,
+    "TokuDB_background_job_status",
+    "Percona",
+    "Percona TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_GPL,
+    background_job_status_init,     /* plugin init */
+    background_job_status_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */

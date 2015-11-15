@@ -29,6 +29,18 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 namespace tokudb {
 namespace sysvars {
 
+enum analyze_mode_t {
+    TOKUDB_ANALYZE_STANDARD = 0,
+    TOKUDB_ANALYZE_RECOUNT_ROWS = 1,
+    TOKUDB_ANALYZE_CANCEL = 2
+};
+
+enum empty_scan_mode_t {
+    TOKUDB_EMPTY_SCAN_DISABLED = 0,
+    TOKUDB_EMPTY_SCAN_LR = 1,
+    TOKUDB_EMPTY_SCAN_RL = 2,
+};
+
 enum row_format_t {
     SRV_ROW_FORMAT_UNCOMPRESSED = 0,
     SRV_ROW_FORMAT_ZLIB = 1,
@@ -40,12 +52,6 @@ enum row_format_t {
     SRV_ROW_FORMAT_DEFAULT = 7
 };
 
-enum empty_scan_mode_t {
-    TOKUDB_EMPTY_SCAN_DISABLED = 0,
-    TOKUDB_EMPTY_SCAN_LR = 1,
-    TOKUDB_EMPTY_SCAN_RL = 2,
-};
-
 #define DEFAULT_TOKUDB_CLEANER_ITERATIONS 5
 #define DEFAULT_TOKUDB_CLEANER_PERIOD 1
 #define DEFAULT_TOKUDB_KILLED_TIME 4000     // milliseconds
@@ -55,6 +61,7 @@ enum empty_scan_mode_t {
 // globals
 extern ulonglong    cache_size;
 extern uint         cachetable_pool_threads;
+extern int          cardinality_scale_percent;
 extern my_bool      checkpoint_on_flush_logs;
 extern uint         checkpoint_pool_threads;
 extern uint         checkpointing_period;
@@ -84,11 +91,19 @@ extern my_bool      gdb_on_fatal;
 extern uint         check_jemalloc;
 #endif
 
+#if TOKUDB_DEBUG
+// used to control background job manager
+extern my_bool      debug_pause_background_job_manager;
+#endif // TOKUDB_DEBUG
 
 // session/thread
 my_bool     alter_print_error(THD* thd);
 double      analyze_delete_fraction(THD* thd);
-uint        analyze_time(THD* thd);
+my_bool     analyze_in_background(THD* thd);
+analyze_mode_t analyze_mode(THD* thd);
+ulonglong   analyze_throttle(THD* thd);
+ulonglong   analyze_time(THD* thd);
+ulonglong   auto_analyze(THD* thd);
 uint        block_size(THD* thd);
 my_bool     bulk_fetch(THD* thd);
 my_bool     commit_sync(THD* thd);

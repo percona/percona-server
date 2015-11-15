@@ -38,6 +38,7 @@ extern st_mysql_plugin locks;
 extern st_mysql_plugin file_map;
 extern st_mysql_plugin fractal_tree_info;
 extern st_mysql_plugin fractal_tree_block_map;
+extern st_mysql_plugin background_job_status;
 
 } // namespace information_schema
 } // namespace tokudb

@@ -42,6 +42,7 @@ namespace sysvars {
 
 ulonglong   cache_size = 0;
 uint        cachetable_pool_threads = 0;
+int         cardinality_scale_percent = 0;
 my_bool     checkpoint_on_flush_logs = FALSE;
 uint        checkpoint_pool_threads = 0;
 uint        checkpointing_period = 0;
@@ -51,6 +52,10 @@ uint        client_pool_threads = 0;
 my_bool     compress_buffers_before_eviction = TRUE;
 char*       data_dir = NULL;
 ulong       debug = 0;
+#if TOKUDB_DEBUG
+// used to control background job manager
+my_bool     debug_pause_background_job_manager = FALSE;
+#endif
 my_bool     directio = FALSE;
 my_bool     enable_partial_eviction = TRUE;
 int         fs_reserve_percent = 0;
@@ -94,6 +99,18 @@ static MYSQL_SYSVAR_UINT(
     0,
     0,
     1024,
+    0);
+
+static MYSQL_SYSVAR_INT(
+    cardinality_scale_percent,
+    cardinality_scale_percent,
+    0,
+    "index cardinality scale percentage",
+    NULL,
+    NULL,
+    50,
+    0,
+    100,
     0);
 
 static MYSQL_SYSVAR_BOOL(
@@ -230,6 +247,17 @@ static MYSQL_SYSVAR_ULONG(
     0,
     ~0UL,
     0);
+
+#if TOKUDB_DEBUG
+static MYSQL_SYSVAR_BOOL(
+    debug_pause_background_job_manager,
+    debug_pause_background_job_manager,
+    0,
+    "debug : pause the background job manager",
+    NULL,
+    NULL,
+    FALSE);
+#endif // TOKUDB_DEBUG
 
 static MYSQL_SYSVAR_BOOL(
     directio,
@@ -415,6 +443,51 @@ static MYSQL_THDVAR_DOUBLE(
     1.0,
     1);
 
+static MYSQL_THDVAR_BOOL(
+    analyze_in_background,
+    0,
+    "dispatch ANALYZE TABLE to background job.",
+    NULL,
+    NULL,
+    false);
+
+const char* srv_analyze_mode_names[] = {
+    "TOKUDB_ANALYZE_STANDARD",
+    "TOKUDB_ANALYZE_RECOUNT_ROWS",
+    "TOKUDB_ANALYZE_CANCEL",
+    NullS
+};
+
+static TYPELIB tokudb_analyze_mode_typelib = {
+    array_elements(srv_analyze_mode_names) - 1,
+    "tokudb_analyze_mode_typelib",
+    srv_analyze_mode_names,
+    NULL
+};
+
+static MYSQL_THDVAR_ENUM(analyze_mode,
+    PLUGIN_VAR_RQCMDARG,
+    "Controls the function of ANALYZE TABLE. Possible values are: "
+    "TOKUDB_ANALYZE_STANDARD perform standard table analysis (default); "
+    "TOKUDB_ANALYZE_RECOUNT_ROWS perform logical recount of table rows;"
+    "TOKUDB_ANALYZE_CANCEL terminate and cancel all scheduled background jobs "
+    "for a table",
+    NULL,
+    NULL,
+    TOKUDB_ANALYZE_STANDARD,
+    &tokudb_analyze_mode_typelib);
+
+static MYSQL_THDVAR_ULONGLONG(
+    analyze_throttle,
+    0,
+    "analyze throttle (keys)",
+    NULL,
+    NULL,
+    0,
+    0,
+    ~0U,
+    1);
+
 static MYSQL_THDVAR_UINT(
     analyze_time,
     0,
@@ -422,6 +495,17 @@ static MYSQL_THDVAR_UINT(
     NULL,
     NULL,
     5,
+    0,
+    ~0U,
+    1);
+
+static MYSQL_THDVAR_ULONGLONG(
+    auto_analyze,
+    0,
+    "auto analyze threshold (percent)",
+    NULL,
+    NULL,
+    0,
     0,
     ~0U,
     1);
@@ -795,6 +879,7 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(checkpoint_on_flush_logs),
     MYSQL_SYSVAR(cachetable_pool_threads),
+    MYSQL_SYSVAR(cardinality_scale_percent),
     MYSQL_SYSVAR(checkpoint_pool_threads),
     MYSQL_SYSVAR(checkpointing_period),
     MYSQL_SYSVAR(cleaner_iterations),
@@ -826,7 +911,11 @@ st_mysql_sys_var* system_variables[] = {
     // session vars
     MYSQL_SYSVAR(alter_print_error),
     MYSQL_SYSVAR(analyze_delete_fraction),
+    MYSQL_SYSVAR(analyze_in_background),
+    MYSQL_SYSVAR(analyze_mode),
+    MYSQL_SYSVAR(analyze_throttle),
     MYSQL_SYSVAR(analyze_time),
+    MYSQL_SYSVAR(auto_analyze),
     MYSQL_SYSVAR(block_size),
     MYSQL_SYSVAR(bulk_fetch),
     MYSQL_SYSVAR(checkpoint_lock),
@@ -866,6 +955,11 @@ st_mysql_sys_var* system_variables[] = {
 #if TOKU_INCLUDE_XA
     MYSQL_SYSVAR(support_xa),
 #endif
+
+#if TOKUDB_DEBUG
+   MYSQL_SYSVAR(debug_pause_background_job_manager),
+#endif // TOKUDB_DEBUG
+
     NULL
 };
 
@@ -875,8 +969,20 @@ my_bool alter_print_error(THD* thd) {
 double analyze_delete_fraction(THD* thd) {
     return THDVAR(thd, analyze_delete_fraction);
 }
-uint analyze_time(THD* thd) {
+my_bool analyze_in_background(THD* thd) {
+    return (THDVAR(thd, analyze_in_background) != 0);
+}
+analyze_mode_t analyze_mode(THD* thd) {
+    return (analyze_mode_t ) THDVAR(thd, analyze_mode);
+}
+ulonglong analyze_throttle(THD* thd) {
+    return THDVAR(thd, analyze_throttle);
+}
+ulonglong analyze_time(THD* thd) {
     return THDVAR(thd, analyze_time);
+}
+ulonglong auto_analyze(THD* thd) {
+    return THDVAR(thd, auto_analyze);
 }
 my_bool bulk_fetch(THD* thd) {
     return (THDVAR(thd, bulk_fetch) != 0);

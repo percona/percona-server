@@ -24,35 +24,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#define MYSQL_SERVER 1
-#include "hatoku_defines.h"
-#include <db.h>
-#include <ctype.h>
-
-#include "stdint.h"
-#if defined(_WIN32)
-#include "misc.h"
-#endif
-#define __STDC_FORMAT_MACROS
-#include <inttypes.h>
-#include "toku_os.h"
-#include "toku_time.h"
-#include "partitioned_counter.h"
-
-/* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
-#ifdef HAVE_DTRACE
-#define _DTRACE_VERSION 1
-#else
-#endif
-
-#include <mysql/plugin.h>
 #include "hatoku_hton.h"
-#include "ha_tokudb.h"
-
-#undef PACKAGE
-#undef VERSION
-#undef HAVE_DTRACE
-#undef _DTRACE_VERSION
 
 #define TOKU_METADB_NAME "tokudb_meta"
 
@@ -74,20 +46,10 @@ ha_create_table_option tokudb_index_options[] = {
 };
 #endif
 
-static uchar* tokudb_get_key(
-    TOKUDB_SHARE* share,
-    size_t* length,
-    TOKUDB_UNUSED(my_bool not_used)) {
-
-    *length = share->table_name_length;
-    return (uchar *) share->table_name;
-}
-
 static handler* tokudb_create_handler(
     handlerton* hton,
     TABLE_SHARE* table,
     MEM_ROOT* mem_root);
-
 
 static void tokudb_print_error(
     const DB_ENV* db_env,
@@ -157,8 +119,6 @@ handlerton* tokudb_hton;
 
 const char* ha_tokudb_ext = ".tokudb";
 DB_ENV* db_env;
-HASH tokudb_open_tables;
-tokudb::thread::mutex_t tokudb_mutex;
 
 #if TOKU_THDVAR_MEMALLOC_BUG
 static tokudb::thread::mutex_t tokudb_map_mutex;
@@ -356,15 +316,8 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 
-    my_hash_init(
-        &tokudb_open_tables,
-        table_alias_charset,
-        32,
-        0,
-        0,
-        (my_hash_get_key)tokudb_get_key,
-        0,
-        0);
+    TOKUDB_SHARE::static_init();
+    tokudb::background::initialize();
 
     tokudb_hton->state = SHOW_OPTION_YES;
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
@@ -681,7 +634,6 @@ static int tokudb_done_func(void* p) {
     toku_global_status_variables = NULL;
     tokudb::memory::free(toku_global_status_rows);
     toku_global_status_rows = NULL;
-    my_hash_free(&tokudb_open_tables);
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -702,6 +654,9 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
     // in isolation.
     tokudb_hton_initialized_lock.lock_write();
     assert_always(tokudb_hton_initialized);
+
+    tokudb::background::destroy();
+    TOKUDB_SHARE::static_destroy();
 
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
@@ -1564,7 +1519,11 @@ void tokudb_split_dname(
                 table_name.append(table_ptr, dictionary_ptr - table_ptr);
                 dictionary_ptr += 1;
                 dictionary_name.append(dictionary_ptr);
+            } else {
+                table_name.append(table_ptr);
             }
+        } else {
+            database_name.append(database_ptr);
         }
     }
 }
@@ -1912,7 +1871,8 @@ mysql_declare_plugin(tokudb)
     tokudb::information_schema::locks,
     tokudb::information_schema::file_map,
     tokudb::information_schema::fractal_tree_info,
-    tokudb::information_schema::fractal_tree_block_map
+    tokudb::information_schema::fractal_tree_block_map,
+    tokudb::information_schema::background_job_status
 #ifdef MARIA_PLUGIN_INTERFACE_VERSION
 maria_declare_plugin_end;
 #else

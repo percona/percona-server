@@ -41,6 +41,17 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include <binlog.h>
 #endif
 
+#undef PACKAGE
+#undef VERSION
+#undef HAVE_DTRACE
+#undef _DTRACE_VERSION
+
+/* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
+#ifdef HAVE_DTRACE
+#define _DTRACE_VERSION 1
+#else
+#endif
+
 #include <mysql/plugin.h>
 
 #include <ctype.h>

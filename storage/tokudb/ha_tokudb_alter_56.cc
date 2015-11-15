@@ -563,6 +563,10 @@ bool ha_tokudb::inplace_alter_table(
         static_cast<tokudb_alter_ctx*>(ha_alter_info->handler_ctx);
     HA_CREATE_INFO* create_info = ha_alter_info->create_info;
 
+    // this should be enough to handle locking as the higher level MDL
+    // on this table should prevent any new analyze tasks.
+    share->cancel_background_jobs();
+
     if (error == 0 &&
         (ctx->handler_flags &
             (Alter_inplace_info::DROP_INDEX +
@@ -1023,7 +1027,6 @@ bool ha_tokudb::commit_inplace_alter_table(
             }
         }
     }
-    
     DBUG_RETURN(result);
 }
 

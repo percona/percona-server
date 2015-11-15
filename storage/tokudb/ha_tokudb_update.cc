@@ -157,7 +157,7 @@ static uint32_t fixed_field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_inf
 }
 
 static uint32_t var_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint idx, uint field_num) {
-    assert(field_num < table->s->fields);
+    assert_always(field_num < table->s->fields);
     uint v_index = 0;
     for (uint i = 0; i < table->s->fields; i++) {
         if (bitmap_is_set(&kc_info->key_filters[idx], i))
@@ -172,13 +172,13 @@ static uint32_t var_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint id
 }
 
 static uint32_t blob_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint idx, uint field_num) {
-    assert(field_num < table->s->fields);
+    assert_always(field_num < table->s->fields);
     uint b_index;
     for (b_index = 0; b_index < kc_info->num_blobs; b_index++) {
         if (kc_info->blob_fields[b_index] == field_num)
             break;
     }
-    assert(b_index < kc_info->num_blobs);
+    assert_always(b_index < kc_info->num_blobs);
     return b_index;
 }
 
@@ -372,7 +372,7 @@ static bool check_all_update_expressions(List<Item> &fields, List<Item> &values,
         if (lhs_item == NULL)
             break;
         Item *rhs_item = rhs_i++;
-        assert(rhs_item != NULL);
+        assert_always(rhs_item != NULL);
         if (!check_update_expression(lhs_item, rhs_item, table, allow_insert_value))
             return false;
     }
@@ -380,7 +380,7 @@ static bool check_all_update_expressions(List<Item> &fields, List<Item> &values,
 }
 
 static bool full_field_in_key(TABLE *table, Field *field) {
-    assert(table->s->primary_key < table->s->keys);
+    assert_always(table->s->primary_key < table->s->keys);
     KEY *key = &table->s->key_info[table->s->primary_key];
     for (uint i = 0; i < get_key_parts(key); i++) {
         KEY_PART_INFO *key_part = &key->key_part[i];
@@ -533,7 +533,7 @@ static void marshall_blobs_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_C
     b.append_ui<uint32_t>(n);
     for (uint i = 0; i < n; i++) {
         uint blob_field_index = kc_info->blob_fields[i];
-        assert(blob_field_index < table->s->fields);
+        assert_always(blob_field_index < table->s->fields);
         uint8_t blob_field_length = table->s->field[blob_field_index]->row_pack_length();
         b.append(&blob_field_length, sizeof blob_field_length);
     }
@@ -555,7 +555,7 @@ static longlong item_val_int(Item *item) {
 static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, TABLE *table, TOKUDB_SHARE *share) {
     // figure out the update operation type (again)
     Field *lhs_field = find_field_by_name(table, lhs_item);
-    assert(lhs_field); // we found it before, so this should work
+    assert_always(lhs_field); // we found it before, so this should work
 
     // compute the update info
     uint32_t field_type;
@@ -606,7 +606,7 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, T
             break;
         }
         default:
-            assert(0);
+            assert_unreachable();
         }
         break;
     }
@@ -654,7 +654,7 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, T
         break;
     }
     default:
-        assert(0);
+        assert_unreachable();
     }
 
     // marshall the update fields into the buffer
@@ -668,13 +668,13 @@ static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, T
 
 // Save an item's value into the appropriate field.  Return 0 if successful.
 static int save_in_field(Item *item, TABLE *table) {
-    assert(item->type() == Item::FUNC_ITEM);
+    assert_always(item->type() == Item::FUNC_ITEM);
     Item_func *func = static_cast<Item_func*>(item);
-    assert(strcmp(func->func_name(), "=") == 0);
+    assert_always(strcmp(func->func_name(), "=") == 0);
     uint n = func->argument_count();
-    assert(n == 2);
+    assert_always(n == 2);
     Item **arguments = func->arguments();
-    assert(arguments[0]->type() == Item::FIELD_ITEM);
+    assert_always(arguments[0]->type() == Item::FIELD_ITEM);
     Item_field *field_item = static_cast<Item_field*>(arguments[0]);
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
     int error = arguments[1]->save_in_field(field_item->field, 0);
@@ -711,8 +711,9 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
         while (error == 0 && (list_item = li++)) {
             error = save_in_field(list_item, table);
         }
-    } else
-        assert(0);
+    } else {
+        assert_unreachable();
+    }
     if (error)
         return error;
 
@@ -736,7 +737,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
             if (lhs_item == NULL)
                 break;
             Field *lhs_field = find_field_by_name(table, lhs_item);
-            assert(lhs_field); // we found it before, so this should work
+            assert_always(lhs_field); // we found it before, so this should work
             count_update_types(lhs_field, &num_varchars, &num_blobs);
         }
         if (num_varchars > 0 || num_blobs > 0)
@@ -760,11 +761,11 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
         if (lhs_item == NULL)
             break;
         Item *rhs_item = rhs_i++;
-        assert(rhs_item != NULL);
+        assert_always(rhs_item != NULL);
         marshall_update(update_message, lhs_item, rhs_item, table, share);
     }
 
-    rw_rdlock(&share->num_DBs_lock);
+    share->num_DBs_lock.lock_read();
 
     if (share->num_DBs > table->s->keys + tokudb_test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
@@ -776,7 +777,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
         error = share->key_file[primary_key]->update(share->key_file[primary_key], txn, &key_dbt, &update_dbt, 0);
     }
 
-    rw_unlock(&share->num_DBs_lock);
+    share->num_DBs_lock.unlock();
         
     return error;
 }
@@ -888,7 +889,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
             if (lhs_item == NULL)
                 break;
             Field *lhs_field = find_field_by_name(table, lhs_item);
-            assert(lhs_field); // we found it before, so this should work
+            assert_always(lhs_field); // we found it before, so this should work
             count_update_types(lhs_field, &num_varchars, &num_blobs);
         }
         if (num_varchars > 0 || num_blobs > 0)
@@ -912,12 +913,11 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
         if (lhs_item == NULL)
             break;
         Item *rhs_item = rhs_i++;
-        if (rhs_item == NULL)
-            assert(0); // can not happen
+        assert_always(rhs_item != NULL);
         marshall_update(update_message, lhs_item, rhs_item, table, share);
     }
 
-    rw_rdlock(&share->num_DBs_lock);
+    share->num_DBs_lock.lock_read();
 
     if (share->num_DBs > table->s->keys + tokudb_test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
@@ -929,7 +929,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
         error = share->key_file[primary_key]->update(share->key_file[primary_key], txn, &key_dbt, &update_dbt, 0);
     }
 
-    rw_unlock(&share->num_DBs_lock);
+    share->num_DBs_lock.unlock();
 
     return error;
 }

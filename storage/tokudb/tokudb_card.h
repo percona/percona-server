@@ -39,7 +39,7 @@ namespace tokudb {
             bool is_unique_key = (i == table->s->primary_key) || (table->key_info[i].flags & HA_NOSAME);
             uint num_key_parts = get_key_parts(&table->key_info[i]);
             for (uint j = 0; j < num_key_parts; j++) {
-                assert(next_key_part < rec_per_keys);
+                assert_always(next_key_part < rec_per_keys);
                 ulong val = rec_per_key[next_key_part++];
                 if (is_unique_key && j == num_key_parts-1)
                     val = 1;
@@ -54,10 +54,10 @@ namespace tokudb {
         tokudb::buffer b;
         size_t s;
         s = b.append_ui<uint32_t>(rec_per_keys);
-        assert(s > 0);
+        assert_always(s > 0);
         for (uint i = 0; i < rec_per_keys; i++) {
             s = b.append_ui<uint64_t>(rec_per_key[i]);
-            assert(s > 0);
+            assert_always(s > 0);
         }
         // write cardinality to status
         int error = write_to_status(status_db, hatoku_cardinality, b.data(), b.size(), txn);
@@ -221,7 +221,7 @@ namespace tokudb {
                     // prev_key = key
                     if (copy_key) {
                         prev_key.data = realloc(prev_key.data, key.size);
-                        assert(prev_key.data);
+                        assert_always(prev_key.data);
                         prev_key.size = key.size;
                         memcpy(prev_key.data, key.data, prev_key.size);
                     }
@@ -236,7 +236,7 @@ namespace tokudb {
                 free(key.data);
                 free(prev_key.data);
                 int close_error = cursor->c_close(cursor);
-                assert(close_error == 0);
+                assert_always(close_error == 0);
             }
         }
         // return cardinality

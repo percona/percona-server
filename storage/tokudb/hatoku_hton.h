@@ -26,11 +26,16 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ifndef _HATOKU_HTON_H
 #define _HATOKU_HTON_H
 
-#include "db.h"
+#include "hatoku_defines.h"
+#include "tokudb_debug.h"
+#include "tokudb_memory.h"
+#include "tokudb_thread.h"
+#include "tokudb_time.h"
+#include "tokudb_txn.h"
 
-extern handlerton *tokudb_hton;
+extern handlerton* tokudb_hton;
 
-extern DB_ENV *db_env;
+extern DB_ENV* db_env;
 
 enum srv_row_format_enum {
     SRV_ROW_FORMAT_UNCOMPRESSED = 0,
@@ -44,7 +49,9 @@ enum srv_row_format_enum {
 };
 typedef enum srv_row_format_enum srv_row_format_t;
 
-static inline srv_row_format_t toku_compression_method_to_row_format(toku_compression_method method) {
+inline srv_row_format_t toku_compression_method_to_row_format(
+    toku_compression_method method) {
+
     switch (method) {
     case TOKU_NO_COMPRESSION:
         return SRV_ROW_FORMAT_UNCOMPRESSED;        
@@ -64,11 +71,13 @@ static inline srv_row_format_t toku_compression_method_to_row_format(toku_compre
     case TOKU_SMALL_COMPRESSION_METHOD:
         return SRV_ROW_FORMAT_SMALL;
     default:
-        assert(0);
+        assert_unreachable();
     }
 }
 
-static inline toku_compression_method row_format_to_toku_compression_method(srv_row_format_t row_format) {
+inline toku_compression_method row_format_to_toku_compression_method(
+    srv_row_format_t row_format) {
+
     switch (row_format) {
     case SRV_ROW_FORMAT_UNCOMPRESSED:
         return TOKU_NO_COMPRESSION;
@@ -84,11 +93,11 @@ static inline toku_compression_method row_format_to_toku_compression_method(srv_
     case SRV_ROW_FORMAT_SMALL:
         return TOKU_LZMA_METHOD;
     default:
-        assert(0);
+        assert_unreachable();
     }
 }
 
-static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) {
+inline enum row_type row_format_to_row_type(srv_row_format_t row_format) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     switch (row_format) {
     case SRV_ROW_FORMAT_UNCOMPRESSED:
@@ -112,7 +121,7 @@ static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) 
     return ROW_TYPE_DEFAULT;
 }
 
-static inline srv_row_format_t row_type_to_row_format(enum row_type type) {
+inline srv_row_format_t row_type_to_row_format(enum row_type type) {
 #if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     switch (type) {
     case ROW_TYPE_TOKU_UNCOMPRESSED:
@@ -138,11 +147,16 @@ static inline srv_row_format_t row_type_to_row_format(enum row_type type) {
     return SRV_ROW_FORMAT_DEFAULT;
 }
 
-static inline enum row_type toku_compression_method_to_row_type(toku_compression_method method) {
-    return row_format_to_row_type(toku_compression_method_to_row_format(method));
+inline enum row_type toku_compression_method_to_row_type(
+    toku_compression_method method) {
+
+    return row_format_to_row_type(
+        toku_compression_method_to_row_format(method));
 }
 
-static inline toku_compression_method row_type_to_toku_compression_method(enum row_type type) {
+inline toku_compression_method row_type_to_toku_compression_method(
+    enum row_type type) {
+
     return row_format_to_toku_compression_method(row_type_to_row_format(type));
 }
 
@@ -508,9 +522,12 @@ static MYSQL_THDVAR_DOUBLE(optimize_index_fraction, 0, "optimize index fraction 
 static MYSQL_THDVAR_ULONGLONG(optimize_throttle, 0, "optimize throttle (default no throttle)", NULL /*check*/, NULL /*update*/, 0 /*def*/, 0 /*min*/, ~0ULL /*max*/, 1);
 
 extern HASH tokudb_open_tables;
-extern pthread_mutex_t tokudb_mutex;
+extern tokudb::thread::mutex_t tokudb_mutex;
 extern uint32_t tokudb_write_status_frequency;
 extern uint32_t tokudb_read_status_frequency;
+extern const char* tokudb_hton_name;
+extern int tokudb_hton_initialized;
+extern tokudb::thread::rwlock_t tokudb_hton_initialized_lock;
 
 void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size);
 

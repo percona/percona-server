@@ -23,10 +23,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #ident "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#if !defined(HA_TOKUDB_H)
-#define HA_TOKUDB_H
+#ifndef _HA_TOKUDB_H
+#define _HA_TOKUDB_H
 
-#include <db.h>
+#include "hatoku_hton.h"
 #include "hatoku_cmp.h"
 
 #define HA_TOKU_ORIG_VERSION 4
@@ -53,13 +53,14 @@ typedef struct loader_context {
 //
 class TOKUDB_SHARE {
 public:
+    TOKUDB_SHARE(void);
     void init(void);
     void destroy(void);
 
 public:
     char *table_name;
     uint table_name_length, use_count;
-    pthread_mutex_t mutex;
+    tokudb::thread::mutex_t mutex;
     THR_LOCK lock;
 
     ulonglong auto_ident;
@@ -84,7 +85,6 @@ public:
     // key is hidden
     //
     DB *key_file[MAX_KEY +1];
-    rw_lock_t key_file_lock;
     uint status, version, capabilities;
     uint ref_length;
     //
@@ -112,10 +112,10 @@ public:
 
     bool has_unique_keys;
     bool replace_into_fast;
-    rw_lock_t num_DBs_lock;
+    tokudb::thread::rwlock_t num_DBs_lock;
     uint32_t num_DBs;
 
-    pthread_cond_t m_openclose_cond;
+    tokudb::thread::event_t _openclose_event;
     enum { CLOSED, OPENING, OPENED, CLOSING, ERROR } m_state;
     int m_error;
     int m_initialize_count;
@@ -540,12 +540,17 @@ public:
     int get_status(DB_TXN* trans);
     void init_hidden_prim_key_info(DB_TXN *txn);
     inline void get_auto_primary_key(uchar * to) {
-        tokudb_pthread_mutex_lock(&share->mutex);
+        share->mutex.lock();
         share->auto_ident++;
         hpk_num_to_char(to, share->auto_ident);
-        tokudb_pthread_mutex_unlock(&share->mutex);
+        share->mutex.unlock();
     }
-    virtual void get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values);
+    virtual void get_auto_increment(
+        ulonglong offset,
+        ulonglong increment,
+        ulonglong nb_desired_values,
+        ulonglong* first_value,
+        ulonglong* nb_reserved_values);
     bool is_optimize_blocking();
     bool is_auto_inc_singleton();
     void print_error(int error, myf errflag);
@@ -772,5 +777,5 @@ static inline bool key_is_clustering(const KEY *key) {
 }
 #endif
 
-#endif
+#endif // _HA_TOKUDB_H
 

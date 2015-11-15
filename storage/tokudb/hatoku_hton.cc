@@ -112,18 +112,18 @@ static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const ch
 static int tokudb_discover3(handlerton *hton, THD* thd, const char *db, const char *name, char *path, uchar **frmblob, size_t *frmlen);
 handlerton *tokudb_hton;
 
-const char *ha_tokudb_ext = ".tokudb";
-char *tokudb_data_dir;
+const char* ha_tokudb_ext = ".tokudb";
+char* tokudb_data_dir;
 ulong tokudb_debug;
-DB_ENV *db_env;
+DB_ENV* db_env;
 HASH tokudb_open_tables;
-pthread_mutex_t tokudb_mutex;
+tokudb::thread::mutex_t tokudb_mutex;
 
 #if TOKU_THDVAR_MEMALLOC_BUG
-static pthread_mutex_t tokudb_map_mutex;
+static tokudb::thread::mutex_t tokudb_map_mutex;
 static TREE tokudb_map;
 struct tokudb_map_pair {
-    THD *thd;
+    THD* thd;
     char *last_lock_timeout;
 };
 #if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
@@ -226,18 +226,8 @@ extern "C" {
 // Since we don't have static initializers for the opaque rwlock type,
 // use constructor and destructor functions to create and destroy
 // the lock before and after main(), respectively.
-static int tokudb_hton_initialized;
-static rw_lock_t tokudb_hton_initialized_lock;
-
-static void create_tokudb_hton_intialized_lock(void)  __attribute__((constructor));
-static void create_tokudb_hton_intialized_lock(void) {
-    my_rwlock_init(&tokudb_hton_initialized_lock, 0);
-}
-
-static void destroy_tokudb_hton_initialized_lock(void) __attribute__((destructor));
-static void destroy_tokudb_hton_initialized_lock(void) {
-    rwlock_destroy(&tokudb_hton_initialized_lock);
-}
+int tokudb_hton_initialized;
+tokudb::thread::rwlock_t tokudb_hton_initialized_lock;
 
 static SHOW_VAR *toku_global_status_variables = NULL;
 static uint64_t toku_global_status_max_rows;
@@ -289,8 +279,7 @@ static int tokudb_init_func(void *p) {
     int r;
 
     // 3938: lock the handlerton's initialized status flag for writing
-    r = rw_wrlock(&tokudb_hton_initialized_lock);
-    assert(r == 0);
+    tokudb_hton_initialized_lock.lock_write();
 
     db_env = NULL;
     tokudb_hton = (handlerton *) p;
@@ -321,7 +310,6 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 
-    tokudb_pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST);
     (void) my_hash_init(&tokudb_open_tables, table_alias_charset, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
 
     tokudb_hton->state = SHOW_OPTION_YES;
@@ -437,7 +425,8 @@ static int tokudb_init_func(void *p) {
         db_env->set_lg_dir(db_env, tokudb_log_dir);
     }
 
-    // config the cache table size to min(1/2 of physical memory, 1/8 of the process address space)
+    // config the cache table size to min(1/2 of physical memory, 1/8 of the
+    // process address space)
     if (tokudb_cache_size == 0) {
         uint64_t physmem, maxdata;
         physmem = toku_os_get_phys_memory_size();
@@ -450,7 +439,10 @@ static int tokudb_init_func(void *p) {
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
-        r = db_env->set_cachesize(db_env, (uint32_t)(tokudb_cache_size >> 30), (uint32_t)(tokudb_cache_size % (1024L * 1024L * 1024L)), 1);
+        r = db_env->set_cachesize(
+            db_env,
+            (uint32_t)(tokudb_cache_size >> 30),
+            (uint32_t)(tokudb_cache_size % (1024L * 1024L * 1024L)), 1);
         if (r) {
             DBUG_PRINT("info", ("set_cachesize %d\n", r));
             goto error; 
@@ -460,7 +452,9 @@ static int tokudb_init_func(void *p) {
         tokudb_max_lock_memory = tokudb_cache_size/8;
     }
     if (tokudb_max_lock_memory) {
-        DBUG_PRINT("info", ("tokudb_max_lock_memory: %lld\n", tokudb_max_lock_memory));
+        DBUG_PRINT(
+            "info",
+            ("tokudb_max_lock_memory: %lld\n", tokudb_max_lock_memory));
         r = db_env->set_lk_max_memory(db_env, tokudb_max_lock_memory);
         if (r) {
             DBUG_PRINT("info", ("set_lk_max_memory %d\n", r));
@@ -471,7 +465,10 @@ static int tokudb_init_func(void *p) {
     uint32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (tokudb_debug & TOKUDB_DEBUG_INIT) 
-        TOKUDB_TRACE("tokudb_cache_size=%lld r=%d", ((unsigned long long) gbytes << 30) + bytes, r);
+        TOKUDB_TRACE(
+            "tokudb_cache_size=%lld r=%d",
+            ((unsigned long long) gbytes << 30) + bytes,
+            r);
 
     r = db_env->set_client_pool_threads(db_env, tokudb_client_pool_threads);
     if (r) {
@@ -479,13 +476,17 @@ static int tokudb_init_func(void *p) {
         goto error;
     }
 
-    r = db_env->set_cachetable_pool_threads(db_env, tokudb_cachetable_pool_threads);
+    r = db_env->set_cachetable_pool_threads(
+        db_env,
+        tokudb_cachetable_pool_threads);
     if (r) {
         DBUG_PRINT("info", ("set_cachetable_pool_threads %d\n", r));
         goto error;
     }
 
-    r = db_env->set_checkpoint_pool_threads(db_env, tokudb_checkpoint_pool_threads);
+    r = db_env->set_checkpoint_pool_threads(
+        db_env,
+        tokudb_checkpoint_pool_threads);
     if (r) {
         DBUG_PRINT("info", ("set_checkpoint_pool_threads %d\n", r));
         goto error;
@@ -501,17 +502,31 @@ static int tokudb_init_func(void *p) {
         TOKUDB_TRACE("env open:flags=%x", tokudb_init_flags);
 
     r = db_env->set_generate_row_callback_for_put(db_env,generate_row_for_put);
-    assert(r == 0);
-    r = db_env->set_generate_row_callback_for_del(db_env,generate_row_for_del);
-    assert(r == 0);
-    db_env->set_update(db_env, tokudb_update_fun);
-    db_env_set_direct_io(tokudb_directio == TRUE);
-    db_env_set_compress_buffers_before_eviction(tokudb_compress_buffers_before_eviction == TRUE);
-    db_env->change_fsync_log_period(db_env, tokudb_fsync_log_period);
-    db_env->set_lock_timeout_callback(db_env, tokudb_lock_timeout_callback);
-    db_env->set_loader_memory_size(db_env, tokudb_get_loader_memory_size_callback);
+    assert_always(r == 0);
 
-    r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
+    r = db_env->set_generate_row_callback_for_del(db_env,generate_row_for_del);
+    assert_always(r == 0);
+
+    db_env->set_update(db_env, tokudb_update_fun);
+
+    db_env_set_direct_io(tokudb_directio == TRUE);
+
+    db_env_set_compress_buffers_before_eviction(
+        tokudb_compress_buffers_before_eviction == TRUE);
+
+    db_env->change_fsync_log_period(db_env, tokudb_fsync_log_period);
+
+    db_env->set_lock_timeout_callback(db_env, tokudb_lock_timeout_callback);
+
+    db_env->set_loader_memory_size(
+        db_env,
+        tokudb_get_loader_memory_size_callback);
+
+    r = db_env->open(
+        db_env,
+        tokudb_home,
+        tokudb_init_flags,
+        S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) 
         TOKUDB_TRACE("env opened:return=%d", r);
@@ -523,71 +538,91 @@ static int tokudb_init_func(void *p) {
     }
 
     r = db_env->checkpointing_set_period(db_env, tokudb_checkpointing_period);
-    assert(r == 0);
+    assert_always(r == 0);
+
     r = db_env->cleaner_set_period(db_env, tokudb_cleaner_period);
-    assert(r == 0);
+    assert_always(r == 0);
+
     r = db_env->cleaner_set_iterations(db_env, tokudb_cleaner_iterations);
-    assert(r == 0);
+    assert_always(r == 0);
 
-    r = db_env->set_lock_timeout(db_env, DEFAULT_TOKUDB_LOCK_TIMEOUT, tokudb_get_lock_wait_time_callback);
-    assert(r == 0);
+    r = db_env->set_lock_timeout(
+        db_env,
+        DEFAULT_TOKUDB_LOCK_TIMEOUT,
+        tokudb_get_lock_wait_time_callback);
+    assert_always(r == 0);
 
-    r = db_env->evictor_set_enable_partial_eviction(db_env,
-                                                    tokudb_enable_partial_eviction);
-    assert(r == 0);
+    r = db_env->evictor_set_enable_partial_eviction(
+        db_env,
+        tokudb_enable_partial_eviction);
+    assert_always(r == 0);
 
-    db_env->set_killed_callback(db_env, DEFAULT_TOKUDB_KILLED_TIME, tokudb_get_killed_time_callback, tokudb_killed_callback);
+    db_env->set_killed_callback(
+        db_env,
+        DEFAULT_TOKUDB_KILLED_TIME,
+        tokudb_get_killed_time_callback,
+        tokudb_killed_callback);
 
-    r = db_env->get_engine_status_num_rows (db_env, &toku_global_status_max_rows);
-    assert(r == 0);
+    r = db_env->get_engine_status_num_rows(
+        db_env,
+        &toku_global_status_max_rows);
+    assert_always(r == 0);
 
     {
-        const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
-        toku_global_status_variables = (SHOW_VAR*)tokudb_my_malloc(sizeof(*toku_global_status_variables)*toku_global_status_max_rows, mem_flags);
-        toku_global_status_rows = (TOKU_ENGINE_STATUS_ROW_S*)tokudb_my_malloc(sizeof(*toku_global_status_rows)*toku_global_status_max_rows, mem_flags);
+        const myf mem_flags =
+            MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
+
+        toku_global_status_variables = (SHOW_VAR*)tokudb::memory::malloc(
+            sizeof(*toku_global_status_variables) * toku_global_status_max_rows,
+            mem_flags);
+        toku_global_status_rows =
+            (TOKU_ENGINE_STATUS_ROW_S*)tokudb::memory::malloc(
+                sizeof(*toku_global_status_rows) * toku_global_status_max_rows,
+                mem_flags);
     }
 
     tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
 #if TOKU_THDVAR_MEMALLOC_BUG
-    tokudb_pthread_mutex_init(&tokudb_map_mutex, MY_MUTEX_INIT_FAST);
     init_tree(&tokudb_map, 0, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
 #endif
 
     //3938: succeeded, set the init status flag and unlock
     tokudb_hton_initialized = 1;
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     DBUG_RETURN(false);
 
 error:
     if (db_env) {
         int rr= db_env->close(db_env, 0);
-        assert(rr==0);
+        assert_always(rr==0);
         db_env = 0;
     }
 
     // 3938: failed to initialized, drop the flag and lock
     tokudb_hton_initialized = 0;
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     DBUG_RETURN(true);
 }
 
-static int tokudb_done_func(void *p) {
+static int tokudb_done_func(void* p) {
     TOKUDB_DBUG_ENTER("");
-    tokudb_my_free(toku_global_status_variables);
+    tokudb::memory::free(toku_global_status_variables);
     toku_global_status_variables = NULL;
-    tokudb_my_free(toku_global_status_rows);
+    tokudb::memory::free(toku_global_status_rows);
     toku_global_status_rows = NULL;
     my_hash_free(&tokudb_open_tables);
-    tokudb_pthread_mutex_destroy(&tokudb_mutex);
     TOKUDB_DBUG_RETURN(0);
 }
 
-static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, MEM_ROOT * mem_root) {
+static handler* tokudb_create_handler(
+    handlerton* hton,
+    TABLE_SHARE* table,
+    MEM_ROOT* mem_root) {
     return new(mem_root) ha_tokudb(hton, table);
 }
 
-int tokudb_end(handlerton * hton, ha_panic_function type) {
+int tokudb_end(handlerton* hton, ha_panic_function type) {
     TOKUDB_DBUG_ENTER("");
     int error = 0;
     
@@ -595,41 +630,54 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     // initialized. grab a writer lock for the duration of the
     // call, so we can drop the flag and destroy the mutexes
     // in isolation.
-    rw_wrlock(&tokudb_hton_initialized_lock);
-    assert(tokudb_hton_initialized);
+    tokudb_hton_initialized_lock.lock_write();
+    assert_always(tokudb_hton_initialized);
 
     if (db_env) {
         if (tokudb_init_flags & DB_INIT_LOG)
             tokudb_cleanup_log_files();
-        long total_prepared = 0; // count the total number of prepared txn's that we discard
+
+        // count the total number of prepared txn's that we discard
+        long total_prepared = 0;
 #if TOKU_INCLUDE_XA
         while (1) {
             // get xid's 
             const long n_xid = 1;
             TOKU_XA_XID xids[n_xid];
             long n_prepared = 0;
-            error = db_env->txn_xa_recover(db_env, xids, n_xid, &n_prepared, total_prepared == 0 ? DB_FIRST : DB_NEXT);
-            assert(error == 0);
+            error = db_env->txn_xa_recover(
+                db_env,
+                xids,
+                n_xid,
+                &n_prepared,
+                total_prepared == 0 ? DB_FIRST : DB_NEXT);
+            assert_always(error == 0);
             if (n_prepared == 0) 
                 break;
             // discard xid's
             for (long i = 0; i < n_xid; i++) {
                 DB_TXN *txn = NULL;
                 error = db_env->get_txn_from_xid(db_env, &xids[i], &txn);
-                assert(error == 0);
+                assert_always(error == 0);
                 error = txn->discard(txn, 0);
-                assert(error == 0);
+                assert_always(error == 0);
             }
             total_prepared += n_prepared;
         }
 #endif
-        error = db_env->close(db_env, total_prepared > 0 ? TOKUFT_DIRTY_SHUTDOWN : 0);
+        error = db_env->close(
+            db_env,
+            total_prepared > 0 ? TOKUFT_DIRTY_SHUTDOWN : 0);
 #if TOKU_INCLUDE_XA
         if (error != 0 && total_prepared > 0) {
-            sql_print_error("%s: %ld prepared txns still live, please shutdown, error %d", tokudb_hton_name, total_prepared, error);
+            sql_print_error(
+                "%s: %ld prepared txns still live, please shutdown, error %d",
+                tokudb_hton_name,
+                total_prepared,
+                error);
         } else
 #endif
-        assert(error == 0);
+        assert_always(error == 0);
         db_env = NULL;
     }
 
@@ -639,33 +687,34 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     }
 
 #if TOKU_THDVAR_MEMALLOC_BUG
-    tokudb_pthread_mutex_destroy(&tokudb_map_mutex);
     delete_tree(&tokudb_map);
 #endif
 
     // 3938: drop the initialized flag and unlock
     tokudb_hton_initialized = 0;
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
 
     TOKUDB_DBUG_RETURN(error);
 }
 
-static int tokudb_close_connection(handlerton * hton, THD * thd) {
+static int tokudb_close_connection(handlerton* hton, THD* thd) {
     int error = 0;
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
+    tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, tokudb_hton);
     if (trx && trx->checkpoint_lock_taken) {
         error = db_env->checkpointing_resume(db_env);
     }
-    tokudb_my_free(trx);
+    tokudb::memory::free(trx);
 #if TOKU_THDVAR_MEMALLOC_BUG
-    tokudb_pthread_mutex_lock(&tokudb_map_mutex);
+    tokudb_map_mutex.lock();
     struct tokudb_map_pair key = { thd, NULL };
-    struct tokudb_map_pair *found_key = (struct tokudb_map_pair *) tree_search(&tokudb_map, &key, NULL);
+    struct tokudb_map_pair* found_key =
+        (struct tokudb_map_pair*) tree_search(&tokudb_map, &key, NULL);
+
     if (found_key) {
-        tokudb_my_free(found_key->last_lock_timeout);
-        tree_delete(&tokudb_map, found_key, sizeof *found_key, NULL);
+        tokudb::memory::free(found_key->last_lock_timeout);
+        tree_delete(&tokudb_map, found_key, sizeof(*found_key), NULL);
     }
-    tokudb_pthread_mutex_unlock(&tokudb_map_mutex);
+    tokudb_map_mutex.unlock();
 #endif
     return error;
 }
@@ -688,7 +737,7 @@ bool tokudb_flush_logs(handlerton * hton) {
     }
     else {
         error = db_env->log_flush(db_env, NULL);
-        assert(error == 0);
+        assert_always(error == 0);
     }
 
     result = 0;
@@ -711,7 +760,7 @@ static void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
                     progress->entries_processed, 
                     progress->entries_total
                     ); 
-    assert(r >= 0);
+    assert_always(r >= 0);
     thd_proc_info(progress_info->thd, progress_info->status);
 }
 
@@ -723,7 +772,7 @@ static void commit_txn_with_progress(DB_TXN* txn, uint32_t flags, THD* thd) {
     if (r != 0) {
         sql_print_error("%s: tried committing transaction %p and got error code %d", tokudb_hton_name, txn, r);
     }
-    assert(r == 0);
+    assert_always(r == 0);
     thd_proc_info(thd, orig_proc_info);
 }
 
@@ -735,7 +784,7 @@ static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
     if (r != 0) {
         sql_print_error("%s: tried aborting transaction %p and got error code %d", tokudb_hton_name, txn, r);
     }
-    assert(r == 0);
+    assert_always(r == 0);
     thd_proc_info(thd, orig_proc_info);
 }
 
@@ -881,7 +930,7 @@ static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
         &num_returned,
         DB_NEXT
         );
-    assert(r == 0);
+    assert_always(r == 0);
     TOKUDB_DBUG_RETURN((int)num_returned);
 }
 
@@ -927,7 +976,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     SP_INFO save_info = (SP_INFO)savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     if (thd->in_sub_stmt) {
-        assert(trx->stmt);
+        assert_always(trx->stmt);
         error = txn_begin(db_env, trx->sub_sp_level, &(save_info->txn), DB_INHERIT_ISOLATION, thd);
         if (error) {
             goto cleanup;
@@ -1208,7 +1257,7 @@ static void tokudb_checkpoint_lock(THD * thd) {
         //
         // can only fail due to memory allocation, so ok to assert
         //
-        assert(!error);
+        assert_always(!error);
         thd_set_ha_data(thd, tokudb_hton, trx);
     }
     
@@ -1222,7 +1271,7 @@ static void tokudb_checkpoint_lock(THD * thd) {
     old_proc_info = tokudb_thd_get_proc_info(thd);
     thd_proc_info(thd, "Trying to grab checkpointing lock.");
     error = db_env->checkpointing_postpone(db_env);
-    assert(!error);
+    assert_always(!error);
     thd_proc_info(thd, old_proc_info);
 
     trx->checkpoint_lock_taken = true;
@@ -1248,7 +1297,7 @@ static void tokudb_checkpoint_unlock(THD * thd) {
     old_proc_info = tokudb_thd_get_proc_info(thd);
     thd_proc_info(thd, "Trying to release checkpointing lock.");
     error = db_env->checkpointing_resume(db_env);
-    assert(!error);
+    assert_always(!error);
     thd_proc_info(thd, old_proc_info);
 
     trx->checkpoint_lock_taken = false;
@@ -1648,7 +1697,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) 
     int error;
     TABLE *table = tables->table;
 
-    rw_rdlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.lock_read();
 
     if (!tokudb_hton_initialized) {
         error = ER_PLUGIN_IS_NOT_LOADED;
@@ -1659,7 +1708,7 @@ static int tokudb_file_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) 
             my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -1798,7 +1847,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, CON
 
     // 3938: Get a read lock on the status flag, since we must
     // read it before safely proceeding
-    rw_rdlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.lock_read();
 
     if (!tokudb_hton_initialized) {
         error = ER_PLUGIN_IS_NOT_LOADED;
@@ -1810,7 +1859,7 @@ static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, CON
     }
 
     //3938: unlock the status flag lock
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -1862,10 +1911,10 @@ static int tokudb_report_fractal_tree_block_map_iterator(uint64_t checkpoint_cou
 
     assert(num_rows > 0);
     if (e->num_rows == 0) {
-        e->checkpoint_counts = (uint64_t *) tokudb_my_malloc(num_rows * (sizeof *e->checkpoint_counts), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
-        e->blocknums = (int64_t *) tokudb_my_malloc(num_rows * (sizeof *e->blocknums), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
-        e->diskoffs = (int64_t *) tokudb_my_malloc(num_rows * (sizeof *e->diskoffs), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
-        e->sizes = (int64_t *) tokudb_my_malloc(num_rows * (sizeof *e->sizes), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->checkpoint_counts = (uint64_t *) tokudb::memory::malloc(num_rows * (sizeof *e->checkpoint_counts), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->blocknums = (int64_t *) tokudb::memory::malloc(num_rows * (sizeof *e->blocknums), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->diskoffs = (int64_t *) tokudb::memory::malloc(num_rows * (sizeof *e->diskoffs), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->sizes = (int64_t *) tokudb::memory::malloc(num_rows * (sizeof *e->sizes), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
         e->num_rows = num_rows;
     }
 
@@ -1946,19 +1995,19 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
 
 exit:
     if (e.checkpoint_counts != NULL) {
-        tokudb_my_free(e.checkpoint_counts);
+        tokudb::memory::free(e.checkpoint_counts);
         e.checkpoint_counts = NULL;
     }
     if (e.blocknums != NULL) {
-        tokudb_my_free(e.blocknums);
+        tokudb::memory::free(e.blocknums);
         e.blocknums = NULL;
     }
     if (e.diskoffs != NULL) {
-        tokudb_my_free(e.diskoffs);
+        tokudb::memory::free(e.diskoffs);
         e.diskoffs = NULL;
     }
     if (e.sizes != NULL) {
-        tokudb_my_free(e.sizes);
+        tokudb::memory::free(e.sizes);
         e.sizes = NULL;
     }
     return error;
@@ -2013,7 +2062,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
 
     // 3938: Get a read lock on the status flag, since we must
     // read it before safely proceeding
-    rw_rdlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.lock_read();
 
     if (!tokudb_hton_initialized) {
         error = ER_PLUGIN_IS_NOT_LOADED;
@@ -2025,7 +2074,7 @@ static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables
     }
 
     //3938: unlock the status flag lock
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2146,16 +2195,16 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
         // set last_lock_timeout
         if (lock_timeout_debug & 1) {
             char *old_lock_timeout = THDVAR(thd, last_lock_timeout);
-            char *new_lock_timeout = tokudb_my_strdup(log_str.c_ptr(), MY_FAE);
+            char *new_lock_timeout = tokudb::memory::strdup(log_str.c_ptr(), MY_FAE);
             THDVAR(thd, last_lock_timeout) = new_lock_timeout;
-            tokudb_my_free(old_lock_timeout);
+            tokudb::memory::free(old_lock_timeout);
 #if TOKU_THDVAR_MEMALLOC_BUG
-            tokudb_pthread_mutex_lock(&tokudb_map_mutex);
+            tokudb_map_mutex.lock();
             struct tokudb_map_pair old_key = { thd, old_lock_timeout };
             tree_delete(&tokudb_map, &old_key, sizeof old_key, NULL);
             struct tokudb_map_pair new_key = { thd, new_lock_timeout };
             tree_insert(&tokudb_map, &new_key, sizeof new_key, NULL);
-            tokudb_pthread_mutex_unlock(&tokudb_map_mutex);
+            tokudb_map_mutex.unlock();
 #endif
         }
         // dump to stderr
@@ -2215,7 +2264,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     TOKUDB_DBUG_ENTER("");
     int error;
     
-    rw_rdlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.lock_read();
 
     if (!tokudb_hton_initialized) {
         error = ER_PLUGIN_IS_NOT_LOADED;
@@ -2227,7 +2276,7 @@ static int tokudb_trx_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
             my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2302,7 +2351,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond
     TOKUDB_DBUG_ENTER("");
     int error;
     
-    rw_rdlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.lock_read();
 
     if (!tokudb_hton_initialized) {
         error = ER_PLUGIN_IS_NOT_LOADED;
@@ -2314,7 +2363,7 @@ static int tokudb_lock_waits_fill_table(THD *thd, TABLE_LIST *tables, COND *cond
             my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2395,7 +2444,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
     TOKUDB_DBUG_ENTER("");
     int error;
     
-    rw_rdlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.lock_read();
 
     if (!tokudb_hton_initialized) {
         error = ER_PLUGIN_IS_NOT_LOADED;
@@ -2407,7 +2456,7 @@ static int tokudb_locks_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
             my_error(ER_GET_ERRNO, MYF(0), error, tokudb_hton_name);
     }
 
-    rw_unlock(&tokudb_hton_initialized_lock);
+    tokudb_hton_initialized_lock.unlock();
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -2437,7 +2486,7 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
     error = db_env->get_engine_status (db_env, toku_global_status_rows, toku_global_status_max_rows, &num_rows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_GLOBAL_STATUS);
     //TODO: Maybe do something with the panic output?
     if (error == 0) {
-        assert(num_rows <= toku_global_status_max_rows);
+        assert_always(num_rows <= toku_global_status_max_rows);
         //TODO: Maybe enable some of the items here: (copied from engine status
 
         //TODO: (optionally) add redzone state, panic, panic string, etc. Right now it's being ignored.

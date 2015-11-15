@@ -55,7 +55,7 @@ static uint64_t uint_low_endpoint(uint length_bits __attribute__((unused))) {
 static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool *over) __attribute__((unused));
 static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool *over) {
     uint64_t mask = uint_mask(length_bits);
-    assert((x & ~mask) == 0 && (y & ~mask) == 0);
+    assert_always((x & ~mask) == 0 && (y & ~mask) == 0);
     uint64_t s = (x + y) & mask;
     *over = s < x;     // check for overflow
     return s;
@@ -67,7 +67,7 @@ static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool *over) {
 static uint64_t uint_sub(uint64_t x, uint64_t y, uint length_bits, bool *over) __attribute__((unused));
 static uint64_t uint_sub(uint64_t x, uint64_t y, uint length_bits, bool *over) {
     uint64_t mask = uint_mask(length_bits);
-    assert((x & ~mask) == 0 && (y & ~mask) == 0);
+    assert_always((x & ~mask) == 0 && (y & ~mask) == 0);
     uint64_t s = (x - y) & mask;
     *over = s > x;    // check for overflow
     return s;

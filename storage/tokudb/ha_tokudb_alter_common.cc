@@ -172,7 +172,7 @@ static inline uint32_t get_null_bit_position(uint32_t null_bit) {
         retval = 7;
         break;        
     default:
-        assert(false);
+        assert_unreachable();
     }
     return retval;
 }
@@ -270,10 +270,10 @@ static uint32_t fill_static_row_mutator(
     //
     // num_offset_bytes
     //
-    assert(orig_kc_info->num_offset_bytes <= 2);
+    assert_always(orig_kc_info->num_offset_bytes <= 2);
     pos[0] = orig_kc_info->num_offset_bytes;
     pos++;
-    assert(altered_kc_info->num_offset_bytes <= 2);
+    assert_always(altered_kc_info->num_offset_bytes <= 2);
     pos[0] = altered_kc_info->num_offset_bytes;
     pos++;
     
@@ -304,7 +304,7 @@ static uint32_t fill_static_row_mutator(
     memcpy(pos, &altered_start_null_pos, sizeof(altered_start_null_pos));
     pos += sizeof(altered_start_null_pos);
 
-    assert((pos-buf) == STATIC_ROW_MUTATOR_SIZE);
+    assert_always((pos-buf) == STATIC_ROW_MUTATOR_SIZE);
     return pos - buf;
 }
 
@@ -430,7 +430,7 @@ static uint32_t fill_static_blob_row_mutator(
         uint32_t curr_field_index = src_kc_info->blob_fields[i]; 
         Field* field = src_table->field[curr_field_index];
         uint32_t len_bytes = field->row_pack_length();
-        assert(len_bytes <= 4);
+        assert_always(len_bytes <= 4);
         pos[0] = len_bytes;
         pos++;
     }
@@ -461,14 +461,14 @@ static uint32_t fill_dynamic_blob_row_mutator(
                 }
             }
             // assert we found blob in list
-            assert(blob_index < src_kc_info->num_blobs);
+            assert_always(blob_index < src_kc_info->num_blobs);
             pos[0] = is_add ? COL_ADD : COL_DROP;
             pos++;
             memcpy(pos, &blob_index, sizeof(blob_index));
             pos += sizeof(blob_index);
             if (is_add) {
                 uint32_t len_bytes = curr_field->row_pack_length();
-                assert(len_bytes <= 4);
+                assert_always(len_bytes <= 4);
                 pos[0] = len_bytes;
                 pos++;
 
@@ -622,7 +622,7 @@ static bool column_rename_supported(TABLE* orig_table, TABLE* new_table, bool al
         retval = false;
         goto cleanup;
     }
-    assert(field_with_different_name < orig_table->s->fields);
+    assert_always(field_with_different_name < orig_table->s->fields);
     //
     // at this point, we have verified that the two tables have
     // the same field types and with ONLY one field with a different name. 
@@ -650,7 +650,7 @@ static int find_changed_columns(uint32_t* changed_columns, uint32_t* num_changed
     int retval;
     uint curr_new_col_index = 0;
     uint32_t curr_num_changed_columns=0;
-    assert(bigger_table->s->fields > smaller_table->s->fields);
+    assert_always(bigger_table->s->fields > smaller_table->s->fields);
     for (uint i = 0; i < smaller_table->s->fields; i++, curr_new_col_index++) {
         if (curr_new_col_index >= bigger_table->s->fields) {
             sql_print_error("error in determining changed columns");
@@ -750,9 +750,9 @@ int ha_tokudb::write_frm_data(const uchar *frm_data, size_t frm_len) {
         // write frmdata to status
         THD *thd = ha_thd();
         tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
-        assert(trx);
+        assert_always(trx);
         DB_TXN *txn = trx->stmt; // use alter table transaction
-        assert(txn);
+        assert_always(txn);
         error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
     }
    

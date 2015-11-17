@@ -128,7 +128,7 @@ namespace tokudb {
             *status_db_ptr = status_db;
         } else {
             int r = close_status(&status_db);
-            assert(r == 0);
+            assert_always(r == 0);
         }
         return error;
     }
@@ -151,7 +151,7 @@ namespace tokudb {
             *status_db_ptr = status_db;
         } else {
             int r = close_status(&status_db);
-            assert(r == 0);
+            assert_always(r == 0);
         }
         return error;
     }

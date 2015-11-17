@@ -382,6 +382,7 @@ INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';
 INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';
 INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
 INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
+INSTALL PLUGIN tokudb_background_job_status SONAME 'ha_tokudb.so';
 EOFTOKUDBENABLE
   if [ $? -eq 0 ]; then
     printf "INFO: Successfully installed TokuDB engine plugin.\n\n"
@@ -430,6 +431,7 @@ UNINSTALL PLUGIN tokudb_fractal_tree_block_map;
 UNINSTALL PLUGIN tokudb_trx;
 UNINSTALL PLUGIN tokudb_locks;
 UNINSTALL PLUGIN tokudb_lock_waits;
+UNINSTALL PLUGIN tokudb_background_job_status;
 EOFTOKUDBDISABLE
   if [ $? -eq 0 ]; then
     printf "INFO: Successfully uninstalled TokuDB engine plugin.\n\n"

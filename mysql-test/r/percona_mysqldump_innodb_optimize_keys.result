@@ -501,7 +501,7 @@ CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `a` int(11) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `a` (`a`), 
+  KEY `a` (`a`),
   CONSTRAINT `a` FOREIGN KEY (`a`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;

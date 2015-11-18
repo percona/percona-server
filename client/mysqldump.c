@@ -2640,11 +2640,20 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
         skipped keys list.
       */
       keydef= keydef_node->data;
-      keydef_len= strlen(keydef) + 5;           /* ", \n  " */
+      /* 
+        The original key definition had the following format
+        "  <keydef>,\n"
+        ("  " (two spaces) followed by key definition, followed by ",\n").
+        For instance "  KEY `a` (`a`),\n".
+        Therefore, when the definition was removed, the data was shifted by
+        strlen(keydef) + 4 characters.
+      */
+      keydef_len= strlen(keydef) + 4;
 
       memmove(orig_ptr + keydef_len, orig_ptr, strend - orig_ptr + 1);
-      memcpy(ptr, keydef, keydef_len - 5);
-      memcpy(ptr + keydef_len - 5, ", \n  ", 5);
+      memcpy(orig_ptr, "  ", 2);
+      memcpy(orig_ptr + 2, keydef, keydef_len - 4);
+      memcpy(orig_ptr + keydef_len - 2, ",\n", 2);
 
       skipped_keys_list= list_delete(skipped_keys_list, keydef_node);
       my_free(keydef);

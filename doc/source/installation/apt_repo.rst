@@ -48,31 +48,19 @@ The ``libperconaserverclient18`` package contains the client shared library. The
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
 
-1. Import the public key for the package management system
-
-  *Debian* and *Ubuntu* packages from *Percona* are signed with the Percona's GPG key. Before using the repository, you should add the key to :program:`apt`. To do that, run the following commands as root or with sudo:
-
-  .. code-block:: bash
-
-    $ sudo apt-key adv --keyserver keys.gnupg.net --recv-keys 1C4CBDCDCD2EFD2A
-
-  .. note::
-
-    In case you're getting timeouts when using ``keys.gnupg.net`` as an alternative you can fetch the key from ``keyserver.ubuntu.com``. 
-
-2. Create the :program:`apt` source list for Percona's repository:
-
-   You can create the source list and add the percona repository by running: 
+1. Fetch the repository packages from Percona web: 
 
    .. code-block:: bash
 
-     echo "deb http://repo.percona.com/apt "$(lsb_release -sc)" main" | sudo tee /etc/apt/sources.list.d/percona.list
+     wget https://repo.percona.com/apt/percona-release_0.1-3.$(lsb_release -sc)_all.deb
 
-   Additionally you can enable the source package repository by running: 
+2. Install the downloaded package with :program:`dpkg`. To do that, run the following commands as root or with :program:`sudo`: 
 
-   .. code-block:: bash 
+   .. code-block:: bash
 
-     echo "deb-src http://repo.percona.com/apt "$(lsb_release -sc)" main" | sudo tee -a /etc/apt/sources.list.d/percona.list
+     dpkg -i percona-release_0.1-3.$(lsb_release -sc)_all.deb
+
+   Once you install this package the Percona repositories should be added. You can check the repository setup in the :file:`/etc/apt/sources.list.d/percona-release.list` file.
 
 3. Remember to update the local cache:
 
@@ -90,10 +78,12 @@ Installing |Percona Server| from Percona ``apt`` repository
 Percona ``apt`` Testing repository
 ----------------------------------
 
-Percona offers pre-release builds from the testing repository. To enable it add the just add the ``testing`` word at the end of the percona repository definition in your repository file (default :file:`/etc/apt/sources.list.d/percona.list`). It should looks like this (in this example ``VERSION`` is the name of your distribution): :: 
+Percona offers pre-release builds from the testing repository. To enable it add the just uncomment the testing repository lines in the Percona repository definition in your repository file (default :file:`/etc/apt/sources.list.d/percona-release.list`). It should looks like this (in this example ``VERSION`` is the name of your distribution): :: 
 
-  deb http://repo.percona.com/apt VERSION main testing
-  deb-src http://repo.percona.com/apt VERSION main testing
+  # Testing & pre-release packages
+  #
+  deb http://repo.percona.com/apt VERSION testing
+  deb-src http://repo.percona.com/apt VERSION testing
 
 Apt-Pinning the packages
 ------------------------

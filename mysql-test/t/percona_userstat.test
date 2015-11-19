@@ -35,6 +35,11 @@ connection default;
 
 DROP USER mysqltest_1@localhost;
 
+# Make sure that auxiliary connection "conn1" (initiated by the user
+# "mysqltest_1") is closed and therefore will not add another record
+# to the staistics tables
+--source include/wait_until_count_sessions.inc
+
 # Test that I_S and SHOW queries work with userstat disabled
 SELECT * FROM INFORMATION_SCHEMA.CLIENT_STATISTICS;
 SELECT * FROM INFORMATION_SCHEMA.INDEX_STATISTICS;
@@ -174,5 +179,3 @@ FROM
 ;
 
 SET GLOBAL userstat= @userstat_old;
-
---source include/wait_until_count_sessions.inc

@@ -41,9 +41,9 @@ INTO TABLE error_log FIELDS TERMINATED BY '\t';
 UPDATE error_log SET line = replace ( line, '\r', '' );
 SELECT search_error_log( '[Note]', "%Plugin Rewriter reported: " ||
 "'Statement \"SELECT 'nonrewritten'\"%" ) INTO @line;
-SELECT @line;
-@line
-[Note] Plugin Rewriter reported: 'Statement "SELECT 'nonrewritten'" with digest "3d4fc22e33e10d7235eced3c75a84c2c" did not match any rule.'
+SELECT LENGTH(@line) > 0 AS should_be_1;
+should_be_1
+1
 SELECT digest INTO @pfs_digest
 FROM performance_schema.events_statements_history_long
 WHERE sql_text = "SELECT 'nonrewritten'"

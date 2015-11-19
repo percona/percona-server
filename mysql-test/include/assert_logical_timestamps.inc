@@ -10,6 +10,7 @@
 # --let $logical_timestamps= LC1 SN1[;LC2 SN2[;LC3 SN3...]]
 # [--let $save_binlog_position= 1]
 # [--let $dont_print_logical_timestamps= 1]
+# [--let $logical_timestamps_mix= LC1 SN1[;LC2 SN2[;LC3 SN3...]]]
 # --source include/assert_logical_timestamps.inc
 #
 # Parameters:
@@ -47,6 +48,15 @@ if ($dont_print_logical_timestamps)
 }
 --source include/begin_include_file.inc
 
+--let $expected_logical_timestamps= $logical_timestamps
+if ($logical_timestamps_mix != '')
+{
+  --let $binlog_format= `SELECT @@GLOBAL.BINLOG_FORMAT`
+  if ($binlog_format == 'MIXED')
+  {
+    --let $expected_logical_timestamps= $logical_timestamps_mix
+  }
+}
 
 --let $assert_file= `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/_alt_', UUID())`
 
@@ -61,13 +71,14 @@ if ($binlog_position)
 
 # Check for match.
 --let $assert_select= last_committed=.*sequence_number=.*
---let $assert_match= `SELECT CONCAT('last_committed=', REPLACE(REPLACE('$logical_timestamps', ';', '.*\n[^\n]*last_committed='), ' ', '\tsequence_number='))`
---let $assert_text= assert_logical_timestamps: $logical_timestamps
---let $extra_debug_info= Expected logical timestamps: $logical_timestamps
+--let $assert_match= `SELECT CONCAT('last_committed=', REPLACE(REPLACE('$expected_logical_timestamps', ';', '.*\n[^\n]*last_committed='), ' ', '\tsequence_number='))`
+--let $assert_text= assert_logical_timestamps: $expected_logical_timestamps
+--let $extra_debug_info= Expected logical timestamps: $expected_logical_timestamps
 --source include/assert_grep.inc
 
 --remove_file $assert_file
 
+--let $logical_timestamps_mix=
 
 if ($save_binlog_position)
 {

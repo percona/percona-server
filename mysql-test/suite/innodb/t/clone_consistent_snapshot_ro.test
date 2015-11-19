@@ -1,0 +1,44 @@
+--source include/have_innodb.inc
+
+SET GLOBAL innodb_change_buffering=none;
+SET GLOBAL innodb_fast_shutdown=0;
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0), (1);
+
+let $restart_parameters = restart:--innodb-read-only;
+--source include/restart_mysqld.inc
+--source include/count_sessions.inc
+
+--connect(con1,localhost,root,,)
+connection con1;
+
+--let $con1_id=`SELECT CONNECTION_ID()`
+
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+SELECT * FROM t1;
+
+connection default;
+
+--disable_query_log
+--echo START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION \$con1_id;
+--eval START TRANSACTION WITH CONSISTENT SNAPSHOT FROM SESSION $con1_id
+--enable_query_log
+
+SELECT * FROM t1;
+
+ROLLBACK;
+
+connection con1;
+
+ROLLBACK;
+
+disconnect con1;
+connection default;
+--source include/wait_until_count_sessions.inc
+
+let $restart_parameters =;
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;

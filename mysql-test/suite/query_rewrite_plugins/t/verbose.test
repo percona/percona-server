@@ -30,7 +30,7 @@ SET @@global.rewriter_verbose = DEFAULT;
 --source suite/query_rewrite_plugins/include/load_error_log.inc
 SELECT search_error_log( '[Note]', "%Plugin Rewriter reported: " ||
                          "'Statement \"SELECT 'nonrewritten'\"%" ) INTO @line;
-SELECT @line;
+SELECT LENGTH(@line) > 0 AS should_be_1;
 
 SELECT digest INTO @pfs_digest
 FROM performance_schema.events_statements_history_long

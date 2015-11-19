@@ -49,9 +49,7 @@ SET debug_sync = 'now WAIT_FOR parked';
 --echo # Restart the server
 --echo #
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect

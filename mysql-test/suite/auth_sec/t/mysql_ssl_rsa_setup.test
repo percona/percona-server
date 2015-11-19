@@ -321,9 +321,7 @@ let CADIR_LOCATION=$MYSQLTEST_VARDIR/tmp/certs;
 
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --remove_file $server_log
 

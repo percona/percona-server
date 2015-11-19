@@ -21,8 +21,8 @@
 # Bug#21357008: SLAVE_OPEN_TEMP_TABLES WRONG AFTER RESET SLAVE WHEN
 #               USING MULTI-SOURCE
 
-
---source include/have_binlog_format_mixed.inc
+# Having fixed bug 1313901 / 72475, test this under statement, not mixed
+--source include/have_binlog_format_statement.inc
 
 --let $rpl_multi_source= 1
 --let $rpl_topology= 1->2, 3->2, 4->2

@@ -1,0 +1,8 @@
+SELECT AsText(ST_SYMDIFFERENCE(MultiLineStringFromText('MULTILINESTRING((7 7,1 7,8 5,7 8,7 7),(6 3,3 4,1 1,9 9,9 0,8 4,9 9))'),Envelope(GeometryFromText('MULTIPOINT(7 9,0 0,3 7,1 6,0 0)'))));
+AsText(ST_SYMDIFFERENCE(MultiLineStringFromText('MULTILINESTRING((7 7,1 7,8 5,7 8,7 7),(6 3,3 4,1 1,9 9,9 0,8 4,9 9))'),Envelope(GeometryFromText('MULTIPOINT(7 9,0 0,3 7,1 6,0 0)'))))
+GEOMETRYCOLLECTION(POLYGON((0 0,7 0,7 9,0 9,0 0)),MULTILINESTRING((7 5.285714285714286,8 5,7 8),(7 7,9 9,9 0,8 4,9 9)))
+Warnings:
+Warning	1287	'ASTEXT' is deprecated and will be removed in a future release. Please use ST_ASTEXT instead
+Warning	1287	'MULTILINESTRINGFROMTEXT' is deprecated and will be removed in a future release. Please use ST_MULTILINESTRINGFROMTEXT instead
+Warning	1287	'ENVELOPE' is deprecated and will be removed in a future release. Please use ST_ENVELOPE instead
+Warning	1287	'GEOMETRYFROMTEXT' is deprecated and will be removed in a future release. Please use ST_GEOMETRYFROMTEXT instead

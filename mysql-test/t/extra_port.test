@@ -1,0 +1,173 @@
+# Test the interaction between max_connections, extra_port, and extra_max_connections
+--source include/count_sessions.inc
+
+call mtr.add_suppression("Too many connections");
+
+CREATE USER nonprivuser@localhost;
+
+SELECT VARIABLE_VALUE INTO @cemc_1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+       WHERE VARIABLE_NAME='Connection_errors_max_connections';
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+connect(con2,localhost,root,,);
+connection con2;
+
+let $con2_id= `SELECT connection_id()`;
+
+send SELECT sleep(500000);
+--sleep 2.5
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(con3,localhost,nonprivuser,,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: non-SUPER user connected with max_connections already being connected
+}
+if ($error)
+{
+  --echo # -- Success: non-SUPER user failed to connect with max_connections already being connected
+}
+
+connection default;
+
+--echo # Wait until Connection_errors_max_connections is bumped
+--let $wait_condition= SELECT VARIABLE_VALUE-@cemc_1 = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='Connection_errors_max_connections'
+--source include/wait_condition.inc
+
+# Threads_connected might be at 3 if server is still finishing cleaning up the failed con3
+# attempt above. Wait for it to settle.
+--let $status_var= Threads_connected
+--let $status_var_value= 2
+--source include/wait_for_status_var.inc
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+# The cleanup of the refused connection above in the server is async with the testsuite
+# client. Thus, the connection below might fail to connect on the first attempt.
+# Use connect2.inc which retries connecting.
+--let $con_name=con3
+--let $con_user_name=root
+--source include/connect2.inc
+connection con3;
+
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+let $con3_id= `SELECT connection_id()`;
+send SELECT sleep(500000);
+--sleep 2.5
+
+connection default;
+SELECT VARIABLE_VALUE INTO @cemc_2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+       WHERE VARIABLE_NAME='Connection_errors_max_connections';
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(con4,localhost,root,,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: managed to establish more than max_connections + 1 SUPER connection on the main port
+}
+if ($error)
+{
+  --echo # -- Success: only max_connections + 1 SUPER connections allowed on the main port
+}
+
+connection default;
+--echo # Wait until Connection_errors_max_connections is bumped
+--let $wait_condition= SELECT VARIABLE_VALUE-@cemc_2 = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='Connection_errors_max_connections'
+--source include/wait_condition.inc
+
+SELECT VARIABLE_VALUE INTO @cemc_3 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+       WHERE VARIABLE_NAME='Connection_errors_max_connections';
+
+connect(extracon,127.0.0.1,nonprivuser,,test,$MASTER_EXTRA_PORT,);
+connection extracon;
+--echo Regular user connected on extra_port
+--let $status_var= Threads_connected
+--let $status_var_value= 3
+--source include/wait_for_status_var.inc
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+let $extracon_id= `SELECT connection_id()`;
+send SELECT sleep(500000);
+--sleep 2.5
+
+--disable_abort_on_error
+--disable_result_log
+--disable_query_log
+connect(extracon2,127.0.0.1,nonprivuser,,test,$MASTER_EXTRA_PORT,);
+--enable_query_log
+--enable_result_log
+--enable_abort_on_error
+let $error = $mysql_errno;
+if (!$error)
+{
+  --echo # -- Error: non-SUPER user connected on extra_port with extra_max_connections already being connected
+}
+if ($error)
+{
+  --echo # -- Success: non-SUPER user failed to connect on extra_port with extra_max_connections already being connected
+}
+
+connection default;
+--echo # Wait until Connection_errors_max_connections is bumped
+--let $wait_condition= SELECT VARIABLE_VALUE-@cemc_3 = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='Connection_errors_max_connections'
+--source include/wait_condition.inc
+
+--let $status_var= Threads_connected
+--let $status_var_value= 3
+--source include/wait_for_status_var.inc
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+--let $con_name=extracon2
+--let $con_user_name=root
+--let $con_port=$MASTER_EXTRA_PORT
+--source include/connect2.inc
+connection extracon2;
+--echo SUPER user connected on extra_port
+
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+--echo KILL QUERY \$con2_id
+--disable_query_log
+eval KILL QUERY $con2_id;
+--enable_query_log
+
+--echo KILL QUERY \$con3_id
+--disable_query_log
+eval KILL QUERY $con3_id;
+--enable_query_log
+
+--echo KILL QUERY \$extracon_id
+--disable_query_log
+eval KILL QUERY $extracon_id;
+--enable_query_log
+
+DROP USER nonprivuser@localhost;
+--disconnect extracon2
+
+--connection extracon
+--reap
+--disconnect extracon
+
+--connection con3
+--reap
+--disconnect con3
+
+--connection con2
+--reap
+--disconnect con2
+
+--connection default
+--source include/wait_until_count_sessions.inc
+SHOW GLOBAL STATUS LIKE 'Threads_connected';

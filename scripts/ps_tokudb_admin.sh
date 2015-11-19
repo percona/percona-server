@@ -94,7 +94,7 @@ do
     DISABLE_TOKUBACKUP=1
     ;;
     --help )
-    printf "This script is used for installing and uninstalling TokuDB plugin for Percona Server 5.6.\n"
+    printf "This script is used for installing and uninstalling TokuDB plugin for Percona Server 5.7.\n"
     printf "It can also be used to install or uninstall the Percona TokuBackup plugin (requires mysql server restart).\n"
     printf "If transparent huge pages are enabled on the system it adds thp-setting=never option to my.cnf\n"
     printf "to disable it on runtime.\n\n"
@@ -110,7 +110,7 @@ do
     printf "  --disable-backup, r\t\t\t disable Percona TokuBackup and remove preload-hotbackup option in my.cnf\n"
     printf "  --help\t\t\t\t show this help\n\n"
     printf "For TokuDB requirements and manual steps for installation please visit this webpage:\n"
-    printf "http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_installation.html\n\n"
+    printf "http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html\n\n"
     exit 0
     ;;
   esac

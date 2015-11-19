@@ -112,17 +112,6 @@ enum srv_cleaner_lsn_age_factor_t {
 						checkpoint age higher.  */
 };
 
-/** Alternatives for srv_foreground_preflush, set through
-innodb_foreground_preflush variable  */
-enum srv_foreground_preflush_t {
-	SRV_FOREGROUND_PREFLUSH_SYNC_PREFLUSH,	/*!< Original Oracle MySQL 5.6
-						behavior of performing a sync
-						flush list flush  */
-	SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF	/*!< Exponential backoff wait
-						for the page cleaner to flush
-						for us  */
-};
-
 /** Alternatives for srv_empty_free_list_algorithm, set through
 innodb_empty_free_list_algorithm variable  */
 enum srv_empty_free_list_t {

@@ -23,7 +23,8 @@ CHECK_SYMBOL_EXISTS(getpwnam_r "pwd.h" HAVE_GETPWNAM_R)
 CHECK_SYMBOL_EXISTS(getgrgid_r "grp.h" HAVE_GETGRGID_R)
 CHECK_INCLUDE_FILES (security/pam_misc.h HAVE_SECURITY_PAM_MISC_H)
 CHECK_INCLUDE_FILES (security/openpam.h HAVE_SECURITY_OPENPAM_H)
-IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R)
+CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
+IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R AND HAVE_DLFCN_H)
   SET(AUTH_PAM_COMMON_SOURCES 
     src/auth_pam_common.c src/lib_auth_pam_client.c src/lib_auth_pam_client.h
     src/auth_mapping.h src/auth_mapping.c src/groups.c src/groups.h)

@@ -2732,7 +2732,6 @@ public:
   */
   void set_new_thread_id();
   my_thread_id thread_id() const { return m_thread_id; }
-
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;

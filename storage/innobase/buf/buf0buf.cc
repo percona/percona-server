@@ -83,9 +83,6 @@ Created 11/5/1995 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-/* prototypes for new functions added to ha_innodb.cc */
-trx_t* innobase_get_trx();
-
 static inline
 void
 _increment_page_get_statistics(buf_block_t* block, trx_t* trx)
@@ -3651,16 +3648,13 @@ buf_page_get_zip(
 	rw_lock_t*	hash_lock;
 	ibool		discard_attempted = FALSE;
 	ibool		must_read;
-	trx_t*		trx = NULL;
+	trx_t*		trx = innobase_get_trx_for_slow_log();
 	ulint		sec;
 	ulint		ms;
 	ib_uint64_t	start_time;
 	ib_uint64_t	finish_time;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
-	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
-		trx = innobase_get_trx();
-	}
 	buf_pool->stat.n_page_gets++;
 
 	for (;;) {
@@ -3762,8 +3756,9 @@ got_block:
 		/* Let us wait until the read operation
 		completes */
 
-		if (UNIV_UNLIKELY(trx && trx->take_stats))
+		if (UNIV_LIKELY_NULL(trx))
 		{
+			ut_ad(trx->take_stats);
 			ut_usectime(&sec, &ms);
 			start_time = (ib_uint64_t)sec * 1000000 + ms;
 		} else {
@@ -4097,6 +4092,7 @@ buf_wait_for_read(
 	buf_block_t*	block,
 	trx_t*		trx)
 {
+	ut_ad(!trx || trx->take_stats);
 	/* Note:
 
 	We are using the block->lock to check for IO state (and a dirty read).
@@ -4113,7 +4109,7 @@ buf_wait_for_read(
 
 		/* Wait until the read operation completes */
 
-		if (UNIV_UNLIKELY(trx && trx->take_stats))
+		if (UNIV_LIKELY_NULL(trx))
 		{
 			ut_usectime(&sec, &ms);
 			start_time = (ib_uint64_t)sec * 1000000 + ms;
@@ -4172,7 +4168,7 @@ buf_page_get_gen(
 	buf_block_t*	block;
 	unsigned	access_time;
 	rw_lock_t*	hash_lock;
-	trx_t*		trx = NULL;
+	trx_t*		trx = innobase_get_trx_for_slow_log();
 	buf_block_t*	fix_block;
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
@@ -4209,9 +4205,6 @@ buf_page_get_gen(
 	ut_ad(!ibuf_inside(mtr)
 	      || ibuf_page_low(page_id, page_size, FALSE, file, line, NULL));
 
-	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
-		trx = innobase_get_trx();
-	}
 	buf_pool->stat.n_page_gets++;
 	hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 loop:
@@ -4778,7 +4771,7 @@ got_block:
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
 
-	if (UNIV_UNLIKELY(trx && trx->take_stats)) {
+	if (UNIV_LIKELY_NULL(trx)) {
 		_increment_page_get_statistics(fix_block, trx);
 	}
 
@@ -4884,11 +4877,8 @@ buf_page_optimistic_get(
 	ut_ad(!block->page.file_page_was_freed);
 	ut_d(buf_page_mutex_exit(block));
 
-	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
-		trx = innobase_get_trx();
-	}
-
 	if (!access_time) {
+		trx = innobase_get_trx_for_slow_log();
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 		buf_read_ahead_linear(block->page.id, block->page.size,
@@ -4902,7 +4892,7 @@ buf_page_optimistic_get(
 	buf_pool = buf_pool_from_block(block);
 	buf_pool->stat.n_page_gets++;
 
-	if (UNIV_UNLIKELY(trx && trx->take_stats)) {
+	if (UNIV_LIKELY_NULL(trx)) {
 		_increment_page_get_statistics(block, trx);
 	}
 	return(TRUE);
@@ -5011,13 +5001,9 @@ buf_page_get_known_nowait(
 #endif
 	buf_pool->stat.n_page_gets++;
 
-	if (UNIV_UNLIKELY(innobase_get_slow_log())) {
-
-		trx_t* trx = innobase_get_trx();
-		if (trx != NULL && trx->take_stats) {
-
-			_increment_page_get_statistics(block, trx);
-		}
+	trx_t* trx = innobase_get_trx_for_slow_log();
+	if (UNIV_LIKELY_NULL(trx)) {
+		_increment_page_get_statistics(block, trx);
 	}
 
 	return(TRUE);

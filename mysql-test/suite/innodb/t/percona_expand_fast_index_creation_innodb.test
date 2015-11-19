@@ -1,0 +1,30 @@
+#
+# InnoDB-related expanded fast index creation tests
+#
+--source include/have_innodb.inc
+
+# Test for Percona Server bug 1133926 (A crash that leaves behind an
+# InnoDB temporary table with indexes results in an unbootable server)
+# https://bugs.launchpad.net/percona-server/+bug/1133926
+
+SET SESSION expand_fast_index_creation=ON;
+
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX z(a));
+
+ALTER TABLE t1 ADD INDEX y(b);
+
+DROP TABLE t1;
+
+# Test for bug 1517757 (expanded fast index creation broken on temporary tables
+# in 5.7)
+
+CREATE TEMPORARY TABLE t1(id int auto_increment primary key, a int, index(a)) engine=InnoDB;
+
+ALTER TABLE t1 ADD j int;
+INSERT INTO t1(a) VALUES (1);
+
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+
+SELECT * FROM t1 FORCE INDEX (a);
+
+DROP TABLE t1;

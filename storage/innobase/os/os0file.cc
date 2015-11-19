@@ -5469,8 +5469,9 @@ os_file_pread(
 
 	++os_n_file_reads;
 
-	if (UNIV_UNLIKELY(trx && trx->take_stats))
+	if (UNIV_LIKELY_NULL(trx))
 	{
+		ut_ad(trx->take_stats);
 		trx->io_reads++;
 		trx->io_read += n;
 		ut_usectime(&sec, &ms);
@@ -5520,6 +5521,7 @@ os_file_read_page(
 	trx_t*		trx)
 {
 	dberr_t		err;
+	ut_ad(!trx || trx->take_stats);
 
 	os_bytes_read_since_printout += n;
 
@@ -5922,6 +5924,7 @@ os_file_read_func(
 	trx_t*		trx)
 {
 	ut_ad(type.is_read());
+	ut_ad(!trx || trx->take_stats);
 
 	return(os_file_read_page(type, file, buf, offset, n, NULL, true, trx));
 }
@@ -7181,6 +7184,7 @@ os_aio_func(
 	BOOL		ret = TRUE;
 #endif /* WIN_ASYNC_IO */
 
+	ut_ad(!trx || trx->take_stats);
 	ut_ad(n > 0);
 	ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);

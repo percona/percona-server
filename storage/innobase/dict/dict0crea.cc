@@ -1626,8 +1626,11 @@ dict_create_index_step(
 
 		if (!DICT_TF2_FLAG_IS_SET(node->table, DICT_TF2_TEMPORARY))
 			err = dict_create_index_tree_step(node);
-		else
+		else {
 			err = dict_create_index_tree_in_mem(node->index, trx);
+			if (err == DB_SUCCESS)
+				node->page_no = node->index->page;
+		}
 
 		DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
 				err = DB_OUT_OF_MEMORY;);

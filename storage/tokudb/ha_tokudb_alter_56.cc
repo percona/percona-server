@@ -27,14 +27,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
 #define TOKU_ALTER_RENAME ALTER_RENAME
-#define DYNAMIC_ARRAY_ELEMENTS_TYPE size_t
 #elif (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
       (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
 #define TOKU_ALTER_RENAME ALTER_RENAME
-#define DYNAMIC_ARRAY_ELEMENTS_TYPE int
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 #define TOKU_ALTER_RENAME ALTER_RENAME_56
-#define DYNAMIC_ARRAY_ELEMENTS_TYPE int
 #else
 #error
 #endif
@@ -42,6 +39,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "ha_tokudb_alter_common.cc"
 #include <sql_array.h>
 #include <sql_base.h>
+
+#include <vector>
 
 // The tokudb alter context contains the alter state that is set in the check if supported method and used
 // later when the alter operation is executed.
@@ -78,7 +77,7 @@ public:
     bool expand_fixed_update_needed;
     bool expand_blob_update_needed;
     bool optimize_needed;
-    Dynamic_array<uint> changed_fields;
+    std::vector<uint> changed_fields;
     KEY_AND_COL_INFO* table_kc_info;
     KEY_AND_COL_INFO* altered_table_kc_info;
     KEY_AND_COL_INFO altered_table_kc_info_base;
@@ -152,15 +151,15 @@ void ha_tokudb::print_alter_info(
 static int find_changed_fields(
     TABLE* table_a,
     TABLE* table_b,
-    Dynamic_array<uint>& changed_fields) {
+    std::vector<uint>& changed_fields) {
 
     for (uint i = 0; i < table_a->s->fields; i++) {
         Field* field_a = table_a->field[i];
         Field* field_b = table_b->field[i];
         if (!fields_are_same_type(field_a, field_b)) 
-            changed_fields.append(i);
+            changed_fields.push_back(i);
     }
-    return changed_fields.elements();
+    return changed_fields.size();
 }
 
 static bool change_length_is_supported(
@@ -216,11 +215,11 @@ static ulong fix_handler_flags(
         handler_flags &= ~Alter_inplace_info::TOKU_ALTER_RENAME;
     }
 
-    // ALTER_COLUMN_TYPE may be set when no columns have been changed,
+    // ALTER_STORED_COLUMN_TYPE may be set when no columns have been changed,
     // so turn off the flag
-    if (handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) {
+    if (handler_flags & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE) {
         if (all_fields_are_same_type(table, altered_table)) {
-            handler_flags &= ~Alter_inplace_info::ALTER_COLUMN_TYPE;
+            handler_flags &= ~Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
         }
     }
 
@@ -358,7 +357,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
         // but let's do some more checks
 
         // we will only allow an hcr if there are no changes
-        // in column positions (ALTER_COLUMN_ORDER is not set)
+        // in column positions (ALTER_STORED_COLUMN_ORDER is not set)
 
         // now need to verify that one and only one column
         // has changed only its name. If we find anything to
@@ -369,7 +368,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
                     table,
                     altered_table,
                     (ctx->handler_flags &
-                    Alter_inplace_info::ALTER_COLUMN_ORDER) != 0);
+                    Alter_inplace_info::ALTER_STORED_COLUMN_ORDER) != 0);
             if (cr_supported)
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
@@ -377,7 +376,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
                only_flags(
                     ctx->handler_flags,
                     Alter_inplace_info::ADD_COLUMN +
-                    Alter_inplace_info::ALTER_COLUMN_ORDER) &&
+                    Alter_inplace_info::ALTER_STORED_COLUMN_ORDER) &&
                setup_kc_info(altered_table, ctx->altered_table_kc_info) == 0) {
 
         // add column
@@ -407,7 +406,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
                only_flags(
                     ctx->handler_flags,
                     Alter_inplace_info::DROP_COLUMN +
-                    Alter_inplace_info::ALTER_COLUMN_ORDER) &&
+                    Alter_inplace_info::ALTER_STORED_COLUMN_ORDER) &&
                setup_kc_info(altered_table, ctx->altered_table_kc_info) == 0) {
 
         // drop column
@@ -452,10 +451,11 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
                 ha_alter_info, ctx)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
-    } else if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) &&
+    } else if ((ctx->handler_flags
+                & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE) &&
                 only_flags(
                     ctx->handler_flags,
-                    Alter_inplace_info::ALTER_COLUMN_TYPE +
+                    Alter_inplace_info::ALTER_STORED_COLUMN_TYPE +
                     Alter_inplace_info::ALTER_COLUMN_DEFAULT) &&
                 table->s->fields == altered_table->s->fields &&
                 find_changed_fields(
@@ -519,7 +519,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
         result != HA_ALTER_INPLACE_NOT_SUPPORTED &&
         table->s->null_bytes != altered_table->s->null_bytes) {
 
-        TOKUDB_HANDLER_TRACE("q %s", thd->query());
+        TOKUDB_HANDLER_TRACE("q %s", thd->query().str);
         TOKUDB_HANDLER_TRACE(
             "null bytes %u -> %u",
             table->s->null_bytes,
@@ -1178,11 +1178,9 @@ static bool change_length_is_supported(
         return false;
     if (table->s->null_bytes != altered_table->s->null_bytes)
         return false;
-    if (ctx->changed_fields.elements() > 1)
+    if (ctx->changed_fields.size() > 1)
         return false; // only support one field change
-    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0;
-         ai < ctx->changed_fields.elements();
-         ai++) {
+    for (uint ai = 0; ai < ctx->changed_fields.size(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
@@ -1207,15 +1205,14 @@ static bool change_length_is_supported(
 }
 
 // Debug function that ensures that the array is sorted
-static bool is_sorted(Dynamic_array<uint> &a) {
-    bool r = true;
-    if (a.elements() > 0) {
-        uint lastelement = a.at(0);
-        for (DYNAMIC_ARRAY_ELEMENTS_TYPE i = 1; i < a.elements(); i++)
-            if (lastelement > a.at(i))
-                r = false;
+static bool is_sorted(const std::vector<uint> &a) {
+    if (a.size() > 0) {
+        uint lastelement = a[0];
+        for (uint i = 1; i < a.size(); i++)
+            if (lastelement > a[i])
+                return false;
     }
-    return r;
+    return true;
 }
 
 int ha_tokudb::alter_table_expand_columns(
@@ -1227,10 +1224,8 @@ int ha_tokudb::alter_table_expand_columns(
         static_cast<tokudb_alter_ctx*>(ha_alter_info->handler_ctx);
     // since we build the changed_fields array in field order, it must be sorted
     assert_always(is_sorted(ctx->changed_fields));
-    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0;
-         error == 0 && ai < ctx->changed_fields.elements();
-         ai++) {
-        uint expand_field_num = ctx->changed_fields.at(ai);
+    for (uint ai = 0; error == 0 && ai < ctx->changed_fields.size(); ai++) {
+        uint expand_field_num = ctx->changed_fields[ai];
         error = alter_table_expand_one_column(
             altered_table,
             ha_alter_info,
@@ -1578,8 +1573,8 @@ static bool change_field_type_is_supported(
             return false;
     } else if (old_type == MYSQL_TYPE_VARCHAR) {
         // varchar(X) -> varchar(Y) and varbinary(X) -> varbinary(Y) expansion
-        // where X < 256 <= Y the ALTER_COLUMN_TYPE handler flag is set for
-        // these cases
+        // where X < 256 <= Y the ALTER_STORED_COLUMN_TYPE handler flag is set
+        // for these cases
         return change_varchar_length_is_supported(
             old_field,
             new_field,
@@ -1609,12 +1604,10 @@ static bool change_type_is_supported(
         return false;
     if (table->s->fields != altered_table->s->fields)
         return false;
-    if (ctx->changed_fields.elements() > 1)
+    if (ctx->changed_fields.size() > 1)
         return false; // only support one field change
-    for (DYNAMIC_ARRAY_ELEMENTS_TYPE ai = 0;
-         ai < ctx->changed_fields.elements();
-         ai++) {
-        uint i = ctx->changed_fields.at(ai);
+    for (uint ai = 0; ai < ctx->changed_fields.size(); ai++) {
+        uint i = ctx->changed_fields[ai];
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
         if (field_in_key_of_table(table, old_field) ||

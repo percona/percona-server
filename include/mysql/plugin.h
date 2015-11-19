@@ -638,6 +638,15 @@ unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 int thd_opt_slow_log();
 
 /**
+  Check whether given connection handle is associated with a background thread.
+
+  @param thd  connection handle
+  @retval non-zero  the connection handle belongs to a background thread
+  @retval 0   the connection handle belongs to a different thread type
+*/
+int thd_is_background_thread(const MYSQL_THD thd);
+
+/**
   Create a temporary file.
 
   @details

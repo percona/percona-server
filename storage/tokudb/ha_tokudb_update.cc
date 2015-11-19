@@ -251,8 +251,10 @@ int ha_tokudb::fast_update(
 
 check_error:
     if (error != 0) {
+#if TOKU_INCLUDE_UPSERT
         if (tokudb::sysvars::disable_slow_update(thd) != 0)
             error = HA_ERR_UNSUPPORTED;
+#endif
         if (error != ENOTSUP)
             print_error(error, MYF(0));
     }
@@ -981,8 +983,10 @@ int ha_tokudb::upsert(
 
 check_error:
     if (error != 0) {
+#if TOKU_INCLUDE_UPSERT
         if (tokudb::sysvars::disable_slow_upsert(thd) != 0)
             error = HA_ERR_UNSUPPORTED;
+#endif
         if (error != ENOTSUP)
             print_error(error, MYF(0));
     }

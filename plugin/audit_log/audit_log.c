@@ -266,7 +266,7 @@ void my_plugin_perror(void)
 {
   char errbuf[MYSYS_STRERROR_SIZE];
   my_strerror(errbuf, sizeof(errbuf), errno);
-  my_plugin_log_message(plugin_ptr, MY_ERROR_LEVEL, "Error: %s", errbuf);
+  my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL, "Error: %s", errbuf);
 }
 
 static
@@ -279,8 +279,8 @@ void audit_log_write(const char *buf, size_t len)
     if (!write_error)
     {
       write_error= 1;
-      my_plugin_log_message(plugin_ptr, MY_ERROR_LEVEL,
-                            "Error writing to file %s. ", audit_log_file);
+      my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
+                            "Error writing to file %s.", audit_log_file);
       my_plugin_perror();
     }
   }
@@ -584,8 +584,8 @@ int init_new_log_file()
     log_handler= audit_handler_file_open(&opts);
     if (log_handler == NULL)
     {
-      my_plugin_log_message(plugin_ptr, MY_ERROR_LEVEL,
-                            "Cannot open file %s. ", audit_log_file);
+      my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
+                            "Cannot open file %s.", audit_log_file);
       my_plugin_perror();
       return(1);
     }
@@ -602,8 +602,8 @@ int init_new_log_file()
     log_handler= audit_handler_syslog_open(&opts);
     if (log_handler == NULL)
     {
-      my_plugin_log_message(plugin_ptr, MY_ERROR_LEVEL,
-                            "Cannot open syslog. ");
+      my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
+                            "Cannot open syslog.");
       my_plugin_perror();
       return(1);
     }
@@ -618,7 +618,7 @@ int reopen_log_file()
 {
   if (audit_handler_flush(log_handler))
   {
-    my_plugin_log_message(plugin_ptr, MY_ERROR_LEVEL, "Cannot open file %s. ",
+    my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL, "Cannot open file %s.",
                           audit_log_file);
     my_plugin_perror();
     return(1);

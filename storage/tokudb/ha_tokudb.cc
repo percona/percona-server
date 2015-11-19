@@ -156,7 +156,8 @@ void TOKUDB_SHARE::static_init() {
         0,
         0,
         (my_hash_get_key)hash_get_key,
-        (my_hash_free_key)hash_free_element, 0);
+        (my_hash_free_key)hash_free_element, 0,
+        0); // TODO: instrument for PFS
 }
 void TOKUDB_SHARE::static_destroy() {
     my_hash_free(&_open_tables);
@@ -406,7 +407,7 @@ static inline bool is_insert_ignore (THD* thd) {
     //
     // from http://lists.mysql.com/internals/37735
     //
-    return thd->lex->ignore && thd->lex->duplicates == DUP_ERROR;
+    return thd->lex->is_ignore() && thd->lex->duplicates == DUP_ERROR;
 }
 
 static inline bool is_replace_into(THD* thd) {
@@ -703,13 +704,13 @@ static ulonglong retrieve_auto_increment(uint16 type, uint32 offset,const uchar 
     /* The remaining two cases should not be used but are included for 
        compatibility */
     case HA_KEYTYPE_FLOAT:                      
-        float4get(float_tmp, key);  /* Note: float4get is a macro */
+        float4get(&float_tmp, key);  /* Note: float4get is a macro */
         signed_autoinc   = (longlong) float_tmp;
         autoinc_type     = signed_type;
         break;
 
     case HA_KEYTYPE_DOUBLE:
-        float8get(double_tmp, key); /* Note: float8get is a macro */
+        float8get(&double_tmp, key); /* Note: float8get is a macro */
         signed_autoinc   = (longlong) double_tmp;
         autoinc_type     = signed_type;
         break;
@@ -1405,14 +1406,14 @@ int ha_tokudb::open_secondary_dictionary(
 
 
     if ((error = db_create(ptr, db_env, 0))) {
-        my_errno = error;
+        set_my_errno(error);
         goto cleanup;
     }
 
 
     error = (*ptr)->open(*ptr, txn, newname, NULL, DB_BTREE, open_flags, 0);
     if (error) {
-        my_errno = error;
+        set_my_errno(error);
         goto cleanup;
     }
     TOKUDB_HANDLER_TRACE_FOR_FLAGS(
@@ -1735,7 +1736,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
         KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
         KEY_PART_INFO *end = key_part + get_key_parts(&table->key_info[primary_key]);
         for (; key_part != end; key_part++) {
-            ref_length += key_part->field->max_packed_col_length(key_part->length);
+            ref_length += key_part->field->max_packed_col_length();
             TOKU_TYPE toku_type = mysql_to_toku_type(key_part->field);
             if (toku_type == toku_type_fixstring ||
                 toku_type == toku_type_varstring ||
@@ -1945,7 +1946,7 @@ exit:
         rec_update_buff = NULL;
         
         if (error) {
-            my_errno = error;
+            set_my_errno(error);
         }
     }
     TOKUDB_HANDLER_DBUG_RETURN(ret_val);
@@ -3441,7 +3442,7 @@ cleanup:
     abort_loader = false;
     memset(&lc, 0, sizeof(lc));
     if (error || loader_error) {
-        my_errno = error ? error : loader_error;
+        set_my_errno(error ? error : loader_error);
         if (using_loader) {
             share->try_table_lock = true;
         }
@@ -4110,7 +4111,7 @@ bool ha_tokudb::key_changed(uint keynr, const uchar * old_row, const uchar * new
 int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     DBT prim_key, old_prim_key, prim_row, old_prim_row;
-    int error;
+    int error = 0;
     bool has_null;
     THD* thd = ha_thd();
     DB_TXN* sub_trans = NULL;
@@ -4118,7 +4119,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     uint curr_num_DBs;
 
-    LINT_INIT(error);
     memset((void *) &prim_key, 0, sizeof(prim_key));
     memset((void *) &old_prim_key, 0, sizeof(old_prim_key));
     memset((void *) &prim_row, 0, sizeof(prim_row));
@@ -6231,7 +6231,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
             "created master %p",
             trx->all);
         trx->sp_level = trx->all;
-        trans_register_ha(thd, true, tokudb_hton);
+        trans_register_ha(thd, true, tokudb_hton, NULL);
     }
     DBUG_PRINT("trans", ("starting transaction stmt"));
     if (trx->stmt) { 
@@ -6273,7 +6273,7 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         trx->sp_level,
         trx->stmt);
     reset_stmt_progress(&trx->stmt_progress);
-    trans_register_ha(thd, false, tokudb_hton);
+    trans_register_ha(thd, false, tokudb_hton, NULL);
 cleanup:
     return error;
 }
@@ -6317,7 +6317,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             lock_type_str(lock_type),
             share->full_table_name());
     }
-    TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_LOCK, "q %s", thd->query());
+    TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_LOCK, "q %s",
+                                   thd->query().str);
 
     int error = 0;
     tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, tokudb_hton);
@@ -6397,7 +6398,8 @@ int ha_tokudb::start_stmt(THD* thd, thr_lock_type lock_type) {
         lock_type,
         share->full_table_name());
 
-    TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_LOCK, "q %s", thd->query());
+    TOKUDB_HANDLER_TRACE_FOR_FLAGS(TOKUDB_DEBUG_LOCK, "q %s",
+                                   thd->query().str);
 
     int error = 0;
     tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, tokudb_hton);
@@ -6438,7 +6440,7 @@ int ha_tokudb::start_stmt(THD* thd, thr_lock_type lock_type) {
         share->rows_from_locked_table = added_rows - deleted_rows;
     }
     transaction = trx->sub_sp_level;
-    trans_register_ha(thd, false, tokudb_hton);
+    trans_register_ha(thd, false, tokudb_hton, NULL);
 cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
@@ -6587,7 +6589,7 @@ static int create_sub_table(
     error = db_create(&file, db_env, 0);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when creating table", error));
-        my_errno = error;
+        set_my_errno(error);
         goto exit;
     }
 
@@ -7289,8 +7291,8 @@ int ha_tokudb::discard_or_import_tablespace(my_bool discard) {
     }
     return add_table_to_metadata(share->table_name);
     */
-    my_errno=HA_ERR_WRONG_COMMAND;
-    return my_errno;
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return my_errno();
 }
 
 
@@ -7448,7 +7450,7 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
     error = delete_or_rename_dictionary(from_name, to_name, "status", false, txn, is_delete);
     if (error) { goto cleanup; }
 
-    my_errno = error;
+    set_my_errno(error);
 cleanup:
     if (status_cursor) {
         int r = status_cursor->c_close(status_cursor);
@@ -7804,7 +7806,7 @@ void ha_tokudb::get_auto_increment(
         nr = share->last_auto_increment + increment;
         over = nr < share->last_auto_increment;
         if (over)
-            nr = ULONGLONG_MAX;
+            nr = ULLONG_MAX;
     }
     if (!over) {
         share->last_auto_increment = nr + (nb_desired_values - 1)*increment;

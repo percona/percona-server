@@ -46,6 +46,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
 #if !defined (_GNU_SOURCE)
 # define _GNU_SOURCE /* for RTLD_DEFAULT */
 #endif
@@ -100,7 +104,11 @@ static struct st_mysql_auth two_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog", /* requires dialog client plugin */
-  two_questions
+  two_questions,
+  NULL,
+  NULL,
+  NULL,
+  0UL
 };
 
 /* dialog demo where the number of questions is not known in advance */
@@ -137,7 +145,11 @@ static struct st_mysql_auth three_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog", /* requires dialog client plugin */
-  three_attempts 
+  three_attempts,
+  NULL,
+  NULL,
+  NULL,
+  0UL
 };
 
 mysql_declare_plugin(dialog)

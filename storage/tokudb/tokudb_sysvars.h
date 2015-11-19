@@ -111,8 +111,10 @@ my_bool     create_index_online(THD* thd);
 my_bool     disable_hot_alter(THD* thd);
 my_bool     disable_prefetching(THD* thd);
 my_bool     disable_slow_alter(THD* thd);
+#if TOKU_INCLUDE_UPSERT
 my_bool     disable_slow_update(THD* thd);
 my_bool     disable_slow_upsert(THD* thd);
+#endif
 empty_scan_mode_t empty_scan(THD* thd);
 uint        fanout(THD* thd);
 my_bool     hide_default_row_format(THD* thd);

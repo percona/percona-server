@@ -26,6 +26,12 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include "hatoku_hton.h"
 
+#if TOKUDB_CHECK_JEMALLOC
+#include <dlfcn.h>
+#endif
+
+#include "my_tree.h"
+
 #define TOKU_METADB_NAME "tokudb_meta"
 
 typedef struct savepoint_info {
@@ -57,7 +63,7 @@ static void tokudb_print_error(
     const char* buffer);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton* hton, ha_panic_function type);
-static bool tokudb_flush_logs(handlerton* hton);
+static bool tokudb_flush_logs(handlerton* hton, bool binlog_group_commit);
 static bool tokudb_show_status(
     handlerton* hton,
     THD* thd,
@@ -744,7 +750,7 @@ static int tokudb_close_connection(handlerton* hton, THD* thd) {
     return error;
 }
 
-bool tokudb_flush_logs(handlerton * hton) {
+bool tokudb_flush_logs(handlerton * hton, bool binlog_group_commit) {
     TOKUDB_DBUG_ENTER("");
     int error;
     bool result = 0;
@@ -1372,7 +1378,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
         snprintf(buf, bufsiz, "%" PRIu64, bytes_inserted);
         STATPRINT("handlerton: primary key bytes inserted", buf);
     }  
-    if (error) { my_errno = error; }
+    if (error) { set_my_errno(error); }
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -1637,9 +1643,9 @@ static void tokudb_lock_timeout_callback(
         // generate a JSON document with the lock timeout info
         String log_str;
         log_str.append("{");
-        uint64_t mysql_thread_id = thd->thread_id;
+        my_thread_id mysql_thread_id = thd->thread_id();
         log_str.append("\"mysql_thread_id\":");
-        log_str.append_ulonglong(mysql_thread_id);
+        log_str.append_ulonglong(static_cast<ulonglong>(mysql_thread_id));
         log_str.append(", \"dbname\":");
         log_str.append("\"");
         log_str.append(tokudb_get_index_name(db));
@@ -1692,13 +1698,13 @@ static void tokudb_lock_timeout_callback(
                 "%s: lock timeout %s",
                 tokudb_hton_name,
                 log_str.c_ptr());
-            LEX_STRING *qs = thd_query_string(thd);
+            LEX_CSTRING qs = thd->query();
             sql_print_error(
                 "%s: requesting_thread_id:%" PRIu64 " q:%.*s",
                 tokudb_hton_name,
-                mysql_thread_id,
-                (int)qs->length,
-                qs->str);
+                static_cast<uint64_t>(mysql_thread_id),
+                (int)qs.length,
+                qs.str);
 #if TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
             uint64_t blocking_thread_id = 0;
             if (tokudb_txn_id_to_client_id(
@@ -1822,7 +1828,7 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
         var->type= SHOW_ARRAY;
         var->value= (char *) toku_global_status_variables;
     }
-    if (error) { my_errno = error; }
+    if (error) { set_my_errno(error); }
     TOKUDB_DBUG_RETURN(error);
 }
 

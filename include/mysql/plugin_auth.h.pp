@@ -107,6 +107,7 @@ void increment_thd_innodb_stats(void* thd,
                     long page_access);
 unsigned long thd_log_slow_verbosity(const void* thd);
 int thd_opt_slow_log();
+int thd_is_background_thread(const void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_set_kill_status(const void* thd);

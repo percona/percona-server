@@ -5353,6 +5353,7 @@ _fil_io(
 	os_offset_t		offset;
 	IORequest		req_type(type);
 
+	ut_ad(!trx || trx->take_stats);
 	ut_ad(req_type.validate());
 
 	ut_ad(len > 0);

@@ -120,7 +120,11 @@ static struct st_mysql_auth pam_auth_handler=
 {
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "mysql_clear_password",
-  &authenticate_user_with_pam_server
+  &authenticate_user_with_pam_server,
+  NULL,
+  NULL,
+  NULL,
+  0UL
 };
 
 mysql_declare_plugin(auth_pam)

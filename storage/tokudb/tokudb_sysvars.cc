@@ -1005,12 +1005,14 @@ my_bool disable_prefetching(THD* thd) {
 my_bool disable_slow_alter(THD* thd) {
     return (THDVAR(thd, disable_slow_alter) != 0);
 }
+#if TOKU_INCLUDE_UPSERT
 my_bool disable_slow_update(THD* thd) {
     return (THDVAR(thd, disable_slow_update) != 0);
 }
 my_bool disable_slow_upsert(THD* thd) {
     return (THDVAR(thd, disable_slow_upsert) != 0);
 }
+#endif
 empty_scan_mode_t empty_scan(THD* thd) {
     return (empty_scan_mode_t)THDVAR(thd, empty_scan);
 }

@@ -4,6 +4,7 @@
 
 --source include/not_embedded.inc
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 --source include/have_log_bin.inc
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;

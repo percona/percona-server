@@ -559,6 +559,17 @@ buffer pool size.
 void
 innodb_set_buf_pool_size(ulonglong buf_pool_size);
 
+/** Get the transaction of the current connection handle, if either exists.
+@return transaction of the current connection handle or NULL. */
+trx_t*
+innobase_get_trx(void);
+
+/** Get the transaction of the current connection handle if slow query log
+InnoDB extended statistics should be collected.
+@return transaction object if statistics should be collected, or NULL. */
+trx_t*
+innobase_get_trx_for_slow_log(void);
+
 #endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 
 #endif /* HA_INNODB_PROTOTYPES_H */

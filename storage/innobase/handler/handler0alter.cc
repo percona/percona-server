@@ -8246,6 +8246,22 @@ foreign_fail:
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_mysql(trx);
 
+	/* Rebuild index translation table now for temporary tables if we are
+	restoring secondary keys, as ha_innobase::open will not be called for
+	the next access.  */
+	if (DICT_TF2_FLAG_IS_SET(ctx0->new_table, DICT_TF2_TEMPORARY)
+	    && ctx0->num_to_add_index) {
+		ut_ad(!ctx0->num_to_drop_index);
+		ut_ad(!ctx0->num_to_rename);
+		ut_ad(!ctx0->num_to_drop_fk);
+		if (!innobase_build_index_translation(altered_table,
+						      ctx0->new_table,
+						      m_share)) {
+			MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+			DBUG_RETURN(true);
+		}
+	}
+
 	/* TODO: The following code could be executed
 	while allowing concurrent access to the table
 	(MDL downgrade). */

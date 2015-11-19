@@ -834,7 +834,7 @@ public:
     uint8 table_cache_type() {
         return HA_CACHE_TBL_TRANSACT;
     }
-    bool primary_key_is_clustered() {
+    bool primary_key_is_clustered() const {
         return true;
     }
     bool supports_clustered_keys() {

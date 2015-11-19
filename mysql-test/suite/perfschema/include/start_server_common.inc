@@ -104,7 +104,9 @@ select * from performance_schema.session_variables;
 --enable_result_log
 
 # This has a stable output, printing the result:
-show global variables like "performance_schema%";
+show global variables where
+    `Variable_name` != "performance_schema_max_statement_classes" and
+    `Variable_name` like "performance_schema%";
 
 # This has an unrepeatable output, it does depends too much on
 # - the platform hardware (sizeof structures, padding)

@@ -780,6 +780,11 @@ then
   append_arg_to_args "--port=$mysql_tcp_port"
 fi
 
+if test -n "$numa_interleave"
+then
+  append_arg_to_args "--innodb-numa-interleave=1"
+fi
+
 if test $niceness -eq 0
 then
   NOHUP_NICENESS="nohup"

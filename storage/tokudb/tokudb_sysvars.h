@@ -78,6 +78,7 @@ extern uint         fsync_log_period;
 extern char*        log_dir;
 extern ulonglong    max_lock_memory;
 extern uint         read_status_frequency;
+extern my_bool      strip_frm_data;
 extern char*        tmp_dir;
 extern uint         write_status_frequency;
 extern char*        version;

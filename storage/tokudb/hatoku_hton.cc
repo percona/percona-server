@@ -616,6 +616,15 @@ static int tokudb_init_func(void *p) {
     init_tree(&tokudb_map, 0, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
 #endif
 
+    if (tokudb::sysvars::strip_frm_data) {
+        r = tokudb::metadata::strip_frm_data(db_env);
+        if (r) {
+            DBUG_PRINT("info", ("env->open %d", r));
+            handle_ydb_error(r);
+            goto error;
+        }
+    }
+
     //3938: succeeded, set the init status flag and unlock
     tokudb_hton_initialized = 1;
     tokudb_hton_initialized_lock.unlock();

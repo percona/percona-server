@@ -279,7 +279,7 @@ int TOKUDB_SHARE::release() {
             }
         }
 
-        error = tokudb::close_status(&status_block);
+        error = tokudb::metadata::close(&status_block);
         assert_always(error == 0);
 
         free_key_and_col_info(&kc_info);
@@ -1306,7 +1306,7 @@ static int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn) {
     make_name(newname, newname_len, name, "status");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_OPEN, "open:%s", newname);
 
-    error = tokudb::open_status(db_env, ptr, newname, txn);
+    error = tokudb::metadata::open(db_env, ptr, newname, txn);
 cleanup:
     tokudb::memory::free(newname);
     return error;
@@ -7167,7 +7167,7 @@ int ha_tokudb::create(
     /* Create status.tokudb and save relevant metadata */
     make_name(newname, newname_len, name, "status");
 
-    error = tokudb::create_status(db_env, &status_block, newname, txn);
+    error = tokudb::metadata::create(db_env, &status_block, newname, txn);
     if (error) { goto cleanup; }
 
     version = HA_TOKU_VERSION;    
@@ -7268,7 +7268,7 @@ int ha_tokudb::create(
     error = 0;
 cleanup:
     if (status_block != NULL) {
-        int r = tokudb::close_status(&status_block); 
+        int r = tokudb::metadata::close(&status_block);
         assert_always(r==0);
     }
     free_key_and_col_info(&kc_info);

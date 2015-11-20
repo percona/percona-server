@@ -63,6 +63,7 @@ uint        fsync_log_period = 0;
 char*       log_dir = NULL;
 ulonglong   max_lock_memory = 0;
 uint        read_status_frequency = 0;
+my_bool     strip_frm_data = FALSE;
 char*       tmp_dir = NULL;
 uint        write_status_frequency = 0;
 char*       version = (char*) TOKUDB_VERSION_STR;
@@ -355,6 +356,15 @@ static MYSQL_SYSVAR_UINT(
     0,
     ~0U,
     0);
+
+static MYSQL_SYSVAR_BOOL(
+    strip_frm_data,
+    strip_frm_data,
+    PLUGIN_VAR_READONLY,
+    "strip .frm data from metadata file(s)",
+    NULL,
+    NULL,
+    FALSE);
 
 static MYSQL_SYSVAR_STR(
     tmp_dir,
@@ -895,6 +905,7 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(log_dir),
     MYSQL_SYSVAR(max_lock_memory),
     MYSQL_SYSVAR(read_status_frequency),
+    MYSQL_SYSVAR(strip_frm_data),
     MYSQL_SYSVAR(tmp_dir),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(write_status_frequency),

@@ -20,6 +20,7 @@ mysqld_ld_library_path=
 load_jemalloc=1
 load_hotbackup=0
 flush_caches=0
+numa_interleave=
 # Change (disable) transparent huge pages (TokuDB requirement)
 thp_setting=
 
@@ -711,6 +712,11 @@ fi
 if test -n "$mysql_tcp_port"
 then
   append_arg_to_args "--port=$mysql_tcp_port"
+fi
+
+if test -n "$numa_interleave"
+then
+  append_arg_to_args "--innodb-numa-interleave=1"
 fi
 
 if test $niceness -eq 0

@@ -54,7 +54,6 @@ os_proc_get_number(void);
 
 /** Allocates large pages memory.
 @param[in,out]	n	Number of bytes to allocate
-@param[in]	populate	virtual page preallocation
 @return allocated memory */
 void*
 os_mem_alloc_large(

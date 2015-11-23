@@ -4,6 +4,7 @@
 
 --source include/have_log_bin.inc
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 --source include/not_embedded.inc
 
 SHOW VARIABLES LIKE 'have_backup_locks';

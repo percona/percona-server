@@ -5,7 +5,7 @@ connection master;
 
 # check how events applied on slave
 
-create table p (a int) engine=InnoDB;
+create table p (a int);
 set session pseudo_server_id= 10;
 insert into p (a) values (1), (2), (3), (4), (5);
 set session pseudo_server_id= 2;

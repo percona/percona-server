@@ -2831,49 +2831,6 @@ case SQLCOM_PREPARE:
     res = purge_master_logs_before_date(thd, purge_time);
     break;
   }
-  case SQLCOM_PURGE_ARCHIVE:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-    /* PURGE ARCHIVED LOGS TO 'file' */
-    if (!ha_purge_archive_logs_to(NULL, NULL, lex->to_log)) {
-      my_ok(thd);
-    } else {
-      my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0), "PURGE ARCHIVE LOGS TO");
-      goto error;
-    }
-
-    break;
-  }
-  case SQLCOM_PURGE_ARCHIVE_BEFORE:
-  {
-    Item *it;
-
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-    /* PURGE ARCHIVE LOGS BEFORE 'data' */
-    it= lex->purge_value_list.head();
-    if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
-        it->check_cols(1))
-    {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "PURGE ARCHIVE LOGS BEFORE");
-      goto error;
-    }
-    it= new Item_func_unix_timestamp(it);
-    /*
-      it is OK only emulate fix_fieds, because we need only
-      value of constant
-    */
-    it->quick_fix_field();
-    ulong before_timestamp = (ulong)it->val_int();
-    if (!ha_purge_archive_logs(NULL, NULL, &before_timestamp )) {
-      my_ok(thd);
-    } else {
-      my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0), "PURGE ARCHIVE LOGS BEFORE");
-      goto error;
-    }
-    break;
-  }
 #endif
   case SQLCOM_SHOW_WARNS:
   {
@@ -6672,7 +6629,8 @@ public:
   {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    /* Kill only if non super thread and non slave thread.
+    /* Kill only if non super thread, non slave thread, and non utility user
+       thread.
        If an account has not yet been assigned to the security context of the
        thread we cannot tell if the account is super user or not. In this case
        we cannot kill that thread. In offline mode, after the account is
@@ -6683,7 +6641,10 @@ public:
     if (thd_to_kill->security_context()->has_account_assigned()
   && !(thd_to_kill->security_context()->check_access(SUPER_ACL))
 	&& thd_to_kill->killed != THD::KILL_CONNECTION
-	&& !thd_to_kill->slave_thread)
+	&& !thd_to_kill->slave_thread
+        && !acl_is_utility_user(thd_to_kill->security_context()->user().str,
+                                thd_to_kill->security_context()->host().str,
+                                thd_to_kill->security_context()->ip().str))
       thd_to_kill->awake(THD::KILL_CONNECTION);
 
     mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);

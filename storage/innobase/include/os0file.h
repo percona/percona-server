@@ -36,7 +36,6 @@ Created 10/21/1995 Heikki Tuuri
 #define os0file_h
 
 #include "univ.i"
-#include "trx0types.h"
 
 #ifndef _WIN32
 #include <dirent.h>
@@ -44,12 +43,10 @@ Created 10/21/1995 Heikki Tuuri
 #include <time.h>
 #endif /* !_WIN32 */
 
-#ifdef UNIV_INNOCHECKSUM
-struct trx_t;
-#endif
-
 /** File node of a tablespace or the log data space */
 struct fil_node_t;
+
+struct trx_t;
 
 extern bool	os_has_said_disk_full;
 
@@ -1294,7 +1291,7 @@ to original un-instrumented file I/O APIs */
 # define os_aio(type, mode, name, file, buf, offset,			\
 		n, read_only, message1, message2, space_id, trx)	\
 	os_aio_func(type, mode, name, file, buf, offset,		\
-		    n, read_only, message1, message2, space_id, trx)
+		n, read_only, message1, message2, space_id, trx)
 
 # define os_file_read(type, file, buf, offset, n)			\
 	os_file_read_func(type, file, buf, offset, n)

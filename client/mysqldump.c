@@ -119,7 +119,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
-                opt_slave_apply= 0,
+                opt_slave_apply= 0, 
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
@@ -222,7 +222,7 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 
 HASH ignore_table;
 
-LIST *skipped_keys_list;
+static LIST *skipped_keys_list;
 
 static struct my_option my_long_options[] =
 {

@@ -60,7 +60,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "rem0rec.h"
 #include "mtr0mtr.h"
-#include "log0archive.h"
 #include "log0log.h"
 #include "log0online.h"
 #include "log0recv.h"
@@ -327,7 +326,6 @@ DECLARE_THREAD(io_handler_thread)(
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
 	       || buf_page_cleaner_is_active
 	       || !os_aio_all_slots_free()) {
-
 		fil_aio_wait(segment);
 	}
 
@@ -479,16 +477,9 @@ create_log_files(
 		}
 	}
 
-#if 0 // TODO laurynas: log archiving broken by WL#8845
-	/* Create the file space object for archived logs. */
-	ut_a(fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
-			      0, FIL_TYPE_LOG));
-#endif
-
 	if (!log_group_init(0, srv_n_log_files,
 			    srv_log_file_size * UNIV_PAGE_SIZE,
-			    SRV_LOG_SPACE_FIRST_ID,
-			    SRV_LOG_SPACE_FIRST_ID + 1)) {
+			    SRV_LOG_SPACE_FIRST_ID)) {
 		return(DB_ERROR);
 	}
 
@@ -497,8 +488,7 @@ create_log_files(
 	/* Create a log checkpoint. */
 	log_mutex_enter();
 	ut_d(recv_no_log_write = false);
-	recv_reset_logs(UT_LIST_GET_FIRST(log_sys->log_groups)
-			->archived_file_no, lsn);
+	recv_reset_logs(lsn);
 	log_mutex_exit();
 
 	return(DB_SUCCESS);
@@ -1970,8 +1960,6 @@ innobase_start_or_create_for_mysql(void)
 		return(srv_init_abort(err));
 	}
 
-	os_normalize_path_for_win(srv_arch_dir);
-
 	dirnamelen = strlen(srv_log_group_home_dir);
 	ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
 	memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
@@ -2104,12 +2092,6 @@ innobase_start_or_create_for_mysql(void)
 		ut_a(fil_validate());
 		ut_a(log_space);
 
-#if 0 // TODO laurynas: log archiving broken by WL#8845
-		/* Create the file space object for archived logs. */
-		ut_a(fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
-				      0, FIL_TYPE_LOG));
-#endif
-
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
 		ut_a(srv_log_file_size <= ULINT_MAX);
@@ -2125,8 +2107,7 @@ innobase_start_or_create_for_mysql(void)
 		}
 
 		if (!log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-				    SRV_LOG_SPACE_FIRST_ID,
-				    SRV_LOG_SPACE_FIRST_ID + 1)) {
+				    SRV_LOG_SPACE_FIRST_ID)) {
 			return(srv_init_abort(DB_ERROR));
 		}
 	}
@@ -2486,30 +2467,7 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
-	if (!srv_read_only_mode) {
-		if (!srv_log_archive_on) {
-			ut_a(DB_SUCCESS == log_archive_noarchivelog());
-		} else {
-			bool	start_archive;
-
-			log_mutex_enter();
-
-			start_archive = false;
-
-			if (log_sys->archiving_state == LOG_ARCH_OFF) {
-
-				start_archive = true;
-			}
-
-			log_mutex_exit();
-
-			if (start_archive) {
-
-				ut_a(DB_SUCCESS == log_archive_archivelog());
-			}
-		}
-	}
-
+	/* Open temp-tablespace and keep it open until shutdown. */
 	err = srv_open_tmp_tablespace(create_new_db, &srv_tmp_space);
 
 	if (err != DB_SUCCESS) {

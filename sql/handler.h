@@ -817,8 +817,6 @@ struct handlerton
                         enum enum_schema_tables);
    my_bool (*flush_changed_page_bitmaps)(void);
    my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
-   bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
-                             const char* to_filename);
 
    uint32 flags;                                /* global handler flags */
    /*
@@ -4068,11 +4066,6 @@ int ha_prepare(THD *thd);
 */
 
 int ha_recover(HASH *commit_list);
-
-/* remove old archived transaction logs files */
-bool ha_purge_archive_logs(THD *thd, handlerton *db_type, void* args);
-bool ha_purge_archive_logs_to(THD *thd, handlerton *db_type, void* args);
-
 
 /*
  transactions: interface to low-level handlerton functions. These are

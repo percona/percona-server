@@ -5840,7 +5840,6 @@ os_file_set_size(
 		fall back to os_file_write/read. On Windows it will use
 		special mechanism to wait before it returns back. */
 
-		// TODO laurynas: space_id, trx
 		err = os_aio(
 			request,
 			OS_AIO_SYNC, name,

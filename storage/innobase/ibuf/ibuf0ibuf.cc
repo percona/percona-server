@@ -56,7 +56,6 @@ my_bool	srv_ibuf_disable_background_merge;
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
-#include "btr0sea.h"
 #include "row0upd.h"
 #include "dict0boot.h"
 #include "fut0lst.h"

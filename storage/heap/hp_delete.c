@@ -22,7 +22,6 @@ int heap_delete(HP_INFO *info, const uchar *record)
   uchar *pos;
   HP_SHARE *share=info->s;
   HP_KEYDEF *keydef, *end, *p_lastinx;
-
   DBUG_ENTER("heap_delete");
   DBUG_PRINT("enter",("info: 0x%lx  record: 0x%lx", (long) info, (long) record));
 

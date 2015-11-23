@@ -591,26 +591,6 @@ fil_space_create(
 	fil_type_t	purpose)
 	__attribute__((warn_unused_result));
 
-/****************************************************************//**
-Drops files from the start of a file space, so that its size is cut by
-the amount given. */
-
-void
-fil_space_truncate_start(
-/*=====================*/
-	ulint	id,		/*!< in: space id */
-	ulint	trunc_len);	/*!< in: truncate by this much; it is an error
-				if this does not equal to the combined size of
-				some initial files in the space */
-/****************************************************************//**
-Check is there node in file space with given name. */
-
-bool
-fil_space_contains_node(
-/*====================*/
-	ulint	id,		/*!< in: space id */
-	char*	node_name);	/*!< in: node name */
-
 /*******************************************************************//**
 Assigns a new space id for a new single-table tablespace. This works simply by
 incrementing the global counter. If 4 billion id's is not enough, we may need

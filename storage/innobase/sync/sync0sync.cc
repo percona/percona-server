@@ -122,7 +122,6 @@ mysql_pfs_key_t	fts_cache_rw_lock_key;
 mysql_pfs_key_t	fts_cache_init_rw_lock_key;
 mysql_pfs_key_t trx_i_s_cache_lock_key;
 mysql_pfs_key_t	trx_purge_latch_key;
-mysql_pfs_key_t	archive_lock_key;
 # ifdef UNIV_DEBUG
 mysql_pfs_key_t	buf_chunk_map_latch_key;
 # endif /* UNIV_DEBUG */

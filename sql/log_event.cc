@@ -3709,7 +3709,6 @@ bool Query_log_event::write(IO_CACHE* file)
     *start++= Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP;
     *start++= thd->variables.explicit_defaults_for_timestamp;
   }
-
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h

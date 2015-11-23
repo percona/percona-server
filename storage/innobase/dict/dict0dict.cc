@@ -5945,7 +5945,6 @@ dict_set_merge_threshold_all_debug(
 
 	mutex_exit(&dict_sys->mutex);
 }
-
 #endif /* UNIV_DEBUG */
 
 /*************************************************************************

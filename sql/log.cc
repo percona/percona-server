@@ -53,6 +53,7 @@
 using std::min;
 using std::max;
 
+
 #ifndef _WIN32
 static int   log_syslog_facility= 0;
 #endif
@@ -549,8 +550,14 @@ bool File_query_log::open()
     goto err;
   }
 
-  if (generate_new_log_name(log_file_name, &cur_log_ext, name, false))
-    goto err;
+  if (cur_log_ext == (ulong)-1)
+  {
+    if (generate_new_log_name(log_file_name, &cur_log_ext, name, false))
+      goto err;
+  } else {
+    snprintf(log_file_name, sizeof(log_file_name),
+             "%s.%06lu", name, cur_log_ext);
+  }
 
   /* File is regular writable file */
   if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
@@ -930,6 +937,7 @@ err:
   mysql_mutex_unlock(&LOCK_log);
   return true;
 }
+
 
 bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
                                            const char *user_host,
@@ -1647,6 +1655,7 @@ Query_logger::check_if_log_table(TABLE_LIST *table_list,
   return QUERY_LOG_NONE;
 }
 
+
 Query_logger query_logger;
 
 bool File_query_log::purge_up_to(ulong to_ext, const char *log_name)
@@ -1718,7 +1727,7 @@ static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime)
   return res;
 }
 
-inline void copy_global_to_session(THD *thd, ulong flag,
+static void copy_global_to_session(THD *thd, ulong flag,
                                    const ulong *val)
 {
   my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);

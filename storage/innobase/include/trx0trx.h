@@ -1092,7 +1092,7 @@ struct trx_t {
 					trx_commit_complete_for_mysql() */
 	ulint		duplicates;	/*!< TRX_DUP_IGNORE | TRX_DUP_REPLACE */
 	bool		has_search_latch;
-					/*!< true if this trx has latched any
+					/*!< TRUE if this trx has latched the
 					search system latch in S-mode */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 

@@ -2038,7 +2038,7 @@ public:
   bool       innodb_was_used;
   /*
     Following Variables innodb_*** (is |should be) different from
-    default values only if (innodb_was_used==TRUE)
+    default values only if (innodb_was_used==true)
   */
   ulonglong  innodb_trx_id;
   ulong      innodb_io_reads;

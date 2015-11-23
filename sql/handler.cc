@@ -7786,48 +7786,6 @@ bool ha_purge_changed_page_bitmaps(ulonglong lsn)
                         MYSQL_STORAGE_ENGINE_PLUGIN, &lsn);
 }
 
-static my_bool purge_archive_logs_handlerton(THD *thd, plugin_ref plugin,
-                                             void *arg)
-{
-  ulong before_timestamp= *(ulong*) arg;
-  handlerton *hton= plugin_data<handlerton*>(plugin);
-
-  if (hton->purge_archive_logs == NULL)
-    return FALSE;
-
-  return hton->purge_archive_logs(hton, before_timestamp, NULL);
-}
-
-bool ha_purge_archive_logs(THD *thd, handlerton *db_type, void* args)
-{
-  if (db_type == NULL)
-    return plugin_foreach(thd, purge_archive_logs_handlerton,
-                           MYSQL_STORAGE_ENGINE_PLUGIN, args);
-
-  return false;
-}
-
-static my_bool purge_archive_logs_to_handlerton(THD *thd, plugin_ref plugin,
-                                                void *arg)
-{
-  const char* to_filename= (const char*) arg;
-  handlerton *hton= plugin_data<handlerton *>(plugin);
-
-  if (hton->purge_archive_logs == NULL)
-    return FALSE;
-
-  return hton->purge_archive_logs(hton, 0, to_filename);
-}
-
-bool ha_purge_archive_logs_to(THD *thd, handlerton *db_type, void* args)
-{
-  if (db_type == NULL)
-    return plugin_foreach(thd, purge_archive_logs_to_handlerton,
-                           MYSQL_STORAGE_ENGINE_PLUGIN, args);
-
-  return false;
-}
-
 /*
   Function to check if the conditions for row-based binlogging is
   correct for the table.

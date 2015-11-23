@@ -49,7 +49,7 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "trx0undo.h"			/* TRX_UNDO_* */
 #include "fut0lst.h"			/* FLST_NODE_SIZE */
 #include "buf0checksum.h"		/* buf_calc_page_*() */
-#include "dict0mem.h"			/* DICT_TF_BITS et al */
+#include "dict0mem.h"			/* DICT_TF_HAS_ATOMIC_BLOBS */
 #include "fil0fil.h"			/* FIL_* */
 #include "os0file.h"
 #include "fsp0fsp.h"			/* fsp_flags_get_page_size() &

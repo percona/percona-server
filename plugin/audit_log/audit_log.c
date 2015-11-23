@@ -714,7 +714,6 @@ int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
     case MYSQL_AUDIT_GENERAL_LOG:
     case MYSQL_AUDIT_GENERAL_ERROR:
     case MYSQL_AUDIT_GENERAL_RESULT:
-      /* TODO laurynas handle these? */
       break;
     }
   }

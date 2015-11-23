@@ -309,7 +309,7 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr)
         So, in this case, even if thd->lex->sphead is set, we should not process
         further.
 
-      4. We are parsing SET STATEMENT FOR ... inside of SP. TODO
+      4. We are parsing SET STATEMENT FOR ... inside of SP.
   */
 
   if (!sp ||              // case #1

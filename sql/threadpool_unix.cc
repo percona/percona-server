@@ -248,8 +248,7 @@ static int io_poll_create()
   return epoll_create(1);
 }
 
-
-int io_poll_associate_fd(int pollfd, int fd, void *data)
+static int io_poll_associate_fd(int pollfd, int fd, void *data)
 {
   struct epoll_event ev;
   ev.data.u64= 0; /* Keep valgrind happy */
@@ -258,34 +257,31 @@ int io_poll_associate_fd(int pollfd, int fd, void *data)
   return epoll_ctl(pollfd, EPOLL_CTL_ADD,  fd, &ev);
 }
 
-
-
-int io_poll_start_read(int pollfd, int fd, void *data)
+static int io_poll_start_read(int pollfd, int fd, void *data)
 {
   struct epoll_event ev;
   ev.data.u64= 0; /* Keep valgrind happy */
   ev.data.ptr= data;
   ev.events=  EPOLLIN|EPOLLET|EPOLLERR|EPOLLRDHUP|EPOLLONESHOT;
-  return epoll_ctl(pollfd, EPOLL_CTL_MOD,  fd, &ev); 
+  return epoll_ctl(pollfd, EPOLL_CTL_MOD, fd, &ev);
 }
 
-int io_poll_disassociate_fd(int pollfd, int fd)
+static int io_poll_disassociate_fd(int pollfd, int fd)
 {
   struct epoll_event ev;
   return epoll_ctl(pollfd, EPOLL_CTL_DEL,  fd, &ev);
 }
-
 
 /*
  Wrapper around epoll_wait.
  NOTE - in case of EINTR, it restarts with original timeout. Since we use
  either infinite or 0 timeouts, this is not critical
 */
-int io_poll_wait(int pollfd, native_event *native_events, int maxevents, 
-              int timeout_ms)
+static int io_poll_wait(int pollfd, native_event *native_events, int maxevents,
+                        int timeout_ms)
 {
   int ret;
-  do 
+  do
   {
     ret = epoll_wait(pollfd, native_events, maxevents, timeout_ms);
   }
@@ -293,19 +289,18 @@ int io_poll_wait(int pollfd, native_event *native_events, int maxevents,
   return ret;
 }
 
-
 static void *native_event_get_userdata(native_event *event)
 {
   return event->data.ptr;
 }
 
 #elif defined (__FreeBSD__) || defined (__APPLE__)
-int io_poll_create()
+static int io_poll_create()
 {
   return kqueue();
 }
 
-int io_poll_start_read(int pollfd, int fd, void *data)
+static int io_poll_start_read(int pollfd, int fd, void *data)
 {
   struct kevent ke;
   EV_SET(&ke, fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 
@@ -313,8 +308,7 @@ int io_poll_start_read(int pollfd, int fd, void *data)
   return kevent(pollfd, &ke, 1, 0, 0, 0); 
 }
 
-
-int io_poll_associate_fd(int pollfd, int fd, void *data)
+static int io_poll_associate_fd(int pollfd, int fd, void *data)
 {
   struct kevent ke;
   EV_SET(&ke, fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 
@@ -322,16 +316,15 @@ int io_poll_associate_fd(int pollfd, int fd, void *data)
   return io_poll_start_read(pollfd,fd, data); 
 }
 
-
-int io_poll_disassociate_fd(int pollfd, int fd)
+static int io_poll_disassociate_fd(int pollfd, int fd)
 {
   struct kevent ke;
   EV_SET(&ke,fd, EVFILT_READ, EV_DELETE, 0, 0, NULL);
   return kevent(pollfd, &ke, 1, 0, 0, 0);
 }
 
-
-int io_poll_wait(int pollfd, struct kevent *events, int maxevents, int timeout_ms)
+static int io_poll_wait(int pollfd, struct kevent *events, int maxevents,
+                        int timeout_ms)
 {
   struct timespec ts;
   int ret;
@@ -361,7 +354,7 @@ static int io_poll_create()
   return port_create();
 }
 
-int io_poll_start_read(int pollfd, int fd, void *data)
+static int io_poll_start_read(int pollfd, int fd, void *data)
 {
   return port_associate(pollfd, PORT_SOURCE_FD, fd, POLLIN, data);
 }
@@ -371,12 +364,13 @@ static int io_poll_associate_fd(int pollfd, int fd, void *data)
   return io_poll_start_read(pollfd, fd, data);
 }
 
-int io_poll_disassociate_fd(int pollfd, int fd)
+static int io_poll_disassociate_fd(int pollfd, int fd)
 {
   return port_dissociate(pollfd, PORT_SOURCE_FD, fd);
 }
 
-int io_poll_wait(int pollfd, native_event *events, int maxevents, int timeout_ms)
+static int io_poll_wait(int pollfd, native_event *events, int maxevents,
+                        int timeout_ms)
 {
   struct timespec ts;
   int ret;
@@ -609,7 +603,7 @@ static bool queues_are_empty(thread_group_t *tg)
           (tg->queue.is_empty() || too_many_busy_threads(tg)));
 }
 
-void check_stall(thread_group_t *thread_group)
+static void check_stall(thread_group_t *thread_group)
 {
   if (mysql_mutex_trylock(&thread_group->mutex) != 0)
   {
@@ -979,9 +973,8 @@ static int wake_or_create_thread(thread_group_t *thread_group)
   DBUG_RETURN(-1);
 }
 
-
-
-int thread_group_init(thread_group_t *thread_group, pthread_attr_t* thread_attr)
+static int thread_group_init(thread_group_t *thread_group,
+                             pthread_attr_t* thread_attr)
 {
   DBUG_ENTER("thread_group_init");
   thread_group->pthread_attr = thread_attr;
@@ -992,8 +985,7 @@ int thread_group_init(thread_group_t *thread_group, pthread_attr_t* thread_attr)
   DBUG_RETURN(0);
 }
 
-
-void thread_group_destroy(thread_group_t *thread_group)
+static void thread_group_destroy(thread_group_t *thread_group)
 {
   mysql_mutex_destroy(&thread_group->mutex);
   if (thread_group->pollfd != -1)
@@ -1121,8 +1113,9 @@ static void queue_put(thread_group_t *thread_group, connection_t *connection)
   NULL is returned if timeout has expired,or on shutdown.
 */
 
-connection_t *get_event(worker_thread_t *current_thread, 
-  thread_group_t *thread_group,  struct timespec *abstime)
+static connection_t *get_event(worker_thread_t *current_thread,
+                               thread_group_t *thread_group,
+                               struct timespec *abstime)
 { 
   DBUG_ENTER("get_event");
   connection_t *connection = NULL;
@@ -1252,7 +1245,7 @@ connection_t *get_event(worker_thread_t *current_thread,
   sleep() or similar.
 */
 
-void wait_begin(thread_group_t *thread_group)
+static void wait_begin(thread_group_t *thread_group)
 {
   DBUG_ENTER("wait_begin");
   mysql_mutex_lock(&thread_group->mutex);
@@ -1282,7 +1275,7 @@ void wait_begin(thread_group_t *thread_group)
   Tells the pool has finished waiting.
 */
 
-void wait_end(thread_group_t *thread_group)
+static void wait_end(thread_group_t *thread_group)
 {
   DBUG_ENTER("wait_end");
   mysql_mutex_lock(&thread_group->mutex);
@@ -1297,7 +1290,7 @@ void wait_end(thread_group_t *thread_group)
   Allocate/initialize a new connection structure.
 */
 
-connection_t *alloc_connection(THD *thd)
+static connection_t *alloc_connection(THD *thd)
 {
   DBUG_ENTER("alloc_connection");
 
@@ -1551,8 +1544,6 @@ static int start_io(connection_t *connection)
   
   return io_poll_start_read(group->pollfd, fd, connection);
 }
-
-
 
 static void handle_event(connection_t *connection)
 {

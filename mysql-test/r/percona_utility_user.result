@@ -100,3 +100,36 @@ xx	root	%	frank	0	root@localhost	xx
 xx	plug	%	frank	0	root@localhost	xx
 ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 DROP USER plug;
+#
+# 5.6 tests
+#
+#
+# Interaction with ALTER USER
+#
+ALTER USER 'frank'@'localhost' PASSWORD EXPIRE;
+ERROR HY000: Operation ALTER USER failed for 'frank'@'localhost'
+#
+# 5.7 tests
+#
+#
+# Interaction with offline mode
+#
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+frank@localhost	frank@%
+SET @global_saved_tmp = @@global.offline_mode;
+SET @@global.offline_mode = ON;
+Existing utility user connection should not disconnect
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+frank@localhost	frank@%
+Utility user should be able to connecect
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+frank@localhost	frank@%
+SET @@global.offline_mode = @global_saved_tmp;
+#
+# Interaction with SHOW CREATE USER
+#
+SHOW CREATE USER 'frank'@'localhost';
+ERROR HY000: Operation SHOW CREATE USER failed for 'frank'@'localhost'

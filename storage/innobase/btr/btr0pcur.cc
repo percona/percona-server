@@ -32,7 +32,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "rem0cmp.h"
 #include "trx0trx.h"
-#include "srv0srv.h"
+
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
 @return own: persistent cursor */

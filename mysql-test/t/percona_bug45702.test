@@ -3,6 +3,7 @@
 ###############################################################################
 
 --source include/have_64bit.inc
+--source include/have_myisam.inc
 
 # Check that having data larger than MIN_SORT_BUFFER bytes can be handled by
 # _create_index_by_sort() with myisam_sort_buffer_size = 4 GB without errors.

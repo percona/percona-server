@@ -1178,19 +1178,6 @@ fil_space_detach(
 	}
 }
 
-static
-void
-fil_node_free(
-	fil_node_t*	node,
-	fil_space_t*	space)
-{
-	UT_LIST_REMOVE(space->chain, node);
-	ut_d(space->size -= node->size);
-	os_event_destroy(node->sync_event);
-	ut_free(node->name);
-	ut_free(node);
-}
-
 /** Free a tablespace object on which fil_space_detach() was invoked.
 There must not be any pending i/o's or flushes on the files.
 @param[in,out]	space		tablespace */
@@ -1203,9 +1190,13 @@ fil_space_free_low(
 	ut_ad(srv_fast_shutdown == 2 || space->max_lsn == 0);
 
 	for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
-	     node != NULL; node = UT_LIST_GET_FIRST(space->chain)) {
-
-		fil_node_free(node, space);
+	     node != NULL; ) {
+		ut_d(space->size -= node->size);
+		os_event_destroy(node->sync_event);
+		ut_free(node->name);
+		fil_node_t* old_node = node;
+		node = UT_LIST_GET_NEXT(chain, node);
+		ut_free(old_node);
 	}
 
 	ut_ad(space->size == 0);
@@ -1214,72 +1205,6 @@ fil_space_free_low(
 
 	ut_free(space->name);
 	ut_free(space);
-}
-
-/****************************************************************//**
-Drops files from the start of a file space, so that its size is cut by
-the amount given. */
-
-void
-fil_space_truncate_start(
-/*=====================*/
-	ulint	id,		/*!< in: space id */
-	ulint	trunc_len)	/*!< in: truncate by this much; it is an error
-				if this does not equal to the combined size of
-				some initial files in the space */
-{
-	fil_node_t*	node;
-	fil_space_t*	space;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	ut_a(space);
-
-	while (trunc_len > 0) {
-		node = UT_LIST_GET_FIRST(space->chain);
-
-		ut_a(node->size * UNIV_PAGE_SIZE <= trunc_len);
-
-		trunc_len -= node->size * UNIV_PAGE_SIZE;
-
-		fil_node_free(node, space);
-	}
-
-	mutex_exit(&fil_system->mutex);
-}
-
-/****************************************************************//**
-Check is there node in file space with given name. */
-
-bool
-fil_space_contains_node(
-/*====================*/
-    ulint	id,		/*!< in: space id */
-    char*	node_name)	/*!< in: node name */
-{
-    fil_node_t*	node;
-    fil_space_t*	space;
-
-    mutex_enter(&fil_system->mutex);
-
-    space = fil_space_get_by_id(id);
-
-    ut_a(space);
-
-    for (node = UT_LIST_GET_FIRST(space->chain); node != NULL;
-	 node = UT_LIST_GET_NEXT(chain, node)) {
-
-	if (ut_strcmp(node->name, node_name) == 0) {
-	    mutex_exit(&fil_system->mutex);
-	    return(true);
-	}
-
-    }
-
-    mutex_exit(&fil_system->mutex);
-    return(false);
 }
 
 /** Frees a space object from the tablespace memory cache.

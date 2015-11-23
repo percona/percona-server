@@ -5060,7 +5060,7 @@ static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong wh
   }
   return value;
 }
-void update_log_slow_verbosity(ulonglong* value_ptr)
+static void update_log_slow_verbosity(ulonglong* value_ptr)
 {
   ulonglong &value    = *value_ptr;
   ulonglong microtime= 1ULL << SLOG_V_MICROTIME;
@@ -5123,7 +5123,9 @@ static Sys_var_enum Sys_log_slow_sp_statements(
        log_slow_sp_statements_names, DEFAULT(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_log_slow_sp_statements));
-const char *slow_query_log_use_global_control_name[]= { "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity", "long_query_time", "min_examined_row_limit", "all", 0};
+static const char *slow_query_log_use_global_control_name[]=
+{ "log_slow_filter", "log_slow_rate_limit", "log_slow_verbosity",
+  "long_query_time", "min_examined_row_limit", "all", 0};
 static bool update_slow_query_log_use_global_control(sys_var */*self*/, THD */*thd*/,
                                                enum_var_type /*type*/)
 {

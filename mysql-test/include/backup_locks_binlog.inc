@@ -7,6 +7,7 @@
 --source include/have_archive.inc
 --source include/have_blackhole.inc
 --source include/have_log_bin.inc
+--source include/have_myisam.inc
 
 SELECT @@binlog_format;
 

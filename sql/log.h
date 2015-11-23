@@ -180,10 +180,6 @@ class File_query_log
                   ulonglong query_utime, ulonglong lock_utime, bool is_command,
                   const char *sql_text, size_t sql_text_len);
 
-public:
-  static bool generate_new_name(char *new_name, const char *log_name,
-                                bool unique);
-
 private:
   /** Type of log file. */
   const enum_log_table_type m_log_type;

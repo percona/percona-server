@@ -137,7 +137,7 @@ rw_lock_get_writer(
 	} else if (lock_word == 0
 		   || lock_word == -X_LOCK_HALF_DECR
 		   || lock_word <= -X_LOCK_DECR) {
-		/* x-lock with sx-lock is also treated as RW_LOCK_X */
+		/* x-lock with sx-lock is also treated as RW_LOCK_EX */
 		return(RW_LOCK_X);
 	} else {
 		/* x-waiter with sx-lock is also treated as RW_LOCK_WAIT_EX

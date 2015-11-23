@@ -7,6 +7,7 @@
 # 
 
 --source suite/federated/include/federated.inc
+--source include/have_myisam.inc
 
 connection default;
 

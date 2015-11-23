@@ -2,8 +2,9 @@
 # Bug 1326427: Buffer overflow in Slave_reporting_capability::va_report
 #
 
---source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
 
 --disable_query_log
 call mtr.add_suppression("Slave:*");

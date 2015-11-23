@@ -3,6 +3,7 @@
 ########################################################################
 
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 --source include/master-slave.inc
 
 CREATE TABLE t_innodb (a INT) ENGINE=InnoDB;

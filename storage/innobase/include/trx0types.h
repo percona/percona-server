@@ -26,8 +26,6 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef trx0types_h
 #define trx0types_h
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "ut0byte.h"
 #include "ut0mutex.h"
 #include "ut0new.h"
@@ -320,7 +318,5 @@ struct TrxTrackCmp {
 //typedef std::unordered_set<TrxTrack, TrxTrackHash, TrxTrackHashCmp> TrxIdSet;
 typedef std::set<TrxTrack, TrxTrackCmp, ut_allocator<TrxTrack> >
 	TrxIdSet;
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* trx0types_h */

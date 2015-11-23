@@ -251,8 +251,8 @@ pfs_os_aio_func(
 		src_file, src_line);
 
 	dberr_t	result = os_aio_func(
-	    type, mode, name, file, buf, offset, n, read_only, m1, m2,
-	    space_id, trx);
+		type, mode, name, file, buf, offset, n, read_only, m1, m2,
+		space_id, trx);
 
 	register_pfs_file_io_end(locker, n);
 

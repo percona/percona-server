@@ -21,7 +21,7 @@
 
 --connection server1
 
-create table t (s_id int, ps_id int, val char(1)) engine=InnoDB;
+create table t (s_id int, ps_id int, val char(1));
 
 insert into t values (1, 0, 'a');
 
@@ -53,7 +53,7 @@ select @@server_id s, s_id, ps_id, val from t;
 --source include/sync_slave_sql_with_master.inc
 
 drop table t;
-create table t (id int auto_increment primary key, s_id int, ps_id int, val char(1)) engine=InnoDB;
+create table t (id int auto_increment primary key, s_id int, ps_id int, val char(1));
 
 insert into t values (NULL, 1, 0, 'b');
 
@@ -85,7 +85,7 @@ select @@server_id s, id, s_id, ps_id, val from t;
 --source include/sync_slave_sql_with_master.inc
 
 drop table t;
-create table t (id int auto_increment primary key, s_id int, ps_id int, val char(1)) engine=InnoDB;
+create table t (id int auto_increment primary key, s_id int, ps_id int, val char(1));
 
 set session pseudo_server_id= 4;
 insert into t values (NULL, 1, 4, 'c');

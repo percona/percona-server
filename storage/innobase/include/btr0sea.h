@@ -258,20 +258,6 @@ UNIV_INLINE
 hash_table_t*
 btr_get_search_table(const dict_index_t* index);
 
-/********************************************************************//**
-Latches all adaptive hash index latches in exclusive mode.  */
-UNIV_INLINE
-void
-btr_search_x_lock_all(void);
-/*========================*/
-
-/********************************************************************//**
-Unlatches all adaptive hash index latches in exclusive mode.  */
-UNIV_INLINE
-void
-btr_search_x_unlock_all(void);
-/*==========================*/
-
 /** The search info struct in an index */
 struct btr_search_t{
 	ulint	ref_count;	/*!< Number of blocks in this index tree

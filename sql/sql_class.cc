@@ -958,7 +958,7 @@ void increment_thd_innodb_stats(THD* thd,
                                 long      que_wait_timer,
                                 long      page_access)
 {
-  thd->innodb_was_used=               TRUE;
+  thd->innodb_was_used=               true;
   thd->innodb_trx_id=                 trx_id;
   thd->innodb_io_reads+=              io_reads;
   thd->innodb_io_read+=               io_read;
@@ -4401,7 +4401,7 @@ void THD::clear_slow_extended()
   tmp_tables_used=              0;
   tmp_tables_disk_used=         0;
   tmp_tables_size=              0;
-  innodb_was_used=              FALSE;
+  innodb_was_used=              false;
   innodb_trx_id=                0;
   innodb_io_reads=              0;
   innodb_io_read=               0;

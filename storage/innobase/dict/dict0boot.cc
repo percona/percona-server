@@ -33,7 +33,6 @@ Created 4/18/1996 Heikki Tuuri
 
 #include "dict0crea.h"
 #include "btr0btr.h"
-#include "btr0sea.h"
 #include "dict0load.h"
 #include "trx0trx.h"
 #include "srv0srv.h"

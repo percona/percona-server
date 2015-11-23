@@ -175,8 +175,6 @@ Resets the logs. The contents of log files will be lost! */
 void
 recv_reset_logs(
 /*============*/
-	lsn_t		arch_log_no,	/*!< in: next archived log file
-					number */
 	lsn_t		lsn);		/*!< in: reset to this lsn
 					rounded up to be divisible by
 					OS_FILE_LOG_BLOCK_SIZE, after

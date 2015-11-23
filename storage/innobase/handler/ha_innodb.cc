@@ -79,7 +79,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0types.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
-#include "log0archive.h"
 #include "log0log.h"
 #include "log0online.h"
 #include "mem0mem.h"
@@ -185,8 +184,6 @@ values */
 
 static ulong	innobase_fast_shutdown			= 1;
 static my_bool	innobase_file_format_check		= TRUE;
-static my_bool	innobase_log_archive			= FALSE;
-static char*	innobase_log_arch_dir			= NULL;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
@@ -497,9 +494,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(index_online_log),
 	PSI_RWLOCK_KEY(dict_table_stats),
 	PSI_RWLOCK_KEY(hash_table_locks),
-	PSI_RWLOCK_KEY(archive_lock),
 #  ifdef UNIV_DEBUG
-	PSI_RWLOCK_KEY(buf_chunk_map_latch),
+	PSI_RWLOCK_KEY(buf_chunk_map_latch)
 #  endif /* UNIV_DEBUG */
 };
 # endif /* UNIV_PFS_RWLOCK */
@@ -1258,33 +1254,6 @@ innobase_fts_store_docid(
 	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
 
 	dbug_tmp_restore_column_map(tbl->write_set, old_map);
-}
-
-/*************************************************************//**
-Removes old archived transaction log files.
-@return	true on error */
-static
-bool innobase_purge_archive_logs(
-	handlerton *hton,		/*!< in: InnoDB handlerton */
-	time_t before_date,		/*!< in: all files modified
-					before timestamp should be removed */
-	const char* to_filename)	/*!< in: this and earler files
-					should be removed */
-{
-	ulint err = DB_ERROR;
-	if (before_date > 0) {
-		err = purge_archived_logs(before_date, 0);
-	} else if (to_filename) {
-		if (is_prefix(to_filename, IB_ARCHIVED_LOGS_PREFIX)) {
-			unsigned long long log_file_lsn = strtoll(to_filename
-					+ IB_ARCHIVED_LOGS_PREFIX_LEN,
-					NULL, 10);
-			if (log_file_lsn > 0 && log_file_lsn < ULLONG_MAX) {
-				err = purge_archived_logs(0, log_file_lsn);
-			}
-		}
-	}
-	return (err != DB_SUCCESS);
 }
 
 /*************************************************************//**
@@ -3471,8 +3440,6 @@ innobase_init(
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
 		HTON_SUPPORTS_ONLINE_BACKUPS;
 
-	innobase_hton->purge_archive_logs = innobase_purge_archive_logs;
-
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
         innobase_hton->replace_native_transaction_in_thd =
@@ -3641,11 +3608,6 @@ innobase_init(
 		srv_log_group_home_dir = default_path;
 	}
 
-	if (!innobase_log_arch_dir) {
-		innobase_log_arch_dir = srv_log_group_home_dir;
-	}
-	srv_arch_dir = innobase_log_arch_dir;
-
 	os_normalize_path(srv_log_group_home_dir);
 
 	if (strchr(srv_log_group_home_dir, ';')) {
@@ -3794,8 +3756,6 @@ innobase_change_buffering_inited_ok:
 	srv_file_flush_method_str = innobase_file_flush_method;
 
 	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
-
-	srv_log_archive_on = static_cast<bool>(innobase_log_archive);
 
 	if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
 		ib::warn() << "innodb-page-size has been changed from the"
@@ -17180,50 +17140,6 @@ innodb_io_capacity_update(
 }
 
 /****************************************************************//**
-Update the system variable innodb_log_arch_expire_sec using
-the "saved" value. This function is registered as a callback with MySQL. */
-static
-void
-innodb_log_archive_expire_update(
-/*==============================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: unused */
-	const void*			save)		/*!< in: immediate result
-							from check function */
-{
-	srv_log_arch_expire_sec = *(ulint*) save;
-}
-
-static
-void
-innodb_log_archive_update(
-/*======================*/
-	THD*				thd,
-	struct st_mysql_sys_var*	var,
-	void*				var_ptr,
-	const void*			save)
-{
-	if (srv_read_only_mode)
-		return;
-
-	my_bool	in_val = *static_cast<const my_bool*>(save);
-
-	if (in_val) {
-		/* turn archiving on */
-		srv_log_archive_on = true;
-		innobase_log_archive = true;
-		log_archive_archivelog();
-	} else {
-		/* turn archivng off */
-		srv_log_archive_on = false;
-		innobase_log_archive = false;
-		log_archive_noarchivelog();
-	}
-}
-
-/****************************************************************//**
 Update the system variable innodb_max_dirty_pages_pct using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
@@ -18910,6 +18826,7 @@ innobase_fts_close_ranking(
 
 	my_free((uchar*) fts_hdl);
 
+
 	return;
 }
 
@@ -19035,15 +18952,15 @@ void
 buf_flush_list_now_set(
 /*===================*/
 	THD*				thd	/*!< in: thread handle */
-	__attribute__((unused)),
+					__attribute__((unused)),
 	struct st_mysql_sys_var*	var	/*!< in: pointer to system
-						  variable */
-	__attribute__((unused)),
+						variable */
+					__attribute__((unused)),
 	void*				var_ptr	/*!< out: where the formal
-						  string goes */
-	__attribute__((unused)),
+						string goes */
+					__attribute__((unused)),
 	const void*			save)	/*!< in: immediate result from
-						  check function */
+						check function */
 {
 	if (*(my_bool*) save) {
 		buf_flush_sync_all_buf_pools();
@@ -19563,15 +19480,6 @@ static MYSQL_SYSVAR_ULONG(show_locks_held, srv_show_locks_held,
   "Number of locks held to print for each InnoDB transaction in SHOW INNODB STATUS.",
   NULL, NULL, 10, 0, 1000, 0);
 
-static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Where full logs should be archived.", NULL, NULL, NULL);
-
-static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
-  PLUGIN_VAR_OPCMDARG,
-  "Set to 1 if you want to have logs archived.",
-  NULL, innodb_log_archive_update, FALSE);
-
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
@@ -19580,11 +19488,6 @@ static MYSQL_SYSVAR_ULONG(page_cleaners, srv_n_page_cleaners,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Page cleaner threads can be from 1 to 64. Default is 4.",
   NULL, NULL, 4, 1, 64, 0);
-
-static MYSQL_SYSVAR_ULONG(log_arch_expire_sec,
-  srv_log_arch_expire_sec, PLUGIN_VAR_OPCMDARG,
-  "Expiration time for archived innodb transaction logs.",
-  NULL, innodb_log_archive_expire_update, 0, 0, ~0UL, 0);
 
 static MYSQL_SYSVAR_DOUBLE(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -19832,8 +19735,8 @@ static MYSQL_SYSVAR_ENUM(empty_free_list_algorithm,
   "LEGACY: (default) Original Oracle MySQL 5.6 handling with single page flushes; "
   "BACKOFF: Wait until cleaner produces a free page.",
   NULL, NULL, SRV_EMPTY_FREE_LIST_LEGACY,
-  // TODO laurynas: default changed until separate LRU flusher is merged. With
-  // a single page cleaner otherwise it is possible to loop forever in a query
+  // Default changed until separate LRU flusher is merged. With a single page
+  // cleaner otherwise it is possible to loop forever in a query
   // thread while the cleaner is waiting for the page latch held by that
   // thread. See sys_vars.log_slow_admin_statements_func in 5.7.5.
   &innodb_empty_free_list_algorithm_typelib);
@@ -20473,11 +20376,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(force_load_corrupted),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
-#ifdef UNIV_LOG_ARCHIVE
-  MYSQL_SYSVAR(log_arch_dir),
-  MYSQL_SYSVAR(log_archive),
-  MYSQL_SYSVAR(log_arch_expire_sec),
-#endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),

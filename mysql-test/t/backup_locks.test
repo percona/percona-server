@@ -3,6 +3,7 @@
 ########################################################################
 
 --source include/have_innodb.inc
+--source include/have_myisam.inc
 --source include/not_embedded.inc
 --source include/have_archive.inc
 --source include/have_blackhole.inc

@@ -2772,7 +2772,6 @@ btr_cur_open_at_rnd_pos_func(
 		}
 
 		ut_ad(fil_page_index_page_check(page));
-
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {

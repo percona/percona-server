@@ -3,7 +3,7 @@
 let $MYSQLD_DATADIR= `select @@datadir`;
 let MYSQLD_DATADIR= $MYSQLD_DATADIR;
 
---source include/audit_log_events.inc
+--source ../plugin/audit_log/tests/mtr/audit_log_events.inc
 
 --move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_new.log
 set global audit_log_flush= ON;

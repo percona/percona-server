@@ -990,7 +990,6 @@ struct lock_sys_t{
 	char		pad2[CACHE_LINE_SIZE];	/*!< Padding */
 	LockMutex	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
-	ulint		rec_num;
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for
 						locks within InnoDB, protected

@@ -3070,8 +3070,6 @@ pc_flush(
 		buf_flush_stats(*n_flushed_list, *n_processed_lru);
 	}
 
-	// TODO laurynas below? Seems to be handled by coordinator below
-#if 0
 	if (*n_processed_lru) {
 		MONITOR_INC_VALUE_CUMULATIVE(
 			MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
@@ -3087,7 +3085,6 @@ pc_flush(
 			MONITOR_FLUSH_ADAPTIVE_PAGES,
 			*n_flushed_list);
 	}
-#endif
 }
 
 #ifdef UNIV_LINUX
@@ -3329,22 +3326,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			n_flushed_last += n_flushed_list;
 
 			n_flushed = n_processed_lru + n_flushed_list;
-
-			if (n_processed_lru) {
-				MONITOR_INC_VALUE_CUMULATIVE(
-					MONITOR_LRU_BATCH_FLUSH_TOTAL_PAGE,
-					MONITOR_LRU_BATCH_FLUSH_COUNT,
-					MONITOR_LRU_BATCH_FLUSH_PAGES,
-					n_processed_lru);
-			}
-
-			if (n_flushed_list) {
-				MONITOR_INC_VALUE_CUMULATIVE(
-					MONITOR_FLUSH_ADAPTIVE_TOTAL_PAGE,
-					MONITOR_FLUSH_ADAPTIVE_COUNT,
-					MONITOR_FLUSH_ADAPTIVE_PAGES,
-					n_flushed_list);
-			}
 
 		} else if (ret_sleep == OS_SYNC_TIME_EXCEEDED) {
 			/* no activity, slept enough */
@@ -3768,9 +3749,7 @@ FlushObserver::notify_flush(
 	buf_pool_t*	buf_pool,
 	buf_page_t*	bpage)
 {
-	// TODO laurynas locking!!!! was serialised by buf pool mutex before
-
-	m_flushed->at(buf_pool->instance_no)++;
+	os_atomic_increment_ulint(&m_flushed->at(buf_pool->instance_no), 1);
 
 	if (m_stage != NULL) {
 		m_stage->inc();

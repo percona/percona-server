@@ -5,7 +5,7 @@ connection master;
 
 # check how events applied on slave
 
-create table p (a int) engine=InnoDB;
+create table p (a int);
 set session pseudo_server_id= 10;
 insert into p (a) values (1), (2), (3), (4), (5);
 set session pseudo_server_id= 2;
@@ -26,11 +26,11 @@ drop table p;
 
 set session pseudo_server_id= 100;
 
-create temporary table t (a int) engine=InnoDB;
+create temporary table t (a int);
 
 set session pseudo_server_id= 200;
 
-create temporary table t (a int) engine=InnoDB;
+create temporary table t (a int);
 
 drop table t;
 
@@ -46,7 +46,7 @@ set global server_id= 1000;
 set session pseudo_server_id= 5000;
 
 # should store server_id=5000 to binary log
-create table t (a int) engine=InnoDB;
+create table t (a int);
 insert into t values (1);
 
 set global server_id= 2000;
@@ -64,7 +64,7 @@ drop table t;
 # we can change pseudo_server_id in the middle of transaction and
 # in some cases transaction will be applied partially on the slave
 
-create table t (a int) engine=InnoDB;
+create table t (a int);
 
 start transaction;
 

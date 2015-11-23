@@ -80,7 +80,6 @@ static const SYMBOL symbols[] = {
   { SYM("ANALYZE",                  ANALYZE_SYM)}, // this one is for ANALYZE TABLE etc
   { SYM("AND",                      AND_SYM)},
   { SYM("ANY",                      ANY_SYM)},
-  { SYM("ARCHIVED",                 ARCHIVED_SYM)},
   { SYM("AS",                       AS)},
   { SYM("ASC",                      ASC)},
   { SYM("ASCII",                    ASCII_SYM)},

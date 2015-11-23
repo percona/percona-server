@@ -2303,7 +2303,9 @@ acl_authenticate(THD *thd, enum_server_command command,
                            acl_user->host.get_host() ?
                            strlen(acl_user->host.get_host()) : 0);
 
-    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
+    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error()
+        && !acl_is_utility_user(sctx->user().str, sctx->host().str,
+                                sctx->ip().str))
     {
       mysql_mutex_lock(&LOCK_offline_mode);
       bool tmp_offline_mode= MY_TEST(offline_mode);

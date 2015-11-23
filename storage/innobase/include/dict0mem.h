@@ -818,10 +818,6 @@ to start with. */
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
-	rw_lock_t*	search_latch; /*!< latch protecting the AHI partition
-				      corresponding to this index */
-	hash_table_t*	search_table; /*!< hash table protected by
-				      search_latch */
 	mem_heap_t*	heap;	/*!< memory heap */
 	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */

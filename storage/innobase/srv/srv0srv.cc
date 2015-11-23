@@ -56,11 +56,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
-#include "log0archive.h"
 #include "log0online.h"
 #include "log0recv.h"
 #include "mem0mem.h"
-#include "os0file.h"
 #include "os0proc.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -128,9 +126,6 @@ ulint	srv_undo_tablespaces_active = 0;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
-
-char*	srv_arch_dir	= NULL;
-ulong	srv_log_arch_expire_sec	= 0;
 
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
@@ -216,7 +211,6 @@ ib_uint64_t	srv_log_file_size;
 ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
 ulint		srv_log_buffer_size = ULINT_MAX;
-ulong		srv_flush_log_at_trx_commit = 1;
 uint		srv_flush_log_at_timeout = 1;
 ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
 ulong		srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
@@ -230,8 +224,8 @@ char	srv_use_global_flush_log_at_trx_commit	= TRUE;
 the checkpoints. */
 char	srv_adaptive_flushing	= TRUE;
 
-ulint	srv_show_locks_held	= 10; // TODO laurynas broken
-ulint	srv_show_verbose_locks	= 0;
+ulint	srv_show_locks_held	= 10; // TODO broken
+ulint	srv_show_verbose_locks	= 0;  // TODO broken
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 my_bool	srv_flush_sync		= TRUE;
@@ -299,13 +293,10 @@ ulint	srv_n_write_io_threads	= ULINT_MAX;
 
 /* Switch to enable random read ahead. */
 my_bool	srv_random_read_ahead	= FALSE;
-
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
 ulong	srv_read_ahead_threshold	= 56;
-
-bool	srv_log_archive_on	= false;
 
 /** Maximum on-disk size of change buffer in terms of percentage
 of the buffer pool. */
@@ -2168,134 +2159,6 @@ DECLARE_THREAD(srv_redo_log_follow_thread)(
 	OS_THREAD_DUMMY_RETURN;
 }
 
-/*************************************************************//**
-Removes old archived transaction log files.
-Both parameters couldn't be provided at the same time */
-dberr_t
-purge_archived_logs(
-	time_t	before_date,		/*!< in: all files modified
-					before timestamp should be removed */
-	lsn_t	before_no)		/*!< in: files with this number in name
-					and earler should be removed */
-{
-	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-
-	os_file_dir_t	dir;
-	os_file_stat_t	fileinfo;
-	char		archived_log_filename[OS_FILE_MAX_PATH];
-	char		namegen[OS_FILE_MAX_PATH];
-	ulint		dirnamelen;
-
-	if (srv_arch_dir) {
-		dir = os_file_opendir(srv_arch_dir, false);
-		if (!dir) {
-			ib::warn() << "Opening archived log directory "
-				   << srv_arch_dir << " failed. Purge "
-				"archived logs are not available";
-			/* failed to open directory */
-			return(DB_ERROR);
-		}
-	} else {
-		/* log archive directory is not specified */
-		return(DB_ERROR);
-	}
-
-	dirnamelen = strlen(srv_arch_dir);
-
-	memcpy(archived_log_filename, srv_arch_dir, dirnamelen);
-	if (dirnamelen &&
-		archived_log_filename[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-		archived_log_filename[dirnamelen++] = SRV_PATH_SEPARATOR;
-	}
-
-	memset(&fileinfo, 0, sizeof(fileinfo));
-	while(!os_file_readdir_next_file(srv_arch_dir, dir,
-				&fileinfo) ) {
-		if (strncmp(fileinfo.name,
-			IB_ARCHIVED_LOGS_PREFIX, IB_ARCHIVED_LOGS_PREFIX_LEN)) {
-			continue;
-		}
-		if (dirnamelen + strlen(fileinfo.name) + 2 > OS_FILE_MAX_PATH)
-			continue;
-
-		snprintf(archived_log_filename + dirnamelen, OS_FILE_MAX_PATH,
-				"%s", fileinfo.name);
-
-		if (before_no) {
-			ib_uint64_t log_file_no = strtoull(fileinfo.name +
-					IB_ARCHIVED_LOGS_PREFIX_LEN,
-					NULL, 10);
-			if (log_file_no == 0 || before_no <= log_file_no) {
-				continue;
-			}
-		} else {
-			fileinfo.mtime = 0;
-			if (os_file_get_status(archived_log_filename,
-					       &fileinfo, false,
-					       srv_read_only_mode)
-			    != DB_SUCCESS ||
-					fileinfo.mtime == 0) {
-				continue;
-			}
-
-			if (before_date == 0 || fileinfo.mtime > before_date) {
-				continue;
-			}
-		}
-
-		/* We are going to delete archived file. Acquire log_sys->mutex
-		to make sure that we are the only who try to delete file. This
-		also prevents log system from using this file. Do not delete
-		file if it is currently in progress of writting or have
-		pending IO. This is enforced by checking:
-		  1. fil_space_contains_node.
-		  2. group->archived_offset % group->file_size != 0, i.e. 
-		     there is archive in progress and we are going to delete it.
-		This covers 3 cases:
-		  a. Usual case when we have one archive in progress,
-		     both 1 and 2 are TRUE
-		  b. When we have more then 1 archive in fil_space,
-		     this can happen when flushed LSN range crosses file
-		     boundary
-		  c. When we have empty fil_space, but existing file will be
-		     opened once archiving operation is requested. This usually
-		     happens on startup.
-		*/
-
-		log_mutex_enter();
-
-		log_archived_file_name_gen(namegen, sizeof(namegen),
-					   group->id, group->archived_file_no);
-
-		if (fil_space_contains_node(group->archive_space_id,
-					    archived_log_filename) ||
-		    (group->archived_offset % group->file_size != 0 &&
-		     strcmp(namegen, archived_log_filename) == 0)) {
-
-			log_mutex_exit();
-			continue;
-		}
-
-		if (!os_file_delete_if_exists(innodb_data_file_key,
-					      archived_log_filename, NULL)) {
-
-			ib::warn() << "Can't delete archived log file "
-				   << archived_log_filename << ".";
-
-			log_mutex_exit();
-			os_file_closedir(dir);
-
-			return(DB_ERROR);
-		}
-
-		log_mutex_exit();
-	}
-
-	os_file_closedir(dir);
-
-	return(DB_SUCCESS);
-}
-
 /*******************************************************************//**
 Tells the InnoDB server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
@@ -2635,16 +2498,6 @@ srv_master_do_idle_tasks(void)
 	log_checkpoint(TRUE, FALSE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
 				       counter_time);
-
-	if (srv_shutdown_state > 0) {
-		return;
-	}
-
-	if (srv_log_arch_expire_sec) {
-		srv_main_thread_op_info = "purging archived logs";
-		purge_archived_logs(ut_time() - srv_log_arch_expire_sec,
-				0);
-	}
 }
 
 /*********************************************************************//**

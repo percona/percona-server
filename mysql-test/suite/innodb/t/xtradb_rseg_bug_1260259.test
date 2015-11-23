@@ -1,6 +1,7 @@
 #
 # Test bug 1260259: XTRADB_RSEG query crashes if innodb_undo_logs < default
 #
+--source include/have_innodb.inc
 
 call mtr.add_suppression("InnoDB: New log files created");
 # The temporary system tablespace does not have the mysql schema InnoDB tables

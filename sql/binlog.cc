@@ -3072,7 +3072,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
         description_event->common_footer->checksum_alg=
                            ev->common_footer->checksum_alg;
       if (event_count >= limit_start &&
-         ev->net_send(protocol, linfo.log_file_name, pos))
+	 ev->net_send(protocol, linfo.log_file_name, pos))
       {
 	errmsg = "Net error";
 	delete ev;
@@ -8068,7 +8068,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   }
 
   Transaction_ctx::enum_trx_scope trx_scope=  all ? Transaction_ctx::SESSION :
-      Transaction_ctx::STMT;
+                                                    Transaction_ctx::STMT;
 
   DBUG_PRINT("debug", ("in_transaction: %s, no_2pc: %s, rw_ha_count: %d",
                        YESNO(thd->in_multi_stmt_transaction_mode()),

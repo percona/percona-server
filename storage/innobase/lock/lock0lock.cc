@@ -447,8 +447,6 @@ lock_sys_create(
 	lock_sys->prdt_hash = hash_create(n_cells);
 	lock_sys->prdt_page_hash = hash_create(n_cells);
 
-	lock_sys->rec_num = 0;
-
 	if (!srv_read_only_mode) {
 		lock_latest_err_file = os_file_create_tmpfile();
 		ut_a(lock_latest_err_file);
@@ -1502,8 +1500,6 @@ RecLock::lock_add(lock_t* lock, bool add_to_hash)
 		HASH_INSERT(lock_t, hash, lock_hash_get(m_mode), key, lock);
 	}
 
-	lock_sys->rec_num++;
-
 	if (m_mode & LOCK_WAIT) {
 		lock_set_lock_and_trx_wait(lock, lock->trx);
 	}
@@ -1798,6 +1794,14 @@ RecLock::set_wait_state(lock_t* lock)
 
 	m_trx->lock.was_chosen_as_deadlock_victim = false;
 
+	if (UNIV_UNLIKELY(m_trx->take_stats)) {
+		ulint			sec;
+		ulint			ms;
+		ut_usectime(&sec, &ms);
+		m_trx->lock_que_wait_ustarted
+			= (ib_uint64_t)sec * 1000000 + ms;
+	}
+
 	bool	stopped = que_thr_stop(m_thr);
 	ut_a(stopped);
 }
@@ -1957,15 +1961,6 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 	/* Do the preliminary checks, and set query thread state */
 
 	prepare();
-
-	// TODO laurynas better place for this?
-	if (UNIV_UNLIKELY(m_trx->take_stats)) {
-		ulint			sec;
-		ulint			ms;
-		ut_usectime(&sec, &ms);
-		m_trx->lock_que_wait_ustarted
-			= (ib_uint64_t)sec * 1000000 + ms;
-	}
 
 	lock_t*		lock;
 	const trx_t*	victim_trx;
@@ -2526,7 +2521,6 @@ lock_rec_dequeue_from_page(
 
 	HASH_DELETE(lock_t, hash, lock_hash,
 		    lock_rec_fold(space, page_no), in_lock);
-	lock_sys->rec_num--;
 
 	UT_LIST_REMOVE(trx_lock->trx_locks, in_lock);
 
@@ -2577,8 +2571,6 @@ lock_rec_discard(
 
 	HASH_DELETE(lock_t, hash, lock_hash_get(in_lock->type_mode),
 			    lock_rec_fold(space, page_no), in_lock);
-
-	lock_sys->rec_num--;
 
 	UT_LIST_REMOVE(trx_lock->trx_locks, in_lock);
 
@@ -5298,7 +5290,7 @@ lock_trx_table_locks_find(
 	const lock_t*	find_lock)	/*!< in: lock to find */
 {
 	bool		found = false;
-	    /* TODO laurynas
+	    /* TODO broken
 	if ( srv_show_verbose_locks ) {
 	block = buf_page_try_get(space, page_no, &mtr);
 	    */
@@ -5328,7 +5320,7 @@ lock_trx_table_locks_find(
 		ut_a(lock_get_type_low(lock) & LOCK_TABLE);
 		ut_a(lock->un_member.tab_lock.table != NULL);
 	}
-	// } see TODO laurynas above
+	// } TODO broken
 
 	trx_mutex_exit(trx);
 
@@ -7514,7 +7506,6 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 			lock_deadlock_found = true;
 
-			// TODO laurynas: fishy
 			MONITOR_INC(MONITOR_DEADLOCK);
 		}
 

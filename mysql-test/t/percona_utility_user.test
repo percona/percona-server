@@ -157,3 +157,53 @@ connect(plug_con,localhost,plug,frank);
 connection default;
 
 DROP USER plug;
+
+--echo #
+--echo # 5.6 tests
+--echo #
+
+--echo #
+--echo # Interaction with ALTER USER
+--echo #
+--error ER_CANNOT_USER
+ALTER USER 'frank'@'localhost' PASSWORD EXPIRE;
+
+--echo #
+--echo # 5.7 tests
+--echo #
+
+--echo #
+--echo # Interaction with offline mode
+--echo #
+connect (frank,localhost,frank,password,mysql);
+connection frank;
+
+SELECT USER(), CURRENT_USER();
+
+connection default;
+SET @global_saved_tmp = @@global.offline_mode;
+SET @@global.offline_mode = ON;
+
+connection frank;
+
+--echo Existing utility user connection should not disconnect
+SELECT USER(), CURRENT_USER();
+
+disconnect frank;
+
+--echo Utility user should be able to connecect
+connect (frank,localhost,frank,password,mysql);
+connection frank;
+
+SELECT USER(), CURRENT_USER();
+
+disconnect frank;
+connection default;
+
+SET @@global.offline_mode = @global_saved_tmp;
+
+--echo #
+--echo # Interaction with SHOW CREATE USER
+--echo #
+--error ER_CANNOT_USER
+SHOW CREATE USER 'frank'@'localhost';

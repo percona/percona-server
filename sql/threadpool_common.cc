@@ -70,7 +70,7 @@ struct Worker_thread_context
 {
   PSI_thread *psi_thread;
 #ifndef DBUG_OFF
-  my_thread_id thread_id; //  TODO laurynas my_thread_var_dbug?
+  my_thread_id thread_id;
 #endif
 
   void save()
@@ -103,7 +103,7 @@ struct Worker_thread_context
 static bool thread_attach(THD* thd)
 {
 #ifndef DBUG_OFF
-  set_my_thread_var_id(thd->thread_id()); // TODO laurynas dbug
+  set_my_thread_var_id(thd->thread_id());
 #endif
   thd->thread_stack=(char*)&thd;
   thd->store_globals();
@@ -119,72 +119,21 @@ static bool thread_attach(THD* thd)
 extern PSI_statement_info stmt_info_new_packet;
 #endif
 
-void threadpool_net_before_header_psi_noop(struct st_net * /* net */,
-                                           void * /* user_data */,
-                                           size_t /* count */)
+static void threadpool_net_before_header_psi_noop(struct st_net * /* net */,
+                                                  void * /* user_data */,
+                                                  size_t /* count */)
 { }
 
-void threadpool_net_after_header_psi(struct st_net *net, void *user_data,
-                                     size_t /* count */, my_bool rc)
+static void threadpool_init_net_server_extension(THD *thd)
 {
-  THD *thd;
-  thd= static_cast<THD*> (user_data);
-  DBUG_ASSERT(thd != NULL);
-
-  if (thd->m_server_idle)
-  {
-    /*
-      The server just got data for a network packet header,
-      from the network layer.
-      The IDLE event is now complete, since we now have a message to process.
-      We need to:
-      - start a new STATEMENT event
-      - start a new STAGE event, within this statement,
-      - start recording SOCKET WAITS events, within this stage.
-      The proper order is critical to get events numbered correctly,
-      and nested in the proper parent.
-    */
-    MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
-
-    if (! rc)
-    {
-      thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
-                                                  stmt_info_new_packet.m_key,
-                                                  thd->db().str,
-                                                  thd->db().length,
-                                                  thd->charset(), NULL);
-
-      THD_STAGE_INFO(thd, stage_init);
-    }
-
-    /*
-      TODO: consider recording a SOCKET event for the bytes just read,
-      by also passing count here.
-    */
-    MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
-
-    thd->m_server_idle = false;
-  }
-}
-
-void threadpool_init_net_server_extension(THD *thd)
-{
-// TODO laurynas duplicated parts with init_net_server_extension?
 #ifdef HAVE_PSI_INTERFACE
-  /* Start with a clean state for connection events. */
-  thd->m_idle_psi= NULL;
-  thd->m_statement_psi= NULL;
-  thd->m_server_idle= false;
-  /* Hook up the NET_SERVER callback in the net layer. */
-  thd->m_net_server_extension.m_user_data= thd;
-  thd->m_net_server_extension.m_before_header= threadpool_net_before_header_psi_noop;
-  thd->m_net_server_extension.m_after_header= threadpool_net_after_header_psi;
-
-  /* Activate this private extension for the mysqld server. */
-  thd->get_protocol_classic()->get_net()->extension=
-      &thd->m_net_server_extension;
+  // socket_connection.cc:init_net_server_extension should have been called
+  // already for us. We only need to overwrite the "before" callback
+  DBUG_ASSERT(thd->m_net_server_extension.m_user_data == thd);
+  thd->m_net_server_extension.m_before_header=
+    threadpool_net_before_header_psi_noop;
 #else
-  thd->get_protocol_classic()->get_net()->extension= NULL;
+  DBUG_ASSERT(thd->get_protocol_classic()->get_net()->extension == NULL);
 #endif
 }
 

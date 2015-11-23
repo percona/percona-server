@@ -68,8 +68,7 @@ INSERT INTO t1 VALUES(5);
 SET @@GLOBAL.innodb_track_changed_pages=FALSE;
 SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
 
-# 2. Rename a table to log a MLOG_FILE_RENAME operation
-# (TODO laurynas revisit after 5.7.9 merge (78056))
+# 2. Rename a table to log a MLOG_FILE_RENAME2 operation
 RENAME TABLE t1 TO t2;
 
 # 3. Start an ALTER TABLE and stop it after the table -> temp table rename

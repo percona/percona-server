@@ -2368,7 +2368,8 @@ partititon_err:
   outparam->default_column_bitmaps();
 
   /* Fill record with default values */
-  restore_record(outparam, s->default_values);
+  if (outparam->record[0] != outparam->s->default_values)
+    restore_record(outparam, s->default_values);
 
   /* The table struct is now initialized;  Open the table */
   error= 2;

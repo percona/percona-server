@@ -25,6 +25,11 @@ Temporary tables
 
 This table holds information on the temporary tables existing for all connections. You don't need the ``SUPER`` privilege to query this table.
 
+This information is also available by running the following command: 
+.. code-block:: mysql
+
+  SHOW GLOBAL TEMPORARY TABLES
+
 .. table:: INFORMATION_SCHEMA.TEMPORARY_TABLES
 
    :column SESSION_ID: |MySQL| connection id
@@ -40,6 +45,21 @@ This table holds information on the temporary tables existing for all connection
    :column UPDATE_TIME: Date and time of the latest update of the temporary table
 
 This table holds information on the temporary tables existing for the running connection.
+
+This information is also available by running the following command: 
+.. code-block:: mysql
+
+  SHOW TEMPORARY TABLES
+
+Status Variables
+----------------
+
+.. variable:: Com_show_temporary_tables
+
+  :vartype: Numeric
+  :scope: Global/Session
+
+The :variable:`Com_show_temporary_tables` statement counter variable indicates the number of times the statements ``SHOW GLOBAL TEMPORARY TABLES`` and ``SHOW TEMPORARY TABLES`` have been executed.
 
 Buffer Pool Data Structure Tables
 =================================

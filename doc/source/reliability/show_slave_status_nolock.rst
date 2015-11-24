@@ -16,6 +16,15 @@ This will display the slave's status as if there were no lock, allowing the user
 
 **NOTE:** The information given when ``NOLOCK`` is used may be slightly inconsistent with the actual situation while the lock is being held.
 
+Status Variables
+================
+
+.. variable:: Com_show_slave_status_nolock
+
+   :vartype: Numeric
+   :varscope: Global/Session
+
+The :variable:`Com_show_slave_status_nolock` statement counter variable indicates the number of times the statement ``SHOW SLAVE STATUS NOLOCK`` has been executed.
 
 Version Specific Information
 ============================

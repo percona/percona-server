@@ -45,7 +45,7 @@ System Variables
      :cli: Yes
      :conf: Yes
      :scope: Global
-     :dyn: yes
+     :dyn: Yes
 
 When this variable is enabled, administrative statements will be logged to the slow query log. Upstream version of the |MySQL| server has implemented command line option with same name. Significant difference is that this feature is implemented as variable in |Percona Server|, that means it can be enabled/disabled dynamically without restarting the server.
 

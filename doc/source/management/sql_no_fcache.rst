@@ -29,8 +29,8 @@ System Variables
 .. variable:: have_flashcache
 
    :version 5.5.27-29.0: Variable introduced
-   :cli: Yes
-   :conf: Yes
+   :cli: No
+   :conf: No
    :scope: Global
    :dyn: No
    :vartype: Boolean

@@ -34,6 +34,10 @@ The values and meanings are almost same to ``myisam_stats_method`` option of nat
 
 .. variable:: innodb_stats_auto_update
 
+   :cli: Yes
+   :configfile: Yes
+   :scope: Global
+   :dyn: Yes
    :type: BOOLEAN
    :default: 1
 
@@ -42,6 +46,10 @@ The values and meanings are almost same to ``myisam_stats_method`` option of nat
 
 .. variable:: innodb_stats_update_need_lock
 
+   :cli: Yes
+   :configfile: Yes
+   :scope: Global
+   :dyn: Yes
    :type: BOOLEAN
    :default: 1
 
@@ -50,9 +58,12 @@ If you meet contention of ``&dict_operation_lock``, setting 0 reduces the conten
 
 .. variable:: innodb_use_sys_stats_table
 
+   :cli: Yes
+   :configfile: Yes
+   :scope: Global
+   :dyn: No
    :type: BOOLEAN
    :default: 0
-
 
 If this option is enabled, |XtraDB| uses the ``SYS_STATS`` system table to store statistics of table indexes. Also, when |InnoDB| opens a table for the first time, it loads the statistics from ``SYS_STATS`` instead of sampling index pages. If you use a high ``stats_sample_pages`` value, the first open of a table is expensive. In such a case, this option will help. Intended behavior is to never update statistics unless an explicit ``ANALYZE TABLE`` is issued.
 

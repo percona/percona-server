@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.27-rel76.0) unstable; urgency=low
+
+  * Added dependency on libnuma-dev
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Tue, 24 Nov 2015 09:35:45 +0100
+
 percona-server-5.6 (5.6.27-rel75.0) unstable; urgency=low
 
   * Fixed startup fails due to hard-coded timeout in init script (#1434022)

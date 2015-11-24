@@ -1514,7 +1514,7 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
-* Tue Sep 24 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+* Tue Nov 24 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Added dependency on numactl-devel
 

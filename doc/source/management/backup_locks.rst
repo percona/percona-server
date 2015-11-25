@@ -111,16 +111,19 @@ Status Variables
 
      :version 5.6.16-64.0: Implemented
      :vartype: Numeric
+     :scope: Global/Session
 
 .. variable:: Com_lock_binlog_for_backup
 
      :version 5.6.16-64.0: Implemented
      :vartype: Numeric
+     :scope: Global/Session
 
 .. variable:: Com_unlock_binlog
 
      :version 5.6.16-64.0: Implemented
      :vartype: Numeric
+     :scope: Global/Session
 
 These status variables indicate the number of times the corresponding statements have been executed.
 

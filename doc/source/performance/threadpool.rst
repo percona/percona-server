@@ -202,15 +202,15 @@ Status Variables
 
 .. variable:: Threadpool_idle_threads
 
-     :cli: Yes
      :vartype: Numeric
+     :scope: Global
 
 This status variable shows the number of idle threads in the pool.
 
 .. variable:: Threadpool_threads
 
-     :cli: Yes
      :vartype: Numeric
+     :scope: Global
 
 This status variable shows the number of threads in the pool.
 

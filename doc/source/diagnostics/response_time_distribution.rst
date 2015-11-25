@@ -204,6 +204,8 @@ System Variables
 
 .. variable:: have_response_time_distribution
 
+     :cli: No
+     :conf: No
      :version 5.5.8-20.0: Introduced.
      :scope: Global
      :dyn: No

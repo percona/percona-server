@@ -272,4 +272,40 @@ These commands discard the specified type of stored statistical information.
 
 These commands are another way to display the information you can get from the ``INFORMATION_SCHEMA`` tables. The commands accept ``WHERE`` clauses. They also accept but ignore ``LIKE`` clauses.
 
+Status Variables
+================
 
+.. variable:: Com_show_client_statistics
+
+   :vartype: numeric
+   :scope: Global/Session
+
+The :variable:`Com_show_client_statistics` statement counter variable indicates the number of times the statement ``SHOW CLIENT_STATISTICS`` has been executed.
+
+.. variable:: Com_show_index_statistics
+
+   :vartype: numeric
+   :scope: Global/Session
+
+The :variable:`Com_show_index_statistics` statement counter variable indicates the number of times the statement ``SHOW INDEX_STATISTICS`` has been executed.
+
+.. variable:: Com_show_table_statistics
+
+   :vartype: numeric
+   :scope: Global/Session
+
+The :variable:`Com_show_table_statistics` statement counter variable indicates the number of times the statement ``SHOW TABLE_STATISTICS`` has been executed.
+
+.. variable:: Com_show_thread_statistics
+
+   :vartype: numeric
+   :scope: Global/Session
+
+The :variable:`Com_show_thread_statistics` statement counter variable indicates the number of times the statement ``SHOW THREAD_STATISTICS`` has been executed.
+
+.. variable:: Com_show_user_statistics
+
+   :vartype: numeric
+   :scope: Global/Session
+
+The :variable:`Com_show_user_statistics` statement counter variable indicates the number of times the statement ``SHOW USER_STATISTICS`` has been executed.

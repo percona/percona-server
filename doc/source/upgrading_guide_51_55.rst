@@ -32,6 +32,8 @@ Features and Variables
 
 The configuration options and table columns for the following features have been modified in |Percona Server| 5.5:
 
+.. tabularcolumns:: |p{4cm}|p{6cm}|p{6cm}|
+
 .. list-table::
    :header-rows: 1
 

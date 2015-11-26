@@ -118,16 +118,6 @@ A value of ``0`` turns off bulk fetching. Each client keeps a thread of this siz
 
 This session variable controls the default compression algorithm used to compress data when no row format is specified in the ``CREATE TABLE`` command. See :ref:`Compression Details <tokudb_compression>`.
 
-.. variable:: tokudb_analyze_time
-
-This session variable controls the number of seconds an analyze operation will spend on each index when calculating cardinality. Cardinality is shown by executing the following command:
-
-.. code-block:: mysql
-
-   SELECT INDEXES FROM table_name;
-
-If an analyze is never performed on a table then the cardinality is 1 for primary key indexes and unique secondary indexes, and NULL (unknown) for all other indexes. Proper cardinality can lead to improved performance of complex SQL statements. The default value is 5.
-
 .. variable:: tokudb_lock_timeout_debug
 
 The following values are available:
@@ -443,3 +433,15 @@ This variable is used to control if partial eviction of nodes is enabled or disa
 
 When this variable is enabled it allows the evictor to compress unused internal node partitions in order to reduce memory requirements as a first step of partial eviction before fully evicting the partition and eventually the entire node.
 
+.. variable:: tokudb_strip_frm_data
+
+   :version 5.6.27-76.0: Implemented
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: No
+   :vartype: Boolean
+   :range: ON/OFF
+   :default: OFF
+  
+When this variable is set to ``ON`` during the startup server will check all the status files and remove the embedded :file:`.frm` metadata. This variable can be used to assist in |TokuDB| data recovery. **WARNING:** Use this variable only if you know what you're doing otherwise it could lead to data loss.

@@ -23,7 +23,7 @@ System Variables
      - Both
      - Yes
    * - :variable:`enforce_storage_engine`
-     - No
+     - Yes
      - Yes
      - Global
      - No
@@ -234,8 +234,8 @@ System Variables
      - No
    * - :variable:`pseudo_server_id`
      - Yes
-     - Yes
-     - Global
+     - No
+     - Session
      - Yes
    * - :variable:`query_cache_strip_comments`
      - Yes
@@ -318,30 +318,30 @@ System Variables
      -
      -
    * - :variable:`tokudb_analyze_in_background`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Both
+     - Yes
    * - :variable:`tokudb_analyze_mode`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Both
+     - Yes
    * - :variable:`tokudb_analyze_throttle`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Both
+     - Yes
    * - :variable:`tokudb_analyze_time`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Both
+     - Yes
    * - :variable:`tokudb_auto_analyze`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Both
+     - Yes
    * - :variable:`tokudb_block_size`
      -
      -
@@ -363,10 +363,10 @@ System Variables
      - Global
      - No
    * - :variable:`tokudb_cardinality_scale_percent`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`tokudb_check_jemalloc`
      -
      -
@@ -603,10 +603,10 @@ System Variables
      -
      -
    * - :variable:`tokudb_strip_frm_data`
-     -
-     -
-     -
-     -
+     - Yes
+     - Yes
+     - Global
+     - No
    * - :variable:`tokudb_support_xa`
      -
      -

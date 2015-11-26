@@ -20,7 +20,7 @@ This will display the slave's status as if there were no lock, allowing the user
 
 .. note::
 
-   |Percona Server| originally used ``SHOW SLAVE STATUS NOLOCK`` syntax for this feature. As of :rn:`5.6.20-68.0` release, |Percona Server| implements ``SHOW SLAVE STATUS NONBLOCKING`` syntax, which comes from |MySQL| 5.7. The ``NOLOCK`` one has been deprecated and will be removed in |Percona Server| 5.7.
+   |Percona Server| originally used ``SHOW SLAVE STATUS NOLOCK`` syntax for this feature. As of :rn:`5.6.20-68.0` release, |Percona Server| implements ``SHOW SLAVE STATUS NONBLOCKING`` syntax, which comes from early |MySQL| 5.7. Current |MySQL| 5.7 does not have this syntax and regular ``SHOW SLAVE STATUS`` is non-blocking.
 
 Status Variables
 ================
@@ -38,3 +38,5 @@ Version Specific Information
   * :rn:`5.6.11-60.3`: Feature ported from |Percona Server| 5.5.
 
   * :rn:`5.6.20-68.0`: |Percona Server| implemented the ``NONBLOCKING`` syntax from |MySQL| 5.7 and deprecated the ``NOLOCK`` syntax.
+
+  * :rn:`5.6.27-76.0`: ``SHOW SLAVE STATUS NOLOCK`` syntax in 5.6 has been undeprecated. Both ``SHOW SLAVE STATUS NOLOCK`` and ``SHOW SLAVE STATUS NONBLOCKING`` are now supported.

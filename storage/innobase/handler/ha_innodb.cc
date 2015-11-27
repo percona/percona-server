@@ -16334,46 +16334,6 @@ innodb_sched_priority_io_update(
 	srv_sched_priority_io = priority;
 }
 
-#ifdef UNIV_DEBUG
-/*************************************************************//**
-Check if it is a valid value of innodb_track_changed_pages.
-Changed pages tracking is not working correctly without initialization
-procedure on server startup. The function allows to temporary
-disable tracking, but only if the feature was enabled on startup.
-This function is registered as a callback with MySQL.
-@return	0 for valid innodb_track_changed_pages */
-static
-int
-innodb_track_changed_pages_validate(
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
-						variable */
-	void*				save,	/*!< out: immediate result
-						for update function */
-	struct st_mysql_value*		value)	/*!< in: incoming bool */
-{
-	static bool     enabled_on_startup = false;
-	long long	intbuf = 0;
-
-	if (value->val_int(value, &intbuf)) {
-		/* The value is NULL. That is invalid. */
-		return 1;
-	}
-
-	if (srv_track_changed_pages || enabled_on_startup) {
-		enabled_on_startup = true;
-		*reinterpret_cast<ulong*>(save)
-			= static_cast<ulong>(intbuf);
-		return 0;
-	}
-
-	if (intbuf == srv_track_changed_pages)
-		return 0;
-
-	return 1;
-}
-#endif
-
 /****************************************************************//**
 Update the innodb_sched_priority_master variable and set the thread
 priorities accordingly.  */
@@ -16414,6 +16374,46 @@ innodb_sched_priority_master_update(
 #endif /* defined(UNIV_DEBUG) || (UNIV_PERF_DEBUG) */
 
 #endif /* UNIV_LINUX */
+
+#ifdef UNIV_DEBUG
+/*************************************************************//**
+Check if it is a valid value of innodb_track_changed_pages.
+Changed pages tracking is not working correctly without initialization
+procedure on server startup. The function allows to temporary
+disable tracking, but only if the feature was enabled on startup.
+This function is registered as a callback with MySQL.
+@return	0 for valid innodb_track_changed_pages */
+static
+int
+innodb_track_changed_pages_validate(
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming bool */
+{
+	static bool     enabled_on_startup = false;
+	long long	intbuf = 0;
+
+	if (value->val_int(value, &intbuf)) {
+		/* The value is NULL. That is invalid. */
+		return 1;
+	}
+
+	if (srv_track_changed_pages || enabled_on_startup) {
+		enabled_on_startup = true;
+		*reinterpret_cast<ulong*>(save)
+			= static_cast<ulong>(intbuf);
+		return 0;
+	}
+
+	if (intbuf == srv_track_changed_pages)
+		return 0;
+
+	return 1;
+}
+#endif
 
 /****************************************************************//**
 Callback function for accessing the InnoDB variables from MySQL:

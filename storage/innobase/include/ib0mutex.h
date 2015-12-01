@@ -677,12 +677,7 @@ struct TTASEventMutex {
 		field next, the read must be serialized in memory
 		after the reset. A speculative processor might
 		perform the read first, which could leave a waiting
-		thread hanging indefinitely.
-
-		Our current solution call every second
-		sync_arr_wake_threads_if_sema_free()
-		to wake up possible hanging threads if they are missed
-		in mutex_signal_object. */
+		thread hanging indefinitely. */
 
 		tas_unlock();
 

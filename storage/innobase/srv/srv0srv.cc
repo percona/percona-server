@@ -1939,12 +1939,6 @@ loop:
 	eviction policy. */
 	buf_LRU_stat_update();
 
-	/* In case mutex_exit is not a memory barrier, it is
-	theoretically possible some threads are left waiting though
-	the semaphore is already released. Wake up those threads: */
-
-	sync_arr_wake_threads_if_sema_free();
-
 	if (sync_array_print_long_waits(&waiter, &sema)
 	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;

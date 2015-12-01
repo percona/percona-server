@@ -21,7 +21,8 @@ ENABLE_TOKUBACKUP=0
 DISABLE_TOKUBACKUP=0
 STATUS_HOTBACKUP_MYCNF=0
 STATUS_HOTBACKUP_PLUGIN=0
-MYCNF_LOCATION=
+MYCNF_LOCATION=""
+DEFAULTS_FILE_OPTION=""
 MYSQLD_SAFE_STATUS=0
 LIBHOTBACKUP_STATUS=0
 
@@ -33,7 +34,7 @@ MYSQL_DEFAULTS_BIN="${SCRIPT_PWD}/my_print_defaults"
 if ! getopt --test
   then
   go_out="$(getopt --options=u:p::S:h:P:edbr \
-  --longoptions=user:,password::,socket:,host:,port:,enable,disable,enable-backup,disable-backup,help \
+  --longoptions=user:,password::,socket:,host:,port:,enable,disable,enable-backup,disable-backup,help,defaults-file: \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -77,6 +78,11 @@ do
     PORT="-P $2"
     shift 2
     ;;
+    --defaults-file )
+    MYCNF_LOCATION="$2"
+    DEFAULTS_FILE_OPTION="--defaults-file=$MYCNF_LOCATION"
+    shift 2
+    ;;
     -e | --enable )
     shift
     ENABLE=1
@@ -84,10 +90,12 @@ do
     -d | --disable )
     shift
     DISABLE=1
+    DISABLE_TOKUBACKUP=1
     ;;
     -b | --enable-backup )
     shift
     ENABLE_TOKUBACKUP=1
+    ENABLE=1
     ;;
     -r | --disable-backup )
     shift
@@ -104,9 +112,12 @@ do
     printf "  --socket=path, -S path\t\t the socket file to use for connection\n"
     printf "  --host=host_name, -h host_name\t connect to given host\n"
     printf "  --port=port_num, -P port_num\t\t port number to use for connection\n"
+    printf "  --defaults-file=file \t\t specify defaults file instead of guessing\n"
     printf "  --enable, -e\t\t\t\t enable TokuDB plugin and disable transparent huge pages in my.cnf\n"
     printf "  --enable-backup, -b\t\t\t enable Percona TokuBackup and add preload-hotbackup option to my.cnf\n"
+    printf "\t\t\t\t\t (this option includes --enable option)\n"
     printf "  --disable, d\t\t\t\t disable TokuDB plugin and remove thp-setting=never option in my.cnf\n"
+    printf "\t\t\t\t\t (this option includes --disable-backup option)\n"
     printf "  --disable-backup, r\t\t\t disable Percona TokuBackup and remove preload-hotbackup option in my.cnf\n"
     printf "  --help\t\t\t\t show this help\n\n"
     printf "For TokuDB requirements and manual steps for installation please visit this webpage:\n"
@@ -170,7 +181,7 @@ if [ $ENABLE = 1 -o $ENABLE_TOKUBACKUP = 1 ]; then
 fi
 
 # List plugins
-LIST_ENGINE=$($MYSQL_CLIENT_BIN -e "show plugins;" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
+LIST_ENGINE=$($MYSQL_CLIENT_BIN -e "select CONCAT(PLUGIN_NAME,'#') from information_schema.plugins where PLUGIN_NAME like 'TokuDB%';" -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null)
 if [ $? -ne 0 ]; then
   printf "ERROR: Failed to list mysql plugins! Please check username, password and other options...\n";
   exit 1
@@ -203,10 +214,33 @@ if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
   fi
 fi
 
+# Check location of my.cnf
+if [ -z $MYCNF_LOCATION ]; then
+  if [ -f /etc/my.cnf ]; then
+    MYCNF_LOCATION=/etc/my.cnf
+  elif [ -f /etc/mysql/my.cnf ]; then
+    MYCNF_LOCATION=/etc/mysql/my.cnf
+  elif [ -f /usr/etc/my.cnf ]; then
+    MYCNF_LOCATION=/usr/etc/my.cnf
+  else
+    if [ -d /etc/mysql ]; then
+      MYCNF_LOCATION=/etc/mysql/my.cnf
+    else
+      MYCNF_LOCATION=/etc/my.cnf
+    fi
+    echo -n "" >> ${MYCNF_LOCATION}
+  fi
+else
+  if [ ! -f $MYCNF_LOCATION ]; then
+    printf "ERROR: Specified defaults file cannot be found!\n\n"
+    exit 1
+  fi
+fi
+
 # Check thp-setting=never option in my.cnf
 if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
   printf "Checking if thp-setting=never option is already set in config file...\n"
-  STATUS_THP_MYCNF=$($MYSQL_DEFAULTS_BIN server mysqld mysqld_safe|grep -c thp-setting=never)
+  STATUS_THP_MYCNF=$($MYSQL_DEFAULTS_BIN server mysqld mysqld_safe $DEFAULTS_FILE_OPTION|grep -c thp-setting=never)
   if [ $STATUS_THP_MYCNF = 0 ]; then
     printf "INFO: Option thp-setting=never is not set in the config file.\n"
     printf "      (needed only if THP is not disabled permanently on the system)\n\n"
@@ -218,28 +252,12 @@ fi
 # Check preload-hotbackup option in my.cnf
 if [ $ENABLE_TOKUBACKUP = 1 -o $DISABLE_TOKUBACKUP = 1 ]; then
   printf "Checking if preload-hotbackup option is already set in config file...\n"
-  STATUS_HOTBACKUP_MYCNF=$($MYSQL_DEFAULTS_BIN server mysqld mysqld_safe|grep -c preload-hotbackup)
+  STATUS_HOTBACKUP_MYCNF=$($MYSQL_DEFAULTS_BIN server mysqld mysqld_safe $DEFAULTS_FILE_OPTION|grep -c preload-hotbackup)
   if [ $STATUS_HOTBACKUP_MYCNF = 0 ]; then
     printf "INFO: Option preload-hotbackup is not set in the config file.\n\n"
   else
     printf "INFO: Option preload-hotbackup is set in the config file.\n\n"
   fi
-fi
-
-# Check location of my.cnf
-if [ -f /etc/my.cnf ]; then
-  MYCNF_LOCATION=/etc/my.cnf
-elif [ -f /etc/mysql/my.cnf ]; then
-  MYCNF_LOCATION=/etc/mysql/my.cnf
-elif [ -f /usr/etc/my.cnf ]; then
-  MYCNF_LOCATION=/usr/etc/my.cnf
-else
-  if [ -d /etc/mysql ]; then
-    MYCNF_LOCATION=/etc/mysql/my.cnf
-  else
-    MYCNF_LOCATION=/etc/my.cnf
-  fi
-  echo -n "" >> ${MYCNF_LOCATION}
 fi
 
 # Check TokuDB engine plugin status
@@ -248,7 +266,7 @@ if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
   STATUS_PLUGIN=$(echo "$LIST_ENGINE" | grep -c "TokuDB")
   if [ $STATUS_PLUGIN = 0 ]; then
     printf "INFO: TokuDB engine plugin is not installed.\n\n"
-  elif [ $STATUS_PLUGIN = 7 ]; then
+  elif [ $STATUS_PLUGIN -gt 6 ]; then
     printf "INFO: TokuDB engine plugin is installed.\n\n"
   else
     printf "ERROR: TokuDB engine plugin is partially installed. Please cleanup manually.\n\n"
@@ -375,14 +393,14 @@ fi
 if [ $ENABLE = 1 -a $STATUS_PLUGIN = 0 ]; then
   printf "Installing TokuDB engine...\n"
 $MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBENABLE
-INSTALL PLUGIN tokudb SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_file_map SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_fractal_tree_info SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_fractal_tree_block_map SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
-INSTALL PLUGIN tokudb_background_job_status SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_file_map SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_fractal_tree_info SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_fractal_tree_block_map SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_trx SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_locks SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_lock_waits SONAME 'ha_tokudb.so';
+INSTALL PLUGIN TokuDB_background_job_status SONAME 'ha_tokudb.so';
 EOFTOKUDBENABLE
   if [ $? -eq 0 ]; then
     printf "INFO: Successfully installed TokuDB engine plugin.\n\n"
@@ -421,22 +439,17 @@ EOFTOKUBACKUPDISABLE
 fi
 
 # Uninstalling TokuDB engine plugin
-if [ $DISABLE = 1 -a $STATUS_PLUGIN = 7 ]; then
+if [ $DISABLE = 1 -a $STATUS_PLUGIN -gt 0 ]; then
   printf "Uninstalling TokuDB engine plugin...\n"
-$MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT 2>/dev/null<<EOFTOKUDBDISABLE
-UNINSTALL PLUGIN tokudb;
-UNINSTALL PLUGIN tokudb_file_map;
-UNINSTALL PLUGIN tokudb_fractal_tree_info;
-UNINSTALL PLUGIN tokudb_fractal_tree_block_map;
-UNINSTALL PLUGIN tokudb_trx;
-UNINSTALL PLUGIN tokudb_locks;
-UNINSTALL PLUGIN tokudb_lock_waits;
-UNINSTALL PLUGIN tokudb_background_job_status;
-EOFTOKUDBDISABLE
-  if [ $? -eq 0 ]; then
-    printf "INFO: Successfully uninstalled TokuDB engine plugin.\n\n"
-  else
-    printf "ERROR: Failed to uninstall TokuDB engine plugin. Please check error log.\n\n"
-    exit 1
-  fi
+  for plugin in TokuDB TokuDB_file_map TokuDB_fractal_tree_info TokuDB_fractal_tree_block_map TokuDB_trx TokuDB_locks TokuDB_lock_waits TokuDB_background_job_status; do
+    SPECIFIC_PLUGIN_STATUS=$(echo "$LIST_ENGINE" | grep -c "$plugin#")
+    if [ $SPECIFIC_PLUGIN_STATUS -gt 0 ]; then
+      $MYSQL_CLIENT_BIN -u $USER $PASSWORD $SOCKET $HOST $PORT -e "UNINSTALL PLUGIN $plugin" 2>/dev/null
+      if [ $? -ne 0 ]; then
+        printf "ERROR: Failed to uninstall TokuDB engine plugin. Please check error log.\n\n"
+        exit 1
+      fi
+    fi
+  done
+  printf "INFO: Successfully uninstalled TokuDB engine plugin.\n\n"
 fi

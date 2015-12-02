@@ -7,6 +7,11 @@ if ($rpl_inited)
   }
 }
 
+if (!$restart_parameters)
+{
+  let $restart_parameters = restart;
+}
+
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
 --let $_server_id= `SELECT @@server_id`
@@ -18,7 +23,7 @@ if ($rpl_inited)
 shutdown_server 10;
 
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $_expect_file_name
+--exec echo "$restart_parameters" > $_expect_file_name
 
 # Turn on reconnect
 --enable_reconnect

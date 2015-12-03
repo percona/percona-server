@@ -5,6 +5,12 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`79185` - Innodb freeze running REPLACE statements                                  |
+|:Launchpad bug: :bug:`1519094`                                                                               |
+|:Upstream state: Open (checked on 2015-12-01)                                                                |
+|:Fix Released: :rn:`5.5.46-37.6`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`77275` - Newest RHEL/CentOS openssl update breaks mysql DHE ciphers                |
 |:Launchpad bug: :bug:`1462856`                                                                               |
 |:Upstream state: Closed                                                                                      |

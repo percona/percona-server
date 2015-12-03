@@ -14,7 +14,7 @@ CREATE TABLE `site` (
 CREATE TABLE `screenshot` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `site` int(11) unsigned NOT NULL,
-  `timestamp` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `timestamp` timestamp NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB AUTO_INCREMENT=82720 DEFAULT CHARSET=utf8;
 

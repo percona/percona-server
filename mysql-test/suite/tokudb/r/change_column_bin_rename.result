@@ -3,14 +3,11 @@ SET SESSION DEFAULT_STORAGE_ENGINE="TokuDB";
 SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;
 CREATE TABLE t (a BINARY(1));
 INSERT INTO t VALUES ('hi');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES ('there');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES ('people');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 ALTER TABLE t CHANGE COLUMN a b BINARY(2);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(3);
@@ -523,11 +520,9 @@ DROP TABLE t;
 CREATE TABLE t (a BINARY(2));
 INSERT INTO t VALUES ('hi');
 INSERT INTO t VALUES ('there');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES ('people');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 CREATE TABLE ti LIKE t;
 ALTER TABLE ti ENGINE=myisam;
 INSERT INTO ti SELECT * FROM t;
@@ -1047,11 +1042,9 @@ DROP TABLE t;
 CREATE TABLE t (a BINARY(3));
 INSERT INTO t VALUES ('hi');
 INSERT INTO t VALUES ('there');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES ('people');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 ALTER TABLE t CHANGE COLUMN a b BINARY(2);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 CREATE TABLE ti LIKE t;
@@ -1571,11 +1564,9 @@ DROP TABLE t;
 CREATE TABLE t (a BINARY(4));
 INSERT INTO t VALUES ('hi');
 INSERT INTO t VALUES ('there');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES ('people');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 ALTER TABLE t CHANGE COLUMN a b BINARY(2);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(3);
@@ -2096,8 +2087,7 @@ CREATE TABLE t (a BINARY(5));
 INSERT INTO t VALUES ('hi');
 INSERT INTO t VALUES ('there');
 INSERT INTO t VALUES ('people');
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 ALTER TABLE t CHANGE COLUMN a b BINARY(2);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(3);

@@ -13,7 +13,7 @@ primary key (col1));
 
 create table t1_audit (
 col1 int not null,
-action varchar(10) not null,
+action varchar(20) not null,
 ts timestamp not null default now());
 
 insert into t1 (col1,col2) values (0,0);

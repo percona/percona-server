@@ -10,8 +10,10 @@ a	b	c	d
 3	300	30	3
 4	4	4	4
 explain select b,a from foo;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	foo	NULL	index	NULL	b	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`foo`.`b` AS `b`,`test`.`foo`.`a` AS `a` from `test`.`foo`
 select b,a from foo;
 b	a
 4	4
@@ -35,8 +37,10 @@ a	b	c	d
 3	300	30	103
 4	4	4	104
 explain select b,a from foo;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	foo	NULL	index	NULL	b	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`foo`.`b` AS `b`,`test`.`foo`.`a` AS `a` from `test`.`foo`
 select b,a from foo;
 b	a
 4	4
@@ -60,8 +64,10 @@ a	b	c	d
 3	301	30	103
 4	5	4	104
 explain select b,a from foo;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	foo	NULL	index	NULL	b	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`foo`.`b` AS `b`,`test`.`foo`.`a` AS `a` from `test`.`foo`
 select b,a from foo;
 b	a
 5	4
@@ -85,8 +91,10 @@ a	b	c	d
 3	301	300	103
 4	5	40	104
 explain select b,a from foo;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	index	NULL	b	5	NULL	4	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	foo	NULL	index	NULL	b	5	NULL	4	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`foo`.`b` AS `b`,`test`.`foo`.`a` AS `a` from `test`.`foo`
 select b,a from foo;
 b	a
 5	4

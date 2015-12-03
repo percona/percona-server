@@ -6,7 +6,7 @@ create table foo ( a int, b int, c int, primary key (a), key (b))engine=TokuDB;
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
-  `a` int(11) NOT NULL DEFAULT '0',
+  `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
@@ -16,8 +16,10 @@ insert into foo values (1,10,100),(2,20,200),(3,30,300),(4,40,400),(5,50,500);
 create table foo_isam (a int, b int, c int);
 # should use key b
 explain select * from foo where b=30;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	foo	NULL	ref	b	b	5	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`foo`.`a` AS `a`,`test`.`foo`.`b` AS `b`,`test`.`foo`.`c` AS `c` from `test`.`foo` where (`test`.`foo`.`b` = 30)
 begin;
 insert into foo_isam select * from foo where b=30;
 set session transaction isolation level repeatable read;

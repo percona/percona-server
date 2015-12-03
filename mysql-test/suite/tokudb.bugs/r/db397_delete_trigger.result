@@ -7,7 +7,7 @@ col2 int not null,
 primary key (col1));
 create table t1_audit (
 col1 int not null,
-action varchar(10) not null,
+action varchar(20) not null,
 ts timestamp not null default now());
 insert into t1 (col1,col2) values (0,0);
 insert into t1_audit (col1,action) values (0,'DUMMY');
@@ -24,7 +24,7 @@ col1	col2
 select col1,action from t1_audit;
 col1	action
 0	DUMMY
-1	BEFORE DEL
+1	BEFORE DELETE
 select locks_dname,locks_key_left,locks_key_right from information_schema.tokudb_locks;
 locks_dname	locks_key_left	locks_key_right
 ./test/t1_audit-main	0200000000000000	0200000000000000
@@ -44,8 +44,8 @@ col1	col2
 select col1,action from t1_audit;
 col1	action
 0	DUMMY
-1	BEFORE DEL
-2	AFTER DELE
+1	BEFORE DELETE
+2	AFTER DELETE
 select locks_dname,locks_key_left,locks_key_right from information_schema.tokudb_locks;
 locks_dname	locks_key_left	locks_key_right
 ./test/t1_audit-main	0300000000000000	0300000000000000

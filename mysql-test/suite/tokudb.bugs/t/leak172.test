@@ -36,7 +36,7 @@ CREATE TABLE `t1` (
   `c34` date NOT NULL,
   `c30` date DEFAULT NULL,
   `c31` date DEFAULT NULL,
-  `c24` date NOT NULL DEFAULT '0000-00-00',
+  `c24` date NOT NULL,
   `c33` date DEFAULT NULL,
   `c21` blob,
   `c1` int(11),

@@ -10002,27 +10002,43 @@ insert into t values (9997,0);
 insert into t values (9998,0);
 insert into t values (9999,0);
 explain select id from t where id>0 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	5000	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` where (`test`.`t`.`id` > 0) limit 10
 explain select * from t where id>0 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	5000	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`id` > 0) limit 10
 explain select id from t where id>1000 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	5000	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` where (`test`.`t`.`id` > 1000) limit 10
 explain select * from t where id>1000 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	5000	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`id` > 1000) limit 10
 explain select id from t where id>5000 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	5000	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` where (`test`.`t`.`id` > 5000) limit 10
 explain select * from t where id>5000 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	5000	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`id` > 5000) limit 10
 explain select id from t where id>6000 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	3999	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id` from `test`.`t` where (`test`.`t`.`id` > 6000) limit 10
 explain select * from t where id>6000 limit 10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	range	PRIMARY	PRIMARY	8	#	3999	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`x` AS `x` from `test`.`t` where (`test`.`t`.`id` > 6000) limit 10
 drop table t;

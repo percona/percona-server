@@ -1,9 +1,19 @@
 #!/usr/bin/env python
 
 import sys
+def bytes_per_val(x):
+    number = x
+    count = 0
+    while number > 0:
+        number = number / 10
+        count = count + 1
+    return count
+
 def gen_test(n):
     print "CREATE TABLE t (a BINARY(%d));" % (n)
     for v in [ 0, 1, 2, 4, 8, 16, 32, 64, 126, 127 ]:
+        if bytes_per_val(v) > n:
+            print "--error ER_DATA_TOO_LONG"
         print "INSERT INTO t VALUES (%d);" % (v)
     for i in range(2,256):
         if i < n:

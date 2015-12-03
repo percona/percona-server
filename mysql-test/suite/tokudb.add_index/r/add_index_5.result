@@ -2,8 +2,10 @@ SET DEFAULT_STORAGE_ENGINE='tokudb';
 *** Bug #22169 ***
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a int, b int, c int, z int, y int, x int, r int, s int, t int, primary key (a,b), key (z), key(x), key(t));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	foo	foo	NULL	NULL	NULL;	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	foo	NULL	10	NULL;	10	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`c` >= 0)
 c	r	a	b
 0	20	10	0
 2	18	9	1
@@ -15,8 +17,10 @@ c	r	a	b
 14	6	3	7
 16	4	2	8
 18	2	1	9
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`s` AS `s`,`test`.`t1`.`t` AS `t` from `test`.`t1`
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -28,8 +32,10 @@ a	b	c	z	y	x	r	s	t
 8	2	4	80	800	8000	16	24	32
 9	1	2	90	900	9000	18	27	36
 10	0	0	100	1000	10000	20	30	40
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`c` >= 0)
 c	r	a	b
 18	2	1	9
 16	4	2	8
@@ -41,8 +47,10 @@ c	r	a	b
 4	16	8	2
 2	18	9	1
 0	20	10	0
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`s` AS `s`,`test`.`t1`.`t` AS `t` from `test`.`t1`
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -54,8 +62,10 @@ a	b	c	z	y	x	r	s	t
 8	2	4	80	800	8000	16	24	32
 9	1	2	90	900	9000	18	27	36
 10	0	0	100	1000	10000	20	30	40
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	foo	foo	NULL	NULL	NULL;	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	foo	NULL	10	NULL;	10	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`c` >= 0)
 c	r	a	b
 0	20	10	0
 2	18	9	1
@@ -67,8 +77,10 @@ c	r	a	b
 14	6	3	7
 16	4	2	8
 18	2	1	9
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`s` AS `s`,`test`.`t1`.`t` AS `t` from `test`.`t1`
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -81,8 +93,10 @@ a	b	c	z	y	x	r	s	t
 9	1	2	90	900	9000	18	27	36
 10	0	0	100	1000	10000	20	30	40
 ERROR 42000: Duplicate key name 'foo'
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	foo	foo	NULL	NULL	NULL;	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	foo	NULL	10	NULL;	10	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`c` >= 0)
 c	r	a	b
 0	20	10	0
 2	18	9	1
@@ -94,8 +108,10 @@ c	r	a	b
 14	6	3	7
 16	4	2	8
 18	2	1	9
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`s` AS `s`,`test`.`t1`.`t` AS `t` from `test`.`t1`
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -107,8 +123,10 @@ a	b	c	z	y	x	r	s	t
 8	2	4	80	800	8000	16	24	32
 9	1	2	90	900	9000	18	27	36
 10	0	0	100	1000	10000	20	30	40
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	z	z	NULL	NULL	NULL;	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	z	NULL	9	NULL;	10	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`z` AS `z`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`z` >= 0)
 z	a	b
 10	1	9
 20	2	8
@@ -120,8 +138,10 @@ z	a	b
 80	8	2
 90	9	1
 100	10	0
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`s` AS `s`,`test`.`t1`.`t` AS `t` from `test`.`t1`
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8
@@ -133,8 +153,10 @@ a	b	c	z	y	x	r	s	t
 8	2	4	80	800	8000	16	24	32
 9	1	2	90	900	9000	18	27	36
 10	0	0	100	1000	10000	20	30	40
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	foo	foo	NULL	NULL	NULL;	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	foo	NULL	10	NULL;	10	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`c` >= 0)
 c	r	a	b
 0	20	10	0
 2	18	9	1
@@ -146,8 +168,10 @@ c	r	a	b
 14	6	3	7
 16	4	2	8
 18	2	1	9
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	NULL	NULL	NULL	NULL	NULL;	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL;	10	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`z` AS `z`,`test`.`t1`.`y` AS `y`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`r` AS `r`,`test`.`t1`.`s` AS `s`,`test`.`t1`.`t` AS `t` from `test`.`t1`
 a	b	c	z	y	x	r	s	t
 1	9	18	10	100	1000	2	3	4
 2	8	16	20	200	2000	4	6	8

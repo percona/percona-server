@@ -4,6 +4,8 @@ import sys
 def gen_test(n):
     print "CREATE TABLE t (a BINARY(%d));" % (n)
     for v in [ 'hi', 'there', 'people' ]:
+        if len(v) > n:
+            print "--error ER_DATA_TOO_LONG"
         print "INSERT INTO t VALUES ('%s');" % (v)
     for i in range(2,256):
         if i != n: # if i < n:

@@ -25,8 +25,10 @@ a	b	c	d
 7	70	700	7000
 8	80	800	8000
 explain select * From t1 where b > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	5	NULL;	9	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0)
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -48,8 +50,10 @@ a	b	c	d
 6	60	600	6000
 7	70	700	7000
 explain select * From t1 where b > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	5	NULL;	9	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0)
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -66,8 +70,10 @@ a	b	c	d
 2	20	200	2000
 3	30	300	3000
 explain select * From t1 where b > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	5	NULL;	9	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0)
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -99,8 +105,10 @@ a	b	c	d
 8	80	800	8000
 3	30	300	3000
 explain select * From t1 where b > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	5	NULL;	9	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0)
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000
@@ -118,8 +126,10 @@ a	b	c	d
 1	10	100	1000
 3	30	300	3000
 explain select * From t1 where b > 0;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	5	NULL;	9	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`b` > 0)
 select * From t1 where b > 0;
 a	b	c	d
 1	10	100	1000

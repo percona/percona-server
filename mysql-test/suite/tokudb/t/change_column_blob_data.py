@@ -21,7 +21,16 @@ def gen_test(f, v, nn):
     print gen_table(f, v, nn)
     
     for r in range(3):
-        print insert_row("t")
+        t = "INSERT INTO t (a, b) VALUES ("
+        l = random.randint(1, 32)
+        s = ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(l))
+        t += "'%s'," % (s)
+        l = random.randint(1, 260)
+        s = ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(l))
+        t += "'%s');" % (s)
+        if len(s) > 255:
+            print "--error ER_DATA_TOO_LONG"
+        print t 
 
     print "CREATE TABLE ti LIKE t;"
     print "ALTER TABLE ti ENGINE=myisam;"

@@ -8,20 +8,15 @@ INSERT INTO t VALUES (2);
 INSERT INTO t VALUES (4);
 INSERT INTO t VALUES (8);
 INSERT INTO t VALUES (16);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES (32);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES (64);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES (126);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES (127);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 CREATE TABLE ti LIKE t;
 ALTER TABLE ti ENGINE=myisam;
 INSERT INTO ti SELECT * FROM t;
@@ -1811,11 +1806,9 @@ INSERT INTO t VALUES (16);
 INSERT INTO t VALUES (32);
 INSERT INTO t VALUES (64);
 INSERT INTO t VALUES (126);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 INSERT INTO t VALUES (127);
-Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+ERROR 22001: Data too long for column 'a' at row 1
 CREATE TABLE ti LIKE t;
 ALTER TABLE ti ENGINE=myisam;
 INSERT INTO ti SELECT * FROM t;

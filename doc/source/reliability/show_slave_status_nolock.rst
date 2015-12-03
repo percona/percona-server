@@ -22,6 +22,16 @@ This will display the slave's status as if there were no lock, allowing the user
 
    |Percona Server| originally used ``SHOW SLAVE STATUS NOLOCK`` syntax for this feature. As of :rn:`5.6.20-68.0` release, |Percona Server| implements ``SHOW SLAVE STATUS NONBLOCKING`` syntax, which comes from |MySQL| 5.7. The ``NOLOCK`` one has been deprecated and will be removed in |Percona Server| 5.7.
 
+Status Variables
+================
+
+.. variable:: Com_show_slave_status_nolock
+
+   :vartype: Numeric
+   :varscope: Global/Session
+
+The :variable:`Com_show_slave_status_nolock` statement counter variable indicates the number of times the statement ``SHOW SLAVE STATUS NOLOCK`` has been executed.
+
 Version Specific Information
 ============================
 

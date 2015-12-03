@@ -80,3 +80,20 @@ This variable is used to specify the log archiving directory.
      :default: 0 
 
 Number of seconds since last modification after which archived log should be deleted.
+
+Session Variables
+=================
+
+.. variable:: Com_purge_archived
+
+   :type: Numeric
+   :scope: Global/Session
+
+The :variable:`Com_purge_archived` statement counter variable indicates the number of times the statement ``PURGE ARCHIVED LOGS TO`` has been executed.
+
+.. variable:: Com_purge_archived_before_date
+
+   :type: Numeric
+   :scope: Global/Session
+
+The :variable:`Com_purge_archived_before_date` statement counter variable indicates the number of times the statement ``PURGE ARCHIVED LOGS BEFORE`` has been executed.

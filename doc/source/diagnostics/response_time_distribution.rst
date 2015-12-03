@@ -205,6 +205,8 @@ System Variables
 .. variable:: query_response_time_flush
 
      :version 5.6.21-69.0: Introduced.
+     :cli: No
+     :conf: No
      :scope: Global
      :dyn: No
      :vartype: Boolean

@@ -43,7 +43,9 @@ Some |Percona Server| 5.5 features have been replaced by similar or equivalent |
  * `Expand Table Import <http://www.percona.com/doc/percona-server/5.5/management/innodb_expand_import.html>`_ has been replaced by |MySQL| "InnoDB transportable tablespaces"
  * The |InnoDB| data dictionary INFORMATION_SCHEMA tables have been superseded by the |MySQL| implementations 
  * |XtraDB| SYS_STATS persistent table and index statistics has been replaced by the MySQL 5.6 implementation
- * `Dump/Restore of the Buffer Pool <http://www.percona.com/doc/percona-server/5.5/management/innodb_lru_dump_restore.html>`_ is now available in |MySQL| 5.6, so we have replaced the |Percona Server| implementation with the |MySQL| `one <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-preload-buffer-pool>`_. The upstream implementation doesn't have the periodic dump feature, but it's possible to set it up by using the `event scheduler <https://dev.mysql.com/doc/refman/5.6/en/events.html>`_ and the new `innodb_buffer_pool_dump_now <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_buffer_pool_dump_now>`_ variable. The following example shows how to implement a periodic buffer pool dump every hour: ::
+ * `Dump/Restore of the Buffer Pool <http://www.percona.com/doc/percona-server/5.5/management/innodb_lru_dump_restore.html>`_ is now available in |MySQL| 5.6, so we have replaced the |Percona Server| implementation with the |MySQL| `one <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-preload-buffer-pool>`_. The upstream implementation doesn't have the periodic dump feature, but it's possible to set it up by using the `event scheduler <https://dev.mysql.com/doc/refman/5.6/en/events.html>`_ and the new `innodb_buffer_pool_dump_now <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_buffer_pool_dump_now>`_ variable. The following example shows how to implement a periodic buffer pool dump every hour: 
+
+   .. code-block:: mysql 
 
      mysql> CREATE EVENT automatic_bufferpool_dump 
             ON SCHEDULE EVERY 1 HOUR 
@@ -101,40 +103,42 @@ List of status variables that are no longer available in |Percona Server| 5.6
 
 Following status variables available in |Percona Server| 5.5 are no longer present in |Percona Server| 5.6:
 
+.. tabularcolumns:: |p{8cm}|p{7.5cm}|
+
 .. list-table::
    :header-rows: 1
 
    * - Status Variables
      - Replaced by
-   * - :variable:`Com_show_temporary_tables`
+   * - ``Com_show_temporary_tables``
      - This variable has been removed together with the "SHOW [GLOBAL] TEMPORARY TABLES" statement, whose call number it was counting. The information about temporary tables is available via the ``INFORMATION_SCHEMA`` tables :table:`TEMPORARY_TABLES` and :table:`GLOBAL_TEMPORARY_TABLES`
-   * - :variable:`Flashcache_enabled`
+   * - ``Flashcache_enabled``
      - information if the Flashcache support has been enabled has not been ported to |Percona Server| 5.6
-   * - :variable:`Innodb_adaptive_hash_cells`
+   * - ``Innodb_adaptive_hash_cells``
      - this variable has not been ported to |Percona Server| 5.6
-   * - :variable:`Innodb_adaptive_hash_heap_buffers`
+   * - ``Innodb_adaptive_hash_heap_buffers``
      - this variable has not been ported to |Percona Server| 5.6
-   * - :variable:`Innodb_adaptive_hash_hash_searches`      
-     - replaced by ``adaptive_hash_searches`` counter in ``INFORMATION_SCHEMA.INNODB_METRICS`` `table <http://dev.mysql.com/doc/refman/5.6/en/innodb-metrics-table.html>`_
-   * - :variable:`Innodb_adaptive_hash_non_hash_searches`
-     - replaced by ``adaptive_hash_searches_btree`` counter in ``INFORMATION_SCHEMA.INNODB_METRICS`` `table <http://dev.mysql.com/doc/refman/5.6/en/innodb-metrics-table.html>`_
-   * - :variable:`Innodb_checkpoint_target_age`
+   * - ``Innodb_adaptive_hash_hash_searches``      
+     - replaced by ``adaptive_hash_searches`` counter in ``INFORMATION_SCHEMA`` ``INNODB_METRICS`` `table <http://dev.mysql.com/doc/refman/5.6/en/innodb-metrics-table.html>`_
+   * - ``Innodb_adaptive_hash_non_hash_searches``
+     - replaced by ``adaptive_hash_searches_btree`` counter in ``INFORMATION_SCHEMA`` ``INNODB_METRICS`` `table <http://dev.mysql.com/doc/refman/5.6/en/innodb-metrics-table.html>`_
+   * - ``Innodb_checkpoint_target_age``
      - replaced by `MySQL 5.6 flushing <http://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-lru-background-flushing>`_ implementation
-   * - :variable:`Innodb_dict_tables`
+   * - ``Innodb_dict_tables``
      - :ref:`InnoDB Data Dictionary Size Limit <ps55:innodb_dict_size_limit_page>` feature has been replaced by the new MySQL 5.6 `table_definition_cache <https://dev.mysql.com/doc/refman/5.6/en/server-system-variables.html#sysvar_table_definition_cache>`_ implementation
-   * - :variable:`Innodb_master_thread_1_second_loops`
+   * - ``Innodb_master_thread_1_second_loops``
      - new |InnoDB| master thread behavior makes this variable redundant
-   * - :variable:`Innodb_master_thread_10_second_loops`
+   * - ``Innodb_master_thread_10_second_loops``
      - new |InnoDB| master thread behavior makes this variable redundant
-   * - :variable:`Innodb_master_thread_background_loops`
+   * - ``Innodb_master_thread_background_loops``
      - new |InnoDB| master thread behavior makes this variable redundant
-   * - :variable:`Innodb_master_thread_main_flush_loops`
+   * - ``Innodb_master_thread_main_flush_loops``
      - new |InnoDB| master thread behavior makes this variable redundant
-   * - :variable:`Innodb_master_thread_sleeps`
-     - replaced by ``innodb_master_thread_sleeps`` counter in ``INFORMATION_SCHEMA.INNODB_METRICS`` `table <http://dev.mysql.com/doc/refman/5.6/en/innodb-metrics-table.html>`_
-   * - :variable:`binlog_commits`
+   * - ``Innodb_master_thread_sleeps``
+     - replaced by ``innodb_master_thread_sleeps`` counter in ``INFORMATION_SCHEMA`` ``INNODB_METRICS`` `table <http://dev.mysql.com/doc/refman/5.6/en/innodb-metrics-table.html>`_
+   * - ``binlog_commits``
      - :ref:`Binary Log Group Commit <ps55:binary_group_commit>` feature has been replaced with the |MySQL| 5.6 implementation that doesn't have this status variable.
-   * - :variable:`binlog_group_commits`
+   * - ``binlog_group_commits``
      - :ref:`Binary Log Group Commit <ps55:binary_group_commit>` feature has been replaced with the |MySQL| 5.6 implementation that doesn't have this status variable.
 
 
@@ -146,6 +150,8 @@ Following system variables available in |Percona Server| 5.5 are no longer prese
 .. warning::
 
    |Percona Server| 5.6 won't be able to start if some of these variables are set in the server's configuration file.
+
+.. tabularcolumns:: |p{8cm}|p{7.5cm}|
 
 .. list-table::
    :header-rows: 1

@@ -42,6 +42,7 @@ Created 9/6/1995 Heikki Tuuri
     || defined _M_X64 || defined __WIN__
 
 #define IB_STRONG_MEMORY_MODEL
+#undef HAVE_IB_GCC_ATOMIC_TEST_AND_SET // Quick-and-dirty fix for bug 1519094
 
 #endif /* __i386__ || __x86_64__ || _M_IX86 || _M_X64 || __WIN__ */
 

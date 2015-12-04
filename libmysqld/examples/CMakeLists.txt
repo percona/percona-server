@@ -17,7 +17,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libmysqld/include
                     ${CMAKE_SOURCE_DIR}/regex 
                     ${CMAKE_SOURCE_DIR}/testclients
-                    ${EDITLINE_INCLUDE_DIR}                 
+                    ${MY_READLINE_INCLUDE_DIR}
                     )
 
 
@@ -28,7 +28,7 @@ MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc)
 TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql_embedded ${EDITLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(mysql_embedded ${MY_READLINE_LIBRARY})
   SET_TARGET_PROPERTIES(mysql_embedded PROPERTIES ENABLE_EXPORTS TRUE)
 ENDIF(UNIX)
 

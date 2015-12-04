@@ -905,8 +905,6 @@ BtrBulk::finish(dberr_t	err)
 {
 	ulint		last_page_no = FIL_NULL;
 
-	ut_ad(!dict_table_is_temporary(m_index->table));
-
 	if (m_page_bulks->size() == 0) {
 		/* The table is empty. The root page of the index tree
 		is already in a consistent state. No need to flush. */

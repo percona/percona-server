@@ -28,6 +28,7 @@ PSI_memory_key key_memory_vio_ssl_fd;
 
 PSI_memory_key key_memory_vio;
 PSI_memory_key key_memory_vio_read_buffer;
+PSI_memory_key key_memory_vio_proxy_networks;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_vio_memory[]=
@@ -38,6 +39,7 @@ static PSI_memory_info all_vio_memory[]=
 
   {&key_memory_vio, "vio", 0},
   {&key_memory_vio_read_buffer, "read_buffer", 0},
+  {&key_memory_vio_proxy_networks, "proxy_networks", 0},
 };
 
 void init_vio_psi_keys()
@@ -79,6 +81,13 @@ static my_bool has_no_data(Vio *vio __attribute__((unused)))
   return FALSE;
 }
 
+#ifdef _WIN32
+my_bool vio_shared_memory_has_data(Vio *vio)
+{
+  return (vio->shared_memory_remain > 0);
+}
+#endif
+
 /*
  * Helper to fill most of the Vio* with defaults.
  */
@@ -111,6 +120,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->should_retry	=vio_should_retry;
     vio->was_timeout    =vio_was_timeout;
     vio->vioshutdown	=vio_shutdown_pipe;
+    vio->viocancel      =vio_cancel_pipe;
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_pipe;
@@ -129,10 +139,11 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->should_retry	=vio_should_retry;
     vio->was_timeout    =vio_was_timeout;
     vio->vioshutdown	=vio_shutdown_shared_memory;
+    vio->viocancel      =vio_cancel_shared_memory;
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_shared_memory;
-    vio->has_data       =has_no_data;
+    vio->has_data       =vio_shared_memory_has_data;
     DBUG_VOID_RETURN;
   }
 #endif /* !EMBEDDED_LIBRARY */
@@ -149,6 +160,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->should_retry	=vio_should_retry;
     vio->was_timeout    =vio_was_timeout;
     vio->vioshutdown	=vio_ssl_shutdown;
+    vio->viocancel      =vio_cancel;
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =vio_io_wait;
     vio->is_connected   =vio_is_connected;
@@ -166,6 +178,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   vio->should_retry     =vio_should_retry;
   vio->was_timeout      =vio_was_timeout;
   vio->vioshutdown      =vio_shutdown;
+  vio->viocancel        =vio_cancel;
   vio->peer_addr        =vio_peer_addr;
   vio->io_wait          =vio_io_wait;
   vio->is_connected     =vio_is_connected;
@@ -252,7 +265,7 @@ my_bool vio_reset(Vio* vio, enum enum_vio_type type,
     */
     if (sd != mysql_socket_getfd(vio->mysql_socket))
       if (vio->inactive == FALSE)
-        vio->vioshutdown(vio);
+        vio->vioshutdown(vio, SHUT_RDWR);
 
     my_free(vio->read_buffer);
 
@@ -396,7 +409,7 @@ void vio_delete(Vio* vio)
     return; /* It must be safe to delete null pointers. */
 
   if (vio->inactive == FALSE)
-    vio->vioshutdown(vio);
+    vio->vioshutdown(vio, SHUT_RDWR);
   my_free(vio->read_buffer);
   my_free(vio);
 }

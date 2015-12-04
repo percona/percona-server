@@ -19,9 +19,9 @@ INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 SET GLOBAL debug= '+d,dbug.block_do_refresh';
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
+<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
 # We have to do this in order to avoid deadlock on the memory table's
 # mutex.
 SET @@global.rewriter_enabled = OFF;
@@ -30,9 +30,9 @@ CALL query_rewrite.flush_rewrite_rules();
 # server.
 SET debug_sync = 'now WAIT_FOR parked';
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
+<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
 #
 # Restart the server
 #
@@ -42,8 +42,8 @@ Rewritten
 Warnings:
 Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
 SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info
-<id>	root	<host>	<db>	<command>	<time>	<state>	<info>
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+<id>	root	<host>	<db>	<command>	<time>	<state>	<info>	0	0
 SET @@global.rewriter_enabled = DEFAULT;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown

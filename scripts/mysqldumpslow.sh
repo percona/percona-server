@@ -101,8 +101,8 @@ while ( defined($_ = shift @pending) or defined($_ = <>) ) {
     s/^#? Time: \d{6}\s+\d+:\d+:\d+.*\n//;
     my ($user,$host,$dummy,$thread_id) = s/^#? User\@Host:\s+(\S+)\s+\@\s+(\S+)\s+\S+(\s+Id:\s+(\d+))?.*\n// ? ($1,$2,$3,$4) : ('','','','','');
 
-    s/^# Query_time: ([0-9.]+)\s+Lock_time: ([0-9.]+)\s+Rows_sent: ([0-9.]+).*\n//;
-    my ($t, $l, $r) = ($1, $2, $3);
+    s/^# Query_time: (\d+(\.\d+)?)  Lock_time: (\d+(\.\d+)?)  Rows_sent: (\d+(\.\d+)?).*\n//;
+    my ($t, $l, $r) = ($1, $3, $5);
     $t -= $l unless $opt{l};
 
     # remove fluff that mysqld writes to log when it (re)starts:

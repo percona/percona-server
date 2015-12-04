@@ -62,10 +62,14 @@ buf_read_page_handle_error(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const bool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool,
+							   bpage->id);
+
+	mutex_enter(&buf_pool->LRU_list_mutex);
+	rw_lock_x_lock(hash_lock);
+	mutex_enter(buf_page_get_mutex(bpage));
 
 	/* First unfix and release lock on the bpage */
-	buf_pool_mutex_enter(buf_pool);
-	mutex_enter(buf_page_get_mutex(bpage));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
 	ut_ad(bpage->buf_fix_count == 0);
 
@@ -78,15 +82,13 @@ buf_read_page_handle_error(
 			BUF_IO_READ);
 	}
 
-	mutex_exit(buf_page_get_mutex(bpage));
-
 	/* remove the block from LRU list */
 	buf_LRU_free_one_page(bpage);
 
-	ut_ad(buf_pool->n_pend_reads > 0);
-	buf_pool->n_pend_reads--;
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
-	buf_pool_mutex_exit(buf_pool);
+	ut_ad(buf_pool->n_pend_reads > 0);
+	os_atomic_decrement_ulint(&buf_pool->n_pend_reads, 1);
 }
 
 /** Low-level function which reads a page asynchronously from a file to the
@@ -117,7 +119,8 @@ buf_read_page_low(
 	ulint			mode,
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	bool			unzip)
+	bool			unzip,
+	trx_t*			trx)
 {
 	buf_page_t*	bpage;
 
@@ -149,6 +152,52 @@ buf_read_page_low(
 	bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
 
 	if (bpage == NULL) {
+		/* bugfix: http://bugs.mysql.com/bug.php?id=43948 */
+		if (recv_recovery_is_on() && *err == DB_TABLESPACE_DELETED) {
+			/* hashed log recs must be treated here */
+			recv_addr_t*    recv_addr;
+
+			mutex_enter(&(recv_sys->mutex));
+
+			if (!recv_sys->apply_log_recs) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			/* recv_get_fil_addr_struct() */
+			recv_addr = (recv_addr_t*)
+				HASH_GET_FIRST(recv_sys->addr_hash,
+					       hash_calc_hash(
+						       ut_fold_ulint_pair(
+							       page_id.space(),
+							       page_id.page_no()),
+						recv_sys->addr_hash));
+			while (recv_addr) {
+				if ((recv_addr->space == page_id.space())
+				    && (recv_addr->page_no
+					== page_id.page_no())) {
+					break;
+				}
+				recv_addr = (recv_addr_t*)HASH_GET_NEXT(addr_hash, recv_addr);
+			}
+
+			if ((recv_addr == NULL)
+			    || (recv_addr->state == RECV_BEING_PROCESSED)
+			    || (recv_addr->state == RECV_PROCESSED)) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			ib::info() << " (cannot find space: "
+				   << page_id.space() << ")";
+			recv_addr->state = RECV_PROCESSED;
+
+			ut_a(recv_sys->n_addrs);
+			recv_sys->n_addrs--;
+
+			mutex_exit(&(recv_sys->mutex));
+		}
+not_to_recover:
 
 		return(0);
 	}
@@ -161,6 +210,7 @@ buf_read_page_low(
 			      sync ? "sync" : "async"));
 
 	ut_ad(buf_page_in_file(bpage));
+	ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
 	if (sync) {
 		thd_wait_begin(NULL, THD_WAIT_DISKIO);
@@ -178,9 +228,9 @@ buf_read_page_low(
 
 	IORequest	request(type | IORequest::READ);
 
-	*err = fil_io(
+	*err = _fil_io(
 		request, sync, page_id, page_size, 0, page_size.physical(),
-		dst, bpage);
+		dst, bpage, trx);
 
 	if (sync) {
 		thd_wait_end(NULL);
@@ -205,7 +255,9 @@ buf_read_page_low(
 			return(0);
 		}
 
-		ut_error;
+		SRV_CORRUPT_TABLE_CHECK(*err == DB_SUCCESS,
+					bpage->is_corrupt = true;);
+
 	}
 
 	if (sync) {
@@ -239,7 +291,8 @@ ulint
 buf_read_ahead_random(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			inside_ibuf)
+	ibool			inside_ibuf,
+	trx_t*			trx)
 {
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 	ulint		recent_blocks	= 0;
@@ -288,11 +341,9 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	buf_pool_mutex_enter(buf_pool);
-
+	os_rmb;
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -301,8 +352,13 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
-		const buf_page_t*	bpage = buf_page_hash_get(
-			buf_pool, page_id_t(page_id.space(), i));
+
+		rw_lock_t* hash_lock;
+
+		const buf_page_t* bpage =
+			buf_page_hash_get_s_locked(buf_pool,
+						   page_id_t(page_id.space(),
+						   i), &hash_lock);
 
 		if (bpage != NULL
 		    && buf_page_is_accessed(bpage)
@@ -313,13 +369,16 @@ buf_read_ahead_random(
 			if (recent_blocks
 			    >= BUF_READ_AHEAD_RANDOM_THRESHOLD(buf_pool)) {
 
-				buf_pool_mutex_exit(buf_pool);
+				rw_lock_s_unlock(hash_lock);
 				goto read_ahead;
 			}
 		}
+
+		if (bpage) {
+			rw_lock_s_unlock(hash_lock);
+		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
 	/* Do nothing */
 	return(0);
 
@@ -346,7 +405,7 @@ read_ahead:
 				&err, false,
 				IORequest::DO_NOT_WAKE,
 				ibuf_mode,
-				cur_page_id, page_size, false);
+				cur_page_id, page_size, false, trx);
 
 			if (err == DB_TABLESPACE_DELETED) {
 				ib::warn() << "Random readahead trying to"
@@ -390,7 +449,8 @@ released by the i/o-handler thread.
 ibool
 buf_read_page(
 	const page_id_t&	page_id,
-	const page_size_t&	page_size)
+	const page_size_t&	page_size,
+	trx_t*			trx)
 {
 	ulint		count;
 	dberr_t		err;
@@ -403,7 +463,7 @@ buf_read_page(
 
 	count = buf_read_page_low(
 		&err, true,
-		0, BUF_READ_ANY_PAGE, page_id, page_size, false);
+		0, BUF_READ_ANY_PAGE, page_id, page_size, false, trx);
 
 	srv_stats.buf_pool_reads.add(count);
 
@@ -439,7 +499,7 @@ buf_read_page_background(
 		&err, sync,
 		IORequest::DO_NOT_WAKE | IORequest::IGNORE_MISSING,
 		BUF_READ_ANY_PAGE,
-		page_id, page_size, false);
+		page_id, page_size, false, NULL);
 
 	srv_stats.buf_pool_reads.add(count);
 
@@ -483,12 +543,14 @@ ulint
 buf_read_ahead_linear(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	ibool			inside_ibuf)
+	ibool			inside_ibuf,
+	trx_t*			trx)
 {
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
+	unsigned	pred_bpage_is_accessed = 0;
 	ulint		pred_offset;
 	ulint		succ_offset;
 	int		asc_or_desc;
@@ -548,11 +610,10 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	buf_pool_mutex_enter(buf_pool);
+	os_rmb;
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -574,9 +635,13 @@ buf_read_ahead_linear(
 
 	fail_count = 0;
 
+	rw_lock_t*	hash_lock;
+
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(buf_pool,
-					  page_id_t(page_id.space(), i));
+
+		bpage = buf_page_hash_get_s_locked(buf_pool,
+						   page_id_t(page_id.space(),
+							     i), &hash_lock);
 
 		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
@@ -593,7 +658,7 @@ buf_read_ahead_linear(
 			a little against this. */
 			int res = ut_ulint_cmp(
 				buf_page_is_accessed(bpage),
-				buf_page_is_accessed(pred_bpage));
+				pred_bpage_is_accessed);
 			/* Accesses not in the right order */
 			if (res != 0 && res != asc_or_desc) {
 				fail_count++;
@@ -602,22 +667,29 @@ buf_read_ahead_linear(
 
 		if (fail_count > threshold) {
 			/* Too many failures: return */
-			buf_pool_mutex_exit(buf_pool);
+			if (bpage) {
+				rw_lock_s_unlock(hash_lock);
+			}
 			return(0);
 		}
 
-		if (bpage && buf_page_is_accessed(bpage)) {
-			pred_bpage = bpage;
+		if (bpage) {
+			if (buf_page_is_accessed(bpage)) {
+				pred_bpage = bpage;
+				pred_bpage_is_accessed
+					= buf_page_is_accessed(bpage);
+			}
+
+			rw_lock_s_unlock(hash_lock);
 		}
 	}
 
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	bpage = buf_page_hash_get(buf_pool, page_id);
+	bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
 
 	if (bpage == NULL) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -643,7 +715,7 @@ buf_read_ahead_linear(
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
-	buf_pool_mutex_exit(buf_pool);
+	rw_lock_s_unlock(hash_lock);
 
 	if ((page_id.page_no() == low)
 	    && (succ_offset == page_id.page_no() + 1)) {
@@ -704,7 +776,7 @@ buf_read_ahead_linear(
 			count += buf_read_page_low(
 				&err, false,
 				IORequest::DO_NOT_WAKE,
-				ibuf_mode, cur_page_id, page_size, false);
+				ibuf_mode, cur_page_id, page_size, false, trx);
 
 			if (err == DB_TABLESPACE_DELETED) {
 				ib::warn() << "linear readahead trying to"
@@ -779,6 +851,7 @@ buf_read_ibuf_merge_pages(
 			continue;
 		}
 
+		os_rmb;
 		while (buf_pool->n_pend_reads
 		       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 			os_thread_sleep(500000);
@@ -790,7 +863,7 @@ buf_read_ibuf_merge_pages(
 				  sync && (i + 1 == n_stored),
 				  0,
 				  BUF_READ_ANY_PAGE, page_id, page_size,
-				  true);
+				  true, NULL);
 
 		if (err == DB_TABLESPACE_DELETED) {
 			/* We have deleted or are deleting the single-table
@@ -829,7 +902,40 @@ buf_read_recv_pages(
 	fil_space_t*		space	= fil_space_get(space_id);
 
 	if (space == NULL) {
-		/* The tablespace is missing: do nothing */
+		/* the log records should be treated here same reason
+		for http://bugs.mysql.com/bug.php?id=43948 */
+
+		if (recv_recovery_is_on()) {
+			mutex_enter(&(recv_sys->mutex));
+
+			if (!recv_sys->apply_log_recs) {
+				mutex_exit(&(recv_sys->mutex));
+				goto not_to_recover;
+			}
+
+			for (i = 0; i < n_stored; i++) {
+
+				recv_addr_t* recv_addr
+					= recv_get_fil_addr_struct(space_id,
+								   page_nos[i]);
+
+				if ((recv_addr == NULL)
+				    || (recv_addr->state == RECV_BEING_PROCESSED)
+				    || (recv_addr->state == RECV_PROCESSED)) {
+					continue;
+				}
+
+				recv_addr->state = RECV_PROCESSED;
+
+				ut_a(recv_sys->n_addrs);
+				recv_sys->n_addrs--;
+			}
+
+			mutex_exit(&(recv_sys->mutex));
+
+			ib::info() << " (cannot find space: " << space << ")";
+		}
+not_to_recover:
 		return;
 	}
 
@@ -844,6 +950,7 @@ buf_read_recv_pages(
 		count = 0;
 
 		buf_pool = buf_pool_get(cur_page_id);
+		os_rmb;
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
@@ -866,13 +973,13 @@ buf_read_recv_pages(
 				&err, true,
 				0,
 				BUF_READ_ANY_PAGE,
-				cur_page_id, page_size, true);
+				cur_page_id, page_size, true, NULL);
 		} else {
 			buf_read_page_low(
 				&err, false,
 				IORequest::DO_NOT_WAKE,
 				BUF_READ_ANY_PAGE,
-				cur_page_id, page_size, true);
+				cur_page_id, page_size, true, NULL);
 		}
 	}
 

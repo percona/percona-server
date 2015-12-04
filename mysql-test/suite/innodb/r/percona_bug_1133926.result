@@ -1,0 +1,3 @@
+SET SESSION expand_fast_index_creation=ON;
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX z(a));
+ALTER TABLE t1 ADD INDEX y(b);

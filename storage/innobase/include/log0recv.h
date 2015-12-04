@@ -30,11 +30,31 @@ Created 9/20/1997 Heikki Tuuri
 #include "ut0byte.h"
 #include "buf0types.h"
 #include "hash0hash.h"
+#include "log0types.h"
 #include "log0log.h"
 #include "mtr0types.h"
 #include "ut0new.h"
 
 #include <list>
+
+/** Check the 4-byte checksum to the trailer checksum field of a log
+block.
+@param[in]	log block
+@return whether the checksum matches */
+bool
+log_block_checksum_is_ok(
+	const byte*	block)	/*!< in: pointer to a log block */
+	__attribute__((warn_unused_result));
+
+/*******************************************************//**
+Calculates the new value for lsn when more data is added to the log. */
+
+lsn_t
+recv_calc_lsn_on_data_add(
+/*======================*/
+	lsn_t		lsn,	/*!< in: old lsn */
+	ib_uint64_t	len);	/*!< in: this many bytes of data is
+				added, log block headers not included */
 
 #ifdef UNIV_HOTBACKUP
 extern bool	recv_replay_file_ops;
@@ -129,11 +149,34 @@ Initiates the rollback of active transactions. */
 void
 recv_recovery_rollback_active(void);
 /*===============================*/
+
+/** Tries to parse a single log record.
+@param[out]	type		log record type
+@param[in]	ptr		pointer to a buffer
+@param[in]	end_ptr		end of the buffer
+@param[out]	space_id	tablespace identifier
+@param[out]	page_no		page number
+@param[in]	apply		whether to apply MLOG_FILE_* records
+@param[out]	body		start of log record body
+@return length of the record, or 0 if the record was not complete */
+
+ulint
+recv_parse_log_rec(
+	mlog_id_t*	type,
+	byte*		ptr,
+	byte*		end_ptr,
+	ulint*		space,
+	ulint*		page_no,
+	bool		apply,
+	byte**		body);
+
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 void
 recv_reset_logs(
 /*============*/
+	lsn_t		arch_log_no,	/*!< in: next archived log file
+					number */
 	lsn_t		lsn);		/*!< in: reset to this lsn
 					rounded up to be divisible by
 					OS_FILE_LOG_BLOCK_SIZE, after
@@ -197,6 +240,18 @@ recv_apply_hashed_log_recs(
 				disk and invalidated in buffer pool: this
 				alternative means that no new log records
 				can be generated during the application */
+
+/*********************************************************************//**
+Gets the hashed file address struct for a page.
+@return file address struct, NULL if not found from the hash table */
+
+recv_addr_t*
+recv_get_fil_addr_struct(
+/*=====================*/
+	ulint	space,	/*!< in: space id */
+	ulint	page_no)/*!< in: page number */
+	__attribute__((warn_unused_result));
+
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**
 Applies log records in the hash table to a backup. */

@@ -1,0 +1,9 @@
+set global audit_log_flush= ON;
+select 1;
+1
+1
+select '1more';
+1more
+1more
+set global audit_log_flush= ON;
+1 connects, 1 disconnects

@@ -989,7 +989,8 @@ bool Srv_session::open()
       err_protocol_ctx.handler(err_protocol_ctx.handler_context,
                                ER_OUT_OF_RESOURCES,
                                ER_DEFAULT(ER_OUT_OF_RESOURCES));
-    Connection_handler_manager::dec_connection_count();
+    // TODO laurynas extra_port_connection
+    Connection_handler_manager::dec_connection_count(false);
     DBUG_RETURN(true);
   }
 
@@ -1021,7 +1022,8 @@ bool Srv_session::open()
   if (mysql_audit_notify(&thd,
                          AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE)))
   {
-    Connection_handler_manager::dec_connection_count();
+    // TODO laurynas extra_port_connection
+    Connection_handler_manager::dec_connection_count(false);
     DBUG_RETURN(true);
   }
 
@@ -1219,7 +1221,8 @@ bool Srv_session::close()
 
   Global_THD_manager::get_instance()->remove_thd(&thd);
 
-  Connection_handler_manager::dec_connection_count();
+  // TODO laurynas extra_port_connection
+  Connection_handler_manager::dec_connection_count(false);
 
   DBUG_RETURN(false);
 }

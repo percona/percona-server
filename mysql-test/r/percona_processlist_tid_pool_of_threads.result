@@ -1,0 +1,61 @@
+SELECT 'one';
+one
+one
+SELECT 'two';
+two
+two
+SELECT 'three';
+three
+three
+SELECT 'four';
+four
+four
+SELECT 'five';
+five
+five
+SET DEBUG_SYNC = 'before_execute_sql_command SIGNAL started1';
+SET DEBUG_SYNC = 'execute_command_after_close_tables WAIT_FOR finished1';
+SELECT SLEEP(1);
+SET DEBUG_SYNC = 'now WAIT_FOR started1';
+SET DEBUG_SYNC = 'before_execute_sql_command SIGNAL started2';
+SET DEBUG_SYNC = 'execute_command_after_close_tables WAIT_FOR finished2';
+SELECT 'long statement 2';
+SET DEBUG_SYNC = 'now WAIT_FOR started2';
+SET DEBUG_SYNC = 'before_execute_sql_command SIGNAL started3';
+SET DEBUG_SYNC = 'execute_command_after_close_tables WAIT_FOR finished3';
+SELECT SLEEP(1);
+SET DEBUG_SYNC = 'now WAIT_FOR started3';
+SET DEBUG_SYNC = 'before_execute_sql_command SIGNAL started4';
+SET DEBUG_SYNC = 'execute_command_after_close_tables WAIT_FOR finished4';
+SELECT 'long statement 4';
+SELECT 'long statement 5';
+first_id_not_null
+1
+second_id_not_null
+1
+third_id_not_null
+1
+forth_id_not_null
+1
+extra_id_not_null
+1
+all_tid_unique
+1
+default_id_null
+1
+fifth_id_null
+1
+zeroth_id_null
+1
+SLEEP(1)
+0
+long statement 2
+long statement 2
+SLEEP(1)
+0
+long statement 4
+long statement 4
+long statement 5
+long statement 5
+extra_id_still_not_null
+1

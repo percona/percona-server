@@ -369,7 +369,12 @@ btr_cur_update_alloc_zip_func(
 	bool		create,	/*!< in: true=delete-and-insert,
 				false=update-in-place */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+#ifdef UNIV_DEBUG
+	__attribute__((nonnull (1, 2, 3, 4, 7), warn_unused_result));
+#else
+	__attribute__((nonnull (1, 2, 3, 6), warn_unused_result));
+#endif
+
 #ifdef UNIV_DEBUG
 # define btr_cur_update_alloc_zip(page_zip,cursor,index,offsets,len,cr,mtr) \
 	btr_cur_update_alloc_zip_func(page_zip,cursor,index,offsets,len,cr,mtr)

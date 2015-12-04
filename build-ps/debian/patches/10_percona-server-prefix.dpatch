@@ -1,0 +1,53 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: Fixed prefix to /usr
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' Percona-Server~/cmake/install_layout.cmake Percona-Server/cmake/install_layout.cmake
+--- Percona-Server~/cmake/install_layout.cmake	2011-07-13 15:09:02.000000000 -0400
++++ Percona-Server/cmake/install_layout.cmake	2011-08-31 12:18:45.000000000 -0400
+@@ -74,7 +74,7 @@
+   IF(INSTALL_LAYOUT MATCHES "RPM")
+     SET(default_prefix "/usr")
+   ELSEIF(INSTALL_LAYOUT MATCHES "DEB")
+-    SET(default_prefix "/opt/mysql/server-${MYSQL_BASE_VERSION}")
++    SET(default_prefix "/usr")
+     # This is required to avoid "cpack -GDEB" default of prefix=/usr
+     SET(CPACK_SET_DESTDIR ON)
+   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
+@@ -166,8 +166,8 @@
+ # DEB layout
+ #
+ SET(INSTALL_BINDIR_DEB                  "bin")
+-SET(INSTALL_SBINDIR_DEB                 "bin")
+-SET(INSTALL_SCRIPTDIR_DEB               "scripts")
++SET(INSTALL_SBINDIR_DEB                 "sbin")
++SET(INSTALL_SCRIPTDIR_DEB               "bin")
+ #
+ SET(INSTALL_LIBDIR_DEB                  "lib")
+ SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
+@@ -176,16 +176,16 @@
+ #
+ SET(INSTALL_DOCDIR_DEB                  "docs")
+ SET(INSTALL_DOCREADMEDIR_DEB            ".")
+-SET(INSTALL_MANDIR_DEB                  "man")
+-SET(INSTALL_INFODIR_DEB                 "docs")
++SET(INSTALL_MANDIR_DEB                  "share/man")
++SET(INSTALL_INFODIR_DEB                 "share/info")
+ #
+ SET(INSTALL_SHAREDIR_DEB                "share")
+-SET(INSTALL_MYSQLSHAREDIR_DEB           "share")
+-SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
+-SET(INSTALL_SQLBENCHDIR_DEB             ".")
+-SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
++SET(INSTALL_MYSQLSHAREDIR_DEB           "share/mysql")
++SET(INSTALL_MYSQLTESTDIR_DEB            "share/mysql-test")
++SET(INSTALL_SQLBENCHDIR_DEB             "share/sql-bench")
++SET(INSTALL_SUPPORTFILESDIR_DEB         "share/mysql")
+ #
+-SET(INSTALL_MYSQLDATADIR_DEB            "data")
++SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
+ SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
+ 
+ #

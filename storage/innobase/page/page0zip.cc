@@ -1250,6 +1250,10 @@ page_zip_compress(
 	my_bool			cmp_per_index_enabled;
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
 
+	if (!page) {
+		return(FALSE);
+	}
+
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_index_page_check(page));
 	ut_ad(page_simple_validate_new((page_t*) page));

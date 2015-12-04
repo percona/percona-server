@@ -1,3 +1,4 @@
+set global log_error_verbosity= 1;
 drop table if exists t1,t2;
 show tables;
 Tables_in_mysql
@@ -344,3 +345,4 @@ DROP USER wl6587@localhost;
 # ------------------------------------------------------------------
 # -- End of 5.6 tests
 # ------------------------------------------------------------------
+set global log_error_verbosity= STARTVAL;

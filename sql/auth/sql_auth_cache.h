@@ -306,6 +306,7 @@ inline GRANT_COLUMN * column_hash_search(GRANT_TABLE *t, const char *cname,
                                         (uchar*) cname, length);
 }
 
+extern ACL_USER acl_utility_user;
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 

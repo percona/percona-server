@@ -98,7 +98,9 @@ extern "C" void handle_fatal_signal(int sig)
   my_safe_printf_stderr("%s",
     "Attempting to collect some information that could help diagnose the problem.\n"
     "As this is a crash and something is definitely wrong, the information\n"
-    "collection process might fail.\n\n");
+    "collection process might fail.\n"
+    "Please help us make Percona Server better by reporting any\n"
+    "bugs at http://bugs.percona.com/\n\n");
 
   my_safe_printf_stderr("key_buffer_size=%lu\n",
                         (ulong) dflt_key_cache->key_cache_mem_size);
@@ -113,7 +115,8 @@ extern "C" void handle_fatal_signal(int sig)
 #ifndef EMBEDDED_LIBRARY
   max_threads= Connection_handler_manager::max_threads;
 #endif
-  my_safe_printf_stderr("max_threads=%u\n", max_threads);
+  my_safe_printf_stderr("max_threads=%u\n", max_threads +
+                        (uint) extra_max_connections);
 
   my_safe_printf_stderr("thread_count=%u\n", Global_THD_manager::global_thd_count);
 
@@ -124,11 +127,11 @@ extern "C" void handle_fatal_signal(int sig)
                         "key_buffer_size + "
                         "(read_buffer_size + sort_buffer_size)*max_threads = "
                         "%lu K  bytes of memory\n",
-                        ((ulong) dflt_key_cache->key_cache_mem_size +
+                        (ulong)(dflt_key_cache->key_cache_mem_size +
                          (global_system_variables.read_buff_size +
                          global_system_variables.sortbuff_size) *
-                         max_threads +
-                         max_connections * sizeof(THD)) / 1024);
+                          max_threads +
+                         (max_connections + extra_max_connections) * sizeof(THD)) / 1024);
 
   my_safe_printf_stderr("%s",
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
@@ -181,9 +184,9 @@ extern "C" void handle_fatal_signal(int sig)
     my_safe_printf_stderr("Status: %s\n\n", kreason);
   }
   my_safe_printf_stderr("%s",
-    "The manual page at "
-    "http://dev.mysql.com/doc/mysql/en/crashing.html contains\n"
-    "information that should help you find out what is causing the crash.\n");
+    "You may download the Percona Server operations manual by visiting\n"
+    "http://www.percona.com/software/percona-server/. You may find information\n"
+    "in the manual which will help you identify the cause of the crash.\n");
 
 #endif /* HAVE_STACKTRACE */
 

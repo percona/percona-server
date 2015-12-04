@@ -49,6 +49,7 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "trx0undo.h"			/* TRX_UNDO_* */
 #include "fut0lst.h"			/* FLST_NODE_SIZE */
 #include "buf0checksum.h"		/* buf_calc_page_*() */
+#include "dict0mem.h"			/* DICT_TF_BITS et al */
 #include "fil0fil.h"			/* FIL_* */
 #include "os0file.h"
 #include "fsp0fsp.h"			/* fsp_flags_get_page_size() &
@@ -151,6 +152,8 @@ static TYPELIB innochecksum_algorithms_typelib = {
 	array_elements(innochecksum_algorithms)-1,"",
 	innochecksum_algorithms, NULL
 };
+
+static bool		display_format;
 
 /** Get the page size of the filespace from the filespace header.
 @param[in]	buf	buffer used to read the page.
@@ -920,6 +923,8 @@ static struct my_option innochecksum_options[] = {
 #endif /* !DBUG_OFF */
   {"count", 'c', "Print the count of pages in the file and exits.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"format_info", 'f', "Display information about the file format and exit",
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start_page", 's', "Start on this page number (0 based).",
     &start_page, &start_page, 0, GET_ULL, REQUIRED_ARG,
     0, 0, ULLONG_MAX, 0, 1, 0},
@@ -1049,6 +1054,9 @@ innochecksum_get_one_option(
 	case 'l':
 		is_log_enabled = true;
 		break;
+	case 'f':
+		display_format= 1;
+		break;
 	case 'I':
 	case '?':
 		usage();
@@ -1076,6 +1084,73 @@ get_options(
 	}
 
 	return (false);
+}
+
+/********************************************************************//**
+Extract the zip size from tablespace flags.
+@return	compressed page size of the file-per-table tablespace in bytes,
+or zero if the table is not compressed. */
+static
+ulint
+fsp_flags_get_zip_size(
+/*===================*/
+	ulint	flags)	/*!< in: tablespace flags */
+{
+	ulint	zip_size = 0;
+	ulint	ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+
+	/* Convert from a 'log2 minus 9' to a page size in bytes. */
+	if (ssize) {
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+
+		ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+	}
+
+	return(zip_size);
+}
+
+static
+void
+display_format_info(
+	uchar	*page)
+{
+	ulint	page_type;
+	ulint	flags;
+
+	/* Read page type. Pre-5.1.7 InnoDB always have zero in FIL_PAGE_TYPE
+	for the first page, later versions initialize it to
+	FIL_PAGE_TYPE_FSP_HDR. */
+	page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
+
+	/* Read FSP flags from the page header. */
+	flags = mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS);
+
+	if (!page_type) {
+		printf("Detected file format: Antelope (pre-5.1.7).\n");
+		if (flags != 0) {
+			printf("But FSP_SPACE_FLAGS is non-zero: %lu. "
+			       "Corrupted tablespace?\n",
+			       flags);
+		}
+	} else if (page_type == FIL_PAGE_TYPE_FSP_HDR) {
+		ulint zip_size = fsp_flags_get_zip_size(flags);
+
+		if (!flags) {
+			printf("Detected file format: "
+			       "Antelope (5.1.7 or newer).\n");
+		} else if (DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
+			printf("Detected file format: Barracuda ");
+			if (!zip_size)
+				printf("(not compressed).\n");
+			else
+				printf("(compressed with KEY_BLOCK_SIZE=%lu).\n",
+				       zip_size);
+		} else
+			printf("Unknown file format flags: %lu\n", flags);
+	} else {
+		printf("Bogus FIL_PAGE_TYPE value: %lu. Cannot detect the "
+		       "file format.\n", page_type);
+	}
 }
 
 int main(
@@ -1288,8 +1363,9 @@ int main(
 			}
 		}
 
-		/* seek to the necessary position */
-		if (start_page) {
+		/* seek to the necessary position, ignore with -f as we only
+		need to read the first page */
+		if (start_page && !display_format) {
 			if (!read_from_stdin) {
 				/* If read is not from stdin, we can use
 				fseeko() to position the file pointer to
@@ -1396,6 +1472,12 @@ int main(
 					bytes, page_size.physical());
 				free(buf);
 				DBUG_RETURN(1);
+			}
+
+			if (display_format) {
+				/* for -f, analyze only the first page and exit */
+				display_format_info(buf);
+				break;
 			}
 
 			if (is_system_tablespace) {

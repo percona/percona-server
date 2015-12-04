@@ -1,4 +1,6 @@
 /* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2013, Monty Program Ab
+   Copyright (C) 2012 Percona Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,7 +298,15 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
     if (!(cookie= log_xid(xid)))
       DBUG_RETURN(RESULT_ABORTED);    // Failed to log the transaction
 
-  if (ha_commit_low(thd, all))
+  /*
+    Acquire a shared lock to block commits until START TRANSACTION WITH
+    CONSISTENT SNAPSHOT completes snapshot creation for all storage engines.
+  */
+  slock();
+  int rc= ha_commit_low(thd, all);
+  sunlock();
+
+  if (rc)
     DBUG_RETURN(RESULT_INCONSISTENT); // Transaction logged, but not committed
 
   /* If cookie is non-zero, something was logged */

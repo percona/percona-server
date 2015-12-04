@@ -65,14 +65,17 @@ table_name not like 'ndb_%' AND table_name not like 'innodb_%';
 select * from v1;
 c
 CHARACTER_SETS
+CLIENT_STATISTICS
 COLLATIONS
 COLLATION_CHARACTER_SET_APPLICABILITY
 COLUMNS
 COLUMN_PRIVILEGES
+INDEX_STATISTICS
 ENGINES
 EVENTS
 FILES
 GLOBAL_STATUS
+GLOBAL_TEMPORARY_TABLES
 GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
 OPTIMIZER_TRACE
@@ -92,9 +95,16 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
+TEMPORARY_TABLES
+THREAD_STATISTICS
 TRIGGERS
 USER_PRIVILEGES
+USER_STATISTICS
 VIEWS
+XTRADB_INTERNAL_HASH_TABLES
+XTRADB_RSEG
+XTRADB_READ_VIEW
 columns_priv
 db
 engine_cost
@@ -137,6 +147,9 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
+TEMPORARY_TABLES	TEMPORARY_TABLES
+THREAD_STATISTICS	THREAD_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -157,6 +170,9 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
+TEMPORARY_TABLES	TEMPORARY_TABLES
+THREAD_STATISTICS	THREAD_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -177,6 +193,9 @@ TABLES	TABLES
 TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
+TABLE_STATISTICS	TABLE_STATISTICS
+TEMPORARY_TABLES	TEMPORARY_TABLES
+THREAD_STATISTICS	THREAD_STATISTICS
 TRIGGERS	TRIGGERS
 tables_priv	tables_priv
 time_zone	time_zone
@@ -671,13 +690,16 @@ from information_schema.tables
 where table_schema='information_schema' limit 2;
 TABLE_NAME	TABLE_TYPE	ENGINE
 CHARACTER_SETS	SYSTEM VIEW	MEMORY
-COLLATIONS	SYSTEM VIEW	MEMORY
+CLIENT_STATISTICS	SYSTEM VIEW	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
+TEMPORARY_TABLES
+THREAD_STATISTICS
 TRIGGERS
 create database information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -688,6 +710,9 @@ TABLES	SYSTEM VIEW
 TABLESPACES	SYSTEM VIEW
 TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
+TABLE_STATISTICS	SYSTEM VIEW
+TEMPORARY_TABLES	SYSTEM VIEW
+THREAD_STATISTICS	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
 create table t1(a int);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
@@ -701,6 +726,9 @@ TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
+TABLE_STATISTICS
+TEMPORARY_TABLES
+THREAD_STATISTICS
 TRIGGERS
 select table_name from tables where table_name='user';
 table_name
@@ -851,6 +879,8 @@ FILES	LAST_ACCESS_TIME	datetime
 FILES	CREATE_TIME	datetime
 FILES	UPDATE_TIME	datetime
 FILES	CHECK_TIME	datetime
+GLOBAL_TEMPORARY_TABLES	CREATE_TIME	datetime
+GLOBAL_TEMPORARY_TABLES	UPDATE_TIME	datetime
 PARTITIONS	CREATE_TIME	datetime
 PARTITIONS	UPDATE_TIME	datetime
 PARTITIONS	CHECK_TIME	datetime
@@ -859,6 +889,8 @@ ROUTINES	LAST_ALTERED	datetime
 TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
+TEMPORARY_TABLES	CREATE_TIME	datetime
+TEMPORARY_TABLES	UPDATE_TIME	datetime
 TRIGGERS	CREATED	datetime
 event	execute_at	datetime
 event	last_executed	datetime
@@ -902,6 +934,8 @@ TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
+GLOBAL_TEMPORARY_TABLES	TABLE_NAME	select
+INDEX_STATISTICS	TABLE_NAME	select
 INNODB_BUFFER_PAGE	TABLE_NAME	select
 INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
 INNODB_CMP_PER_INDEX	table_name	select
@@ -913,6 +947,8 @@ STATISTICS	TABLE_NAME	select
 TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
+TABLE_STATISTICS	TABLE_NAME	select
+TEMPORARY_TABLES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
@@ -922,7 +958,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	31
+information_schema	41
 mysql	28
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1226,7 +1262,7 @@ GROUP BY column_type ORDER BY num;
 column_type	GROUP_CONCAT(table_schema, '.', table_name)	num
 varchar(7)	information_schema.ROUTINES,information_schema.VIEWS	2
 varchar(30)	information_schema.COLUMNS,information_schema.PROFILING,information_schema.PROFILING	3
-varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	6
+varchar(20)	information_schema.FILES,information_schema.FILES,information_schema.FILES,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING,information_schema.TABLES	8
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
@@ -1306,12 +1342,12 @@ DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 MAX(table_name)
-VIEWS
+XTRADB_RSEG
 SELECT table_name from information_schema.tables
 WHERE table_name=(SELECT MAX(table_name)
 FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 table_name
-VIEWS
+XTRADB_RSEG
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
@@ -1377,6 +1413,7 @@ and t.table_name not like 'innodb_%'
 group by t.table_name order by num1, t.table_name;
 table_name	group_concat(t.table_schema, '.', t.table_name)	num1
 CHARACTER_SETS	information_schema.CHARACTER_SETS	1
+CLIENT_STATISTICS	information_schema.CLIENT_STATISTICS	1
 COLLATIONS	information_schema.COLLATIONS	1
 COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
 COLUMNS	information_schema.COLUMNS	1
@@ -1385,7 +1422,9 @@ ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+GLOBAL_TEMPORARY_TABLES	information_schema.GLOBAL_TEMPORARY_TABLES	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
+INDEX_STATISTICS	information_schema.INDEX_STATISTICS	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
@@ -1404,9 +1443,16 @@ TABLES	information_schema.TABLES	1
 TABLESPACES	information_schema.TABLESPACES	1
 TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
+TABLE_STATISTICS	information_schema.TABLE_STATISTICS	1
+TEMPORARY_TABLES	information_schema.TEMPORARY_TABLES	1
+THREAD_STATISTICS	information_schema.THREAD_STATISTICS	1
 TRIGGERS	information_schema.TRIGGERS	1
 USER_PRIVILEGES	information_schema.USER_PRIVILEGES	1
+USER_STATISTICS	information_schema.USER_STATISTICS	1
 VIEWS	information_schema.VIEWS	1
+XTRADB_INTERNAL_HASH_TABLES	information_schema.XTRADB_INTERNAL_HASH_TABLES	1
+XTRADB_READ_VIEW	information_schema.XTRADB_READ_VIEW	1
+XTRADB_RSEG	information_schema.XTRADB_RSEG	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);
@@ -1801,6 +1847,12 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 length(CAST(b AS CHAR))
 20
 DROP TABLE ubig;
+grant usage on *.* to mysqltest_1@localhost;
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+1
+drop user mysqltest_1@localhost;
 End of 5.1 tests.
 create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;

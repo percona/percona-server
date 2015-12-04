@@ -1033,6 +1033,8 @@ void my_net_set_read_timeout(NET *net, uint timeout)
 {
   DBUG_ENTER("my_net_set_read_timeout");
   DBUG_PRINT("enter", ("timeout: %d", timeout));
+  if (net->read_timeout == timeout)
+    DBUG_VOID_RETURN;
   net->read_timeout= timeout;
   if (net->vio)
     vio_timeout(net->vio, 0, timeout);
@@ -1044,6 +1046,8 @@ void my_net_set_write_timeout(NET *net, uint timeout)
 {
   DBUG_ENTER("my_net_set_write_timeout");
   DBUG_PRINT("enter", ("timeout: %d", timeout));
+  if (net->write_timeout == timeout)
+    DBUG_VOID_RETURN;
   net->write_timeout= timeout;
   if (net->vio)
     vio_timeout(net->vio, 1, timeout);

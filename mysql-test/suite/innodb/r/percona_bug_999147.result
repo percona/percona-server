@@ -1,0 +1,34 @@
+DROP TABLE IF EXISTS t1;
+SET SESSION expand_fast_index_creation=ON;
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX(a));
+call mtr.add_suppression("does not exist in the InnoDB internal");
+SET debug="+d,crash_innodb_add_index_after";
+ALTER TABLE t1 ADD INDEX (b);
+ERROR HY000: Lost connection to MySQL server during query
+SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+NAME	FLAG
+SYS_DATAFILES	0
+SYS_FOREIGN	0
+SYS_FOREIGN_COLS	0
+SYS_TABLESPACES	0
+SYS_VIRTUAL	0
+mysql/engine_cost	33
+mysql/gtid_executed	33
+mysql/help_category	33
+mysql/help_keyword	33
+mysql/help_relation	33
+mysql/help_topic	33
+mysql/innodb_index_stats	33
+mysql/innodb_table_stats	33
+mysql/plugin	33
+mysql/server_cost	33
+mysql/servers	33
+mysql/slave_master_info	33
+mysql/slave_relay_log_info	33
+mysql/slave_worker_info	33
+mysql/time_zone	33
+mysql/time_zone_leap_second	33
+mysql/time_zone_name	33
+mysql/time_zone_transition	33
+mysql/time_zone_transition_type	33
+sys/sys_config	33

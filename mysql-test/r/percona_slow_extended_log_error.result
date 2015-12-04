@@ -1,0 +1,17 @@
+DROP TABLE IF EXISTS t1;
+SET SESSION min_examined_row_limit=0;
+SET long_query_time=0;
+[log_start.inc] percona.slow_extended.log_error_1
+CREATE TABLE t1(a INT);
+[log_stop.inc] percona.slow_extended.log_error_1
+[log_grep.inc] file: percona.slow_extended.log_error_1 pattern: ^.*Last_errno: 0 .*$
+[log_grep.inc] lines:   2
+[log_start.inc] percona.slow_extended.log_error_2
+CREATE TABLE t1(a INT);
+ERROR 42S01: Table 't1' already exists
+[log_stop.inc] percona.slow_extended.log_error_2
+[log_grep.inc] file: percona.slow_extended.log_error_2 pattern: ^.*Last_errno: 1050 .*$
+[log_grep.inc] lines:   1
+DROP TABLE t1;
+SET long_query_time=default;
+SET SESSION min_examined_row_limit=default;

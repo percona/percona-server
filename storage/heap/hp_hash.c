@@ -334,16 +334,26 @@ ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec)
     {
       const CHARSET_INFO *cs= seg->charset;
       uint pack_length= seg->bit_start;
-      size_t length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
+      size_t length= hp_calc_blob_length(pack_length, pos);
+
+      if (seg->flag & HA_BLOB_PART)
+      {
+        memcpy(&pos, pos + pack_length, sizeof(char *));
+      }
+      else
+      {
+        pos+= pack_length;
+      }
+
       if (cs->mbmaxlen > 1)
       {
         size_t char_length;
-        char_length= my_charpos(cs, pos + pack_length,
-                                pos + pack_length + length,
+        char_length= my_charpos(cs, pos,
+                                pos + length,
                                 seg->length/cs->mbmaxlen);
         set_if_smaller(length, char_length);
       }
-      cs->coll->hash_sort(cs, pos+pack_length, length, &nr, &nr2);
+      cs->coll->hash_sort(cs, pos, length, &nr, &nr2);
     }
     else
     {
@@ -425,18 +435,17 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
       uint char_length1, char_length2;
       uint pack_length= seg->bit_start;
       const CHARSET_INFO *cs= seg->charset;
-      if (pack_length == 1)
+      char_length1= hp_calc_blob_length(pack_length, pos1);
+      char_length2= hp_calc_blob_length(pack_length, pos2);
+      pos1+= pack_length;
+      pos2+= pack_length;
+
+      if (seg->flag & HA_BLOB_PART)
       {
-        char_length1= (uint) *(uchar*) pos1++;
-        char_length2= (uint) *(uchar*) pos2++;
+        memcpy(&pos1, pos1, sizeof(char *));
+        memcpy(&pos2, pos2, sizeof(char *));
       }
-      else
-      {
-        char_length1= uint2korr(pos1);
-        char_length2= uint2korr(pos2);
-        pos1+= 2;
-        pos2+= 2;
-      }
+
       if (cs->mbmaxlen > 1)
       {
         uint safe_length1= char_length1;
@@ -552,6 +561,34 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
 }
 
 
+/**
+   Returns a BLOB length stored in the specified number of bytes at the
+   specified location.
+
+   @param length       the number of bytes used to store length
+   @param pos          pointer to length bytes
+
+   @return  Length of BLOB data.
+*/
+
+uint hp_calc_blob_length(uint bytes, const uchar *pos)
+{
+  switch (bytes) {
+  case 1:
+    return (uint) *pos;
+  case 2:
+    return uint2korr(pos);
+  case 3:
+    return uint3korr(pos);
+  case 4:
+    return uint4korr(pos);
+  default:
+    break;
+  }
+
+  return 0; /* Impossible */
+}
+
 	/* Copy a key from a record to a keybuffer */
 
 void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
@@ -562,18 +599,37 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
   {
     const CHARSET_INFO *cs= seg->charset;
     uint char_length= seg->length;
-    uchar *pos= (uchar*) rec + seg->start;
+    const uchar *pos= rec + seg->start;
     if (seg->null_bit)
       *key++= MY_TEST(rec[seg->null_pos] & seg->null_bit);
-    if (cs->mbmaxlen > 1)
+
+    if (seg->flag & HA_BLOB_PART)
     {
-      char_length= my_charpos(cs, pos, pos + seg->length,
-                              char_length / cs->mbmaxlen);
-      set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
+      uint tmp_length= hp_calc_blob_length(seg->bit_start, pos);
+      uint length= MY_MIN(seg->length, tmp_length);
+
+      memcpy(&pos, rec + seg->bit_start, sizeof(char *));
+      if (cs->mbmaxlen > 1)
+      {
+        char_length= my_charpos(cs, pos, pos + seg->length,
+                                char_length / cs->mbmaxlen);
+        set_if_smaller(char_length, length); /* QQ: ok to remove? */
+      }
+      store_key_length_inc(key, char_length);
     }
-    if (seg->type == HA_KEYTYPE_VARTEXT1)
-      char_length+= seg->bit_start;             /* Copy also length */
-    memcpy(key,rec+seg->start,(size_t) char_length);
+    else
+    {
+      if (cs->mbmaxlen > 1)
+      {
+        char_length= my_charpos(cs, pos, pos + seg->length,
+                                char_length / cs->mbmaxlen);
+        set_if_smaller(char_length, seg->length); /* QQ: ok to remove? */
+      }
+      if (seg->type == HA_KEYTYPE_VARTEXT1)
+        char_length+= seg->bit_start;             /* Copy also length */
+    }
+
+    memcpy(key, pos, (size_t) char_length);
     key+= char_length;
   }
 }
@@ -586,8 +642,8 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
   } while(0)
 
 
-uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key, 
-		    const uchar *rec, uchar *recpos)
+uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
+                    const uchar *rec, uchar *recpos, my_bool packed)
 {
   uchar *start_key= key;
   HA_KEYSEG *seg, *endseg;
@@ -650,6 +706,29 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
       memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
+      key+= char_length;
+      continue;
+    }
+    else if (seg->flag & HA_BLOB_PART)
+    {
+      uchar *pos=      (uchar*) rec + seg->start;
+      uint tmp_length= hp_calc_blob_length(seg->bit_start, pos);
+      uint length= MY_MIN(seg->length, tmp_length);
+      const CHARSET_INFO *cs= seg->charset;
+      char_length= seg->length / cs->mbmaxlen;
+
+      /* check_one_rb_key() calls hp_rb_make_key() for already packed records */
+      if (!packed)
+      {
+        memcpy(&pos, pos + seg->bit_start, sizeof(char *));
+      }
+      else
+      {
+        pos+= seg->bit_start;
+      }
+      FIX_LENGTH(cs, pos, length, char_length);
+      store_key_length_inc(key, char_length);
+      memcpy(key, pos, (size_t) char_length);
       key+= char_length;
       continue;
     }

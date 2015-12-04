@@ -1,0 +1,39 @@
+# This adds few more rules in addition to mysql.pp in selinux-policy-targeted
+module percona-server 1.0;
+
+require {
+        type user_tmp_t;
+        type mysqld_safe_t;
+        type tmp_t;
+        type fixed_disk_device_t;
+        type mysqld_t;
+        type tmpfs_t;
+        class sock_file { getattr unlink create };
+        class capability { sys_nice sys_resource };
+        class blk_file { read write open };
+        class file { append write getattr read create unlink open setattr };
+        class dir { search read write remove_name open add_name };
+        class process { siginh noatsecure rlimitinh };
+}
+
+#============= mysqld_safe_t ==============
+allow mysqld_safe_t self:capability { sys_nice sys_resource };
+
+allow mysqld_safe_t tmp_t:dir { write remove_name };
+allow mysqld_safe_t tmp_t:sock_file { getattr unlink };
+allow mysqld_safe_t user_tmp_t:sock_file { getattr unlink };
+
+#!!!! This avc has a dontaudit rule in the current policy
+allow mysqld_safe_t mysqld_t:process { siginh rlimitinh noatsecure };
+
+#============= mysqld_t ==============
+allow mysqld_t fixed_disk_device_t:blk_file { read write open };
+allow mysqld_t tmp_t:sock_file { create unlink };
+
+allow mysqld_t tmpfs_t:dir { write search read remove_name open add_name };
+allow mysqld_t tmpfs_t:file { write getattr read create unlink open };
+
+allow mysqld_t user_tmp_t:dir { write add_name };
+allow mysqld_t user_tmp_t:file create;
+
+allow mysqld_t tmp_t:file { append create read write open getattr unlink setattr };

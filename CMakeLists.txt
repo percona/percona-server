@@ -85,6 +85,9 @@ IF (${MAX_INDEXES} GREATER 255)
 ENDIF()
 MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
+# PAM build Handling
+OPTION(WITH_PAM "Build with Percona PAM plugin" OFF)
+
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
 # between CMAKE_BUILD_TYPE and WITH_DEBUG. Besides, we have to deal with cases
@@ -212,6 +215,7 @@ IF(DISABLE_SHARED)
   SET(WITHOUT_DYNAMIC_PLUGINS 1)
 ENDIF()
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
+OPTION(ENABLE_DTRACE "Include support for DTrace probes" OFF)
 OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -653,7 +657,7 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
   COMPONENT Readme
   OPTIONAL
   )
-  INSTALL(FILES README DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
+  INSTALL(FILES README.MySQL DESTINATION ${INSTALL_DOCREADMEDIR} COMPONENT Readme)
   INSTALL(FILES ${CMAKE_BINARY_DIR}/Docs/INFO_SRC ${CMAKE_BINARY_DIR}/Docs/INFO_BIN DESTINATION ${INSTALL_DOCDIR})
 
   IF(UNIX)

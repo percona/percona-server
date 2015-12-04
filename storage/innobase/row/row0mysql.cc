@@ -41,6 +41,8 @@ Created 9/17/2000 Heikki Tuuri
 #include <sql_const.h>
 #include "dict0dict.h"
 #include "dict0load.h"
+#include "dict0priv.h"
+#include "dict0boot.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "fil0fil.h"
@@ -4817,8 +4819,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, true,
-					DICT_ERR_IGNORE_NONE);
+		table = dict_table_get_low(table_name);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);

@@ -778,4 +778,9 @@ typedef mode_t MY_MODE;
 #if defined(_WIN32) || defined(_WIN64)
   #define strcasecmp _stricmp
 #endif
+
+#if defined(HAVE_IPV6) && defined(__APPLE__)
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
+
 #endif  // MY_GLOBAL_INCLUDED

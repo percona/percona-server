@@ -21,7 +21,7 @@ if ($dir_bin =~ m|/usr/|) {
     $dir_docs = glob "$dir_docs/packages/mysql-*-server*";
   } else {
     # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    $dir_docs = glob "$dir_docs/Percona-Server-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
       $dir_docs = glob "$dir_bin/share/doc/mysql-*-server*";
@@ -37,9 +37,12 @@ if ($dir_bin =~ m|/usr/|) {
   if(-d "$dir_docs/packages") {
     # SuSE: "packages/" in the documentation path
     $dir_docs = glob "$dir_docs/packages/mysql-*-server*";
+  } elsif (glob "$dir_docs/percona-server-server*") {
+    # Debian
+    $dir_docs = glob "$dir_docs/percona-server-server*";
   } else {
     # RedHat: version number in directory name
-    $dir_docs = glob "$dir_docs/MySQL-server*";
+    $dir_docs = glob "$dir_docs/Percona-Server-server*";
     if (! -d "$dir_docs") {
       # If not it might be ULN so try that
       $dir_docs = glob "$dir_bin/share/doc/mysql-*-server*";

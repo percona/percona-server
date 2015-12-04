@@ -22,7 +22,9 @@ int hp_rectest(HP_INFO *info, const uchar *old)
 {
   DBUG_ENTER("hp_rectest");
 
-  if (memcmp(info->current_ptr,old,(size_t) info->s->reclength))
+  if (hp_process_record_data_to_chunkset(info->s, old,
+                                         info->current_ptr,
+                                         1))
   {
     set_my_errno(HA_ERR_RECORD_CHANGED);
     DBUG_RETURN(HA_ERR_RECORD_CHANGED); /* Record have changed */

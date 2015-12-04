@@ -71,12 +71,15 @@ SET(INNOBASE_SOURCES
 	handler/ha_innopart.cc
 	handler/handler0alter.cc
 	handler/i_s.cc
+	handler/xtradb_i_s.cc
 	ibuf/ibuf0ibuf.cc
 	lock/lock0iter.cc
 	lock/lock0prdt.cc
 	lock/lock0lock.cc
 	lock/lock0wait.cc
+	log/log0archive.cc
 	log/log0log.cc
+	log/log0online.cc
 	log/log0recv.cc
 	mach/mach0data.cc
 	mem/mem0mem.cc

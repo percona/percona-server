@@ -336,6 +336,8 @@ public:
                             COMMIT,
                             USER_LEVEL_LOCK,
                             LOCKING_SERVICE,
+                            BACKUP,
+                            BINLOG,
                             /* This should be the last ! */
                             NAMESPACE_END };
 

@@ -51,6 +51,8 @@
 #include <memory>
 #include "mysql/thread_type.h"
 
+#include "query_strip_comments.h"
+
 class Reprepare_observer;
 class sp_cache;
 class Rows_log_event;
@@ -89,6 +91,35 @@ enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
                           RBR_EXEC_MODE_IDEMPOTENT,
                           RBR_EXEC_MODE_LAST_BIT };
+enum enum_slow_query_log_use_global_control {
+  SLOG_UG_LOG_SLOW_FILTER, SLOG_UG_LOG_SLOW_RATE_LIMIT
+  , SLOG_UG_LOG_SLOW_VERBOSITY, SLOG_UG_LONG_QUERY_TIME
+  , SLOG_UG_MIN_EXAMINED_ROW_LIMIT, SLOG_UG_ALL
+};
+enum enum_log_slow_verbosity { 
+  SLOG_V_MICROTIME, SLOG_V_QUERY_PLAN, SLOG_V_INNODB, 
+  SLOG_V_PROFILING, SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_MINIMAL, SLOG_V_STANDARD, SLOG_V_FULL
+};
+enum enum_slow_query_log_rate_type {
+  SLOG_RT_SESSION, SLOG_RT_QUERY
+};
+#define QPLAN_NONE            0
+#define QPLAN_QC_NO           (1 << 0)
+#define QPLAN_FULL_SCAN       (1 << 1)
+#define QPLAN_FULL_JOIN       (1 << 2)
+#define QPLAN_TMP_TABLE       (1 << 3)
+#define QPLAN_TMP_DISK        (1 << 4)
+#define QPLAN_FILESORT        (1 << 5)
+#define QPLAN_FILESORT_DISK   (1 << 6)
+#define QPLAN_QC              (1 << 7)
+enum enum_log_slow_filter {
+  SLOG_F_QC_NO, SLOG_F_FULL_SCAN, SLOG_F_FULL_JOIN,
+  SLOG_F_TMP_TABLE, SLOG_F_TMP_DISK, SLOG_F_FILESORT,
+  SLOG_F_FILESORT_DISK
+};
+#define SLOG_SLOW_RATE_LIMIT_MAX	1000
+enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
                                                     HASH_ALGORITHM_MURMUR32= 1 };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
@@ -501,6 +532,8 @@ typedef struct system_variables
     thread the query is being run to replicate temp tables properly
   */
   my_thread_id pseudo_thread_id;
+
+  ulong pseudo_server_id;
   /**
     Default transaction access mode. READ ONLY (true) or READ WRITE (false).
   */
@@ -509,6 +542,8 @@ typedef struct system_variables
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
   my_bool keep_files_on_create;
+
+  my_bool online_alter_index;
 
   my_bool old_alter_table;
   uint old_passwords;
@@ -545,6 +580,22 @@ typedef struct system_variables
   my_bool sysdate_is_now;
   my_bool binlog_rows_query_log_events;
 
+#ifndef DBUG_OFF
+  ulonglong query_exec_time;
+  double    query_exec_time_double;
+  ulong     query_exec_id;
+#endif
+  ulong log_slow_rate_limit;
+  ulonglong log_slow_filter;
+  ulonglong log_slow_verbosity;
+
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
   double long_query_time_double;
 
   my_bool pseudo_slave_mode;
@@ -558,6 +609,10 @@ typedef struct system_variables
   char *track_sysvars_ptr;
   my_bool session_track_schema;
   my_bool session_track_state_change;
+  my_bool expand_fast_index_creation;
+
+  uint  threadpool_high_prio_tickets;
+  ulong threadpool_high_prio_mode;
   ulong   session_track_transaction_info;
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
@@ -778,7 +833,6 @@ class Prepared_statement;
 
 /**
   Container for all prepared statements created/used in a connection.
-
   Prepared statements in Prepared_statement_map have unique id
   (guaranteed by id assignment in Prepared_statement::Prepared_statement).
 
@@ -940,6 +994,11 @@ public:
     XXX Why are internal temporary tables added to this list?
   */
   TABLE *temporary_tables;
+  /**
+     Protects temporary_tables.
+  */
+  mysql_mutex_t LOCK_temporary_tables;
+
   TABLE *derived_tables;
   /*
     During a MySQL session, one can lock tables in two modes: automatic
@@ -1062,6 +1121,24 @@ public:
   uint in_sub_stmt;
   bool enable_slow_log;
   bool last_insert_id_used;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+
+  bool       innodb_was_used;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  ulong      query_plan_flags;
+  ulong      query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields count_cuted_fields;
 };
@@ -1385,6 +1462,54 @@ private:
   MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
+/**
+  An instance of a global backup lock in a connection.
+*/
+
+class Global_backup_lock
+{
+public:
+  Global_backup_lock(MDL_key::enum_mdl_namespace mdl_namespace)
+    : m_namespace(mdl_namespace), m_lock(NULL), m_prot_lock(NULL)
+  {}
+
+  bool acquire(THD *thd);
+  void release(THD *thd);
+
+  void set_explicit_locks_duration(THD *thd);
+
+  bool acquire_protection(THD *thd, enum_mdl_duration duration,
+                          ulong lock_wait_timeout);
+  void init_protection_request(MDL_request *mdl_request,
+                               enum_mdl_duration duration) const;
+  void release_protection(THD *thd);
+
+  /**
+    Throw the ER_CANT_EXECUTE_WITH_BACKUP_LOCK error and return 'true', if the
+    current connection has already acquired the lock. Otherwise return
+    'false'.
+  */
+  bool abort_if_acquired() const
+  {
+    if (is_acquired())
+    {
+      my_error(ER_CANT_EXECUTE_WITH_BACKUP_LOCK, MYF(0));
+      return true;
+    }
+
+    return false;
+  }
+
+  bool is_acquired() const { return m_lock != NULL; }
+
+  bool is_protection_acquired() const { return m_prot_lock != NULL; }
+
+private:
+  MDL_key::enum_mdl_namespace m_namespace;
+  MDL_ticket *m_lock;
+  MDL_ticket *m_prot_lock;
+};
+
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 
@@ -1401,6 +1526,12 @@ my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)
 }
 
 class Modification_plan;
+
+typedef struct
+{
+  struct timeval start_time;
+  ulonglong start_utime;
+} QUERY_START_TIME_INFO;
 
 /**
   @class THD
@@ -1543,6 +1674,8 @@ public:
   Query_cache_tls query_cache_tls;
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
+  /** Thread scheduler callbacks for this connection */
+  THD_event_functions *scheduler;
   /**
     Hash for user variables.
     User variables are per session,
@@ -1553,6 +1686,7 @@ public:
   HASH    user_vars;			// hash for user variables
   String  convert_buffer;               // buffer for charset conversions
   struct  rand_struct rand;		// used for authentication
+  struct  rand_struct slog_rand;	// used for random slow log filtering
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
@@ -1870,7 +2004,7 @@ public:
   struct timeval user_time;
   // track down slow my_thread_create
   ulonglong  thr_create_utime;
-  ulonglong  start_utime, utime_after_lock;
+  ulonglong  start_utime, utime_after_lock, utime_after_query;
 
   /**
     Type of lock to be used for all DML statements, except INSERT, in cases
@@ -1886,8 +2020,66 @@ public:
   */
   thr_lock_type insert_lock_default;
 
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong  bytes_sent_old;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong      tmp_tables_used;
+  ulong      tmp_tables_disk_used;
+  ulonglong  tmp_tables_size;
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool       innodb_was_used;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==TRUE)
+  */
+  ulonglong  innodb_trx_id;
+  ulong      innodb_io_reads;
+  ulonglong  innodb_io_read;
+  ulong      innodb_io_reads_wait_timer;
+  ulong      innodb_lock_que_wait_timer;
+  ulong      innodb_innodb_que_wait_timer;
+  ulong      innodb_page_access;
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong      query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong      query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint       last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended();
+private:
+  void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
+  void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
+  /*** The methods above used in slow_extended.patch ***/
+public:
+
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
+  /* Do not set socket timeouts for wait_timeout (used with threadpool) */
+  bool skip_wait_timeout;
 
   /** 
     Used by fill_status() to avoid acquiring LOCK_status mutex twice
@@ -1902,6 +2094,8 @@ public:
 
   /* container for handler's private per-connection data */
   Ha_data ha_data[MAX_HA];
+
+  bool order_deterministic;
 
   /*
     Position of first event in Binlog
@@ -2137,6 +2331,11 @@ public:
   void set_transaction(Transaction_ctx *transaction_ctx);
 
   Global_read_lock global_read_lock;
+
+  Global_backup_lock backup_tables_lock;
+
+  Global_backup_lock backup_binlog_lock;
+
   Field      *dup_field;
 
   Vio* active_vio;
@@ -2509,6 +2708,8 @@ public:
   query_id_t query_id;
   ulong      col_access;
 
+  QueryStripComments query_strip_comments; // see sql_cache.cc
+
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong      statement_id_counter;
   ulong	     rand_saved_seed1, rand_saved_seed2;
@@ -2531,6 +2732,7 @@ public:
   */
   void set_new_thread_id();
   my_thread_id thread_id() const { return m_thread_id; }
+
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
@@ -2577,6 +2779,8 @@ public:
   int thd_tx_priority;
 
   enum_check_fields count_cuted_fields;
+  ha_rows    updated_row_count;
+  ha_rows    sent_row_count_2; /* for userstat */
 
   // For user variables replication
   Prealloced_array<BINLOG_USER_VAR_EVENT*, 2> user_var_events;
@@ -2771,6 +2975,49 @@ public:
   */
   LOG_INFO*  current_linfo;
   NET*       slave_net;			// network connection from slave -> m.
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  // Time when the current thread connected to MySQL.
+  time_t current_connect_time;
+  // Last time when THD stats were updated in global_user_stats.
+  time_t last_global_update_time;
+  // Busy (non-idle) time for just one command.
+  double busy_time;
+  // Busy time not updated in global_user_stats yet.
+  double diff_total_busy_time;
+  // Cpu (non-idle) time for just one thread.
+  double cpu_time;
+  // Cpu time not updated in global_user_stats yet.
+  double diff_total_cpu_time;
+  /* bytes counting */
+  ulonglong bytes_received;
+  ulonglong diff_total_bytes_received;
+  ulonglong bytes_sent;
+  ulonglong diff_total_bytes_sent;
+  ulonglong binlog_bytes_written;
+  ulonglong diff_total_binlog_bytes_written;
+
+  // Number of rows not reflected in global_user_stats yet.
+  ha_rows diff_total_sent_rows, diff_total_updated_rows, diff_total_read_rows;
+  // Number of commands not reflected in global_user_stats yet.
+  ulonglong diff_select_commands, diff_update_commands, diff_other_commands;
+  // Number of transactions not reflected in global_user_stats yet.
+  ulonglong diff_commit_trans, diff_rollback_trans;
+  // Number of connection errors not reflected in global_user_stats yet.
+  ulonglong diff_denied_connections, diff_lost_connections;
+  // Number of db access denied, not reflected in global_user_stats yet.
+  ulonglong diff_access_denied_errors;
+  // Number of queries that return 0 rows
+  ulonglong diff_empty_queries;
+
+  // Per account query delay in miliseconds. When not 0, sleep this number of
+  // milliseconds before every SQL command.
+  ulonglong query_delay_millis;
+
   /* Used by the sys_var class to store temporary values */
   union
   {
@@ -2876,6 +3123,11 @@ public:
   */
   void init_for_queries(Relay_log_info *rli= NULL);
   void cleanup_connection(void);
+  void reset_stats(void);
+  void reset_diff_stats(void);
+  // ran_command is true when this is called immediately after a
+  // command has been run.
+  void update_stats(bool ran_command);
   void cleanup_after_query();
   bool store_globals();
   void restore_globals();
@@ -2884,6 +3136,7 @@ public:
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
+    vio_set_thread_id(vio, pthread_self());
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -3050,6 +3303,16 @@ public:
     PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
 #endif
   }
+  void get_time(QUERY_START_TIME_INFO *time_info)
+  {
+    time_info->start_time= start_time;
+    time_info->start_utime= start_utime;
+  }
+  void set_time(QUERY_START_TIME_INFO *time_info)
+  {
+    start_time= time_info->start_time;
+    start_utime= time_info->start_utime;
+  }
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
@@ -3071,8 +3334,8 @@ public:
   */
   void update_server_status()
   {
-    ulonglong end_utime_of_query= current_utime();
-    if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+    utime_after_query= current_utime();
+    if (utime_after_query > utime_after_lock + variables.long_query_time)
       server_status|= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void)
@@ -3494,30 +3757,15 @@ public:
   inline void reset_current_stmt_binlog_format_row()
   {
     DBUG_ENTER("reset_current_stmt_binlog_format_row");
-    /*
-      If there are temporary tables, don't reset back to
-      statement-based. Indeed it could be that:
-      CREATE TEMPORARY TABLE t SELECT UUID(); # row-based
-      # and row-based does not store updates to temp tables
-      # in the binlog.
-      INSERT INTO u SELECT * FROM t; # stmt-based
-      and then the INSERT will fail as data inserted into t was not logged.
-      So we continue with row-based until the temp table is dropped.
-      If we are in a stored function or trigger, we mustn't reset in the
-      middle of its execution (as the binary logging way of a stored function
-      or trigger is decided when it starts executing, depending for example on
-      the caller (for a stored function: if caller is SELECT or
-      INSERT/UPDATE/DELETE...).
-    */
     DBUG_PRINT("debug",
-               ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
-                YESNO(temporary_tables), YESNO(in_sub_stmt),
+               ("in_sub_stmt: %s, system_thread: %s",
+                YESNO(in_sub_stmt),
                 show_system_thread(system_thread)));
     if (in_sub_stmt == 0)
     {
       if (variables.binlog_format == BINLOG_FORMAT_ROW)
         set_current_stmt_binlog_format_row();
-      else if (temporary_tables == NULL)
+      else
         clear_current_stmt_binlog_format_row();
     }
     DBUG_VOID_RETURN;
@@ -3955,7 +4203,16 @@ public:
     *p_db_length= m_db.length;
     return false;
   }
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
+
+  /* Returns string as 'IP:port' for the client-side
+     of the connnection represented
+     by 'client' as displayed by SHOW PROCESSLIST.
+     Allocates memory from the heap of
+     this THD and that is not reclaimed
+     immediately, so use sparingly. May return NULL.
+  */
+  char *get_client_host_port(THD *client);
 
 public:
   inline Internal_error_handler *get_internal_handler()
@@ -4121,6 +4378,13 @@ public:
   void set_query_id(query_id_t new_query_id)
   {
     mysql_mutex_lock(&LOCK_thd_data);
+#ifndef DBUG_OFF
+    if (variables.query_exec_id != 0 &&
+        lex->sql_command != SQLCOM_SET_OPTION)
+    {
+      new_query_id= variables.query_exec_id;
+    }
+#endif
     query_id= new_query_id;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
@@ -4429,6 +4693,11 @@ private:
   */
   bool is_a_srv_session_thd;
 };
+
+/* Returns string as 'IP' for the client-side of the connection represented by
+   'client'. Does not allocate memory. May return "".
+*/
+const char *get_client_host(THD *client);
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.
@@ -4757,6 +5026,7 @@ public:
   ~Query_result_export()
   {
     thd->set_sent_row_count(row_count);
+    thd->sent_row_count_2= row_count;
   }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -5179,6 +5449,7 @@ public:
 
 class Query_dumpvar :public Query_result_interceptor {
   ha_rows row_count;
+  Item_func_set_user_var **set_var_items;
 public:
   List<PT_select_var> var_list;
   Query_dumpvar()  { var_list.empty(); row_count= 0;}
@@ -5348,6 +5619,8 @@ inline void **thd_ha_data_backup(const THD *thd, const struct handlerton *hton)
 }
 
 /*************************************************************************/
+
+extern pthread_attr_t *get_connection_attrib(void);
 
 #endif /* MYSQL_SERVER */
 

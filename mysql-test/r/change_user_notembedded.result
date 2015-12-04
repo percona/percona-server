@@ -1,0 +1,5 @@
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+Got one of the listed errors
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)

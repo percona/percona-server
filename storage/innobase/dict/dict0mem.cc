@@ -168,6 +168,9 @@ dict_mem_table_create(
 	} else {
 		table->fts = NULL;
 	}
+
+	table->is_corrupt = false;
+
 #endif /* !UNIV_HOTBACKUP */
 
 	if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {

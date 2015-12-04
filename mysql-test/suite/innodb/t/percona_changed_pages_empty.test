@@ -1,0 +1,10 @@
+###############################################################################
+# Test for empty I_S.INNODB_CHANGED_PAGES table. The table should be empty if #
+# no bitmap files exist                                                       #
+###############################################################################
+
+--source include/have_innodb.inc
+
+RESET CHANGED_PAGE_BITMAPS;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES; 

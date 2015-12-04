@@ -1,0 +1,16 @@
+SELECT * FROM INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES;
+INTERNAL_HASH_TABLE_NAME	TOTAL_MEMORY	CONSTANT_MEMORY	VARIABLE_MEMORY
+Adaptive hash index	#	#	#
+Page hash (buffer pool 0 only)	#	#	#
+Dictionary Cache	#	#	#
+File system	#	#	#
+Lock System	#	#	#
+Recovery System	#	#	#
+SELECT INTERNAL_HASH_TABLE_NAME, TOTAL_MEMORY = CONSTANT_MEMORY+VARIABLE_MEMORY FROM INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES;
+INTERNAL_HASH_TABLE_NAME	TOTAL_MEMORY = CONSTANT_MEMORY+VARIABLE_MEMORY
+Adaptive hash index	1
+Page hash (buffer pool 0 only)	1
+Dictionary Cache	1
+File system	1
+Lock System	1
+Recovery System	1

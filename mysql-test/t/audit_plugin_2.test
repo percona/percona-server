@@ -282,8 +282,10 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -302,8 +304,10 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;;;'
                                      'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                      'MYSQL_AUDIT_GENERAL_STATUS;;;'
@@ -340,12 +344,16 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;;;'
                                      'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                      'MYSQL_AUDIT_GENERAL_STATUS;;;'
@@ -365,10 +373,13 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
 CALL proc();
@@ -385,10 +396,13 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
@@ -498,7 +512,6 @@ connection user1_con;
 
 # Change user with 'mysql' as initial database
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_AUDIT_API_ABORT
 --change_user user2,,mysql
 SELECT USER(), CURRENT_USER();
 

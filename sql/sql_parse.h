@@ -139,10 +139,11 @@ bool sqlcom_can_generate_row_events(const THD *thd);
 class Find_thd_with_id: public Find_THD_Impl
 {
 public:
-  Find_thd_with_id(ulong value): m_id(value) {}
+  Find_thd_with_id(ulong value, bool daemon_allowed):
+    m_id(value), m_daemon_allowed(daemon_allowed) {}
   virtual bool operator()(THD *thd)
   {
-    if (thd->get_command() == COM_DAEMON)
+    if (!m_daemon_allowed && thd->get_command() == COM_DAEMON)
       return false;
     if (thd->thread_id() == m_id)
     {
@@ -153,6 +154,7 @@ public:
   }
 private:
   ulong m_id;
+  bool  m_daemon_allowed;
 };
 
 

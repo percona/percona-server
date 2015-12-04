@@ -1,0 +1,40 @@
+--source include/not_embedded.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLD_DATADIR= $MYSQLD_DATADIR;
+
+--move_file $MYSQLD_DATADIR/test_audit_threadpool.log $MYSQLD_DATADIR/test_audit_threadpool_garbage.log
+set global audit_log_flush= ON;
+
+--source include/count_sessions.inc
+connect (con1,localhost,root,,mysql);
+select 1;
+connection default;
+disconnect con1;
+--source include/wait_until_count_sessions.inc
+
+connection default;
+select '1more';
+
+--move_file $MYSQLD_DATADIR/test_audit_threadpool.log $MYSQLD_DATADIR/test_audit_threadpool_done.log
+set global audit_log_flush= ON;
+
+perl;
+  use strict;
+  use warnings;
+
+  my $logfile = $ENV{'MYSQLD_DATADIR'} . '/test_audit_threadpool_done.log';
+
+  open(FILE, $logfile) or die "cannot open $logfile!";
+  my @buf = <FILE>;
+  close(FILE);
+
+  my $connect_count = grep(/Connect/, @buf);
+  my $disconnect_count = grep(/Quit/, @buf);
+
+  print "$connect_count connects, $disconnect_count disconnects\n";
+EOF
+
+--remove_file $MYSQLD_DATADIR/test_audit_threadpool.log
+--remove_file $MYSQLD_DATADIR/test_audit_threadpool_garbage.log
+--remove_file $MYSQLD_DATADIR/test_audit_threadpool_done.log

@@ -47,4 +47,7 @@ struct RedoLog;
 /** The recovery implementation */
 struct redo_recover_t;
 
+/** Hashed page file address struct */
+struct recv_addr_t;
+
 #endif /* log0types_h */

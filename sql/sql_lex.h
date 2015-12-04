@@ -129,12 +129,13 @@ enum enum_yes_no_unknown
 };
 
 enum keytype {
-  KEYTYPE_PRIMARY,
-  KEYTYPE_UNIQUE,
-  KEYTYPE_MULTIPLE,
-  KEYTYPE_FULLTEXT,
-  KEYTYPE_SPATIAL,
-  KEYTYPE_FOREIGN
+  KEYTYPE_PRIMARY= 0,
+  KEYTYPE_UNIQUE= 1,
+  KEYTYPE_MULTIPLE= 2,
+  KEYTYPE_FULLTEXT= 4,
+  KEYTYPE_SPATIAL= 8,
+  KEYTYPE_FOREIGN= 16,
+  KEYTYPE_CLUSTERING= 32,
 };
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -2109,6 +2110,17 @@ public:
   static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
 
   /**
+    Determine if this statement is marked as unsafe with
+    specific type
+
+    @retval false if the statement is not marked as unsafe.
+    @retval true if it is.
+  */
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) const {
+    return ((binlog_stmt_flags & (1U << unsafe_type)) != 0);
+  }
+
+  /**
     Determine if this statement is marked as unsafe.
 
     @retval 0 if the statement is not marked as unsafe.
@@ -3098,7 +3110,8 @@ public:
     required a local context, the parser pops the top-most context.
   */
   List<Name_resolution_context> context_stack;
-
+  /* true if SET STATEMENT ... FOR ... statement is use, false otherwise */
+  bool set_statement;
   /**
     Argument values for PROCEDURE ANALYSE(); is NULL for other queries
   */
@@ -3470,6 +3483,7 @@ public:
 
   bool accept(Select_lex_visitor *visitor);
 
+  Item* donor_transaction_id;
 };
 
 

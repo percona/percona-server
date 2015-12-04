@@ -76,12 +76,13 @@ buf_LRU_insert_zip_clean(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns true, it will temporarily
-release buf_pool->mutex.  Furthermore, the page frame will no longer be
-accessible via bpage.
+NOTE: this function may temporarily release and relock the
+buf_page_get_get_mutex(). Furthermore, the page frame will no longer be
+accessible via bpage. If this function returns true, it will also release
+the LRU list mutex.
 
-The caller must hold buf_pool->mutex and must not hold any
-buf_page_get_mutex() when calling this function.
+The caller must hold the LRU list and buf_page_get_mutex() mutexes.
+
 @return true if freed, false otherwise. */
 bool
 buf_LRU_free_page(
@@ -89,7 +90,7 @@ buf_LRU_free_page(
 	buf_page_t*	bpage,	/*!< in: block to be freed */
 	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
-	__attribute__((nonnull));
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Try to free a replaceable block.
 @return true if found and freed */
@@ -203,13 +204,17 @@ buf_LRU_stat_update(void);
 /*=====================*/
 
 /******************************************************************//**
-Remove one page from LRU list and put it to free list */
+Remove one page from LRU list and put it to free list. The caller must hold the
+LRU list and block mutexes and have page hash latched in X. The latch and
+the block mutexes will be released. */
 void
 buf_LRU_free_one_page(
 /*==================*/
-	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+	buf_page_t*	bpage,	/*!< in/out: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
+	bool		zip = true)/*!< in: true if should remove also the
+				compressed page of an uncompressed page */
 	__attribute__((nonnull));
 
 /******************************************************************//**
@@ -278,7 +283,7 @@ Cleared by buf_LRU_stat_update(). */
 extern buf_LRU_stat_t	buf_LRU_stat_cur;
 
 /** Running sum of past values of buf_LRU_stat_cur.
-Updated by buf_LRU_stat_update().  Protected by buf_pool->mutex. */
+Updated by buf_LRU_stat_update(). Accesses protected by memory barriers. */
 extern buf_LRU_stat_t	buf_LRU_stat_sum;
 
 /********************************************************************//**

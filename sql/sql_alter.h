@@ -18,6 +18,7 @@
 
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
+#include "key.h"        // KEY
 
 class Create_field;
 class Item;
@@ -272,6 +273,12 @@ public:
   List<Alter_rename_key>        alter_rename_key_list;
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field>            create_list;
+  // List of keys, which creation is delayed to benefit from fast index creation
+  List<Key>                     delayed_key_list;
+  // Keys, which creation is delayed to benefit from fast index creation
+  KEY                           *delayed_key_info;
+  // Count of keys, which creation is delayed to benefit from fast index creation
+  uint                          delayed_key_count;
   // Type of ALTER TABLE operation.
   uint                          flags;
   // Enable or disable keys.

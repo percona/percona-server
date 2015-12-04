@@ -492,3 +492,17 @@ log_free_check(void)
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/****************************************************************//**
+Safely reads the log_sys->tracked_lsn value. The writer counterpart function is
+log_set_tracked_lsn() in log0online.c.
+
+@return log_sys->tracked_lsn value. */
+UNIV_INLINE
+lsn_t
+log_get_tracked_lsn(void)
+/*=====================*/
+{
+	return os_atomic_increment_uint64(&log_sys->tracked_lsn, 0);
+}
+

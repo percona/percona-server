@@ -5945,7 +5945,46 @@ dict_set_merge_threshold_all_debug(
 
 	mutex_exit(&dict_sys->mutex);
 }
+
 #endif /* UNIV_DEBUG */
+
+/*************************************************************************
+set is_corrupt flag by space_id*/
+
+void
+dict_table_set_corrupt_by_space(
+/*============================*/
+	ulint	space_id,
+	bool	need_mutex)
+{
+	dict_table_t*	table;
+	bool		found = false;
+
+	ut_a(space_id != 0 && space_id < SRV_LOG_SPACE_FIRST_ID);
+
+	if (need_mutex)
+		mutex_enter(&(dict_sys->mutex));
+
+	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+
+	while (table) {
+		if (table->space == space_id) {
+			table->is_corrupt = true;
+			found = true;
+		}
+
+		table = UT_LIST_GET_NEXT(table_LRU, table);
+	}
+
+	if (need_mutex)
+		mutex_exit(&(dict_sys->mutex));
+
+	if (!found) {
+		ib::warn() << "Space to be marked as crashed was not found "
+			"for id " << space_id << ".";
+	}
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**

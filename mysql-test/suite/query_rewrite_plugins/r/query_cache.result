@@ -10,6 +10,7 @@ have_query_cache	YES
 query_cache_limit	1048576
 query_cache_min_res_unit	4096
 query_cache_size	1048576
+query_cache_strip_comments	OFF
 query_cache_type	ON
 query_cache_wlock_invalidate	OFF
 FLUSH STATUS;

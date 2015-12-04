@@ -44,6 +44,18 @@ PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
 PSI_memory_key	mem_key_partitioning;
 
+PSI_memory_key	mem_key_log_online_modified_pages;
+PSI_memory_key	mem_key_log_online_sys;
+PSI_memory_key	mem_key_log_online_read_buf;
+PSI_memory_key	mem_key_log_online_iterator_files;
+PSI_memory_key	mem_key_log_online_iterator_page;
+PSI_memory_key	mem_key_trx_distinct_page_access_hash;
+PSI_memory_key	mem_key_log_sys_archive_buf;
+PSI_memory_key	mem_key_log_sys_group_archive_file_header_bufs_ptr;
+PSI_memory_key	mem_key_log_sys_group_archive_file_header_bufs;
+PSI_memory_key	mem_key_log_sys_group_archive_file_header_buf_ptr;
+
+
 #ifdef UNIV_PFS_MEMORY
 
 /** Auxiliary array of performance schema 'PSI_memory_info'.
@@ -69,6 +81,20 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
+	{&mem_key_log_online_modified_pages, "log_online_modified_pages", 0},
+	{&mem_key_log_online_sys, "log_online_sys", 0},
+	{&mem_key_log_online_read_buf, "log_online_read_buf", 0},
+	{&mem_key_log_online_iterator_files, "log_online_iterator_files", 0},
+	{&mem_key_log_online_iterator_page, "log_online_iterator_page", 0},
+	{&mem_key_trx_distinct_page_access_hash,
+	 "trx_distinct_page_access_hash", 0},
+	{&mem_key_log_sys_archive_buf, "log_sys_archive_buf", 0},
+	{&mem_key_log_sys_group_archive_file_header_bufs_ptr,
+	 "log_sys_group_archive_file_header_bufs_ptr", 0},
+	{&mem_key_log_sys_group_archive_file_header_bufs,
+	 "log_sys_group_archive_file_header_bufs", 0},
+	{&mem_key_log_sys_group_archive_file_header_buf_ptr,
+	 "log_sys_group_archive_file_header_buf_ptr", 0},
 	{&mem_key_partitioning, "partitioning", 0},
 };
 

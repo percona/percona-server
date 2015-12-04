@@ -41,6 +41,7 @@ Created 2011/04/18 Sunny Bains
 #include <mysql/service_thd_wait.h>
 
 #include "srv0srv.h"
+#include "btr0types.h"
 #include "trx0trx.h"
 #include "row0mysql.h"
 #include "dict0dict.h"
@@ -211,6 +212,7 @@ srv_conc_enter_innodb_with_atomics(
 		}
 
 		os_thread_sleep(sleep_in_us);
+		trx->innodb_que_wait_timer += sleep_in_us;
 
 		trx->op_info = "";
 

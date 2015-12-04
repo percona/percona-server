@@ -549,7 +549,8 @@ struct hash_table_t {
 					rw_locks depending on the type.
 					Must be a power of 2 */
 	union {
-		ib_mutex_t*	mutexes;/* NULL, or an array of mutexes
+		ib_mutex_t*	mutexes;
+					/* NULL, or an array of mutexes
 					used to protect segments of the
 					hash table */
 		rw_lock_t*	rw_locks;/* NULL, or an array of rw_lcoks

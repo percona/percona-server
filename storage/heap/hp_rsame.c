@@ -31,7 +31,8 @@ int heap_rsame(HP_INFO *info, uchar *record, int inx)
   DBUG_ENTER("heap_rsame");
 
   test_active(info);
-  if (info->current_ptr[share->reclength])
+  if (get_chunk_status(&share->recordspace, info->current_ptr) ==
+      CHUNK_STATUS_ACTIVE)
   {
     if (inx < -1 || inx >= (int) share->keys)
     {
@@ -48,9 +49,15 @@ int heap_rsame(HP_INFO *info, uchar *record, int inx)
 	DBUG_RETURN(my_errno());
       }
     }
-    memcpy(record,info->current_ptr,(size_t) share->reclength);
+    if (hp_extract_record(info, record, info->current_ptr))
+    {
+      DBUG_RETURN(my_errno());
+    }
     DBUG_RETURN(0);
   }
+
+  /* treat deleted and linked chunks as deleted */
+
   info->update=0;
 
   set_my_errno(HA_ERR_RECORD_DELETED);

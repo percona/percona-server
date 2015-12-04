@@ -237,8 +237,10 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;;ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 CALL simple_proc();
@@ -259,8 +261,10 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;;;'
                                      'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                      'MYSQL_AUDIT_GENERAL_STATUS;;;'
@@ -298,12 +302,16 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_STATUS_END;;;'
                                      'MYSQL_AUDIT_GENERAL_RESULT;;;'
                                      'MYSQL_AUDIT_GENERAL_STATUS;;;'
@@ -326,10 +334,13 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 CALL proc();
@@ -347,10 +358,13 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_STORED_PROGRAM_EXECUTE;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;;'
+                                     'MYSQL_AUDIT_GENERAL_STATUS;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_START;;;'
                                      'MYSQL_AUDIT_QUERY_NESTED_STATUS_END;;ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
@@ -399,7 +413,7 @@ CREATE USER user2;
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
-mysqltest: At line 1: change user failed: Access denied for user 'user2'@'%' to database 'mysql'
+mysqltest: At line 1: query 'change_user user2,,mysql' failed: 1044: Access denied for user 'user2'@'%' to database 'mysql'
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
@@ -429,7 +443,7 @@ ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_CONNECTION_CONNECT';1).
 SET @@GLOBAL.null_audit_event_order_check = NULL,
 @@GLOBAL.null_audit_event_order_check_exact = 1;
 SET @@GLOBAL.null_audit_event_order_check = "MYSQL_AUDIT_COMMAND_START;command_id=\"17\";ABORT_RET";
-mysqltest: At line 1: change user failed: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+mysqltest: At line 1: query 'change_user user2,,mysql' failed: 3164: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
 GRANT ALL ON mysql.* TO user2;
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()

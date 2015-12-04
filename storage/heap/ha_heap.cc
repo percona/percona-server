@@ -109,6 +109,7 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
 
     rc= heap_create(name, &create_info, &internal_share, &created_new_share);
     my_free(create_info.keydef);
+    my_free(create_info.columndef);
     if (rc)
       goto end;
 
@@ -190,6 +191,12 @@ void ha_heap::set_keys_for_scanning(void)
   {
     if (table->key_info[i].algorithm == HA_KEY_ALG_BTREE)
       btree_keys.set_bit(i);
+    /*
+      Reset per-key block size specification so they are not shown
+      in SHOW CREATE TABLE.
+    */
+    table->key_info[i].block_size= 0;
+    table->key_info[i].flags&= ~HA_USES_BLOCK_SIZE;
   }
 }
 
@@ -424,6 +431,13 @@ int ha_heap::info(uint flag)
   return 0;
 }
 
+enum row_type ha_heap::get_row_type() const
+{
+  if (file->s->recordspace.is_variable_size)
+    return ROW_TYPE_DYNAMIC;
+
+  return ROW_TYPE_FIXED;
+}
 
 int ha_heap::extra(enum ha_extra_function operation)
 {
@@ -647,15 +661,59 @@ static int
 heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
                             HP_CREATE_INFO *hp_create_info)
 {
-  uint key, parts, mem_per_row= 0, keys= table_arg->s->keys;
+  uint key, parts, mem_per_row_keys= 0, keys= table_arg->s->keys;
   uint auto_key= 0, auto_key_type= 0;
-  ha_rows max_rows;
+  uint fixed_key_fieldnr = 0, fixed_data_size = 0, next_field_pos = 0;
+  uint column_idx, column_count= table_arg->s->fields;
+  HP_COLUMNDEF *columndef;
   HP_KEYDEF *keydef;
   HA_KEYSEG *seg;
   TABLE_SHARE *share= table_arg->s;
   bool found_real_auto_increment= 0;
+  uint blobs= 0;
 
   memset(hp_create_info, 0, sizeof(*hp_create_info));
+
+  if (!(columndef= (HP_COLUMNDEF*) my_malloc(hp_key_memory_HP_COLUMNDEF,
+                                             column_count *
+                                             sizeof(HP_COLUMNDEF),
+                                             MYF(MY_WME))))
+    return my_errno();
+
+  for (column_idx= 0; column_idx < column_count; column_idx++)
+  {
+    Field* field= *(table_arg->field + column_idx);
+    HP_COLUMNDEF* column= columndef + column_idx;
+    column->type= (uint16) field->type();
+    column->length= field->pack_length();
+    column->offset= field->offset(table_arg->record[0]);
+
+    if (field->null_bit)
+    {
+      column->null_bit= field->null_bit;
+      column->null_pos= field->null_offset();
+    }
+    else
+    {
+      column->null_bit= 0;
+      column->null_pos= 0;
+    }
+
+    if (field->type() == MYSQL_TYPE_VARCHAR)
+    {
+      column->length_bytes= (uint8) (((Field_varstring *) field)->length_bytes);
+    }
+    else if (field->type() == MYSQL_TYPE_BLOB)
+    {
+      blobs++;
+      column->length_bytes= (uint8)
+        (((Field_blob *) field)->pack_length_no_ptr());
+    }
+    else
+    {
+      column->length_bytes= 0;
+    }
+  }
 
   for (key= parts= 0; key < keys; key++)
     parts+= table_arg->key_info[key].user_defined_key_parts;
@@ -664,7 +722,10 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
                                        keys * sizeof(HP_KEYDEF) +
 				       parts * sizeof(HA_KEYSEG),
 				       MYF(MY_WME))))
+  {
+    my_free((uchar *) columndef);
     return my_errno();
+  }
   seg= reinterpret_cast<HA_KEYSEG*>(keydef + keys);
   for (key= 0; key < keys; key++)
   {
@@ -680,11 +741,11 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
     case HA_KEY_ALG_UNDEF:
     case HA_KEY_ALG_HASH:
       keydef[key].algorithm= HA_KEY_ALG_HASH;
-      mem_per_row+= sizeof(HASH_INFO);
+      mem_per_row_keys+= sizeof(HASH_INFO);
       break;
     case HA_KEY_ALG_BTREE:
       keydef[key].algorithm= HA_KEY_ALG_BTREE;
-      mem_per_row+=sizeof(TREE_ELEMENT)+pos->key_length+sizeof(char*);
+      mem_per_row_keys+=sizeof(TREE_ELEMENT)+pos->key_length+sizeof(char*);
       break;
     default:
       DBUG_ASSERT(0); // cannot happen
@@ -709,6 +770,16 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
       seg->length=  (uint) key_part->length;
       seg->flag=    key_part->key_part_flag;
 
+      next_field_pos= seg->start;
+      if (field->type() == MYSQL_TYPE_VARCHAR)
+      {
+        Field *orig_field= *(table_arg->field + key_part->field->field_index);
+        next_field_pos+= orig_field->pack_length();
+      }
+      else
+      {
+        next_field_pos+= seg->length;
+      }
       if (field->flags & (ENUM_FLAG | SET_FLAG))
         seg->charset= &my_charset_bin;
       else
@@ -734,9 +805,75 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
         auto_key= key+ 1;
 	auto_key_type= field->key_type();
       }
+
+      switch (seg->type) {
+      case HA_KEYTYPE_SHORT_INT:
+      case HA_KEYTYPE_LONG_INT:
+      case HA_KEYTYPE_FLOAT:
+      case HA_KEYTYPE_DOUBLE:
+      case HA_KEYTYPE_USHORT_INT:
+      case HA_KEYTYPE_ULONG_INT:
+      case HA_KEYTYPE_LONGLONG:
+      case HA_KEYTYPE_ULONGLONG:
+      case HA_KEYTYPE_INT24:
+      case HA_KEYTYPE_UINT24:
+      case HA_KEYTYPE_INT8:
+        seg->flag|= HA_SWAP_KEY;
+        break;
+      case HA_KEYTYPE_VARBINARY1:
+        /* Case-insensitiveness is handled in coll->hash_sort */
+        seg->type= HA_KEYTYPE_VARTEXT1;
+        /* fall through */
+      case HA_KEYTYPE_VARTEXT1:
+        keydef[key].flag|= HA_VAR_LENGTH_KEY;
+        /* Save number of bytes used to store length */
+        if (seg->flag & HA_BLOB_PART)
+          seg->bit_start= field->pack_length() - portable_sizeof_char_ptr;
+        else
+          seg->bit_start= 1;
+        break;
+      case HA_KEYTYPE_VARBINARY2:
+        /* Case-insensitiveness is handled in coll->hash_sort */
+        /* fall_through */
+      case HA_KEYTYPE_VARTEXT2:
+        keydef[key].flag|= HA_VAR_LENGTH_KEY;
+        /* Save number of bytes used to store length */
+        if (seg->flag & HA_BLOB_PART)
+          seg->bit_start= field->pack_length() - portable_sizeof_char_ptr;
+        else
+          seg->bit_start= 2;
+        /*
+          Make future comparison simpler by only having to check for
+          one type
+        */
+        seg->type= HA_KEYTYPE_VARTEXT1;
+        break;
+      default:
+        break;
+      }
+
+      if (next_field_pos > fixed_data_size)
+      {
+        fixed_data_size= next_field_pos;
+      }
+
+
+      if (field->field_index >= fixed_key_fieldnr)
+      {
+        /*
+          Do not use seg->fieldnr as it's not reliable in case of temp tables
+        */
+        fixed_key_fieldnr= field->field_index + 1;
+      }
     }
   }
-  mem_per_row+= MY_ALIGN(share->reclength + 1, sizeof(char*));
+
+  if (fixed_data_size < share->null_bytes)
+  {
+    /* Make sure to include null fields regardless of the presense of keys */
+    fixed_data_size = share->null_bytes;
+  }
+
   if (table_arg->found_next_number_field)
   {
     keydef[share->next_number_index].flag|= HA_AUTO_KEY;
@@ -747,16 +884,19 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   hp_create_info->max_table_size=current_thd->variables.max_heap_table_size;
   hp_create_info->with_auto_increment= found_real_auto_increment;
   hp_create_info->internal_table= internal_table;
-
-  max_rows= (ha_rows) (hp_create_info->max_table_size / mem_per_row);
-  if (share->max_rows && share->max_rows < max_rows)
-    max_rows= share->max_rows;
-
-  hp_create_info->max_records= (ulong) max_rows;
+  hp_create_info->max_chunk_size= share->key_block_size;
+  hp_create_info->is_dynamic= (share->row_type == ROW_TYPE_DYNAMIC);
+  hp_create_info->columns= column_count;
+  hp_create_info->columndef= columndef;
+  hp_create_info->fixed_key_fieldnr= fixed_key_fieldnr;
+  hp_create_info->fixed_data_size= fixed_data_size;
+  hp_create_info->max_records= (ulong) share->max_rows;
   hp_create_info->min_records= (ulong) share->min_rows;
   hp_create_info->keys= share->keys;
   hp_create_info->reclength= share->reclength;
+  hp_create_info->keys_memory_size= mem_per_row_keys;
   hp_create_info->keydef= keydef;
+  hp_create_info->blobs= blobs;
   return 0;
 }
 
@@ -776,6 +916,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
 				  create_info->auto_increment_value - 1 : 0);
   error= heap_create(name, &hp_create_info, &internal_share, &created);
   my_free(hp_create_info.keydef);
+  my_free(hp_create_info.columndef);
   DBUG_ASSERT(file == 0);
   return (error);
 }
@@ -786,6 +927,13 @@ void ha_heap::update_create_info(HA_CREATE_INFO *create_info)
   table->file->info(HA_STATUS_AUTO);
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
     create_info->auto_increment_value= stats.auto_increment_value;
+  if (!(create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
+  {
+    if (file->s->recordspace.is_variable_size)
+      create_info->key_block_size= file->s->recordspace.chunk_length;
+    else
+      create_info->key_block_size= 0;
+  }
 }
 
 void ha_heap::get_auto_increment(ulonglong offset, ulonglong increment,

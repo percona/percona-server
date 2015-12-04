@@ -9,7 +9,7 @@
 CREATE TABLE t1(i INT);
 CREATE TABLE t2(i INT);
 
-let $check=SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
+let $check=SELECT digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 
 --echo # Digests should be same (empty hint comment):
 

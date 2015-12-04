@@ -78,3 +78,8 @@ libtest_sql_lock                        plugin/test_service_sql_api TEST_SQL_LOC
 libtest_sql_sqlmode                     plugin/test_service_sql_api TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin/test_service_sql_api TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin/test_service_sql_api TEST_SQL_ERRORS
+auth_socket        plugin/auth        SOCKET_AUTH
+scalability_metrics plugin/scalability_metrics SCALABILITY_METRICS scalability_metrics
+audit_log          plugin/audit_log   AUDIT_LOG             audit_log
+query_response_time plugin/query_response_time PLUGIN_QUERY_RESPONSE_TIME QUERY_RESPONSE_TIME_AUDIT,QUERY_RESPONSE_TIME,QUERY_RESPONSE_TIME_READ,QUERY_RESPONSE_TIME_WRITE
+ha_tokudb          storage/tokudb             TOKUDB            tokudb,tokudb_trx,tokudb_locks,tokudb_lock_waits,tokudb_fractal_tree_info

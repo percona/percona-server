@@ -32,7 +32,7 @@ IF(NOT WIN32)
   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
 ENDIF()
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
-TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
+TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
 
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
 ADD_TEST(NAME check_testcase_files

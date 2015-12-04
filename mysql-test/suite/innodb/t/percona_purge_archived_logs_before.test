@@ -1,0 +1,43 @@
+#
+# Test PURGE ARCHIVED LOGS BEFORE
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--source ../include/percona_log_archiving_setup.inc
+
+SELECT sleep(1);
+--source ../include/percona_log_archiving_workload.inc
+SELECT sleep(1);
+--source ../include/percona_log_archiving_workload.inc
+SELECT sleep(1);
+--source ../include/percona_log_archiving_workload.inc
+--source ../include/percona_log_archiving_check.inc
+
+if ($archived_logs_count == 0)
+{
+  die "0 archived logs have been produced";
+}
+
+--replace_result $mid_log_file_modify val
+--eval PURGE ARCHIVED LOGS BEFORE '$mid_log_file_modify'
+
+let $count = `SELECT $archived_logs_count - $archived_logs_mid`;
+
+--source ../include/percona_log_archiving_stat.inc
+
+if ($archived_logs_count != $count)
+{
+  die "PURGE ARCHIVED LOGS BEFORE failed";
+}
+
+# check that it works with NOW() and other functions
+PURGE ARCHIVED LOGS BEFORE NOW();
+PURGE ARCHIVED LOGS BEFORE DATE_ADD(NOW(), INTERVAL 7 DAY);
+
+# should fail
+--error 1379
+PURGE ARCHIVED LOGS BEFORE 'q';
+
+--source ../include/percona_log_archiving_cleanup.inc

@@ -311,6 +311,10 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
 bool open_temporary_table(THD *thd, TABLE_LIST *tl);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
+bool is_order_deterministic(List<TABLE_LIST>* join_list,
+                            Item *cond, ORDER* order);
+bool is_order_deterministic(TABLE_LIST *table,
+                            Item *cond, ORDER* order);
 
 /* Functions to work with system tables. */
 bool open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,

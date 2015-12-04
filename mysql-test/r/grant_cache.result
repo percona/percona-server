@@ -134,6 +134,8 @@ Qcache_not_cached	1
 show grants for current_user();
 Grants for @localhost
 GRANT USAGE ON *.* TO ''@'localhost'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, EVENT, TRIGGER ON `test`.* TO ''@'%'
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, EVENT, TRIGGER ON `test\_%`.* TO ''@'%'
 ----- establish connection user2 (user=mysqltest_2) -----
 select "user2";
 user2

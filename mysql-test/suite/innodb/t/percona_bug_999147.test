@@ -1,0 +1,31 @@
+# Test for Percona Server bug 999147 (A crash that leaves behind an
+# InnoDB temporary table with indexes results in an unbootable server)
+# https://bugs.launchpad.net/percona-server/+bug/999147
+
+-- source include/not_embedded.inc
+-- source include/not_valgrind.inc
+-- source include/not_crashrep.inc
+-- source include/have_debug.inc
+-- source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+SET SESSION expand_fast_index_creation=ON;
+
+CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX(a));
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+call mtr.add_suppression("does not exist in the InnoDB internal");
+
+SET debug="+d,crash_innodb_add_index_after";
+--error 2013
+ALTER TABLE t1 ADD INDEX (b);
+
+--enable_reconnect
+
+--source include/wait_until_connected_again.inc
+
+SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;

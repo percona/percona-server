@@ -1553,6 +1553,12 @@ row_ins_check_foreign_constraint(
 		const rec_t*		rec = btr_pcur_get_rec(&pcur);
 		const buf_block_t*	block = btr_pcur_get_block(&pcur);
 
+		SRV_CORRUPT_TABLE_CHECK(block,
+		{
+			err = DB_CORRUPTION;
+			goto exit_loop;
+		});
+
 		if (page_rec_is_infimum(rec)) {
 
 			continue;
@@ -1677,6 +1683,7 @@ row_ins_check_foreign_constraint(
 		}
 	} while (btr_pcur_move_to_next(&pcur, &mtr));
 
+exit_loop:
 	if (check_ref) {
 		row_ins_foreign_report_add_err(
 			trx, foreign, btr_pcur_get_rec(&pcur), entry);

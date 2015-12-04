@@ -1358,9 +1358,18 @@ err:
   if (!res)
   {
     DBUG_ASSERT(error != 0);
-    sql_print_error("Error in Log_event::read_log_event(): "
-                    "'%s', data_len: %lu, event_type: %d",
-		    error,data_len,head[EVENT_TYPE_OFFSET]);
+    /* Don't log error if read_log_event invoked from SHOW BINLOG EVENTS */
+#ifdef MYSQL_SERVER
+    THD *thd= current_thd;
+    if (!(thd && thd->lex &&
+          thd->lex->sql_command == SQLCOM_SHOW_BINLOG_EVENTS)) {
+#endif
+      sql_print_error("Error in Log_event::read_log_event(): "
+                      "'%s', data_len: %lu, event_type: %d",
+		      error,data_len,head[EVENT_TYPE_OFFSET]);
+#ifdef MYSQL_SERVER
+    }
+#endif
     my_free(buf);
     /*
       The SQL slave thread will check if file->error<0 to know
@@ -3700,6 +3709,7 @@ bool Query_log_event::write(IO_CACHE* file)
     *start++= Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP;
     *start++= thd->variables.explicit_defaults_for_timestamp;
   }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -4608,7 +4618,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
-      thd->enable_slow_log= opt_log_slow_slave_statements;
+      thd->enable_slow_log= TRUE;
     }
     else
     {
@@ -6428,6 +6438,20 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         goto err;
     }
 
+    /*
+      Acquire protection against global BINLOG lock before rli->data_lock is
+      locked (otherwise we would also block SHOW SLAVE STATUS).
+    */
+    DBUG_ASSERT(!thd->backup_binlog_lock.is_acquired());
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&rli->data_lock);
+    const ulong timeout= thd->variables.lock_wait_timeout;
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT, timeout))
+    {
+      error= 1;
+      goto err;
+    }
+
     mysql_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
@@ -6441,6 +6465,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                                              false/*need_data_lock=false*/)))
     {
       mysql_mutex_unlock(&rli->data_lock);
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
       goto err;
     }
 
@@ -6449,6 +6475,10 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         rli->get_group_master_log_name(),
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
+
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    thd->backup_binlog_lock.release_protection(thd);
+
     if (rli->is_parallel_exec())
       rli->reset_notified_checkpoint(0,
                                      server_id ?
@@ -6924,10 +6954,24 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
   */
   gtid_reacquire_ownership_if_anonymous(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
+  bool binlog_prot_acquired= false;
 
   /* For a slave Xid_log_event is COMMIT */
   query_logger.general_log_print(thd, COM_QUERY,
                                  "COMMIT /* implicit, from Xid_log_event */");
+
+  if (!thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&rli->data_lock);
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                   timeout))
+      DBUG_RETURN(1);
+
+    binlog_prot_acquired= true;
+  }
 
   mysql_mutex_lock(&rli_ptr->data_lock);
 
@@ -7070,6 +7114,12 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
+
+  if (binlog_prot_acquired)
+  {
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
+  }
 
   DBUG_RETURN(error);
 }
@@ -9389,7 +9439,11 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
   this->m_key_index= MAX_KEY;
   this->m_key_info= NULL;
 
-  if (event_type == binary_log::WRITE_ROWS_EVENT)  // row lookup not needed
+  // row lookup not needed
+  if (event_type == binary_log::WRITE_ROWS_EVENT ||
+      ((event_type == binary_log::DELETE_ROWS_EVENT ||
+        event_type == binary_log::UPDATE_ROWS_EVENT) &&
+      get_flags(COMPLETE_ROWS_F) && !m_table->file->rpl_lookup_rows()))
     DBUG_VOID_RETURN;
 
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
@@ -10849,7 +10903,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         break;
 
       case ROW_LOOKUP_NOT_NEEDED:
-        DBUG_ASSERT(get_general_type_code() == binary_log::WRITE_ROWS_EVENT);
+        DBUG_ASSERT(get_general_type_code() == binary_log::WRITE_ROWS_EVENT ||
+                    get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
+                    get_general_type_code() == binary_log::UPDATE_ROWS_EVENT);
 
         /* No need to scan for rows, just apply it */
         do_apply_row_ptr= &Rows_log_event::do_apply_row;
@@ -11814,6 +11870,8 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 {
   int error= 0;
 
+  m_table->file->rpl_before_write_rows();
+
   /*
     Increment the global status insert count variable
   */
@@ -11944,6 +12002,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   }
 
   m_rows_lookup_algorithm= ROW_LOOKUP_UNDEFINED;
+  m_table->file->rpl_after_write_rows();
 
   return error? error : local_error;
 }
@@ -12348,6 +12407,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   int error= 0;
   DBUG_ENTER("Delete_rows_log_event::do_before_row_operations");
+  m_table->file->rpl_before_delete_rows();
   /*
     Increment the global status delete count variable
    */
@@ -12364,6 +12424,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
 {
   DBUG_ENTER("Delete_rows_log_event::do_after_row_operations");
   error= row_operations_scan_and_key_teardown(error);
+  m_table->file->rpl_after_delete_rows();
   DBUG_RETURN(error);
 }
 
@@ -12371,6 +12432,11 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   int error;
   DBUG_ASSERT(m_table != NULL);
+  if (m_rows_lookup_algorithm == ROW_LOOKUP_NOT_NEEDED) {
+    error= unpack_current_row(rli, &m_cols);
+    if (error)
+      return error;
+  }
   /* m_table->record[0] contains the BI */
   m_table->mark_columns_per_binlog_row_image();
   error= m_table->file->ha_delete_row(m_table->record[0]);
@@ -12467,6 +12533,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   int error= 0;
   DBUG_ENTER("Update_rows_log_event::do_before_row_operations");
+  m_table->file->rpl_before_update_rows();
   /*
     Increment the global status update count variable
   */
@@ -12483,6 +12550,7 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
 {
   DBUG_ENTER("Update_rows_log_event::do_after_row_operations");
   error= row_operations_scan_and_key_teardown(error);
+  m_table->file->rpl_after_update_rows();
   DBUG_RETURN(error);
 }
 
@@ -12491,6 +12559,12 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
   int error= 0;
+
+  if (m_rows_lookup_algorithm == ROW_LOOKUP_NOT_NEEDED) {
+    error= unpack_current_row(rli, &m_cols);
+    if (error)
+      return error;
+  }
 
   /*
     This is the situation after locating BI:

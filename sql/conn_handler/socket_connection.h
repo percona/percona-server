@@ -74,6 +74,8 @@ class Mysqld_socket_listener
 {
   std::string m_bind_addr_str; // IP address string
   uint m_tcp_port; // TCP port to bind to
+  uint m_extra_tcp_port; // Extra TCP port to bind to if non-zero
+  int  m_extra_tcp_port_fd;
   uint m_backlog; // backlog specifying length of pending connection queue
   uint m_port_timeout; // port timeout value
   std::string m_unix_sockname; // unix socket pathname to bind to
@@ -87,7 +89,7 @@ class Mysqld_socket_listener
   uint m_error_count; // Internal variable for maintaining error count.
 
 #ifdef HAVE_POLL
-  static const int MAX_SOCKETS=2;
+  static const int MAX_SOCKETS=3;
   struct poll_info_t
   {
     struct pollfd m_fds[MAX_SOCKETS];
@@ -141,13 +143,14 @@ public:
 
     @param   bind_addr_str  IP address used in bind
     @param   tcp_port       TCP port to bind to
+    @param   extra_tcp_port extra TCP port to bind to (do not bind if 0)
     @param   backlog        backlog specifying length of pending
                             connection queue used in listen.
     @param   port_timeout   portname.
     @param   unix_sockname  pathname for unix socket to bind to
   */
   Mysqld_socket_listener(std::string bind_addr_str, uint tcp_port,
-                         uint backlog, uint port_timeout,
+                         uint extra_tcp_port, uint backlog, uint port_timeout,
                          std::string unix_sockname);
 
   /**

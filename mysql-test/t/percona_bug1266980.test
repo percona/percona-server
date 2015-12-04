@@ -1,0 +1,5 @@
+# crash in group_concat in case of syntax error in prev group_concat
+
+--error 1064
+SELECT GROUP_CONCAT(1, 2 ORDER BY 1, , );
+SELECT GROUP_CONCAT(1, 2 ORDER BY 1);

@@ -82,7 +82,7 @@ rpm2cpio %{SOURCE3} | cpio -iv --make-directories
 
 %files
 %defattr(-, root, root)
-%{_libdir}/libmysqlclient*
+%{_libdir}/libperconaserverclient*
 
 # The spec file changelog only includes changes made to the spec file
 # itself - note that they must be ordered by date (important when

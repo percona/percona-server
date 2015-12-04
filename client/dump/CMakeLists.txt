@@ -16,7 +16,7 @@
 
 # Exclude mysqlpump tool from being compiled by SunStudio compiler. It has bug
 # that forbids usage of pure virtual interfaces (and other classes with no
-# fields) without dummy workarounds. In fact, only libmysql must be build with
+# fields) without dummy workarounds. In fact, only libperconaserver must be build with
 # this toolset, so it is acceptable to exclude mysqlpump here.
 
 INCLUDE_DIRECTORIES(
@@ -145,7 +145,7 @@ IF (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro"))
 
   # Store the executable in our parent directory.
   # Why? In pushbuild we do 'touch client/mysql*' to prevent rebuild,
-  #      in the case where we have a separate build of libmysqlclient.so
+  #      in the case where we have a separate build of libperconaserverclient.so
   IF (NOT WIN32)
     SET_TARGET_PROPERTIES(mysqlpump
       PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client)

@@ -266,6 +266,9 @@ btr_cur_latch_leaves(
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(page_id, page_size, mode,
 					  cursor->index, mtr);
+
+		SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
 		latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
@@ -297,6 +300,9 @@ btr_cur_latch_leaves(
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), left_page_no),
 				page_size, RW_X_LATCH, cursor->index, mtr);
+
+			SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
 			latch_leaves.blocks[0] = get_block;
 
 			if (spatial) {
@@ -313,6 +319,9 @@ btr_cur_latch_leaves(
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(
 			page_id, page_size, RW_X_LATCH, cursor->index, mtr);
+
+		SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
 		latch_leaves.blocks[1] = get_block;
 
 #ifdef UNIV_BTR_DEBUG
@@ -344,6 +353,9 @@ btr_cur_latch_leaves(
 			get_block = btr_block_get(
 				page_id_t(page_id.space(), right_page_no),
 				page_size, RW_X_LATCH, cursor->index, mtr);
+
+			SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
 			latch_leaves.blocks[2] = get_block;
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
@@ -374,6 +386,9 @@ btr_cur_latch_leaves(
 				page_size, mode, cursor->index, mtr);
 			latch_leaves.blocks[0] = get_block;
 			cursor->left_block = get_block;
+
+			SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
 #ifdef UNIV_BTR_DEBUG
 			ut_a(page_is_comp(get_block->frame)
 			     == page_is_comp(page));
@@ -385,6 +400,9 @@ btr_cur_latch_leaves(
 		latch_leaves.savepoints[1] = mtr_set_savepoint(mtr);
 		get_block = btr_block_get(page_id, page_size, mode,
 					  cursor->index, mtr);
+
+		SRV_CORRUPT_TABLE_CHECK(get_block, return latch_leaves;);
+
 		latch_leaves.blocks[1] = get_block;
 #ifdef UNIV_BTR_DEBUG
 		ut_a(page_is_comp(get_block->frame) == page_is_comp(page));
@@ -468,9 +486,7 @@ btr_cur_optimistic_latch_leaves(
 			if (btr_page_get_prev(buf_block_get_frame(block), mtr)
 			    == left_page_no) {
 				/* adjust buf_fix_count */
-				buf_page_mutex_enter(block);
 				buf_block_buf_fix_dec(block);
-				buf_page_mutex_exit(block);
 
 				*latch_mode = mode;
 				return(true);
@@ -487,9 +503,7 @@ btr_cur_optimistic_latch_leaves(
 		}
 unpin_failed:
 		/* unpin the block */
-		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		buf_page_mutex_exit(block);
 
 		return(false);
 
@@ -1108,6 +1122,20 @@ retry_page_get:
 	tree_blocks[n_blocks] = block;
 
 	if (block == NULL) {
+		SRV_CORRUPT_TABLE_CHECK(buf_mode == BUF_GET_IF_IN_POOL ||
+					buf_mode == BUF_GET_IF_IN_POOL_OR_WATCH,
+			{
+				page_cursor->block = 0;
+				page_cursor->rec = 0;
+				if (estimate) {
+
+					cursor->path_arr->nth_rec =
+						ULINT_UNDEFINED;
+				}
+
+				goto func_exit;
+			});
+
 		/* This must be a search to perform an insert/delete
 		mark/ delete; try using the insert/delete buffer */
 
@@ -1223,6 +1251,19 @@ retry_page_get:
 	}
 
 	page = buf_block_get_frame(block);
+
+	SRV_CORRUPT_TABLE_CHECK(page,
+		{
+		    page_cursor->block = 0;
+		    page_cursor->rec = 0;
+
+		    if (estimate) {
+
+			cursor->path_arr->nth_rec = ULINT_UNDEFINED;
+		    }
+
+		    goto func_exit;
+		});
 
 	if (height == ULINT_UNDEFINED
 	    && page_is_leaf(page)
@@ -2248,6 +2289,19 @@ btr_cur_open_at_index_side_func(
 
 		page = buf_block_get_frame(block);
 
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
+			page_cursor->block = 0;
+			page_cursor->rec = 0;
+
+			if (estimate) {
+
+				cursor->path_arr->nth_rec = ULINT_UNDEFINED;
+			}
+			/* Can't use break with the macro */
+			goto exit_loop;
+		});
+
 		if (height == ULINT_UNDEFINED
 		    && btr_page_get_level(page, mtr) == 0
 		    && rw_latch != RW_NO_LATCH
@@ -2464,6 +2518,7 @@ btr_cur_open_at_index_side_func(
 		n_blocks++;
 	}
 
+exit_loop:
 	if (heap) {
 		mem_heap_free(heap);
 	}
@@ -2690,6 +2745,14 @@ btr_cur_open_at_rnd_pos_func(
 
 		page = buf_block_get_frame(block);
 
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
+			page_cursor->block = 0;
+			page_cursor->rec = 0;
+
+			goto exit_loop;
+		});
+
 		if (height == ULINT_UNDEFINED
 		    && btr_page_get_level(page, mtr) == 0
 		    && rw_latch != RW_NO_LATCH
@@ -2709,6 +2772,7 @@ btr_cur_open_at_rnd_pos_func(
 		}
 
 		ut_ad(fil_page_index_page_check(page));
+
 		ut_ad(index->id == btr_page_get_index_id(page));
 
 		if (height == ULINT_UNDEFINED) {
@@ -2842,6 +2906,7 @@ btr_cur_open_at_rnd_pos_func(
 		n_blocks++;
 	}
 
+exit_loop:
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
@@ -3069,6 +3134,9 @@ btr_cur_optimistic_insert(
 	*big_rec = NULL;
 
 	block = btr_cur_get_block(cursor);
+
+	SRV_CORRUPT_TABLE_CHECK(block, return(DB_CORRUPTION););
+
 	page = buf_block_get_frame(block);
 	index = cursor->index;
 
@@ -3403,6 +3471,9 @@ btr_cur_pessimistic_insert(
 
 	if (!(flags & BTR_NO_UNDO_LOG_FLAG)
 	    || dict_table_is_intrinsic(index->table)) {
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
+
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the insert will not fail because
 		of lack of space */
@@ -5126,6 +5197,8 @@ btr_cur_optimistic_delete_func(
 
 	block = btr_cur_get_block(cursor);
 
+	SRV_CORRUPT_TABLE_CHECK(block, return(DB_CORRUPTION););
+
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || dict_index_is_clust(cursor->index)
@@ -5256,6 +5329,8 @@ btr_cur_pessimistic_delete(
 		/* First reserve enough free space for the file segments
 		of the index tree, so that the node pointer updates will
 		not fail because of lack of space */
+
+		ut_a(cursor->tree_height != ULINT_UNDEFINED);
 
 		ulint	n_extents = cursor->tree_height / 32 + 1;
 
@@ -6140,6 +6215,16 @@ btr_estimate_number_of_different_key_vals(
 
 		page = btr_cur_get_page(&cursor);
 
+		SRV_CORRUPT_TABLE_CHECK(page, goto exit_loop;);
+		DBUG_EXECUTE_IF("ib_corrupt_page_while_stats_calc",
+				page = NULL;);
+
+		SRV_CORRUPT_TABLE_CHECK(page,
+		{
+			mtr_commit(&mtr);
+			goto exit_loop;
+		});
+
 		rec = page_rec_get_next(page_get_infimum_rec(page));
 
 		if (!page_rec_is_supremum(rec)) {
@@ -6222,6 +6307,7 @@ btr_estimate_number_of_different_key_vals(
 		mtr_commit(&mtr);
 	}
 
+exit_loop:
 	/* If we saw k borders between different key values on
 	n_sample_pages leaf pages, we can estimate how many
 	there will be in index->stat_n_leaf_pages */
@@ -6573,33 +6659,40 @@ btr_blob_free(
 	mtr_t*		mtr)	/*!< in: mini-transaction to commit */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
-	ulint		space = block->page.id.space();
-	ulint		page_no	= block->page.id.page_no();
+	page_id_t	page_id(block->page.id.space(),
+				block->page.id.page_no());
+	bool	freed	= false;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
 	mtr_commit(mtr);
 
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
+	buf_page_mutex_enter(block);
 
 	/* Only free the block if it is still allocated to
 	the same file page. */
 
-	if (buf_block_get_state(block)
-	    == BUF_BLOCK_FILE_PAGE
-	    && block->page.id.space() == space
-	    && block->page.id.page_no() == page_no) {
+	if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+	    && page_id.equals_to(block->page.id)) {
 
-		if (!buf_LRU_free_page(&block->page, all)
-		    && all && block->page.zip.data) {
+		freed = buf_LRU_free_page(&block->page, all);
+
+		if (!freed && all && block->page.zip.data
+		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+		    && page_id.equals_to(block->page.id)) {
+
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_page(&block->page, false);
+			freed = buf_LRU_free_page(&block->page, false);
 		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
+	if (!freed) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		buf_page_mutex_exit(block);
+	}
 }
 
 /** Helper class used while writing blob pages, during insert or update. */

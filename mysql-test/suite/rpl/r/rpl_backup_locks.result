@@ -1,0 +1,41 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t_innodb (a INT) ENGINE=InnoDB;
+CREATE TABLE t_myisam (a INT) ENGINE=MyISAM;
+STOP SLAVE;
+include/wait_for_slave_to_stop.inc
+# connection master
+INSERT INTO t_innodb VALUES (0);
+# connection slave
+LOCK TABLES FOR BACKUP;
+LOCK BINLOG FOR BACKUP;
+START SLAVE;
+include/wait_for_slave_to_start.inc
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+UNLOCK BINLOG;
+UNLOCK TABLES;
+# connection master
+# connection slave
+STOP SLAVE;
+# connection master
+INSERT INTO t_myisam VALUES (0);
+# connection slave
+LOCK TABLES FOR BACKUP;
+START SLAVE;
+LOCK BINLOG FOR BACKUP;
+UNLOCK TABLES;
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+UNLOCK BINLOG;
+# connection slave
+LOCK BINLOG FOR BACKUP;
+# connection master
+INSERT INTO t_innodb VALUES (1);
+# connection slave
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+UNLOCK BINLOG;
+# connection master
+DROP TABLE t_innodb, t_myisam;
+include/rpl_end.inc

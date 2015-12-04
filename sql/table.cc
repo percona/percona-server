@@ -913,11 +913,19 @@ static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   KEY_PART_INFO *key_part= &keyinfo->key_part[key_part_n];
   Field *field= key_part->field;
 
-  /* Flag field as unique if it is the only keypart in a unique index */
+  /* Flag field as unique and/or clustering if it is the only keypart in a
+  unique/clustering index */
   if (key_part_n == 0 && key_n != primary_key_n)
+  {
     field->flags |= (((keyinfo->flags & HA_NOSAME) &&
                       (keyinfo->user_defined_key_parts == 1)) ?
                      UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
+
+    if (((keyinfo->flags & HA_CLUSTERING) &&
+         (keyinfo->user_defined_key_parts == 1)))
+      field->flags|= CLUSTERING_FLAG;
+  }
+
   if (key_part_n == 0)
     field->key_start.set_bit(key_n);
   field->m_indexed= true;
@@ -1783,6 +1791,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (new_frm_ver >= 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
+      /* Replace HA_FULLTEXT & HA_SPATIAL with HA_CLUSTERING. This way we
+      support TokuDB clustering key definitions without changing the FRM
+      format. */
+      if (keyinfo->flags & HA_SPATIAL && keyinfo->flags & HA_FULLTEXT)
+      {
+        if (!ha_check_storage_engine_flag(share->db_type(),
+                                          HTON_SUPPORTS_CLUSTERED_KEYS))
+          goto err;
+        keyinfo->flags|= HA_CLUSTERING;
+        keyinfo->flags&= ~HA_SPATIAL;
+        keyinfo->flags&= ~HA_FULLTEXT;
+      }
       keyinfo->key_length= (uint) uint2korr(strpos+2);
       keyinfo->user_defined_key_parts= (uint) strpos[4];
       keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
@@ -3219,6 +3239,9 @@ partititon_err:
               (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
               FALSE);
   outparam->default_column_bitmaps();
+
+  /* Fill record with default values */
+  restore_record(outparam, s->default_values);
 
   /*
     Process generated columns, if any.

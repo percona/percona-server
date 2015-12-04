@@ -1625,3 +1625,25 @@ trx_i_s_create_lock_id(
 
 	return(lock_id);
 }
+
+void
+trx_i_s_get_lock_sys_memory_usage(ulint *constant, ulint *variable)
+{
+	trx_t* trx;
+
+	*constant = lock_sys->rec_hash->n_cells * sizeof(hash_cell_t);
+	*variable = 0;
+
+	if (trx_sys) {
+		mutex_enter(&trx_sys->mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			*variable += ((trx->lock.lock_heap)
+				      ? mem_heap_get_size(trx->lock.lock_heap)
+				      : 0);
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&trx_sys->mutex);
+	}
+
+}

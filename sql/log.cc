@@ -32,6 +32,12 @@
 #include "sql_parse.h"    // sql_command_flags
 #include "sql_time.h"     // calc_time_from_sec
 #include "table.h"        // TABLE_FIELD_TYPE
+#include "sp_rcontext.h"
+#include "sp_head.h"
+#include "binlog.h"             // generate_new_log_name
+#include "sp_instr.h"           // sp_lex_instr
+#include "sql_prepare.h"        // Prepared_statement
+#include "mysqld.h" // max_binlog_files etc
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -46,7 +52,6 @@
 
 using std::min;
 using std::max;
-
 
 #ifndef _WIN32
 static int   log_syslog_facility= 0;
@@ -207,6 +212,9 @@ protected:
 /** In case of an error, a message is printed to the error log. */
 static Query_log_table_intact log_table_intact;
 
+ulong max_binlog_files;
+ulong max_slowlog_size;
+ulong max_slowlog_files;
 
 /**
   Silence all errors and warnings reported when performing a write
@@ -541,7 +549,8 @@ bool File_query_log::open()
     goto err;
   }
 
-  fn_format(log_file_name, name, mysql_data_home, "", 4);
+  if (generate_new_log_name(log_file_name, &cur_log_ext, name, false))
+    goto err;
 
   /* File is regular writable file */
   if (my_stat(log_file_name, &f_stat, MYF(0)) && !MY_S_ISREG(f_stat.st_mode))
@@ -717,10 +726,15 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   char buff[80], *end;
   char query_time_buff[22+7], lock_time_buff[22+7];
   size_t buff_len;
+  bool need_purge= false;
+  ulong save_cur_ext= 0;
   end= buff;
 
   mysql_mutex_lock(&LOCK_log);
   DBUG_ASSERT(is_open());
+
+  if ((max_slowlog_size > 0) && rotate(max_slowlog_size, &need_purge))
+    goto err;
 
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
   {
@@ -745,12 +759,103 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime)/1000000.0);
   sprintf(lock_time_buff,  "%.6f", ulonglong2double(lock_utime)/1000000.0);
   if (my_b_printf(&log_file,
-                  "# Query_time: %s  Lock_time: %s"
-                  " Rows_sent: %lu  Rows_examined: %lu\n",
+                  "# Schema: %s  Last_errno: %u  Killed: %u\n"
+                  "# Query_time: %s  Lock_time: %s  Rows_sent: %llu"
+                  "  Rows_examined: %llu  Rows_affected: %llu\n"
+                  "# Bytes_sent: %lu",
+                  (thd->db().str ? thd->db().str : ""),
+                  thd->last_errno, (uint) thd->killed,
                   query_time_buff, lock_time_buff,
-                  (ulong) thd->get_sent_row_count(),
-                  (ulong) thd->get_examined_row_count()) == (uint) -1)
+                  (ulonglong) thd->get_sent_row_count(),
+                  (ulonglong) thd->get_examined_row_count(),
+                  (thd->get_row_count_func() > 0)
+                  ? (ulonglong) thd->get_row_count_func() : 0,
+                  (ulong) (thd->status_var.bytes_sent - thd->bytes_sent_old))
+      == (uint) -1)
     goto err;
+
+  if (thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_PLAN))
+    if (my_b_printf(&log_file,
+                    "  Tmp_tables: %lu  Tmp_disk_tables: %lu  "
+                    "Tmp_table_sizes: %llu",
+                    thd->tmp_tables_used, thd->tmp_tables_disk_used,
+                    thd->tmp_tables_size) == (uint) -1)
+      goto err;
+
+  if (my_b_write(&log_file, (uchar*) "\n", 1))
+    goto err;
+
+  if (opt_log_slow_sp_statements == 1 && thd->sp_runtime_ctx &&
+      my_b_printf(&log_file,
+                  "# Stored_routine: %s\n",
+                  thd->sp_runtime_ctx->sp->m_qname.str) == (uint) -1)
+    goto err;
+
+#if defined(ENABLED_PROFILING)
+  thd->profiling.print_current(&log_file);
+#endif
+
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB))
+      && thd->innodb_was_used)
+  {
+    char buf[20];
+    snprintf(buf, 20, "%llX", thd->innodb_trx_id);
+    if (my_b_printf(&log_file,
+                    "# InnoDB_trx_id: %s\n", buf) == (uint) -1)
+      goto err;
+  }
+
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_QUERY_PLAN)) &&
+      my_b_printf(&log_file,
+                  "# QC_Hit: %s  Full_scan: %s  Full_join: %s  Tmp_table: %s  "
+                  "Tmp_table_on_disk: %s\n"                             \
+                  "# Filesort: %s  Filesort_on_disk: %s  Merge_passes: %lu\n",
+                  ((thd->query_plan_flags & QPLAN_QC) ? "Yes" : "No"),
+                  ((thd->query_plan_flags & QPLAN_FULL_SCAN) ? "Yes" : "No"),
+                  ((thd->query_plan_flags & QPLAN_FULL_JOIN) ? "Yes" : "No"),
+                  ((thd->query_plan_flags & QPLAN_TMP_TABLE) ? "Yes" : "No"),
+                  ((thd->query_plan_flags & QPLAN_TMP_DISK) ? "Yes" : "No"),
+                  ((thd->query_plan_flags & QPLAN_FILESORT) ? "Yes" : "No"),
+                  ((thd->query_plan_flags & QPLAN_FILESORT_DISK) ? "Yes" : "No"),
+                  thd->query_plan_fsort_passes) == (uint) -1)
+    goto err;
+
+  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB))
+      && thd->innodb_was_used)
+  {
+    char buf[3][20];
+    snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
+    snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
+    snprintf(buf[2], 20, "%.6f", thd->innodb_innodb_que_wait_timer / 1000000.0);
+    if (my_b_printf(&log_file,
+                    "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %llu  "
+                    "InnoDB_IO_r_wait: %s\n"
+                    "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n"
+                    "#   InnoDB_pages_distinct: %lu\n",
+                    thd->innodb_io_reads, thd->innodb_io_read,
+                    buf[0], buf[1], buf[2], thd->innodb_page_access)
+        == (uint) -1)
+      goto err;
+  }
+  else
+  {
+    if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB)) &&
+        my_b_printf(&log_file,
+                    "# No InnoDB statistics available for this query\n")
+        == (uint) -1)
+      goto err;
+  }
+
+  if (thd->variables.log_slow_rate_limit > 1)
+  {
+    if (my_b_printf(&log_file,
+                    "# Log_slow_rate_type: %s  Log_slow_rate_limit: %lu\n",
+                    opt_slow_query_log_rate_type == SLOG_RT_SESSION ?
+                    "session" : "query",
+                    thd->variables.log_slow_rate_limit) == (uint) -1)
+      goto err;
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db))
   {						// Database changed
     if (my_b_printf(&log_file,"use %s;\n",thd->db().str) == (uint) -1)
@@ -806,7 +911,18 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
       flush_io_cache(&log_file))
     goto err;
 
+  save_cur_ext = cur_log_ext;
+
   mysql_mutex_unlock(&LOCK_log);
+
+  if (max_slowlog_files && need_purge &&
+      purge_up_to(save_cur_ext > max_slowlog_files ?
+                  save_cur_ext - max_slowlog_files : 0, log_file_name))
+  {
+    check_and_print_write_error();
+    return true;
+  }
+
   return false;
 
 err:
@@ -814,7 +930,6 @@ err:
   mysql_mutex_unlock(&LOCK_log);
   return true;
 }
-
 
 bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
                                            const char *user_host,
@@ -1246,8 +1361,11 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   LEX_CSTRING sctx_host= sctx->host();
   LEX_CSTRING sctx_ip= sctx->ip();
   size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                  sctx->priv_user().str, "[",
-                                  sctx_user.length ? sctx_user.str : "", "] @ ",
+                                  sctx->priv_user().str
+                                  ? sctx->priv_user().str : "",
+                                  "[", sctx_user.length ? sctx_user.str :
+                                  (thd->slave_thread ? "SQL_SLAVE" : ""),
+                                  "] @ ",
                                   sctx_host.length ? sctx_host.str : "", " [",
                                   sctx_ip.length ? sctx_ip.str : "", "]",
                                   NullS) - user_host_buff);
@@ -1255,8 +1373,10 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   ulonglong query_utime, lock_utime;
   if (thd->start_utime)
   {
-    query_utime= (current_utime - thd->start_utime);
-    lock_utime=  (thd->utime_after_lock - thd->start_utime);
+    query_utime= (current_utime > thd->start_utime) ?
+      (current_utime - thd->start_utime) : 0;
+    lock_utime=  (thd->utime_after_lock > thd->start_utime) ?
+      (thd->utime_after_lock - thd->start_utime) : 0;
   }
   else
   {
@@ -1527,9 +1647,28 @@ Query_logger::check_if_log_table(TABLE_LIST *table_list,
   return QUERY_LOG_NONE;
 }
 
-
 Query_logger query_logger;
 
+bool File_query_log::purge_up_to(ulong to_ext, const char *log_name)
+{
+  char buff[FN_REFLEN];
+  bool error= false;
+
+  DBUG_ENTER("File_query_log::purge_up_to");
+
+  do {
+    snprintf(buff, sizeof(buff), "%s.%06lu", name, to_ext);
+    if ((error= unlink(buff)))
+    {
+      if (my_errno() == ENOENT)
+        error= false;
+      break;
+    }
+    --to_ext;
+  } while (to_ext > 0);
+
+  DBUG_RETURN(error);
+}
 
 char *make_query_log_name(char *buff, enum_log_table_type log_type)
 {
@@ -1546,6 +1685,54 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type)
                    MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
 
+/**
+   Calculate execution time for the current query.
+
+   SET queries outside stored procedures are ignored so that
+   statements changing query_exec_time are not affected by
+   themselves.
+
+   @param thd              thread handle
+   @param lex              current relative time in microseconds
+
+   @return                 time in microseconds from utime_after_lock
+*/
+
+static ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime)
+{
+  ulonglong res;
+
+#ifndef DBUG_OFF
+  if (thd->variables.query_exec_time != 0)
+    res= thd->lex->sql_command != SQLCOM_SET_OPTION ?
+      thd->variables.query_exec_time : 0;
+  else
+#endif
+    res= cur_utime - thd->utime_after_lock;
+
+  if (res > thd->variables.long_query_time)
+    thd->server_status|= SERVER_QUERY_WAS_SLOW;
+  else
+    thd->server_status&= ~SERVER_QUERY_WAS_SLOW;
+
+  return res;
+}
+
+inline void copy_global_to_session(THD *thd, ulong flag,
+                                   const ulong *val)
+{
+  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  if (opt_slow_query_log_use_global_control & (1ULL << flag))
+    *(ulong *)((char *) &thd->variables + offset) = *val;
+}
+
+static void copy_global_to_session(THD *thd, ulong flag,
+                                   const ulonglong *val)
+{
+  my_ptrdiff_t offset = ((char *)val - (char *)&global_system_variables);
+  if (opt_slow_query_log_use_global_control & (1ULL << flag))
+    *(ulonglong *)((char *) &thd->variables + offset) = *val;
+}
 
 bool log_slow_applicable(THD *thd)
 {
@@ -1558,6 +1745,80 @@ bool log_slow_applicable(THD *thd)
   */
   if (unlikely(thd->in_sub_stmt))
     DBUG_RETURN(false);                         // Don't set time for sub stmt
+
+  /* Follow the slow log filter configuration. */
+  if (thd->variables.log_slow_filter != 0 &&
+      (!(thd->variables.log_slow_filter & thd->query_plan_flags) ||
+       ((thd->variables.log_slow_filter & (1UL << SLOG_F_QC_NO)) &&
+        (thd->query_plan_flags & QPLAN_QC))))
+    DBUG_RETURN(false);
+
+  ulonglong end_utime_of_query= thd->current_utime();
+  ulonglong query_exec_time= get_query_exec_time(thd, end_utime_of_query);
+
+  /*
+    Don't log the CALL statement if slow statements logging
+    inside of stored procedures is enabled.
+  */
+  if (opt_log_slow_sp_statements > 0 && thd->lex)
+  {
+    if (thd->lex->sql_command == SQLCOM_CALL)
+    {
+      if (!thd->stmt_arena->is_conventional())
+      {
+        int sql_command= ((sp_lex_instr *)thd->stmt_arena)->get_command();
+        if (sql_command == SQLCOM_CALL || sql_command == -1)
+          DBUG_RETURN(false);
+      }
+      else
+        DBUG_RETURN(false);
+    }
+    else if (thd->lex->sql_command == SQLCOM_EXECUTE)
+    {
+      Prepared_statement *stmt;
+      LEX_CSTRING *name= &thd->lex->prepared_stmt_name;
+      if ((stmt= thd->stmt_map.find_by_name(*name)) != NULL &&
+          stmt->lex && stmt->lex->sql_command == SQLCOM_CALL)
+        DBUG_RETURN(false);
+    }
+  }
+
+  /*
+    Low long_query_time value most likely means user is debugging stuff and even
+    though some thread's queries are not supposed to be logged b/c of the rate
+    limit, if one of them takes long enough (>= 1 second) it will be sensible
+    to make an exception and write to slow log anyway.
+  */
+
+  system_variables const &g= global_system_variables;
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_FILTER,
+                         &g.log_slow_filter);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_RATE_LIMIT,
+                         &g.log_slow_rate_limit);
+  copy_global_to_session(thd, SLOG_UG_LOG_SLOW_VERBOSITY,
+                         &g.log_slow_verbosity);
+  copy_global_to_session(thd, SLOG_UG_LONG_QUERY_TIME,
+                         &g.long_query_time);
+  copy_global_to_session(thd, SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+                         &g.min_examined_row_limit);
+
+  if (opt_slow_query_log_rate_type == SLOG_RT_QUERY
+      && thd->variables.log_slow_rate_limit
+      && my_rnd(&thd->slog_rand) * ((double)thd->variables.log_slow_rate_limit)
+      > 1.0
+      && query_exec_time < slow_query_log_always_write_time
+      && (thd->variables.long_query_time >= 1000000
+          || (ulong) query_exec_time < 1000000)) {
+    DBUG_RETURN(false);
+  }
+  if (opt_slow_query_log_rate_type == SLOG_RT_SESSION
+      && thd->variables.log_slow_rate_limit
+      && thd->thread_id() % thd->variables.log_slow_rate_limit
+      && query_exec_time < slow_query_log_always_write_time
+      && (thd->variables.long_query_time >= 1000000
+          || (ulong) query_exec_time < 1000000)) {
+    DBUG_RETURN(false);
+  }
 
   /*
     Do not log administrative statements unless the appropriate option is
@@ -1586,6 +1847,7 @@ bool log_slow_applicable(THD *thd)
 
 void log_slow_do(THD *thd)
 {
+  thd_proc_info(thd, "logging slow query");
   THD_STAGE_INFO(thd, stage_logging_slow_query);
   thd->status_var.long_query_count++;
 
@@ -1762,6 +2024,81 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
   return suppress_current;
 }
 
+int File_query_log::rotate(ulong max_size, bool *need_purge)
+{
+  int error;
+  DBUG_ENTER("File_query_log::rotate");
+
+  *need_purge= false;
+  if (my_b_tell(&log_file) > max_size)
+  {
+    if ((error= new_file()))
+      DBUG_RETURN(error);
+
+    *need_purge= true;
+  }
+
+  DBUG_RETURN(0);
+}
+
+int File_query_log::new_file()
+{
+  int error= 0, close_on_error= FALSE;
+  char new_name[FN_REFLEN], *old_name;
+
+  DBUG_ENTER("File_query_log::new_file");
+  if (!is_open())
+  {
+    DBUG_PRINT("info",("log is closed"));
+    DBUG_RETURN(error);
+  }
+
+  mysql_mutex_assert_owner(&LOCK_log);
+
+  if (cur_log_ext == (ulong)-1)
+  {
+    strcpy(new_name, name);
+    if ((error= generate_new_log_name(new_name, &cur_log_ext, name, false)))
+      goto end;
+  }
+  else
+  {
+    if (cur_log_ext == MAX_LOG_UNIQUE_FN_EXT)
+    {
+      error= 1;
+      goto end;
+    }
+    snprintf(new_name, sizeof(new_name), "%s.%06lu", name, ++cur_log_ext);
+  }
+
+  /*
+    close will try to free name and zero name pointer,
+    We saving current name value and zeroing the pointer to
+    prvent it.
+  */
+  old_name= name;
+  name= NULL;
+  close();
+  name= old_name;
+
+  error= open();
+
+  my_free(old_name);
+
+end:
+
+  if (error && close_on_error /* rotate or reopen failed */)
+  {
+    sql_print_error("Could not open %s for logging (error %d). "
+                    "Turning logging off for the whole duration "
+                    "of the MySQL server process. To turn it on "
+                    "again: fix the cause, shutdown the MySQL "
+                    "server and restart it.",
+                    new_name, errno);
+  }
+
+  DBUG_RETURN(error);
+}
 
 bool Error_log_throttle::log()
 {

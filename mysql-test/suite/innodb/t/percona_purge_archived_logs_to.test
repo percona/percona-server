@@ -1,0 +1,39 @@
+#
+# Test PURGE ARCHIVED LOGS TO
+#
+
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+
+--source ../include/percona_log_archiving_setup.inc
+
+SELECT sleep(1);
+--source ../include/percona_log_archiving_workload.inc
+SELECT sleep(1);
+--source ../include/percona_log_archiving_workload.inc
+SELECT sleep(1);
+--source ../include/percona_log_archiving_workload.inc
+--source ../include/percona_log_archiving_check.inc
+
+if ($archived_logs_count == 0)
+{
+  die "0 archived logs have been produced";
+}
+
+--replace_result $mid_log_file val
+--eval PURGE ARCHIVED LOGS TO '$mid_log_file'
+
+let $count = `SELECT $archived_logs_count - $archived_logs_mid + 1`;
+
+--source ../include/percona_log_archiving_stat.inc
+
+if ($archived_logs_count != $count)
+{
+  die "PURGE ARCHIVED LOGS TO failed";
+}
+
+#should fail
+--error 1379
+PURGE ARCHIVED LOGS TO '#invalid_file';
+
+--source ../include/percona_log_archiving_cleanup.inc

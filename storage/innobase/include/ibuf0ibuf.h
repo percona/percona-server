@@ -417,6 +417,14 @@ Closes insert buffer and frees the data structures. */
 void
 ibuf_close(void);
 /*============*/
+/******************************************************************//**
+Function to pass ibuf status variables */
+
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	free_list,
+	ulint*	segment_size);
 
 /******************************************************************//**
 Checks the insert buffer bitmaps on IMPORT TABLESPACE.

@@ -473,7 +473,11 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
 	LEVEL_MAP_INSERT(SYNC_BUF_BLOCK);
 	LEVEL_MAP_INSERT(SYNC_BUF_PAGE_HASH);
-	LEVEL_MAP_INSERT(SYNC_BUF_POOL);
+	LEVEL_MAP_INSERT(SYNC_BUF_LRU_LIST);
+	LEVEL_MAP_INSERT(SYNC_BUF_FREE_LIST);
+	LEVEL_MAP_INSERT(SYNC_BUF_ZIP_FREE);
+	LEVEL_MAP_INSERT(SYNC_BUF_ZIP_HASH);
+	LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_STATE);
 	LEVEL_MAP_INSERT(SYNC_POOL);
 	LEVEL_MAP_INSERT(SYNC_POOL_MANAGER);
 	LEVEL_MAP_INSERT(SYNC_SEARCH_SYS);
@@ -485,6 +489,7 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_RECV);
 	LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_ORDER);
 	LEVEL_MAP_INSERT(SYNC_LOG);
+	LEVEL_MAP_INSERT(SYNC_LOG_ONLINE);
 	LEVEL_MAP_INSERT(SYNC_PAGE_CLEANER);
 	LEVEL_MAP_INSERT(SYNC_PURGE_QUEUE);
 	LEVEL_MAP_INSERT(SYNC_TRX_SYS_HEADER);
@@ -767,6 +772,7 @@ LatchDebug::check_order(
 	case SYNC_PAGE_CLEANER:
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
+	case SYNC_LOG_ONLINE:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
@@ -831,7 +837,11 @@ LatchDebug::check_order(
 		break;
 
 	case SYNC_BUF_FLUSH_LIST:
-	case SYNC_BUF_POOL:
+	case SYNC_BUF_LRU_LIST:
+	case SYNC_BUF_FREE_LIST:
+	case SYNC_BUF_ZIP_FREE:
+	case SYNC_BUF_ZIP_HASH:
+	case SYNC_BUF_FLUSH_STATE:
 
 		/* We can have multiple mutexes of this type therefore we
 		can only check whether the greater than condition holds. */
@@ -840,22 +850,10 @@ LatchDebug::check_order(
 		break;
 
 	case SYNC_BUF_PAGE_HASH:
-
-		/* Multiple page_hash locks are only allowed during
-		buf_validate and that is where buf_pool mutex is already
-		held. */
-
-		/* Fall through */
-
 	case SYNC_BUF_BLOCK:
-
-		/* Either the thread must own the (buffer pool) buf_pool->mutex
-		or it is allowed to latch only ONE of (buffer block)
-		block->mutex or buf_pool->zip_mutex. */
 
 		if (less(latches, level) != NULL) {
 			basic_check(latches, level, level - 1);
-			ut_a(find(latches, SYNC_BUF_POOL) != 0);
 		}
 		break;
 
@@ -1347,7 +1345,20 @@ sync_latch_meta_init()
 	LATCH_ADD(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, buffer_block_mutex_key);
 #endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
-	LATCH_ADD(BUF_POOL, SYNC_BUF_POOL, buf_pool_mutex_key);
+	LATCH_ADD(BUF_POOL_LRU_LIST, SYNC_BUF_LRU_LIST,
+		  buf_pool_LRU_list_mutex_key);
+
+	LATCH_ADD(BUF_POOL_FREE_LIST, SYNC_BUF_FREE_LIST,
+		  buf_pool_free_list_mutex_key);
+
+	LATCH_ADD(BUF_POOL_ZIP_FREE, SYNC_BUF_ZIP_FREE,
+		  buf_pool_zip_free_mutex_key);
+
+	LATCH_ADD(BUF_POOL_ZIP_HASH, SYNC_BUF_ZIP_HASH,
+		  buf_pool_zip_free_mutex_key);
+
+	LATCH_ADD(BUF_POOL_FLUSH_STATE, SYNC_BUF_FLUSH_STATE,
+		  buf_pool_flush_state_mutex_key);
 
 	LATCH_ADD(BUF_POOL_ZIP, SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
 
@@ -1386,6 +1397,8 @@ sync_latch_meta_init()
 
 	LATCH_ADD(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
 		  ibuf_pessimistic_insert_mutex_key);
+
+	LATCH_ADD(LOG_ONLINE, SYNC_LOG_ONLINE, log_bmp_sys_mutex_key);
 
 	LATCH_ADD(LOG_SYS, SYNC_LOG, log_sys_mutex_key);
 

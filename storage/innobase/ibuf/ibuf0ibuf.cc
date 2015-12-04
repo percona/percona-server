@@ -56,6 +56,7 @@ my_bool	srv_ibuf_disable_background_merge;
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
+#include "btr0sea.h"
 #include "row0upd.h"
 #include "dict0boot.h"
 #include "fut0lst.h"
@@ -466,6 +467,19 @@ ibuf_close(void)
 
 	ut_free(ibuf);
 	ibuf = NULL;
+}
+
+/******************************************************************//**
+Function to pass ibuf status variables */
+
+void
+ibuf_export_ibuf_status(
+/*====================*/
+	ulint*	free_list,
+	ulint*	segment_size)
+{
+	*free_list = ibuf->free_list_len;
+	*segment_size = ibuf->seg_size;
 }
 
 /******************************************************************//**
@@ -2606,7 +2620,9 @@ ibuf_merge_space(
 			&pages[0], &spaces[0], n_pages,
 			&mtr);
 
-		++sum_sizes;
+		if (*n_pages > 0) {
+			++sum_sizes;
+		}
 	}
 
 	ibuf_mtr_commit(&mtr);
@@ -2740,6 +2756,8 @@ ibuf_merge_in_background(
 
 		sum_bytes += n_bytes;
 		sum_pages += n_pag2;
+
+		srv_inc_activity_count();
 	}
 
 	return(sum_bytes);
@@ -4446,7 +4464,8 @@ ibuf_merge_or_delete_for_page(
 	ulint		dops[IBUF_OP_COUNT];
 
 	ut_ad(block == NULL || page_id.equals_to(block->page.id));
-	ut_ad(block == NULL || buf_block_get_io_fix(block) == BUF_IO_READ);
+	ut_ad(block == NULL
+	      || buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(page_id)

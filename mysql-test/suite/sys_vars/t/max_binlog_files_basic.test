@@ -1,0 +1,147 @@
+--source include/load_sysvars.inc
+#test max-binlog-files, mostly copied from max_binlog_files test
+
+SET @start_value = @@global.max_binlog_files;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_072_01------------------------#'
+##################################################################
+#           Display the DEFAULT value of max_binlog_files         #
+##################################################################
+
+SET @@global.max_binlog_files = 5000;
+SET @@global.max_binlog_files = DEFAULT;
+SELECT @@global.max_binlog_files;
+
+--echo '#---------------------FN_DYNVARS_072_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.max_binlog_files = @start_value;
+SELECT @@global.max_binlog_files = 0;
+
+--echo '#--------------------FN_DYNVARS_072_03------------------------#'
+##################################################################
+#    Change the value of max_binlog_files to a valid value        #
+##################################################################
+
+SET @@global.max_binlog_files = 4;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 10;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 10;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 40;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 65;
+SELECT @@global.max_binlog_files;
+
+
+--echo '#--------------------FN_DYNVARS_072_04-------------------------#'
+#####################################################################
+#      Change the value of max_binlog_files to invalid value         #
+#####################################################################
+
+SET @@global.max_binlog_files = -1;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 100000000000;
+SELECT @@global.max_binlog_files;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_binlog_files = 10000.01;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = -1024;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 1024;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 4294967296;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = 4095;
+SELECT @@global.max_binlog_files;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_binlog_files = ON;
+SELECT @@global.max_binlog_files;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_binlog_files = 'test';
+SELECT @@global.max_binlog_files;
+
+
+--echo '#-------------------FN_DYNVARS_072_05----------------------------#'
+##################################################################### 
+#       Test if accessing session max_binlog_files gives error       #
+#####################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.max_binlog_files = 4096;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_binlog_files;
+
+
+--echo '#----------------------FN_DYNVARS_072_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+SELECT @@global.max_binlog_files = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='max_binlog_files';
+
+SELECT @@max_binlog_files = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='max_binlog_files';
+
+
+--echo '#---------------------FN_DYNVARS_072_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.max_binlog_files = TRUE;
+SELECT @@global.max_binlog_files;
+SET @@global.max_binlog_files = FALSE;
+SELECT @@global.max_binlog_files;
+
+
+--echo '#---------------------FN_DYNVARS_072_08----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.max_binlog_files = 5000;
+SELECT @@max_binlog_files = @@global.max_binlog_files;
+
+
+--echo '#---------------------FN_DYNVARS_072_09----------------------#'
+##########################################################################
+#   Check if max_binlog_files can be accessed with and without @@ sign    #
+##########################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET max_binlog_files = 6000;
+SELECT @@max_binlog_files;
+--Error ER_PARSE_ERROR
+SET local.max_binlog_files = 7000;
+--Error ER_UNKNOWN_TABLE
+SELECT local.max_binlog_files;
+--Error ER_PARSE_ERROR
+SET global.max_binlog_files = 8000;
+--Error ER_UNKNOWN_TABLE
+SELECT global.max_binlog_files;
+--Error ER_BAD_FIELD_ERROR
+SELECT max_binlog_files = @@session.max_binlog_files;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.max_binlog_files = @start_value;
+SELECT @@global.max_binlog_files;
+
+
+##################################################################
+#              END OF max_binlog_files TESTS                      #
+##################################################################
+

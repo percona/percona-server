@@ -319,7 +319,7 @@ ELSE()
 ENDIF()
 
 # Use cmake variables to inspect dependencies for 
-# mysqlclient library (add -l stuff)
+# perconaserverclient library (add -l stuff)
 SET(CLIENT_LIBS "")
 SET(LIBS "")
 
@@ -360,14 +360,14 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
   STRING(REGEX REPLACE "[ ]+$" "" ${var} "${${var}}")
 ENDMACRO()
 
-EXTRACT_LINK_LIBRARIES(mysqlclient CLIENT_LIBS)
+EXTRACT_LINK_LIBRARIES(perconaserverclient CLIENT_LIBS)
 IF(WITH_EMBEDDED_SERVER)
   EXTRACT_LINK_LIBRARIES(mysqlserver EMBEDD_LIBS)
 ENDIF()
 
 IF(MSVC)
-  GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION mysqlclient VERSION)
-  GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME mysqlclient OUTPUT_NAME)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION perconaserverclient VERSION)
+  GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME perconaserverclient OUTPUT_NAME)
 ELSE()
   GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION libmysql VERSION)
   GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME libmysql OUTPUT_NAME)
@@ -434,6 +434,7 @@ ELSE()
     SET(BIN_SCRIPTS
       mysql_config
       mysqldumpslow
+      ps_tokudb_admin
       )
   ELSE()
     SET(BIN_SCRIPTS
@@ -441,6 +442,7 @@ ELSE()
       mysqldumpslow
       mysqld_multi
       mysqld_safe
+      ps_tokudb_admin
       )
   ENDIF()
 

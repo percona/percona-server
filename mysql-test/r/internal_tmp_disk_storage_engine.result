@@ -3123,6 +3123,7 @@ SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
 Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
+enforce_storage_engine	
 internal_tmp_disk_storage_engine	InnoDB
 SET GLOBAL innodb_large_prefix=default;
 Warnings:

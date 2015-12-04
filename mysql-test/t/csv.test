@@ -1895,3 +1895,47 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 --echo End of 5.1 tests
+
+#
+# Bug #71091 CSV engine does not properly process "", in quotes
+#
+
+SET @old_csv_mode = @@SESSION.csv_mode;
+SET @@SESSION.csv_mode='ietf_quotes';
+CREATE TABLE t1(c1 TEXT NOT NULL, c2 TEXT NOT NULL) ENGINE=CSV;
+
+INSERT INTO t1 VALUES("a\"b,c","d");
+INSERT INTO t1 VALUES("d","a\"b,c");
+INSERT INTO t1 VALUES(",\"a","e");
+INSERT INTO t1 VALUES("e",",\"a");
+INSERT INTO t1 VALUES("\"","f");
+INSERT INTO t1 VALUES("f","\"");
+INSERT INTO t1 VALUES(",","g");
+INSERT INTO t1 VALUES("g",",");
+
+SELECT * FROM t1;
+
+--echo CSV file contents:
+--cat_file $MYSQLD_DATADIR/test/t1.CSV
+
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 TEXT NOT NULL, c2 TEXT NOT NULL) ENGINE=CSV;
+
+--echo Replacing t1.CSV
+--remove_file $MYSQLD_DATADIR/test/t1.CSV
+--write_file $MYSQLD_DATADIR/test/t1.CSV
+a,b
+"a","b"
+"a""b,c","d"
+"d",",""a"
+"a"",",e
+e,""""
+",",f
+EOF
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+SET @@SESSION.csv_mode=@old_csv_mode;

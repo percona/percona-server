@@ -1489,7 +1489,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
     DBUG_PRINT("info",(" %.*s: eval args done", (int) m_name.length, 
                        m_name.str));
   }
-  if (!(m_flags & LOG_SLOW_STATEMENTS) && thd->enable_slow_log)
+  if (!(m_flags & LOG_SLOW_STATEMENTS || opt_log_slow_sp_statements == 1)
+      && thd->enable_slow_log)
   {
     DBUG_PRINT("info", ("Disabling slow log for the execution"));
     save_enable_slow_log= true;

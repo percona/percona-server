@@ -2326,6 +2326,18 @@ err:
   return 1;
 }
 
+#define CHECK_FUNC_RANGE(cfr_ctype, cfr_vmin, cfr_vmax, cfr_save, cfr_res) \
+  do {                                                                  \
+    if (cfr_vmin && *(cfr_ctype *) cfr_save < *(cfr_ctype *) cfr_vmin) { \
+      *(cfr_ctype *)cfr_save= *(cfr_ctype *) cfr_vmin;                  \
+      cfr_res= TRUE;                                                    \
+    }                                                                   \
+    if (cfr_vmax && *(cfr_ctype *) cfr_save > *(cfr_ctype *) cfr_vmax) { \
+      *(cfr_ctype *) cfr_save= *(cfr_ctype *) cfr_vmax;                 \
+      cfr_res= TRUE;                                                    \
+    }                                                                   \
+  } while(0)
+
 
 static int check_func_int(THD *thd, st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
@@ -2333,22 +2345,30 @@ static int check_func_int(THD *thd, st_mysql_sys_var *var,
   my_bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
+  const void *vmin, *vmax;
   value->val_int(value, &orig);
   val= orig;
   plugin_opt_set_limits(&options, var);
 
+  vmin= getopt_constraint_get_min_value(var->name, 0, FALSE);
+  vmax= getopt_constraint_get_max_value(var->name, 0, FALSE);
+  
   if (var->flags & PLUGIN_VAR_UNSIGNED)
   {
     if ((fixed1= (!value->is_unsigned(value) && val < 0)))
       val=0;
     *(uint *)save= (uint) getopt_ull_limit_value((ulonglong) val, &options,
                                                    &fixed2);
+
+    CHECK_FUNC_RANGE(uint, vmin, vmax, save, fixed1);
   }
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
       val=LLONG_MAX;
     *(int *)save= (int) getopt_ll_limit_value(val, &options, &fixed2);
+    
+    CHECK_FUNC_RANGE(int, vmin, vmax, save, fixed1);
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
@@ -2362,22 +2382,30 @@ static int check_func_long(THD *thd, st_mysql_sys_var *var,
   my_bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
+  const void *vmin, *vmax;
   value->val_int(value, &orig);
   val= orig;
   plugin_opt_set_limits(&options, var);
 
+  vmin= getopt_constraint_get_min_value(var->name, 0, FALSE);
+  vmax= getopt_constraint_get_max_value(var->name, 0, FALSE);
+  
   if (var->flags & PLUGIN_VAR_UNSIGNED)
   {
     if ((fixed1= (!value->is_unsigned(value) && val < 0)))
       val=0;
     *(ulong *)save= (ulong) getopt_ull_limit_value((ulonglong) val, &options,
                                                    &fixed2);
+    
+    CHECK_FUNC_RANGE(ulong, vmin, vmax, save, fixed1);
   }
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
       val=LLONG_MAX;
     *(long *)save= (long) getopt_ll_limit_value(val, &options, &fixed2);
+    
+    CHECK_FUNC_RANGE(long, vmin, vmax, save, fixed1);
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
@@ -2391,22 +2419,30 @@ static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
   my_bool fixed1, fixed2;
   long long orig, val;
   struct my_option options;
+  const void *vmin, *vmax;
   value->val_int(value, &orig);
   val= orig;
   plugin_opt_set_limits(&options, var);
 
+  vmin= getopt_constraint_get_min_value(var->name, 0, FALSE);
+  vmax= getopt_constraint_get_max_value(var->name, 0, FALSE);
+  
   if (var->flags & PLUGIN_VAR_UNSIGNED)
   {
     if ((fixed1= (!value->is_unsigned(value) && val < 0)))
       val=0;
     *(ulonglong *)save= getopt_ull_limit_value((ulonglong) val, &options,
                                                &fixed2);
+    
+     CHECK_FUNC_RANGE(ulonglong, vmin, vmax, save, fixed1);
   }
   else
   {
     if ((fixed1= (value->is_unsigned(value) && val < 0)))
       val=LLONG_MAX;
     *(longlong *)save= getopt_ll_limit_value(val, &options, &fixed2);
+    
+    CHECK_FUNC_RANGE(longlong, vmin, vmax, save, fixed1);
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
@@ -2587,6 +2623,13 @@ sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length,
   plugin_ref plugin;
   DBUG_ENTER("find_sys_var_ex");
 
+  const my_bool *hidden= getopt_constraint_get_hidden_value(str, 0, FALSE);
+  if (hidden && *hidden)
+  {
+    var= NULL;
+    goto exit;
+  }
+
   if (!locked)
     mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
@@ -2610,6 +2653,7 @@ sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length,
   if (!locked)
     mysql_mutex_unlock(&LOCK_plugin);
 
+exit:
   if (!throw_error && !var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
   DBUG_RETURN(var);
@@ -4101,6 +4145,75 @@ int unlock_plugin_data()
   DBUG_RETURN(mysql_mutex_unlock(&LOCK_plugin));
 }
 
+/**
+  Create deep copy of system_variables instance.
+*/
+struct system_variables *
+copy_system_variables(const struct system_variables *src,
+                      bool enable_plugins)
+{
+  struct system_variables *dst;
+
+  DBUG_ASSERT(src);
+
+  dst= (struct system_variables *)
+    my_malloc(key_memory_per_query_vars, sizeof(struct system_variables),
+              MYF(MY_WME | MY_FAE));
+  *dst = *src;
+
+  if (dst->dynamic_variables_ptr)
+  {
+    dst->dynamic_variables_ptr=
+      (char *)my_malloc(key_memory_per_query_vars, dst->dynamic_variables_size,
+                        MYF(MY_WME | MY_FAE));
+    memcpy(dst->dynamic_variables_ptr,
+           src->dynamic_variables_ptr,
+           src->dynamic_variables_size);
+  }
+
+  dst->dynamic_variables_allocs= 0;
+
+  for (LIST *i= src->dynamic_variables_allocs; i; i= i->next)
+  {
+    const char *src_value= (const char *)(i + 1);
+    size_t src_length= strlen(src_value) + 1;
+    LIST *dst_el= (LIST *) my_malloc(key_memory_per_query_vars,
+                                     sizeof(LIST) + src_length,
+                                     MYF(MY_WME | MY_FAE));
+    memcpy(dst_el + 1, src_value, src_length);
+    dst->dynamic_variables_allocs= list_add(dst->dynamic_variables_allocs,
+                                             dst_el);
+  }
+
+  if (enable_plugins)
+  {
+    mysql_mutex_lock(&LOCK_plugin);
+    dst->table_plugin=
+      my_intern_plugin_lock(NULL, src->table_plugin);
+    dst->temp_table_plugin=
+      my_intern_plugin_lock(NULL, src->temp_table_plugin);
+    mysql_mutex_unlock(&LOCK_plugin);
+  }
+
+  return dst;
+}
+
+void free_system_variables(struct system_variables *v, bool enable_plugins)
+{
+  DBUG_ASSERT(v);
+
+  if (enable_plugins)
+  {
+    mysql_mutex_lock(&LOCK_plugin);
+    intern_plugin_unlock(NULL, v->table_plugin);
+    intern_plugin_unlock(NULL, v->temp_table_plugin);
+    mysql_mutex_unlock(&LOCK_plugin);
+  }
+
+  plugin_var_memalloc_free(v);
+
+  my_free(v->dynamic_variables_ptr);
+}
 
 bool Sql_cmd_install_plugin::execute(THD *thd)
 {

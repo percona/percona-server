@@ -1,0 +1,92 @@
+#! /bin/bash
+#
+# Scripts to run by Percona Server systemd service
+# 
+# Needed argument: pre | post
+# 
+# pre mode  :  try to run mysql_install_db and fix perms and SELinux contexts
+# post mode :  ping server until answer is received
+# 
+
+parse_cnf()
+{
+    local var=$1
+    shift
+    local groups=$*
+    reval=$(my_print_defaults $groups | awk -F= '{if ($1 ~ /_/) { gsub(/_/,"-",$1); print $1"="$2 } else { print $0 }}' | grep -- "--$var=" | cut -d= -f2- | tail -n 1 )
+    if [[ -z ${reval:-} ]];then 
+        reval=""
+    fi
+    echo $reval
+}
+
+install_db () {    
+    # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
+    log=$(parse_cnf log-error server mysqld mysqld_safe)
+    datadir=$(parse_cnf datadir server mysqld)
+    if [[ -z ${datadir:-} ]]; then
+        datadir="/var/lib/mysql"
+    fi
+
+    # Check that pid-file directory exists and has valid permissions
+    pid_path=$(parse_cnf pid-file server mysqld mysqld_safe)
+    if [[ -z "${pid_path:-}" ]]; then
+      pid_path=$datadir/`hostname`.pid
+    else
+      case "$pid_path" in
+        /* ) ;;
+        * )  pid_path="$datadir/$pid_path" ;;
+      esac
+    fi
+    pidfiledir=$(dirname $pid_path)
+
+    if [ ! -z $pidfiledir ]; then
+        [ -d "$pidfiledir" ] || install -d -m 0755 -omysql -gmysql "$pidfiledir" || exit 1
+    fi
+    
+    # Restore log, dir, perms and SELinux contexts
+    [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1
+    if [ -x /usr/sbin/restorecon ]; then
+        /usr/sbin/restorecon "$datadir"
+        if [ ! -z $pidfiledir ]; then
+            /usr/sbin/restorecon "$pidfiledir"
+        fi
+    fi
+
+    # If log file is not specified it's put into datadir by default
+    if [ ! -z $log ]; then
+        [ -e $log ] || touch $log
+        chmod 0640 $log
+        chown mysql:mysql $log || exit 1
+        if [ -x /usr/sbin/restorecon ]; then
+            /usr/sbin/restorecon $log
+        fi
+    fi
+
+    # If special mysql dir is in place, skip db install 
+    [ -d "$datadir/mysql" ] && exit 0
+
+    # Create initial db
+    /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
+    exit 0
+}
+
+pinger () {
+    # Wait for ping to answer to signal startup completed,
+    # might take a while in case of e.g. crash recovery
+    # MySQL systemd service will timeout script if no answer
+    while /bin/true ; do
+        sleep 1
+        mysqladmin ping >/dev/null 2>&1 && break
+    done
+    exit 0
+}
+
+# main
+case $1 in
+    "pre") install_db ;;
+    "post") pinger ;;
+esac
+
+exit 0
+

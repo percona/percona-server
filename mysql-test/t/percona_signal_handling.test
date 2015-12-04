@@ -1,0 +1,11 @@
+# A regression testcase for:
+# - bug 1060136: verifies that the server is not killed on SIGSTOP;
+# - bug 805805: verifies that the connection to the server is not killed on SIGSTOP/SIGCONT.
+--source include/not_windows.inc
+
+let $mysqld_pid_file=`SELECT @@GLOBAL.pid_file`;
+
+exec kill -STOP `cat $mysqld_pid_file`;
+exec kill -CONT `cat $mysqld_pid_file`;
+
+SELECT 2+2;

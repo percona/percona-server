@@ -344,6 +344,214 @@ TODO list:
 #include "probes_mysql.h"
 #include "transaction.h"
 
+#include "query_strip_comments.h"
+
+/*
+  Number of bytes to be allocated in a query cache buffer in addition to the
+  query string length.
+
+  The query buffer layout is:
+
+  buffer :==
+    <statement>   The input statement(s)
+    '\0'          Terminating null char
+    <db_length>   Length of following current database name (size_t)
+    <db_name>     Name of current database
+    <flags>       Flags struct
+*/
+#define QUERY_BUFFER_ADDITIONAL_LENGTH(db_length)               \
+  (1 + sizeof(size_t) + db_length + QUERY_CACHE_FLAGS_SIZE)
+
+QueryStripComments::QueryStripComments()
+{
+  buffer = 0;
+  length = 0;
+  buffer_length = 0;
+}
+QueryStripComments::~QueryStripComments()
+{
+  cleanup();
+}
+
+inline bool query_strip_comments_is_white_space(char c)
+{
+  return ((' ' == c) || ('\t' == c) || ('\r' == c) || ('\n' ==c ));
+}
+void QueryStripComments::set(LEX_CSTRING query, uint additional_length)
+{
+  uint new_buffer_length = query.length + additional_length;
+  if(new_buffer_length > buffer_length)
+  {
+    cleanup();
+    buffer= (char*)my_malloc(key_memory_Query_cache, new_buffer_length,
+                             MYF(0));
+  }
+  uint query_position = 0;
+  uint position = 0;
+  // Skip whitespaces from begin
+  while ((query_position < query.length)
+         && query_strip_comments_is_white_space(query.str[query_position]))
+  {
+    ++query_position;
+  }
+  long int last_space = -1;
+  while (query_position < query.length)
+  {
+    char current = query.str[query_position];
+    bool insert_space = false; // insert space to buffer, (IMPORTANT) don't update query_position
+    switch(current)
+    {
+    case '\'':
+    case '"':
+      {
+        buffer[position++] = query.str[query_position++]; // copy current symbol
+        while(query_position < query.length)
+        {
+          if(current == query.str[query_position]) // found pair quote
+          {
+            break;
+          }
+          buffer[position++] = query.str[query_position++]; // copy current symbol
+        }
+        break;
+      }
+    case '/':
+      {
+        if(((query_position + 2) < query.length)
+           && ('*' == query.str[query_position+1])
+           && ('!' != query.str[query_position+2]))
+        {
+          query_position += 2; // skip "/*"
+          do
+          {
+            if('*' == query.str[query_position]
+               && '/' == query.str[query_position+1]) // check for "*/"
+            {
+              query_position += 2; // skip "*/"
+              insert_space = true;
+              break;
+            }
+            else
+            {
+              ++query_position;
+            }
+          }
+          while(query_position < query.length);
+          if(!insert_space)
+          {
+            continue;
+          }
+        }
+        break;
+      }
+    case '-':
+      {
+        if(query.str[query_position+1] == '-')
+        {
+          ++query_position; // skip "-", and go to search of "\n"
+        }
+        else
+        {
+          break;
+        }
+      }
+    case '#':
+      {
+        do
+        {
+          ++query_position; // skip current symbol (# or -)
+          if('\n' == query.str[query_position])  // check for '\n'
+          {
+            ++query_position; // skip '\n'
+            insert_space = true;
+            break;
+          }
+        }
+        while(query_position < query.length);
+        if(insert_space)
+        {
+          break;
+        }
+        else
+        {
+          continue;
+        }
+      }
+    default:
+      if(query_strip_comments_is_white_space(current))
+      {
+        insert_space = true;
+        ++query_position;
+      }
+      break; // make gcc happy
+    }
+    if(insert_space)
+    {
+      if((uint) (last_space + 1) != position)
+      {
+        last_space = position;
+        buffer[position++] = ' ';
+      }
+    }
+    else if (query_position < query.length)
+    {
+      buffer[position++] = query.str[query_position++];
+    }
+  }
+  while((0 < position) && query_strip_comments_is_white_space(buffer[position - 1]))
+  {
+    --position;
+  }
+  buffer[position] = 0;
+  length = position;
+}
+void QueryStripComments::cleanup()
+{
+  if(buffer)
+  {
+    my_free(buffer);
+  }
+  buffer        = 0;
+  length        = 0;
+  buffer_length = 0;
+}
+
+class QueryStripComments_Backup
+{
+public:
+  QueryStripComments_Backup(THD* a_thd, QueryStripComments* qsc);
+  ~QueryStripComments_Backup();
+private:
+  THD* thd;
+  LEX_CSTRING query;
+};
+
+QueryStripComments_Backup::QueryStripComments_Backup(THD* a_thd,
+                                                     QueryStripComments* qsc)
+{
+  if(opt_query_cache_strip_comments)
+  {
+    thd = a_thd;
+    query = thd->query();
+    qsc->set(query, QUERY_BUFFER_ADDITIONAL_LENGTH(thd->db().length));
+    *(size_t *) (qsc->query() + qsc->query_length() + 1)= thd->db().length;
+    thd->set_query(qsc->query(),qsc->query_length());
+  }
+  else
+  {
+    thd = 0;
+    query.str = NULL;
+    query.length = 0;
+  }
+}
+QueryStripComments_Backup::~QueryStripComments_Backup()
+{
+  if(thd)
+  {
+    thd->set_query(query);
+  }
+}
+
 #ifdef EMBEDDED_LIBRARY
 #include "emb_qcache.h"
 #endif
@@ -502,7 +710,12 @@ bool Query_cache::try_lock(bool use_timeout)
   Query_cache_wait_state wait_state(thd, __func__, __FILE__, __LINE__);
   DBUG_ENTER("Query_cache::try_lock");
 
+  const char* old_proc_info= thd->proc_info;
+  thd_proc_info(thd,"Waiting on query cache mutex");
+  DEBUG_SYNC(thd, "before_query_cache_mutex");
   mysql_mutex_lock(&structure_guard_mutex);
+  DEBUG_SYNC(thd, "after_query_cache_mutex");
+  thd->proc_info = old_proc_info;
   while (1)
   {
     if (m_cache_lock_status == Query_cache::UNLOCKED)
@@ -1387,6 +1600,8 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       unlock();
       DBUG_VOID_RETURN;
     }
+    QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
+    QueryStripComments_Backup backup(thd,query_strip_comments);
 
     /* Key is query + database + flag */
     size_t tot_length;
@@ -1551,6 +1766,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
   char *cache_key= NULL;
   size_t tot_length;
   Query_cache_query_flags flags;
+  QueryStripComments *query_strip_comments = &(thd->query_strip_comments);
   DBUG_ENTER("Query_cache::send_result_to_client");
 
   /*
@@ -1590,21 +1806,105 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
 
   {
     uint i= 0;
-    /*
-      Skip '(' characters in queries like following:
-      (select a from t1) union (select a from t1);
-    */
-    while (sql.str[i]=='(')
-      i++;
+    if(opt_query_cache_strip_comments)
+    {
+      /* Skip all comments and non-letter symbols */
+      uint& query_position = i;
+      const char* query = sql.str;
+      while(query_position < sql.length)
+      {
+        bool check = false;
+        char current = query[query_position];
+        switch(current)
+        {
+        case '/':
+          if (((query_position + 2) < sql.length)
+              && ('*' == query[query_position+1])
+              && ('!' != query[query_position+2]))
+          {
+            query_position += 2; // skip "/*"
+            do
+            {
+              if('*' == query[query_position] && '/' == query[query_position+1]) // check for "*/" (without space)
+              {
+                query_position += 2; // skip "*/" (without space)
+                break;
+              }
+              else
+              {
+                ++query_position;
+              }
+            }
+            while (query_position < sql.length);
+            continue; // analyze current symbol
+          }
+          break;
+        case '-':
+          if(query[query_position+1] == '-')
+          {
+            ++query_position; // skip "-"
+          }
+          else
+          {
+            break;
+          }
+        case '#':
+          do
+          {
+            ++query_position; // skip current symbol
+            if('\n' == query[query_position])  // check for '\n'
+            {
+              ++query_position; // skip '\n'
+              break;
+            }
+          }
+          while (query_position < sql.length);
+          continue; // analyze current symbol
+        case '\r':
+        case '\n':
+        case '\t':
+        case ' ':
+        case '(':
+        case ')':
+          break;
+        default:
+          check = true;
+          break; // make gcc happy
+        } // switch(current)
+        if(check)
+        {
+          if (query_position + 2 < sql.length)
+          {
+            // cacheable
+            break;
+          }
+          else
+          {
+            DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
+            goto err;
+          }
+        } // if(check)
+        ++query_position;
+      } // while(query_position < query_length)
+    }
+    else // if(opt_query_cache_strip_comments)
+    {
+      /*
+        Skip '(' characters in queries like following:
+        (select a from t1) union (select a from t1);
+      */
+      while (sql.str[i]=='(')
+        i++;
 
-    /*
-      Test if the query is a SELECT
-      (pre-space is removed in dispatch_command).
+    } // if(opt_query_cache_strip_comments)    
+      /*
+        Test if the query is a SELECT
+        (pre-space is removed in dispatch_command).
 
-      First '/' looks like comment before command it is not
-      frequently appeared in real life, consequently we can
-      check all such queries, too.
-    */
+        First '/' looks like comment before command it is not
+        frequently appeared in real life, consequently we can
+        check all such queries, too.
+      */
     if ((my_toupper(system_charset_info, sql.str[i])     != 'S' ||
          my_toupper(system_charset_info, sql.str[i + 1]) != 'E' ||
          my_toupper(system_charset_info, sql.str[i + 2]) != 'L' ||
@@ -1644,6 +1944,15 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     goto err_unlock;
 
   Query_cache_block *query_block;
+  LEX_CSTRING stripped_query;
+  if(opt_query_cache_strip_comments)
+  {
+    query_strip_comments->set(sql, // TODO remove additional length
+                              QUERY_BUFFER_ADDITIONAL_LENGTH(
+                                                    thd->db().length));
+    stripped_query.str= query_strip_comments->query();
+    stripped_query.length= query_strip_comments->query_length();
+  }
 
   THD_STAGE_INFO(thd, stage_checking_query_cache_for_query);
 
@@ -1696,7 +2005,9 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           (int)flags.in_trans,
                           (int)flags.autocommit));
 
-  cache_key= make_cache_key(thd, thd->query(), &flags, &tot_length);
+  cache_key= make_cache_key(thd, opt_query_cache_strip_comments
+                            ? stripped_query : thd->query(), &flags,
+                            &tot_length);
   if (cache_key == NULL)
     goto err_unlock;
 
@@ -1926,6 +2237,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     response, we can't handle it anyway.
   */
   (void) trans_commit_stmt(thd);
+  thd->query_plan_flags|= QPLAN_QC;
   if (!thd->get_stmt_da()->is_set())
     thd->get_stmt_da()->disable_status();
 
@@ -1937,6 +2249,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 err_unlock:
   unlock();
 err:
+  thd->query_plan_flags|= QPLAN_QC_NO;
   MYSQL_QUERY_CACHE_MISS(const_cast<char*>(thd->query().str));
   DBUG_RETURN(0);				// Query was not cached
 }

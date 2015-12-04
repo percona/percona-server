@@ -1,0 +1,82 @@
+#
+# Test that InnoDB stats for the extended slow query log are collected.
+# We do not parse the log to see that the values are reasonable.  That should be done after log to table is implemented.
+# We also do not test the stats that would require DEBUG_SYNC: InnoDB_queue_wait and InnoDB_rec_lock_wait.  The latter is
+# "tested" with SLEEP here, but this is not guaranteed to work.  The testcase is not unstable because of this as we don't
+# actually check the value.
+#
+--source include/have_innodb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUE(1);
+
+CREATE TABLE t2(a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUE(1);
+
+# Force cold buffer pool
+--source include/restart_mysqld.inc
+
+SET SESSION min_examined_row_limit=0;
+SET SESSION long_query_time=0;
+SET @old_log_slow_verbosity := @@log_slow_verbosity;
+SET SESSION log_slow_verbosity='microtime,innodb';
+
+--let log_file=percona.slow_extended.innodb_0
+--source include/log_start.inc
+INSERT INTO t1 VALUES(2);
+INSERT INTO t2 VALUES(2);
+INSERT INTO t1 VALUES(3); # Pages in the buffer pool already
+SELECT 5; # No InnoDB pages accessed
+--source include/log_stop.inc
+
+#
+# Table lock waits
+#
+
+LOCK TABLE t1 WRITE;
+--connect (con2,localhost,root,,test,,)
+--connection con2
+--let log_file=percona.slow_extended.innodb_3
+--source include/log_start.inc
+send LOCK TABLE t1 WRITE;
+--connection default
+# TODO: best-effort test for now. A bug if we check the actual lock time!
+SELECT SLEEP(5);
+UNLOCK TABLES;
+--connection con2
+reap;
+--source include/log_stop.inc
+UNLOCK TABLES;
+--connection default
+
+#
+# Row lock waits
+#
+BEGIN;
+SELECT * FROM t2 FOR UPDATE;
+--connection con2
+--let log_file=percona.slow_extended.innodb_4
+--source include/log_start.inc
+send DELETE FROM t2 WHERE a=2;
+--connection default
+SELECT SLEEP(5);
+COMMIT;
+--connection con2
+reap;
+--source include/log_stop.inc
+--disconnect con2
+--connection default
+
+SET SESSION min_examined_row_limit=default;
+SET SESSION long_query_time=default;
+SET SESSION log_slow_verbosity=@old_log_slow_verbosity;
+
+DROP TABLE t1, t2;
+--source include/log_cleanup.inc

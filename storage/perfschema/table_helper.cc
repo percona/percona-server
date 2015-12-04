@@ -225,6 +225,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_schema_name_length= 0;
     m_object_name_length= 0;
     break;
+  case MDL_key::BACKUP:
+    m_object_type= OBJECT_TYPE_BACKUP;
+    m_schema_name_length= 0;
+    m_object_name_length= 0;
+    break;
   case MDL_key::SCHEMA:
     m_object_type= OBJECT_TYPE_SCHEMA;
     m_schema_name_length= mdl->db_name_length();
@@ -264,6 +269,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
     m_object_type= OBJECT_TYPE_USER_LEVEL_LOCK;
     m_schema_name_length= 0;
     m_object_name_length= mdl->name_length();
+    break;
+  case MDL_key::BINLOG:
+    m_object_type= OBJECT_TYPE_BINLOG;
+    m_schema_name_length= 0;
+    m_object_name_length= 0;
     break;
   case MDL_key::TABLESPACE:
     m_object_type= OBJECT_TYPE_TABLESPACE;
@@ -551,6 +561,12 @@ void set_field_object_type(Field *f, enum_object_type object_type)
     break;
   case OBJECT_TYPE_USER_LEVEL_LOCK:
     PFS_engine_table::set_field_varchar_utf8(f, "USER LEVEL LOCK", 15);
+    break;
+  case OBJECT_TYPE_BACKUP:
+    PFS_engine_table::set_field_varchar_utf8(f, "BACKUP", 6);
+    break;
+  case OBJECT_TYPE_BINLOG:
+    PFS_engine_table::set_field_varchar_utf8(f, "BINLOG", 6);
     break;
   case OBJECT_TYPE_TABLESPACE:
     PFS_engine_table::set_field_varchar_utf8(f, "TABLESPACE", 10);

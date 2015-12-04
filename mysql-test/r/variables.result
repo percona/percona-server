@@ -1807,7 +1807,12 @@ ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
 show variables like 'log_slow%';
 Variable_name	Value
 log_slow_admin_statements	OFF
+log_slow_filter	
+log_slow_rate_limit	1
+log_slow_rate_type	session
 log_slow_slave_statements	OFF
+log_slow_sp_statements	ON
+log_slow_verbosity	
 set global log_slow_admin_statements = on;
 show global variables like 'log_slow_admin_statements';
 Variable_name	Value

@@ -29,6 +29,10 @@ Created 9/8/1995 Heikki Tuuri
 
 #include "univ.i"
 
+#ifdef UNIV_LINUX
+#include <sys/types.h>
+#endif
+
 /* Maximum number of threads which can be created in the program;
 this is also the size of the wait slot array for MySQL threads which
 can wait inside InnoDB */
@@ -44,6 +48,7 @@ can wait inside InnoDB */
 #ifdef _WIN32
 typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
+typedef os_thread_id_t		os_tid_t;
 extern "C"  {
 typedef LPTHREAD_START_ROUTINE	os_thread_func_t;
 }
@@ -63,6 +68,15 @@ don't access the arguments and don't return any value, we should be safe. */
 typedef pthread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
 						the thread */
+#ifdef UNIV_LINUX
+typedef pid_t			os_tid_t;	/*!< An alias for pid_t on
+						Linux, where setpriority()
+						accepts thread id of this type
+						and not pthread_t */
+#else
+typedef os_thread_id_t		os_tid_t;
+#endif
+
 extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
 
 /** Macro for specifying a POSIX thread start function. */
@@ -130,6 +144,15 @@ os_thread_id_t
 os_thread_get_curr_id(void);
 /*========================*/
 /*****************************************************************//**
+Returns the system-specific thread identifier of current thread.  On Linux,
+returns tid.  On other systems currently returns os_thread_get_curr_id().
+
+@return	current thread identifier */
+
+os_tid_t
+os_thread_get_tid(void);
+/*=====================*/
+/*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */
 void
 os_thread_yield(void);
@@ -140,6 +163,18 @@ void
 os_thread_sleep(
 /*============*/
 	ulint	tm);	/*!< in: time in microseconds */
+/*****************************************************************//**
+Set relative scheduling priority for a given thread on Linux.  Currently a
+no-op on other systems.
+
+@return An actual thread priority after the update  */
+
+ulint
+os_thread_set_priority(
+/*===================*/
+	os_tid_t	thread_id,		/*!< in: thread id */
+	ulint		relative_priority);	/*!< in: system-specific
+						priority value */
 
 /**
 Initializes OS thread management data structures. */

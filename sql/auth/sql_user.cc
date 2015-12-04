@@ -381,6 +381,8 @@ bool set_and_validate_user_attributes(THD *thd,
   const char *inbuf;
   char *password= NULL;
 
+  DBUG_ASSERT(!acl_is_utility_user(Str->user.str, Str->host.str, NULL));
+
   what_to_set= 0;
   /* update plugin,auth str attributes */
   if (Str->uses_identified_by_clause ||
@@ -674,6 +676,14 @@ bool change_password(THD *thd, const char *host, const char *user,
     mysql_mutex_unlock(&acl_cache->lock);
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     goto end;
+  }
+
+  /* trying to change the password of the utility user? */
+  if (acl_is_utility_user(acl_user->user, acl_user->host.get_host(), NULL))
+  {
+      mysql_mutex_unlock(&acl_cache->lock);
+      my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
+      goto end;
   }
 
   DBUG_ASSERT(acl_user->plugin.length != 0);
@@ -1071,6 +1081,23 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   int ret;
   DBUG_ENTER("handle_grant_data");
 
+  /* Handle special utility user */
+  if (acl_utility_user.user)
+  {
+    if (user_from
+        && acl_is_utility_user(user_from->user.str, user_from->host.str, NULL))
+    {
+      result= -1;
+      goto end;
+    }
+    else if (user_to
+             && acl_is_utility_user(user_to->user.str, user_to->host.str, NULL))
+    {
+      result= -1;
+      goto end;
+    }
+  }
+
   /* Handle user table. */
   if ((found= handle_grant_table(tables, 0, drop, user_from, user_to)) < 0)
   {
@@ -1267,6 +1294,13 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
 
   while ((tmp_user_name= user_list++))
   {
+    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                            NULL))
+    {
+      append_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+      result= true;
+      continue;
+    }
     /*
       If tmp_user_name.user.str is == NULL then
       user_name := tmp_user_name.
@@ -1424,6 +1458,13 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   while ((tmp_user_name= user_list++))
   {
+    if (acl_is_utility_user(tmp_user_name->user.str, tmp_user_name->host.str,
+                            NULL))
+    {
+      append_user(thd, &wrong_users, tmp_user_name, wrong_users.length() > 0);
+      result= true;
+      continue;
+    }
     if (!(user_name= get_current_user(thd, tmp_user_name)))
     {
       result= TRUE;

@@ -1,0 +1,127 @@
+########################################################################
+# Replication-related tests for backup locks
+########################################################################
+
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+CREATE TABLE t_innodb (a INT) ENGINE=InnoDB;
+CREATE TABLE t_myisam (a INT) ENGINE=MyISAM;
+
+sync_slave_with_master;
+
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+
+--connection master
+--echo # connection master
+
+INSERT INTO t_innodb VALUES (0);
+
+--connection slave
+--echo # connection slave
+
+--let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+LOCK TABLES FOR BACKUP;
+LOCK BINLOG FOR BACKUP;
+
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE = "Waiting for binlog lock" AND
+    (INFO = "INSERT INTO t_innodb VALUES (0)" OR INFO IS NULL);
+--source include/wait_condition.inc
+
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/check_slave_param.inc
+
+UNLOCK BINLOG;
+UNLOCK TABLES;
+
+--connection master
+--echo # connection master
+sync_slave_with_master;
+
+
+--connection slave
+--echo # connection slave
+STOP SLAVE;
+
+--connection master
+--echo # connection master
+
+INSERT INTO t_myisam VALUES (0);
+
+--connection slave
+--echo # connection slave
+
+--let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+LOCK TABLES FOR BACKUP;
+
+START SLAVE;
+
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE = "Waiting for backup lock" AND
+    (INFO = "INSERT INTO t_myisam VALUES (0)" OR INFO IS NULL);
+--source include/wait_condition.inc
+
+LOCK BINLOG FOR BACKUP;
+UNLOCK TABLES;
+
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE = "Waiting for binlog lock" AND
+    (INFO = "INSERT INTO t_myisam VALUES (0)" OR INFO IS NULL);
+--source include/wait_condition.inc
+
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/check_slave_param.inc
+
+UNLOCK BINLOG;
+
+############################################################################
+# Bug 1372806: Deadlock with LOCK BINLOG FOR BACKUP + SHOW SLAVE STATUS with
+#              binary log enabled
+############################################################################
+
+--connection slave
+--echo # connection slave
+LOCK BINLOG FOR BACKUP;
+
+--let $master_log_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1)
+
+--connection master
+--echo # connection master
+INSERT INTO t_innodb VALUES (1);
+
+--connection slave
+--echo # connection slave
+let $wait_condition=
+    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+    WHERE STATE = "Waiting for binlog lock" AND
+    (INFO = "INSERT INTO t_innodb VALUES (1)" OR INFO IS NULL);
+--source include/wait_condition.inc
+
+# The following would deadlock with binlog_format=stmt on SHOW SLAVE STATUS
+# before the fix
+
+--let $slave_param= Exec_Master_Log_Pos
+--let $slave_param_value= $master_log_pos
+--source include/check_slave_param.inc
+
+UNLOCK BINLOG;
+
+--connection master
+--echo # connection master
+
+DROP TABLE t_innodb, t_myisam;
+sync_slave_with_master;
+
+--source include/rpl_end.inc

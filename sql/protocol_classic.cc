@@ -1296,7 +1296,7 @@ SSL_handle Protocol_classic::get_ssl()
 
 int Protocol_classic::shutdown(bool server_shutdown)
 {
-  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
+  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio, SHUT_RDWR) : 0;
 }
 
 

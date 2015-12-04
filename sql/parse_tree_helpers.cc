@@ -308,10 +308,13 @@ void sp_create_assignment_lex(THD *thd, const char *option_ptr)
           (that's how we generate sp_instr_stmt-instructions for SET-statements).
         So, in this case, even if thd->lex->sphead is set, we should not process
         further.
+
+      4. We are parsing SET STATEMENT FOR ... inside of SP. TODO
   */
 
-  if (!sp ||            // case #1
-      sp->is_invoked()) // case #3
+  if (!sp ||              // case #1
+      sp->is_invoked() || // case #3
+      thd->lex->set_statement) // case #4
   {
     return;
   }
@@ -373,10 +376,14 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
           (that's how we generate sp_instr_stmt-instructions for SET-statements).
         So, in this case, even if lex->sphead is set, we should not process
         further.
+
+      4. It's a SET STATEMENT ... FOR CREATE PROCEDURE and should be treated as
+      case 1 even though lex->sphead != NULL.
   */
 
-  if (!sp ||            // case #1
-      sp->is_invoked()) // case #3
+  if (!sp ||              // case #1
+      sp->is_invoked() || // case #3
+      lex->set_statement) // case #4
   {
     return false;
   }

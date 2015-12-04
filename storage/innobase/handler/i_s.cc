@@ -23,11 +23,17 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
+#include <item.h>
+#include <item_func.h>
+#include <item_sum.h>
+#include <item_cmpfunc.h>
+
 #include "ha_prototypes.h"
 #include <field.h>
 #include <sql_acl.h>
 #include <sql_show.h>
 #include <sql_time.h>
+#include <debug_sync.h>
 
 #include "i_s.h"
 #include "btr0pcur.h"
@@ -40,6 +46,7 @@ Created July 18, 2007 Vasil Dimov
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "srv0start.h"
+#include "srv0srv.h"
 #include "trx0i_s.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
@@ -48,6 +55,7 @@ Created July 18, 2007 Vasil Dimov
 #include "fts0types.h"
 #include "fts0opt.h"
 #include "fts0priv.h"
+#include "log0online.h"
 #include "btr0btr.h"
 #include "page0zip.h"
 #include "fsp0sysspace.h"
@@ -2094,7 +2102,7 @@ i_s_cmpmem_fill_low(
 
 		buf_pool = buf_pool_from_array(i);
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->zip_free_mutex);
 
 		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 			buf_buddy_stat_t*	buddy_stat;
@@ -2103,6 +2111,7 @@ i_s_cmpmem_fill_low(
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
 			table->field[1]->store(static_cast<double>(i));
+			os_rmb;
 			table->field[2]->store(static_cast<double>(
 				buddy_stat->used));
 			table->field[3]->store(static_cast<double>(
@@ -2115,7 +2124,8 @@ i_s_cmpmem_fill_low(
 				static_cast<double>(buddy_stat->relocated_usec / 1000000));
 
 			if (reset) {
-				/* This is protected by buf_pool->mutex. */
+				/* This is protected by
+				buf_pool->zip_free_mutex. */
 				buddy_stat->relocated = 0;
 				buddy_stat->relocated_usec = 0;
 			}
@@ -2126,7 +2136,7 @@ i_s_cmpmem_fill_low(
 			}
 		}
 
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->zip_free_mutex);
 
 		if (status) {
 			break;
@@ -5424,11 +5434,15 @@ i_s_innodb_buffer_page_get_info(
 					out: structure filled with scanned
 					info */
 {
+	BPageMutex*	mutex = buf_page_get_mutex(bpage);
+
 	ut_ad(pool_id < MAX_BUFFER_POOLS);
 
 	page_info->pool_id = pool_id;
 
 	page_info->block_id = pos;
+
+	mutex_enter(mutex);
 
 	page_info->page_state = buf_page_get_state(bpage);
 
@@ -5468,6 +5482,7 @@ i_s_innodb_buffer_page_get_info(
 			break;
 		case BUF_IO_READ:
 			page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
+			mutex_exit(mutex);
 			return;
 		}
 
@@ -5488,6 +5503,8 @@ i_s_innodb_buffer_page_get_info(
 	} else {
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	}
+
+	mutex_exit(mutex);
 }
 
 /*******************************************************************//**
@@ -5537,15 +5554,9 @@ i_s_innodb_fill_buffer_pool(
 
 			/* For each chunk, we'll pre-allocate information
 			structures to cache the page information read from
-			the buffer pool. Doing so before obtain any mutex */
+			the buffer pool */
 			info_buffer = (buf_page_info_t*) mem_heap_zalloc(
 				heap, mem_size);
-
-			/* Obtain appropriate mutexes. Since this is diagnostic
-			buffer pool info printout, we are not required to
-			preserve the overall consistency, so we can
-			release mutex periodically */
-			buf_pool_mutex_enter(buf_pool);
 
 			/* GO through each block in the chunk */
 			for (n_blocks = num_to_process; n_blocks--; block++) {
@@ -5555,8 +5566,6 @@ i_s_innodb_fill_buffer_pool(
 				block_id++;
 				num_page++;
 			}
-
-			buf_pool_mutex_exit(buf_pool);
 
 			/* Fill in information schema table with information
 			just collected from the buffer chunk scan */
@@ -6084,9 +6093,9 @@ i_s_innodb_fill_buffer_lru(
 
 	DBUG_ENTER("i_s_innodb_fill_buffer_lru");
 
-	/* Obtain buf_pool mutex before allocate info_buffer, since
+	/* Obtain buf_pool->LRU_list_mutex before allocate info_buffer, since
 	UT_LIST_GET_LEN(buf_pool->LRU) could change */
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
@@ -6120,7 +6129,7 @@ i_s_innodb_fill_buffer_lru(
 	ut_ad(lru_pos == UT_LIST_GET_LEN(buf_pool->LRU));
 
 exit:
-	buf_pool_mutex_exit(buf_pool);
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	if (info_buffer) {
 		status = i_s_innodb_buf_page_lru_fill(
@@ -8833,6 +8842,367 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 
 	/* Plugin flags */
 	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+static ST_FIELD_INFO	i_s_innodb_changed_pages_info[] =
+{
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"page_id"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"start_lsn"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"end_lsn"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/***********************************************************************
+  This function implements ICP for I_S.INNODB_CHANGED_PAGES by parsing a
+  condition and getting lower and upper bounds for start and end LSNs if the
+  condition corresponds to a certain pattern.
+
+  In the most general form, we understand queries like
+
+  SELECT * FROM INNODB_CHANGED_PAGES
+      WHERE START_LSN > num1 AND START_LSN < num2
+            AND END_LSN > num3 AND END_LSN < num4;
+
+  That's why the pattern syntax is:
+
+  pattern:  comp | and_comp;
+  comp:     lsn <  int_num | lsn <= int_num | int_num > lsn  | int_num >= lsn;
+  lsn:	    start_lsn | end_lsn;
+  and_comp: expression AND expression | expression AND and_comp;
+  expression: comp | any_other_expression;
+
+  The two bounds are handled differently: the lower bound is used to find the
+  correct starting _file_, the upper bound the last _block_ that needs reading.
+
+  Lower bound conditions are handled in the following way: start_lsn >= X
+  specifies that the reading must start from the file that has the highest
+  starting LSN less than or equal to X. start_lsn > X is equivalent to
+  start_lsn >= X + 1.  For end_lsn, end_lsn >= X is treated as
+  start_lsn >= X - 1 and end_lsn > X as start_lsn >= X.
+
+  For the upper bound, suppose the condition is start_lsn < 100, this means we
+  have to read all blocks with start_lsn < 100. Which is equivalent to reading
+  all the blocks with end_lsn <= 99, or just end_lsn < 100. That's why it's
+  enough to find maximum lsn value, doesn't matter if this is start or end lsn
+  and compare it with "start_lsn" field. LSN <= 100 is treated as LSN < 101.
+
+  Example:
+
+  SELECT * FROM INNODB_CHANGED_PAGES
+    WHERE
+    start_lsn > 10  AND
+    end_lsn <= 1111 AND
+    555 > end_lsn   AND
+    page_id = 100;
+
+  end_lsn will be set to 555, start_lsn will be set 11.
+
+  Support for other functions (equal, NULL-safe equal, BETWEEN, IN, etc.) will
+  be added on demand.
+
+*/
+static
+void
+limit_lsn_range_from_condition(
+/*===========================*/
+	TABLE*		table,		/*!<in: table */
+	Item*		cond,		/*!<in: condition */
+	ib_uint64_t*	start_lsn,	/*!<in/out: minumum LSN */
+	ib_uint64_t*	end_lsn)	/*!<in/out: maximum LSN */
+{
+	enum Item_func::Functype	func_type;
+
+	if (cond->type() != Item::COND_ITEM &&
+	    cond->type() != Item::FUNC_ITEM)
+		return;
+
+	func_type = ((Item_func*) cond)->functype();
+
+	switch (func_type)
+	{
+	case Item_func::COND_AND_FUNC:
+	{
+		List_iterator<Item>	li(*((Item_cond*) cond)
+					   ->argument_list());
+		Item			*item;
+
+		while ((item= li++)) {
+			limit_lsn_range_from_condition(table, item, start_lsn,
+						       end_lsn);
+		}
+		break;
+	}
+	case Item_func::LT_FUNC:
+	case Item_func::LE_FUNC:
+	case Item_func::GT_FUNC:
+	case Item_func::GE_FUNC:
+	{
+		Item		*left;
+		Item		*right;
+		Item_field	*item_field;
+		ib_uint64_t	tmp_result;
+		bool		is_end_lsn;
+
+		/* a <= b equals to b >= a that's why we just exchange "left"
+		and "right" in the case of ">" or ">=" function.  We don't
+		touch the operation itself.  */
+		if (((Item_func*) cond)->functype() == Item_func::LT_FUNC
+		    || ((Item_func*) cond)->functype() == Item_func::LE_FUNC) {
+			left = ((Item_func*) cond)->arguments()[0];
+			right = ((Item_func*) cond)->arguments()[1];
+		} else {
+			left = ((Item_func*) cond)->arguments()[1];
+			right = ((Item_func*) cond)->arguments()[0];
+		}
+
+		if (left->type() == Item::FIELD_ITEM) {
+			item_field = (Item_field *)left;
+		} else if (right->type() == Item::FIELD_ITEM) {
+			item_field = (Item_field *)right;
+		} else {
+			return;
+		}
+
+		/* Check if the current field belongs to our table */
+		if (table != item_field->field->table) {
+			return;
+		}
+
+		/* Check if the field is START_LSN or END_LSN */
+		/* END_LSN */
+		is_end_lsn = table->field[3]->eq(item_field->field);
+
+		if (/* START_LSN */ !table->field[2]->eq(item_field->field)
+		    && !is_end_lsn) {
+			return;
+		}
+
+		if (left->type() == Item::FIELD_ITEM
+		    && right->type() == Item::INT_ITEM) {
+
+			/* The case of start_lsn|end_lsn <|<= const, i.e. the
+			upper bound.  */
+
+			tmp_result = right->val_int();
+			if (((func_type == Item_func::LE_FUNC)
+			     || (func_type == Item_func::GE_FUNC))
+			    && (tmp_result != IB_UINT64_MAX)) {
+
+				tmp_result++;
+			}
+			if (tmp_result < *end_lsn) {
+				*end_lsn = tmp_result;
+			}
+
+		} else if (left->type() == Item::INT_ITEM
+			   && right->type() == Item::FIELD_ITEM) {
+
+			/* The case of const <|<= start_lsn|end_lsn, i.e. the
+			lower bound */
+
+			tmp_result = left->val_int();
+			if (is_end_lsn && tmp_result != 0) {
+				tmp_result--;
+			}
+			if (((func_type == Item_func::LT_FUNC)
+			     || (func_type == Item_func::GT_FUNC))
+			    && (tmp_result != IB_UINT64_MAX)) {
+
+				tmp_result++;
+			}
+			if (tmp_result > *start_lsn) {
+				*start_lsn = tmp_result;
+			}
+		}
+
+		break;
+	}
+	default:;
+	}
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_changed_pages.
+@return 0 on success, 1 on failure */
+static
+int
+i_s_innodb_changed_pages_fill(
+/*==========================*/
+	THD*		thd,	/*!<in: thread */
+	TABLE_LIST*	tables,	/*!<in/out: tables to fill */
+	Item*		cond)	/*!<in: condition */
+{
+	TABLE*			table = (TABLE *) tables->table;
+	log_bitmap_iterator_t	i;
+	ib_uint64_t		output_rows_num = 0UL;
+	lsn_t			max_lsn = LSN_MAX;
+	lsn_t			min_lsn = 0ULL;
+	int			ret = 0;
+
+	DBUG_ENTER("i_s_innodb_changed_pages_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	if (cond) {
+		limit_lsn_range_from_condition(table, cond, &min_lsn,
+					       &max_lsn);
+	}
+	
+	/* If the log tracker is running and our max_lsn > current tracked LSN,
+	cap the max lsn so that we don't try to read any partial runs as the
+	tracked LSN advances. */
+	if (srv_track_changed_pages) {
+		ib_uint64_t		tracked_lsn = log_get_tracked_lsn();
+		if (max_lsn > tracked_lsn)
+			max_lsn = tracked_lsn;
+	}
+
+	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		DBUG_RETURN(1);
+	}
+
+	DEBUG_SYNC(thd, "i_s_innodb_changed_pages_range_ready");
+
+	while(log_online_bitmap_iterator_next(&i) &&
+	      (!srv_max_changed_pages ||
+	       output_rows_num < srv_max_changed_pages) &&
+	      /*
+		There is no need to compare both start LSN and end LSN fields
+		with maximum value. It's enough to compare only start LSN.
+		Example:
+
+				      max_lsn = 100
+		\\\\\\\\\\\\\\\\\\\\\\\\\|\\\\\\\\	  - Query 1
+		I------I I-------I I-------------I I----I
+		//////////////////	 |		  - Query 2
+		   1	    2		  3	     4
+
+		Query 1:
+		SELECT * FROM INNODB_CHANGED_PAGES WHERE start_lsn < 100
+		will select 1,2,3 bitmaps
+		Query 2:
+		SELECT * FROM INNODB_CHANGED_PAGES WHERE end_lsn < 100
+		will select 1,2 bitmaps
+
+		The condition start_lsn <= 100 will be false after reading
+		1,2,3 bitmaps which suits for both cases.
+	      */
+	      LOG_BITMAP_ITERATOR_START_LSN(i) <= max_lsn)
+	{
+		if (!LOG_BITMAP_ITERATOR_PAGE_CHANGED(i))
+			continue;
+
+		/* SPACE_ID */
+		table->field[0]->store(
+				       LOG_BITMAP_ITERATOR_SPACE_ID(i));
+		/* PAGE_ID */
+		table->field[1]->store(
+				       LOG_BITMAP_ITERATOR_PAGE_NUM(i));
+		/* START_LSN */
+		table->field[2]->store(
+				       LOG_BITMAP_ITERATOR_START_LSN(i), true);
+		/* END_LSN */
+		table->field[3]->store(
+				       LOG_BITMAP_ITERATOR_END_LSN(i), true);
+
+		/*
+		  I_S tables are in-memory tables. If bitmap file is big enough
+		  a lot of memory can be used to store the table. But the size
+		  of used memory can be diminished if we store only data which
+		  corresponds to some conditions (in WHERE sql clause). Here
+		  conditions are checked for the field values stored above.
+
+		  Conditions are checked twice. The first is here (during table
+		  generation) and the second during query execution. Maybe it
+		  makes sense to use some flag in THD object to avoid double
+		  checking.
+		*/
+		if (cond && !cond->val_int())
+			continue;
+
+		if (schema_table_store_record(thd, table))
+		{
+			log_online_bitmap_iterator_release(&i);
+			my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+			DBUG_RETURN(1);
+		}
+
+		++output_rows_num;
+	}
+
+	if (i.failed) {
+		my_error(ER_CANT_FIND_SYSTEM_REC, MYF(0));
+		ret = 1;
+	}
+
+	log_online_bitmap_iterator_release(&i);
+	DBUG_RETURN(ret);
+}
+
+static
+int
+i_s_innodb_changed_pages_init(
+/*==========================*/
+	void*	p)
+{
+	DBUG_ENTER("i_s_innodb_changed_pages_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_changed_pages_info;
+	schema->fill_table = i_s_innodb_changed_pages_fill;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin   i_s_innodb_changed_pages =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_CHANGED_PAGES"),
+	STRUCT_FLD(author, "Percona"),
+	STRUCT_FLD(descr, "InnoDB CHANGED_PAGES table"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_changed_pages_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL),
 	STRUCT_FLD(flags, 0UL),
 };
 

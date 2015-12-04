@@ -307,6 +307,7 @@ enum enum_alter_inplace_result {
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
+#define HA_CLUSTERED_INDEX      512     /* Data is clustered on this key */
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -407,6 +408,7 @@ enum legacy_db_type
   DB_TYPE_MARIA,
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
+  DB_TYPE_TOKUDB=41,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -415,7 +417,10 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
                 /** Unused. Reserved for future versions. */
-                ROW_TYPE_PAGE };
+                ROW_TYPE_PAGE,
+                ROW_TYPE_TOKU_UNCOMPRESSED, ROW_TYPE_TOKU_ZLIB,
+                ROW_TYPE_TOKU_SNAPPY, ROW_TYPE_TOKU_QUICKLZ,
+                ROW_TYPE_TOKU_LZMA, ROW_TYPE_TOKU_FAST, ROW_TYPE_TOKU_SMALL };
 
 /* Specifies data storage format for individual columns */
 enum column_format_type {
@@ -625,14 +630,17 @@ struct TABLE;
 enum enum_schema_tables
 {
   SCH_CHARSETS= 0,
+  SCH_CLIENT_STATS,
   SCH_COLLATIONS,
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
   SCH_COLUMNS,
   SCH_COLUMN_PRIVILEGES,
+  SCH_INDEX_STATS,
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
   SCH_GLOBAL_STATUS,
+  SCH_GLOBAL_TEMPORARY_TABLES,
   SCH_GLOBAL_VARIABLES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
@@ -655,8 +663,12 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
+  SCH_TABLE_STATS,
+  SCH_TEMPORARY_TABLES,
+  SCH_THREAD_STATS,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
+  SCH_USER_STATS,
   SCH_VARIABLES,
   SCH_VIEWS
 };
@@ -760,6 +772,7 @@ struct handlerton
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
    int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
+   int (*clone_consistent_snapshot)(handlerton *hton, THD *thd, THD *from_thd);
    /**
      Flush the log(s) of storage engine(s).
 
@@ -770,6 +783,7 @@ struct handlerton
      @retval true Error
    */
    bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
+   int (*store_binlog_info)(handlerton *hton, THD *thd);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    /*
      The flag values are defined in sql_partition.h.
@@ -801,6 +815,11 @@ struct handlerton
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
                         enum enum_schema_tables);
+   my_bool (*flush_changed_page_bitmaps)(void);
+   my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
+   bool (*purge_archive_logs)(handlerton *hton, time_t before_date,
+                             const char* to_filename);
+
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler
@@ -942,9 +961,21 @@ struct handlerton
 
 #define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
 
+/**
+   Set if the storage engine supports 'online' backups. This means that there
+   exists a way to create a consistent copy of its tables without blocking
+   updates to them. If so, statements that update such tables will not be
+   affected by an active LOCK TABLES FOR BACKUP.
+*/
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 11)
+
+/**
+  Engine supports secondary clustered keys.
+*/
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 12)
 // Engine support foreign key constraint.
 
-#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 13)
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -961,6 +992,21 @@ typedef struct {
   ulong update_time;
   ulonglong check_sum;
 } PARTITION_STATS;
+
+typedef struct st_table_stats {
+  char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'
+  size_t table_len;
+  ulonglong rows_read, rows_changed;
+  ulonglong rows_changed_x_indexes;
+  /* Stores enum db_type, but forward declarations cannot be done */
+  int engine_type;
+} TABLE_STATS;
+
+typedef struct st_index_stats {
+  char index[NAME_LEN * 3 + 3];  // [db] + '.' + [table] + '.' + [index] + '\0'
+  size_t index_len;
+  ulonglong rows_read;
+} INDEX_STATS;
 
 #define UNDEF_NODEGROUP 65535
 class Item;
@@ -2096,6 +2142,9 @@ public:
   Item *pushed_idx_cond;
   uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
 
+  ulonglong rows_read;
+  ulonglong rows_changed;
+  ulonglong index_rows_read[MAX_KEY];
   /**
     next_insert_id is the next value which should be inserted into the
     auto_increment column: in a inserting-multi-row statement (like INSERT
@@ -2223,18 +2272,21 @@ public:
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     implicit_emptied(0),
-    pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
+    pushed_cond(0), pushed_idx_cond(NULL),
+    pushed_idx_cond_keyno(MAX_KEY), rows_read(0), rows_changed(0),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL),
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-    m_lock_type(F_UNLCK), ha_share(NULL), m_update_generated_read_fields(false)
+    m_lock_type(F_UNLCK), ha_share(NULL),
+    m_update_generated_read_fields(false), cloned(false)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                   F_UNLCK, F_RDLCK, F_WRLCK));
+      memset(index_rows_read, 0, sizeof(index_rows_read));
     }
   virtual ~handler(void)
   {
@@ -2354,6 +2406,8 @@ public:
   {
     table= table_arg;
     table_share= share;
+    rows_read= rows_changed= 0;
+    memset(index_rows_read, 0, sizeof(index_rows_read));
   }
   /* Estimates calculation */
 
@@ -2717,6 +2771,44 @@ protected:
     return index_read_last(buf, key, key_len);
   }
 public:
+
+  /**
+    Notify storage engine about imminent index scan where a large number of
+    rows is expected to be returned. Does not replace nor call index_init.
+  */
+  virtual int prepare_index_scan(void) { return 0; }
+
+  /**
+    Notify storage engine about imminent index range scan.
+  */
+  virtual int prepare_range_scan(const key_range *start_key,
+                                 const key_range *end_key)
+  {
+    return 0;
+  }
+
+  /**
+    Notify storage engine about imminent index read with a bitmap of used key
+    parts.
+  */
+  int prepare_index_key_scan_map(const uchar *key, key_part_map keypart_map)
+  {
+    uint key_len= calculate_key_len(table, active_index, keypart_map);
+    return prepare_index_key_scan(key, key_len);
+  }
+
+protected:
+
+  /**
+    Notify storage engine about imminent index read with key length.
+  */
+  virtual int prepare_index_key_scan(const uchar *key, uint key_len)
+  {
+    return 0;
+  }
+
+public:
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
@@ -2975,6 +3067,8 @@ public:
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
+  void update_global_table_stats();
+  void update_global_index_stats();
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
@@ -3671,6 +3765,28 @@ public:
   }
   int get_lock_type() const { return m_lock_type; }
 
+public:
+  /* Read-free replication interface */
+
+  /**
+     Determine whether the storage engine asks for row-based replication that
+     may skip the lookup of the old row image.
+
+     @return true if old rows should be read (the default)
+             false if old rows should not be read
+   */
+  virtual bool rpl_lookup_rows() { return true; }
+  /*
+     Storage engine hooks to be called before and after row write, delete, and
+     update events
+  */
+  virtual void rpl_before_write_rows() { }
+  virtual void rpl_after_write_rows() { }
+  virtual void rpl_before_delete_rows() { }
+  virtual void rpl_after_delete_rows() { }
+  virtual void rpl_before_update_rows() { }
+  virtual void rpl_after_update_rows() { }
+
   /**
     Callback function that will be called by my_prepare_gcolumn_template
     once the table has been opened.
@@ -3702,6 +3818,13 @@ protected:
   void set_ha_share_ptr(Handler_share *arg_ha_share);
   void lock_shared_ha_data();
   void unlock_shared_ha_data();
+
+private:
+  /**
+    If true, the current handler is a clone. In that case certain invariants
+    such as table->in_use == current_thd are relaxed to support cloning a
+    handler belonging to a different thread. */
+  bool cloned;
 };
 
 
@@ -3820,6 +3943,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
+handlerton *ha_enforce_handlerton(THD *thd);
 /**
   Resolve handlerton plugin by name, without checking for "DEFAULT" or
   HTON_NOT_USER_SELECTABLE.
@@ -3919,6 +4043,7 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
+int ha_store_binlog_info(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
@@ -3944,6 +4069,11 @@ int ha_prepare(THD *thd);
 
 int ha_recover(HASH *commit_list);
 
+/* remove old archived transaction logs files */
+bool ha_purge_archive_logs(THD *thd, handlerton *db_type, void* args);
+bool ha_purge_archive_logs_to(THD *thd, handlerton *db_type, void* args);
+
+
 /*
  transactions: interface to low-level handlerton functions. These are
  intended to be used by the transaction coordinators to
@@ -3952,6 +4082,9 @@ int ha_recover(HASH *commit_list);
 int ha_commit_low(THD *thd, bool all, bool run_after_commit= true);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
+
+bool ha_flush_changed_page_bitmaps();
+bool ha_purge_changed_page_bitmaps(ulonglong lsn);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);

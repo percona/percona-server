@@ -29,6 +29,7 @@ Created 2/16/1997 Heikki Tuuri
 #include <algorithm>
 #include "dict0mem.h"
 
+#include "mem0mem.h"
 #include "trx0types.h"
 
 // Friend declaration
@@ -200,6 +201,7 @@ public:
 	{
 		ut_ad(m_creator_trx_id != TRX_ID_MAX);
 		m_creator_trx_id = TRX_ID_MAX;
+		m_cloned = false;
 	}
 
 	/**
@@ -241,6 +243,16 @@ public:
 		return(m_ids.empty());
 	}
 
+	/**
+	Clones a read view object. The resulting read view has identical change
+	visibility as the donor read view
+	@param	result	pointer to resulting read view. If NULL, a view will be
+	allocated. If non-NULL, a view will overwrite a previously-existing
+	in-use or released view.
+	@param	from_trx	transation owning the donor read view. */
+
+	void clone(ReadView*& result, trx_t* from_trx) const;
+
 #ifdef UNIV_DEBUG
 	/**
 	@param rhs		view to compare with
@@ -249,12 +261,30 @@ public:
 	{
 		return(m_low_limit_no <= rhs->m_low_limit_no);
 	}
+#endif /* UNIV_DEBUG */
 
 	trx_id_t up_limit_id() const
 	{
 		return(m_up_limit_id);
 	}
-#endif /* UNIV_DEBUG */
+
+	void print(FILE* file) const
+	{
+		fprintf(file, "Read view low limit trx n:o " TRX_ID_FMT "\n",
+			low_limit_no());
+		print_limits(file);
+		fprintf(file, "Read view individually stored trx ids:\n");
+		for (ulint i = 0; i < m_ids.size(); i++) {
+			fprintf(file, "Read view trx id " TRX_ID_FMT "\n",
+				m_ids.data()[i]);
+		}
+	}
+
+	bool is_cloned() const
+	{
+		return(m_cloned);
+	}
+
 private:
 	/**
 	Copy the transaction ids from the source vector */
@@ -320,6 +350,11 @@ private:
 
 	/** AC-NL-RO transaction view that has been "closed". */
 	bool		m_closed;
+
+	/** This is a view cloned by clone but not by
+	MVCC::clone_oldest_view. Used to make sure the cloned transaction does
+	not see its own changes. */
+	bool		m_cloned;
 
 	typedef UT_LIST_NODE_T(ReadView) node_t;
 

@@ -32,7 +32,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "rem0cmp.h"
 #include "trx0trx.h"
-
+#include "srv0srv.h"
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
 @return own: persistent cursor */
@@ -47,6 +47,7 @@ btr_pcur_create_for_mysql(void)
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
+	pcur->btr_cur.tree_height = ULINT_UNDEFINED;
 
 	DBUG_PRINT("btr_pcur_create_for_mysql", ("pcur: %p", pcur));
 	DBUG_RETURN(pcur);
@@ -111,6 +112,9 @@ btr_pcur_store_position(
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	block = btr_pcur_get_block(cursor);
+
+	SRV_CORRUPT_TABLE_CHECK(block, return;);
+
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 
 	page_cursor = btr_pcur_get_page_cur(cursor);
@@ -448,6 +452,17 @@ btr_pcur_move_to_next_page(
 		btr_pcur_get_btr_cur(cursor)->index, mtr);
 
 	next_page = buf_block_get_frame(next_block);
+
+	SRV_CORRUPT_TABLE_CHECK(next_page,
+	{
+		btr_leaf_page_release(btr_pcur_get_block(cursor),
+				      cursor->latch_mode, mtr);
+		btr_pcur_get_page_cur(cursor)->block = 0;
+		btr_pcur_get_page_cur(cursor)->rec = 0;
+
+		return;
+	});
+
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	ut_a(btr_page_get_prev(next_page, mtr)

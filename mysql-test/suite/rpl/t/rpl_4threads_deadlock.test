@@ -31,6 +31,8 @@
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
+# Disable this test under Valgrind until http://bugs.mysql.com/bug.php?id=79000 is fixed
+--source include/not_valgrind.inc
 
 connect(master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(master3,127.0.0.1,root,,test,$MASTER_MYPORT,);

@@ -133,6 +133,8 @@ struct srv_stats_t {
 
 	/** Number of rows inserted */
 	ulint_ctr_64_t		n_rows_inserted;
+
+	ulint_ctr_1_t		n_lock_max_wait_time;
 };
 
 extern const char*	srv_main_thread_op_info;
@@ -164,6 +166,17 @@ extern char		srv_buffer_pool_load_at_startup;
 /* Whether to disable file system cache if it is defined */
 extern char		srv_disable_sort_file_cache;
 
+/* This event is set on checkpoint completion to wake the redo log parser
+thread */
+extern os_event_t	srv_checkpoint_completed_event;
+
+/* This event is set on the online redo log following thread after a successful
+log tracking iteration */
+extern os_event_t	srv_redo_log_tracked_event;
+
+/** srv_redo_log_follow_thread spawn flag */
+extern bool srv_redo_log_thread_started;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
@@ -172,6 +185,10 @@ at a time */
 extern ib_mutex_t	page_zip_stat_per_index_mutex;
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
+
+/* prototypes for new functions added to ha_innodb.cc */
+bool	innobase_get_slow_log();
+
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
 /* Mutex for locking srv_dict_tmpfile. Only created if !srv_read_only_mode.
@@ -190,6 +207,8 @@ extern FILE*	srv_misc_tmpfile;
 /* Server parameters which are read from the initfile */
 
 extern char*	srv_data_home;
+
+extern char*	srv_arch_dir;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -258,6 +277,11 @@ extern my_bool	srv_undo_log_truncate;
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
 
+extern my_bool		srv_track_changed_pages;
+extern ulonglong	srv_max_bitmap_file_size;
+
+extern ulonglong	srv_max_changed_pages;
+
 /** Default size of UNDO tablespace while it is created new. */
 extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
@@ -279,9 +303,9 @@ extern ib_uint64_t	srv_log_file_size;
 /** The value of the startup parameter innodb_log_file_size */
 extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
-extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
 extern ulong	srv_log_write_ahead_size;
+extern char	srv_use_global_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
 extern my_bool	srv_flush_sync;
 
@@ -309,7 +333,7 @@ extern ulong	srv_n_page_hash_locks;
 extern ulong	srv_LRU_scan_depth;
 /** Whether or not to flush neighbors of a block */
 extern ulong	srv_flush_neighbors;
-/** Previously requested size */
+/** Previously requested size. Accesses protected by memory barriers. */
 extern ulint	srv_buf_pool_old_size;
 /** Current size as scaling factor for the other components */
 extern ulint	srv_buf_pool_base_size;
@@ -318,7 +342,29 @@ extern ulint	srv_buf_pool_curr_size;
 /** Dump this % of each buffer pool during BP dump */
 extern ulong	srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
+
+extern ulint    srv_show_locks_held;
+extern ulint    srv_show_verbose_locks;
+
 extern ulint	srv_lock_table_size;
+
+extern ulint	srv_foreground_preflush;/*!< Query thread preflush algorithm */
+
+extern ulint	srv_cleaner_max_lru_time;/*!< the maximum time limit for a
+					single LRU tail flush iteration by the
+					page cleaner thread */
+
+extern ulint	srv_cleaner_max_flush_time;/*!< the maximum time limit for a
+					single flush list flush iteration by
+					the page cleaner thread */
+
+extern ulong	srv_cleaner_lsn_age_factor;
+					/*!< page cleaner LSN age factor
+					formula option */
+
+extern ulong	srv_empty_free_list_algorithm;
+					/*!< Empty free list for a query thread
+					handling algorithm option */
 
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
@@ -345,6 +391,8 @@ is 5% of the max where max is srv_io_capacity.  */
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
+
+extern bool	srv_log_archive_on;
 
 extern char*	srv_file_flush_method_str;
 
@@ -382,10 +430,32 @@ extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
 extern double	srv_max_buf_pool_modified_pct;
+
+extern ulong	srv_log_arch_expire_sec;
+
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 
 extern ulong	srv_replication_delay;
+
+extern ulint	srv_pass_corrupt_table;
+
+/* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is false,
+execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
+otherwise. The break statement in 'code' will obviously not work as
+expected. */
+
+#define SRV_CORRUPT_TABLE_CHECK(cond,code)		\
+	do {						\
+		if (UNIV_UNLIKELY(!(cond))) {		\
+			if (srv_pass_corrupt_table) {	\
+				code			\
+			} else {			\
+				ut_error;		\
+			}				\
+		}					\
+	} while(0)
+
 /*-------------------------------------------*/
 
 extern my_bool	srv_print_innodb_monitor;
@@ -425,13 +495,44 @@ extern my_bool	srv_purge_view_update_only_debug;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
+extern lint	srv_kill_idle_transaction;
 
 #define SRV_MAX_N_IO_THREADS	130
+
+#define SRV_MAX_N_PURGE_THREADS 32
 
 /* Array of English strings describing the current state of an
 i/o handler thread */
 extern const char* srv_io_thread_op_info[];
 extern const char* srv_io_thread_function[];
+
+/* The tids of the purge threads */
+extern os_tid_t srv_purge_tids[];
+
+/* The tids of the I/O threads */
+extern os_tid_t	srv_io_tids[];
+
+/* The tid of the master thread */
+extern os_tid_t	srv_master_tid;
+
+/* The relative scheduling priority of the purge threads */
+extern ulint	srv_sched_priority_purge;
+
+/* The relative scheduling priority of the I/O threads */
+extern ulint	srv_sched_priority_io;
+
+/* The relative scheduling priority of the master thread */
+extern ulint	srv_sched_priority_master;
+
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+extern UNIV_THREAD_LOCAL ulint srv_current_thread_priority;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+extern my_bool srv_purge_thread_priority;
+
+/* The relative priority of the master thread.  */
+extern my_bool srv_master_thread_priority;
 
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
@@ -470,6 +571,7 @@ extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	srv_log_tracking_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
@@ -538,13 +640,17 @@ enum srv_unix_flush_t {
 				the reason for which is that some FS
 				do not flush meta-data when
 				unbuffered IO happens */
-	SRV_UNIX_O_DIRECT_NO_FSYNC
+	SRV_UNIX_O_DIRECT_NO_FSYNC,
 				/*!< do not use fsync() when using
 				direct IO i.e.: it can be set to avoid
 				the fsync() call that we make when
 				using SRV_UNIX_O_DIRECT. However, in
 				this case user/DBA should be sure about
 				the integrity of the meta-data */
+	SRV_UNIX_ALL_O_DIRECT   /*!< similar to O_DIRECT, invokes
+				os_file_set_nocache() on data and log files.
+				This implies using non-buffered IO but still
+				using fsync for data but not log files. */
 };
 extern enum srv_unix_flush_t	srv_unix_file_flush_method;
 #else
@@ -674,6 +780,16 @@ void
 srv_wake_master_thread(void);
 /*========================*/
 /******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+extern "C"
+
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/******************************************************************//**
 Outputs to a file the output of the InnoDB Monitor.
 @return FALSE if not all information printed
 due to failure to obtain necessary mutex */
@@ -692,6 +808,18 @@ srv_printf_innodb_monitor(
 Function to pass InnoDB status variables to MySQL */
 void
 srv_export_innodb_status(void);
+/*==========================*/
+/*************************************************************//**
+Removes old archived transaction log files.
+Both parameters couldn't be provided at the same time.
+@return DB_SUCCESS on success, otherwise DB_ERROR */
+
+dberr_t
+purge_archived_logs(
+	time_t	before_date,		/*!< in: all files modified
+					before timestamp should be removed */
+	lsn_t	before_lsn);		/*!< in: files with this lsn in name
+					and earler should be removed */
 /*==========================*/
 /*******************************************************************//**
 Get current server activity count. We don't hold srv_sys::mutex while
@@ -834,6 +962,9 @@ srv_was_tablespace_truncated(ulint space_id);
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{
+	ulint innodb_adaptive_hash_hash_searches;
+	ulint innodb_adaptive_hash_non_hash_searches;
+	ulint innodb_background_log_sync;
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
 	ulint innodb_data_pending_writes;	/*!< Pending writes */
 	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
@@ -855,20 +986,37 @@ struct export_var_t{
 #ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
 #endif /* UNIV_DEBUG */
+	ulint innodb_buffer_pool_pages_made_not_young;
+	ulint innodb_buffer_pool_pages_made_young;
+	ulint innodb_buffer_pool_pages_old;
 	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
+	ulint innodb_buffer_pool_pages_LRU_flushed;	/*!< buf_lru_flush_page_count */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
 	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
 	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
 	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
+	ulint innodb_checkpoint_age;
+	ulint innodb_checkpoint_max_age;
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
+	ulint innodb_ibuf_free_list;
+	ulint innodb_ibuf_segment_size;
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */
 	lsn_t innodb_os_log_written;		/*!< srv_os_log_written */
+	lsn_t innodb_lsn_current;
+	lsn_t innodb_lsn_flushed;
+	lsn_t innodb_lsn_last_checkpoint;
+	ulint innodb_master_thread_active_loops;/*!< srv_main_active_loops */
+	ulint innodb_master_thread_idle_loops;	/*!< srv_main_idle_loops */
+	trx_id_t innodb_max_trx_id;
+	ulint innodb_mem_adaptive_hash;
+	ulint innodb_mem_dictionary;
+	trx_id_t innodb_oldest_view_low_limit_trx_id;
 	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
 	ulint innodb_os_log_pending_fsyncs;	/*!< fil_n_pending_log_flushes */
@@ -876,6 +1024,8 @@ struct export_var_t{
 	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
 	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
+	trx_id_t innodb_purge_trx_id;
+	undo_no_t innodb_purge_undo_no;
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	int64_t innodb_row_lock_time;		/*!< srv_n_lock_wait_time

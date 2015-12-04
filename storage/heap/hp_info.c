@@ -32,9 +32,22 @@ int heap_info(HP_INFO *info,HEAPINFO *x, int flag )
 {
   DBUG_ENTER("heap_info");
   x->records         = info->s->records;
-  x->deleted         = info->s->deleted;
-  x->reclength       = info->s->reclength;
-  x->data_length     = info->s->data_length;
+  x->deleted         = info->s->recordspace.del_chunk_count;
+
+  if (info->s->recordspace.is_variable_size)
+  {
+    if (info->s->records)
+      x->reclength   = (uint) (info->s->recordspace.total_data_length /
+                               (ulonglong) info->s->records);
+    else
+      x->reclength   = info->s->recordspace.chunk_length;
+  }
+  else
+  {
+    x->reclength     = info->s->recordspace.chunk_dataspace_length;
+  }
+
+  x->data_length     = info->s->recordspace.total_data_length;
   x->index_length    = info->s->index_length;
   x->max_records     = info->s->max_records;
   x->errkey          = info->errkey;

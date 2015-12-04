@@ -87,6 +87,10 @@ if ($show_binlog_events_mask_columns != '')
 if ($show_binlog_events_mask_columns == '')
 {
   --let $mask_columns = 2,4,5
+  if ($keep_server_id)
+  {
+    --let $mask_columns= 2, 5
+  }
 }
 let $script=
   s{/\* xid=.* \*/}{/\* XID \*/};

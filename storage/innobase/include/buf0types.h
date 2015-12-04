@@ -97,6 +97,43 @@ enum srv_checksum_algorithm_t {
 						when reading */
 };
 
+/** Alternatives for srv_cleaner_lsn_age_factor, set through
+innodb_cleaner_lsn_age_factor variable  */
+enum srv_cleaner_lsn_age_factor_t {
+	SRV_CLEANER_LSN_AGE_FACTOR_LEGACY,	/*!< Original Oracle MySQL 5.6
+						formula */
+	SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT
+						/*!< Percona Server 5.6 formula
+						that returns lower values than
+					        legacy option for low
+					        checkpoint ages, and higher
+					        values for high ages.  This has
+					        the effect of stabilizing the
+						checkpoint age higher.  */
+};
+
+/** Alternatives for srv_foreground_preflush, set through
+innodb_foreground_preflush variable  */
+enum srv_foreground_preflush_t {
+	SRV_FOREGROUND_PREFLUSH_SYNC_PREFLUSH,	/*!< Original Oracle MySQL 5.6
+						behavior of performing a sync
+						flush list flush  */
+	SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF	/*!< Exponential backoff wait
+						for the page cleaner to flush
+						for us  */
+};
+
+/** Alternatives for srv_empty_free_list_algorithm, set through
+innodb_empty_free_list_algorithm variable  */
+enum srv_empty_free_list_t {
+	SRV_EMPTY_FREE_LIST_LEGACY,	/*!< Original Oracle MySQL 5.6
+				        algorithm */
+	SRV_EMPTY_FREE_LIST_BACKOFF	/*!< Percona Server 5.6 algorithm that
+					loops in a progressive backoff until a
+					free page is produced by the cleaner
+					thread */
+};
+
 inline
 bool
 is_checksum_strict(srv_checksum_algorithm_t algo)
@@ -142,7 +179,7 @@ this must be equal to UNIV_PAGE_SIZE */
 #include "sync0rw.h"
 
 typedef ib_bpmutex_t BPageMutex;
-typedef ib_mutex_t BufPoolMutex;
+typedef ib_mutex_t BufListMutex;
 typedef ib_mutex_t FlushListMutex;
 typedef BPageMutex BufPoolZipMutex;
 typedef rw_lock_t BPageLock;

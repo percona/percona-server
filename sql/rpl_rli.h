@@ -271,8 +271,8 @@ protected:
     !belongs_to_client(); client thread executing BINLOG statement if
     belongs_to_client()).
   */
-  char group_master_log_name[FN_REFLEN];
-  volatile my_off_t group_master_log_pos;
+  char m_group_master_log_name[FN_REFLEN];
+  volatile my_off_t m_group_master_log_pos;
 
 private:
   Gtid_set gtid_set;
@@ -500,7 +500,7 @@ public:
   bool is_until_satisfied(THD *thd, Log_event *ev);
   inline ulonglong until_pos()
   {
-    return ((until_condition == UNTIL_MASTER_POS) ? group_master_log_pos :
+    return ((until_condition == UNTIL_MASTER_POS) ? get_group_master_log_pos() :
 	    group_relay_log_pos);
   }
 
@@ -977,15 +977,24 @@ public:
     future_event_relay_log_pos= log_pos;
   }
 
-  inline const char* get_group_master_log_name() { return group_master_log_name; }
-  inline ulonglong get_group_master_log_pos() { return group_master_log_pos; }
+  inline const char* get_group_master_log_name()
+  {
+    return m_group_master_log_name;
+  }
+  inline ulonglong get_group_master_log_pos() { return m_group_master_log_pos; }
   inline void set_group_master_log_name(const char *log_file_name)
   {
-     strmake(group_master_log_name,log_file_name, sizeof(group_master_log_name)-1);
+    DBUG_ASSERT(!info_thd ||
+                info_thd->backup_binlog_lock.is_protection_acquired());
+
+    strmake(m_group_master_log_name, log_file_name,
+            sizeof(m_group_master_log_name) - 1);
   }
   inline void set_group_master_log_pos(ulonglong log_pos)
   {
-    group_master_log_pos= log_pos;
+    DBUG_ASSERT(!info_thd ||
+                info_thd->backup_binlog_lock.is_protection_acquired());
+    m_group_master_log_pos= log_pos;
   }
 
   inline const char* get_group_relay_log_name() { return group_relay_log_name; }
@@ -1037,7 +1046,7 @@ public:
   }
   inline const char* get_rpl_log_name()
   {
-    return (group_master_log_name[0] ? group_master_log_name : "FIRST");
+    return (m_group_master_log_name[0] ? m_group_master_log_name : "FIRST");
   }
 
   static size_t get_number_info_rli_fields();

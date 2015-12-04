@@ -4650,6 +4650,8 @@ op_ok:
 
 	ut_a(ctx->trx->lock.n_active_thrs == 0);
 
+	DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
+
 error_handling:
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
@@ -7102,6 +7104,8 @@ commit_cache_rebuild(
 	error = dict_table_rename_in_cache(
 		ctx->old_table, ctx->tmp_name, FALSE);
 	ut_a(error == DB_SUCCESS);
+
+	DEBUG_SYNC_C("commit_cache_rebuild_middle");
 
 	error = dict_table_rename_in_cache(
 		ctx->new_table, old_name, FALSE);

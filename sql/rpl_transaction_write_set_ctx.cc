@@ -57,7 +57,7 @@ Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id)
   DBUG_ENTER("get_transaction_write_set");
   THD *thd= NULL;
   Transaction_write_set *result_set= NULL;
-  Find_thd_with_id find_thd_with_id(m_thread_id);
+  Find_thd_with_id find_thd_with_id(m_thread_id, false);
 
   thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd)

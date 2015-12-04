@@ -1,0 +1,40 @@
+CREATE TABLE t1(x VARCHAR(36) DEFAULT NULL, UNIQUE(x)) ENGINE=InnoDB;
+CREATE TABLE t2(y VARCHAR(36) DEFAULT NULL,
+FOREIGN KEY(y) REFERENCES t1(x)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ("foo"), (NULL), ("bar");
+INSERT INTO t2 VALUES ("foo"), (NULL), ("bar");
+SELECT * FROM t1 ORDER BY x ASC;
+x
+NULL
+bar
+foo
+SELECT * FROM t2 ORDER BY y ASC;
+y
+NULL
+bar
+foo
+SELECT @@session.sql_mode INTO @old_sql_mode;
+SET SESSION sql_mode='NO_AUTO_CREATE_USER';
+ALTER TABLE t1 CHANGE COLUMN x x VARCHAR(36) NOT NULL;
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 2
+SELECT * FROM t1;
+x
+
+bar
+foo
+SELECT * FROM t2;
+y
+NULL
+bar
+foo
+DROP TABLE t2, t1;
+CREATE TABLE t1 (x INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (y INT PRIMARY KEY, z INT DEFAULT NULL,
+FOREIGN KEY(z) REFERENCES t1(x)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t2 VALUES (0, NULL);
+ALTER TABLE t2 CHANGE COLUMN z z INT NOT NULL;
+ERROR HY000: Cannot change column 'z': used in a foreign key constraint 't2_ibfk_1'
+SET SESSION sql_mode=@old_sql_mode;
+DROP TABLE t2, t1;

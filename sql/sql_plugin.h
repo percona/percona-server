@@ -178,4 +178,12 @@ extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
 int lock_plugin_data();
 int unlock_plugin_data();
 
+/**
+  Create deep copy of system_variables instance.
+*/
+extern
+struct system_variables *
+copy_system_variables(const struct system_variables *src,
+                      bool enable_plugins);
+extern void free_system_variables(struct system_variables *v, bool enable_plugins);
 #endif

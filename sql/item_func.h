@@ -22,12 +22,17 @@
 #include "set_var.h"    // enum_var_type
 #include "sql_udf.h"    // udf_handler
 
+/* Function items used by mysql */
+
 class PT_item_list;
 
-/* Function items used by mysql */
+#ifdef MYSQL_SERVER
 
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
+
+#endif /* MYSQL_SERVER */
+
 void unsupported_json_comparison(size_t arg_count, Item **args,
                                  const char *msg);
 
@@ -520,6 +525,7 @@ protected:
   virtual bool may_have_named_parameters() const { return false; }
 };
 
+#ifdef MYSQL_SERVER
 
 class Item_real_func :public Item_func
 {
@@ -685,6 +691,7 @@ class Item_num_op :public Item_func_numhybrid
   { DBUG_ASSERT(0); return 0; }
 };
 
+#endif /* MYSQL_SERVER */
 
 class Item_int_func :public Item_func
 {
@@ -737,6 +744,7 @@ public:
   void fix_length_and_dec() {}
 };
 
+#ifdef MYSQL_SERVER
 
 class Item_func_connection_id :public Item_int_func
 {
@@ -2843,5 +2851,7 @@ bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
+
+#endif /* MYSQL_SERVER */
 
 #endif /* ITEM_FUNC_INCLUDED */

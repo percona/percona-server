@@ -7607,3 +7607,7 @@ ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
 #
 #  End of 5.7 error messages.
 #
+
+ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+  eng "Can't execute the query because you have a conflicting backup lock"
+  rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"

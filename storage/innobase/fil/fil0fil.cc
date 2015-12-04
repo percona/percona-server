@@ -203,10 +203,12 @@ static ulint	srv_data_written;
 
 /** Determine if user has explicitly disabled fsync(). */
 #ifndef _WIN32
-# define fil_buffering_disabled(s)	\
-	((s)->purpose == FIL_TYPE_TABLESPACE	\
-	 && srv_unix_file_flush_method	\
-	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
+# define fil_buffering_disabled(s)					\
+	(((s)->purpose == FIL_TYPE_TABLESPACE				\
+	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)\
+	  || ((s)->purpose == FIL_TYPE_LOG				\
+	    && srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT))
+
 #else /* _WIN32 */
 # define fil_buffering_disabled(s)	(0)
 #endif /* __WIN32 */
@@ -1176,6 +1178,19 @@ fil_space_detach(
 	}
 }
 
+static
+void
+fil_node_free(
+	fil_node_t*	node,
+	fil_space_t*	space)
+{
+	UT_LIST_REMOVE(space->chain, node);
+	ut_d(space->size -= node->size);
+	os_event_destroy(node->sync_event);
+	ut_free(node->name);
+	ut_free(node);
+}
+
 /** Free a tablespace object on which fil_space_detach() was invoked.
 There must not be any pending i/o's or flushes on the files.
 @param[in,out]	space		tablespace */
@@ -1188,13 +1203,9 @@ fil_space_free_low(
 	ut_ad(srv_fast_shutdown == 2 || space->max_lsn == 0);
 
 	for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
-	     node != NULL; ) {
-		ut_d(space->size -= node->size);
-		os_event_destroy(node->sync_event);
-		ut_free(node->name);
-		fil_node_t* old_node = node;
-		node = UT_LIST_GET_NEXT(chain, node);
-		ut_free(old_node);
+	     node != NULL; node = UT_LIST_GET_FIRST(space->chain)) {
+
+		fil_node_free(node, space);
 	}
 
 	ut_ad(space->size == 0);
@@ -1203,6 +1214,72 @@ fil_space_free_low(
 
 	ut_free(space->name);
 	ut_free(space);
+}
+
+/****************************************************************//**
+Drops files from the start of a file space, so that its size is cut by
+the amount given. */
+
+void
+fil_space_truncate_start(
+/*=====================*/
+	ulint	id,		/*!< in: space id */
+	ulint	trunc_len)	/*!< in: truncate by this much; it is an error
+				if this does not equal to the combined size of
+				some initial files in the space */
+{
+	fil_node_t*	node;
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(id);
+
+	ut_a(space);
+
+	while (trunc_len > 0) {
+		node = UT_LIST_GET_FIRST(space->chain);
+
+		ut_a(node->size * UNIV_PAGE_SIZE <= trunc_len);
+
+		trunc_len -= node->size * UNIV_PAGE_SIZE;
+
+		fil_node_free(node, space);
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/****************************************************************//**
+Check is there node in file space with given name. */
+
+bool
+fil_space_contains_node(
+/*====================*/
+    ulint	id,		/*!< in: space id */
+    char*	node_name)	/*!< in: node name */
+{
+    fil_node_t*	node;
+    fil_space_t*	space;
+
+    mutex_enter(&fil_system->mutex);
+
+    space = fil_space_get_by_id(id);
+
+    ut_a(space);
+
+    for (node = UT_LIST_GET_FIRST(space->chain); node != NULL;
+	 node = UT_LIST_GET_NEXT(chain, node)) {
+
+	if (ut_strcmp(node->name, node_name) == 0) {
+	    mutex_exit(&fil_system->mutex);
+	    return(true);
+	}
+
+    }
+
+    mutex_exit(&fil_system->mutex);
+    return(false);
 }
 
 /** Frees a space object from the tablespace memory cache.
@@ -1287,6 +1364,7 @@ fil_space_create(
 	if (space != NULL) {
 		mutex_exit(&fil_system->mutex);
 
+		ut_ad(space->id != id);
 		ib::warn() << "Tablespace '" << name << "' exists in the"
 			" cache with id " << space->id << " != " << id;
 
@@ -1341,6 +1419,8 @@ fil_space_create(
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
+
+	space->is_corrupt = false;
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
@@ -1760,6 +1840,9 @@ fil_close_all_files(void)
 {
 	fil_space_t*	space;
 
+	if (srv_track_changed_pages && srv_redo_log_thread_started)
+		os_event_wait(srv_redo_log_tracked_event);
+
 	/* At shutdown, we should not have any files in this list. */
 	ut_ad(srv_fast_shutdown == 2
 	      || UT_LIST_GET_LEN(fil_system->named_spaces) == 0);
@@ -1800,6 +1883,9 @@ fil_close_log_files(
 	bool	free)	/*!< in: whether to free the memory object */
 {
 	fil_space_t*	space;
+
+	if (srv_track_changed_pages && srv_redo_log_thread_started)
+		os_event_wait(srv_redo_log_tracked_event);
 
 	mutex_enter(&fil_system->mutex);
 
@@ -4757,7 +4843,7 @@ fil_write_zeros(
 		err = os_aio(
 			request, OS_AIO_SYNC, node->name,
 			node->handle, buf, offset, n_bytes, read_only_mode,
-			NULL, NULL);
+			NULL, NULL, node->space->id, NULL);
 #endif /* UNIV_HOTBACKUP */
 
 		if (err != DB_SUCCESS) {
@@ -5253,7 +5339,7 @@ fil_report_invalid_page_access(
 @return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
 	if we are trying to do i/o on a tablespace which does not exist */
 dberr_t
-fil_io(
+_fil_io(
 	const IORequest&	type,
 	bool			sync,
 	const page_id_t&	page_id,
@@ -5261,7 +5347,8 @@ fil_io(
 	ulint			byte_offset,
 	ulint			len,
 	void*			buf,
-	void*			message)
+	void*			message,
+	trx_t*			trx)
 {
 	os_offset_t		offset;
 	IORequest		req_type(type);
@@ -5498,6 +5585,33 @@ fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
+#ifndef UNIV_HOTBACKUP
+	if (UNIV_UNLIKELY(space->is_corrupt && srv_pass_corrupt_table)) {
+
+		/* should ignore i/o for the crashed space */
+		if (srv_pass_corrupt_table == 1 || req_type.is_write()) {
+
+			mutex_enter(&fil_system->mutex);
+			fil_node_complete_io(node, fil_system, type);
+			mutex_exit(&fil_system->mutex);
+			if (mode == OS_AIO_NORMAL) {
+				ut_a(space->purpose == FIL_TYPE_TABLESPACE);
+				buf_page_io_complete(static_cast<buf_page_t *>
+						     (message));
+			}
+		}
+
+		if (srv_pass_corrupt_table == 1 && req_type.is_read()) {
+
+			return(DB_TABLESPACE_DELETED);
+
+		} else if (req_type.is_write()) {
+
+			return(DB_SUCCESS);
+		}
+	}
+#endif
+
 	/* Don't compress the log, page 0 of all tablespaces, tables
 	compresssed with the old scheme and all pages from the system
 	tablespace. */
@@ -5544,7 +5658,7 @@ fil_io(
 		mode, node->name, node->handle, buf, offset, len,
 		fsp_is_system_temporary(page_id.space())
 		? false : srv_read_only_mode,
-		node, message);
+		node, message, page_id.space(), trx);
 
 #endif /* UNIV_HOTBACKUP */
 
@@ -6382,6 +6496,33 @@ fil_delete_file(
 	}
 }
 
+/*************************************************************************
+Return local hash table informations. */
+
+ulint
+fil_system_hash_cells(void)
+/*=======================*/
+{
+       if (fil_system) {
+               return (fil_system->spaces->n_cells
+                       + fil_system->name_hash->n_cells);
+       } else {
+               return 0;
+       }
+}
+
+ulint
+fil_system_hash_nodes(void)
+/*=======================*/
+{
+       if (fil_system) {
+               return (UT_LIST_GET_LEN(fil_system->space_list)
+                       * (sizeof(fil_space_t) + MEM_BLOCK_HEADER_SIZE));
+       } else {
+               return 0;
+       }
+}
+
 /**
 Iterate over all the spaces in the space list and fetch the
 tablespace names. It will return a copy of the name that must be
@@ -7069,3 +7210,24 @@ test_make_filepath()
 }
 #endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 /* @} */
+
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		space->is_corrupt = true;
+	}
+
+	mutex_exit(&fil_system->mutex);
+}

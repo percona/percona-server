@@ -84,7 +84,8 @@ Srv_session* srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx)
   Connection_handler_manager *conn_manager=
       Connection_handler_manager::get_instance();
 
-  if (!conn_manager->check_and_incr_conn_count())
+  // TODO laurynas extra_port_connection false
+  if (!conn_manager->check_and_incr_conn_count(false))
   {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));

@@ -547,6 +547,13 @@ bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
     {
       sys_var *sysvar= (sys_var*) my_hash_element(&system_variable_hash, i);
 
+      const my_bool *hidden=
+        getopt_constraint_get_hidden_value(sysvar->name.str,
+                                           sysvar->name.length, FALSE);
+
+      if (hidden && *hidden)
+        continue;
+
       if (strict)
       {
         /*
@@ -726,7 +733,10 @@ int set_var::check(THD *thd)
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+  if (!acl_is_utility_user(thd->security_context()->priv_user().str,
+                           thd->security_context()->host().str,
+                           thd->security_context()->ip().str)
+      && (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     DBUG_RETURN(1);
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)

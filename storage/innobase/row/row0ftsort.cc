@@ -34,6 +34,7 @@ Created 10/13/2010 Jimmy Yang
 #include "btr0cur.h"
 #include "btr0bulk.h"
 #include "fts0plugin.h"
+#include "btr0sea.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */

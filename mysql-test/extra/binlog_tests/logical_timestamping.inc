@@ -211,6 +211,8 @@ DROP TABLE tm,t1,ttm1,tti1;
 
 
 --let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5
+# CREATE TEMPORARY TABLE is not binlogged under MIXED
+--let $logical_timestamps_mix= 0 1;1 2;2 3
 --source include/assert_logical_timestamps.inc
 
 #

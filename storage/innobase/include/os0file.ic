@@ -234,6 +234,8 @@ pfs_os_aio_func(
 	bool		read_only,
 	fil_node_t*	m1,
 	void*		m2,
+	ulint		space_id,
+	trx_t*		trx,
 	const char*	src_file,
 	ulint		src_line)
 {
@@ -249,7 +251,8 @@ pfs_os_aio_func(
 		src_file, src_line);
 
 	dberr_t	result = os_aio_func(
-		type, mode, name, file, buf, offset, n, read_only, m1, m2);
+	    type, mode, name, file, buf, offset, n, read_only, m1, m2,
+	    space_id, trx);
 
 	register_pfs_file_io_end(locker, n);
 
@@ -276,6 +279,7 @@ pfs_os_file_read_func(
 	void*		buf,
 	os_offset_t	offset,
 	ulint		n,
+	trx_t*		trx,
 	const char*	src_file,
 	ulint		src_line)
 {
@@ -289,7 +293,7 @@ pfs_os_file_read_func(
 
 	dberr_t		result;
 
-	result = os_file_read_func(type, file, buf, offset, n);
+	result = os_file_read_func(type, file, buf, offset, n, trx);
 
 	register_pfs_file_io_end(locker, n);
 

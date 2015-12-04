@@ -14,10 +14,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "heapdef.h"
+#include <mysql_com.h>
+#include <mysqld_error.h>
 
 static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2);
-static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,
+static void init_block(HP_BLOCK *block,uint chunk_length, ulong min_records,
 		       ulong max_records);
+
+#define FIXED_REC_OVERHEAD (sizeof(uchar))
+#define VARIABLE_REC_OVERHEAD (sizeof(uchar **) + sizeof(uchar))
+
+/* Minimum size that a chunk can take, 12 bytes on 32bit, 24 bytes on 64bit */
+#define VARIABLE_MIN_CHUNK_SIZE                                         \
+  ((sizeof(uchar **) + VARIABLE_REC_OVERHEAD + sizeof(uchar **) - 1) &  \
+   ~(sizeof(uchar **) - 1))
 
 /* Create a heap table */
 
@@ -32,6 +42,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
   uint keys= create_info->keys;
   ulong min_records= create_info->min_records;
   ulong max_records= create_info->max_records;
+  ulong max_rows_for_stated_memory;
   DBUG_ENTER("heap_create");
 
   if (!create_info->internal_table)
@@ -48,15 +59,147 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
 
   if (!share)
   {
+    uint chunk_dataspace_length, chunk_length, is_variable_size;
+    uint fixed_data_length, fixed_column_count;
     HP_KEYDEF *keyinfo;
     DBUG_PRINT("info",("Initializing new table"));
-    
+
+    if (create_info->max_chunk_size)
+    {
+      uint configured_chunk_size= create_info->max_chunk_size;
+
+      /* User requested variable-size records, let's see if they're possible */
+
+      if (configured_chunk_size < create_info->fixed_data_size)
+      {
+        /*
+          The resulting chunk_size cannot be smaller than fixed data part
+          at the start of the first chunk which allows faster copying
+          with a single memcpy().
+        */
+        my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "key_block_size");
+        goto err;
+      }
+
+      if (reclength > configured_chunk_size + VARIABLE_REC_OVERHEAD ||
+	  create_info->blobs > 0)
+      {
+        /*
+          Allow variable size only if we're saving some space, i.e.
+          if a fixed-size record would take more space than variable-size
+          one plus the variable-size overhead.
+          There has to be at least one field after indexed fields.
+          Note that NULL bits are already included in key_part_size.
+        */
+        is_variable_size= 1;
+        chunk_dataspace_length= configured_chunk_size;
+      }
+      else
+      {
+        /* max_chunk_size is near the full reclength, let's use fixed size */
+        is_variable_size= 0;
+        chunk_dataspace_length= reclength;
+      }
+    }
+    else if ((create_info->is_dynamic && reclength >
+              256 + VARIABLE_REC_OVERHEAD)
+             || create_info->blobs > 0)
+    {
+      /*
+        User asked for dynamic records - use 256 as the chunk size, if that
+        will may save some memory. Otherwise revert to fixed size format.
+      */
+      if ((create_info->fixed_data_size + VARIABLE_REC_OVERHEAD) > 256)
+        chunk_dataspace_length= create_info->fixed_data_size;
+      else
+        chunk_dataspace_length= 256 - VARIABLE_REC_OVERHEAD;
+
+      is_variable_size= 1;
+    }
+    else
+    {
+      /*
+        If max_chunk_size is not specified, put the whole record in one chunk
+      */
+      is_variable_size= 0;
+      chunk_dataspace_length= reclength;
+    }
+
+    if (is_variable_size)
+    {
+      /* Check whether we have any variable size records past key data */
+      uint has_variable_fields= 0;
+
+      fixed_data_length= create_info->fixed_data_size;
+      fixed_column_count= create_info->fixed_key_fieldnr;
+
+      for (i= create_info->fixed_key_fieldnr; i < create_info->columns; i++)
+      {
+        HP_COLUMNDEF *column= create_info->columndef + i;
+	if ((column->type == MYSQL_TYPE_VARCHAR &&
+	     (column->length - column->length_bytes) >= 32) ||
+	    column->type == MYSQL_TYPE_BLOB)
+        {
+            /*
+              The field has to be either blob or >= 5.0.3 true VARCHAR
+              and have substantial length.
+              TODO: do we want to calculate minimum length?
+            */
+            has_variable_fields= 1;
+            break;
+        }
+
+        if (has_variable_fields)
+        {
+          break;
+        }
+
+        if ((column->offset + column->length) <= chunk_dataspace_length)
+        {
+          /* Still no variable-size columns, add one fixed-length */
+          fixed_column_count= i + 1;
+          fixed_data_length= column->offset + column->length;
+        }
+      }
+
+      if (!has_variable_fields && create_info->blobs == 0)
+      {
+        /*
+          There is no need to use variable-size records without variable-size
+          columns.
+          Reset sizes if it's not variable size anymore.
+        */
+        is_variable_size= 0;
+        chunk_dataspace_length= reclength;
+        fixed_data_length= reclength;
+        fixed_column_count= create_info->columns;
+      }
+    }
+    else
+    {
+      fixed_data_length= reclength;
+      fixed_column_count= create_info->columns;
+    }
+
     /*
-      We have to store sometimes uchar* del_link in records,
-      so the record length should be at least sizeof(uchar*)
+      We store uchar* del_link inside the data area of deleted records,
+      so the data length should be at least sizeof(uchar*)
     */
-    set_if_bigger(reclength, sizeof (uchar*));
-    
+    set_if_bigger(chunk_dataspace_length, sizeof (uchar **));
+
+    if (is_variable_size)
+    {
+      chunk_length= chunk_dataspace_length + VARIABLE_REC_OVERHEAD;
+    }
+    else
+    {
+      chunk_length= chunk_dataspace_length + FIXED_REC_OVERHEAD;
+    }
+
+    /* Align chunk length to the next pointer */
+    chunk_length= (uint) (chunk_length + sizeof(uchar **) - 1) &
+      ~(sizeof(uchar **) - 1);
+
     for (i= key_segs= max_length= 0, keyinfo= keydef; i < keys; i++, keyinfo++)
     {
       memset(&keyinfo->block, 0, sizeof(keyinfo->block));
@@ -73,42 +216,11 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
 	    keyinfo->rb_tree.size_of_element++;
 	}
 	switch (keyinfo->seg[j].type) {
-	case HA_KEYTYPE_SHORT_INT:
-	case HA_KEYTYPE_LONG_INT:
-	case HA_KEYTYPE_FLOAT:
-	case HA_KEYTYPE_DOUBLE:
-	case HA_KEYTYPE_USHORT_INT:
-	case HA_KEYTYPE_ULONG_INT:
-	case HA_KEYTYPE_LONGLONG:
-	case HA_KEYTYPE_ULONGLONG:
-	case HA_KEYTYPE_INT24:
-	case HA_KEYTYPE_UINT24:
-	case HA_KEYTYPE_INT8:
-	  keyinfo->seg[j].flag|= HA_SWAP_KEY;
-          break;
         case HA_KEYTYPE_VARBINARY1:
-          /* Case-insensitiveness is handled in coll->hash_sort */
-          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
-          /* fall_through */
         case HA_KEYTYPE_VARTEXT1:
-          keyinfo->flag|= HA_VAR_LENGTH_KEY;
-          length+= 2;
-          /* Save number of bytes used to store length */
-          keyinfo->seg[j].bit_start= 1;
-          break;
         case HA_KEYTYPE_VARBINARY2:
-          /* Case-insensitiveness is handled in coll->hash_sort */
-          /* fall_through */
         case HA_KEYTYPE_VARTEXT2:
-          keyinfo->flag|= HA_VAR_LENGTH_KEY;
           length+= 2;
-          /* Save number of bytes used to store length */
-          keyinfo->seg[j].bit_start= 2;
-          /*
-            Make future comparison simpler by only having to check for
-            one type
-          */
-          keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
           break;
 	default:
 	  break;
@@ -134,13 +246,34 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     if (!(share= (HP_SHARE*) my_malloc(hp_key_memory_HP_SHARE,
                                        (uint) sizeof(HP_SHARE)+
 				       keys*sizeof(HP_KEYDEF)+
+                                       (create_info->columns *
+                                        sizeof(HP_COLUMNDEF)) +
 				       key_segs*sizeof(HA_KEYSEG),
 				       MYF(MY_ZEROFILL))))
       goto err;
-    share->keydef= (HP_KEYDEF*) (share + 1);
+
+    /*
+      Max_records is used for estimating block sizes and for enforcement.
+      Calculate the very maximum number of rows (if everything was one chunk)
+      and then take either that value or configured max_records (pick smallest
+      one).
+    */
+    max_rows_for_stated_memory= (ha_rows) (create_info->max_table_size /
+                                           (create_info->keys_memory_size +
+                                            chunk_length));
+    max_records = ((max_records && max_records < max_rows_for_stated_memory) ?
+                   max_records : max_rows_for_stated_memory);
+
+    share->column_defs= (HP_COLUMNDEF*) (share + 1);
+    memcpy(share->column_defs, create_info->columndef,
+           (size_t) (sizeof(create_info->columndef[0]) *
+                     create_info->columns));
+
+    share->keydef= (HP_KEYDEF*) (share->column_defs + create_info->columns);
     share->key_stat_version= 1;
     keyseg= (HA_KEYSEG*) (share->keydef + keys);
-    init_block(&share->block, reclength + 1, min_records, max_records);
+    init_block(&share->recordspace.block, chunk_length, min_records,
+               max_records);
 	/* Fix keys */
     memcpy(share->keydef, keydef, (size_t) (sizeof(keydef[0]) * keys));
     for (i= 0, keyinfo= share->keydef; i < keys; i++, keyinfo++)
@@ -178,16 +311,36 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
     share->min_records= min_records;
     share->max_records= max_records;
     share->max_table_size= create_info->max_table_size;
-    share->data_length= share->index_length= 0;
-    share->reclength= reclength;
+    share->index_length= 0;
     share->blength= 1;
     share->keys= keys;
     share->max_key_length= max_length;
+    share->column_count= create_info->columns;
     share->changed= 0;
     share->auto_key= create_info->auto_key;
     share->auto_key_type= create_info->auto_key_type;
     share->auto_increment= create_info->auto_increment;
     share->create_time= (long) time((time_t*) 0);
+
+    share->fixed_data_length= fixed_data_length;
+    share->fixed_column_count= fixed_column_count;
+    share->blobs= create_info->blobs;
+
+    share->recordspace.chunk_length= chunk_length;
+    share->recordspace.chunk_dataspace_length= chunk_dataspace_length;
+    share->recordspace.is_variable_size= is_variable_size;
+    share->recordspace.total_data_length= 0;
+
+    if (is_variable_size) {
+      share->recordspace.offset_link= chunk_dataspace_length;
+      share->recordspace.offset_status= share->recordspace.offset_link +
+        sizeof(uchar **);
+    } else {
+      /* Make it likely to fail if anyone uses this offset */
+      share->recordspace.offset_link= 1 << 22;
+      share->recordspace.offset_status= chunk_dataspace_length;
+    }
+
     /* Must be allocated separately for rename to work */
     if (!(share->name= my_strdup(hp_key_memory_HP_SHARE,
                                  name, MYF(0))))
@@ -233,7 +386,7 @@ static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2)
 		    param->search_flag, not_used);
 }
 
-static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
+static void init_block(HP_BLOCK *block, uint chunk_length, ulong min_records,
 		       ulong max_records)
 {
   uint i,recbuffer,records_in_block;
@@ -241,7 +394,12 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
   max_records= MY_MAX(min_records, max_records);
   if (!max_records)
     max_records= 1000;			/* As good as quess as anything */
-  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
+  /*
+    We want to start each chunk at 8 bytes boundary, round recbuffer to the
+    next 8.
+  */
+  recbuffer= (uint) (chunk_length + sizeof(uchar**) - 1) &
+    ~(sizeof(uchar**) - 1);
   records_in_block= max_records / 10;
   if (records_in_block < 10 && max_records)
     records_in_block= 10;

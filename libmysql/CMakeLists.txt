@@ -214,12 +214,12 @@ IF(WIN32)
   LIST(APPEND LIBS auth_win_client)
 ENDIF()
 
-# Merge several convenience libraries into one big mysqlclient
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
+# Merge several convenience libraries into one big perconaserverclient
+MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
- INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+ INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)
  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
 ENDIF()
 
@@ -253,7 +253,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND DEFINED ENV{PB2WORKDIR})
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  # Merge several convenience libraries into one big mysqlclient
+  # Merge several convenience libraries into one big perconaserverclient
   # and link them together into shared library.
   MERGE_LIBRARIES(libmysql SHARED ${LIBS}
     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
@@ -266,9 +266,9 @@ IF(NOT DISABLE_SHARED)
       SET(OS_SHARED_LIB_VERSION
         "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.${SHARED_LIB_PATCH_VERSION}")
     ENDIF()
-    # Name of shared library is mysqlclient on Unix
+    # Name of shared library is perconaserverclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
-      OUTPUT_NAME mysqlclient 
+      OUTPUT_NAME perconaserverclient
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
@@ -297,8 +297,8 @@ IF(NOT DISABLE_SHARED)
         PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
     ENDIF() 
     # clean direct output needs to be set several targets have the same name
-    #(mysqlclient in this case)
-    SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    #(perconaserverclient in this case)
+    SET_TARGET_PROPERTIES(perconaserverclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
   ENDIF()

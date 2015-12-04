@@ -177,6 +177,8 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --csv-mode=name     Control CSV parser mode: []: default, ietf_quotes:
+ standards-compatible embedded quote and comma parsing
  --daemonize         Run mysqld as sysv daemon
  -h, --datadir=name  Path to the database root directory
  --date-format=name  The DATE format (ignored)
@@ -237,6 +239,8 @@ The following options may be given as the first argument:
  disallowed statements include CREATE TEMPORARY TABLE
  inside transactions, all updates to non-transactional
  tables, and CREATE TABLE ... SELECT.
+ --enforce-storage-engine=name 
+ Force the use of a storage engine for new tables
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
@@ -247,6 +251,10 @@ The following options may be given as the first argument:
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
+ --expand-fast-index-creation 
+ Enable/disable improvements to the InnoDB fast index
+ creation functionality. Has no effect when fast index
+ creation is disabled with the fast-index-creation option
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
  expire_logs_days days; possible purges happen at startup
@@ -262,6 +270,11 @@ The following options may be given as the first argument:
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
  Disable with --skip-external-locking.
+ --extra-max-connections=# 
+ The number of connections on extra-port
+ --extra-port=#      Extra port number to use for tcp connections in a
+ one-thread-per-connection manner. 0 means don't use
+ another port
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
@@ -412,9 +425,35 @@ The following options may be given as the first argument:
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
+ --log-slow-filter=name 
+ Log only the queries that followed certain execution
+ plan. Multiple flags allowed in a comma-separated string.
+ [qc_miss, full_scan, full_join, tmp_table,
+ tmp_table_on_disk, filesort, filesort_on_disk]
+ --log-slow-rate-limit=# 
+ Rate limit statement writes to slow log to only those
+ from every (1/log_slow_rate_limit) session.
+ --log-slow-rate-type=name 
+ Choose the log_slow_rate_limit behavior: session or
+ query. When you choose 'session' - every
+ %log_slow_rate_limit connection will be processed to slow
+ query log. When you choose 'query' - every
+ %log_slow_rate_limit query will be processed to slow
+ query log. [session, query]
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
+ --log-slow-sp-statements[=name] 
+ Choice between logging slow CALL statements, logging
+ individual slow statements inside stored procedures or
+ skipping the logging of stored procedures into the slow
+ log entirely. Values are OFF, ON and OFF_NO_CALLS
+ respectively.
+ --log-slow-verbosity=name 
+ Choose how verbose the messages to your slow log will be.
+ Multiple flags allowed in a comma-separated string.
+ [microtime, query_plan, innodb, profiling,
+ profiling_use_getrusage]
  --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
  error log file may additionally be sent to the host
  operating system's system log ("syslog").
@@ -453,6 +492,9 @@ The following options may be given as the first argument:
  at will.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
+ --log-warnings-suppress=name 
+ disable logging of enumerated warnings: 1592: unsafe
+ statements for binary logging; possible values : [1592]
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -484,6 +526,11 @@ The following options may be given as the first argument:
  --max-binlog-dump-events=# 
  Option used by mysql-test for debugging and testing of
  replication.
+ --max-binlog-files=# 
+ Maximum number of binlog files. Used with
+ --max-binlog-size this can be used to limit the total
+ amount of disk space used for the binlog. Default is 0,
+ don't limit.
  --max-binlog-size=# Binary log will be rotated automatically when the size
  exceeds this value. Will also apply to relay logs if
  max_relay_log_size is 0
@@ -522,6 +569,15 @@ The following options may be given as the first argument:
  --max-seeks-for-key=# 
  Limit assumed max number of seeks when looking up rows
  based on a key
+ --max-slowlog-files=# 
+ Maximum number of slow query log files. Used with
+ --max-slowlog-size this can be used to limit the total
+ amount of disk space used for the slow query log. Default
+ is 0, don't limit.
+ --max-slowlog-size=# 
+ Slow query log will be rotated automatically when the
+ size exceeds this value. The default is 0, don't limit
+ the size.
  --max-sort-length=# The number of bytes to use when sorting BLOB or TEXT
  values (only the first max_sort_length bytes of each
  value are used; the rest are ignored)
@@ -840,6 +896,12 @@ The following options may be given as the first argument:
  indexes
  --profiling-history-size=# 
  Limit of query profiling memory
+ --proxy-protocol-networks=name 
+ Enable proxy protocol for these source networks. The
+ syntax is a comma separated list of IPv4 and IPv6
+ networks. If the network doesn't contain mask, it is
+ considered to be a single host. "*" represents all
+ networks and must the only directive on the line.
  --query-alloc-block-size=# 
  Allocation block size for query parsing and execution
  --query-cache-limit=# 
@@ -848,6 +910,10 @@ The following options may be given as the first argument:
  The minimum size for blocks allocated by the query cache
  --query-cache-size=# 
  The memory allocated to store results from old queries
+ --query-cache-strip-comments 
+ Enable and disable optimisation "strip comment for query
+ cache" - optimisation strip all comments from query while
+ search query result in query cache
  --query-cache-type=name 
  OFF = Don't cache or retrieve results. ON = Cache all
  results except SELECT SQL_NO_CACHE ... queries. DEMAND =
@@ -1124,10 +1190,19 @@ The following options may be given as the first argument:
  to a file hostname-slow.log or a table mysql.slow_log if
  --log-output=TABLE is used. Must be enabled to activate
  other slow log options
+ --slow-query-log-always-write-time=# 
+ Log queries which run longer than specified by this value
+ regardless of the log_slow_rate_limit valiue.
  --slow-query-log-file=name 
  Log slow queries to given log file. Defaults logging to
  hostname-slow.log. Must be enabled to activate other slow
  log options
+ --slow-query-log-use-global-control=name 
+ Choose flags, wich always use the global variables.
+ Multiple flags allowed in a comma-separated string.
+ [none, log_slow_filter, log_slow_rate_limit,
+ log_slow_verbosity, long_query_time,
+ min_examined_row_limit, all]
  --socket=name       Socket file to use for connection
  --sort-buffer-size=# 
  Each thread that needs to do a sort allocates a buffer of
@@ -1176,8 +1251,10 @@ The following options may be given as the first argument:
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
  Define threads usage for handling queries, one of
- one-thread-per-connection, no-threads, loaded-dynamically
+ one-thread-per-connection, no-threads, pool-of-threads
  --thread-stack=#    The stack size for each thread
+ --thread-statistics Control TABLE_STATISTICS running, when userstat is
+ enabled
  --time-format=name  The TIME format (ignored)
  --tmp-table-size=#  If an internal in-memory temporary table exceeds this
  size, MySQL will automatically convert it to an on-disk
@@ -1208,6 +1285,20 @@ The following options may be given as the first argument:
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
  -u, --user=name     Run mysqld daemon as user.
+ --userstat          Control USER_STATISTICS, CLIENT_STATISTICS,
+ THREAD_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS
+ running
+ --utility-user=name Specifies a MySQL user that will be added to the internal
+ list of users and recognized as the utility user.
+ --utility-user-password=name 
+ Specifies the password required for the utility user.
+ --utility-user-privileges=name 
+ Specifies the privileges that the utility user will have
+ in a comma delimited list. See the manual for a complete
+ list of privileges.
+ --utility-user-schema-access=name 
+ Specifies the schemas that the utility user has access to
+ in a comma delimited list.
  --validate-user-plugins 
  Turns on additional validation of authentication plugins
  assigned to user accounts. 
@@ -1255,6 +1346,7 @@ completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
 console FALSE
+csv-mode 
 daemonize FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
@@ -1274,11 +1366,15 @@ disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
+enforce-storage-engine (No default value)
 eq-range-index-dive-limit 200
 event-scheduler OFF
+expand-fast-index-creation FALSE
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
 external-locking FALSE
+extra-max-connections 1
+extra-port 0
 flush FALSE
 flush-time 0
 ft-boolean-syntax + -><()~*:""&|
@@ -1328,7 +1424,12 @@ log-raw FALSE
 log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
+log-slow-filter 
+log-slow-rate-limit 1
+log-slow-rate-type session
 log-slow-slave-statements FALSE
+log-slow-sp-statements ON
+log-slow-verbosity 
 log-syslog FALSE
 log-syslog-facility daemon
 log-syslog-include-pid TRUE
@@ -1338,6 +1439,7 @@ log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
 log-warnings 0
+log-warnings-suppress 
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1348,6 +1450,7 @@ master-verify-checksum FALSE
 max-allowed-packet 4194304
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
+max-binlog-files 0
 max-binlog-size 1073741824
 max-binlog-stmt-cache-size 18446744073709547520
 max-connect-errors 100
@@ -1363,6 +1466,8 @@ max-points-in-geometry 65536
 max-prepared-stmt-count 16382
 max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
+max-slowlog-files 0
+max-slowlog-size 0
 max-sort-length 1024
 max-sp-recursion-depth 0
 max-tmp-tables 32
@@ -1436,19 +1541,19 @@ performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
-performance-schema-max-memory-classes 320
+performance-schema-max-memory-classes 400
 performance-schema-max-metadata-locks -1
 performance-schema-max-mutex-classes 200
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
-performance-schema-max-rwlock-classes 40
+performance-schema-max-rwlock-classes 50
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 192
+performance-schema-max-statement-classes 202
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1463,10 +1568,12 @@ port ####
 port-open-timeout 0
 preload-buffer-size 32768
 profiling-history-size 15
+proxy-protocol-networks 
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
 query-cache-size 1048576
+query-cache-strip-comments FALSE
 query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
@@ -1525,6 +1632,8 @@ slave-transaction-retries 10
 slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
+slow-query-log-always-write-time 10
+slow-query-log-use-global-control 
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
@@ -1542,6 +1651,7 @@ tc-heuristic-recover OFF
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
+thread-statistics FALSE
 time-format %H:%i:%s
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
@@ -1550,6 +1660,11 @@ transaction-prealloc-size 4096
 transaction-read-only FALSE
 transaction-write-set-extraction OFF
 updatable-views-with-limit YES
+userstat FALSE
+utility-user (No default value)
+utility-user-password (No default value)
+utility-user-privileges 
+utility-user-schema-access (No default value)
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800

@@ -148,11 +148,22 @@ public:
   */
   bool set_default(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
+  void stmt_update(THD *thd) {
+    on_update && on_update(this, thd, OPT_SESSION);
+  }
 
   SHOW_TYPE show_type() { return show_val_type; }
   int scope() const { return flags & SCOPE_MASK; }
   const CHARSET_INFO *charset(THD *thd);
-  bool is_readonly() const { return flags & READONLY; }
+  bool is_readonly() const 
+  {
+    const my_bool *readonly= getopt_constraint_get_readonly_value(option.name,
+                                                                  0, FALSE);
+    if (readonly && *readonly)
+      return TRUE;  
+    
+    return flags & READONLY;
+  }
   bool not_visible() const { return flags & INVISIBLE; }
   bool is_trilevel() const { return flags & TRI_LEVEL; }
   /**
@@ -343,6 +354,9 @@ extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
+extern SHOW_COMP_OPTION have_backup_locks;
+extern SHOW_COMP_OPTION have_backup_safe_binlog_info;
+extern SHOW_COMP_OPTION have_snapshot_cloning;
 
 /*
   Helper functions

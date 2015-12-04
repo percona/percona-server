@@ -23,7 +23,7 @@ static size_t wait_overlapped_result(Vio *vio, int timeout)
   timeout_ms= timeout >= 0 ? timeout : INFINITE;
 
   /* Wait for the overlapped operation to be completed. */
-  wait_status= WaitForSingleObject(vio->overlapped.hEvent, timeout_ms);
+  wait_status= WaitForSingleObjectEx(vio->overlapped.hEvent, timeout_ms, TRUE);
 
   /* The operation might have completed, attempt to retrieve the result. */
   if (wait_status == WAIT_OBJECT_0)
@@ -50,11 +50,30 @@ static size_t wait_overlapped_result(Vio *vio, int timeout)
 }
 
 
+/*
+  Disable posting IO completion event to the port.
+  In some cases (synchronous timed IO) we want to skip IOCP notifications.
+*/
+static void disable_iocp_notification(OVERLAPPED *overlapped)
+{
+  HANDLE *handle = &(overlapped->hEvent);
+  *handle = ((HANDLE)((ULONG_PTR) *handle|1));
+}
+
+/* Enable posting IO completion event to the port */
+static void enable_iocp_notification(OVERLAPPED *overlapped)
+{
+  HANDLE *handle = &(overlapped->hEvent);
+  *handle = (HANDLE)((ULONG_PTR) *handle & ~1);
+}
+
 size_t vio_read_pipe(Vio *vio, uchar *buf, size_t count)
 {
   DWORD transferred;
   size_t ret= (size_t) -1;
   DBUG_ENTER("vio_read_pipe");
+
+  disable_iocp_notification(&vio->pipe_overlapped);
 
   /* Attempt to read from the pipe (overlapped I/O). */
   if (ReadFile(vio->hPipe, buf, (DWORD)count, &transferred, &vio->overlapped))
@@ -66,6 +85,8 @@ size_t vio_read_pipe(Vio *vio, uchar *buf, size_t count)
   else if (GetLastError() == ERROR_IO_PENDING)
     ret= wait_overlapped_result(vio, vio->read_timeout);
 
+  enable_iocp_notification(&vio->pipe_overlapped);
+
   DBUG_RETURN(ret);
 }
 
@@ -76,6 +97,8 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
   size_t ret= (size_t) -1;
   DBUG_ENTER("vio_write_pipe");
 
+  disable_iocp_notification(&vio->pipe_overlapped);
+
   /* Attempt to write to the pipe (overlapped I/O). */
   if (WriteFile(vio->hPipe, buf, (DWORD)count, &transferred, &vio->overlapped))
   {
@@ -85,6 +108,8 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
   /* Write operation is pending completion asynchronously? */
   else if (GetLastError() == ERROR_IO_PENDING)
     ret= wait_overlapped_result(vio, vio->write_timeout);
+
+  enable_iocp_notification(&vio->pipe_overlapped);
 
   DBUG_RETURN(ret);
 }
@@ -99,7 +124,7 @@ my_bool vio_is_connected_pipe(Vio *vio)
 }
 
 
-int vio_shutdown_pipe(Vio *vio)
+int vio_shutdown_pipe(Vio *vio, int how)
 {
   BOOL ret;
   DBUG_ENTER("vio_shutdown_pipe");
@@ -115,3 +140,18 @@ int vio_shutdown_pipe(Vio *vio)
 
   DBUG_RETURN(ret);
 }
+
+int vio_cancel_pipe(Vio *vio, int how)
+{
+  DBUG_ENTER("vio_shutdown_pipe");
+
+  CancelIo(vio->hPipe);
+  CloseHandle(vio->overlapped.hEvent);
+  DisconnectNamedPipe(vio->hPipe);
+
+  vio->inactive= TRUE;
+
+  DBUG_RETURN(0);
+}
+
+#endif

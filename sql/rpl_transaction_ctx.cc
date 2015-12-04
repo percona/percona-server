@@ -97,7 +97,8 @@ int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx)
 
   THD *thd= NULL;
   uint error=ER_NO_SUCH_THREAD;
-  Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id);
+  Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id,
+                                    false);
 
   thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd)

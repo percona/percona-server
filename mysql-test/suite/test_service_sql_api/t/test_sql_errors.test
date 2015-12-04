@@ -95,7 +95,7 @@ INSERT INTO t_spec VALUES ( b'111', 'v1', 'v1');
 eval INSTALL PLUGIN test_sql_errors SONAME '$TEST_SQL_ERRORS';
 
 --disable_ps_protocol
---replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME> 9 <TIME_MS>
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 --enable_ps_protocol
 
@@ -105,7 +105,7 @@ eval INSTALL PLUGIN test_sql_errors SONAME '$TEST_SQL_ERRORS';
 UNINSTALL PLUGIN test_sql_errors;
 
 --disable_ps_protocol
---replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
+--replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME> 9 <TIME_MS>
 /*first*/SELECT * FROM information_schema.processlist ORDER BY id;
 --enable_ps_protocol
 

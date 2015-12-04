@@ -1,0 +1,9 @@
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (10);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+PURGE CHANGED_PAGE_BITMAPS BEFORE CURRENT_LSN;
+INSERT INTO t1 VALUES (20);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+DROP TABLE t1;

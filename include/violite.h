@@ -106,6 +106,22 @@ enum enum_vio_io_event
 #define VIO_READ_BUFFER_SIZE 16384              /* size of read buffer */
 #define VIO_DESCRIPTION_SIZE 30                 /* size of description */
 
+struct st_vio_network {
+  union {
+    struct in_addr in;
+#ifdef HAVE_IPV6
+    struct in6_addr in6;
+#endif
+  } addr;
+  union {
+    struct in_addr in;
+#ifdef HAVE_IPV6
+    struct in6_addr in6;
+#endif
+  } mask;
+  sa_family_t family;
+};
+
 Vio* vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 Vio*  mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags);
 #ifdef _WIN32
@@ -121,8 +137,10 @@ Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
 #define HANDLE void *
 #endif /* _WIN32 */
 
+void vio_proxy_protocol_add(const struct st_vio_network *net);
 void    vio_delete(Vio* vio);
-int vio_shutdown(Vio* vio);
+int vio_shutdown(Vio* vio, int how);
+int vio_cancel(Vio* vio, int how);
 my_bool vio_reset(Vio* vio, enum enum_vio_type type,
                   my_socket sd, void *ssl, uint flags);
 size_t  vio_read(Vio *vio, uchar *	buf, size_t size);
@@ -153,7 +171,9 @@ my_bool vio_is_connected(Vio *vio);
 ssize_t vio_pending(Vio *vio);
 #endif
 /* Set timeout for a network operation. */
-int vio_timeout(Vio *vio, uint which, int timeout_sec);
+extern int vio_timeout(Vio *vio, uint which, int timeout_sec);
+extern void vio_set_wait_callback(void (*before_wait)(void),
+                                void (*after_wait)(void));
 /* Connect to a peer. */
 my_bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
                            int timeout);
@@ -243,11 +263,23 @@ void vio_end(void);
 #define vio_keepalive(vio, set_keep_alive)  (vio)->viokeepalive(vio, set_keep_alive)
 #define vio_should_retry(vio)                   (vio)->should_retry(vio)
 #define vio_was_timeout(vio)                    (vio)->was_timeout(vio)
-#define vio_shutdown(vio)                       ((vio)->vioshutdown)(vio)
+#define vio_shutdown(vio,how)                   ((vio)->vioshutdown)(vio,how)
+#define vio_cancel(vio,how)                     ((vio)->viocancel)(vio,how)
 #define vio_peer_addr(vio, buf, prt, buflen)    (vio)->peer_addr(vio, buf, prt, buflen)
 #define vio_io_wait(vio, event, timeout)        (vio)->io_wait(vio, event, timeout)
 #define vio_is_connected(vio)                   (vio)->is_connected(vio)
 #endif /* !defined(DONT_MAP_VIO) */
+
+#ifdef _WIN32
+/*
+  Set thread id for io cancellation (required on Windows XP only,
+  and should to be removed if XP is no more supported)
+*/
+
+#define vio_set_thread_id(vio, tid) if(vio) vio->thread_id= tid
+#else
+#define vio_set_thread_id(vio, tid)
+#endif
 
 /* This enumerator is used in parser - should be always visible */
 enum SSL_type
@@ -308,12 +340,18 @@ struct st_vio
      further communications can take place, however any related buffers,
      descriptors, handles can remain valid after a shutdown.
   */
-  int     (*vioshutdown)(Vio*);
+  int     (*vioshutdown)(Vio*, int);
+  /*
+     Partial shutdown. All the actions performed which shutdown performs,
+     but descriptor remains open and valid.
+  */
+  int     (*viocancel)(Vio*, int);
   my_bool (*is_connected)(Vio*);
   my_bool (*has_data) (Vio*);
   int (*io_wait)(Vio*, enum enum_vio_io_event, int);
   my_bool (*connect)(Vio*, struct sockaddr *, socklen_t, int);
 #ifdef _WIN32
+  DWORD thread_id; /* Used on XP only by vio_shutdown() */
   OVERLAPPED overlapped;
   HANDLE hPipe;
 #endif

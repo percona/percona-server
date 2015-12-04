@@ -115,16 +115,21 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
   my_aes_create_key(key, key_length, rkey, mode);
 
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
+                  && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
     return MY_AES_BAD_DATA;
 
   if (!EVP_EncryptInit(&ctx, cipher, rkey, iv))
     goto aes_error;                             /* Error */
   if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
     goto aes_error;                             /* Error */
-  if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
-    goto aes_error;                             /* Error */
-
+  if (source_length > 0) /* workaround for old OpenSSL versions */
+  {
+    if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
+      goto aes_error;                             /* Error */
+  }
+  else
+    u_len= 0;
   if (!EVP_EncryptFinal(&ctx, dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 
@@ -153,7 +158,8 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
   my_aes_create_key(key, key_length, rkey, mode);
-  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+  if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
+                  && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
     return MY_AES_BAD_DATA;
 
   EVP_CIPHER_CTX_init(&ctx);
@@ -208,6 +214,7 @@ my_bool my_aes_needs_iv(my_aes_opmode opmode)
 
   iv_length= EVP_CIPHER_iv_length(cipher);
   DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
-  return iv_length != 0 ? TRUE : FALSE;
+  return iv_length != 0
+    ? (EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE) : FALSE;
 }
 

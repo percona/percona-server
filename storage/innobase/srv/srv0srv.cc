@@ -56,8 +56,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
+#include "log0archive.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "mem0mem.h"
+#include "os0file.h"
 #include "os0proc.h"
 #include "pars0pars.h"
 #include "que0que.h"
@@ -73,8 +76,16 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0crc32.h"
 #include "ut0mem.h"
 
+/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
+bool		innobase_thd_is_idle(const void* thd);
+ib_uint64_t	innobase_thd_get_start_time(const void* thd);
+void		innobase_thd_kill(ulong thd_id);
+ulong		innobase_thd_get_thread_id(const void* thd);
+
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
+
+lint	srv_kill_idle_transaction = 0;
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -117,6 +128,9 @@ ulint	srv_undo_tablespaces_active = 0;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
+
+char*	srv_arch_dir	= NULL;
+ulong	srv_log_arch_expire_sec	= 0;
 
 /** Rate at which UNDO records should be purged. */
 ulong	srv_purge_rseg_truncate_frequency = 128;
@@ -175,6 +189,11 @@ Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
 my_bool	srv_numa_interleave = FALSE;
 
+my_bool	srv_track_changed_pages = FALSE;
+
+ulonglong	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
+ulonglong	srv_max_changed_pages = 0;
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong	srv_debug_compress;
@@ -205,9 +224,14 @@ ulong		srv_log_write_ahead_size = 0;
 
 page_size_t	univ_page_size(0, 0, false);
 
+char	srv_use_global_flush_log_at_trx_commit	= TRUE;
+
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
 char	srv_adaptive_flushing	= TRUE;
+
+ulint	srv_show_locks_held	= 10; // TODO laurynas broken
+ulint	srv_show_verbose_locks	= 0;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 my_bool	srv_flush_sync		= TRUE;
@@ -237,11 +261,12 @@ ulong	srv_buf_pool_instances;
 const ulong	srv_buf_pool_instances_default = 0;
 /** Number of locks to protect buf_pool->page_hash */
 ulong	srv_n_page_hash_locks = 16;
+
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 ulong	srv_LRU_scan_depth	= 1024;
 /** Whether or not to flush neighbors of a block */
 ulong	srv_flush_neighbors	= 1;
-/** Previously requested size */
+/** Previously requested size. Accesses protected by memory barriers. */
 ulint	srv_buf_pool_old_size	= 0;
 /** Current size as scaling factor for the other components */
 ulint	srv_buf_pool_base_size	= 0;
@@ -252,6 +277,24 @@ ulong	srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
 ulint	srv_lock_table_size	= ULINT_MAX;
 
+/** Query thread preflush algorithm */
+ulint	srv_foreground_preflush	= SRV_FOREGROUND_PREFLUSH_EXP_BACKOFF;
+
+/** The maximum time limit for a single LRU tail flush iteration by the page
+cleaner thread */
+ulint	srv_cleaner_max_lru_time = 1000;
+
+/** The maximum time limit for a single flush list flush iteration by the page
+cleaner thread */
+ulint	srv_cleaner_max_flush_time = 1000;
+
+/** Page cleaner LSN age factor formula option */
+ulong	srv_cleaner_lsn_age_factor
+	= SRV_CLEANER_LSN_AGE_FACTOR_HIGH_CHECKPOINT;
+
+/** Empty free list for a query thread handling algorithm option  */
+ulong	srv_empty_free_list_algorithm = SRV_EMPTY_FREE_LIST_BACKOFF;
+
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
 ulint	srv_n_read_io_threads	= ULINT_MAX;
@@ -259,10 +302,13 @@ ulint	srv_n_write_io_threads	= ULINT_MAX;
 
 /* Switch to enable random read ahead. */
 my_bool	srv_random_read_ahead	= FALSE;
+
 /* User settable value of the number of pages that must be present
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
 ulong	srv_read_ahead_threshold	= 56;
+
+bool	srv_log_archive_on	= false;
 
 /** Maximum on-disk size of change buffer in terms of percentage
 of the buffer pool. */
@@ -308,6 +354,34 @@ ulong	srv_adaptive_flushing_lwm	= 10;
 
 /* Number of iterations over which adaptive flushing is averaged. */
 ulong	srv_flushing_avg_loops		= 30;
+
+/* The tids of the purge threads */
+os_tid_t	srv_purge_tids[SRV_MAX_N_PURGE_THREADS];
+
+/* The tids of the I/O threads */
+os_tid_t	srv_io_tids[SRV_MAX_N_IO_THREADS];
+
+/* The tid of the master thread */
+os_tid_t	srv_master_tid;
+
+/* The relative scheduling priority of the purge threads */
+ulint	srv_sched_priority_purge	= 19;
+
+/* The relative scheduling priority of the I/O threads */
+ulint	srv_sched_priority_io		= 19;
+
+/* The relative scheduling priority of the master thread */
+ulint	srv_sched_priority_master	= 19;
+
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+UNIV_THREAD_LOCAL ulint srv_current_thread_priority = 0;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+my_bool	srv_purge_thread_priority	= FALSE;
+
+/* The relative priority of the master thread.  */
+my_bool	srv_master_thread_priority	= FALSE;
 
 /* The number of purge threads to use.*/
 ulong	srv_n_purge_threads = 4;
@@ -372,6 +446,8 @@ of the pages are used for single page flushing. */
 ulong	srv_doublewrite_batch_size	= 120;
 
 ulong	srv_replication_delay		= 0;
+
+ulint	srv_pass_corrupt_table = 0; /* 0:disable 1:enable */
 
 /*-------------------------------------------*/
 ulong	srv_n_spin_wait_rounds	= 30;
@@ -596,6 +672,12 @@ static const ulint	SRV_PURGE_SLOT	= 1;
 
 /** Slot index in the srv_sys->sys_threads array for the master thread. */
 static const ulint	SRV_MASTER_SLOT = 0;
+
+os_event_t	srv_checkpoint_completed_event;
+
+os_event_t	srv_redo_log_tracked_event;
+
+bool	srv_redo_log_thread_started = false;
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Performance schema stage event for monitoring ALTER TABLE progress
@@ -983,6 +1065,11 @@ srv_init(void)
 		buf_flush_event = os_event_create("buf_flush_event");
 
 		UT_LIST_INIT(srv_sys->tasks, &que_thr_t::queue);
+
+		srv_checkpoint_completed_event = os_event_create(0);
+
+		srv_redo_log_tracked_event = os_event_create(0);
+		os_event_set(srv_redo_log_tracked_event);
 	}
 
 	srv_buf_resize_event = os_event_create(0);
@@ -1032,6 +1119,8 @@ srv_free(void)
 		os_event_destroy(srv_monitor_event);
 		os_event_destroy(srv_buf_dump_event);
 		os_event_destroy(buf_flush_event);
+		os_event_destroy(srv_checkpoint_completed_event);
+		os_event_destroy(srv_redo_log_tracked_event);
 	}
 
 	os_event_destroy(srv_buf_resize_event);
@@ -1145,6 +1234,14 @@ srv_printf_innodb_monitor(
 	time_t	current_time;
 	ulint	n_reserved;
 	ibool	ret;
+
+	ulong	btr_search_sys_constant;
+	ulong	btr_search_sys_variable;
+	ulint	lock_sys_subtotal;
+	ulint	recv_sys_subtotal;
+
+	ulint	i;
+	trx_t*	trx;
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1263,8 +1360,87 @@ srv_printf_innodb_monitor(
 	fprintf(file,
 		"Total large memory allocated " ULINTPF "\n"
 		"Dictionary memory allocated " ULINTPF "\n",
-		os_total_large_mem_allocated,
-		dict_sys->size);
+		os_total_large_mem_allocated, dict_sys->size);
+
+	/* Calculate AHI constant and variable memory allocations */
+
+	btr_search_sys_constant = 0;
+	btr_search_sys_variable = 0;
+
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (i = 0; i < btr_ahi_parts; i++) {
+		hash_table_t* ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_sync_obj);
+		ut_ad(!ht->heaps);
+
+		btr_search_sys_variable += mem_heap_get_size(ht->heap);
+		btr_search_sys_constant += ht->n_cells * sizeof(hash_cell_t);
+	}
+
+	lock_sys_subtotal = 0;
+	if (trx_sys) {
+		mutex_enter(&trx_sys->mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			lock_sys_subtotal
+				+= ((trx->lock.lock_heap)
+				    ? mem_heap_get_size(trx->lock.lock_heap)
+				    : 0);
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&trx_sys->mutex);
+	}
+
+	recv_sys_subtotal = ((recv_sys && recv_sys->addr_hash)
+			? mem_heap_get_size(recv_sys->heap) : 0);
+
+	fprintf(file,
+			"Internal hash tables (constant factor + variable factor)\n"
+			"    Adaptive hash index %lu \t(%lu + " ULINTPF ")\n"
+			"    Page hash           %lu (buffer pool 0 only)\n"
+			"    Dictionary cache    %lu \t(%lu + " ULINTPF ")\n"
+			"    File system         %lu \t(%lu + " ULINTPF ")\n"
+			"    Lock system         %lu \t(%lu + " ULINTPF ")\n"
+			"    Recovery system     %lu \t(%lu + " ULINTPF ")\n",
+
+			btr_search_sys_constant + btr_search_sys_variable,
+			btr_search_sys_constant,
+			btr_search_sys_variable,
+
+			(ulong) (buf_pool_from_array(0)->page_hash->n_cells * sizeof(hash_cell_t)),
+
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+						+ dict_sys->table_id_hash->n_cells
+						) * sizeof(hash_cell_t)
+					+ dict_sys->size) : 0),
+			(ulong) (dict_sys ? ((dict_sys->table_hash->n_cells
+							+ dict_sys->table_id_hash->n_cells
+							) * sizeof(hash_cell_t)) : 0),
+			dict_sys ? (dict_sys->size) : 0,
+
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)
+					+ fil_system_hash_nodes()),
+			(ulong) (fil_system_hash_cells() * sizeof(hash_cell_t)),
+			fil_system_hash_nodes(),
+
+			(ulong) ((lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ lock_sys_subtotal),
+			(ulong) (lock_sys ? (lock_sys->rec_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			lock_sys_subtotal,
+
+			(ulong) (((recv_sys && recv_sys->addr_hash)
+						? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0)
+					+ recv_sys_subtotal),
+			(ulong) ((recv_sys && recv_sys->addr_hash)
+					? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0),
+			recv_sys_subtotal);
 
 	buf_print_io(file);
 
@@ -1275,9 +1451,23 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
-	/* This is a dirty read, without holding trx_sys->mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		trx_sys->mvcc->size());
+
+	mutex_enter(&trx_sys->mutex);
+
+	fprintf(file, "%lu RW transactions active inside InnoDB\n",
+		UT_LIST_GET_LEN(trx_sys->rw_trx_list));
+
+	ReadView*	oldest_view = trx_sys->mvcc->get_oldest_view();
+	if (oldest_view) {
+
+		fprintf(file, "---OLDEST VIEW---\n");
+		oldest_view->print(file);
+		fprintf(file, "-----------------\n");
+	}
+
+	mutex_exit(&trx_sys->mutex);
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {
@@ -1338,10 +1528,36 @@ srv_export_innodb_status(void)
 	ulint			LRU_len;
 	ulint			free_len;
 	ulint			flush_list_len;
+	ulint			mem_adaptive_hash, mem_dictionary;
+	ReadView*		oldest_view;
+	ulint			i;
 
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
+
+	mem_adaptive_hash = 0;
+
+	ut_ad(btr_search_sys->hash_tables);
+
+	for (i = 0; i < btr_ahi_parts; i++) {
+		hash_table_t*	ht = btr_search_sys->hash_tables[i];
+
+		ut_ad(ht);
+		ut_ad(ht->heap);
+		/* Multiple mutexes/heaps are currently never used for adaptive
+		hash index tables. */
+		ut_ad(!ht->n_sync_obj);
+		ut_ad(!ht->heaps);
+
+		mem_adaptive_hash += mem_heap_get_size(ht->heap);
+		mem_adaptive_hash += ht->n_cells * sizeof(hash_cell_t);
+	}
+
+	mem_dictionary = (dict_sys ? ((dict_sys->table_hash->n_cells
+					+ dict_sys->table_id_hash->n_cells
+				      ) * sizeof(hash_cell_t)
+				+ dict_sys->size) : 0);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1354,6 +1570,12 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_pending_fsyncs =
 		fil_n_pending_log_flushes
 		+ fil_n_pending_tablespace_flushes;
+	export_vars.innodb_adaptive_hash_hash_searches
+		= btr_cur_n_sea;
+	export_vars.innodb_adaptive_hash_non_hash_searches
+		= btr_cur_n_non_sea;
+	export_vars.innodb_background_log_sync
+		= srv_log_writes_and_flush;
 
 	export_vars.innodb_data_fsyncs = os_n_fsyncs;
 
@@ -1387,6 +1609,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_read_ahead_evicted =
 		stat.n_ra_pages_evicted;
 
+	export_vars.innodb_buffer_pool_pages_LRU_flushed =
+		stat.buf_lru_flush_page_count;
+
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
 
 	export_vars.innodb_buffer_pool_bytes_data =
@@ -1408,6 +1633,49 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_buffer_pool_pages_misc =
 		buf_pool_get_n_pages() - LRU_len - free_len;
+
+	export_vars.innodb_buffer_pool_pages_made_young
+		= stat.n_pages_made_young;
+	export_vars.innodb_buffer_pool_pages_made_not_young
+		= stat.n_pages_not_made_young;
+	export_vars.innodb_buffer_pool_pages_old = 0;
+	for (i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool = buf_pool_from_array(i);
+		export_vars.innodb_buffer_pool_pages_old
+			+= buf_pool->LRU_old_len;
+	}
+	export_vars.innodb_checkpoint_age
+		= (log_sys->lsn - log_sys->last_checkpoint_lsn);
+	export_vars.innodb_checkpoint_max_age
+		= log_sys->max_checkpoint_age;
+	ibuf_export_ibuf_status(
+			&export_vars.innodb_ibuf_free_list,
+			&export_vars.innodb_ibuf_segment_size);
+	export_vars.innodb_lsn_current
+		= log_sys->lsn;
+	export_vars.innodb_lsn_flushed
+		= log_sys->flushed_to_disk_lsn;
+	export_vars.innodb_lsn_last_checkpoint
+		= log_sys->last_checkpoint_lsn;
+	export_vars.innodb_master_thread_active_loops
+		= srv_main_active_loops;
+	export_vars.innodb_master_thread_idle_loops
+		= srv_main_idle_loops;
+	export_vars.innodb_max_trx_id
+		= trx_sys->max_trx_id;
+	export_vars.innodb_mem_adaptive_hash
+		= mem_adaptive_hash;
+	export_vars.innodb_mem_dictionary
+		= mem_dictionary;
+
+	mutex_enter(&trx_sys->mutex);
+	oldest_view = trx_sys->mvcc->get_oldest_view();
+	mutex_exit(&trx_sys->mutex);
+	export_vars.innodb_oldest_view_low_limit_trx_id
+		= oldest_view ? oldest_view->low_limit_id() : 0;
+
+	export_vars.innodb_purge_trx_id = purge_sys->limit.trx_no;
+	export_vars.innodb_purge_undo_no = purge_sys->limit.undo_no;
 
 	export_vars.innodb_page_size = UNIV_PAGE_SIZE;
 
@@ -1704,6 +1972,36 @@ loop:
 		old_sema = sema;
 	}
 
+	if (srv_kill_idle_transaction && trx_sys) {
+		trx_t*	trx;
+		time_t	now;
+rescan_idle:
+		now = time(NULL);
+		mutex_enter(&trx_sys->mutex);
+		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+		while (trx) {
+			if (trx->state == TRX_STATE_ACTIVE
+			    && trx->mysql_thd
+			    && innobase_thd_is_idle(trx->mysql_thd)) {
+				ib_uint64_t	start_time = innobase_thd_get_start_time(trx->mysql_thd);
+				ulong		thd_id = innobase_thd_get_thread_id(trx->mysql_thd);
+
+				if (trx->last_stmt_start != start_time) {
+					trx->idle_start = now;
+					trx->last_stmt_start = start_time;
+				} else if (difftime(now, trx->idle_start)
+					   > srv_kill_idle_transaction) {
+					/* kill the session */
+					mutex_exit(&trx_sys->mutex);
+					innobase_thd_kill(thd_id);
+					goto rescan_idle;
+				}
+			}
+			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
+		}
+		mutex_exit(&trx_sys->mutex);
+	}
+
 	/* Flush stderr so that a database user gets the output
 	to possible MySQL error file */
 
@@ -1813,6 +2111,192 @@ srv_any_background_threads_are_active(void)
 	os_event_set(srv_buf_resize_event);
 
 	return(thread_active);
+}
+
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(srv_redo_log_follow_thread)(
+/*=======================================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+	ut_ad(!srv_read_only_mode);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	ib::info() << "Redo log follower thread starts, id "
+		   << os_thread_pf(os_thread_get_curr_id());
+#endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_log_tracking_thread_key);
+#endif
+
+	my_thread_init();
+	srv_redo_log_thread_started = true;
+
+	do {
+		os_event_wait(srv_checkpoint_completed_event);
+		os_event_reset(srv_checkpoint_completed_event);
+
+#ifdef UNIV_DEBUG
+		if (!srv_track_changed_pages) {
+			continue;
+		}
+#endif
+
+		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
+			if (!log_online_follow_redo_log()) {
+				/* TODO: sync with I_S log tracking status? */
+				ib::error() << "Log tracking bitmap write "
+					"failed, stopping log tracking thread!";
+				break;
+			}
+			os_event_set(srv_redo_log_tracked_event);
+		}
+
+	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
+
+	srv_track_changed_pages = FALSE;
+	log_online_read_shutdown();
+	os_event_set(srv_redo_log_tracked_event);
+	srv_redo_log_thread_started = false; /* Defensive, not required */
+
+	my_thread_end();
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+/*************************************************************//**
+Removes old archived transaction log files.
+Both parameters couldn't be provided at the same time */
+dberr_t
+purge_archived_logs(
+	time_t	before_date,		/*!< in: all files modified
+					before timestamp should be removed */
+	lsn_t	before_no)		/*!< in: files with this number in name
+					and earler should be removed */
+{
+	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	os_file_dir_t	dir;
+	os_file_stat_t	fileinfo;
+	char		archived_log_filename[OS_FILE_MAX_PATH];
+	char		namegen[OS_FILE_MAX_PATH];
+	ulint		dirnamelen;
+
+	if (srv_arch_dir) {
+		dir = os_file_opendir(srv_arch_dir, false);
+		if (!dir) {
+			ib::warn() << "Opening archived log directory "
+				   << srv_arch_dir << " failed. Purge "
+				"archived logs are not available";
+			/* failed to open directory */
+			return(DB_ERROR);
+		}
+	} else {
+		/* log archive directory is not specified */
+		return(DB_ERROR);
+	}
+
+	dirnamelen = strlen(srv_arch_dir);
+
+	memcpy(archived_log_filename, srv_arch_dir, dirnamelen);
+	if (dirnamelen &&
+		archived_log_filename[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
+		archived_log_filename[dirnamelen++] = SRV_PATH_SEPARATOR;
+	}
+
+	memset(&fileinfo, 0, sizeof(fileinfo));
+	while(!os_file_readdir_next_file(srv_arch_dir, dir,
+				&fileinfo) ) {
+		if (strncmp(fileinfo.name,
+			IB_ARCHIVED_LOGS_PREFIX, IB_ARCHIVED_LOGS_PREFIX_LEN)) {
+			continue;
+		}
+		if (dirnamelen + strlen(fileinfo.name) + 2 > OS_FILE_MAX_PATH)
+			continue;
+
+		snprintf(archived_log_filename + dirnamelen, OS_FILE_MAX_PATH,
+				"%s", fileinfo.name);
+
+		if (before_no) {
+			ib_uint64_t log_file_no = strtoull(fileinfo.name +
+					IB_ARCHIVED_LOGS_PREFIX_LEN,
+					NULL, 10);
+			if (log_file_no == 0 || before_no <= log_file_no) {
+				continue;
+			}
+		} else {
+			fileinfo.mtime = 0;
+			if (os_file_get_status(archived_log_filename,
+					       &fileinfo, false,
+					       srv_read_only_mode)
+			    != DB_SUCCESS ||
+					fileinfo.mtime == 0) {
+				continue;
+			}
+
+			if (before_date == 0 || fileinfo.mtime > before_date) {
+				continue;
+			}
+		}
+
+		/* We are going to delete archived file. Acquire log_sys->mutex
+		to make sure that we are the only who try to delete file. This
+		also prevents log system from using this file. Do not delete
+		file if it is currently in progress of writting or have
+		pending IO. This is enforced by checking:
+		  1. fil_space_contains_node.
+		  2. group->archived_offset % group->file_size != 0, i.e. 
+		     there is archive in progress and we are going to delete it.
+		This covers 3 cases:
+		  a. Usual case when we have one archive in progress,
+		     both 1 and 2 are TRUE
+		  b. When we have more then 1 archive in fil_space,
+		     this can happen when flushed LSN range crosses file
+		     boundary
+		  c. When we have empty fil_space, but existing file will be
+		     opened once archiving operation is requested. This usually
+		     happens on startup.
+		*/
+
+		log_mutex_enter();
+
+		log_archived_file_name_gen(namegen, sizeof(namegen),
+					   group->id, group->archived_file_no);
+
+		if (fil_space_contains_node(group->archive_space_id,
+					    archived_log_filename) ||
+		    (group->archived_offset % group->file_size != 0 &&
+		     strcmp(namegen, archived_log_filename) == 0)) {
+
+			log_mutex_exit();
+			continue;
+		}
+
+		if (!os_file_delete_if_exists(innodb_data_file_key,
+					      archived_log_filename, NULL)) {
+
+			ib::warn() << "Can't delete archived log file "
+				   << archived_log_filename << ".";
+
+			log_mutex_exit();
+			os_file_closedir(dir);
+
+			return(DB_ERROR);
+		}
+
+		log_mutex_exit();
+	}
+
+	os_file_closedir(dir);
+
+	return(DB_SUCCESS);
 }
 
 /*******************************************************************//**
@@ -2154,6 +2638,16 @@ srv_master_do_idle_tasks(void)
 	log_checkpoint(TRUE, FALSE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
 				       counter_time);
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	if (srv_log_arch_expire_sec) {
+		srv_main_thread_op_info = "purging archived logs";
+		purge_archived_logs(ut_time() - srv_log_arch_expire_sec,
+				0);
+	}
 }
 
 /*********************************************************************//**
@@ -2256,6 +2750,10 @@ DECLARE_THREAD(srv_master_thread)(
 
 	ut_ad(!srv_read_only_mode);
 
+	srv_master_tid = os_thread_get_tid();
+
+	os_thread_set_priority(srv_master_tid, srv_sched_priority_master);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Master thread starts, id "
 		<< os_thread_pf(os_thread_get_curr_id());
@@ -2282,6 +2780,8 @@ loop:
 		srv_master_sleep();
 
 		MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
+
+		srv_current_thread_priority = srv_master_thread_priority;
 
 		if (srv_check_activity(old_activity_count)) {
 			old_activity_count = srv_get_activity_count();
@@ -2378,10 +2878,14 @@ srv_task_execute(void)
 
 		os_atomic_inc_ulint(
 			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+
+		srv_inc_activity_count();
 	}
 
 	return(thr != NULL);
 }
+
+static ulint purge_tid_i = 0;
 
 /*********************************************************************//**
 Worker thread that reads tasks from the work queue and executes them.
@@ -2394,11 +2898,17 @@ DECLARE_THREAD(srv_worker_thread)(
 						required by os_thread_create */
 {
 	srv_slot_t*	slot;
+	ulint		tid_i = os_atomic_increment_ulint(&purge_tid_i, 1);
 
+	ut_ad(tid_i < srv_n_purge_threads);
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 	my_thread_init();
 	THD *thd= create_thd(false, true, true);
+
+	srv_purge_tids[tid_i] = os_thread_get_tid();
+	os_thread_set_priority(srv_purge_tids[tid_i],
+			       srv_sched_priority_purge);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Worker thread starting, id "
@@ -2423,6 +2933,8 @@ DECLARE_THREAD(srv_worker_thread)(
 		srv_suspend_thread(slot);
 
 		os_event_wait(slot->event);
+
+		srv_current_thread_priority = srv_purge_thread_priority;
 
 		if (srv_task_execute()) {
 
@@ -2491,6 +3003,8 @@ srv_do_purge(
 	}
 
 	do {
+		srv_current_thread_priority = srv_purge_thread_priority;
+
 		if (trx_sys->rseg_history_len > rseg_history_len
 		    || (srv_max_purge_lag > 0
 			&& rseg_history_len > srv_max_purge_lag)) {
@@ -2670,6 +3184,9 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
+	srv_purge_tids[0] = os_thread_get_tid();
+	os_thread_set_priority(srv_purge_tids[0], srv_sched_priority_purge);
+
 	rw_lock_x_lock(&purge_sys->latch);
 
 	purge_sys->running = true;
@@ -2708,8 +3225,12 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 		n_total_purged = 0;
 
+		srv_current_thread_priority = srv_purge_thread_priority;
+
 		rseg_history_len = srv_do_purge(
 			srv_n_purge_threads, &n_total_purged);
+
+		srv_inc_activity_count();
 
 	} while (!srv_purge_should_exit(n_total_purged));
 

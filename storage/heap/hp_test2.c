@@ -17,6 +17,7 @@
 
 #include "heapdef.h"		/* Because of hp_find_block */
 #include <signal.h>
+#include <mysql_com.h>
 
 #define MAX_RECORDS 100000
 #define MAX_KEYS 4
@@ -53,6 +54,7 @@ int main(int argc, char *argv[])
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
   HEAP_PTR position= 0;
+  HP_COLUMNDEF columndef[4];
   HP_CREATE_INFO hp_create_info;
   CHARSET_INFO *cs= &my_charset_latin1;
   my_bool unused;
@@ -64,12 +66,16 @@ int main(int argc, char *argv[])
   get_options(argc,argv);
 
   memset(&hp_create_info, 0, sizeof(hp_create_info));
-  hp_create_info.max_table_size= 1024L * 1024L * 2;
+  hp_create_info.max_table_size= 1024L*1024L*1024L;
   hp_create_info.keys= keys;
   hp_create_info.keydef= keyinfo;
   hp_create_info.reclength= reclength;
   hp_create_info.max_records= (ulong) flag*100000L;
   hp_create_info.min_records= (ulong) recant/2;
+  hp_create_info.columns= 4;
+  hp_create_info.columndef= columndef;
+  hp_create_info.fixed_key_fieldnr= 4;
+  hp_create_info.fixed_data_size= 39;
 
   write_count=update=opt_delete=0;
   key_check=0;
@@ -117,11 +123,28 @@ int main(int argc, char *argv[])
   keyinfo[3].seg[0].null_pos=38;
   keyinfo[3].seg[0].charset=cs;
 
+  memset(columndef, 0, 4 * sizeof(HP_COLUMNDEF));
+  columndef[0].type= MYSQL_TYPE_STRING;
+  columndef[0].offset= 0;
+  columndef[0].length= 6;
+  columndef[1].type= MYSQL_TYPE_STRING;
+  columndef[1].offset= 7;
+  columndef[1].length= 6;
+  columndef[2].type= MYSQL_TYPE_STRING;
+  columndef[2].offset= 12;
+  columndef[2].length= 8;
+  columndef[3].type= MYSQL_TYPE_TINY;
+  columndef[3].offset= 37;
+  columndef[3].length= 1;
+  columndef[3].null_bit= 1;
+  columndef[3].null_pos= 38;
+
   memset(key1, 0, sizeof(key1));
   memset(key3, 0, sizeof(key3));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
+  if (heap_create(filename, &hp_create_info,
+                  &tmp_share, &unused) ||
       !(file= heap_open(filename, 2)))
     goto err;
   signal(SIGINT,endprog);

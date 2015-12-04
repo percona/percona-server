@@ -33,7 +33,17 @@ extern "C" {
 #include "my_compare.h"
 #include "my_tree.h"
 
-	/* defines used by heap-funktions */
+/* Define index limits to be identical to MyISAM ones for compatibility. */
+
+#if MAX_INDEXES > HA_MAX_POSSIBLE_KEY
+#define HP_MAX_KEY                  HA_MAX_POSSIBLE_KEY /* Max allowed keys */
+#else
+#define HP_MAX_KEY                  MAX_INDEXES         /* Max allowed keys */
+#endif
+
+#define HP_MAX_KEY_LENGTH           1000            /* Max length in bytes */
+
+/* defines used by heap-funktions */
 
 #define HP_MAX_LEVELS	4		/* 128^5 records is enough */
 #define HP_PTRS_IN_NOD	128
@@ -130,22 +140,58 @@ typedef struct st_hp_keydef		/* Key definition with open */
   uint (*get_key_length)(struct st_hp_keydef *keydef, const uchar *key);
 } HP_KEYDEF;
 
-typedef struct st_heap_share
+typedef struct st_heap_columndef		/* column information */
+{
+  int16  type;	  			/* en_fieldtype */
+  uint32 length;		  	/* length of field */
+  uint32 offset;		  	/* Offset to position in row */
+  uint8  null_bit;			/* If column may be 0 */
+  uint16 null_pos;			/* position for null marker */
+  uint8  length_bytes;			/* length of the size, 1 o 2 bytes */
+} HP_COLUMNDEF;
+
+typedef struct st_heap_dataspace   /* control data for data space */
 {
   HP_BLOCK block;
+  /* Total chunks ever allocated in this dataspace */
+  uint chunk_count;
+  uint del_chunk_count;         /* Deleted chunks count */
+  uchar *del_link;              /* Link to last deleted chunk */
+  uint chunk_length;            /* Total length of one chunk */
+  /* Length of payload that will be placed into one chunk */
+  uint chunk_dataspace_length;
+  /* Offset of the status flag relative to the chunk start */
+  uint offset_status;
+  /* Offset of the linking pointer relative to the chunk start */
+  uint offset_link;
+  /* Test whether records have variable size and so "next" pointer */
+  uint is_variable_size;
+  /* Total size allocated within this data space */
+  ulonglong total_data_length;
+} HP_DATASPACE;
+
+typedef struct st_heap_share
+{
   HP_KEYDEF  *keydef;
+  HP_COLUMNDEF *column_defs;
+  /* Describes "block", which contains actual records */
+  HP_DATASPACE recordspace;
   ulong min_records,max_records;	/* Params to open */
-  ulonglong data_length,index_length,max_table_size;
+  ulonglong index_length, max_table_size;
   uint key_stat_version;                /* version to indicate insert/delete */
-  uint records;				/* records */
-  uint blength;				/* records rounded up to 2^n */
-  uint deleted;				/* Deleted records in database */
-  uint reclength;			/* Length of one record */
+  uint records;			/* Actual record (row) count */
+  uint blength;			/* used_chunk_count rounded up to 2^n */
+  /*
+    Length of record's fixed part, which contains keys and always fits into the
+    first chunk.
+  */
+  uint fixed_data_length;
+  uint fixed_column_count;  /* Number of columns stored in fixed_data_length */
   uint changed;
   uint keys,max_key_length;
+  uint column_count;
   uint currently_disabled_keys;    /* saved value from "keys" when disabled */
   uint open_count;
-  uchar *del_link;			/* Link to next block with del. rec */
   char * name;			/* Name of "memory-file" */
   time_t create_time;
   THR_LOCK lock;
@@ -154,6 +200,7 @@ typedef struct st_heap_share
   uint auto_key;
   uint auto_key_type;			/* real type of the auto key segment */
   ulonglong auto_increment;
+  uint blobs;  /* Number of blobs in table */
 } HP_SHARE;
 
 struct st_hp_hash_info;
@@ -163,7 +210,7 @@ typedef struct st_heap_info
   HP_SHARE *s;
   uchar *current_ptr;
   struct st_hp_hash_info *current_hash_ptr;
-  ulong current_record,next_block;
+  ulong current_record;
   int lastinx,errkey;
   int  mode;				/* Mode of file (READONLY..) */
   uint opt_flag,update;
@@ -176,6 +223,9 @@ typedef struct st_heap_info
   my_bool implicit_emptied;
   THR_LOCK_DATA lock;
   LIST open_list;
+  uchar *blob_buffer;  /* Temporary buffer used to return BLOB values */
+  uint blob_size;      /* Current blob_buffer size */
+  uint blob_offset;    /* Current offset in blob_buffer */
 } HP_INFO;
 
 
@@ -197,6 +247,14 @@ typedef struct st_heap_create_info
     open_count to 1. Is only looked at if not internal_table.
   */
   my_bool pin_share;
+  uint columns;
+  HP_COLUMNDEF *columndef;
+  uint fixed_key_fieldnr;
+  uint fixed_data_size;
+  uint keys_memory_size;
+  uint max_chunk_size;
+  uint is_dynamic;
+  uint blobs;
 } HP_CREATE_INFO;
 
 	/* Prototypes for heap-functions */
@@ -213,9 +271,8 @@ extern int heap_scan_init(HP_INFO *info);
 extern int heap_scan(HP_INFO *info, uchar *record);
 extern int heap_delete(HP_INFO *info,const uchar *buff);
 extern int heap_info(HP_INFO *info,HEAPINFO *x,int flag);
-extern int heap_create(const char *name,
-                       HP_CREATE_INFO *create_info, HP_SHARE **share,
-                       my_bool *created_new_share);
+extern int heap_create(const char *name, HP_CREATE_INFO *create_info,
+                       HP_SHARE **res, my_bool *created_new_share);
 extern int heap_delete_table(const char *name);
 extern void heap_drop_table(HP_INFO *info);
 extern int heap_extra(HP_INFO *info,enum ha_extra_function function);

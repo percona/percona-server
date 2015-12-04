@@ -26,6 +26,8 @@ Created 10/10/1995 Heikki Tuuri
 #ifndef srv0start_h
 #define srv0start_h
 
+#ifndef UNIV_INNOCHECKSUM
+
 #include "univ.i"
 #include "log0log.h"
 #include "ut0byte.h"
@@ -164,5 +166,7 @@ enum srv_shutdown_t {
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 extern	enum srv_shutdown_t	srv_shutdown_state;
 #endif /* !UNIV_HOTBACKUP */
+
+#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

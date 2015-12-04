@@ -35,7 +35,10 @@ int heap_rlast(HP_INFO *info, uchar *record, int inx)
       memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), 
 	     sizeof(uchar*));
       info->current_ptr = pos;
-      memcpy(record, pos, (size_t)share->reclength);
+      if (hp_extract_record(info, record, pos))
+      {
+        DBUG_RETURN(my_errno());
+      }
       info->update = HA_STATE_AKTIV;
     }
     else

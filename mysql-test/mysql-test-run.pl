@@ -164,7 +164,11 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,"
+  ."innodb_fts,innodb_zip,innodb_undo,innodb_stress,perfschema,funcs_1,"
+  ."funcs_2,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,"
+  ."test_service_sql_api,jp,stress,engines/iuds,engines/funcs,"
+  ."query_response_time,audit_log,scalability_metrics";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -303,6 +307,7 @@ my @valgrind_args;
 my $opt_valgrind_path;
 my $valgrind_reports= 0;
 my $opt_callgrind;
+my $opt_helgrind;
 my %mysqld_logs;
 my $opt_debug_sync_timeout= 600; # Default timeout for WAIT_FOR actions.
 my $daemonize_mysqld= 0;
@@ -1167,6 +1172,7 @@ sub command_line_setup {
              'valgrind-option=s'        => \@valgrind_args,
              'valgrind-path=s'          => \$opt_valgrind_path,
 	     'callgrind'                => \$opt_callgrind,
+             'helgrind'                 => \$opt_helgrind,
 	     'debug-sync-timeout=i'     => \$opt_debug_sync_timeout,
 
 	     # Directories
@@ -1762,11 +1768,18 @@ sub command_line_setup {
     push(@opt_extra_mysqld_opt, "--optimizer-trace-max-mem-size=1000000");
   }
 
+  if ( $opt_helgrind )
+  {
+    mtr_report("Turning on valgrind with helgrind for mysqld(s)");
+    $opt_valgrind= 1;
+    $opt_valgrind_mysqld= 1;
+  }
+
   if ( $opt_valgrind )
   {
     # Set valgrind_options to default unless already defined
     push(@valgrind_args, @default_valgrind_args)
-      unless @valgrind_args;
+      unless @valgrind_args || $opt_helgrind;
 
     # Don't add --quiet; you will loose the summary reports.
 
@@ -1891,6 +1904,7 @@ sub collect_mysqld_features {
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--log-syslog=0");
+  mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--secure-file-priv=\"\"");
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
@@ -1902,6 +1916,12 @@ sub collect_mysqld_features {
   if (!IS_WINDOWS and $> == 0)
   {
     mtr_add_arg($args, "--user=root");
+  }
+
+  foreach my $extra_opt (@opt_extra_mysqld_opt) {
+    if ($extra_opt =~ /--plugin-load/) {
+      mtr_add_arg($args, $extra_opt);
+    }
   }
 
   my $exe_mysqld= find_mysqld($basedir);
@@ -6748,6 +6768,10 @@ sub valgrind_arguments {
     mtr_add_arg($args, "--tool=callgrind");
     mtr_add_arg($args, "--base=$opt_vardir/log");
   }
+  elsif ( $opt_helgrind )
+  {
+    mtr_add_arg($args, "--tool=helgrind");
+  }
   else
   {
     mtr_add_arg($args, "--tool=memcheck"); # From >= 2.1.2 needs this option
@@ -6760,6 +6784,9 @@ sub valgrind_arguments {
       mtr_add_arg($args, "--leak-check=yes");
     }
     mtr_add_arg($args, "--num-callers=16");
+    # Support statically-linked malloc libraries and
+    # dynamically-linked jemalloc
+    mtr_add_arg($args, "--soname-synonyms=somalloc=NONE,somalloc=*jemalloc*");
     mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
       if -f "$glob_mysql_test_dir/valgrind.supp";
   }

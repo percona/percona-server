@@ -222,6 +222,8 @@ static const LEX_STRING sys_table_aliases[]=
 const char *ha_row_type[] = {
   "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT",
   /* Reserved to be "PAGE" in future versions */ "?",
+  "TOKUDB_UNCOMPRESSED", "TOKUDB_ZLIB", "TOKUDB_SNAPPY", "TOKUDB_QUICKLZ",
+  "TOKUDB_LZMA", "TOKUDB_FAST", "TOKUDB_SMALL",
   "?","?","?"
 };
 
@@ -407,6 +409,37 @@ handlerton *ha_default_handlerton(THD *thd)
   return hton;
 }
 
+/** @brief
+  Return the enforced storage engine handlerton for thread
+
+  SYNOPSIS
+    ha_enforce_handlerton(thd)
+    thd         current thread
+    
+  RETURN
+    pointer to handlerton
+*/
+handlerton *ha_enforce_handlerton(THD* thd)
+{
+  if (enforce_storage_engine)
+  {
+    LEX_STRING name= { enforce_storage_engine,
+      strlen(enforce_storage_engine) };
+    plugin_ref plugin= ha_resolve_by_name(thd, &name, FALSE);
+    if (plugin)
+    {
+      handlerton *hton= plugin_data<handlerton*>(plugin);
+      DBUG_ASSERT(hton);
+      return hton;
+    }
+    else
+    {
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), enforce_storage_engine,
+        enforce_storage_engine);
+    }
+  }
+  return NULL;
+}
 
 static plugin_ref ha_default_temp_plugin(THD *thd)
 {
@@ -1939,6 +1972,8 @@ int ha_rollback_trans(THD *thd, bool all)
   }
 #endif
 
+  thd->diff_rollback_trans++;
+
   /* Always cleanup. Even if nht==0. There may be savepoints. */
   if (is_real_trans)
   {
@@ -2187,6 +2222,8 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     MYSQL_INC_TRANSACTION_ROLLBACK_TO_SAVEPOINT(thd->m_transaction_psi, 1);
 #endif
 
+  thd->diff_rollback_trans++;
+
   DBUG_RETURN(error);
 }
 
@@ -2303,8 +2340,81 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
 }
 
 
-static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
-                                   void *arg)
+static my_bool clone_snapshot_handlerton(THD *thd, plugin_ref plugin,
+                                         void *arg)
+{
+  handlerton *hton= plugin_data<handlerton *>(plugin);
+
+  if (hton->state == SHOW_OPTION_YES &&
+      hton->clone_consistent_snapshot)
+    hton->clone_consistent_snapshot(hton, thd, (THD *) arg);
+
+  return FALSE;
+}
+
+static int ha_clone_consistent_snapshot(THD *thd)
+{
+  THD *from_thd;
+  ulong id;
+  Item *val= thd->lex->donor_transaction_id;
+  DBUG_ASSERT(val);
+
+  if (thd->lex->table_or_sp_used())
+  {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Usage of subqueries or stored "
+             "function calls as part of this statement");
+    goto error;
+  }
+
+  if ((!val->fixed && val->fix_fields(thd, &val)) || val->check_cols(1))
+  {
+    my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
+    goto error;
+  }
+
+  id= val->val_int();
+  if (thd->thread_id() == id)
+  {
+    my_error(ER_NO_SUCH_THREAD, MYF(0), id);
+    goto error;
+  }
+
+  {
+    Find_thd_with_id find_thd_with_id(id, true);
+    from_thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+
+    if (!from_thd)
+    {
+      my_error(ER_NO_SUCH_THREAD, MYF(0), id);
+      goto error;
+    }
+  }
+
+  /*
+    Blocking commits and binlog updates ensures that we get the same snapshot
+    for all engines (including the binary log). This allows us among other
+    things to do backups with START TRANSACTION WITH CONSISTENT SNAPSHOT and
+    have a consistent binlog position.
+  */
+  tc_log->xlock();
+
+  plugin_foreach(thd, clone_snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                 from_thd);
+
+  tc_log->xunlock();
+
+  mysql_mutex_unlock(&from_thd->LOCK_thd_data);
+
+  return 0;
+
+error:
+
+  return 1;
+}
+
+
+static my_bool start_snapshot_handlerton(THD *thd, plugin_ref plugin,
+                                         void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES &&
@@ -2318,9 +2428,24 @@ static my_bool snapshot_handlerton(THD *thd, plugin_ref plugin,
 
 int ha_start_consistent_snapshot(THD *thd)
 {
+
+  if (thd->lex->donor_transaction_id)
+    return ha_clone_consistent_snapshot(thd);
+
   bool warn= true;
 
-  plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+  /*
+    Blocking commits and binlog updates ensures that we get the same snapshot
+    for all engines (including the binary log). This allows us among other
+    things to do backups with START TRANSACTION WITH CONSISTENT SNAPSHOT and
+    have a consistent binlog position.
+  */
+  tc_log->xlock();
+
+  plugin_foreach(thd, start_snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                 &warn);
+
+  tc_log->xunlock();
 
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not
@@ -2330,6 +2455,50 @@ int ha_start_consistent_snapshot(THD *thd)
     push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "This MySQL server does not support any "
                  "consistent-read capable storage engine");
+  return 0;
+}
+
+
+static my_bool store_binlog_info_handlerton(THD *thd, plugin_ref plugin,
+                                            void *arg)
+{
+  handlerton *hton= plugin_data<handlerton *>(plugin);
+
+  if (hton->state == SHOW_OPTION_YES &&
+      hton->store_binlog_info)
+  {
+    hton->store_binlog_info(hton, thd);
+    *((bool *)arg)= false;
+  }
+
+  return FALSE;
+}
+
+
+int ha_store_binlog_info(THD *thd)
+{
+  LOG_INFO li;
+  bool warn= true;
+
+  if (!mysql_bin_log.is_open())
+    return 0;
+
+  DBUG_ASSERT(tc_log == &mysql_bin_log);
+
+  /* Block commits to get consistent binlog coordinates */
+  tc_log->xlock();
+
+  mysql_bin_log.raw_get_current_log(&li);
+  thd->set_trans_pos(li.log_file_name, li.pos);
+
+  plugin_foreach(thd, store_binlog_info_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                 &warn);
+
+  tc_log->xunlock();
+
+  if (warn)
+    push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
+                 "No support for storing binlog coordinates in any storage");
   return 0;
 }
 
@@ -2504,7 +2673,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   DBUG_ENTER("handler::clone");
-  handler *new_handler= get_new_handler(table->s, mem_root, ht);
+  handler *new_handler= table ? get_new_handler(table->s, mem_root, ht) : NULL;
 
   if (!new_handler)
     DBUG_RETURN(NULL);
@@ -2519,6 +2688,9 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
                                               ALIGN_SIZE(ref_length)*2)))
     goto err;
+
+  new_handler->cloned= true;
+
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
@@ -2543,6 +2715,8 @@ void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 
 THD *handler::ha_thd(void) const
 {
+  if (unlikely(cloned))
+    return current_thd;
   DBUG_ASSERT(!table || !table->in_use || table->in_use == current_thd);
   return (table && table->in_use) ? table->in_use : current_thd;
 }
@@ -2672,6 +2846,13 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
+
+  if (unlikely(opt_userstat))
+  {
+    rows_read= rows_changed= 0;
+    memset(index_rows_read, 0, sizeof(index_rows_read));
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -4669,12 +4850,14 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
      The exception is if we're about to roll back changes (commit= false).
      In this case, we might be rolling back after a failed lock upgrade,
      so we could be holding the same lock level as for inplace_alter_table().
+     TABLE::mdl_ticket is 0 for temporary tables.
    */
-   DBUG_ASSERT(ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                       table->s->db.str,
-                                       table->s->table_name.str,
-                                       MDL_EXCLUSIVE) ||
-               !commit);
+   DBUG_ASSERT((table->s->tmp_table != NO_TMP_TABLE && !table->mdl_ticket) ||
+               (ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                   table->s->db.str,
+                                                   table->s->table_name.str,
+                                                   MDL_EXCLUSIVE) ||
+                     !commit));
 
    return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
 }
@@ -4920,6 +5103,120 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
     }
   }
   DBUG_RETURN(error);
+}
+
+// Updates the global table stats with the TABLE this handler represents.
+void handler::update_global_table_stats()
+{
+  if (!rows_read && !rows_changed)
+    return;  // Nothing to update.
+  // table_cache_key is db_name + '\0' + table_name + '\0'.
+  if (!table->s || !table->s->table_cache_key.str || !table->s->table_name.str)
+    return;
+
+  TABLE_STATS* table_stats;
+  char key[NAME_LEN * 2 + 2];
+  // [db] + '.' + [table]
+  sprintf(key, "%s.%s", table->s->table_cache_key.str, table->s->table_name.str);
+
+  mysql_mutex_lock(&LOCK_global_table_stats);
+  // Gets the global table stats, creating one if necessary.
+  if (!(table_stats = (TABLE_STATS *) my_hash_search(&global_table_stats,
+                                                     (uchar*)key,
+                                                     strlen(key))))
+  {
+    if (!(table_stats = ((TABLE_STATS *)
+                         my_malloc(key_memory_userstat_table_stats,
+                                   sizeof(TABLE_STATS),
+                                   MYF(MY_WME | MY_ZEROFILL)))))
+    {
+      // Out of memory.
+      sql_print_error("Allocating table stats failed.");
+      goto end;
+    }
+    strncpy(table_stats->table, key, sizeof(table_stats->table));
+    table_stats->table_len=              strlen(table_stats->table);
+    table_stats->rows_read=              0;
+    table_stats->rows_changed=           0;
+    table_stats->rows_changed_x_indexes= 0;
+    table_stats->engine_type=            (int) ht->db_type;
+
+    if (my_hash_insert(&global_table_stats, (uchar *) table_stats))
+    {
+      // Out of memory.
+      sql_print_error("Inserting table stats failed.");
+      my_free((char *) table_stats);
+      goto end;
+    }
+  }
+  // Updates the global table stats.
+  table_stats->rows_read+=              rows_read;
+  table_stats->rows_changed+=           rows_changed;
+  table_stats->rows_changed_x_indexes+=
+    rows_changed * (table->s->keys ? table->s->keys : 1);
+  ha_thd()->diff_total_read_rows+=   rows_read;
+  rows_read= rows_changed=              0;
+end:
+  mysql_mutex_unlock(&LOCK_global_table_stats);
+}
+
+// Updates the global index stats with this handler's accumulated index reads.
+void handler::update_global_index_stats()
+{
+  // table_cache_key is db_name + '\0' + table_name + '\0'.
+  if (!table || !table->s || !table->s->table_cache_key.str ||
+      !table->s->table_name.str)
+    return;
+
+  for (uint x = 0; x < table->s->keys; ++x)
+  {
+    if (index_rows_read[x])
+    {
+      // Rows were read using this index.
+      KEY* key_info = &table->key_info[x];
+
+      if (!key_info->name) continue;
+
+      INDEX_STATS* index_stats;
+      char key[NAME_LEN * 3 + 3];
+      // [db] + '.' + [table] + '.' + [index]
+      sprintf(key, "%s.%s.%s",  table->s->table_cache_key.str,
+              table->s->table_name.str, key_info->name);
+
+      mysql_mutex_lock(&LOCK_global_index_stats);
+      // Gets the global index stats, creating one if necessary.
+      if (!(index_stats = (INDEX_STATS *) my_hash_search(&global_index_stats,
+                                                         (uchar *) key,
+                                                         strlen(key))))
+      {
+        if (!(index_stats = ((INDEX_STATS *)
+                             my_malloc(key_memory_userstat_index_stats,
+                                       sizeof(INDEX_STATS),
+                                       MYF(MY_WME | MY_ZEROFILL)))))
+        {
+          // Out of memory.
+          sql_print_error("Allocating index stats failed.");
+          goto end;
+        }
+        strncpy(index_stats->index, key, sizeof(index_stats->index));
+        index_stats->index_len= strlen(index_stats->index);
+        index_stats->rows_read= 0;
+
+        if (my_hash_insert(&global_index_stats, (uchar *) index_stats))
+        {
+          // Out of memory.
+          sql_print_error("Inserting index stats failed.");
+          my_free((char *) index_stats);
+          goto end;
+        }
+      }
+      // Updates the global index stats.
+      index_stats->rows_read+= index_rows_read[x];
+      index_rows_read[x]=      0;
+  end:
+      mysql_mutex_unlock(&LOCK_global_index_stats);
+    }
+  }
 }
 
 /****************************************************************************
@@ -7453,6 +7750,84 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   return result;
 }
 
+static my_bool flush_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *unused2)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  if (hton->flush_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->flush_changed_page_bitmaps();
+}
+
+bool ha_flush_changed_page_bitmaps()
+{
+  return plugin_foreach(NULL, flush_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+static my_bool purge_changed_page_bitmaps_handlerton(THD *unused1,
+                                                     plugin_ref plugin,
+                                                     void *lsn)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  if (hton->purge_changed_page_bitmaps == NULL)
+    return FALSE;
+
+  return hton->purge_changed_page_bitmaps(*(ulonglong *)lsn);
+}
+
+bool ha_purge_changed_page_bitmaps(ulonglong lsn)
+{
+  return plugin_foreach(NULL, purge_changed_page_bitmaps_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, &lsn);
+}
+
+static my_bool purge_archive_logs_handlerton(THD *thd, plugin_ref plugin,
+                                             void *arg)
+{
+  ulong before_timestamp= *(ulong*) arg;
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+
+  if (hton->purge_archive_logs == NULL)
+    return FALSE;
+
+  return hton->purge_archive_logs(hton, before_timestamp, NULL);
+}
+
+bool ha_purge_archive_logs(THD *thd, handlerton *db_type, void* args)
+{
+  if (db_type == NULL)
+    return plugin_foreach(thd, purge_archive_logs_handlerton,
+                           MYSQL_STORAGE_ENGINE_PLUGIN, args);
+
+  return false;
+}
+
+static my_bool purge_archive_logs_to_handlerton(THD *thd, plugin_ref plugin,
+                                                void *arg)
+{
+  const char* to_filename= (const char*) arg;
+  handlerton *hton= plugin_data<handlerton *>(plugin);
+
+  if (hton->purge_archive_logs == NULL)
+    return FALSE;
+
+  return hton->purge_archive_logs(hton, 0, to_filename);
+}
+
+bool ha_purge_archive_logs_to(THD *thd, handlerton *db_type, void* args)
+{
+  if (db_type == NULL)
+    return plugin_foreach(thd, purge_archive_logs_to_handlerton,
+                           MYSQL_STORAGE_ENGINE_PLUGIN, args);
+
+  return false;
+}
+
 /*
   Function to check if the conditions for row-based binlogging is
   correct for the table.
@@ -7749,6 +8124,7 @@ int handler::ha_write_row(uchar *buf)
               m_lock_type == F_WRLCK);
 
   DBUG_ENTER("handler::ha_write_row");
+  DEBUG_SYNC(ha_thd(), "start_ha_write_row");
   DBUG_EXECUTE_IF("inject_error_ha_write_row",
                   DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
   DBUG_EXECUTE_IF("simulate_storage_engine_out_of_memory",

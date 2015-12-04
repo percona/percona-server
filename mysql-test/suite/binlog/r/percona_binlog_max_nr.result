@@ -1,0 +1,30 @@
+RESET MASTER;
+##############################################################
+testing purge binary logs to max number on explicit FLUSH LOGS
+##############################################################
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+CREATE TABLE t1 (a int primary key auto_increment, b blob);
+flush logs;
+show binary logs;
+Log_name	File_size
+master-bin.N	N
+master-bin.N	N
+DROP TABLE t1;
+reset master;
+##############################################################
+testing purge binary logs to max number on implicit flush
+i.e. when starting new file
+##############################################################
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+CREATE TABLE t1 (a int primary key auto_increment, b blob);
+show binary logs;
+Log_name	File_size
+master-bin.N	N
+master-bin.N	N
+DROP TABLE t1;
+reset master;
+End of tests

@@ -24,7 +24,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/strings
-  ${EDITLINE_INCLUDE_DIR}
+  ${MY_READLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -116,9 +116,9 @@ ENDIF()
 
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
-TARGET_LINK_LIBRARIES(mysql mysqlclient)
+TARGET_LINK_LIBRARIES(mysql perconaserverclient)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
 ENDIF(UNIX)
 
 IF(NOT WITHOUT_SERVER)
@@ -128,57 +128,57 @@ IF(NOT WITHOUT_SERVER)
 ADD_COMPILE_FLAGS(
   upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
+TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
 
 ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 
 MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
+TARGET_LINK_LIBRARIES(mysqldump perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
 SET_SOURCE_FILES_PROPERTIES(mysqlimport.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlimport perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlshow perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_plugin mysql_plugin.c)
-TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
+TARGET_LINK_LIBRARIES(mysql_plugin perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 ADD_COMPILE_FLAGS(
   mysqlbinlog.cc
   COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION" "-DDISABLE_PSI_MUTEX"
 )
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
+TARGET_LINK_LIBRARIES(mysqlbinlog perconaserverclient binlogevents_static)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
+TARGET_LINK_LIBRARIES(mysqladmin perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.cc)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlslap perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
+TARGET_LINK_LIBRARIES(mysql_config_editor perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
-TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
+TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
 
 IF(UNIX AND NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_install_db
     mysql_install_db.cc auth_utils.cc path.cc logger.cc)
-  TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+  TARGET_LINK_LIBRARIES(mysql_install_db perconaserverclient)
   ADD_COMPILE_FLAGS(
     auth_utils.cc mysql_install_db.cc
     COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"

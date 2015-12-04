@@ -56,6 +56,7 @@
 #include "table_cache.h"
 #include "sql_trigger.h"               // change_trigger_table_name
 #include <mysql/psi/mysql_table.h>
+#include "mysql.h"			// in_bootstrap & opt_noacl
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "log.h"
 #include "binlog.h"
@@ -2506,7 +2507,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (!dont_log_query)
       {
         /*
-          Note that unless if_exists is TRUE or a temporary table was deleted,
+          Note that unless if_exists is TRUE or a temporary table was deleted, 
           there is no means to know if the statement should be written to the
           binary log. See further information on this variable in what follows.
         */
@@ -2584,6 +2585,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
 
+      /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
           (if_exists || table_type == NULL))
       {
@@ -2912,7 +2914,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
 static int sort_keys(KEY *a, KEY *b)
 {
   ulong a_flags= a->flags, b_flags= b->flags;
-
+  
   if (a_flags & HA_NOSAME)
   {
     if (!(b_flags & HA_NOSAME))
@@ -10479,8 +10481,9 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
   DBUG_ENTER("mysql_prepare_alter_copy_data");
   /*
     Turn off recovery logging since rollback of an alter table is to
-
+    delete the new table so there is no need to log the changes to it.
     
+    This needs to be done before external_lock.
   */
   if (ha_enable_transaction(thd, FALSE))
     DBUG_RETURN(TRUE);
@@ -10500,6 +10503,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
   if (ha_enable_transaction(thd, TRUE))
     DBUG_RETURN(TRUE);
 
+  DEBUG_SYNC(thd, "commit_alter_copy_table");
+  
   /*
     Ensure that the new table is saved properly to disk before installing
     the new .frm.
@@ -10995,7 +11000,19 @@ static bool check_engine(THD *thd, const char *db_name,
         MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
 
   if (!opt_bootstrap && !opt_noacl)
-    enf_engine= ha_enforce_handlerton(thd);
+  {
+    /*
+      Storage engine enforcement must be forbidden:
+      1. for "OPTIMIZE TABLE" statements.
+      2. for "ALTER TABLE" statements without explicit "... ENGINE=xxx" part
+    */
+    bool enforcement_forbidden =
+          ((thd->lex->sql_command == SQLCOM_ALTER_TABLE) &&
+          (create_info->used_fields & HA_CREATE_USED_ENGINE) == 0) ||
+          (thd->lex->sql_command == SQLCOM_OPTIMIZE);
+    if (!enforcement_forbidden)
+      enf_engine= ha_enforce_handlerton(thd);
+  }
 
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
@@ -11034,7 +11051,7 @@ static bool check_engine(THD *thd, const char *db_name,
   }
 
   /*
-    Check, if the given table name is system table, and if the storage engine
+    Check, if the given table name is system table, and if the storage engine 
     does supports it.
   */
   if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&

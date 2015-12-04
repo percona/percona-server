@@ -165,6 +165,7 @@ TokuDB
    tokudb/tokudb_intro
    tokudb/tokudb_installation
    tokudb/using_tokudb
+   tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
    tokudb/tokudb_troubleshooting
    tokudb/toku_backup

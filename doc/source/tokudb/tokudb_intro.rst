@@ -8,6 +8,10 @@
 
 |Percona Server| is fully compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
 
+.. warning::
+
+  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.6/LATEST/>`_ |TokuDB| engine should be used with |Percona Server| 5.6. A |TokuDB| engine downloaded from other sources is not compatible. |TokuDB| file formats are not the same across |MySQL| variants. Migrating from one variant to any other variant requires a logical data dump and reload.
+
 Additional features unique to |TokuDB| include:
 
 * Up to 25x Data Compression

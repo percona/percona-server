@@ -25,7 +25,7 @@ System Variables
 
 .. variable:: enforce_storage_engine
 
-     :cli: No
+     :cli: Yes
      :conf: Yes
      :scope: Global
      :dyn: No

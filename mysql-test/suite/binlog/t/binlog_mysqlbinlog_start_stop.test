@@ -7,6 +7,8 @@
 # ==== Implementation ====
 
 --source include/not_gtid_enabled.inc
+# Disabled until https://bugs.mysql.com/bug.php?id=78223 is fixed.
+--source include/not_valgrind.inc
 
 # TODO: Need to look at making row based version once new binlog client is complete.
 -- source include/have_binlog_format_mixed_or_statement.inc

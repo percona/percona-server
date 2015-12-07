@@ -1514,6 +1514,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Tue Nov 24 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Added dependency on numactl-devel
+
 * Tue Nov 03 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Fixed yum update fails and complains about duplicate pid (#1454917)

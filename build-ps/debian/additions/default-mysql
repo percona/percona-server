@@ -1,3 +1,0 @@
-# defaults file for percona server
-startup_timeout=900
-stop_timeout=300

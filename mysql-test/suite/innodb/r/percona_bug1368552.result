@@ -1,0 +1,4 @@
+SET GLOBAL innodb_purge_stop_now = ON;
+SET GLOBAL innodb_sched_priority_purge = 5;
+SET GLOBAL innodb_purge_run_now = ON;
+# restart

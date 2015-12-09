@@ -258,21 +258,18 @@ THD::Attachable_trx::~Attachable_trx()
   // it in other places on SQL-layer as well.
   trans_commit_attachable(m_thd);
 
-  // Remember the handlerton of an open table to call the handlerton after the
-  // tables are closed.
-
-  handlerton *ht= m_thd->open_tables ?
-                  m_thd->open_tables->file->ht :
-                  innodb_hton;
-
   // Close all the tables that are open till now.
 
   close_thread_tables(m_thd);
 
-  // Remove the attachable transaction from InnoDB mysql_trx_list.
-
-  if (ht && ht->close_connection)
-    ht->close_connection(ht, m_thd);
+  // Cleanup connection specific state which was created for attachable
+  // transaction (for InnoDB removes cached transaction object).
+  //
+  // Note that we need to call handlerton::close_connection for all SEs
+  // and not only SEs which participated in attachable transaction since
+  // connection specific state can be created when TABLE object is simply
+  // expelled from the Table Cache (e.g. this happens for MyISAM).
+  ha_close_connection(m_thd);
 
   // Restore the transaction state.
 
@@ -285,9 +282,6 @@ THD::Attachable_trx::~Attachable_trx()
     m_thd->lex->restore_backup_query_tables_list(
       &m_trx_state.m_query_tables_list);
   }
-
-  DBUG_ASSERT(m_thd->ha_data[ht->slot].ha_ptr ==
-              m_trx_state.m_ha_data[ht->slot].ha_ptr);
 }
 
 /****************************************************************************
@@ -498,17 +492,34 @@ void thd_set_scheduler_data(THD *thd, void *data)
   thd->event_scheduler.data= data;
 }
 
+PSI_thread* THD::get_psi()
+{
+  void *addr= & m_psi;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  void *ptr;
+  ptr= my_atomic_loadptr(typed_addr);
+  return static_cast<PSI_thread*>(ptr);
+}
+
+void THD::set_psi(PSI_thread *psi)
+{
+  void *addr= & m_psi;
+  void * volatile * typed_addr= static_cast<void * volatile *>(addr);
+  my_atomic_storeptr(typed_addr, psi);
+}
+
 /**
   Get reference to Performance Schema object for THD object
 
   @param thd            THD object
 
-  @retval               Performance schema object for thread on THD
+  @return               Performance schema object for thread on THD
 */
 PSI_thread *thd_get_psi(THD *thd)
 {
-  return thd->event_scheduler.m_psi;
+  return thd->get_psi();
 }
+
 
 /**
   Get net_wait_timeout for THD object
@@ -530,7 +541,7 @@ ulong thd_get_net_wait_timeout(THD* thd)
 */
 void thd_set_psi(THD *thd, PSI_thread *psi)
 {
-  thd->event_scheduler.m_psi= psi;
+  thd->set_psi(psi);
 }
 
 /**
@@ -1257,6 +1268,7 @@ THD::THD(bool enable_plugins)
    duplicate_slave_uuid(false),
    is_a_srv_session_thd(false)
 {
+  set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
                  &main_mem_root,
@@ -1270,7 +1282,6 @@ THD::THD(bool enable_plugins)
   // for them, threadpool scheduler will change this for its THDs.
   scheduler= NULL;
   event_scheduler.data= 0;
-  event_scheduler.m_psi= 0;
   skip_wait_timeout= false;
   m_security_ctx= &m_main_security_ctx;
   no_errors= 0;

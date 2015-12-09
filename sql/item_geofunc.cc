@@ -123,8 +123,16 @@ String *Item_func_geometry_from_text::val_str(String *str)
   Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
   uint32 srid= 0;
 
-  if ((arg_count == 2) && !args[1]->null_value)
-    srid= (uint32)args[1]->val_int();
+  if (arg_count == 2)
+  {
+    if ((null_value= args[1]->null_value))
+    {
+      DBUG_ASSERT(maybe_null);
+      return NULL;
+    }
+    else
+      srid= (uint32)args[1]->val_int();
+  }
 
   str->set_charset(&my_charset_bin);
   if ((null_value= str->reserve(GEOM_HEADER_SIZE, 512)))
@@ -185,14 +193,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     Geometry::create_from_wkb(), and consequently such WKB data must be
     MySQL standard (little) endian. Note that users can pass via client
     any WKB/Geometry byte string, including those of big endianess.
-
-    For the functions that return WKB data(i.e. SP_WKB_FUNC), their field type
-    is also MYSQL_TYPE_GEOMETRY to other part of MySQL, but to GIS we must
-    distinguish them, and here is the only place where we have to do so.
   */
-  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY &&
-      !(args[0]->type() == Item::FUNC_ITEM &&
-        down_cast<Item_func *>(args[0])->functype() == SP_WKB_FUNC))
+  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
     Geometry_buffer buff;
     if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == NULL)
@@ -3770,9 +3772,10 @@ longlong Item_func_issimple::val_int()
 
   tmp.length(0);
   String *arg_wkb= args[0]->val_str(&tmp);
-  if (args[0]->null_value)
+  if ((null_value= args[0]->null_value))
   {
-    DBUG_RETURN(error_int());
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0);
   }
   if (arg_wkb == NULL)
   {

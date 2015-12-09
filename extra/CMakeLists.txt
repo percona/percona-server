@@ -16,6 +16,7 @@
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
 ${ZLIB_INCLUDE_DIR}
+${LZ4_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
 ${CMAKE_BINARY_DIR}/storage/ndb/include
@@ -95,6 +96,12 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
+MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
+TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
+
+MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
+TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
+
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
   IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
@@ -122,10 +129,13 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
      CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
     INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    ADD_COMPILE_FLAGS(
-      ../storage/innobase/ut/ut0crc32.cc
-      COMPILE_FLAGS "-Wa,-nH"
-    )
+    MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
+    IF(HAVE_WA_NH)
+      ADD_COMPILE_FLAGS(
+        ../storage/innobase/ut/ut0crc32.cc
+        COMPILE_FLAGS "-Wa,-nH"
+      )
+    ENDIF()
   ENDIF()
 
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
@@ -134,9 +144,8 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
 ENDIF()
 
 IF(UNIX)
-  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
+  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.cc)
   TARGET_LINK_LIBRARIES(resolve_stack_dump mysys mysys_ssl)
-  SET_TARGET_PROPERTIES(resolve_stack_dump PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
 # In published release builds on Solaris, we need to bundle gcc source.

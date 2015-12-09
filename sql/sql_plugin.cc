@@ -2851,16 +2851,24 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
+  if (global_lock)
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
+
+  /*
+    MAINTAINER:
+    The following assert is wrong on purpose, useful to debug
+    when thd dynamic variables are expanded:
+    DBUG_ASSERT(thd->variables.dynamic_variables_ptr == NULL);
+  */
+
   thd->variables.dynamic_variables_ptr= (char*)
     my_realloc(key_memory_THD_variables,
                thd->variables.dynamic_variables_ptr,
                global_variables_dynamic_size,
                MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
 
-  if (global_lock)
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
   /*
     Debug hook which allows tests to check that this code is not
     called for InnoDB after connection was created.
@@ -2937,7 +2945,8 @@ static uchar *intern_sys_var_ptr(THD* thd, int offset, bool global_lock)
   if (!thd->variables.dynamic_variables_ptr ||
       (uint)offset > thd->variables.dynamic_variables_head)
   {
-    if (current_thd == thd) /* TODO WL#6629: Supported for current_thd only. */
+    /* Current THD only. Don't trigger resync on remote THD. */
+    if (current_thd == thd)
       alloc_and_copy_thd_dynamic_variables(thd, global_lock);
     else
       return (uchar*) global_system_variables.dynamic_variables_ptr + offset;

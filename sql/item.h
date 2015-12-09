@@ -1815,7 +1815,6 @@ public:
   */
   virtual bool intro_version(uchar *int_arg) { return false; }
 
-  virtual bool remove_dependence_processor(uchar * arg) { return false; }
   virtual bool remove_fixed(uchar * arg) { fixed= 0; return false; }
   virtual bool cleanup_processor(uchar *arg);
   virtual bool collect_item_field_processor(uchar * arg) { return 0; }
@@ -1872,6 +1871,17 @@ public:
                 the st_select_lex that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
+
+  /**
+    Propagate components that use referenced columns from derived tables.
+    Some columns from derived tables may be determined to be unused, but
+    may actually reference other columns that are used. This function will
+    return true for such columns when called with Item::walk(), which then
+    means that this column can also be marked as used.
+    @see also SELECT_LEX::delete_unused_merged_columns().
+  */
+  virtual bool propagate_derived_used(uchar *arg) { return is_derived_used(); }
+
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *arg)
   { return false; }
@@ -2628,7 +2638,6 @@ public:
   virtual void fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select);
   void cleanup();
-  bool remove_dependence_processor(uchar * arg);
   virtual bool aggregate_check_distinct(uchar *arg);
   virtual bool aggregate_check_group(uchar *arg);
   Bool3 local_column(const st_select_lex *sl) const;
@@ -3865,6 +3874,7 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type () const { return STRING_RESULT; }
+  Item_result numeric_context_result_type() const { return INT_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   virtual void print(String *str, enum_query_type query_type);
@@ -5099,6 +5109,10 @@ public:
       cached_field= ((Item_field *)item)->field;
       if (((Item_field *)item)->table_ref)
         used_table_map= ((Item_field *)item)->table_ref->map();
+    }
+    else
+    {
+      used_table_map= item->used_tables();
     }
     return 0;
   };

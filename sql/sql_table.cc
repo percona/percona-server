@@ -2088,13 +2088,19 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   DBUG_ENTER("mysql_rm_table");
 
+  // DROP table is not allowed in the XA_IDLE or XA_PREPARED transaction states.
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+  {
+    DBUG_RETURN(true);
+  }
+
   /*
     bug 72475 : DROP tables need to have their logging format determined if
     in MIXED mode and dropping a TEMP table.
   */
   if (thd->decide_logging_format(tables))
   {
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* Disable drop of enabled log tables, must be done before name locking */
@@ -6455,6 +6461,31 @@ static bool fill_alter_inplace_info(THD *thd,
         DBUG_ASSERT(0);
       }
 
+      // Conversion to and from generated column is supported if stored:
+      if (field->is_gcol() != new_field->is_gcol())
+      {
+        DBUG_ASSERT((field->is_gcol() && !field->is_virtual_gcol()) ||
+                    (new_field->is_gcol() && !new_field->is_virtual_gcol()));
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+      }
+
+      // Modification of generation expression is supported:
+      if (field->is_gcol() && new_field->is_gcol())
+      {
+        // Modification of storage attribute is not supported
+        DBUG_ASSERT(field->is_virtual_gcol() == new_field->is_virtual_gcol());
+        if (!field->gcol_expr_is_equal(new_field))
+        {
+          if (field->is_virtual_gcol())
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+          else
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+        }
+      }
+
       bool field_renamed;
       /*
         InnoDB data dictionary is case sensitive so we should use
@@ -6518,6 +6549,21 @@ static bool fill_alter_inplace_info(THD *thd,
       if (new_field->column_format() != field->column_format())
         ha_alter_info->handler_flags|=
           Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
+
+      /*
+        We don't have easy way to detect change in generation expression.
+        So we always assume that it has changed if generated column was
+        mentioned in CHANGE/MODIFY COLUMN clause of ALTER TABLE.
+      */
+      if (new_field->change)
+      {
+        if (new_field->is_virtual_gcol())
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR;
+        else if (new_field->gcol_info)
+            ha_alter_info->handler_flags|=
+              Alter_inplace_info::ALTER_STORED_GCOL_EXPR;
+      }
     }
     else
     {
@@ -6550,15 +6596,19 @@ static bool fill_alter_inplace_info(THD *thd,
         if (new_field->is_virtual_gcol())
           ha_alter_info->handler_flags|=
             Alter_inplace_info::ADD_VIRTUAL_COLUMN;
+        else if (new_field->gcol_info)
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ADD_STORED_GENERATED_COLUMN;
         else
           ha_alter_info->handler_flags|=
-            Alter_inplace_info::ADD_STORED_COLUMN;
+            Alter_inplace_info::ADD_STORED_BASE_COLUMN;
       }
     }
     /* One of these should be set since Alter_info::ALTER_ADD_COLUMN was set. */
     DBUG_ASSERT(ha_alter_info->handler_flags &
                 (Alter_inplace_info::ADD_VIRTUAL_COLUMN |
-                 Alter_inplace_info::ADD_STORED_COLUMN));
+                 Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+                 Alter_inplace_info::ADD_STORED_GENERATED_COLUMN));
   }
 
   /*
@@ -7073,9 +7123,8 @@ static bool is_inplace_alter_impossible(TABLE *table,
     Stored generated columns are evaluated in server, thus can't be added/changed
     inplace.
   */
-  if ((alter_info->flags & (Alter_info::ALTER_ORDER |
-                            Alter_info::ALTER_KEYS_ONOFF)) ||
-      alter_ctx->requires_generated_column_server_evaluation)
+  if (alter_info->flags & (Alter_info::ALTER_ORDER |
+                           Alter_info::ALTER_KEYS_ONOFF))
     DBUG_RETURN(true);
 
   /*
@@ -7808,8 +7857,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                  "Changing the STORED status");
         goto err;
       }
-      if (field->is_gcol() && field->stored_in_db)
-        alter_ctx->requires_generated_column_server_evaluation= true;
       /*
         Add column being updated to the list of new columns.
         Note that columns with AFTER clauses are added to the end
@@ -7863,7 +7910,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       {
 	if (def->flags & BLOB_FLAG)
 	{
-	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
+	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), field->field_name);
           goto err;
 	}
 
@@ -7898,9 +7945,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name.str);
       goto err;
     }
-
-    if (!def->change && def->gcol_info && def->gcol_info->get_field_stored())
-      alter_ctx->requires_generated_column_server_evaluation= true;
 
     /*
       Check that the DATE/DATETIME not null field we are going to add is
@@ -8420,6 +8464,10 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
             ? FK_COLUMN_DATA_CHANGE : FK_COLUMN_CHANGE_SAFE_FOR_PARENT;
         }
       }
+      DBUG_ASSERT(old_field->is_gcol() == new_field->is_gcol() &&
+                  old_field->is_virtual_gcol() == new_field->is_virtual_gcol());
+      DBUG_ASSERT(!old_field->is_gcol() ||
+                  old_field->gcol_expr_is_equal(new_field));
     }
     else
     {

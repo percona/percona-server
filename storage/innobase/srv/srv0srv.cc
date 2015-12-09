@@ -192,6 +192,10 @@ ulonglong	srv_max_changed_pages = 0;
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
 ulong	srv_debug_compress;
+/** Used by SET GLOBAL innodb_master_thread_disabled_debug = X. */
+my_bool	srv_master_thread_disabled_debug;
+/** Event used to inform that master thread is disabled. */
+static os_event_t	srv_master_thread_disabled_event;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
@@ -1062,6 +1066,8 @@ srv_init(void)
 
 	srv_buf_resize_event = os_event_create(0);
 
+	ut_d(srv_master_thread_disabled_event = os_event_create(0));
+
 	/* page_zip_stat_per_index_mutex is acquired from:
 	1. page_zip_compress() (after SYNC_FSP)
 	2. page_zip_decompress()
@@ -1112,6 +1118,11 @@ srv_free(void)
 	}
 
 	os_event_destroy(srv_buf_resize_event);
+
+#ifdef UNIV_DEBUG
+	os_event_destroy(srv_master_thread_disabled_event);
+	srv_master_thread_disabled_event = NULL;
+#endif /* UNIV_DEBUG */
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
@@ -2332,6 +2343,60 @@ srv_shutdown_print_master_pending(
 	}
 }
 
+#ifdef UNIV_DEBUG
+/** Waits in loop as long as master thread is disabled (debug) */
+static
+void
+srv_master_do_disabled_loop(void)
+{
+	if (!srv_master_thread_disabled_debug) {
+		/* We return here to avoid changing op_info. */
+		return;
+	}
+
+	srv_main_thread_op_info = "disabled";
+
+	while (srv_master_thread_disabled_debug) {
+		os_event_set(srv_master_thread_disabled_event);
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+			break;
+		}
+		os_thread_sleep(100000);
+	}
+
+	srv_main_thread_op_info = "";
+}
+
+/** Disables master thread. It's used by:
+	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+void
+srv_master_thread_disabled_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	/* This method is protected by mutex, as every SET GLOBAL .. */
+	ut_ad(srv_master_thread_disabled_event != NULL);
+
+	const bool disable = *static_cast<const my_bool*>(save);
+
+	const int sig_count = os_event_reset(
+		srv_master_thread_disabled_event);
+
+	srv_master_thread_disabled_debug = disable;
+
+	if (disable) {
+		os_event_wait_low(
+			srv_master_thread_disabled_event, sig_count);
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /*********************************************************************//**
 Perform the tasks that the master thread is supposed to do when the
 server is active. There are two types of tasks. The first category is
@@ -2361,6 +2426,8 @@ srv_master_do_active_tasks(void)
 	row_drop_tables_for_mysql_in_background();
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND, counter_time);
+
+	ut_d(srv_master_do_disabled_loop());
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2448,6 +2515,8 @@ srv_master_do_idle_tasks(void)
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND,
 			 counter_time);
+
+	ut_d(srv_master_do_disabled_loop());
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2748,7 +2817,7 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 	my_thread_init();
-	THD *thd= create_thd(false, true, true);
+	THD *thd= create_thd(false, true, true, srv_worker_thread_key);
 
 	srv_purge_tids[tid_i] = os_thread_get_tid();
 	os_thread_set_priority(srv_purge_tids[tid_i],
@@ -3019,7 +3088,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 						required by os_thread_create */
 {
 	my_thread_init();
-	THD *thd= create_thd(false, true, true);
+	THD *thd= create_thd(false, true, true, srv_purge_thread_key);
 	srv_slot_t*	slot;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
@@ -3037,10 +3106,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	purge_sys->state = PURGE_STATE_RUN;
 
 	rw_lock_x_unlock(&purge_sys->latch);
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(srv_purge_thread_key);
-#endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Purge coordinator thread created, id "
@@ -3221,17 +3286,24 @@ srv_is_tablespace_truncated(ulint space_id)
 }
 
 /** Check if tablespace was truncated.
-@param	space_id	space_id to check for truncate action
+@param[in]	space	space object to check for truncate action
 @return true if tablespace was truncated and we still have an active
 MLOG_TRUNCATE REDO log record. */
 bool
-srv_was_tablespace_truncated(ulint space_id)
+srv_was_tablespace_truncated(const fil_space_t* space)
 {
-	if (is_system_tablespace(space_id)) {
+	if (space == NULL) {
+		ut_ad(0);
 		return(false);
 	}
 
-	return(truncate_t::was_tablespace_truncated(space_id));
+	bool	has_shared_space = FSP_FLAGS_GET_SHARED(space->flags);
+
+	if (is_system_tablespace(space->id) || has_shared_space) {
+		return(false);
+	}
+
+	return(truncate_t::was_tablespace_truncated(space->id));
 }
 
 /** Call exit(3) */

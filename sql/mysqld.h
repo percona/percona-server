@@ -507,7 +507,6 @@ extern PSI_thread_key key_thread_bootstrap,
   key_thread_compress_gtid_table, key_thread_parser_service;
 extern PSI_thread_key key_thread_daemon_plugin;
 extern PSI_thread_key key_thread_timer_notifier;
-extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_map;
 extern PSI_file_key key_file_binlog, key_file_binlog_cache,
@@ -856,6 +855,7 @@ extern mysql_mutex_t
        LOCK_global_user_client_stats,
        LOCK_global_table_stats, LOCK_global_index_stats;
 #ifdef HAVE_OPENSSL
+extern char* des_key_file;
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
@@ -870,7 +870,7 @@ extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
+            *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
 
 
 extern char *opt_disabled_storage_engines;
@@ -922,6 +922,7 @@ enum options_mysqld
   OPT_SSL_CAPATH,
   OPT_SSL_CERT,
   OPT_SSL_CIPHER,
+  OPT_TLS_VERSION,
   OPT_SSL_KEY,
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
@@ -965,13 +966,15 @@ enum enum_query_type
   QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
   /// Print in charset of Item::print() argument (typically thd->charset()).
   QT_TO_ARGUMENT_CHARSET= (1 << 5),
-  /// Print identifiers in compact format, omitting schema names.
-  QT_COMPACT_FORMAT= (1 << 6),
+  /// Print identifiers without database's name
+  QT_NO_DB= (1 << 6),
+  /// Print identifiers without table's name
+  QT_NO_TABLE= (1 << 7),
   /**
     Change all Item_basic_constant to ? (used by query rewrite to compute
     digest.)  Un-resolved hints will also be printed in this format.
   */
-  QT_NORMALIZED_FORMAT= (1 << 7)
+  QT_NORMALIZED_FORMAT= (1 << 8)
 };
 
 /* query_id */

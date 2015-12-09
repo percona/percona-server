@@ -107,6 +107,8 @@ enum options_client
   OPT_INNODB_OPTIMIZE_KEYS,
   OPT_LOCK_FOR_BACKUP,
   OPT_CONNECTION_SERVER_ID,
+  OPT_TLS_VERSION,
+  /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };
 

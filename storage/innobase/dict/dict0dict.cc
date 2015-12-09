@@ -1685,10 +1685,13 @@ dict_table_rename_in_cache(
 					to preserve the original table name
 					in constraints which reference it */
 {
+	dberr_t		err;
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
 	char		old_name[MAX_FULL_NAME_LEN + 1];
+	os_file_type_t	ftype;
+	bool		exists;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1723,8 +1726,6 @@ dict_table_rename_in_cache(
 	.ibd file and rebuild the .isl file if needed. */
 
 	if (dict_table_is_discarded(table)) {
-		os_file_type_t	type;
-		bool		exists;
 		char*		filepath;
 
 		ut_ad(dict_table_is_file_per_table(table));
@@ -1751,7 +1752,7 @@ dict_table_rename_in_cache(
 		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
 
 		/* Delete any temp file hanging around. */
-		if (os_file_status(filepath, &exists, &type)
+		if (os_file_status(filepath, &exists, &ftype)
 		    && exists
 		    && !os_file_delete_if_exists(innodb_temp_file_key,
 						 filepath, NULL)) {
@@ -1786,19 +1787,31 @@ dict_table_rename_in_cache(
 				ut_free(old_path);
 				return(DB_TABLESPACE_EXISTS);
 			}
+		} else {
+			new_path = fil_make_filepath(
+				NULL, new_name, IBD, false);
+		}
+
+		/* New filepath must not exist. */
+		err = fil_rename_tablespace_check(
+			table->space, old_path, new_path, false);
+		if (err != DB_SUCCESS) {
+			ut_free(old_path);
+			ut_free(new_path);
+			return(err);
 		}
 
 		bool	success = fil_rename_tablespace(
 			table->space, old_path, new_name, new_path);
 
 		ut_free(old_path);
+		ut_free(new_path);
 
 		/* If the tablespace is remote, a new .isl file was created
-		If success, delete the old one. If not, delete the new one.  */
-		if (new_path) {
-
-			ut_free(new_path);
-			RemoteDatafile::delete_link_file(success ? old_name : new_name);
+		If success, delete the old one. If not, delete the new one. */
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+			RemoteDatafile::delete_link_file(
+				success ? old_name : new_name);
 		}
 
 		if (!success) {
@@ -2197,6 +2210,12 @@ dict_table_remove_from_cache_low(
 		trx_free_for_background(trx);
 	}
 
+	/* Free virtual column template if any */
+	if (table->vc_templ != NULL) {
+		dict_free_vc_templ(table->vc_templ);
+		UT_DELETE(table->vc_templ);
+	}
+
 	size = mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
 
 	ut_ad(dict_sys->size >= size);
@@ -2442,7 +2461,7 @@ dict_index_too_big_for_tree(
 		REC_STATUS_ORDINARY records. */
 
 		field_max_size = dict_col_get_fixed_size(col, comp);
-		if (field_max_size) {
+		if (field_max_size && field->fixed_len != 0) {
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
 			      || field->fixed_len == field->prefix_len);
@@ -4575,6 +4594,10 @@ loop:
 		if (reject_fks && !local_fk_set.empty()) {
 
 			return(DB_CANNOT_ADD_CONSTRAINT);
+		}
+
+		if (dict_foreigns_has_v_base_col(local_fk_set, table)) {
+			return(DB_NO_FK_ON_V_BASE_COL);
 		}
 
 		/**********************************************************/

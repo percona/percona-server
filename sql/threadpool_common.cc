@@ -108,7 +108,7 @@ static bool thread_attach(THD* thd)
   thd->thread_stack=(char*)&thd;
   thd->store_globals();
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread)(thd->event_scheduler.m_psi);
+  PSI_THREAD_CALL(set_thread)(thd->get_psi());
 #endif
   mysql_socket_set_thread_owner(thd->get_protocol_classic()->get_vio()
                                 ->mysql_socket);
@@ -147,9 +147,8 @@ int threadpool_add_connection(THD* thd)
 
   /* Create new PSI thread for use with the THD. */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  thd->event_scheduler.m_psi=
-    PSI_THREAD_CALL(new_thread)(key_thread_one_connection, thd,
-                                thd->thread_id());
+  thd->set_psi(PSI_THREAD_CALL(new_thread)(key_thread_one_connection, thd,
+                                           thd->thread_id()));
 #endif
 
 

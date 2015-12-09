@@ -57,6 +57,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "ut0counter.h"
 #include "fil0fil.h"
 
+struct fil_space_t;
+
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
 	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
@@ -482,6 +484,9 @@ extern my_bool	srv_ibuf_disable_background_merge;
 #ifdef UNIV_DEBUG
 extern my_bool	srv_sync_debug;
 extern my_bool	srv_purge_view_update_only_debug;
+
+/** Value of MySQL global used to disable master thread. */
+extern my_bool	srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;
@@ -562,6 +567,7 @@ extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	srv_worker_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 extern mysql_pfs_key_t	srv_log_tracking_thread_key;
 
@@ -934,11 +940,26 @@ bool
 srv_is_tablespace_truncated(ulint space_id);
 
 /** Check if tablespace was truncated.
-@param	space_id	space_id to check for truncate action
+@param[in]	space	space object to check for truncate action
 @return true if tablespace was truncated and we still have an active
 MLOG_TRUNCATE REDO log record. */
 bool
-srv_was_tablespace_truncated(ulint space_id);
+srv_was_tablespace_truncated(const fil_space_t* space);
+
+#ifdef UNIV_DEBUG
+/** Disables master thread. It's used by:
+	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+void
+srv_master_thread_disabled_debug_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save);
+#endif /* UNIV_DEBUG */
 
 /** Status variables to be passed to MySQL */
 struct export_var_t{

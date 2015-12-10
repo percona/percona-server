@@ -38,9 +38,9 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0log.ic"
 #endif
 
-#ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "buf0buf.h"
+#ifndef UNIV_HOTBACKUP
 #include "buf0flu.h"
 #include "srv0srv.h"
 #include "log0recv.h"
@@ -53,6 +53,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "trx0roll.h"
 #include "srv0mon.h"
 #include "sync0sync.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /*
 General philosophy of InnoDB redo-logs:
@@ -133,6 +134,7 @@ void
 log_io_complete_checkpoint(void);
 /*============================*/
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Returns the oldest modified block lsn in the pool, or log_sys->lsn if none
 exists.
@@ -155,6 +157,7 @@ log_buf_pool_get_oldest_modification(void)
 
 	return(lsn);
 }
+#endif  /* !UNIV_HOTBACKUP */
 
 /****************************************************************//**
 Checks if the log groups have a big enough margin of free space in
@@ -271,7 +274,7 @@ log_buffer_extend(
 	ib::info() << "innodb_log_buffer_size was extended to "
 		<< LOG_BUFFER_SIZE << ".";
 }
-
+#ifndef UNIV_HOTBACKUP
 /** Check margin not to overwrite transaction log from the last checkpoint.
 If would estimate the log write to exceed the log_group_capacity,
 waits for the checkpoint is done enough.
@@ -329,7 +332,7 @@ log_margin_checkpoint_age(
 
 	return;
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /** Open the log for log_write_low. The log must be closed with log_close.
 @param[in]	len	length of the data to be written
 @return start lsn of the log record */
@@ -653,7 +656,6 @@ log_group_calc_lsn_offset(
 
 	return(log_group_calc_real_offset(offset, group));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************//**
 Calculates where in log files we find a specified lsn.
@@ -694,7 +696,7 @@ log_calc_where_lsn_is(
 	return(file_no);
 }
 
-#ifndef UNIV_HOTBACKUP
+
 /********************************************************//**
 Sets the field values in group to correspond to a given lsn. For this function
 to work, the values must already be correctly initialized to correspond to
@@ -709,7 +711,7 @@ log_group_set_fields(
 	group->lsn_offset = log_group_calc_lsn_offset(lsn, group);
 	group->lsn = lsn;
 }
-
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Calculates the recommended highest values for lsn - last_checkpoint_lsn
 and lsn - buf_get_oldest_modification().
@@ -916,7 +918,7 @@ log_group_init(
 
 	return(log_calc_max_ages());
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /******************************************************//**
 Update log_sys after write completion. */
 static
@@ -1258,6 +1260,7 @@ loop:
 	}
 
 #ifdef _WIN32
+# ifndef UNIV_HOTBACKUP
 	/* write requests during fil_flush() might not be good for Windows */
 	if (log_sys->n_pending_flushes > 0
 	    || !os_event_is_set(log_sys->flush_event)) {
@@ -1265,6 +1268,11 @@ loop:
 		os_event_wait(log_sys->flush_event);
 		goto loop;
 	}
+# else
+	if (log_sys->n_pending_flushes > 0) {
+		goto loop;
+	}
+# endif  /* !UNIV_HOTBACKUP */
 #endif /* _WIN32 */
 
 	/* If it is a write call we should just go ahead and do it
@@ -1275,6 +1283,7 @@ loop:
 	if (flush_to_disk
 	    && (log_sys->n_pending_flushes > 0
 		|| !os_event_is_set(log_sys->flush_event))) {
+
 		/* Figure out if the current flush will do the job
 		for us. */
 		bool work_done = log_sys->current_flush_lsn >= lsn;
@@ -1468,7 +1477,7 @@ log_flush_margin(void)
 		log_write_up_to(lsn, false);
 	}
 }
-
+#ifndef UNIV_HOTBACKUP
 /** Advances the smallest lsn for which there are unflushed dirty blocks in the
 buffer pool.
 NOTE: this function may only be called if the calling thread owns no
@@ -1531,7 +1540,7 @@ log_preflush_pool_modified_pages(
 
 	return(success);
 }
-
+#endif /* !UNIV_HOTBACKUP */
 /******************************************************//**
 Completes a checkpoint. */
 static
@@ -1650,7 +1659,6 @@ log_group_checkpoint(
 
 	ut_ad(((ulint) group & 0x1UL) == 0);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_HOTBACKUP
 /******************************************************//**
@@ -1675,10 +1683,10 @@ log_reset_first_header_and_checkpoint(
 	lsn = start + LOG_BLOCK_HDR_SIZE;
 
 	/* Write the label of mysqlbackup --restore */
-	strcpy((char*) hdr_buf + LOG_HEADER_CREATOR, "ibbackup ");
+	strcpy((char*)hdr_buf + LOG_HEADER_CREATOR, LOG_HEADER_CREATOR_CURRENT);
 	ut_sprintf_timestamp((char*) hdr_buf
 			     + (LOG_HEADER_CREATOR
-				+ (sizeof "ibbackup ") - 1));
+			     + (sizeof LOG_HEADER_CREATOR_CURRENT) - 1));
 	buf = hdr_buf + LOG_CHECKPOINT_1;
 	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
 

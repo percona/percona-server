@@ -493,7 +493,8 @@ public:
   Generated_column()
     : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
-    stored_in_db(false), num_non_virtual_base_cols(0)
+    stored_in_db(false), num_non_virtual_base_cols(0),
+    m_expr_str_mem_root(NULL)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -525,6 +526,17 @@ public:
     @return number of non virtual base columns
   */
   uint non_virtual_base_columns() const { return num_non_virtual_base_cols; }
+
+  /**
+     Duplicates a string into expr_str.
+
+     @param root MEM_ROOT to use for allocation; if NULL, use the remembered
+     one; if non-NULL, remember it.
+     @param src  source string
+     @param len  length of 'src' in bytes
+  */
+  void dup_expr_str(MEM_ROOT *root, const char *src, size_t len);
+
 private:
   /*
     The following data is only updated by the parser and read
@@ -535,6 +547,9 @@ private:
                                     phisically stored in the database*/
   /// How many non-virtual base columns in base_columns_map
   uint num_non_virtual_base_cols;
+
+  /// MEM_ROOT which provides memory storage for expr_str.str
+  MEM_ROOT *m_expr_str_mem_root;
 };
 
 class Proto_field
@@ -875,6 +890,8 @@ public:
   static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
+  bool gcol_expr_is_equal(const Field *field) const;
+  bool gcol_expr_is_equal(const Create_field *field) const;
   virtual bool eq(Field *field)
   {
     return (ptr == field->ptr && m_null_ptr == field->m_null_ptr &&
@@ -1452,11 +1469,13 @@ public:
   virtual uint32 max_display_length()= 0;
 
   /**
-    Whether a field being created is compatible with a existing one.
+    Whether a field being created is type-compatible with an existing one.
 
     Used by the ALTER TABLE code to evaluate whether the new definition
     of a table is compatible with the old definition so that it can
     determine if data needs to be copied over (table data change).
+    Constraints and generation clause (default value, generation expression)
+    are not checked by this function.
   */
   virtual uint is_equal(Create_field *new_field);
   /* convert decimal to longlong with overflow check */
@@ -4254,7 +4273,11 @@ class Create_field :public Sql_alloc
 {
 public:
   const char *field_name;
-  const char *change;			// If done with alter table
+  /**
+    Name of column modified by ALTER TABLE's CHANGE/MODIFY COLUMN clauses,
+    NULL for columns added.
+  */
+  const char *change;
   const char *after;			// Put column after this one
   LEX_STRING comment;			// Comment for field
 
@@ -4306,6 +4329,7 @@ public:
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
   Create_field *clone(MEM_ROOT *mem_root) const
     { return new (mem_root) Create_field(*this); }
+  bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const
   { return gcol_info && !gcol_info->get_field_stored(); }
   void create_length_to_internal_length(void);

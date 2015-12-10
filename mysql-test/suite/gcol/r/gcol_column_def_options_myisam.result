@@ -1,7 +1,6 @@
 SET @@session.default_storage_engine = 'MyISAM';
 #
 # Section 1. Wrong column definition options
-#            - NULL
 #            - DEFAULT <value>
 #            - AUTO_INCREMENT
 # NOT NULL
@@ -26,10 +25,9 @@ alter table t1 add column b int generated always as (a+1) virtual not null;
 drop table t1;
 # NULL  
 create table t1 (a int, b int generated always as (a+1) virtual null);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null)' at line 1
+drop table t1;
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual null;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
 drop table t1;
 # Added columns mixed with virtual GC and other columns
 create table t1 (a int);
@@ -84,7 +82,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a+1) STORED NOT NULL,
+  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED NOT NULL,
   PRIMARY KEY (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 add column c int generated always as (a+2) stored primary key;
@@ -99,7 +97,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -112,7 +110,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -132,7 +130,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL COMMENT 'my comment'
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL COMMENT 'my comment'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t2;
 Field	Type	Null	Key	Default	Extra
@@ -154,7 +152,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -176,7 +174,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a int, b int generated always as (a % 2) virtual);
@@ -186,7 +184,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 drop table t2;
@@ -209,7 +207,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -221,7 +219,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) STORED
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) STORED
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -234,7 +232,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a % 2) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((`a` % 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -247,7 +245,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (5 * 2) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((5 * 2)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 describe t1;
 Field	Type	Null	Key	Default	Extra
@@ -310,7 +308,7 @@ ERROR HY000: Generated column can refer only to generated columns defined prior 
 CREATE TABLE t1(a int);
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM t1 WHERE c0006))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1 from `t1` where `c0006`))))' at line 1
 DROP TABLE t1;
 # Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
 CREATE TABLE t1(a int, b int as (a + 1),
@@ -320,9 +318,9 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a + 1) VIRTUAL,
-  `c` varchar(12) GENERATED ALWAYS AS ("aaaabb") STORED,
-  `d` blob GENERATED ALWAYS AS (c) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+  `c` varchar(12) GENERATED ALWAYS AS ('aaaabb') STORED,
+  `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SELECT * FROM t1;
 a	b	c	d
@@ -333,9 +331,9 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS (a + 1) VIRTUAL,
-  `c` varchar(12) GENERATED ALWAYS AS ("aaaabb") STORED,
-  `d` blob GENERATED ALWAYS AS (c) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL,
+  `c` varchar(12) GENERATED ALWAYS AS ('aaaabb') STORED,
+  `d` blob GENERATED ALWAYS AS (`c`) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 CREATE TABLE t3 AS SELECT * FROM t1;
 SHOW CREATE TABLE t3;
@@ -397,11 +395,11 @@ DROP TABLE t1, t2;
 CREATE TABLE t1(a int);
 ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
 ( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM t1 WHERE c0006))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1 from `t1` where `c0006`))))' at line 1
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM t1 WHERE not_exist_col))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1 from `t1` where `not_exist_col`))))' at line 1
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM dual))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'select 1))))' at line 1
 DROP TABLE t1;
 # Bug#21142905: PARTITIONED GENERATED COLS -
 #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
@@ -423,7 +421,7 @@ CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar") VIRTUAL
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ('foo bar') VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i INT);
@@ -432,7 +430,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
-  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar") VIRTUAL
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ('foo bar') VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
@@ -508,8 +506,8 @@ ALTER TABLE t ADD c int(11) as (a+b), ADD f varchar(10) as ('aaa');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 # Change order should be ALGORITHM=INPLACE on Innodb
 ALTER TABLE t CHANGE c c int(11) as (a) after f;
 affected rows: 1
@@ -526,6 +524,99 @@ ALTER TABLE t CHANGE dd d varchar(10);
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 DROP TABLE t;
+#
+# Bug#21900170: CAN'T CREATE TABLE WITH NULLABLE GENERATED COLUMNS
+#
+CREATE TABLE t1 (
+a INT,
+b INT GENERATED ALWAYS AS (-a) VIRTUAL NULL,
+c INT GENERATED ALWAYS AS (a + b) STORED NULL);
+SHOW FULL COLUMNS FROM t1;
+Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
+a	int(11)	NULL	YES		NULL		#	
+b	int(11)	NULL	YES		NULL	VIRTUAL GENERATED	#	
+c	int(11)	NULL	YES		NULL	STORED GENERATED	#	
+INSERT INTO t1 (a) VALUES (NULL), (1);
+SELECT * FROM t1;
+a	b	c
+NULL	NULL	NULL
+1	-1	0
+DROP TABLE t1;
+# Bug#21854004: GCOLS:INNODB: FAILING ASSERTION: I < TABLE->N_DEF
+CREATE TABLE t1(
+col1 INTEGER PRIMARY KEY,
+col2 INTEGER,
+col3 INTEGER,
+col4 INTEGER,
+vgc1 INTEGER AS (col2 + col3) VIRTUAL,
+sgc1 INTEGER AS (col2 - col3) STORED
+);
+INSERT INTO t1(col1, col2, col3) VALUES
+(1, 10, 100), (2, 20, 200);
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	110	-90
+2	20	200	NULL	220	-180
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	-90
+2	20	200	NULL	4000	-180
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	0
+2	20	200	NULL	4000	0
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
+ALTER TABLE t1 ADD INDEX sgc1 (sgc1);
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	110	0
+2	20	200	NULL	220	0
+SELECT sgc1 FROM t1;
+sgc1
+0
+0
+ALTER TABLE t1 DROP INDEX sgc1;
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
+ALTER TABLE t1 ADD UNIQUE INDEX sgc1 (sgc1);
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+ERROR 23000: Duplicate entry '0' for key 'sgc1'
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	-90
+2	20	200	NULL	4000	-180
+SELECT vgc1 FROM t1;
+vgc1
+1000
+4000
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 * col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	NULL	1000	1000
+2	20	200	NULL	4000	4000
+SELECT sgc1 FROM t1;
+sgc1
+1000
+4000
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) STORED;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) VIRTUAL;
+ERROR HY000: 'Changing the STORED status' is not supported for generated columns.
+ALTER TABLE t1 MODIFY COLUMN col4 INTEGER AS (col1 + col2 + col3) STORED;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	111	1000	1000
+2	20	200	222	4000	4000
+ALTER TABLE t1 MODIFY COLUMN col4 INTEGER;
+SELECT * FROM t1;
+col1	col2	col3	col4	vgc1	sgc1
+1	10	100	111	1000	1000
+2	20	200	222	4000	4000
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

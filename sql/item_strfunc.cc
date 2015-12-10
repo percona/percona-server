@@ -3352,8 +3352,8 @@ void Item_func_make_set::update_used_tables()
   item->update_used_tables();
   used_tables_cache|=item->used_tables();
   const_item_cache&=item->const_item();
-  with_subselect= item->has_subquery();
-  with_stored_program= item->has_stored_program();
+  with_subselect|= item->has_subquery();
+  with_stored_program|= item->has_stored_program();
 }
 
 
@@ -4038,7 +4038,8 @@ void Item_func_set_collation::fix_length_and_dec()
   }
 
   if (!set_collation || 
-      !my_charset_same(args[0]->collation.collation,set_collation))
+      (!my_charset_same(args[0]->collation.collation,set_collation) &&
+      args[0]->collation.derivation != DERIVATION_NUMERIC))
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
              colname, args[0]->collation.collation->csname);
@@ -4274,37 +4275,47 @@ String *Item_func_unhex::val_str(String *str)
   char *to;
   String *res;
   size_t length;
+  null_value= true;
   DBUG_ASSERT(fixed == 1);
 
   res= args[0]->val_str(str);
+  // For a NULL input value return NULL without any warning
+  if (args[0]->null_value)
+    return NULL;
   if (!res || tmp_value.alloc(length= (1+res->length())/2))
-  {
-    null_value=1;
-    return 0;
-  }
+    goto err;
 
   from= res->ptr();
-  null_value= 0;
   tmp_value.length(length);
   to= (char*) tmp_value.ptr();
   if (res->length() % 2)
   {
     int hex_char;
     *to++= hex_char= hexchar_to_int(*from++);
-    if ((null_value= (hex_char == -1)))
-      return 0;
+    if (hex_char == -1)
+      goto err;
   }
   for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
   {
     int hex_char;
     *to= (hex_char= hexchar_to_int(from[0])) << 4;
-    if ((null_value= (hex_char == -1)))
-      return 0;
+    if (hex_char == -1)
+      goto err;
     *to|= hex_char= hexchar_to_int(from[1]);
-    if ((null_value= (hex_char == -1)))
-      return 0;
+    if (hex_char == -1)
+      goto err;
   }
+  null_value= false;
   return &tmp_value;
+
+err:
+  ErrConvString err(res);
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                      ER_WRONG_VALUE_FOR_TYPE,
+                      ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
+                      "string", res->ptr(), func_name());
+
+  return NULL;
 }
 
 

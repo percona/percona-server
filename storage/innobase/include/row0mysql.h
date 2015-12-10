@@ -896,6 +896,8 @@ struct row_prebuilt_t {
 	/** Disable prefetch. */
 	bool		m_no_prefetch;
 
+	/** Return materialized key for secondary index scan */
+	bool		m_read_virtual_key;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -949,5 +951,11 @@ innobase_get_computed_value(
 #ifndef UNIV_NONINL
 #include "row0mysql.ic"
 #endif
+
+#ifdef UNIV_DEBUG
+/** Wait for the background drop list to become empty. */
+void
+row_wait_for_background_drop_list_empty();
+#endif /* UNIV_DEBUG */
 
 #endif /* row0mysql.h */

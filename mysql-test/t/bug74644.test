@@ -1,0 +1,8 @@
+# Test for bug 74644 (handle_fatal_signal (sig=11) in __memmove_ssse3_back from String::copy)
+
+CREATE TABLE t1 (a INT KEY, b TEXT);
+
+--error ER_BAD_FIELD_ERROR
+EXPLAIN EXTENDED SELECT * FROM t1 x, t1 y WHERE (x.a = 2 OR (x.a, x.b) IN ((0, 0), (5, 0), (4, 3))) AND y.a = x.d AND y.b = x.b;
+
+DROP TABLE t1;

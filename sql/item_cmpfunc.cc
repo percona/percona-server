@@ -514,7 +514,13 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if ((*item)->const_item())
+  if ((*item)->const_item() &&
+      /*
+        In case of GC it's possible that this func will be called on an
+        already converted constant. Don't convert it again.
+      */
+      !((*item)->field_type() == field_item->field_type() &&
+        (*item)->basic_const_item()))
   {
     TABLE *table= field->table;
     sql_mode_t orig_sql_mode= thd->variables.sql_mode;
@@ -1012,11 +1018,6 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
     return false;
 
-  // GEOMETRY data is never convertible to any other type of data.
-  if (a->field_type() == MYSQL_TYPE_GEOMETRY ||
-      b->field_type() == MYSQL_TYPE_GEOMETRY)
-    return false;
-
   if (a->is_temporal_with_date())
   {
     if (b->is_temporal_with_date()) //  date[time] + date
@@ -1185,7 +1186,10 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     set_cmp_context_for_datetime();
     return 0;
   }
-  else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
+  else if ((type == STRING_RESULT ||
+            // When comparing time field and cached/converted time constant
+            type == REAL_RESULT) &&
+           (*a)->field_type() == MYSQL_TYPE_TIME &&
            (*b)->field_type() == MYSQL_TYPE_TIME)
   {
     /* Compare TIME values as integers. */
@@ -2480,6 +2484,22 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
   return (this->*transformer)(argument);
 }
 
+
+void Item_in_optimizer::replace_argument(THD *thd, Item **oldpp, Item *newp)
+{
+  // Maintain the invariant described in this class's comment
+  Item_in_subselect *ss= down_cast<Item_in_subselect *>(args[1]);
+  thd->change_item_tree(&ss->left_expr, newp);
+  /*
+    fix_left() does cache setup. This setup() does (mainly)
+    cache->example=arg[0]; we could wonder why change_item_tree isn't used
+    instead of this simple assignment. The reason is that cache->setup() is
+    called at every fix_fields(), so every execution, so it's not important if
+    the previous execution left a non-rolled-back now-pointing-to-garbage
+    cache->example - it will be overwritten.
+  */
+  fix_left(thd, NULL);
+}
 
 longlong Item_func_eq::val_int()
 {
@@ -7186,9 +7206,9 @@ bool Item_equal::compare_const(THD *thd, Item *c)
       return true;
     func->quick_fix_field();
     cond_false= !func->val_int();
-    if (thd->is_error())
-      return true;
   }
+  if (thd->is_error())
+    return true;
   if (cond_false)
     const_item_cache= 1;
   return false;

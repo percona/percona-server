@@ -16,7 +16,6 @@
 
 --echo #
 --echo # Section 1. Wrong column definition options
---echo #            - NULL
 --echo #            - DEFAULT <value>
 --echo #            - AUTO_INCREMENT
 
@@ -38,10 +37,9 @@ alter table t1 add column b int generated always as (a+1) virtual not null;
 drop table t1;
 
 --echo # NULL  
---error 1064
 create table t1 (a int, b int generated always as (a+1) virtual null);
+drop table t1;
 create table t1 (a int);
---error 1064
 alter table t1 add column b int generated always as (a+1) virtual null;
 drop table t1;
 
@@ -439,3 +437,114 @@ ALTER TABLE t DROP INDEX idx, DROP INDEX idx1;
 }
 --disable_info
 DROP TABLE t;
+
+--echo #
+--echo # Bug#21900170: CAN'T CREATE TABLE WITH NULLABLE GENERATED COLUMNS
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b INT GENERATED ALWAYS AS (-a) VIRTUAL NULL,
+  c INT GENERATED ALWAYS AS (a + b) STORED NULL);
+
+--replace_column 8 #
+SHOW FULL COLUMNS FROM t1;
+
+INSERT INTO t1 (a) VALUES (NULL), (1);
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Bug#21854004: GCOLS:INNODB: FAILING ASSERTION: I < TABLE->N_DEF
+CREATE TABLE t1(
+ col1 INTEGER PRIMARY KEY,
+ col2 INTEGER,
+ col3 INTEGER,
+ col4 INTEGER,
+ vgc1 INTEGER AS (col2 + col3) VIRTUAL,
+ sgc1 INTEGER AS (col2 - col3) STORED
+);
+
+INSERT INTO t1(col1, col2, col3) VALUES
+ (1, 10, 100), (2, 20, 200);
+
+SELECT * FROM t1;
+
+# Change expression of a virtual generated column
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+
+# Change expression of a stored generated column
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+SELECT * FROM t1;
+
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
+
+if ($support_virtual_index)
+{
+ALTER TABLE t1 ADD INDEX vgc1 (vgc1);
+}
+ALTER TABLE t1 ADD INDEX sgc1 (sgc1);
+
+if ($support_virtual_index)
+{
+# Change expression of a virtual generated column, with index
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+SELECT vgc1 FROM t1;
+}
+
+# Change expression of a stored generated column, with index
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+SELECT * FROM t1;
+SELECT sgc1 FROM t1;
+
+if ($support_virtual_index)
+{
+ALTER TABLE t1 DROP INDEX vgc1;
+}
+ALTER TABLE t1 DROP INDEX sgc1;
+
+if ($support_virtual_index)
+{
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
+ALTER TABLE t1 ADD UNIQUE INDEX vgc1 (vgc1);
+}
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
+ALTER TABLE t1 ADD UNIQUE INDEX sgc1 (sgc1);
+
+# Change expression of a virtual generated column, with unique index
+if ($support_virtual_index)
+{
+--error ER_DUP_ENTRY
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 / col3) VIRTUAL;
+}
+--error ER_DUP_ENTRY
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
+
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
+SELECT * FROM t1;
+SELECT vgc1 FROM t1;
+
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 * col3) STORED;
+SELECT * FROM t1;
+SELECT sgc1 FROM t1;
+
+# Change virtual generated column to become stored
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) STORED;
+
+# Change stored generated column to become virtual
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) VIRTUAL;
+
+# Change base column to become stored generated column:
+ALTER TABLE t1 MODIFY COLUMN col4 INTEGER AS (col1 + col2 + col3) STORED;
+SELECT * FROM t1;
+
+# Change stored generated column to become base column:
+ALTER TABLE t1 MODIFY COLUMN col4 INTEGER;
+SELECT * FROM t1;
+
+DROP TABLE t1;

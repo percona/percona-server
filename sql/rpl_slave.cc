@@ -198,6 +198,7 @@ static int process_io_rotate(Master_info* mi, Rotate_log_event* rev);
 static int process_io_create_file(Master_info* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
+static inline bool is_autocommit_off_and_infotables(THD* thd);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
 static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
@@ -1154,14 +1155,14 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
     transaction start to avoid table access deadlocks when START SLAVE
     is executed after RESET SLAVE.
   */
-  if (thd && thd->in_multi_stmt_transaction_mode() &&
-      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
-       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  if (is_autocommit_off_and_infotables(thd))
+  {
     if (trans_begin(thd))
     {
       init_error= 1;
       goto end;
     }
+  }
 
   /*
     This takes care of the startup dependency between the master_info
@@ -1190,15 +1191,15 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
       init_error= 1;
   }
 
+  DBUG_EXECUTE_IF("enable_mts_worker_failure_init",
+                  {DBUG_SET("+d,mts_worker_thread_init_fails");});
 end:
   /*
     When info tables are used and autocommit= 0 we force transaction
     commit to avoid table access deadlocks when START SLAVE is executed
     after RESET SLAVE.
   */
-  if (thd && thd->in_multi_stmt_transaction_mode() &&
-      (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
-       opt_rli_repository_id == INFO_REPOSITORY_TABLE))
+  if (is_autocommit_off_and_infotables(thd))
     if (trans_commit(thd))
       init_error= 1;
 
@@ -1988,6 +1989,24 @@ void delete_slave_info_objects()
   channel_map.unlock();
 
   DBUG_VOID_RETURN;
+}
+
+/**
+   Check if multi-statement transaction mode and master and slave info
+   repositories are set to table.
+
+   @param THD    THD object
+
+   @retval true  Success
+   @retval false Failure
+*/
+static bool is_autocommit_off_and_infotables(THD* thd)
+{
+  DBUG_ENTER("is_autocommit_off_and_infotables");
+  DBUG_RETURN((thd && thd->in_multi_stmt_transaction_mode() &&
+               (opt_mi_repository_id == INFO_REPOSITORY_TABLE ||
+                opt_rli_repository_id == INFO_REPOSITORY_TABLE))?
+              true : false);
 }
 
 static bool io_slave_killed(THD* thd, Master_info* mi)
@@ -3433,6 +3452,7 @@ void show_slave_status_metadata(List<Item> &field_list,
                                            MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
   field_list.push_back(new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
+  field_list.push_back(new Item_empty_string("Master_TLS_Version", FN_REFLEN));
 
 }
 
@@ -3712,6 +3732,8 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(&tmp);
   // channel_name
   protocol->store(mi->get_channel(), &my_charset_bin);
+  // Master_TLS_Version
+  protocol->store(mi->tls_version, &my_charset_bin);
 
   mysql_mutex_unlock(&mi->rli->err_lock);
   mysql_mutex_unlock(&mi->err_lock);
@@ -5358,7 +5380,7 @@ extern "C" void *handle_slave_io(void *arg)
   mi->info_thd = thd;
 
   #ifdef HAVE_PSI_INTERFACE
-  // save the instrumentation for IO thread in mi->info_thd->scheduler
+  // save the instrumentation for IO thread in mi->info_thd
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(mi->info_thd, psi);
   #endif
@@ -5937,7 +5959,7 @@ extern "C" void *handle_slave_worker(void *arg)
   thd->thread_stack = (char*)&thd;
 
   #ifdef HAVE_PSI_INTERFACE
-  // save the instrumentation for worker thread in w->info_thd->scheduler
+  // save the instrumentation for worker thread in w->info_thd
   psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(w->info_thd, psi);
   #endif
@@ -6103,6 +6125,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
   LOG_INFO linfo;
   my_off_t offset= 0;
   MY_BITMAP *groups= &rli->recovery_groups;
+  THD *thd= current_thd;
 
   DBUG_ENTER("mts_recovery_groups");
 
@@ -6155,13 +6178,26 @@ bool mts_recovery_groups(Relay_log_info *rli)
     above_lwm_jobs(PSI_NOT_INSTRUMENTED);
   above_lwm_jobs.reserve(rli->recovery_parallel_workers);
 
+  /*
+    When info tables are used and autocommit= 0 we force a new
+    transaction start to avoid table access deadlocks when START SLAVE
+    is executed after STOP SLAVE with MTS enabled.
+  */
+  if (is_autocommit_off_and_infotables(thd))
+    if (trans_begin(thd))
+      goto err;
+
   for (uint id= 0; id < rli->recovery_parallel_workers; id++)
   {
     Slave_worker *worker=
       Rpl_info_factory::create_worker(opt_rli_repository_id, id, rli, true);
 
     if (!worker)
+    {
+      if (is_autocommit_off_and_infotables(thd))
+        trans_rollback(thd);
       goto err;
+    }
 
     LOG_POS_COORD w_last= { const_cast<char*>(worker->get_group_master_log_name()),
                             worker->get_group_master_log_pos() };
@@ -6187,6 +6223,15 @@ bool mts_recovery_groups(Relay_log_info *rli)
       delete worker;
     }
   }
+
+  /*
+    When info tables are used and autocommit= 0 we force transaction
+    commit to avoid table access deadlocks when START SLAVE is executed
+    after STOP SLAVE with MTS enabled.
+  */
+  if (is_autocommit_off_and_infotables(thd))
+    if (trans_commit(thd))
+      goto err;
 
   /*
     In what follows, the group Recovery Bitmap is constructed.
@@ -6956,7 +7001,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->info_thd= thd;
 
   #ifdef HAVE_PSI_INTERFACE
-  // save the instrumentation for SQL thread in rli->info_thd->scheduler
+  // save the instrumentation for SQL thread in rli->info_thd
   struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
   thd_set_psi(rli->info_thd, psi);
   #endif
@@ -8531,6 +8576,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #endif
     mysql_options(mysql, MYSQL_OPT_SSL_CRL,
                   mi->ssl_crl[0] ? mi->ssl_crl : 0);
+    mysql_options(mysql, MYSQL_OPT_TLS_VERSION,
+                  mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
@@ -10248,6 +10295,7 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
       lex_mi->ssl_cert ||
       lex_mi->ssl_ca ||
       lex_mi->ssl_capath ||
+      lex_mi->tls_version ||
       lex_mi->ssl_cipher ||
       lex_mi->ssl_crl ||
       lex_mi->ssl_crlpath ||
@@ -10482,6 +10530,8 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     strmake(mi->ssl_ca, lex_mi->ssl_ca, sizeof(mi->ssl_ca)-1);
   if (lex_mi->ssl_capath)
     strmake(mi->ssl_capath, lex_mi->ssl_capath, sizeof(mi->ssl_capath)-1);
+  if (lex_mi->tls_version)
+    strmake(mi->tls_version, lex_mi->tls_version, sizeof(mi->tls_version)-1);
   if (lex_mi->ssl_cert)
     strmake(mi->ssl_cert, lex_mi->ssl_cert, sizeof(mi->ssl_cert)-1);
   if (lex_mi->ssl_cipher)
@@ -10495,7 +10545,7 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 #ifndef HAVE_OPENSSL
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
-      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
+      lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->tls_version)
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif

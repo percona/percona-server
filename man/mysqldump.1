@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 10/12/2015
+.\"      Date: 11/28/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "10/12/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -232,6 +232,28 @@ client utility performs
 logical backups, producing a set of SQL statements that can be executed to reproduce the original database object definitions and table data\&. It dumps one or more MySQL databases for backup or transfer to another SQL server\&. The
 \fBmysqldump\fR
 command can also generate output in CSV, other delimited text, or XML format\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you have tables that contain generated columns, use the
+\fBmysqldump\fR
+utility provided with MySQL 5\&.7\&.9 or higher to create your dump files\&. The
+\fBmysqldump\fR
+utility provided in earlier releases uses incorrect syntax for generated column definitions (Bug #20769542)\&. You can use the
+INFORMATION_SCHEMA\&.COLUMNS
+table to identify tables with generated columns\&.
+.sp .5v
+.RE
 .PP
 \fBmysqldump\fR
 requires at least the
@@ -326,7 +348,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&24.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&25.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .RE
 .PP
 \fBmysqldump\fR
@@ -438,6 +460,26 @@ Compress all information sent between the client and the server if both support 
 .sp
 A hint about the client\-side authentication plugin to use\&. See
 Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqldump: enable-cleartext-plugin option
+.\" enable-cleartext-plugin option: mysqldump
+\fB\-\-enable\-cleartext\-plugin\fR
+.sp
+Enable the
+mysql_clear_password
+cleartext authentication plugin\&. (See
+Section\ \&6.3.9.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+.sp
+This option was added in MySQL 5\&.7\&.10\&.
 .RE
 .sp
 .RS 4
@@ -2228,7 +2270,7 @@ AFTER)\&. MySQL 5\&.7\&.2 lifts this limitation and multiple triggers are permit
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
 dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-the section called \(lqChanges Affecting Downgrades from MySQL 5.7\(rq; you can convert triggers to be compatible with older servers\&.)
+Section\ \&2.11.2.1, \(lqChanges Affecting Downgrades from MySQL 5.7\(rq; you can convert triggers to be compatible with older servers\&.)
 .RE
 .sp
 .RS 4
@@ -2489,7 +2531,7 @@ database for proper restoration\&.
 .br
 For upgrades to MySQL 5\&.7\&.2 or higher from older versions, do not use
 \fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.10.1.3, \(lqUpgrading from MySQL 5.6 to 5.7\(rq\&.
+Section\ \&2.11.1.1, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -2913,7 +2955,7 @@ mysql
 database\&. Log table contents are not dumped\&.
 .PP
 If you encounter problems backing up views due to insufficient privileges, see
-Section\ \&D.5, \(lqRestrictions on Views\(rq
+Section\ \&C.5, \(lqRestrictions on Views\(rq
 for a workaround\&.
 .SH "COPYRIGHT"
 .br

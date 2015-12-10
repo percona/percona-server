@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 10/12/2015
+.\"      Date: 11/28/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "10/12/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,6 +43,25 @@ is the recommended way to start a
 server on Unix\&.
 \fBmysqld_safe\fR
 adds some safety features such as restarting the server when an error occurs and logging runtime information to an error log file\&. A description of error logging is given later in this section\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+As of MySQL 5\&.7\&.6, for MySQL installation using an RPM distribution, server startup and shutdown is managed by systemd on several Linux platforms\&. On these platforms,
+\fBmysqld_safe\fR
+is no longer installed because it is unnecessary\&. For more information, see
+Section\ \&2.5.10, \(lqManaging MySQL Server with systemd\(rq\&.
+.sp .5v
+.RE
 .PP
 \fBmysqld_safe\fR
 tries to start an executable named

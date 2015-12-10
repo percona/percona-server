@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql.server\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 10/12/2015
+.\"      Date: 11/28/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\&.SERVER\FR" "1" "10/12/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\&.SERVER\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,6 +38,27 @@ mysql.server \- MySQL server startup script
 MySQL distributions on Unix include a script named
 \fBmysql\&.server\fR, which starts the server using
 \fBmysqld_safe\fR\&. It can be used on systems such as Linux and Solaris that use System V\-style run directories to start and stop system services\&. It is also used by the OS X Startup Item for MySQL\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+As of MySQL 5\&.7\&.6, for MySQL installation using an RPM distribution, server startup and shutdown is managed by systemd on several Linux platforms\&. On these platforms,
+\fBmysql\&.server\fR
+and
+\fBmysqld_safe\fR
+are no longer installed because they are unnecessary\&. For more information, see
+Section\ \&2.5.10, \(lqManaging MySQL Server with systemd\(rq\&.
+.sp .5v
+.RE
 .PP
 To start or stop the server manually using the
 \fBmysql\&.server\fR

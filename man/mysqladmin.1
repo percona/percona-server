@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 10/12/2015
+.\"      Date: 11/28/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "10/12/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -229,7 +229,7 @@ Kill server threads\&. If multiple thread ID values are given, there must be no 
 .sp -1
 .IP \(bu 2.3
 .\}
-old\-password \fInew\-password\fR
+old\-password \fInew_password\fR
 .sp
 This is like the
 password
@@ -245,10 +245,10 @@ Section\ \&6.1.2.4, \(lqPassword Hashing in MySQL\(rq\&.)
 .sp -1
 .IP \(bu 2.3
 .\}
-password \fInew\-password\fR
+password \fInew_password\fR
 .sp
 Set a new password\&. This changes the password to
-\fInew\-password\fR
+\fInew_password\fR
 for the account that you use with
 \fBmysqladmin\fR
 for connecting to the server\&. Thus, the next time you invoke
@@ -256,7 +256,7 @@ for connecting to the server\&. Thus, the next time you invoke
 (or any other client program) using the same account, you will need to specify the new password\&.
 .sp
 If the
-\fInew\-password\fR
+\fInew_password\fR
 value contains spaces or other characters that are special to your command interpreter, you need to enclose it within quotation marks\&. On Windows, be sure to use double quotation marks rather than single quotation marks; single quotation marks are not stripped from the password, but rather are interpreted as part of the password\&. For example:
 .sp
 .if n \{\
@@ -838,7 +838,7 @@ groups\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.3.9.6, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&6.3.9.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
 .RE
 .sp
 .RS 4

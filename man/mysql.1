@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 10/12/2015
+.\"      Date: 11/28/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "10/12/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -404,6 +404,11 @@ Write a debugging log\&. A typical
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:o,/tmp/mysql\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -597,7 +602,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.3.9.6, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&6.3.9.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -1838,7 +1843,7 @@ command)\&.
 .PP
 Each command has both a long and short form\&. The long form is not case sensitive; the short form is\&. The long form can be followed by an optional semicolon terminator, but the short form should not\&.
 .PP
-The use of short\-form commands within multi\-line
+The use of short\-form commands within multiple\-line
 /* \&.\&.\&. */
 comments is not supported\&.
 .sp
@@ -1959,7 +1964,7 @@ is set to something other than the default of
 \(lq;\(rq, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 \(lq;\(rq
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&22.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&23.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&19.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2228,8 +2233,8 @@ Reset the connection to clear the session state\&. This command was added in MyS
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&22.8.7.3, \(lqmysql_change_user()\(rq) and see
-Section\ \&22.8.16, \(lqControlling Automatic Reconnection Behavior\(rq)\&.
+Section\ \&23.8.7.3, \(lqmysql_change_user()\(rq) and see
+Section\ \&23.8.16, \(lqControlling Automatic Reconnection Behavior\(rq)\&.
 .sp
 This example shows how
 resetconnection
@@ -2995,7 +3000,7 @@ Consequently, an input statement that spans multiple lines can be logged twice\&
 mysql> \fBSELECT\fR
     \-> \fB\*(AqToday is\*(Aq\fR
     \-> \fB,\fR
-    \-> \fBCONCAT()\fR
+    \-> \fBCURDATE()\fR
     \-> \fB;\fR
 .fi
 .if n \{\
@@ -3008,7 +3013,7 @@ logs the
 \(lqSELECT\(rq,
 \(lq\*(AqToday is\*(Aq\(rq,
 \(lq,\(rq,
-\(lqCONCAT()\(rq, and
+\(lqCURDATE()\(rq, and
 \(lq;\(rq
 lines as it reads them\&. It also logs the complete statement, after mapping
 SELECT\en\*(AqToday is\*(Aq\en,\enCURDATE()
@@ -3854,7 +3859,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&22.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&23.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

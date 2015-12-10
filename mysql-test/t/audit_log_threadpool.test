@@ -3,7 +3,8 @@
 let $MYSQLD_DATADIR= `select @@datadir`;
 let MYSQLD_DATADIR= $MYSQLD_DATADIR;
 
---move_file $MYSQLD_DATADIR/test_audit_threadpool.log $MYSQLD_DATADIR/test_audit_threadpool_garbage.log
+set global audit_log_flush= ON;
+--remove_file $MYSQLD_DATADIR/test_audit_threadpool.log
 set global audit_log_flush= ON;
 
 --source include/count_sessions.inc
@@ -36,5 +37,4 @@ perl;
 EOF
 
 --remove_file $MYSQLD_DATADIR/test_audit_threadpool.log
---remove_file $MYSQLD_DATADIR/test_audit_threadpool_garbage.log
 --remove_file $MYSQLD_DATADIR/test_audit_threadpool_done.log

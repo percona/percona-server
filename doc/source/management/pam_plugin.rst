@@ -75,9 +75,5 @@ This feature enables using secondary groups in the mapping part of the authentic
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`
-    PAM authentication plugin has been integrated with |Percona Server|.
-  
-  * :rn:`5.6.12-60.4`
-    Implemented PAM support for supplementary groups.
-
+  * :rn:`5.7.10-1`
+    Feature ported from |Percona Server| 5.6

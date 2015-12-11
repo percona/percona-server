@@ -4,7 +4,7 @@
  Start transaction with consistent snapshot
 ============================================
 
-|Percona Server|, in :rn:`5.6.17-66.0`, has ported *MariaDB* `enhancement <https://mariadb.com/kb/en/enhancements-for-start-transaction-with-consistent/>`_ for ``START TRANSACTION WITH CONSISTENT SNAPSHOTS`` feature to |MySQL| 5.6 group commit implementation. This enhancement makes binary log positions consistent with |InnoDB| transaction snapshots.
+|Percona Server| has ported *MariaDB* `enhancement <https://mariadb.com/kb/en/enhancements-for-start-transaction-with-consistent/>`_ for ``START TRANSACTION WITH CONSISTENT SNAPSHOTS`` feature to |MySQL| 5.6 group commit implementation. This enhancement makes binary log positions consistent with |InnoDB| transaction snapshots.
 
 This feature is quite useful to obtain logical backups with correct positions without running a ``FLUSH TABLES WITH READ LOCK``. Binary log position can be obtained by two newly implemented status variables: :variable:`Binlog_snapshot_file` and :variable:`Binlog_snapshot_position`. After starting a transaction using the ``START TRANSACTION WITH CONSISTENT SNAPSHOT``, these two variables will provide you with the binlog position corresponding to the state of the database of the consistent snapshot so taken, irrespectively of which other transactions have been committed since the snapshot was taken.
 
@@ -35,7 +35,6 @@ System Variables
 
 .. variable:: have_snapshot_cloning
 
-     :version 5.6.16-64.0: Implemented
      :cli: Yes
      :conf: No
      :scope: Global
@@ -49,12 +48,10 @@ Status Variables
 
 .. variable:: Binlog_snapshot_file
 
-     :version 5.6.17-66.0: Implemented
      :vartype: Numeric
 
 .. variable:: Binlog_snapshot_position
 
-     :version 5.6.17-66.0: Implemented
      :vartype: Numeric
 
 These status variables are only available when the binary log is enabled globally.

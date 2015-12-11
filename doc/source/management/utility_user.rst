@@ -50,12 +50,17 @@ Option :variable:`utility_user_privileges` allows a comma-separated list of extr
 
  Example: :option:`--utility-user-privileges` ="CREATE, DROP, LOCK TABLES"
 
+Version Specific Information
+============================
+
+  * :rn:`5.7.10-1`
+        Feature ported from |Percona Server| 5.6
+
 System Variables
 ================
 
 .. variable:: utility_user
 
-     :version 5.6.11-60.3: Implemented
      :cli: Yes
      :conf: utility_user=<user@host>
      :scope: Global
@@ -67,7 +72,6 @@ Specifies a MySQL user that will be added to the internal list of users and reco
 
 .. variable:: utility_user_password
 
-     :version 5.6.11-60.3: Implemented
      :cli: Yes
      :conf: utility_user_password=<password>
      :scope: Global
@@ -79,7 +83,6 @@ Specifies the password required for the utility user.
 
 .. variable:: utility_user_schema_access
 
-     :version 5.6.11-60.3: Implemented
      :cli: Yes
      :conf: utility_user_schema_access=<schema>,<schema>,<schema>
      :scope: Global
@@ -91,7 +94,6 @@ Specifies the schemas that the utility user has access to in a comma delimited l
 
 .. variable:: utility_user_privileges
 
-   :version 5.6.13-60.6: Implemented
    :cli: Yes
    :conf: utility_user_privileges=<privilege1>,<privilege2>,<privilege3>
    :scope: Global

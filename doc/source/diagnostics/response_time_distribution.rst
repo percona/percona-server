@@ -78,7 +78,7 @@ Logging the queries in separate ``READ`` and ``WRITE`` tables
 
   This feature is considered **BETA** quality.
 
-|Percona Server| :rn:`5.6.22-72.0` is now able to log the queries response times into separate ``READ`` and ``WRITE`` ``INFORMATION_SCHEMA`` tables. The two new tables are named :table:`QUERY_RESPONSE_TIME_READ` and :table:`QUERY_RESPONSE_TIME_WRITE` respectively. The decision on whether a query is a ``read`` or a ``write`` is based on the type of the command. Thus, for example, an ``UPDATE ... WHERE <condition>`` is always logged as a ``write`` query even if ``<condition>`` is always false and thus no actual writes happen during its execution.
+|Percona Server| is now able to log the queries response times into separate ``READ`` and ``WRITE`` ``INFORMATION_SCHEMA`` tables. The two new tables are named :table:`QUERY_RESPONSE_TIME_READ` and :table:`QUERY_RESPONSE_TIME_WRITE` respectively. The decision on whether a query is a ``read`` or a ``write`` is based on the type of the command. Thus, for example, an ``UPDATE ... WHERE <condition>`` is always logged as a ``write`` query even if ``<condition>`` is always false and thus no actual writes happen during its execution.
 
 Following SQL commands will be considered as ``WRITE`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_WRITE` table: ``CREATE_TABLE``, ``CREATE_INDEX``, ``ALTER_TABLE``, ``TRUNCATE``, ``DROP_TABLE``, ``LOAD``, ``CREATE_DB``, ``DROP_DB``, ``ALTER_DB``, ``RENAME_TABLE``, ``DROP_INDEX``, ``CREATE_VIEW``, ``DROP_VIEW``, ``CREATE_TRIGGER``, ``DROP_TRIGGER``, ``CREATE_EVENT``, ``ALTER_EVENT``, ``DROP_EVENT``, ``UPDATE``, ``UPDATE_MULTI``, ``INSERT``, ``INSERT_SELECT``, ``DELETE``, ``DELETE_MULTI``, ``REPLACE``, ``REPLACE_SELECT``, ``CREATE_USER``, ``RENAME_USER``, ``DROP_USER``, ``ALTER_USER``, ``GRANT``, ``REVOKE``, ``REVOKE_ALL``, ``OPTIMIZE``, ``CREATE_FUNCTION``, ``CREATE_PROCEDURE``, ``CREATE_SPFUNCTION``, ``DROP_PROCEDURE``, ``DROP_FUNCTION``, ``ALTER_PROCEDURE``, ``ALTER_FUNCTION``, ``INSTALL_PLUGIN``, and ``UNINSTALL_PLUGIN``. Commands not listed here are considered as ``READ`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_READ` table.
 
@@ -103,13 +103,13 @@ This plugin provides the interface (:table:`QUERY_RESPONSE_TIME`) to output gath
 
    mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME_READ SONAME 'query_response_time.so';
 
-This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_READ`) to output gathered statistics. **NOTE:** Available in |Percona Server| :rn:`5.6.22-72.0` or later.
+This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_READ`) to output gathered statistics.
 
 .. code-block:: mysql
 
    mysql> INSTALL PLUGIN QUERY_RESPONSE_TIME_WRITE SONAME 'query_response_time.so';
 
-This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_WRITE`) to output gathered statistics. **NOTE:** Available in |Percona Server| :rn:`5.6.22-72.0` or later.
+This plugin provides the interface (:table:`QUERY_RESPONSE_TIME_WRITE`) to output gathered statistics. 
 
 You can check if plugins are installed correctly by running:
 
@@ -193,18 +193,14 @@ Time is collected after query execution completes (before clearing data structur
 Version Specific Information
 ============================
 
-  * :rn:`5.6.21-69.0`:
-    Feature ported from |Percona Server| 5.5 as a plugin
-
-  * :rn:`5.6.22-72.0`:
-    Implemented query logging based on ``READ`` and ``WRITE`` queries.
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6 
 
 System Variables
 ================
 
 .. variable:: query_response_time_flush
 
-     :version 5.6.21-69.0: Introduced.
      :scope: Global
      :dyn: No
      :vartype: Boolean
@@ -234,7 +230,6 @@ Sets up the logarithm base for the scale.
 
 .. variable:: query_response_time_stats
 
-     :version 5.6.21-69.0: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global

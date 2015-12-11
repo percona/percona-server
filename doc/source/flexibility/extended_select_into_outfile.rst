@@ -10,7 +10,7 @@ This feature allows using ``LOAD DATA LOCAL INFILE`` in combination with ``SELEC
 
 Version Specific Information
 ============================
-* :rn:`5.6.13-61.0` - Feature Implemented
+* :rn:`5.7.10-1` - Feature ported from |Percona Server| 5.6 
 
 Other Reading
 =============

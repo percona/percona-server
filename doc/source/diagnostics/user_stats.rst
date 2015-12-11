@@ -12,8 +12,8 @@ The functionality is disabled by default, and must be enabled by setting ``users
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`:
-     Feature ported from |Percona Server| 5.5.
+  * :rn:`5.7.10-1`:
+     Feature ported from |Percona Server| 5.6.
 
 Other Information
 =================
@@ -26,7 +26,6 @@ System Variables
 
 .. variable:: userstat
 
-     :version 5.6.11-60.3: Variable introduced
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -39,7 +38,6 @@ Enables or disables collection of statistics. The default is ``OFF``, meaning no
 
 .. variable:: thread_statistics
 
-     :version 5.6.11-60.3: Feature ported from |Percona Server| 5.5
      :cli: Yes
      :conf: Yes
      :scope: Global

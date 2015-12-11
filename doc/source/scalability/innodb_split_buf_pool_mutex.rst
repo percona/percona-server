@@ -31,7 +31,7 @@ The goal of this change is to reduce mutex contention, which can be very impacti
 
 Version Specific Information
 ============================
- * :rn:`5.6.13-60.6` - Feature ported from |Percona Server| 5.5
+ * :rn:`5.7.10-1` - Feature ported from |Percona Server| 5.6
 
 Other Information
 =================

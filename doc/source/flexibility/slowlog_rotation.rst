@@ -17,18 +17,14 @@ Percona has implemented two new variables, :variable:`max_slowlog_size` and :var
 Version Specific Information
 ============================
 
-  * :rn:`5.6.16-64.0`:
-    Variable :variable:`max_slowlog_size` introduced.
-
-  * :rn:`5.6.16-64.0`:
-    Variable :variable:`max_slowlog_files` introduced.
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6
 
 System Variables
 ================
 
 .. variable:: max_slowlog_size
 
-     :version 5.6.16-64.0: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -41,7 +37,6 @@ Slow query log will be rotated automatically when its size exceeds this value. T
 
 .. variable:: max_slowlog_files
 
-     :version 5.6.16-64.0: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global

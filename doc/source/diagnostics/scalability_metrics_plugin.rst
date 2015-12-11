@@ -4,7 +4,7 @@
  Metrics for scalability measurement
 =====================================
 
-|Percona Server| has implemented extra scalability metrics in :rn:`5.6.17-65.0`. These metrics allow using Little's Law, queueing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
+|Percona Server| has implemented extra scalability metrics. These metrics allow using Little's Law, queueing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
 
 Installation
 ============
@@ -37,7 +37,6 @@ System Variables
 
 .. variable:: scalability_metrics_control
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: Yes
@@ -52,35 +51,30 @@ Status Variables
 
 .. variable:: scalability_metrics_elapsedtime
    
-   :version 5.6.17-65.0: Implemented
    :vartype: Numeric
 
 This status variable shows total time elapsed, in microseconds, since metrics collection was started.
 
 .. variable:: scalability_metrics_queries
    
-   :version 5.6.17-65.0: Implemented
    :vartype: Numeric
 
 This status variable shows number of completed queries since metrics collection was started.
 
 .. variable:: scalability_metrics_concurrency
    
-   :version 5.6.17-65.0: Implemented
    :vartype: Numeric
 
 This status variable shows number of queries currently executed.
 
 .. variable:: scalability_metrics_totaltime
    
-   :version 5.6.17-65.0: Implemented
    :vartype: Numeric
 
 This status variable shows total execution time of all queries, including the in-progress time of currently executing queries, in microseconds (ie. if two queries executed with 1 second of response time each, the result is 2 seconds).
 
 .. variable:: scalability_metrics_busytime
    
-   :version 5.6.17-65.0: Implemented
    :vartype: Numeric
 
 This counter accounts the non-idle server time, that is, time when at least one query was executing. 
@@ -89,8 +83,8 @@ This counter accounts the non-idle server time, that is, time when at least one 
 Version Specific Information
 ============================
 
-  * :rn:`5.6.17-65.0`
-    Scalability Metrics plugin has been implemented in |Percona Server|.
+  * :rn:`5.7.10-1`
+    Feature ported from |Percona Server| 5.6
 
 Other Reading
 =============

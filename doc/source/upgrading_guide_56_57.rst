@@ -1,30 +1,26 @@
 .. _upgrading_guide:
 
 ==========================================================
- Percona Server In-Place Upgrading Guide: From 5.5 to 5.6
+ Percona Server In-Place Upgrading Guide: From 5.6 to 5.7
 ==========================================================
 
 In-place upgrades are those which are done using the existing data in the server. Generally speaking, this is stopping the server, installing the new server and starting it with the same data files. While they may not be suitable for high-complexity environments, they may be adequate for many scenarios.
 
-The following is a summary of the more relevant changes in the 5.6 series. For more details, see
+The following is a summary of the more relevant changes in the 5.7 series. For more details, see
 
   * :ref:`Percona Server documentation <dochome>`
 
-  * :ref:`changed_in_56`
+  * :ref:`changed_in_57`
 
-  * `Upgrading from MySQL 5.5 to 5.6 <http://dev.mysql.com/doc/refman/5.6/en/upgrading-from-previous-series.html>`_
+  * `Upgrading from MySQL 5.6 to 5.7 <http://dev.mysql.com/doc/refman/5.7/en/upgrading-from-previous-series.html>`_
 
 .. warning:: 
 
- Upgrade from 5.5 to 5.6 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade. 
+ Upgrade from 5.6 to 5.7 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade. 
 
 .. note::
 
  Upgrading the from older |Percona Server| version that doesn't have default (16k) |InnoDB| page size is not recommended. This could happen if the variable `innodb_page_size <http://www.percona.com/doc/percona-server/5.5/flexibility/innodb_files_extend.html>`_ was set to non-default value.
-
-.. note:: 
-
- In place upgrade is not possible if :ref:`Fast InnoDB Checksum <ps55:innodb_fast_checksum_page>` feature has been used. If this feature was enabled, turning it off before the upgrade requires table(s) to be dumped and imported, since the server will fail to start on data files created when :variable:`innodb_fast_checksums` was enabled. As an alternative you can use :program:`innochecksum` from |MySQL| 5.7 as described in this `blogpost <http://dbadojo.com/2015/07/16/innodb_fast_checksum_mysql56_upgrade/>`_. 
 
 Upgrading using the Percona repositories
 ========================================
@@ -48,11 +44,11 @@ and proceed to do the modifications needed in your configuration file, as explai
 
 Then install the new server with: ::
 
-  $ sudo apt-get install percona-server-server-5.6
+  $ sudo apt-get install percona-server-server-5.7
 
 The installation script will run automatically :command:`mysql_upgrade` to migrate to the new grant tables, rebuild the indexes where needed and then start the server.
 
-Note that this procedure is the same for upgrading from |MySQL| 5.5 or 5.6 to |Percona Server| 5.6.
+Note that this procedure is the same for upgrading from |MySQL| 5.6 or 5.7 to |Percona Server| 5.7.
 
 ``RPM``-based distributions
 ---------------------------
@@ -80,13 +76,13 @@ Note that this procedure is the same for upgrading from |MySQL| 5.5 or 5.6 to |P
 
 You will have to install the following packages:
 
-  * ``Percona-Server-server-56``
+  * ``Percona-Server-server-57``
 
-  * ``Percona-Server-client-56``
+  * ``Percona-Server-client-57``
 
 ::
 
-  $ yum install Percona-Server-server-56 Percona-Server-client-56
+  $ yum install Percona-Server-server-57 Percona-Server-client-57
 
 Once installed, proceed to modify your configuration file - :file:`my.cnf` - and recompile the plugins if necessary, as explained at the beginning of this guide.
 

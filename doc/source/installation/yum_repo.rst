@@ -4,14 +4,12 @@
  Installing |Percona Server| on Red Hat Enterprise Linux and CentOS
 ====================================================================
 
-Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_. The |Percona| :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
+Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The |Percona| :program:`yum` repository supports popular *RPM*-based operating systems, including the *Amazon Linux AMI*.
 
 The easiest way to install the *Percona Yum* repository is to install an *RPM* that configures :program:`yum` and installs the `Percona GPG key <https://www.percona.com/downloads/RPM-GPG-KEY-percona>`_.
 
 Supported Releases:
 
-
- * *CentOS* 5 and *RHEL* 5
 
  * *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_
 
@@ -31,19 +29,19 @@ What's in each RPM package?
 
 Each of the |Percona Server| RPM packages have a particular purpose.
 
-The ``Percona-Server-server-56`` package contains the server itself (the ``mysqld`` binary).
+The ``Percona-Server-server-57`` package contains the server itself (the ``mysqld`` binary).
 
-The ``Percona-Server-56-debuginfo`` package contains debug symbols for the server.
+The ``Percona-Server-57-debuginfo`` package contains debug symbols for the server.
 
-The ``Percona-Server-client-56`` package contains the command line client.
+The ``Percona-Server-client-57`` package contains the command line client.
 
-The ``Percona-Server-devel-56`` package contains the header files needed to compile software using the client library.
+The ``Percona-Server-devel-57`` package contains the header files needed to compile software using the client library.
 
-The ``Percona-Server-shared-56`` package includes the client shared library.
+The ``Percona-Server-shared-57`` package includes the client shared library.
 
-The ``Percona-Server-shared-compat`` package includes shared libraries for software compiled against old versions of the client library. Following libraries are included in this package: ``libmysqlclient.so.12``, ``libmysqlclient.so.14``, ``libmysqlclient.so.15``, and ``libmysqlclient.so.16``.
+The ``Percona-Server-shared-compat`` package includes shared libraries for software compiled against old versions of the client library. Following libraries are included in this package: ``libmysqlclient.so.12``, ``libmysqlclient.so.14``, ``libmysqlclient.so.15``, ``libmysqlclient.so.16``, and ``libmysqlclient.so.18``.
 
-The ``Percona-Server-test-56`` package includes the test suite for |Percona Server|.
+The ``Percona-Server-test-57`` package includes the test suite for |Percona Server|.
 
 Installing |Percona Server| from Percona ``yum`` repository
 ===========================================================
@@ -102,7 +100,7 @@ Installing |Percona Server| from Percona ``yum`` repository
 
    .. code-block:: bash
 
-     yum install Percona-Server-server-56
+     yum install Percona-Server-server-57
 
 Percona `yum` Testing repository
 --------------------------------
@@ -115,7 +113,7 @@ Percona offers pre-release builds from our testing repository. To subscribe to t
 Installing |Percona Server| using downloaded rpm packages
 =========================================================
 
-1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.6.25-73.1 release packages for *CentOS* 6:
+1. Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.6.25-73.1 release packages for *CentOS* 6:
 
    .. code-block:: bash
  

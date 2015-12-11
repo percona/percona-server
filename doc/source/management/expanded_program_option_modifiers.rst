@@ -31,8 +31,8 @@ Some of the option modifiers may be used together in the same option specificati
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`
-    Expanded program option modifiers implemented
+  * :rn:`5.7.10-1`
+    Feature ported from |Percona Server| 5.6
 
 Examples
 ========

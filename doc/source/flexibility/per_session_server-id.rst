@@ -11,15 +11,14 @@ This was implemented by introducing the new :variable:`pseudo_server_id` variabl
 Version Specific Information
 ============================
 
-  * :rn:`5.6.26-74.0`
-    Feature implemented and :variable:`pseudo_server_id` variable has been introduced
+  * :rn:`5.7.10-1`
+    Feature ported from |Percona Server| 5.6
 
 System Variables
 ================
 
 .. variable:: pseudo_server_id
 
-   :version 5.6.26-74.0: Introduced.
    :cli: Yes
    :conf: Yes
    :scope: Global

@@ -6,7 +6,7 @@
 .. _dochome:
 
 ===================================
- Percona Server 5.6 - Documentation
+ Percona Server 5.7 - Documentation
 ===================================
 
 |Percona Server| is an enhanced drop-in replacement for |MySQL|. With |Percona Server|,
@@ -37,7 +37,7 @@ Introduction
    percona_xtradb
    ps-versions-comparison
    feature_comparison
-   changed_in_56
+   changed_in_57
 
 Installation
 ============
@@ -47,7 +47,7 @@ Installation
    :glob:
 
    installation
-   upgrading_guide_55_56
+   upgrading_guide_56_57
 
 Scalability Improvements
 ========================
@@ -58,8 +58,6 @@ Scalability Improvements
 
    scalability/innodb_split_buf_pool_mutex
    scalability/innodb_io
-   scalability/innodb_adaptive_hash_index_partitions
-   scalability/multiple_user_level_locks
 
 Performance Improvements
 ========================
@@ -68,13 +66,9 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
-   performance/atomic_fio
    performance/query_cache_enhance
    performance/innodb_numa_support
-   performance/handlersocket
-   performance/buff_read_ahead_area
    performance/threadpool
-   performance/page_cleaner_tuning
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
 
 Flexibility Improvements
@@ -87,14 +81,11 @@ Flexibility Improvements
    flexibility/log_warnings_suppress
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
-   flexibility/mysqldump_ignore_create_error
    flexibility/extended_select_into_outfile
    flexibility/per_query_variable_statement
    flexibility/extended_mysqlbinlog
    flexibility/slowlog_rotation
-   flexibility/mysqlbinlog_change_db
    flexibility/csv_engine_mode
-   flexibility/online_gtid_deployment
    flexibility/proxy_protocol_support
    flexibility/per_session_server-id
 
@@ -106,9 +97,7 @@ Reliability Improvements
    :glob:
 
    reliability/log_connection_error
-   reliability/error_pad
    reliability/innodb_corrupt_table_action
-   reliability/show_slave_status_nolock
 
 Management Improvements
 =======================
@@ -118,21 +107,16 @@ Management Improvements
    :glob:
 
    management/udf_percona_toolkit
-   management/innodb_fake_changes
    management/innodb_kill_idle_trx
    management/enforce_engine
    management/utility_user
-   management/secure_file_priv_extended
    management/expanded_program_option_modifiers
    management/changed_page_tracking
    management/pam_plugin
    management/innodb_expanded_fast_index_creation
-   management/log_archiving
-   management/statement_timeout
    management/backup_locks
    management/audit_log_plugin
    management/start_transaction_with_consistent_snapshot
-   management/super_read_only
    management/extended_show_grants
 
 Diagnostics Improvements
@@ -145,10 +129,7 @@ Diagnostics Improvements
    diagnostics/user_stats
    diagnostics/slow_extended
    diagnostics/innodb_show_status
-   diagnostics/innodb_deadlock_count
-   diagnostics/mysql_syslog
    diagnostics/show_engines
-   diagnostics/innodb_show_lock_names
    diagnostics/process_list
    diagnostics/misc_info_schema_tables
    diagnostics/thread_based_profiling

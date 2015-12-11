@@ -4,7 +4,7 @@
  CSV engine mode for standard-compliant quote and comma parsing
 ================================================================
 
-`MySQL CSV Storage Engine <https://dev.mysql.com/doc/refman/5.6/en/csv-storage-engine.html>`_ is non-standard with respect to embedded ``"`` and ``,`` character parsing. Fixing this issue unconditionally would break |MySQL| CSV format compatibility for any pre-existing user tables and for data exchange with other |MySQL| instances, but it would improve compatibility with other CSV producing/consuming tools.
+`MySQL CSV Storage Engine <https://dev.mysql.com/doc/refman/5.7/en/csv-storage-engine.html>`_ is non-standard with respect to embedded ``"`` and ``,`` character parsing. Fixing this issue unconditionally would break |MySQL| CSV format compatibility for any pre-existing user tables and for data exchange with other |MySQL| instances, but it would improve compatibility with other CSV producing/consuming tools.
 
 To keep both |MySQL| and other tool compatibility, a new dynamic, global/session server variable :variable:`csv_mode` has been implemented. This variable allows an empty value (the default), and ``IETF_QUOTES``. 
 
@@ -74,15 +74,14 @@ With :variable:`csv_mode` set to ``IETF_QUOTES`` parsed data will look like:
 Version Specific Information
 ============================
 
-  * :rn:`5.6.21-70.0`:
-    Variable :variable:`csv_mode` implemented
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6
 
 System Variables
 ================
 
 .. variable:: csv_mode
 
-     :version 5.6.21-70.0: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global, Session

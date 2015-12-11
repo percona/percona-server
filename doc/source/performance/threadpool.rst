@@ -40,7 +40,7 @@ The default thread pool behavior is to always put events from already started tr
 
 With the value of ``0``, all connections are always put into the common queue, i.e. no priority scheduling is used as in the original implementation in |MariaDB|. The higher is the value, the more chances each transaction gets to enter the high priority queue and commit before it is put in the common queue.
 
-In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in |Percona Server| :rn:`5.6.15-63.0`. 
+In some cases it is required to prioritize all statements for a specific connection regardless of whether they are executed as a part of a multi-statement transaction or in the autocommit mode. Or vice versa, some connections may require using the low priority queue for all statements unconditionally. To implement this new :variable:`thread_pool_high_prio_mode` variable has been introduced in |Percona Server|. 
 
 .. _low_priority_queue_throttling:
 
@@ -63,26 +63,8 @@ Version Specific Information
 ============================
 
  * :rn:`5.6.10-60.2`
-    ``Thread Pool`` feature implemented. This feature was ported from |MariaDB|.
+    ``Thread Pool`` feature ported from |Percona Server| 5.6. 
 
- * :rn:`5.6.11-60.3`
-    Implemented priority connection scheduling and introduced new variable :variable:`thread_pool_high_prio_tickets` to the original implementation introduced in |MariaDB|.
-
- * :rn:`5.6.15-63.0`
-     Default value for :variable:`thread_pool_max_threads` was changed from ``500`` to ``100 000``. This change was introduced because limiting the total number of threads in the :ref:`threadpool` can result in deadlocks and uneven distribution of worker threads between thread groups in case of stalled connections.
-
- * :rn:`5.6.15-63.0`
-     Default value for :variable:`thread_pool_high_prio_tickets` was changed from ``0`` to ``4294967295`` to enable the priority connection scheduling by default.
-
- * :rn:`5.6.15-63.0`
-     Implemented new :variable:`thread_pool_high_prio_mode` variable.
-
- * :rn:`5.6.15-63.0`
-     Implemented :ref:`low_priority_queue_throttling`.
-
- * :rn:`5.6.15-63.0`
-     Ported |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_ to improve Thread Pool behavior when network wait times are not insignificant.
-     
 System Variables
 ================
 

@@ -19,15 +19,14 @@ As a special exception, it is forbidden for the proxied IP address to be ``127.0
 Version Specific Information
 ============================
 
-  * :rn:`5.6.25-73.0`:
-    Initial implementation
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6
 
 System Variables
 ================
 
 .. variable:: proxy_protocol_networks
 
-  :version 5.6.25-73.0: Introduced.
   :cli: Yes
   :conf: Yes
   :scope: Global

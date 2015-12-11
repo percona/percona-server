@@ -77,7 +77,7 @@ Package: percona-server-common-5.7
 Section: database
 Architecture: any
 Multi-Arch: foreign
-Depends: mysql-common (>= ${source:Version}),
+Depends: mysql-common,
          ${misc:Depends}
 Description: Percona Server database common files (e.g. /etc/mysql/my.cnf)
  Percona Server is a fast, stable and true multi-user, multi-threaded SQL

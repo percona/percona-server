@@ -12,20 +12,8 @@ You can use *Percona-Toolkit*'s `pt-query-digest <http://www.percona.com/doc/per
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`:
-     * Feature ported from |Percona Server| 5.5.
-
-  * :rn:`5.6.13-60.6`:
-     * New :variable:`slow_query_log_always_write_time` variable introduced
-
-  * :rn:`5.6.22-71.0`:
-     * Implemented improved slow log reporting for queries in stored procedures.
-
-Other Information
-=================
-
-  * Author / Origin:
-    Maciej Dobrzanski
+  * :rn:`5.7.10-1`:
+     * Feature ported from |Percona Server| 5.6.
 
 System Variables
 ================
@@ -103,11 +91,9 @@ Decision "log or no" calculated in following manner:
 
 This allows flexible setup logging behavior.
 
-For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| :rn:`5.6.13-60.6` information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
+For example, if you set the value to 100, then one percent of ``sessions/queries`` will be logged. In |Percona Server| information about the :variable:`log_slow_rate_limit` has been added to the slow query log. This means that if the :variable:`log_slow_rate_limit` is effective it will be reflected in the slow query log for each written query. Example of the output looks like this: ::
  
   Log_slow_rate_type: query  Log_slow_rate_limit: 10
-
-Prior to :rn:`5.6.17-65.0` implementation of the :variable:`log_slow_rate_type` set to ``query`` with :variable:`log_slow_rate_limit` feature would log every nth query deterministically. With the current implementation each query has a non-deterministic probability of 1/n to get logged.
 
 .. variable:: log_slow_sp_statements
 
@@ -123,7 +109,7 @@ If ``TRUE``, statements executed by stored procedures are logged to the slow if 
 
 .. _improved_sp_reporting:
 
-Prior to :rn:`5.6.22-71.0` implementation of logging stored procedures was logging the stored procedure ``CALLs`` themselves along with the queries inside the procedures. This meant that some queries were counted more than once which could make tracking the bad-performing queries harder and it would cause noise in the slow query log. |Percona Server| :rn:`5.6.22-71.0` implemented improvements for logging of stored procedures to the slow query log:
+|Percona Server| implemented improvements for logging of stored procedures to the slow query log:
  * Each query from a stored procedure is now logged to the slow query log individually
  * ``CALL`` itself isn't logged to the slow query log anymore as this would be counting twice for the same query which would lead to incorrect results
  * Queries that were called inside of stored procedures are annotated in the slow query log with the stored procedure name in which they run.
@@ -213,36 +199,6 @@ Specifies how much information to include in your slow log. The value is a comma
 Values are OR'ed together.
 
 For example, to enable microsecond query timing and |InnoDB| statistics, set this option to ``microtime,innodb`` or ``standard``. To turn all options on, set the option to ``full``.
-
-.. variable:: slow_query_log_timestamp_always
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Boolean
-     :default: FALSE
-     :range: TRUE/FALSE
-
-If ``TRUE``, a timestamp is printed on every slow log record. Multiple records may have the same time.
-
-.. variable:: slow_query_log_timestamp_precision
-
-     :cli: Yes
-     :conf: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: Enumerated
-     :default: ``second``
-     :range: ``second``, ``microsecond``
-
-Normally, entries to the slow query log are in seconds precision, in this format: ::
-
-  # Time: 090402 9:23:36 # User@Host: XXX @ XXX [10.X.X.X]
-
-If :variable:`slow_query_log_timestamp_precision` ``=microsecond``, entries to the slow query log are in microsecond precision, in this format: ::
-
-  # Time: 090402 9:23:36.123456 # User@Host: XXX @ XXX [10.X.X.X]
 
 .. variable:: slow_query_log_use_global_control
 

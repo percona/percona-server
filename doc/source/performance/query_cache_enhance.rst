@@ -65,6 +65,6 @@ Makes the server ignore comments when checking for a query cache hit.
 Other Reading
 -------------
 
-  * `MySQL general thread states <http://dev.mysql.com/doc/refman/5.6/en/general-thread-states.html>`_
+  * `MySQL general thread states <http://dev.mysql.com/doc/refman/5.7/en/general-thread-states.html>`_
 
   * `Query cache freezes <http://www.mysqlperformanceblog.com/2009/03/19/mysql-random-freezes-could-be-the-query-cache/>`_

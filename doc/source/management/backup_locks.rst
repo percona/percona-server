@@ -4,7 +4,7 @@
  Backup Locks
 ==============
 
-|Percona Server| has implemented this feature in :rn:`5.6.16-64.0` to be a lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and logical backups. Three new statements are now available: ``LOCK TABLES FOR BACKUP``, ``LOCK BINLOG FOR BACKUP`` and ``UNLOCK BINLOG``.
+|Percona Server| has implemented this feature to be a lightweight alternative to ``FLUSH TABLES WITH READ LOCK`` for both physical and logical backups. Three new statements are now available: ``LOCK TABLES FOR BACKUP``, ``LOCK BINLOG FOR BACKUP`` and ``UNLOCK BINLOG``.
 
 ``LOCK TABLES FOR BACKUP``
 ---------------------------
@@ -26,7 +26,7 @@ If an "unsafe" statement is executed in the same connection that is holding a ``
 
 .. _backup-safe_binlog_information:
 
-Starting with |Percona Server| :rn:`5.6.26-74.0` ``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to |InnoDB|. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in |InnoDB| are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
+``LOCK TABLES FOR BACKUP`` flushes the current binary log coordinates to |InnoDB|. Thus, under active ``LOCK TABLES FOR BACKUP``, the binary log coordinates in |InnoDB| are consistent with its redo log and any non-transactional updates (as the latter are blocked by ``LOCK TABLES FOR BACKUP``). It is planned that this change will enable |Percona XtraBackup| to avoid issuing the more invasive ``LOCK BINLOG FOR BACKUP`` command under some circumstances.
 
 ``UNLOCK BINLOG``
 ------------------
@@ -75,14 +75,17 @@ Option :option:`lock-for-backup` is mutually exclusive with :option:`lock-all-ta
 
 If the backup locks feature is not supported by the target server, but :option:`lock-for-backup` is specified on the command line, ``mysqldump`` aborts with an error.
 
-If :option:`master-data` is used together with :option:`single-transaction`, :option:`lock-for-backup` does not have any effect, i.e. ``FLUSH TABLES WITH READ LOCK`` will still be used to get the binary log coordinates. This limitation has been removed in |Percona Server| :rn:`5.6.17-66.0` by implementing :ref:`start_transaction_with_consistent_snapshot` feature.
+Version Specific Information
+============================
+
+  * :rn:`5.7.10-1`
+        Feature ported from |Percona Server| 5.6
 
 System Variables
 ================
 
 .. variable:: have_backup_locks
 
-     :version 5.6.16-64.0: Implemented
      :cli: Yes
      :conf: No
      :scope: Global
@@ -94,7 +97,6 @@ This is a server variable implemented to help other utilities decide what lockin
 
 .. variable:: have_backup_safe_binlog_info
 
-     :version 5.6.26-74.0: Implemented
      :cli: Yes
      :conf: No
      :scope: Global
@@ -109,17 +111,14 @@ Status Variables
 
 .. variable:: Com_lock_tables_for_backup
 
-     :version 5.6.16-64.0: Implemented
      :vartype: Numeric
 
 .. variable:: Com_lock_binlog_for_backup
 
-     :version 5.6.16-64.0: Implemented
      :vartype: Numeric
 
 .. variable:: Com_unlock_binlog
 
-     :version 5.6.16-64.0: Implemented
      :vartype: Numeric
 
 These status variables indicate the number of times the corresponding statements have been executed.
@@ -129,7 +128,6 @@ Client Command Line Parameter
 
 .. option:: lock-for-backup
 
-     :version 5.6.16-64.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No

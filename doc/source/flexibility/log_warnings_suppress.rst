@@ -10,8 +10,8 @@ This feature is intended to provide a general mechanism (using ``log_warnings_si
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`:
-    Variable :variable:`log_warnings_suppress` ported from |Percona Server| 5.5.
+  * :rn:`5.7.10-1`:
+    Variable :variable:`log_warnings_suppress` ported from |Percona Server| 5.6.
 
 
 System Variables
@@ -19,7 +19,6 @@ System Variables
 
 .. variable:: log_warnings_suppress
 
-     :version 5.6.11-60.3: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global
@@ -38,8 +37,8 @@ Related Reading
 
   * `MySQL bug 42851 <http://bugs.mysql.com/bug.php?id=42851>`_
 
-  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.6/en/innodb-and-mysql-replication.html>`_
+  * `MySQL InnoDB replication <http://dev.mysql.com/doc/refman/5.7/en/innodb-and-mysql-replication.html>`_
 
-  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html>`_
+  * `InnoDB Startup Options and System Variables <http://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html>`_
 
-  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.6/en/innodb-error-handling.html>`_
+  * `InnoDB Error Handling <http://dev.mysql.com/doc/refman/5.7/en/innodb-error-handling.html>`_

@@ -29,6 +29,6 @@ After the Change: ::
 Version-Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`:
-    Full functionality available.
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6
 

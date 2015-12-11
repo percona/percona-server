@@ -11,15 +11,14 @@ This feature adds a new system variable.
 Version Specific Information
 ============================
 
-  * 5.6.10-60.2:
-    Feature ported from |Percona Server| 5.5
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6
 
 System Variables
 ================
 
 .. variable:: innodb_corrupt_table_action
 
-     :version 5.6.10-60.2: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global

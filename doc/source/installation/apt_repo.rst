@@ -4,13 +4,12 @@
 Installing |Percona Server| on *Debian* and *Ubuntu*
 ====================================================
 
-Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_.
+Ready-to-use packages are available from the |Percona Server| software repositories and the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_.
 
 Supported Releases:
 
 * Debian:
 
- * 6.0 (squeeze)
  * 7.0 (wheezy)
  * 8.0 (jessie)
 
@@ -29,21 +28,21 @@ Supported Platforms:
 What's in each DEB package?
 ===========================
 
-The ``percona-server-server-5.6`` package contains the database server itself, the ``mysqld`` binary and associated files.
+The ``percona-server-server-5.7`` package contains the database server itself, the ``mysqld`` binary and associated files.
 
-The ``percona-server-common-5.6`` package contains files common to the server and client.
+The ``percona-server-common-5.7`` package contains files common to the server and client.
 
-The ``percona-server-client-5.6`` package contains the command line client.
+The ``percona-server-client-5.7`` package contains the command line client.
 
-The ``percona-server-5.6-dbg`` package contains debug symbols for the server.
+The ``percona-server-5.7-dbg`` package contains debug symbols for the server.
 
-The ``percona-server-test-5.6`` package contains the database test suite.
+The ``percona-server-test-5.7`` package contains the database test suite.
 
-The ``percona-server-source-5.6`` package contains the server source.
+The ``percona-server-source-5.7`` package contains the server source.
 
-The ``libperconaserverclient18.1-dev`` package contains header files needed to compile software to use the client library.
+The ``libperconaserverclient20-dev`` package contains header files needed to compile software to use the client library.
 
-The ``libperconaserverclient18.1`` package contains the client shared library. The ``18.1`` is a reference to the version of the shared library. The version is incremented when there is a ABI change that requires software using the client library to be recompiled or its source code modified.
+The ``libperconaserverclient20`` package contains the client shared library. The ``18.1`` is a reference to the version of the shared library. The version is incremented when there is a ABI change that requires software using the client library to be recompiled or its source code modified.
                    
 Installing |Percona Server| from Percona ``apt`` repository
 ===========================================================
@@ -72,7 +71,7 @@ Installing |Percona Server| from Percona ``apt`` repository
 
    .. code-block:: bash
 
-     $ sudo apt-get install percona-server-server-5.6 
+     $ sudo apt-get install percona-server-server-5.7 
 
 
 Percona ``apt`` Testing repository
@@ -101,17 +100,17 @@ For more information about the pinning you can check the official `debian wiki <
 Installing |Percona Server| using downloaded deb packages
 =========================================================
 
-Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.6/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.6.25-73.1 release packages for *Debian* 8.0:  
+Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-1 release packages for *Debian* 8.0:  
 
  .. code-block:: bash
 
-   $ wget https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.25-73.1/binary/debian/jessie/x86_64/Percona-Server-5.6.25-73.1-r07b797f-jessie-x86_64-bundle.tar 
+   $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-1/binary/debian/jessie/x86_64/Percona-Server-5.7.10-1-jessie-x86_64-bundle.tar 
 
 You should then unpack the bundle to get the packages:
 
  .. code-block:: bash
 
-   $ tar xvf Percona-Server-5.6.25-73.1-r07b797f-jessie-x86_64-bundle.tar
+   $ tar xvf Percona-Server-5.7.10-1-jessie-x86_64-bundle.tar
 
 After you unpack the bundle you should see the following packages:
 

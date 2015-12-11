@@ -11,15 +11,14 @@ This variable can be used with the existing :variable:`max_binlog_size` variable
 Version Specific Information
 ============================
 
-  * 5.6.11-60.3:
-    Variable :variable:`max_binlog_files` introduced.
+  * 5.7.10-1:
+    Variable :variable:`max_binlog_files` ported from |Percona Server| 5.6.
 
 System Variables
 ================
 
 .. variable:: max_binlog_files
 
-     :version 5.6.11-60.3: Introduced.
      :cli: Yes
      :conf: Yes
      :scope: Global

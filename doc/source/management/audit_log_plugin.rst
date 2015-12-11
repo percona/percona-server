@@ -135,7 +135,7 @@ Example of the ``CSV`` format: ::
 Streaming the audit log to syslog
 =================================
 
-Ability to stream the audit log to `syslog <http://www.syslog.org/>`_ was implemented in |Percona Server| :rn:`5.6.20-68.0`. To stream the audit log to syslog you'll need to set :variable:`audit_log_handler` variable to ``SYSLOG``. To control the syslog file handler, the following variables can be used: :variable:`audit_log_syslog_ident`, :variable:`audit_log_syslog_facility`, and :variable:`audit_log_syslog_priority` These variables have the same meaning as appropriate parameters described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
+To stream the audit log to syslog you'll need to set :variable:`audit_log_handler` variable to ``SYSLOG``. To control the syslog file handler, the following variables can be used: :variable:`audit_log_syslog_ident`, :variable:`audit_log_syslog_facility`, and :variable:`audit_log_syslog_priority` These variables have the same meaning as appropriate parameters described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
 .. note::
 
@@ -146,7 +146,6 @@ System Variables
 
 .. variable:: audit_log_strategy
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No
@@ -165,7 +164,6 @@ This variable has effect only when :variable:`audit_log_handler` is set to ``FIL
 
 .. variable:: audit_log_file
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No
@@ -176,7 +174,6 @@ This variable is used to specify the filename that's going to store the audit lo
 
 .. variable:: audit_log_flush
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: Yes
@@ -187,7 +184,6 @@ When this variable is set to ``ON`` log file will be closed and reopened. This c
 
 .. variable:: audit_log_buffer_size
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No
@@ -198,8 +194,6 @@ This variable can be used to specify the size of memory buffer used for logging,
 
 .. variable:: audit_log_format
 
-     :version 5.6.17-65.0: Original implementation
-     :version 5.6.20-68.0: Implemented support for ``CSV`` and  ``JSON`` log formats
      :cli: Yes
      :scope: Global
      :dyn: No 
@@ -211,7 +205,6 @@ This variable is used to specify the audit log format. The audit log plugin supp
 
 .. variable:: audit_log_policy
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: Yes 
@@ -228,7 +221,6 @@ This variable is used to specify which events should be logged. Possible values 
 
 .. variable:: audit_log_rotate_on_size
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No 
@@ -239,7 +231,6 @@ This variable is used to specify the maximum audit log file size. Upon reaching 
  
 .. variable:: audit_log_rotations
 
-     :version 5.6.17-65.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No 
@@ -250,7 +241,6 @@ This variable is used to specify how many log files should be kept when :variabl
 
 .. variable:: audit_log_handler
 
-     :version 5.6.20-68.0: Implemented
      :cli: Yes
      :scope: Global
      :dyn: No 
@@ -262,7 +252,6 @@ This variable is used to configure where the audit log will be written. If it is
 
 .. variable:: audit_log_syslog_ident
 
-   :version 5.6.20-68.0: Implemented
    :cli: Yes
    :scope: Global
    :dyn: No 
@@ -273,7 +262,6 @@ This variable is used to specify the ``ident`` value for syslog. This variable h
 
 .. variable:: audit_log_syslog_facility
    
-   :version 5.6.20-68.0: Implemented
    :cli: Yes
    :scope: Global
    :dyn: No 
@@ -284,7 +272,6 @@ This variable is used to specify the ``facility`` value for syslog. This variabl
 
 .. variable:: audit_log_syslog_priority
 
-   :version 5.6.20-68.0: Implemented
    :cli: Yes
    :scope: Global
    :dyn: No 
@@ -296,11 +283,7 @@ This variable is used to specify the ``priority`` value for syslog. This variabl
 Version Specific Information
 ============================
 
-  * :rn:`5.6.17-65.0`
-    Audit Log plugin has been implemented in |Percona Server|.
-  * :rn:`5.6.20-68.0`
-    |Percona Server| :ref:`audit_log_plugin` now supports ``JSON`` and ``CSV`` log formats. 
-  * :rn:`5.6.20-68.0`
-    |Percona Server| :ref:`audit_log_plugin` now supports :ref:`streaming the audit log to syslog <streaming_to_syslog>`.
+  * :rn:`5.7.10-1`
+    Feature ported from |Percona Server| 5.6
 
  

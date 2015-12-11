@@ -61,9 +61,8 @@ There’s also a number of cases when this optimization is not applicable:
 Version Specific Information
 ============================
 
-  * :rn:`5.6.10-60.2`
-    Variable :variable:`expand_fast_index_creation` implemented.
-    This variable is controlling whether fast index creation optimizations made by Percona are used.
+  * :rn:`5.7.10-1`
+    Feature ported from |Percona Server| 5.6
 
 System Variables
 ================

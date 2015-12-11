@@ -1,7 +1,7 @@
 .. _installation:
 
 ===============================
-Installing |Percona Server| 5.6
+Installing |Percona Server| 5.7
 ===============================
 
 This page provides the information on how to you can install |Percona Server|. Following options are available: 
@@ -43,7 +43,7 @@ In |Percona Server| :rn:`5.6.24-72.2` and newer, the single binary tarball was r
  * ssl101 - for *CentOS* 6 and *CentOS* 7 (``libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000)``);
  * ssl098e - to be used only for *CentOS* 5 (``libssl.so.6 => /lib64/libssl.so.6 (0x00002aed5b64d000)``).
 
-You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/tarball/>`_ on the download page.
+You can download the binary tarballs from the ``Linux - Generic`` `section <https://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/tarball/>`_ on the download page.
 
 Fetch and extract the correct binary tarball. For example for *Debian Wheezy*: 
 
@@ -73,17 +73,17 @@ Percona uses the `Github <http://github.com/>`_ revision
 control system for development. To build the latest |Percona Server|
 from the source tree you will need ``git`` installed on your system.
 
-You can now fetch the latest |Percona Server| 5.6 sources. 
+You can now fetch the latest |Percona Server| 5.7 sources. 
 
 .. code-block:: bash
 
   $ git clone https://github.com/percona/percona-server.git
   $ cd percona-server
-  $ git checkout 5.6
+  $ git checkout 5.7
   $ git submodule init
   $ git submodule update
 
-If you are going to be making changes to |Percona Server| 5.6 and wanting
+If you are going to be making changes to |Percona Server| 5.7 and wanting
 to distribute the resulting work, you can generate a new source tarball
 (exactly the same way as we do for release): ::
 
@@ -118,7 +118,7 @@ Install: ::
 
   $ make install
 
-Percona Server 5.6 will now be installed on your system.
+Percona Server 5.7 will now be installed on your system.
 
 Building |Percona Server| Debian/Ubuntu packages
 ================================================

@@ -6,22 +6,12 @@ Process List
 
 This page describes Percona changes to both the standard |MySQL| ``SHOW PROCESSLIST`` command and the standard |MySQL| ``INFORMATION_SCHEMA`` table ``PROCESSLIST``.
 
-The changes that have been made as of version 5.6 of the server are:
-
-  * :table:`PROCESSLIST` table:
-
-    * added column ``TIME_MS``
-
 Version Specific Information
 ============================
 
-  * :rn:`5.6.5-60.0`:
+  * :rn:`5.7.10-1`:
 
-    * Added column ``TIME_MS`` to table ``PROCESSLIST``.
-
-  * :rn:`5.6.11-60.3`:
-
-    * Added ``ROWS_SENT`` and ``ROWS_EXAMINED`` columns to table ``PROCESSLIST``.`
+    * Feature ported from |Percona Server| 5.6
 
 INFORMATION_SCHEMA Tables
 =========================

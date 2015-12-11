@@ -21,9 +21,9 @@ This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`:
+  * :rn:`5.7.10-1`:
 
-    Feature ported from |Percona Server| 5.5.
+    Feature ported from |Percona Server| 5.6.
 
 
 Other Information
@@ -81,19 +81,16 @@ The following variables contain information in the BACKGROUND THREAD section of 
 
 .. variable:: Innodb_master_thread_active_loops
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_master_thread_idle_loops
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_background_log_sync
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
@@ -110,60 +107,6 @@ The following variables contain information in the SEMAPHORES section of the out
   RW-shared spins 5155, OS waits 1678; RW-excl spins 5632, OS waits 2592
   Spin rounds per wait: 10.87 mutex, 15.01 RW-shared, 27.19 RW-excl
 
-.. variable:: Innodb_mutex_os_waits
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_mutex_spin_rounds
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_mutex_spin_waits
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_s_lock_os_waits
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_s_lock_spin_rounds
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_s_lock_spin_waits
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_x_lock_os_waits
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_x_lock_spin_rounds
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_x_lock_spin_waits
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
 INSERT BUFFER AND ADAPTIVE HASH INDEX
 -------------------------------------
 
@@ -176,63 +119,13 @@ The following variables contain information in the INSERT BUFFER AND ADAPTIVE HA
   44497 inserts, 44497 merged recs, 8734 merges
   0.00 hash searches/s, 0.00 non-hash searches/s
 
-.. variable:: Innodb_ibuf_discarded_delete_marks
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_discarded_deletes
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_discarded_inserts
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
 .. variable:: Innodb_ibuf_free_list
 
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_merged_delete_marks
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_merged_deletes
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_merged_inserts
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_merges
-
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_ibuf_segment_size
 
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_ibuf_size
-
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
@@ -259,31 +152,26 @@ The following variables contain information in the LOG section of the output fro
 
 .. variable:: Innodb_lsn_current
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_lsn_flushed
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_lsn_last_checkpoint
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_checkpoint_age
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_checkpoint_max_age
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
@@ -324,49 +212,41 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
 
 .. variable:: Innodb_mem_adaptive_hash
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_mem_dictionary
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_mem_total
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_buffer_pool_pages_LRU_flushed
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_buffer_pool_pages_made_not_young
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_buffer_pool_pages_made_young
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_buffer_pool_pages_old
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_descriptors_memory
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
@@ -374,7 +254,6 @@ This status variable shows the current size of the descriptors array (in bytes).
 
 .. variable:: Innodb_read_views_memory
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
@@ -399,39 +278,23 @@ The following variables contain information in the TRANSACTIONS section of the o
   mysql tables in use 1, locked 1
 
 
-.. variable:: Innodb_history_list_length
-
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
 .. variable:: Innodb_max_trx_id
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_oldest_view_low_limit_trx_id
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_purge_trx_id
 
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
 .. variable:: Innodb_purge_undo_no
 
-     :version 5.6.11-60.3: Introduced.
-     :vartype: Numeric
-     :scope: Global
-
-.. variable:: Innodb_current_row_locks
-
-     :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
@@ -442,7 +305,6 @@ The following table contains information about the oldest active transaction in 
 
 .. table:: INFORMATION_SCHEMA.XTRADB_READ_VIEW
 
-   :column READ_VIEW_UNDO_NUMBER:
    :column READ_VIEW_LOW_LIMIT_TRX_NUMBER: This is the highest transactions number at the time the view was created. 
    :column READ_VIEW_UPPER_LIMIT_TRX_ID: This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
    :column READ_VIEW_LOW_LIMIT_TRX_ID: This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.

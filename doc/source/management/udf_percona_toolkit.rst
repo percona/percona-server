@@ -15,8 +15,8 @@ Three *Percona Toolkit* UDFs that provide faster checksums are provided:
 Version Specific Information
 ============================
 
-  * :rn:`5.6.11-60.3`:
-    Began distributing ``libfnv1a_udf``, ``libfnv_udf``, and ``libmurmur_udf``.
+  * :rn:`5.7.10-1`:
+    Feature ported from |Percona Server| 5.6
 
 Other Information
 =================

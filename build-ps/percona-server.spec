@@ -131,7 +131,6 @@ Source10:       http://jenkins.percona.com/downloads/boost/@@BOOST_PACKAGE_NAME@
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Patch0:         mysql-5.7-sharedlib-rename.patch
-Patch1:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  gcc
 BuildRequires:  gcc-c++

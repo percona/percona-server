@@ -2089,8 +2089,10 @@ init()
 
 	fprintf(stderr, "Using %s, CPU is %s-endian\n",
 		ut_crc32_sse2_enabled
-		? "hardware CPU crc32 instructions"
-		: "software crc32 implementation",
+		? "SSE crc32 implementation"
+		: (ut_crc32_power8_enabled
+                   ? "POWER8 crc32 implementation"
+                   : "Basic crc32 implementation"),
 #ifdef WORDS_BIGENDIAN
 		"big"
 #else /* WORDS_BIGENDIAN */

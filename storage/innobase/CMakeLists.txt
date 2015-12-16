@@ -136,6 +136,8 @@ SET(INNOBASE_SOURCES
 	usr/usr0sess.cc
 	ut/ut0byte.cc
 	ut/ut0crc32.cc
+	ut/crc32_power8/crc32.S
+	ut/crc32_power8/crc32_wrapper.c
 	ut/ut0dbg.cc
 	ut/ut0list.cc
 	ut/ut0mem.cc
@@ -184,3 +186,4 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     COMPILE_FLAGS "-O0"
   )
 ENDIF()
+enable_language(ASM)

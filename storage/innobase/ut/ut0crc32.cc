@@ -82,6 +82,12 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include "my_config.h"
 #include <string.h>
 
+#if defined(__linux__) && defined(__powerpc__)
+/* Used to detect at runtime if we have vpmsum instructions (PowerISA 2.07) */
+#include <sys/auxv.h>
+#include <bits/hwcap.h>
+#endif /* defined(__linux__) && defined(__powerpc__) */
+
 #include "univ.i"
 #include "ut0crc32.h"
 
@@ -118,6 +124,9 @@ ut_crc32_swap_byteorder(
 
 /* Flag that tells whether the CPU supports CRC32 or not */
 bool	ut_crc32_sse2_enabled = false;
+
+/* Flag that tells whether the a power8 optimized codepath is used or not */
+bool	ut_crc32_power8_enabled = false;
 
 #if defined(__GNUC__) && defined(__x86_64__)
 /********************************************************************//**
@@ -428,6 +437,28 @@ have support for it */
 static uint32_t	ut_crc32_slice8_table[8][256];
 static bool	ut_crc32_slice8_table_initialized = false;
 
+#if defined(__powerpc__)
+extern "C" {
+unsigned int crc32_vpmsum(unsigned int crc, const unsigned char *p, unsigned long len);
+};
+#endif /* __powerpc__ */
+
+UNIV_INLINE
+ib_uint32_t
+ut_crc32_power8(
+/*===========*/
+		 const byte*		 buf,		 /*!< in: data over which to calculate CRC32 */
+		 ulint		 		 len)		 /*!< in: data length */
+{
+#if defined(__powerpc__)
+  return crc32_vpmsum(0, buf, len);
+#else
+		 ut_error;
+		 /* silence compiler warning about unused parameters */
+		 return((ib_uint32_t) buf[len]);
+#endif /* __powerpc__ */
+}
+
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
 not have support for it. */
@@ -727,10 +758,19 @@ ut_crc32_init()
 
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
 
-	if (!ut_crc32_sse2_enabled) {
-		ut_crc32_slice8_table_init();
+#if defined(__linux__) && defined(__powerpc__) && defined(AT_HWCAP2)
+	if (getauxval(AT_HWCAP2) & PPC_FEATURE2_ARCH_2_07)
+		 ut_crc32_power8_enabled = true;
+#endif /* defined(__linux__) && defined(__powerpc__) */
+
+	if (ut_crc32_power8_enabled) {
+		ut_crc32 = ut_crc32_power8;
+		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
+		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_sw;
+	} else if (!ut_crc32_sse2_enabled) {
 		ut_crc32 = ut_crc32_sw;
 		ut_crc32_legacy_big_endian = ut_crc32_legacy_big_endian_sw;
 		ut_crc32_byte_by_byte = ut_crc32_byte_by_byte_sw;
 	}
+	ut_crc32_slice8_table_init();
 }

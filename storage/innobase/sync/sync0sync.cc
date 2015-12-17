@@ -137,35 +137,49 @@ static
 void
 sync_print_wait_info(FILE* file)
 {
+	// Sum counter values once
+	int64_t rw_s_spin_wait_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_s_spin_wait_count);
+	int64_t rw_s_spin_round_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_s_spin_round_count);
+	int64_t rw_s_os_wait_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_s_os_wait_count);
+	int64_t rw_x_spin_wait_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_x_spin_wait_count);
+	int64_t rw_x_spin_round_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_x_spin_round_count);
+	int64_t rw_x_os_wait_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_x_os_wait_count);
+	int64_t rw_sx_spin_wait_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_sx_spin_wait_count);
+	int64_t rw_sx_spin_round_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_sx_spin_round_count);
+	int64_t rw_sx_os_wait_count_val
+		= static_cast<int64_t>(rw_lock_stats.rw_sx_os_wait_count);
+
 	fprintf(file,
-		"RW-shared spins " UINT64PF ", rounds " UINT64PF ","
-		" OS waits " UINT64PF "\n"
-		"RW-excl spins " UINT64PF ", rounds " UINT64PF ","
-		" OS waits " UINT64PF "\n"
-		"RW-sx spins " UINT64PF ", rounds " UINT64PF ","
-		" OS waits " UINT64PF "\n",
-		(ib_uint64_t) rw_lock_stats.rw_s_spin_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_s_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_s_os_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_spin_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_x_os_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_sx_spin_wait_count,
-		(ib_uint64_t) rw_lock_stats.rw_sx_spin_round_count,
-		(ib_uint64_t) rw_lock_stats.rw_sx_os_wait_count);
+		"RW-shared spins " INT64PF ", rounds " INT64PF ","
+		" OS waits " INT64PF "\n"
+		"RW-excl spins " INT64PF ", rounds " INT64PF ","
+		" OS waits " INT64PF "\n"
+		"RW-sx spins " INT64PF ", rounds " INT64PF ","
+		" OS waits " INT64PF "\n",
+		rw_s_spin_wait_count_val, rw_s_spin_round_count_val,
+		rw_s_os_wait_count_val,
+		rw_x_spin_wait_count_val, rw_x_spin_round_count_val,
+		rw_x_os_wait_count_val,
+		rw_sx_spin_wait_count_val, rw_sx_spin_round_count_val,
+		rw_sx_os_wait_count_val);
 
 	fprintf(file,
 		"Spin rounds per wait: %.2f RW-shared,"
 		" %.2f RW-excl, %.2f RW-sx\n",
-		(double) rw_lock_stats.rw_s_spin_round_count /
-		(rw_lock_stats.rw_s_spin_wait_count
-		 ? rw_lock_stats.rw_s_spin_wait_count : 1),
-		(double) rw_lock_stats.rw_x_spin_round_count /
-		(rw_lock_stats.rw_x_spin_wait_count
-		 ? rw_lock_stats.rw_x_spin_wait_count : 1),
-		(double) rw_lock_stats.rw_sx_spin_round_count /
-		(rw_lock_stats.rw_sx_spin_wait_count
-		 ? rw_lock_stats.rw_sx_spin_wait_count : 1));
+		(double) rw_s_spin_round_count_val /
+		(rw_s_spin_wait_count_val ? rw_s_spin_wait_count_val : 1),
+		(double) rw_x_spin_round_count_val /
+		(rw_x_spin_wait_count_val ? rw_x_spin_wait_count_val : 1),
+		(double) rw_sx_spin_round_count_val /
+		(rw_sx_spin_wait_count_val ? rw_sx_spin_wait_count_val : 1));
 }
 
 /**

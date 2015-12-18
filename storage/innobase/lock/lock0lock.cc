@@ -4740,30 +4740,32 @@ lock_rec_print(
 
 	putc('\n', file);
 
-	const buf_block_t*	block;
+	if (srv_show_verbose_locks) {
+		const buf_block_t*	block;
 
-	block = buf_page_try_get(page_id_t(space, page_no), &mtr);
+		block = buf_page_try_get(page_id_t(space, page_no), &mtr);
 
-	for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
+		for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
-		if (!lock_rec_get_nth_bit(lock, i)) {
-			continue;
-		}
+			if (!lock_rec_get_nth_bit(lock, i)) {
+				continue;
+			}
 
-		fprintf(file, "Record lock, heap no %lu", (ulong) i);
+			fprintf(file, "Record lock, heap no %lu", (ulong) i);
 
-		if (block) {
-			const rec_t*	rec;
+			if (block) {
+				const rec_t*	rec;
 
-			rec = page_find_rec_with_heap_no(
-				buf_block_get_frame(block), i);
+				rec = page_find_rec_with_heap_no(
+					buf_block_get_frame(block), i);
 
-			offsets = rec_get_offsets(
-				rec, lock->index, offsets,
-				ULINT_UNDEFINED, &heap);
+				offsets = rec_get_offsets(
+					rec, lock->index, offsets,
+					ULINT_UNDEFINED, &heap);
 
-			putc(' ', file);
-			rec_print_new(file, rec, offsets);
+				putc(' ', file);
+				rec_print_new(file, rec, offsets);
+			}
 		}
 
 		putc('\n', file);
@@ -5097,20 +5099,22 @@ lock_rec_fetch_page(
 
 		mutex_exit(&trx_sys->mutex);
 
-		DEBUG_SYNC_C("innodb_monitor_before_lock_page_read");
+		if (srv_show_verbose_locks) {
+			DEBUG_SYNC_C("innodb_monitor_before_lock_page_read");
 
-		/* Check if the space is exists or not. only
-		when the space is valid, try to get the page. */
-		space = fil_space_acquire(space_id);
-		if (space) {
-			mtr_start(&mtr);
-			buf_page_get_gen(
-				page_id_t(space_id, page_no), page_size,
-				RW_NO_LATCH, NULL,
-				BUF_GET_POSSIBLY_FREED,
-				__FILE__, __LINE__, &mtr);
-			mtr_commit(&mtr);
-			fil_space_release(space);
+			/* Check if the space is exists or not. only
+			when the space is valid, try to get the page. */
+			space = fil_space_acquire(space_id);
+			if (space) {
+				mtr_start(&mtr);
+				buf_page_get_gen(
+					page_id_t(space_id, page_no), page_size,
+					RW_NO_LATCH, NULL,
+					BUF_GET_POSSIBLY_FREED,
+					__FILE__, __LINE__, &mtr);
+				mtr_commit(&mtr);
+				fil_space_release(space);
+			}
 		}
 
 		lock_mutex_enter();
@@ -5182,10 +5186,10 @@ lock_trx_print_locks(
 			lock_table_print(file, lock);
 		}
 
-		if (iter.next() >= 10) {
+		if (iter.next() >= srv_show_locks_held) {
 
 			fprintf(file,
-				"10 LOCKS PRINTED FOR THIS TRX:"
+				"TOO MANY LOCKS PRINTED FOR THIS TRX:"
 				" SUPPRESSING FURTHER PRINTS\n");
 
 			break;
@@ -5225,7 +5229,7 @@ lock_print_info_all_transactions(
 
 	/* Control whether a block should be fetched from the buffer pool. */
 	bool		load_block = true;
-	bool		monitor = srv_print_innodb_lock_monitor;
+	bool		monitor = srv_print_innodb_lock_monitor && (srv_show_locks_held != 0);
 
 	while ((trx = trx_iter.current()) != 0) {
 
@@ -5290,10 +5294,6 @@ lock_trx_table_locks_find(
 	const lock_t*	find_lock)	/*!< in: lock to find */
 {
 	bool		found = false;
-	    /* TODO broken
-	if ( srv_show_verbose_locks ) {
-	block = buf_page_try_get(space, page_no, &mtr);
-	    */
 
 	trx_mutex_enter(trx);
 

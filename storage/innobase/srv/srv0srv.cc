@@ -228,8 +228,8 @@ char	srv_use_global_flush_log_at_trx_commit	= TRUE;
 the checkpoints. */
 char	srv_adaptive_flushing	= TRUE;
 
-ulint	srv_show_locks_held	= 10; // TODO broken
-ulint	srv_show_verbose_locks	= 0;  // TODO broken
+ulint	srv_show_locks_held	= 10;
+ulint	srv_show_verbose_locks	= 0;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 my_bool	srv_flush_sync		= TRUE;

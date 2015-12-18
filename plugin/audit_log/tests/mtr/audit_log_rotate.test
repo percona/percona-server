@@ -22,7 +22,13 @@ perl;
     }
     close $file;
   }
-  die "Rotation doesn't wrok!" unless scalar(@files) > 1
+  if (scalar(@files) <= 1) {
+    my $data_dir = $ENV{'MYSQLD_DATADIR'};
+    print STDERR "test_audit.log.* in $data_dir:\n";
+    print STDERR join(" ", @files);
+    print STDERR "\n";
+    die "Rotation doesn't work, found @files files!"
+  }
 EOF
 --remove_files_wildcard $MYSQLD_DATADIR test_audit.log*
 

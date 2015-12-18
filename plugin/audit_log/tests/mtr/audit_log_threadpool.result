@@ -1,4 +1,5 @@
 set global audit_log_flush= ON;
+set global audit_log_flush= ON;
 select 1;
 1
 1

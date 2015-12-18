@@ -201,6 +201,8 @@ System Variables
 
 .. variable:: query_response_time_flush
 
+     :cli: Yes
+     :conf: No
      :scope: Global
      :dyn: No
      :vartype: Boolean

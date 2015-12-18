@@ -112,14 +112,17 @@ Status Variables
 .. variable:: Com_lock_tables_for_backup
 
      :vartype: Numeric
+     :scope: Global/Session
 
 .. variable:: Com_lock_binlog_for_backup
 
      :vartype: Numeric
+     :scope: Global/Session
 
 .. variable:: Com_unlock_binlog
 
      :vartype: Numeric
+     :scope: Global/Session
 
 These status variables indicate the number of times the corresponding statements have been executed.
 

@@ -54,7 +54,7 @@ This table holds information on the temporary tables existing for the running co
 Multiple Rollback Segments
 ==========================
 
-|Percona Server|, in addition to the upstream multiple rollback segment implementation, provides the additional Information Schema table: INFORMATION_SCHEMA.XTRADB_RSEG.
+|Percona Server|, in addition to the upstream multiple rollback segment implementation, provides the additional Information Schema table: ``INFORMATION_SCHEMA.XTRADB_RSEG``.
 
 ``INFORMATION_SCHEMA`` Tables
 =============================

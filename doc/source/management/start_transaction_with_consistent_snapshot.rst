@@ -48,11 +48,13 @@ Status Variables
 
 .. variable:: Binlog_snapshot_file
 
-     :vartype: Numeric
+     :vartype: String
+     :scope: Global
 
 .. variable:: Binlog_snapshot_position
 
      :vartype: Numeric
+     :scope: Global
 
 These status variables are only available when the binary log is enabled globally.
 

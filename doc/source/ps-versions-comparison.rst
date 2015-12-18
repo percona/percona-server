@@ -4,6 +4,8 @@
 List of features available in |Percona Server| releases
 =======================================================
 
+.. tabularcolumns:: |p{5cm}|p{5cm}|p{5cm}|
+
 .. list-table::
    :header-rows: 1
 
@@ -236,13 +238,9 @@ Other Reading
 
 * :ref:`changed_in_56`
 * :ref:`upgrading_guide`
-* :ref:`Percona Sever In-Place Upgrading Guide: From 5.5 to 5.6 <ps56:upgrading_guide>`
 * `Upgrading from MySQL 5.1 to 5.5 <http://dev.mysql.com/doc/refman/5.5/en/upgrading-from-previous-series.html>`_
 * `What Is New in MySQL 5.5 <http://dev.mysql.com/doc/refman/5.5/en/mysql-nutshell.html>`_
 * `What Is New in MySQL 5.6 <http://dev.mysql.com/doc/refman/5.6/en/mysql-nutshell.html>`_
-
-Footnotes
-=========
 
 .. [#n-1] Feature has been deprecated after |Percona Server| 5.5.11-20.2. It has replaced by the upstream implementation of `innodb_undo_logs <https://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_undo_logs>`_ in |MySQL| 5.6.3.
 .. [#n-2] Feature has not been ported from |Percona Server| 5.1 version. It has been replaced by the upstream `Improved Purge Scheduling <https://dev.mysql.com/doc/refman/5.6/en/innodb-performance.html#innodb-improved-purge-scheduling>`_ implementation.

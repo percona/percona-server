@@ -4,14 +4,13 @@
  TokuDB Installation
 =====================
 
-|Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.6 releases starting with :rn:`5.6.19-67.0` and does not require any specially adapted version of |Percona Server|.
+|Percona Server| is compatible with the separately available |TokuDB| storage engine package. The |TokuDB| engine must be separately downloaded and then enabled as a plug-in component. This package can be installed alongside with standard |Percona Server| 5.7 releases and does not require any specially adapted version of |Percona Server|.
 
 The |TokuDB| storage engine is a scalable, ACID and MVCC compliant storage engine that provides indexing-based query improvements, offers online schema modifications, and reduces slave lag for both hard disk drives and flash memory. This storage engine is specifically designed for high performance on write-intensive workloads which is achieved with Fractal Tree indexing. To learn more about Fractal Tree indexing, you can visit the following `Wikipedia page <http://en.wikipedia.org/wiki/Fractal_tree_index>`_.
 
-Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.6/LATEST/>`_ |TokuDB| engine should be used with |Percona Server| 5.6. A |TokuDB| engine downloaded from other sources may not be compatible.
+.. warning:: 
 
-|TokuDB| is currently supported only for 64-bit Linux distributions. It is not available for Debian 6.0 (squeeze) due to conflicts with the :program:`gcc` version required by |TokuDB|.
-
+  Only the `Percona supplied <http://www.percona.com/downloads/Percona-Server-5.7/LATEST/>`_ |TokuDB| engine should be used with |Percona Server| 5.7. A |TokuDB| engine downloaded from other sources is not compatible. |TokuDB| file formats are not the same across |MySQL| variants. Migrating from one variant to any other variant requires a logical data dump and reload.
 
 Prerequisites 
 =============
@@ -59,13 +58,13 @@ You can install the |Percona Server| with |TokuDB| engine by using the apt/yum c
 
 .. code-block:: bash
 
- [root@centos ~]# yum install Percona-Server-tokudb-56.x86_64
+ [root@centos ~]# yum install Percona-Server-tokudb-57.x86_64
 
 or
 
 .. code-block:: bash
 
- root@wheezy:~# apt-get install percona-server-tokudb-5.6
+ root@wheezy:~# apt-get install percona-server-tokudb-5.7
 
 .. _tokudb_quick_install:
 
@@ -81,11 +80,11 @@ Once the |TokuDB| server package has been installed following output will be sho
 
       ps_tokudb_admin --enable -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]
 
-     * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_installation.html for more installation details
+     * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details
 
-     * See http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_intro.html for an introduction to TokuDB
+     * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB
 
-|Percona Server| :rn:`5.6.22-72.0` has implemented ``ps_tokudb_admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. After you run the script with required parameters:
+|Percona Server| has implemented ``ps_tokudb_admin`` script to make the enabling the |TokuDB| storage engine easier. This script will automatically disable Transparent huge pages, if they're enabled, and install and enable the |TokuDB| storage engine with all the required plugins. You need to run this script as root or with :program:`sudo`. After you run the script with required parameters:
 
 .. code-block:: bash
 
@@ -126,7 +125,7 @@ If the script returns no errors, |TokuDB| storage engine should be successfully 
 Enabling the TokuDB Storage Engine Manually
 ===========================================
 
-If you're running |Percona Server| :rn:`5.6.22-71.0` this storage engine requires manual installation. 
+If you don't want to use ``ps_tokudb_admin`` script you'll need to manually install the storage engine ad required plugins. 
 
 .. code-block:: mysql
 
@@ -137,6 +136,7 @@ If you're running |Percona Server| :rn:`5.6.22-71.0` this storage engine require
  INSTALL PLUGIN tokudb_trx SONAME 'ha_tokudb.so';
  INSTALL PLUGIN tokudb_locks SONAME 'ha_tokudb.so';
  INSTALL PLUGIN tokudb_lock_waits SONAME 'ha_tokudb.so';
+ INSTALL PLUGIN tokudb_background_job_status SONAME 'ha_tokudb.so';
 
 After the engine has been installed it should be present in the engines list. To check if the engine has been correctly installed and active: 
 
@@ -160,6 +160,7 @@ To check if all the |TokuDB| plugins have been installed correctly you should ru
  | TokuDB_trx                    | ACTIVE   | INFORMATION SCHEMA | ha_tokudb.so | GPL     |
  | TokuDB_locks                  | ACTIVE   | INFORMATION SCHEMA | ha_tokudb.so | GPL     |
  | TokuDB_lock_waits             | ACTIVE   | INFORMATION SCHEMA | ha_tokudb.so | GPL     |
+ | TokuDB_background_job_status  | ACTIVE   | INFORMATION SCHEMA | ha_tokudb.so | GPL     |
  ...
 
 TokuDB Version
@@ -173,27 +174,12 @@ TokuDB Version
    +------------------+
    | @@tokudb_version |
    +------------------+
-   | tokudb-7.5.4     |
+   | 5.7.10-1rc1      |
    +------------------+
    1 row in set (0.00 sec)
 
-
-.. note:: 
-
-  |TokuDB| storage engine has the same version as |Percona Server| after :rn:`5.6.26-74.0` release.
 
 Upgrade
 =======
 
 Installing the |TokuDB| package is compatible with existing server setup and databases.
-
-Version Specific Information
-============================
-
- * :rn:`5.6.17-66.0`
-    TokuDB storage engine available as a separate |Percona Server| package.
- * :rn:`5.6.19-67.0`
-    TokuDB storage engine is considered GA quality.
- * :rn:`5.6.22-72.0` 
-    Implemented ``ps_tokudb_admin`` script to make the installation :ref:`easier <tokudb_quick_install>`
-

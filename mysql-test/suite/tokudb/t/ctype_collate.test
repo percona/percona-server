@@ -85,12 +85,12 @@ SELECT latin1_f COLLATE koi8r_general_ci  AS latin1_f_as FROM t1 ORDER BY latin1
 # GROUP BY
 
 SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
+SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_swedish_ci;
+SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_german2_ci;
+SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_general_ci;
+SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE latin1_bin;
 --error 1253
-SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
+SELECT ANY_VALUE(latin1_f),count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 
 
 # DISTINCT

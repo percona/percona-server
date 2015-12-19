@@ -19,27 +19,26 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7;
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
 # PS doesn't give errors on prepare yet
+--error ER_TOO_BIG_FIELDLENGTH
 CREATE TABLE t2 (a char(255), b varbinary(70000), c varchar(70000000));
-CREATE TABLE t4 (c varchar(65530) character set utf8 not null);
-show columns from t2;
-create table t3 (a long, b long byte);
+--error ER_TOO_BIG_FIELDLENGTH
+CREATE TABLE t2 (c varchar(65530) character set utf8 not null);
+create table t2 (a long, b long byte);
 replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create TABLE t3;
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create TABLE t4;
-drop table t1,t2,t3,t4;
+show create TABLE t2;
+drop table t1,t2;
 
 #
 # Check errors with blob
 #
 
---error 1074
+--error ER_TOO_BIG_FIELDLENGTH
 CREATE TABLE t1 (a char(257) default "hello");
---error 1074
+--error ER_TOO_BIG_FIELDLENGTH
 CREATE TABLE t2 (a char(256));
---error 1074
+--error ER_TOO_BIG_FIELDLENGTH
 CREATE TABLE t1 (a varchar(70000) default "hello");
---error 1101
+--error ER_BLOB_CANT_HAVE_DEFAULT
 CREATE TABLE t2 (a blob default "hello");
 
 # Safety to be able to continue with other tests if above fails
@@ -181,9 +180,9 @@ CREATE TABLE t3 (
   t3_id bigint(21) NOT NULL auto_increment,
   _field_131 varchar(128),
   _field_133 tinyint(4) DEFAULT '0' NOT NULL,
-  _field_135 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  _field_135 datetime DEFAULT '1971-01-01 00:00:00' NOT NULL,
   _field_137 tinyint(4),
-  _field_139 datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+  _field_139 datetime DEFAULT '1971-01-01 00:00:00' NOT NULL,
   _field_140 blob,
   _field_142 tinyint(4) DEFAULT '0' NOT NULL,
   _field_145 tinyint(4) DEFAULT '0' NOT NULL,
@@ -198,8 +197,8 @@ CREATE TABLE t3 (
 );
 
 
-INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
-INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
+INSERT INTO t3 VALUES (1,'test job 1',0,'1971-01-01 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
+INSERT INTO t3 VALUES (2,'test job 2',0,'1971-01-01 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);
 
 
 CREATE TABLE t4 (
@@ -258,7 +257,35 @@ INSERT INTO t7 VALUES (1,0,'High',1);
 INSERT INTO t7 VALUES (2,0,'Medium',2);
 INSERT INTO t7 VALUES (3,0,'Low',3);
 
-select replace(t3._field_140, "\r","^M"),t3_id,min(t3._field_131), min(t3._field_135), min(t3._field_139), min(t3._field_137), min(link_alias_142._field_165), min(link_alias_133._field_72), min(t3._field_145), min(link_alias_148._field_156), replace(min(t3._field_140), "\r","^M"),t3.t3_id from t3 left join t4 on t4.seq_0_id = t3.t3_id left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id left join t6 on t6.seq_0_id = t3.t3_id left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id left join t2 on t2.seq_0_id = t3.t3_id left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id where t3.t3_id in (1) group by t3.t3_id order by link_alias_142._field_166, _field_139, link_alias_133._field_72, _field_135, link_alias_148._field_156;
+select
+  replace(t3._field_140, "\r","^M"),
+  t3_id,
+  min(t3._field_131),
+  min(t3._field_135),
+  min(t3._field_139),
+  min(t3._field_137),
+  min(link_alias_142._field_165),
+  min(link_alias_133._field_72),
+  min(t3._field_145),
+  min(link_alias_148._field_156),
+  replace(min(t3._field_140), "\r","^M"),
+  t3.t3_id
+from
+  t3
+  left join t4 on t4.seq_0_id = t3.t3_id
+  left join t7 link_alias_142 on t4.seq_1_id = link_alias_142.t7_id
+  left join t6 on t6.seq_0_id = t3.t3_id
+  left join t1 link_alias_133 on t6.seq_1_id = link_alias_133.t1_id
+  left join t2 on t2.seq_0_id = t3.t3_id
+  left join t5 link_alias_148 on t2.seq_1_id = link_alias_148.t5_id
+where
+  t3.t3_id in (1)
+order by
+  link_alias_142._field_166,
+  _field_139,
+  link_alias_133._field_72,
+  _field_135,
+  link_alias_148._field_156;
 
 drop table t1,t2,t3,t4,t5,t6,t7;
 
@@ -309,7 +336,7 @@ drop table t1;
 # Bug when blob is updated
 #
 
-create table t1 (id integer auto_increment unique,imagem LONGBLOB not null default '');
+create table t1 (id integer auto_increment unique,imagem LONGBLOB);
 insert into t1 (id) values (1);
 # We have to clean up the path in the results for safe comparison
 eval select
@@ -432,23 +459,17 @@ drop table t1;
 #
 # Bug #19489: Inconsistent support for DEFAULT in TEXT columns
 #
-create table t1 (a text default '');
-replace_regex /ENGINE=[a-zA-Z]*/ENGINE=ENGINE/;
-show create table t1;
-insert into t1 values (default);
-select * from t1;
-drop table t1;
-set @@sql_mode='TRADITIONAL';
 --error ER_BLOB_CANT_HAVE_DEFAULT
 create table t1 (a text default '');
-set @@sql_mode='';
 
 #
 # Bug #32282: TEXT silently truncates when value is exactly 65536 bytes
 #
 
 CREATE TABLE t (c TEXT CHARSET ASCII);
+--error ER_DATA_TOO_LONG
 INSERT INTO t (c) VALUES (REPEAT('1',65537));
+--error ER_DATA_TOO_LONG
 INSERT INTO t (c) VALUES (REPEAT('2',65536));
 INSERT INTO t (c) VALUES (REPEAT('3',65535));
 SELECT LENGTH(c), CHAR_LENGTH(c) FROM t;
@@ -526,29 +547,13 @@ CREATE TABLE b15776 (a char(4294967295));
 CREATE TABLE b15776 (a char(4294967296));
 
 
-# Other numeric-ish types
-## For year, widths not "2" or "4" are silently rewritten to "4".  But
-## When we complain about it, we say that the max is 255.  We may be 
-## talking about different things.  It's confusing.
-CREATE TABLE b15776 (a year(4294967295));
-INSERT INTO b15776 VALUES (42);
-SELECT * FROM b15776;
-DROP TABLE b15776;
---error ER_TOO_BIG_DISPLAYWIDTH
-CREATE TABLE b15776 (a year(4294967296));
-CREATE TABLE b15776 (a year(0));  # 0 is special case, means default size
-DROP TABLE b15776;
---error ER_PARSE_ERROR
-CREATE TABLE b15776 (a year(-2));
-
-
 # We've already tested the case, but this should visually show that 
 # widths that are too large to be interpreted cause DISPLAYWIDTH errors.
 --error ER_TOO_BIG_DISPLAYWIDTH
 CREATE TABLE b15776 (a int(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 --error ER_TOO_BIG_DISPLAYWIDTH
 CREATE TABLE b15776 (a char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
---error ER_TOO_BIG_DISPLAYWIDTH
+--error ER_INVALID_YEAR_COLUMN_LENGTH
 CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
 
 ## Do not select, too much memory needed.
@@ -616,10 +621,10 @@ CREATE TABLE t2(id INT NOT NULL, c TEXT NOT NULL);
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1, '');
 
-UPDATE t2 SET c = REPEAT('1', 70000);
+UPDATE t2 SET c = REPEAT('1', 65535);
 SELECT LENGTH(c) FROM t2;
 
-UPDATE t1 LEFT JOIN t2 USING(id) SET t2.c = REPEAT('1', 70000) WHERE t1.id = 1;
+UPDATE t1 LEFT JOIN t2 USING(id) SET t2.c = REPEAT('1', 65535) WHERE t1.id = 1;
 SELECT LENGTH(c) FROM t2;
 
 DROP TABLE t1, t2;

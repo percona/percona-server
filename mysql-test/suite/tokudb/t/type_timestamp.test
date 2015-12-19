@@ -26,9 +26,17 @@ if (!$explicit_defaults_for_timestamp)
 }
 SET TIMESTAMP=1236;
 insert into t1 (a) values(4);
-insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
+insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"2002-03-06");
 SET TIMESTAMP=1237;
-insert into t1 select * from t2;
+if ($explicit_defaults_for_timestamp)
+{
+ --error 1048
+ insert into t1 select * from t2;
+}
+if (!$explicit_defaults_for_timestamp)
+{
+ insert into t1 select * from t2;
+}
 SET TIMESTAMP=1238;
 insert into t1 (a) select a+1 from t2 where a=8;
 select * from t1;
@@ -80,20 +88,53 @@ drop table t1;
 # (for both strings and numbers)
 #
 create table t1 (ix timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
+--error 1292
+insert into t1 values (0);
+--error 1292
+insert into t1 values (20030101010160);
+--error 1292
+insert into t1 values (20030101016001);
+--error 1292
+insert into t1 values (20030101240101);
+--error 1292
+insert into t1 values (20030132010101);
+--error 1292
+insert into t1 values (20031301010101);
+--error 1292
+insert into t1 values (20031200000000);
+--error 1292
+insert into t1 values (20030000000000);
 select ix+0 from t1;
 truncate table t1;
-insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
+--error 1292
+insert into t1 values ("00000000000000");
+--error 1292
+insert into t1 values ("20030101010160");
+--error 1292
+insert into t1 values ("20030101016001");
+--error 1292
+insert into t1 values ("20030101240101");
+--error 1292
+insert into t1 values ("20030132010101");
+--error 1292
+insert into t1 values ("20031301010101");
+--error 1292
+insert into t1 values ("20031200000000");
+--error 1292
+insert into t1 values ("20030000000000");
 select ix+0 from t1;
 truncate table t1;
-insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+--error 1292
+insert into t1 values ("0000-00-00 00:00:00 some trailer");
+--error 1292
+insert into t1 values ("2003-01-01 00:00:00 some trailer");
 select ix+0 from t1;
 drop table t1;
 
 # Let us test TIMESTAMP auto-update behaviour
 # Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
 # behaviour of DEFAULT literal for such fields
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
 SET TIMESTAMP=1000000001;
@@ -107,7 +148,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
 SET TIMESTAMP=1000000002;
 insert into t1 values ();
 SET TIMESTAMP=1000000003;
@@ -151,7 +192,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
 SET TIMESTAMP=1000000007;
 insert into t1 values ();
 select * from t1;
@@ -277,7 +318,7 @@ drop table t1;
 create table t1 (a bigint, b bigint);
 insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
 set timestamp=1000000019;
-alter table t1 modify a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modify b timestamp NOT NULL DEFAULT '0000-00-00 00:00:0';
+alter table t1 modify a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modify b timestamp NOT NULL DEFAULT '1971-01-01 00:00:0';
 select * from t1;
 drop table t1;
 
@@ -333,7 +374,7 @@ set time_zone= @@global.time_zone;
 CREATE TABLE t1 (
 `id` int(11) NOT NULL auto_increment,
 `username` varchar(80) NOT NULL default '',
-`posted_on` timestamp NOT NULL default '0000-00-00 00:00:00',
+`posted_on` timestamp NOT NULL default '1971-01-01 00:00:00',
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
 
@@ -347,8 +388,8 @@ drop table t1;
 
 CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
                   f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                  f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
-INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
+                  f3 TIMESTAMP NOT NULL default '1971-01-01 00:00:00');
+INSERT INTO t1 (f2,f3) VALUES (NOW(), "1971-01-01 00:00:00");
 if (!$explicit_defaults_for_timestamp)
 {
  INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
@@ -467,7 +508,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (
   `c1` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `c2` TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00'
+  `c2` TIMESTAMP NOT NULL DEFAULT '1971-01-01 00:00:00'
 );
 INSERT INTO t1 VALUES ('2003-05-16 23:53:29','2000-01-27 23:13:41');
 SELECT c2-c1 FROM t1;

@@ -9,11 +9,36 @@ drop table if exists t1;
 --enable_warnings
 
 create table t1 (t time);
-insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
-insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
-select * from t1;
-# Test wrong values
-insert into t1 values("10.22.22"),(1234567),(123456789),(123456789.10),("10 22:22"),("12.45a");
+insert into t1 values ("10:22:33");
+insert into t1 values ("12:34:56.78");
+insert into t1 values (10);
+insert into t1 values (1234);
+insert into t1 values (123456.78);
+insert into t1 values (1234559.99);
+insert into t1 values ("1");
+insert into t1 values ("1:23");
+insert into t1 values ("1:23:45");
+insert into t1 values ("10.22");
+insert into t1 values ("-10  1:22:33.45");
+insert into t1 values ("20 10:22:33");
+insert into t1 values ("1999-02-03 20:33:34");
+insert into t1 values (30);
+insert into t1 values (1230);
+insert into t1 values ("1230");
+insert into t1 values ("12:30");
+insert into t1 values ("12:30:35");
+insert into t1 values ("1 12:30:31.32");
+--error 1292
+insert into t1 values ("10.22.22");
+--error 1292
+insert into t1 values (1234567);
+--error 1292
+insert into t1 values (123456789);
+--error 1292
+insert into t1 values (123456789.10);
+insert into t1 values ("10 22:22");
+--error 1292
+insert into t1 values ("12.45a");
 select * from t1;
 drop table t1;
 
@@ -152,7 +177,14 @@ DROP TABLE t1;
 --echo # Before WL#946 TIME did not reject too big negative minutes/seconds
 --echo #
 CREATE TABLE t1 (a TIME);
-INSERT INTO t1 VALUES ('-10:60:59'), ('-10:59:60'), (-106059), (-105960);
+--error 1292
+INSERT INTO t1 VALUES ('-10:60:59');
+--error 1292
+INSERT INTO t1 VALUES  ('-10:59:60');
+--error 1292
+INSERT INTO t1 VALUES  (-106059);
+--error 1292
+INSERT INTO t1 VALUES  (-105960);
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -263,6 +295,7 @@ SELECT TIME(NAME_CONST('a', 0));
 --echo # Item_cache_datetime::get_time
 --echo #
 CREATE TABLE t1 (a DATE);
+--error 1292
 INSERT INTO t1 VALUES (0);
 SELECT TIME(MIN(a)) FROM t1;
 DROP TABLE t1;

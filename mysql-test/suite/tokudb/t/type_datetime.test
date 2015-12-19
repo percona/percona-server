@@ -9,13 +9,44 @@ drop table if exists t1;
 --enable_warnings
 
 create table t1 (t datetime);
-insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+insert into t1 values (101);
+insert into t1 values (691231);
+insert into t1 values (700101);
+insert into t1 values (991231);
+insert into t1 values (10000101);
+insert into t1 values (99991231);
+insert into t1 values (101000000);
+insert into t1 values (691231000000);
+insert into t1 values (700101000000);
+insert into t1 values (991231235959);
+insert into t1 values (10000101000000);
+insert into t1 values (99991231235959);
+--error 1292
+insert into t1 values (20030100000000);
+--error 1292
+insert into t1 values (20030000000000);
 select * from t1;
 delete from t1 where t > 0;
 optimize table t1;
 check table t1;
 delete from t1;
-insert into t1 values("000101"),("691231"),("700101"),("991231"),("00000101"),("00010101"),("99991231"),("00101000000"),("691231000000"),("700101000000"),("991231235959"),("10000101000000"),("99991231235959"),("20030100000000"),("20030000000000");
+insert into t1 values ("000101");
+insert into t1 values ("691231");
+insert into t1 values ("700101");
+insert into t1 values ("991231");
+insert into t1 values ("00000101");
+insert into t1 values ("00010101");
+insert into t1 values ("99991231");
+insert into t1 values ("00101000000");
+insert into t1 values ("691231000000");
+insert into t1 values ("700101000000");
+insert into t1 values ("991231235959");
+insert into t1 values ("10000101000000");
+insert into t1 values ("99991231235959");
+--error 1292
+insert into t1 values ("20030100000000");
+--error 1292
+insert into t1 values ("20030000000000");
 
 # Strange dates
 insert into t1 values ("2003-003-03");
@@ -26,17 +57,9 @@ select * from t1;
 
 # Test some wrong dates
 truncate table t1;
+--error 1292
 insert into t1 values("2003-0303 12:13:14");
 select * from t1;
-drop table t1;
-
-#
-# Test insert of now() and curtime()
-#
-
-CREATE TABLE t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b date, c time, d datetime);
-insert into t1 (b,c,d) values(now(),curtime(),now());
-select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
 drop table t1;
 
 #
@@ -44,6 +67,7 @@ drop table t1;
 #
 
 CREATE TABLE t1 (a datetime not null);
+--error 1292
 insert into t1 values (0);
 select * from t1 where a is null;
 drop table t1;
@@ -65,19 +89,19 @@ drop table t1;
 #
 
 CREATE TABLE `t1` (
-  `date` datetime NOT NULL default '0000-00-00 00:00:00',
+  `date` datetime NOT NULL default '1971-01-01 00:00:00',
   `numfacture` int(6) unsigned NOT NULL default '0',
-  `expedition` datetime NOT NULL default '0000-00-00 00:00:00',
+  `expedition` datetime NOT NULL default '1971-01-01 00:00:00',
   PRIMARY KEY  (`numfacture`),
   KEY `date` (`date`),
   KEY `expedition` (`expedition`)
 ) ENGINE=MyISAM;
 
-INSERT INTO t1 (expedition) VALUES ('0001-00-00 00:00:00');
-SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
-INSERT INTO t1 (numfacture,expedition) VALUES ('1212','0001-00-00 00:00:00');
-SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
-EXPLAIN SELECT * FROM t1 WHERE expedition='0001-00-00 00:00:00';
+INSERT INTO t1 (expedition) VALUES ('1971-01-01 00:00:01');
+SELECT * FROM t1 WHERE expedition='1971-01-01 00:00:01';
+INSERT INTO t1 (numfacture,expedition) VALUES ('1212','1971-01-01 00:00:01');
+SELECT * FROM t1 WHERE expedition='1971-01-01 00:00:01';
+EXPLAIN SELECT * FROM t1 WHERE expedition='1971-01-01 00:00:01';
 drop table t1;
 create table t1 (a datetime not null, b datetime not null);
 insert into t1 values (now(), now());
@@ -90,29 +114,39 @@ drop table t1;
 # warnings (for both strings and numbers)
 #
 create table t1 (t datetime);
-insert into t1 values (20030102030460),(20030102036301),(20030102240401),
-                      (20030132030401),(20031302030401),(100001202030401);
+--error 1292
+insert into t1 values (20030102030460);
+--error 1292
+insert into t1 values (20030102036301);
+--error 1292
+insert into t1 values (20030102240401);
+--error 1292
+insert into t1 values (20030132030401);
+--error 1292
+insert into t1 values (20031302030401);
+--error 1292
+insert into t1 values (100001202030401);
 select * from t1;
 delete from t1;
-insert into t1 values
-  ("2003-01-02 03:04:60"),("2003-01-02 03:63:01"),("2003-01-02 24:04:01"),
-  ("2003-01-32 03:04:01"),("2003-13-02 03:04:01"), ("10000-12-02 03:04:00");
+--error 1292
+insert into t1 values ("2003-01-02 03:04:60");
+--error 1292
+insert into t1 values ("2003-01-02 03:63:01");
+--error 1292
+insert into t1 values ("2003-01-02 24:04:01");
+--error 1292
+insert into t1 values ("2003-01-32 03:04:01");
+--error 1292
+insert into t1 values ("2003-13-02 03:04:01");
+--error 1292
+insert into t1 values ("10000-12-02 03:04:00");
 select * from t1;
 delete from t1;
-insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
+--error 1292
+insert into t1 values ("0000-00-00 00:00:00 some trailer");
+--error 1292
+insert into t1 values ("2003-01-01 00:00:00 some trailer");
 select * from t1 order by t;
-drop table t1;
-
-#
-# Test for bug #7297 "Two digit year should be interpreted correctly even
-# with zero month and day"
-#
-create table t1 (dt datetime);
-# These dates should be treated as dates in 21st century
-insert into t1 values ("12-00-00"), ("00-00-00 01:00:00");
-# Zero dates are still special :/
-insert into t1 values ("00-00-00"), ("00-00-00 00:00:00");
-select * from t1;
 drop table t1;
 
 #
@@ -455,17 +489,6 @@ SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS
 # show we truncate microseconds from the right
 SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7));
 
---echo # 
---echo # Bug#59173: Failure to handle DATE(TIME) values where Year, Month or
---echo # Day is ZERO 
---echo # 
-CREATE TABLE t1 (dt1 DATETIME);
-INSERT INTO t1 (dt1) VALUES ('0000-00-01 00:00:01');
-DELETE   FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
---echo # Should be empty
-SELECT * FROM t1;
-DROP TABLE t1;
-
 --echo End of 5.1 tests
 
 --echo #
@@ -521,10 +544,10 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (a DATE NOT NULL, b INT);
-INSERT INTO t1 VALUES ('0000-00-00',1), ('1999-05-10',2);
+INSERT INTO t1 VALUES ('1971-01-01',1), ('1999-05-10',2);
 
 CREATE TABLE t2 (a DATETIME NOT NULL, b INT);
-INSERT INTO t2 VALUES ('0000-00-00 00:00:00',1), ('1999-05-10 00:00:00',2);
+INSERT INTO t2 VALUES ('1971-01-01 00:00:00',1), ('1999-05-10 00:00:00',2);
 
 --echo
 SELECT * FROM t1 WHERE a IS NULL;

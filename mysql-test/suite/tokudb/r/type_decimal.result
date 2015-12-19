@@ -153,37 +153,55 @@ id	datatype_id	min_value	max_value	valuename	forecolor	backcolor
 143	16	-4.9000000000	-0.1000000000		NULL	15774720
 drop table t1;
 create table t1 (a decimal(10,2));
-insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
-insert into t1 values ("-.1"),("+.1"),(".1");
-insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
-insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("1e+4294967296"),("1e-4294967296");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 2
-insert into t1 values ("1e+18446744073709551615"),("1e+18446744073709551616"),("1e-9223372036854775807"),("1e-9223372036854775809");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1366	Incorrect decimal value: '1e+18446744073709551616' for column 'a' at row 2
-Note	1265	Data truncated for column 'a' at row 3
-Warning	1366	Incorrect decimal value: '1e-9223372036854775809' for column 'a' at row 4
-insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
+insert into t1 values ("0.0");
+insert into t1 values ("-0.0");
+insert into t1 values ("+0.0");
+insert into t1 values ("01.0");
+insert into t1 values ("+01.0");
+insert into t1 values ("-01.0");
+insert into t1 values ("-.1");
+insert into t1 values ("+.1");
+insert into t1 values (".1");
+insert into t1 values ("00000000000001");
+insert into t1 values ("+0000000000001");
+insert into t1 values ("-0000000000001");
+insert into t1 values ("+111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-11111111.11");
+insert into t1 values ("-111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+1111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("1111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("1e+1000");
+ERROR HY000: Incorrect decimal value: '1e+1000' for column 'a' at row 1
+insert into t1 values ("1e-1000");
+ERROR HY000: Incorrect decimal value: '1e-1000' for column 'a' at row 1
+insert into t1 values ("-1e+1000");
+ERROR HY000: Incorrect decimal value: '-1e+1000' for column 'a' at row 1
+insert into t1 values ("1e+4294967296");
+ERROR HY000: Incorrect decimal value: '1e+4294967296' for column 'a' at row 1
+insert into t1 values ("1e-4294967296");
+ERROR HY000: Incorrect decimal value: '1e-4294967296' for column 'a' at row 1
+insert into t1 values ("1e+18446744073709551615");
+ERROR HY000: Incorrect decimal value: '1e+18446744073709551615' for column 'a' at row 1
+insert into t1 values ("1e+18446744073709551616");
+ERROR HY000: Incorrect decimal value: '1e+18446744073709551616' for column 'a' at row 1
+insert into t1 values ("1e-9223372036854775807");
+ERROR HY000: Incorrect decimal value: '1e-9223372036854775807' for column 'a' at row 1
+insert into t1 values ("1e-9223372036854775809");
+ERROR HY000: Incorrect decimal value: '1e-9223372036854775809' for column 'a' at row 1
+insert into t1 values ("123.4e");
+ERROR HY000: Incorrect decimal value: '123.4e' for column 'a' at row 1
+insert into t1 values ("123.4e+2");
+insert into t1 values ("123.4e-2");
 Warnings:
 Note	1265	Data truncated for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 3
+insert into t1 values ("123e1");
+insert into t1 values ("123e+0");
 select * from t1;
 a
 0.00
@@ -198,57 +216,54 @@ a
 1.00
 1.00
 -1.00
-99999999.99
-99999999.99
 -11111111.11
--99999999.99
-99999999.99
-99999999.99
-99999999.99
-0.00
--99999999.99
-99999999.99
-0.00
-99999999.99
-0.00
-0.00
-0.00
-123.40
 12340.00
 1.23
 1230.00
 123.00
-drop  table t1;
+drop table t1;
 create table t1 (a decimal(10,2) unsigned);
-insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 6
-insert into t1 values ("-.1"),("+.1"),(".1");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
+insert into t1 values ("0.0");
+insert into t1 values ("-0.0");
+insert into t1 values ("+0.0");
+insert into t1 values ("01.0");
+insert into t1 values ("+01.0");
+insert into t1 values ("-01.0");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-.1");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+.1");
+insert into t1 values (".1");
+insert into t1 values ("00000000000001");
+insert into t1 values ("+0000000000001");
+insert into t1 values ("-0000000000001");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-11111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+1111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("1111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("1e+1000");
+ERROR HY000: Incorrect decimal value: '1e+1000' for column 'a' at row 1
+insert into t1 values ("1e-1000");
+ERROR HY000: Incorrect decimal value: '1e-1000' for column 'a' at row 1
+insert into t1 values ("-1e+1000");
+ERROR HY000: Incorrect decimal value: '-1e+1000' for column 'a' at row 1
+insert into t1 values ("123.4e");
+ERROR HY000: Incorrect decimal value: '123.4e' for column 'a' at row 1
+insert into t1 values ("123.4e+2");
+insert into t1 values ("123.4e-2");
 Warnings:
 Note	1265	Data truncated for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 3
+insert into t1 values ("123e1");
+insert into t1 values ("123e+0");
 select * from t1;
 a
 0.00
@@ -256,58 +271,57 @@ a
 0.00
 1.00
 1.00
-0.00
-0.00
 0.10
 0.10
 1.00
 1.00
-0.00
-99999999.99
-99999999.99
-0.00
-0.00
-99999999.99
-99999999.99
-99999999.99
-0.00
-0.00
-123.40
 12340.00
 1.23
 1230.00
 123.00
 drop  table t1;
 create table t1 (a decimal(10,2) zerofill);
-insert into t1 values ("0.0"),("-0.0"),("+0.0"),("01.0"),("+01.0"),("-01.0");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 6
-insert into t1 values ("-.1"),("+.1"),(".1");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-insert into t1 values ("00000000000001"),("+0000000000001"),("-0000000000001");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("+111111111.11"),("111111111.11"),("-11111111.11");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("-111111111.11"),("+1111111111.11"),("1111111111.11");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("1e+1000"),("1e-1000"),("-1e+1000");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values ("123.4e"),("123.4e+2"),("123.4e-2"),("123e1"),("123e+0");
+insert into t1 values ("0.0");
+insert into t1 values ("-0.0");
+insert into t1 values ("+0.0");
+insert into t1 values ("01.0");
+insert into t1 values ("+01.0");
+insert into t1 values ("-01.0");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-.1");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+.1");
+insert into t1 values (".1");
+insert into t1 values ("00000000000001");
+insert into t1 values ("+0000000000001");
+insert into t1 values ("-0000000000001");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-11111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("-111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("+1111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("1111111111.11");
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ("1e+1000");
+ERROR HY000: Incorrect decimal value: '1e+1000' for column 'a' at row 1
+insert into t1 values ("1e-1000");
+ERROR HY000: Incorrect decimal value: '1e-1000' for column 'a' at row 1
+insert into t1 values ("-1e+1000");
+ERROR HY000: Incorrect decimal value: '-1e+1000' for column 'a' at row 1
+insert into t1 values ("123.4e");
+ERROR HY000: Incorrect decimal value: '123.4e' for column 'a' at row 1
+insert into t1 values ("123.4e+2");
+insert into t1 values ("123.4e-2");
 Warnings:
 Note	1265	Data truncated for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 3
+insert into t1 values ("123e1");
+insert into t1 values ("123e+0");
 select * from t1;
 a
 00000000.00
@@ -315,50 +329,56 @@ a
 00000000.00
 00000001.00
 00000001.00
-00000000.00
-00000000.00
 00000000.10
 00000000.10
 00000001.00
 00000001.00
-00000000.00
-99999999.99
-99999999.99
-00000000.00
-00000000.00
-99999999.99
-99999999.99
-99999999.99
-00000000.00
-00000000.00
-00000123.40
 00012340.00
 00000001.23
 00001230.00
 00000123.00
 drop  table t1;
 create table t1 (a decimal(10,2));
-insert into t1 values (0.0),("-0.0"),(+0.0),(01.0),(+01.0),(-01.0);
-insert into t1 values (-.1),(+.1),(.1);
-insert into t1 values (00000000000001),(+0000000000001),(-0000000000001);
-insert into t1 values (+111111111.11),(111111111.11),(-11111111.11);
+insert into t1 values (0.0);
+insert into t1 values ("-0.0");
+insert into t1 values (+0.0);
+insert into t1 values (01.0);
+insert into t1 values (+01.0);
+insert into t1 values (-01.0);
+insert into t1 values (-.1);
+insert into t1 values (+.1);
+insert into t1 values (.1);
+insert into t1 values (00000000000001);
+insert into t1 values (+0000000000001);
+insert into t1 values (-0000000000001);
+insert into t1 values (+111111111.11);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (111111111.11);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (-11111111.11);
+insert into t1 values (-111111111.11);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (+1111111111.11);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (1111111111.11);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (1e+100);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (1e-100);
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-insert into t1 values (-111111111.11),(+1111111111.11),(1111111111.11);
+Note	1265	Data truncated for column 'a' at row 1
+insert into t1 values (-1e+100);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (123.4e0);
+insert into t1 values (123.4e+2);
+insert into t1 values (123.4e-2);
 Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values (1e+100),(1e-100),(-1e+100);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Note	1265	Data truncated for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 3
-insert into t1 values (123.4e0),(123.4e+2),(123.4e-2),(123e1),(123e+0);
-Warnings:
-Note	1265	Data truncated for column 'a' at row 3
-insert into t1 values (MID("987",1,2)),("987 "),("987.6e+2 ");
+Note	1265	Data truncated for column 'a' at row 1
+insert into t1 values (123e1);
+insert into t1 values (123e+0);
+insert into t1 values (MID("987",1,2));
+insert into t1 values ("987 ");
+insert into t1 values ("987.6e+2 ");
 select * from t1;
 a
 0.00
@@ -373,15 +393,8 @@ a
 1.00
 1.00
 -1.00
-99999999.99
-99999999.99
 -11111111.11
--99999999.99
-99999999.99
-99999999.99
-99999999.99
 0.00
--99999999.99
 123.40
 12340.00
 1.23
@@ -392,83 +405,87 @@ a
 98760.00
 drop  table t1;
 create table t1 (a decimal);
-insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+12345678901'),(99999999999999);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 6
-Warning	1264	Out of range value for column 'a' at row 7
+insert into t1 values (-99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (-1);
+insert into t1 values ('+1');
+insert into t1 values ('01');
+insert into t1 values ('+00000000000001');
+insert into t1 values ('+12345678901');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
--9999999999
 -1
 1
 1
 1
-9999999999
-9999999999
-drop  table t1;
+drop table t1;
 create table t1 (a decimal unsigned);
-insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 7
+insert into t1 values (-99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (-1);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1');
+insert into t1 values ('01');
+insert into t1 values ('+00000000000001');
+insert into t1 values ('+1234567890');
+insert into t1 values (99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
-0
-0
 1
 1
 1
 1234567890
-9999999999
-drop  table t1;
+drop table t1;
 create table t1 (a decimal zerofill);
-insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 7
+insert into t1 values (-99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (-1);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1');
+insert into t1 values ('01');
+insert into t1 values ('+00000000000001');
+insert into t1 values ('+1234567890');
+insert into t1 values (99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
-0000000000
-0000000000
 0000000001
 0000000001
 0000000001
 1234567890
-9999999999
-drop  table t1;
+drop table t1;
 create table t1 (a decimal unsigned zerofill);
-insert into t1 values (-99999999999999),(-1),('+1'),('01'),('+00000000000001'),('+1234567890'),(99999999999999);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
-Warning	1264	Out of range value for column 'a' at row 7
+insert into t1 values (-99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values (-1);
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1');
+insert into t1 values ('01');
+insert into t1 values ('+00000000000001');
+insert into t1 values ('+1234567890');
+insert into t1 values (99999999999999);
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
-0000000000
-0000000000
 0000000001
 0000000001
 0000000001
 1234567890
-9999999999
-drop  table t1;
+drop table t1;
 create table t1(a decimal(10,0));
 insert into t1 values ("1e4294967295");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+ERROR HY000: Incorrect decimal value: '1e4294967295' for column 'a' at row 1
 select * from t1;
 a
-9999999999
 delete from t1;
 insert into t1 values("1e4294967297");
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+ERROR HY000: Incorrect decimal value: '1e4294967297' for column 'a' at row 1
 select * from t1;
 a
-9999999999
 drop table t1;
 CREATE TABLE t1 (a_dec DECIMAL(-1,0));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1,0))' at line 1
@@ -479,7 +496,102 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t1 (a_dec DECIMAL(0,11));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'a_dec').
 create table t1(a decimal(7,3));
-insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
+insert into t1 values ('1');
+insert into t1 values ('+1');
+insert into t1 values ('-1');
+insert into t1 values ('0000000001');
+insert into t1 values ('+0000000001');
+insert into t1 values ('-0000000001');
+insert into t1 values ('10');
+insert into t1 values ('+10');
+insert into t1 values ('-10');
+insert into t1 values ('0000000010');
+insert into t1 values ('+0000000010');
+insert into t1 values ('-0000000010');
+insert into t1 values ('100');
+insert into t1 values ('+100');
+insert into t1 values ('-100');
+insert into t1 values ('0000000100');
+insert into t1 values ('+0000000100');
+insert into t1 values ('-0000000100');
+insert into t1 values ('1000');
+insert into t1 values ('+1000');
+insert into t1 values ('-1000');
+insert into t1 values ('0000001000');
+insert into t1 values ('+0000001000');
+insert into t1 values ('-0000001000');
+insert into t1 values ('10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
 1.000
@@ -506,172 +618,254 @@ a
 1000.000
 1000.000
 -1000.000
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
-9999.999
-9999.999
--9999.999
 drop table t1;
 create table t1(a decimal(7,3) unsigned);
-insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
+insert into t1 values ('1');
+insert into t1 values ('+1');
+insert into t1 values ('-1');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000000001');
+insert into t1 values ('+0000000001');
+insert into t1 values ('-0000000001');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10');
+insert into t1 values ('+10');
+insert into t1 values ('-10');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000000010');
+insert into t1 values ('+0000000010');
+insert into t1 values ('-0000000010');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100');
+insert into t1 values ('+100');
+insert into t1 values ('-100');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000000100');
+insert into t1 values ('+0000000100');
+insert into t1 values ('-0000000100');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000');
+insert into t1 values ('+1000');
+insert into t1 values ('-1000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000001000');
+insert into t1 values ('+0000001000');
+insert into t1 values ('-0000001000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
 1.000
 1.000
-0.000
 1.000
 1.000
-0.000
 10.000
 10.000
-0.000
 10.000
 10.000
-0.000
 100.000
 100.000
-0.000
 100.000
 100.000
-0.000
 1000.000
 1000.000
-0.000
 1000.000
 1000.000
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
-9999.999
-9999.999
-0.000
 drop table t1;
 create table t1(a decimal(7,3) zerofill);
-insert into t1 values ('1'),('+1'),('-1'),('0000000001'),('+0000000001'),('-0000000001'),('10'),('+10'),('-10'),('0000000010'),('+0000000010'),('-0000000010'),('100'),('+100'),('-100'),('0000000100'),('+0000000100'),('-0000000100'),('1000'),('+1000'),('-1000'),('0000001000'),('+0000001000'),('-0000001000'),('10000'),('+10000'),('-10000'),('0000010000'),('+0000010000'),('-0000010000'),('100000'),('+100000'),('-100000'),('0000100000'),('+0000100000'),('-0000100000'),('1000000'),('+1000000'),('-1000000'),('0001000000'),('+0001000000'),('-0001000000'),('10000000'),('+10000000'),('-10000000'),('0010000000'),('+0010000000'),('-0010000000'),('100000000'),('+100000000'),('-100000000'),('0100000000'),('+0100000000'),('-0100000000'),('1000000000'),('+1000000000'),('-1000000000'),('1000000000'),('+1000000000'),('-1000000000');
+insert into t1 values ('1');
+insert into t1 values ('+1');
+insert into t1 values ('-1');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000000001');
+insert into t1 values ('+0000000001');
+insert into t1 values ('-0000000001');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10');
+insert into t1 values ('+10');
+insert into t1 values ('-10');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000000010');
+insert into t1 values ('+0000000010');
+insert into t1 values ('-0000000010');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100');
+insert into t1 values ('+100');
+insert into t1 values ('-100');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000000100');
+insert into t1 values ('+0000000100');
+insert into t1 values ('-0000000100');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000');
+insert into t1 values ('+1000');
+insert into t1 values ('-1000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000001000');
+insert into t1 values ('+0000001000');
+insert into t1 values ('-0000001000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-10000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0000010000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0000100000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0001000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-10000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0010000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-0100000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('+1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
+insert into t1 values ('-1000000000');
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t1;
 a
 0001.000
 0001.000
-0000.000
 0001.000
 0001.000
-0000.000
 0010.000
 0010.000
-0000.000
 0010.000
 0010.000
-0000.000
 0100.000
 0100.000
-0000.000
 0100.000
 0100.000
-0000.000
 1000.000
 1000.000
-0000.000
 1000.000
 1000.000
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
-9999.999
-9999.999
-0000.000
 drop table t1;
 create table t1(a decimal(10,5), b decimal(10,1));
 insert into t1 values(123.12345, 123.12345);
@@ -722,7 +916,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (d decimal(66,0));
-ERROR 42000: Too big precision 66 specified for column 'd'. Maximum is 65.
+ERROR 42000: Too-big precision 66 specified for 'd'. Maximum is 65.
 CREATE TABLE t1 (i INT, d1 DECIMAL(9,2), d2 DECIMAL(9,2));
 INSERT INTO t1 VALUES (1, 101.40, 21.40), (1, -80.00, 0.00),
 (2, 0.00, 0.00), (2, -13.20, 0.00), (2, 59.60, 46.40),
@@ -780,13 +974,6 @@ flush tables;
 select f1 from t1 where f1 in (select f1 from t1);
 f1
 40
-drop table t1;
-create table t1 as
-select from_days(s) as date,t
-from (select 1 as s,'t' as t union select null, null ) as sub1;
-select group_concat(t) from t1 group by week(date)/10;
-group_concat(t)
-t
 drop table t1;
 CREATE TABLE t1 (
 qty decimal(16,6) default NULL, 

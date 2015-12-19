@@ -264,3 +264,5 @@ TOKUDB_TXN_ABORTS
 TOKUDB_TXN_BEGIN
 TOKUDB_TXN_BEGIN_READ_ONLY
 TOKUDB_TXN_COMMITS
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead

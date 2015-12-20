@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 06/25/2015
+.\"      Date: 11/06/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "06/25/2015" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "11/06/2015" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -657,7 +657,7 @@ that is supplied with MySQL Cluster\&. It is not available in standard MySQL Ser
 .\}
 .\" mysqladmin: character-sets-dir option
 .\" character-sets-dir option: mysqladmin
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -987,9 +987,9 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .\}
 .\" mysqladmin: plugin-dir option
 .\" plugin-dir option: mysqladmin
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
-The directory in which to look for plugins\&. It may be necessary to specify this option if the
+The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
 \fBmysqladmin\fR

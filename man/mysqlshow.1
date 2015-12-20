@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlshow\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 06/25/2015
+.\"      Date: 11/06/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSHOW\FR" "1" "06/25/2015" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLSHOW\FR" "1" "11/06/2015" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -173,7 +173,7 @@ that is supplied with MySQL Cluster\&. It is not available in standard MySQL Ser
 .\}
 .\" mysqlshow: character-sets-dir option
 .\" character-sets-dir option: mysqlshow
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -369,6 +369,26 @@ groups\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqlshow: enable-cleartext-plugin option
+.\" enable-cleartext-plugin option: mysqlshow
+\fB\-\-enable\-cleartext\-plugin\fR
+.sp
+Enable the
+mysql_clear_password
+cleartext authentication plugin\&. (See
+Section\ \&6.3.7.5, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+.sp
+This option was added in MySQL 5\&.5\&.47\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqlshow: host option
 .\" host option: mysqlshow
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
@@ -465,9 +485,9 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .\}
 .\" mysqlshow: plugin-dir option
 .\" plugin-dir option: mysqlshow
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
-The directory in which to look for plugins\&. It may be necessary to specify this option if the
+The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
 \fBmysqlshow\fR

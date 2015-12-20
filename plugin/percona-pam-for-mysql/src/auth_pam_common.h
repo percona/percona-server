@@ -52,9 +52,7 @@ struct pam_conv_data {
 };
 
 extern PSI_memory_key key_memory_pam_mapping_iter;
-extern PSI_memory_key key_memory_pam_packet;
 extern PSI_memory_key key_memory_pam_group_iter;
-extern PSI_memory_key key_memory_pam_response;
 
 void auth_pam_common_init(const char *psi_category);
 
@@ -71,6 +69,19 @@ void auth_pam_client_talk_finalize(void *talk_data);
 
 int authenticate_user_with_pam_server (MYSQL_PLUGIN_VIO *vio,
                                        MYSQL_SERVER_AUTH_INFO *info);
+
+int auth_pam_generate_auth_string_hash(char *outbuf,
+                                       unsigned int *buflen,
+                                       const char *inbuf,
+                                       unsigned int inbuflen);
+
+int auth_pam_validate_auth_string_hash(char* const buf,
+                                       unsigned int len);
+
+int auth_pam_set_salt(const char* password,
+                      unsigned int password_len,
+                      unsigned char* salt,
+                      unsigned char* salt_len);
 
 #ifdef __cplusplus
 }

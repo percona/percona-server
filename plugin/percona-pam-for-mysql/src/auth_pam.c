@@ -1,5 +1,5 @@
 /*
-(C) 2012, 2013 Percona LLC and/or its affiliates
+(C) 2012, 2015 Percona LLC and/or its affiliates
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -57,6 +57,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 #include <string.h>
 #include "auth_pam_common.h"
 #include <my_sys.h>
+#include <stdlib.h>
 
 /** The maximum length of buffered PAM messages, i.e. any messages up to the
     next PAM reply-requiring message. 10K should be more than enough by order
@@ -85,8 +86,8 @@ static char pam_msg_style_to_char (int pam_msg_style)
 int auth_pam_client_talk_init(void **talk_data)
 {
   struct pam_msg_buf *msg_buf= my_malloc(key_memory_pam_msg_buf,
-					 sizeof(struct pam_msg_buf),
-					 MY_ZEROFILL);
+                                         sizeof(struct pam_msg_buf),
+                                         MY_ZEROFILL);
   *talk_data= (void*)msg_buf;
   if (msg_buf != NULL)
   {
@@ -141,7 +142,7 @@ int auth_pam_talk_perform(const struct pam_message *msg,
         < 0)
       return PAM_CONV_ERR;
 
-    resp->resp= my_malloc(key_memory_pam_packet, pkt_len + 1, 0);
+    resp->resp= malloc(pkt_len + 1);
     if (resp->resp == NULL)
       return PAM_BUF_ERR;
 
@@ -172,9 +173,9 @@ static struct st_mysql_auth pam_auth_handler=
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   "dialog",
   &authenticate_user_with_pam_server,
-  NULL,
-  NULL,
-  NULL,
+  &auth_pam_generate_auth_string_hash,
+  &auth_pam_validate_auth_string_hash,
+  &auth_pam_set_salt,
   0UL
 };
 

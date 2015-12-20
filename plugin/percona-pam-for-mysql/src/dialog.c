@@ -42,6 +42,7 @@
 #include <mysql.h>
 #include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
+#include <mysql/get_password.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -219,18 +220,21 @@ typedef char *(*mysql_authentication_dialog_ask_t)(struct st_mysql *mysql,
 
 static mysql_authentication_dialog_ask_t ask;
 
+
+static char * strdup_func(const char *str, myf flags __attribute__((unused)))
+{
+  return strdup(str);
+}
+
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          int type __attribute__((unused)),
                          const char *prompt,
                          char *buf, int buf_len)
 {
-  fputs(prompt, stdout);
-  fputc(' ', stdout);
-
   if (type == 2) /* password */
   {
     char *password;
-    password= get_tty_password("");
+    password= get_tty_password_ext(prompt, strdup_func);
     strncpy(buf, password, buf_len-1);
     buf[buf_len-1]= 0;
     free(password);

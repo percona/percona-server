@@ -63,60 +63,62 @@ List of status variables that are no longer available in |Percona Server| 5.6
 
 Following status variables available in |Percona Server| 5.6 are no longer present in |Percona Server| 5.7:
 
+.. tabularcolumns:: |p{7cm}|p{8.5cm}|
+
 .. list-table::
    :header-rows: 1
 
    * - Status Variables
      - Replaced by
-   * - :variable:`Com_purge_archived`
+   * - ``Com_purge_archived``
      - InnoDB redo log archiving has been removed due to lack of user uptake of the feature.
-   * - :variable:`Com_purge_archived_before_date`
+   * - ``Com_purge_archived_before_date``
      - InnoDB redo log archiving has been removed due to lack of user uptake of the feature.
-   * - :variable:`read_views_memory`
+   * - ``read_views_memory``
      - transaction descriptors replaced by the upstream implementation
-   * - :variable:`descriptors_memory`
+   * - ``descriptors_memory``
      - transaction descriptors replaced by the upstream implementation
-   * - :variable:`innodb_mem_total`
+   * - ``innodb_mem_total``
      - This variable was always zero in 5.6 with the default :variable:`innodb_use_sys_malloc` setting
-   * - :variable:`innodb_deadlocks`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``lock_deadlocks``)
-   * - :variable:`Innodb_ibuf_merges`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges``)
-   * - :variable:`Innodb_ibuf_merged_deletes`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges_delete``)
-   * - :variable:`Innodb_ibuf_merged_delete_marks`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges_delete_mark``)
-   * - :variable:`Innodb_ibuf_discarded_deletes`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges_discard_delete``)
-   * - :variable:`Innodb_ibuf_discarded_delete_marks`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges_discard_delete_mark``)
-   * - :variable:`Innodb_ibuf_discarded_inserts`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges_discard_insert``)
-   * - :variable:`Innodb_ibuf_merged_inserts`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_merges_insert``)
-   * - :variable:`Innodb_ibuf_size`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``ibuf_size``)
-   * - :variable:`Innodb_s_lock_os_waits`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``innodb_rwlock_s_os_waits``)
-   * - :variable:`Innodb_s_lock_spin_rounds`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``innodb_rwlock_s_spin_rounds``)
-   * - :variable:`Innodb_s_lock_spin_waits`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``innodb_rwlock_s_spin_waits``)
-   * - :variable:`Innodb_x_lock_os_waits`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``innodb_rwlock_x_os_waits``)
-   * - :variable:`Innodb_x_lock_spin_rounds`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``innodb_rwlock_x_spin_rounds``)
-   * - :variable:`Innodb_x_lock_spin_waits`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``innodb_rwlock_x_spin_waits``)
-   * - :variable:`Innodb_current_row_locks`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``lock_row_lock_current_waits``)
-   * - :variable:`Innodb_history_list_length`
-     - Information now available in :table:`INFORMATION_SCHEMA.INNODB_METRICS` table (``trx_rseg_history_len``)
-   * - :variable:`Innodb_mutex_os_waits`
+   * - ``innodb_deadlocks``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``lock_deadlocks``)
+   * - ``Innodb_ibuf_merges``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges``)
+   * - ``Innodb_ibuf_merged_deletes``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges_delete``)
+   * - ``Innodb_ibuf_merged_delete_marks``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges_delete_mark``)
+   * - ``Innodb_ibuf_discarded_deletes``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges_discard_delete``)
+   * - ``Innodb_ibuf_discarded_delete_marks``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges_discard_delete_mark``)
+   * - ``Innodb_ibuf_discarded_inserts``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges_discard_insert``)
+   * - ``Innodb_ibuf_merged_inserts``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_merges_insert``)
+   * - ``Innodb_ibuf_size``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``ibuf_size``)
+   * - ``Innodb_s_lock_os_waits``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``innodb_rwlock_s_os_waits``)
+   * - ``Innodb_s_lock_spin_rounds``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``innodb_rwlock_s_spin_rounds``)
+   * - ``Innodb_s_lock_spin_waits``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``innodb_rwlock_s_spin_waits``)
+   * - ``Innodb_x_lock_os_waits``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``innodb_rwlock_x_os_waits``)
+   * - ``Innodb_x_lock_spin_rounds``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``innodb_rwlock_x_spin_rounds``)
+   * - ``Innodb_x_lock_spin_waits``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``innodb_rwlock_x_spin_waits``)
+   * - ``Innodb_current_row_locks``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``lock_row_lock_current_waits``)
+   * - ``Innodb_history_list_length``
+     - Information now available in ``INFORMATION_SCHEMA.INNODB_METRICS`` table (``trx_rseg_history_len``)
+   * - ``Innodb_mutex_os_waits``
      - ``SHOW ENGINE INNODB MUTEX`` presents the same information, but per-mutex instead of whole system aggregation
-   * - :variable:`Innodb_mutex_spin_rounds`
+   * - ``Innodb_mutex_spin_rounds``
      - ``SHOW ENGINE INNODB MUTEX`` presents the same information, but per-mutex instead of whole system aggregation
-   * - :variable:`Innodb_mutex_spin_waits`
+   * - ``Innodb_mutex_spin_waits``
      - ``SHOW ENGINE INNODB MUTEX`` presents the same information, but per-mutex instead of whole system aggregation
 
 
@@ -128,6 +130,8 @@ Following system variables available in |Percona Server| 5.6 are no longer prese
 .. warning::
 
    |Percona Server| 5.7 won't be able to start if some of these variables are set in the server's configuration file.
+
+.. tabularcolumns:: |p{8cm}|p{7.5cm}|
 
 .. list-table::
    :header-rows: 1
@@ -161,6 +165,8 @@ Features ported from |Percona Server| 5.6 to |Percona Server| 5.7
 ==================================================================
 
 Following features were ported from |Percona Server| 5.6 to |Percona Server| 5.7: 
+
+.. tabularcolumns:: |p{12cm}|p{3.5cm}|
 
 .. list-table::
    :header-rows: 1

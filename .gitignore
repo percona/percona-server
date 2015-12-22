@@ -3142,3 +3142,4 @@ sql/share/bulgarian
 /GTAGS
 sql/lex_token.h
 sql/gen_lex_token
+mysql-test/test_results.subunit

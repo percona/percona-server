@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.80.\ \& This table describes command-line options for the ndb_mgmd program
+.B Table\ \&18.82.\ \& This table describes command-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -336,7 +336,7 @@ Do not perform any checks of node IDs\&.
 .IP \(bu 2.3
 .\}
 .\" configdir option (ndb_mgmd)
-\fB\-\-configdir=\fR\fB\fIpath\fR\fR
+\fB\-\-configdir=\fR\fB\fIdir_name\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -413,7 +413,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&18.3.2, \(lqMySQL Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&18.3.3, \(lqMySQL Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -575,7 +575,7 @@ option, or because the management server could not find any configuration cache\
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&18.3.2, \(lqMySQL Cluster Configuration Files\(rq, for more information\&.
+Section\ \&18.3.3, \(lqMySQL Cluster Configuration Files\(rq, for more information\&.
 .sp
 Formerly, using this option together with
 \fB\-\-initial\fR
@@ -743,7 +743,7 @@ T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&18.3.2, \(lqMySQL Cluster Configuration Files\(rq)\&. Using the
+Section\ \&18.3.3, \(lqMySQL Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -931,7 +931,7 @@ T}
 .TE
 .sp 1
 In MySQL Cluster NDB 7\&.3, configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&18.3.2, \(lqMySQL Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&18.3.3, \(lqMySQL Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -1077,7 +1077,7 @@ shell> \fBndbd \-c 192\&.168\&.0\&.150,192\&.168\&.0\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as MySQL Cluster SQL nodes connected to this cluster\&. See
-Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for more information\&.
+Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1111,7 +1111,7 @@ management server, its configuration must match that of the management server th
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for information about using connection strings\&.
+Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for information about using connection strings\&.
 \fBndb_mgmd\fR(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP

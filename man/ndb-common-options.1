@@ -2,12 +2,12 @@
 .\"     Title: Options Common to MySQL Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO MY" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "OPTIONS COMMON TO MY" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -111,7 +111,7 @@ The options in the following table are common to all MySQL Cluster executables (
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.98.\ \& This table describes command-line options common to all MySQL Cluster programs
+.B Table\ \&18.100.\ \& This table describes command-line options common to all MySQL Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -131,6 +131,8 @@ l l l
 l l l
 l l l
 l l l
+l l l
+l l l
 l l l.
 T{
 .PP
@@ -141,6 +143,54 @@ T{
 -?
 T}:T{
 Display help message and exit
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--character-sets-dir=dir_name
+T}:T{
+Directory where character sets are installed
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--connect-retries=#
+T}:T{
+Set the number of times to retry a connection before giving up; 0 means
+          1 attempt only (and no retries)
+T}:T{
+.PP
+ADDED: NDB 7.4.9
+T}
+T{
+.PP
+--connect-retry-delay=#
+T}:T{
+Time to wait between attempts to contact a management server, in
+          seconds; 0 means do not wait between attempts
+T}:T{
+.PP
+ADDED: NDB 7.4.9
+T}
+T{
+.PP
+--core-file
+T}:T{
+Write core on errors (defaults to TRUE in debug builds)
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--debug=options
+T}:T{
+Enable output from debug calls. Can be used only for versions compiled
+          with debugging enabled
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -189,34 +239,6 @@ All MySQL 5.6 based releases
 T}
 T{
 .PP
---character-sets-dir=path
-T}:T{
-Directory where character sets are installed
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---debug=options
-T}:T{
-Enable output from debug calls. Can be used only for versions compiled
-          with debugging enabled
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---core-file
-T}:T{
-Write core on errors (defaults to TRUE in debug builds)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
 --version,
 .PP
 -V
@@ -233,7 +255,7 @@ For options specific to individual MySQL Cluster programs, see
 Section\ \&18.4, \(lqMySQL Cluster Programs\(rq\&.
 .PP
 See
-Section\ \&18.3.4.2, \(lqMySQL Server Options for MySQL Cluster\(rq, for
+Section\ \&18.3.3.8.1, \(lqMySQL Server Options for MySQL Cluster\(rq, for
 \fBmysqld\fR
 options relating to MySQL Cluster\&.
 .sp
@@ -289,14 +311,14 @@ l l l s
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-character\-sets\-dir=path
+\-\-character\-sets\-dir=dir_name
 T}
 T{
 \fBPermitted Values\fR
 T}:T{
 \fBType\fR
 T}:T{
-file name
+directory name
 T}
 :T{
 \fBDefault\fR
@@ -318,9 +340,9 @@ Tells the program where to find character set information\&.
 .\" ndb-connectstring option (MySQL Cluster programs)
 .\" connect-string option (MySQL Cluster programs)
 .\" -c option (MySQL Cluster programs)
-\fB\-\-ndb\-connectstring=\fR\fB\fIconnect_string\fR\fR,
-\fB\-\-connect\-string=\fR\fB\fIconnect_string\fR\fR,
-\fB\-c \fR\fB\fIconnect_string\fR\fR
+\fB\-\-ndb\-connectstring=\fR\fB\fIconnection_string\fR\fR,
+\fB\-\-connect\-string=\fR\fB\fIconnection_string\fR\fR,
+\fB\-c \fR\fB\fIconnection_string\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -364,7 +386,139 @@ shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186
 .\}
 .sp
 For more information, see
-Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq\&.
+Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" connect-retries option (MySQL Cluster programs)
+\fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s
+^ l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.6\&.27\-ndb\-7\&.4\&.9
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-connect\-retries=#
+T}
+T{
+\fBPermitted Values\fR (>= 5\&.6\&.27\-ndb\-7\&.4\&.9)
+T}:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+12
+T}
+:T{
+\fBMin Value\fR
+T}:T{
+0
+T}
+:T{
+\fBMax Value\fR
+T}:T{
+4294967295
+T}
+.TE
+.sp 1
+This option specifies the number of times following the first attempt to retry a connection before giving up (the client always tries the connection at least once)\&. The length of time to wait per attempt is set using
+\fB\-\-connect\-retry\-delay\fR\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+When used with
+\fBndb_mgm\fR, this option has 3 as its default\&. See
+\fBndb_mgm\fR(1), for more information\&.
+.sp .5v
+.RE
+This option was added in MySQL Cluster NDB 7\&.4\&.9\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" connect-retry-delay option (MySQL Cluster programs)
+\fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s
+^ l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.6\&.27\-ndb\-7\&.4\&.9
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-connect\-retry\-delay=#
+T}
+T{
+\fBPermitted Values\fR (>= 5\&.6\&.27\-ndb\-7\&.4\&.9)
+T}:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+5
+T}
+:T{
+\fBMin Value\fR
+T}:T{
+0
+T}
+:T{
+\fBMax Value\fR
+T}:T{
+4294967295
+T}
+.TE
+.sp 1
+This option specifies the length of time to wait per attempt a connection before giving up\&. The number of times to try connecting is set by
+\fB\-\-connect\-retries\fR\&.
+.sp
+This option was added in MySQL Cluster NDB 7\&.4\&.9\&.
 .RE
 .sp
 .RS 4

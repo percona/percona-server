@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -132,7 +132,7 @@ Display a help message and exit\&.
 .\}
 .\" mysqld_safe: basedir option
 .\" basedir option: mysqld_safe
-\fB\-\-basedir=\fR\fB\fIpath\fR\fR
+\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
 .RE
@@ -165,7 +165,7 @@ should be able to create\&. The option value is passed to
 .\}
 .\" mysqld_safe: datadir option
 .\" datadir option: mysqld_safe
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR
+\fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the data directory\&.
 .RE
@@ -180,7 +180,7 @@ The path to the data directory\&.
 .\}
 .\" mysqld_safe: defaults-extra-file option
 .\" defaults-extra-file option: mysqld_safe
-\fB\-\-defaults\-extra\-file=\fR\fB\fIpath\fR\fR
+\fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The name of an option file to be read in addition to the usual option files\&. This must be the first option on the command line if it is used\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
 .RE
@@ -210,7 +210,7 @@ The name of an option file to be read instead of the usual option files\&. This 
 .\}
 .\" mysqld_safe: ledir option
 .\" ledir option: mysqld_safe
-\fB\-\-ledir=\fR\fB\fIpath\fR\fR
+\fB\-\-ledir=\fR\fB\fIdir_name\fR\fR
 .sp
 If
 \fBmysqld_safe\fR
@@ -244,7 +244,8 @@ Section\ \&5.2.2, \(lqThe Error Log\(rq\&.
 .\" mysqld_safe: malloc-lib option
 .\" mysqld option: malloc-lib
 \fB\-\-malloc\-lib=[\fR\fB\fIlib_name\fR\fR\fB]\fR
-.sp
+.\" memory allocation library
+.\" tcmalloc: memory allocation library
 The name of the library to use for memory allocation instead of the system
 malloc()
 library\&. Any library can be used by specifying its path name, but there is a shortcut form to enable use of the
@@ -405,7 +406,7 @@ option to indicate the path name to the directory where the server is located\&.
 .sp
 This option is similar to the
 \fB\-\-mysqld\fR
-option, but you specify only the suffix for the server program name\&. The basename is assumed to be
+option, but you specify only the suffix for the server program name\&. The base name is assumed to be
 \fBmysqld\fR\&. For example, if you use
 \fB\-\-mysqld\-version=debug\fR,
 \fBmysqld_safe\fR
@@ -518,7 +519,7 @@ The path name of the process ID file\&.
 .\}
 .\" mysqld_safe: plugin-dir option
 .\" plugin-dir option: mysqld_safe
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path name of the plugin directory\&.
 .RE

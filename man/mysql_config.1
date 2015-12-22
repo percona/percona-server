@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -260,7 +260,7 @@ Options:
 .PP
 You can use
 \fBmysql_config\fR
-within a command line using backticks to include the output that it produces for a particular option\&. For example, to compile and link a MySQL client program, use
+within a command line using backticks to include the output that it produces for particular options\&. For example, to compile and link a MySQL client program, use
 \fBmysql_config\fR
 as follows:
 .sp
@@ -268,8 +268,8 @@ as follows:
 .RS 4
 .\}
 .nf
-shell> \fBgcc \-c `mysql_config \-\-cflags` progname\&.c\fR
-shell> \fBgcc \-o progname progname\&.o `mysql_config \-\-libs`\fR
+gcc \-c `mysql_config \-\-cflags` progname\&.c
+gcc \-o progname progname\&.o `mysql_config \-\-libs`
 .fi
 .if n \{\
 .RE

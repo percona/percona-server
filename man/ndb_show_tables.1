@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\F" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\F" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -52,7 +52,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.95.\ \& This table describes command-line options for the ndb_show_tables program
+.B Table\ \&18.97.\ \& This table describes command-line options for the ndb_show_tables program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -142,7 +142,7 @@ Usage
 .RS 4
 .\}
 .nf
-ndb_show_tables [\-c \fIconnect_string\fR]
+ndb_show_tables [\-c \fIconnection_string\fR]
 .fi
 .if n \{\
 .RE
@@ -161,7 +161,11 @@ ndb_show_tables [\-c \fIconnect_string\fR]
 \fB\-\-database\fR,
 \fB\-d\fR
 .sp
-Specifies the name of the database in which the tables are found\&.
+Specifies the name of the database in which the tables are found\&. In MySQL Cluster NDB 7\&.4\&.8 and later, if this option has not been specified, and no tables are found in the
+TEST_DB
+database,
+\fBndb_show_tables\fR
+issues a warning (Bug #50633, Bug #11758430)\&.
 .RE
 .sp
 .RS 4

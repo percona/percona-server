@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -960,7 +960,7 @@ file as
 .\}
 .\" myisamchk: character-sets-dir option
 .\" character-sets-dir option: myisamchk
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -1191,23 +1191,6 @@ key_buffer_size\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisamchk: set-character-set option
-.\" set-character-set option: myisamchk
-\fB\-\-set\-character\-set=\fR\fB\fIname\fR\fR
-.sp
-Change the character set used by the table indexes\&. This option was replaced by
-\fB\-\-set\-collation\fR
-in MySQL 5\&.0\&.3\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 .\" myisamchk: set-collation option
 .\" set-collation option: myisamchk
 \fB\-\-set\-collation=\fR\fB\fIname\fR\fR
@@ -1243,8 +1226,8 @@ to use sorting to resolve the keys even if the temporary files would be very lar
 .\}
 .\" myisamchk: tmpdir option
 .\" tmpdir option: myisamchk
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
-\fB\-t \fR\fB\fIpath\fR\fR
+\fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
+\fB\-t \fR\fB\fIdir_name\fR\fR
 .sp
 The path of the directory to be used for storing temporary files\&. If this is not set,
 \fBmyisamchk\fR
@@ -2502,7 +2485,7 @@ TMPDIR
 points to a memory file system, out of memory errors can easily occur\&. If this happens, run
 \fBmyisamchk\fR
 with the
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
+\fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR
 option to specify a directory located on a file system that has more space\&.
 .PP
 When performing repair operations,
@@ -2549,7 +2532,7 @@ or
 \fB\-\-safe\-recover\fR), you need space on disk for sorting\&. This space is allocated in the temporary directory (specified by
 TMPDIR
 or
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR)\&. The following formula yields the amount of space required:
+\fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR)\&. The following formula yields the amount of space required:
 .sp
 .if n \{\
 .RS 4

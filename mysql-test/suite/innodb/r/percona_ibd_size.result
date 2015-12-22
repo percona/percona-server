@@ -40,9 +40,9 @@ The size of t3 tablespace file in bytes: 65536
 Rows inserted: 24
 The size of t3 tablespace file in bytes: 65536
 Rows inserted: 32
-The size of t3 tablespace file in bytes: 2097152
+The size of t3 tablespace file in bytes: 5242880
 Rows inserted: 40
-The size of t3 tablespace file in bytes: 2097152
+The size of t3 tablespace file in bytes: 5242880
 DROP TABLE t3;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;

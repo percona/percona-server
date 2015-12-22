@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -209,7 +209,7 @@ Display a help message and exit\&.
 .\}
 .\" mysql_install_db: basedir option
 .\" basedir option: mysql_install_db
-\fB\-\-basedir=\fR\fB\fIpath\fR\fR
+\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
 .RE
@@ -224,7 +224,7 @@ The path to the MySQL installation directory\&.
 .\}
 .\" mysql_install_db: builddir option
 .\" builddir option: mysql_install_db
-\fB\-\-builddir=\fR\fB\fIpath\fR\fR
+\fB\-\-builddir=\fR\fB\fIdir_name\fR\fR
 .sp
 For use with
 \fB\-\-srcdir\fR
@@ -256,7 +256,7 @@ For internal use\&. This option is used for building system tables on one host i
 .\}
 .\" mysql_install_db: datadir option
 .\" datadir option: mysql_install_db
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR
+\fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&. Beginning with MySQL 5\&.6\&.8,
 \fBmysql_install_db\fR
@@ -343,7 +343,7 @@ file\&. This option was added in MySQL 5\&.6\&.20\&.
 .\}
 .\" mysql_install_db: ldata option
 .\" ldata option: mysql_install_db
-\fB\-\-ldata=\fR\fB\fIpath\fR\fR
+\fB\-\-ldata=\fR\fB\fIdir_name\fR\fR
 .sp
 A synonym for
 \fB\-\-datadir\fR\&.
@@ -523,7 +523,7 @@ Use IP addresses rather than host names when creating grant table entries\&. Thi
 .\}
 .\" mysql_install_db: srcdir option
 .\" srcdir option: mysql_install_db
-\fB\-\-srcdir=\fR\fB\fIpath\fR\fR
+\fB\-\-srcdir=\fR\fB\fIdir_name\fR\fR
 .sp
 For internal use\&. This option specifies the directory under which
 \fBmysql_install_db\fR

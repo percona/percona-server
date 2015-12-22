@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -167,7 +167,7 @@ Make a backup of each table\*(Aqs data file using the name
 .\}
 .\" myisampack: character-sets-dir option
 .\" character-sets-dir option: myisampack
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -296,8 +296,8 @@ Do not actually pack the table, just test packing it\&.
 .\}
 .\" myisampack: tmpdir option
 .\" tmpdir option: myisampack
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR,
-\fB\-T \fR\fB\fIpath\fR\fR
+\fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
+\fB\-T \fR\fB\fIdir_name\fR\fR
 .sp
 Use the named directory as the location where
 \fBmyisampack\fR

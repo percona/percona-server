@@ -1,0 +1,11 @@
+# Test for bug 74619 (handle_fatal_signal (sig=11) in decimal_add | strings/decimal.c:2036)
+
+CREATE TABLE t1(a DECIMAL(0,0));
+ALTER TABLE t1 ADD b INT,ADD c TIME(6);
+ALTER TABLE t1 MODIFY a DATETIME(5);
+SET sql_mode='';
+INSERT INTO t1 SET a=0;
+SET sql_mode='NO_ZERO_DATE';
+SELECT(SELECT t1.a)aa,COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
+
+DROP TABLE t1;

@@ -1,0 +1,3 @@
+# defaults file for percona server
+STARTTIMEOUT=900
+STOPTIMEOUT=300

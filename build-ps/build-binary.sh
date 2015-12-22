@@ -28,7 +28,7 @@ TAG=''
 CMAKE_BUILD_TYPE=''
 COMMON_FLAGS=''
 #
-TOKUDB_BACKUP_VERSION='@@TOKUDB_BACKUP_VERSION@@'
+TOKUDB_BACKUP_VERSION=''
 #
 # Some programs that may be overriden
 TAR=${TAR:-tar}
@@ -116,7 +116,6 @@ then
             "Current directory is not empty. Use $0 . to force build in ."
         exit 1
     fi
-
 elif test "$#" -eq 1
 then
     WORKDIR="$1"
@@ -127,11 +126,9 @@ then
         echo >&2 "$WORKDIR is not a directory"
         exit 1
     fi
-
 else
     echo >&2 "Usage: $0 [target dir]"
     exit 1
-
 fi
 
 WORKDIR_ABS="$(cd "$WORKDIR"; pwd)"
@@ -150,8 +147,9 @@ fi
 # Extract version from the VERSION file
 source "$SOURCEDIR/VERSION"
 MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
-PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-/rel/')"
+PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-//')"
 PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+TOKUDB_BACKUP_VERSION="${MYSQL_VERSION}${MYSQL_VERSION_EXTRA}"
 
 # Build information
 if test -e "$SOURCEDIR/Docs/INFO_SRC"
@@ -191,10 +189,10 @@ then
 fi
 
 #
+# Attempt to remove any optimisation flags from the debug build
+# BLD-238 - bug1408232
 if [ -n "$(which rpm)" ]; then
   export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
-  # Attempt to remove any optimisation flags from the debug build
-  # BLD-238 - bug1408232
   if test "x$CMAKE_BUILD_TYPE" = "xDebug"
   then
     COMMON_FLAGS=`echo " ${COMMON_FLAGS} " | \
@@ -207,8 +205,9 @@ if [ -n "$(which rpm)" ]; then
   fi
 fi
 #
-export CFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
-export CXXFLAGS="${COMMON_FLAGS} -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+export COMMON_FLAGS="$COMMON_FLAGS -DPERCONA_INNODB_VERSION=$PERCONA_SERVER_VERSION"
+export CFLAGS="$COMMON_FLAGS ${CFLAGS:-}"
+export CXXFLAGS="$COMMON_FLAGS ${CXXFLAGS:-}"
 #
 export MAKE_JFLAG="${MAKE_JFLAG:--j$PROCESSORS}"
 #
@@ -226,25 +225,29 @@ then
     fi
     
     JEMALLOCDIR="$(cd "$WITH_JEMALLOC"; pwd)"
-
 fi
 
 # Build
 (
-    cd "$SOURCEDIR"
+    rm -rf "$WORKDIR_ABS/bld"
+    mkdir "$WORKDIR_ABS/bld"
+    cd "$WORKDIR_ABS/bld"
  
-    cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
+    cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
         $DEBUG_EXTNAME \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
         -DENABLE_DTRACE=OFF \
         -DWITH_SSL="$WITH_SSL_TYPE" \
+        -DWITH_ZLIB=system \
         -DCMAKE_INSTALL_PREFIX="/usr/local/$PRODUCT_FULL" \
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DCOMPILATION_COMMENT="$COMMENT" \
         -DWITH_PAM=ON \
         -DWITH_INNODB_MEMCACHED=ON \
+        -DDOWNLOAD_BOOST=1 \
+        -DWITH_BOOST="$WORKDIR_ABS/libboost" \
         $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
@@ -267,10 +270,8 @@ fi
 
         # Copy COPYING file
         cp COPYING "$INSTALLDIR/usr/local/$PRODUCT_FULL/COPYING-jemalloc"
-
     )
     fi
-
 )
 
 # Package the archive
@@ -282,4 +283,6 @@ fi
 
 # Clean up
 rm -rf "$INSTALLDIR"
+rm -rf "$WORKDIR_ABS/libboost"
+rm -rf "$WORKDIR_ABS/bld"
 

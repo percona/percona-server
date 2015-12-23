@@ -14,7 +14,7 @@ let MYSQLD_DATADIR= $MYSQLD_DATADIR;
 
 perl;
   eval "use JSON qw(decode_json); 1" or exit 0;
-  my @files = glob ($ENV{'MYSQLD_DATADIR'} . "/test_audit.log.*");
+  my @files = glob ($ENV{'MYSQLD_DATADIR'} . "/test_audit.log.[0-9][0-9]");
   foreach (@files) {
     open my $file, $_ or die "Could not open log: $!";
     while (my $line = <$file>) {
@@ -22,7 +22,7 @@ perl;
     }
     close $file;
   }
-  die "Rotation doesn't wrok!" unless scalar(@files) > 1
+  die "Rotation doesn't work!" unless scalar(@files) > 1
 EOF
 --remove_files_wildcard $MYSQLD_DATADIR test_audit.log*
 

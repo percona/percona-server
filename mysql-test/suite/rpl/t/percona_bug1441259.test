@@ -1,0 +1,39 @@
+#
+# Bug lp:1441259 "super_read_only mode breaks replication with some queries"
+#
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/master-slave.inc
+
+# creating a few tables and fill them with some data
+connection master;
+CREATE TABLE t1 (
+  id INT NOT NULL PRIMARY KEY,
+  val INT NOT NULL
+);
+CREATE TABLE t2 (
+  id INT NOT NULL PRIMARY KEY,
+  val INT NOT NULL
+);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1, 2);
+--source include/sync_slave_sql_with_master.inc
+
+SET @read_only_save = @@global.read_only;
+SET @super_read_only_save = @@global.super_read_only;
+SET GLOBAL read_only = 1;
+SET GLOBAL super_read_only = 1;
+
+# executing a multitable update
+connection master;
+UPDATE t1 LEFT JOIN t2 USING(id) SET t1.val = 42;
+--source include/sync_slave_sql_with_master.inc
+
+# cleaning up
+connection master;
+DROP TABLE t1, t2;
+--source include/sync_slave_sql_with_master.inc
+SET GLOBAL read_only = @read_only_save;
+SET GLOBAL super_read_only = @super_read_only_save;
+
+--source include/rpl_end.inc
+

@@ -23,7 +23,7 @@ Build-Depends: bison,
                g++ (>= 4.4)
 Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
-Vcs-Bzr: https://github.com/percona/percona-server
+Vcs-Git: git://github.com/percona/percona-server.git -b 5.7
 
 Package: libperconaserverclient20
 Architecture: any

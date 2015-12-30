@@ -3787,9 +3787,9 @@ end_with_restore_list:
 
 #ifdef HAVE_REPLICATION
     /* Check slave filtering rules */
-    if (unlikely(thd->slave_thread && !have_table_map_for_update))
+    if (unlikely(thd->slave_thread))
     {
-      if (all_tables_not_ok(thd, all_tables))
+      if (!have_table_map_for_update && all_tables_not_ok(thd, all_tables))
       {
         if (res!= 0)
         {
@@ -3817,6 +3817,7 @@ end_with_restore_list:
       {
         my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                  opt_super_readonly ? "--read-only (super)" : "--read-only");
+        break;
       }
 #ifdef HAVE_REPLICATION
     }  /* unlikely */

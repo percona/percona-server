@@ -3,6 +3,10 @@
 let $MYSQLD_DATADIR= `select @@datadir`;
 let MYSQLD_DATADIR= $MYSQLD_DATADIR;
 
+SET GLOBAL audit_log_flush=ON;
+--remove_file $MYSQLD_DATADIR/test_audit.log
+SET GLOBAL audit_log_flush=ON;
+
 --source include/audit_log_events.inc
 
 --move_file $MYSQLD_DATADIR/test_audit.log $MYSQLD_DATADIR/test_audit_json.log
@@ -16,3 +20,4 @@ perl;
   close $file;
 EOF
 --remove_file $MYSQLD_DATADIR/test_audit.log
+--remove_file $MYSQLD_DATADIR/test_audit_json.log

@@ -212,8 +212,8 @@ error:
 static char *logname(LOGGER_HANDLE *log, char *buf, size_t buf_len,
                      unsigned int n_log)
 {
-  my_snprintf(buf+log->path_len, buf_len, ".%0*u", n_dig(log->rotations),
-              n_log);
+  snprintf(buf+log->path_len, buf_len, ".%0*u", n_dig(log->rotations),
+           n_log);
   return buf;
 }
 

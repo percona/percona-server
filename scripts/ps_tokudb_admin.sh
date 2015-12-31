@@ -190,13 +190,21 @@ fi
 # Check if server is running with jemalloc - if not warn that restart is needed
 if [ $ENABLE = 1 ]; then
   printf "Checking if Percona Server is running with jemalloc enabled...\n"
-  grep -qc jemalloc /proc/${PID_NUM}/environ || ldd $(which mysqld) | grep -qc jemalloc
-  JEMALLOC_STATUS=$?
-  if [ $JEMALLOC_STATUS = 1 ]; then
-    printf "ERROR: Percona Server is not running with jemalloc, please restart mysql service to enable it and then run this script...\n\n";
-    exit 1
+  cat /proc/${PID_NUM}/environ >null 2>&1
+  if [ $? = 0 ]; then
+    grep -qc jemalloc /proc/${PID_NUM}/environ || ldd $(which mysqld) | grep -qc jemalloc
+    JEMALLOC_STATUS=$?
+    if [ $JEMALLOC_STATUS = 1 ]; then
+      printf "ERROR: Percona Server is not running with jemalloc, please restart mysql service to enable it and then run this script...\n\n";
+      exit 1
+    else
+      printf "INFO: Percona Server is running with jemalloc enabled.\n\n";
+    fi
   else
-    printf "INFO: Percona Server is running with jemalloc enabled.\n\n";
+    printf "WARNING: The file /proc/${PID_NUM}/environ is not readable so impossible to check LD_PRELOAD for jemalloc.\n";
+    printf "         Possibly running inside container so assuming jemalloc is preloaded and continuing...\n";
+    printf "         If there will be an error during plugin installation try to restart mysql service and run this script again.\n\n";
+    JEMALLOC_STATUS=0
   fi
 fi
 
@@ -314,12 +322,21 @@ fi
 # Check if server is running with libHotBackup.so preloaded - if not warn that restart is needed
 if [ $ENABLE_TOKUBACKUP = 1 ]; then
   printf "Checking if Percona Server is running with libHotBackup.so preloaded...\n"
-  LIBHOTBACKUP_STATUS=$(grep -c libHotBackup.so /proc/${PID_NUM}/environ)
-  if [ $LIBHOTBACKUP_STATUS = 0 ]; then
-    printf "ERROR: Percona Server is not running with libHotBackup.so preloaded, please restart mysql service to enable it and then run this script again...\n\n";
-    exit 1
+  cat /proc/${PID_NUM}/environ >null 2>&1
+  if [ $? = 0 ]; then
+    grep -qc libHotBackup.so /proc/${PID_NUM}/environ
+    LIBHOTBACKUP_STATUS=$?
+    if [ $LIBHOTBACKUP_STATUS = 1 ]; then
+      printf "ERROR: Percona Server is not running with libHotBackup.so preloaded, please restart mysql service to enable it and then run this script again...\n\n";
+      exit 1
+    else
+      printf "INFO: Percona Server is running with libHotBackup.so preloaded.\n\n";
+    fi
   else
-    printf "INFO: Percona Server is running with libHotBackup.so preloaded.\n\n";
+    printf "WARNING: The file /proc/${PID_NUM}/environ is not readable so impossible to check LD_PRELOAD for libHotBackup.so.\n";
+    printf "         Possibly running inside container so assuming libHotBackup.so is preloaded and continuing.\n";
+    printf "         If there will be an error during plugin installation try to restart mysql service and run this script again.\n\n";
+    LIBHOTBACKUP_STATUS=0
   fi
 fi
 

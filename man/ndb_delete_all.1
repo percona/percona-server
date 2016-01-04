@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_delete_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 05/02/2015
+.\"      Date: 11/06/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_DELETE_ALL\FR" "1" "05/02/2015" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_DELETE_ALL\FR" "1" "11/06/2015" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -48,7 +48,7 @@ Usage
 .RS 4
 .\}
 .nf
-ndb_delete_all \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR
+ndb_delete_all \-c \fIconnection_string\fR \fItbl_name\fR \-d \fIdb_name\fR
 .fi
 .if n \{\
 .RE
@@ -103,8 +103,7 @@ T{
 .PP
 -t
 T}:T{
-Perform the delete in a single transaction (may run out of
-      operations)
+Perform the delete in a single transaction (may run out of operations)
 T}:T{
 .PP
 All MySQL 5.5 based releases

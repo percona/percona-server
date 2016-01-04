@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 06/25/2015
+.\"      Date: 11/06/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "06/25/2015" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "11/06/2015" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -255,7 +255,7 @@ client that is supplied with MySQL Cluster\&. It is not available in standard My
 .\}
 .\" mysql: character-sets-dir option
 .\" character-sets-dir option: mysql
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -1016,9 +1016,9 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .\}
 .\" mysql: plugin-dir option
 .\" plugin-dir option: mysql
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
-The directory in which to look for plugins\&. It may be necessary to specify this option if the
+The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
 \fBmysql\fR
@@ -1712,7 +1712,7 @@ For server side help, type \*(Aqhelp contents\*(Aq
 .PP
 Each command has both a long and short form\&. The long form is not case sensitive; the short form is\&. The long form can be followed by an optional semicolon terminator, but the short form should not\&.
 .PP
-The use of short\-form commands within multi\-line
+The use of short\-form commands within multiple\-line
 /* \&.\&.\&. */
 comments is not supported\&.
 .sp
@@ -2761,7 +2761,7 @@ Consequently, an input statement that spans multiple lines can be logged twice\&
 mysql> \fBSELECT\fR
     \-> \fB\*(AqToday is\*(Aq\fR
     \-> \fB,\fR
-    \-> \fBCONCAT()\fR
+    \-> \fBCURDATE()\fR
     \-> \fB;\fR
 .fi
 .if n \{\
@@ -2774,7 +2774,7 @@ logs the
 \(lqSELECT\(rq,
 \(lq\*(AqToday is\*(Aq\(rq,
 \(lq,\(rq,
-\(lqCONCAT()\(rq, and
+\(lqCURDATE()\(rq, and
 \(lq;\(rq
 lines as it reads them\&. It also logs the complete statement, after mapping
 SELECT\en\*(AqToday is\*(Aq\en,\enCURDATE()

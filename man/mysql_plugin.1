@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_plugin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_PLUGIN\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_PLUGIN\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -102,7 +102,7 @@ plugin3, all of which should be configured under
 \fBmysql_plugin\fR
 control\&. By convention, configuration files have a suffix of
 \&.ini
-and the same basename as the plugin library, so the default configuration file name for this plugin library is
+and the same base name as the plugin library, so the default configuration file name for this plugin library is
 myplugins\&.ini\&. The configuration file contents look like this:
 .sp
 .if n \{\
@@ -192,8 +192,8 @@ Display a help message and exit\&.
 .\}
 .\" mysql_plugin: basedir option
 .\" basedir option: mysql_plugin
-\fB\-\-basedir=\fR\fB\fIpath\fR\fR,
-\fB\-b \fR\fB\fIpath\fR\fR
+\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR,
+\fB\-b \fR\fB\fIdir_name\fR\fR
 .sp
 The server base directory\&.
 .RE
@@ -208,8 +208,8 @@ The server base directory\&.
 .\}
 .\" mysql_plugin: datadir option
 .\" datadir option: mysql_plugin
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR,
-\fB\-d \fR\fB\fIpath\fR\fR
+\fB\-\-datadir=\fR\fB\fIdir_name\fR\fR,
+\fB\-d \fR\fB\fIdir_name\fR\fR
 .sp
 The server data directory\&.
 .RE
@@ -224,8 +224,8 @@ The server data directory\&.
 .\}
 .\" mysql_plugin: my-print-defaults option
 .\" my-print-defaults option: mysql_plugin
-\fB\-\-my\-print\-defaults=\fR\fB\fIpath\fR\fR,
-\fB\-b \fR\fB\fIpath\fR\fR
+\fB\-\-my\-print\-defaults=\fR\fB\fIfile_name\fR\fR,
+\fB\-b \fR\fB\fIfile_name\fR\fR
 .sp
 The path to the
 \fBmy_print_defaults\fR
@@ -242,8 +242,8 @@ program\&.
 .\}
 .\" mysql_plugin: mysqld option
 .\" mysqld option: mysql_plugin
-\fB\-\-mysqld=\fR\fB\fIpath\fR\fR,
-\fB\-b \fR\fB\fIpath\fR\fR
+\fB\-\-mysqld=\fR\fB\fIfile_name\fR\fR,
+\fB\-b \fR\fB\fIfile_name\fR\fR
 .sp
 The path to the
 \fBmysqld\fR
@@ -280,8 +280,8 @@ With
 .\}
 .\" mysql_plugin: plugin-dir option
 .\" plugin-dir option: mysql_plugin
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR,
-\fB\-p \fR\fB\fIpath\fR\fR
+\fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR,
+\fB\-p \fR\fB\fIdir_name\fR\fR
 .sp
 The server plugin directory\&.
 .RE

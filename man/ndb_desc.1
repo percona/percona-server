@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,13 +45,16 @@ Usage
 .RS 4
 .\}
 .nf
-ndb_desc \-c \fIconnect_string\fR \fItbl_name\fR \-d \fIdb_name\fR [\-p]
-ndb_desc \-c \fIconnect_string\fR \fIindex_name\fR \-d \fIdb_name\fR \-t \fItbl_name\fR
+ndb_desc \-c \fIconnection_string\fR \fItbl_name\fR \-d \fIdb_name\fR [\fIoptions\fR]
+ndb_desc \-c \fIconnection_string\fR \fIindex_name\fR \-d \fIdb_name\fR \-t \fItbl_name\fR
 .fi
 .if n \{\
 .RE
 .\}
-.sp
+.PP
+Additional options that can be used with
+\fBndb_desc\fR
+are listed later in this section\&.
 Sample Output.PP
 MySQL table creation and population statements:
 .sp
@@ -131,7 +134,7 @@ by using their names, separated by spaces\&. All of the tables must be in the sa
 You can obtain additional information about a specific index using the
 \fB\-\-table\fR
 (short form:
-\fB\-t\fR) option supplying the name of the index as the first argument to
+\fB\-t\fR) option and supplying the name of the index as the first argument to
 \fBndb_desc\fR, as shown here:
 .sp
 .if n \{\
@@ -322,7 +325,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.85.\ \& This table describes command-line options for the ndb_desc program
+.B Table\ \&18.87.\ \& This table describes command-line options for the ndb_desc program
 .TS
 allbox tab(:);
 lB lB lB.

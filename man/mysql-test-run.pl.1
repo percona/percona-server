@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "07/14/2015" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "11/16/2015" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -2395,6 +2395,29 @@ When the server is run with valgrind, an extra pass over the server log file(s) 
 From MySQL 5\&.5\&.13, a final "pseudo" test named
 valgrind_report
 is added to the list of tests when the server is run in valgrind\&. This test is reported as failed if any such shutdown warnings were produced by valgrind\&. Pass or failure of this test is also added to the total test count reported\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysql-test-run.pl: valgrind-clients option
+.\" valgrind-clients option: mysql-test-run.pl
+\fB\-\-valgrind\-clients\fR
+.sp
+Run all clients started by
+\&.test
+files with
+\fBvalgrind\fR\&. This option requires
+\fBvalgrind\fR
+3\&.9 or later\&.
+.sp
+\fB\-\-valgrind\-clients\fR
+was added in MySQL 5\&.7\&.9\&.
 .RE
 .sp
 .RS 4

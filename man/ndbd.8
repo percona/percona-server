@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.78.\ \& This table describes command-line options for the ndbd program
+.B Table\ \&18.80.\ \& This table describes command-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -71,6 +71,7 @@ T}:T{
 Added or Removed
 T}
 .T&
+l l l
 l l l
 l l l
 l l l
@@ -187,8 +188,8 @@ T{
 .PP
 --connect-retries=#
 T}:T{
-Number of times to try contacting the management server; set to -1 to
-          keep trying indefinitely
+Set the number of times to retry a connection before giving up; 0 means
+          1 attempt only (and no retries)
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -197,10 +198,21 @@ T{
 .PP
 --connect-delay=#
 T}:T{
-Time to wait between attempts to contact a management server, in seconds
+Time to wait between attempts to contact a management server, in
+          seconds; 0 means do not wait between attempts
 T}:T{
 .PP
 All MySQL 5.6 based releases
+T}
+T{
+.PP
+--connect-retry-delay=#
+T}:T{
+Time to wait between attempts to contact a management server, in
+          seconds; 0 means do not wait between attempts
+T}:T{
+.PP
+ADDED: NDB 7.4.9
 T}
 .TE
 .sp 1
@@ -874,7 +886,7 @@ T}
 :T{
 \fBMin Value\fR
 T}:T{
-\-1
+0
 T}
 :T{
 \fBMax Value\fR
@@ -883,9 +895,10 @@ T}:T{
 T}
 .TE
 .sp 1
-Determines the number of times that the data node attempts to contact a management server when starting\&. Setting this option to \-1 causes the data node to keep trying to make contact indefinitely\&. The default is 12 attempts\&. The time to wait between attempts is controlled by the
-\fB\-\-connect\-delay\fR
-option\&.
+Set the number of times to retry a connection before giving up; 0 means 1 attempt only (and no retries)\&. The default is 12 attempts\&. The time to wait between attempts is controlled by the
+\fB\-\-connect\-retry\-delay\fR
+option in MySQL NDB 7\&.4\&.9 and later (previously, this was
+\fB\-\-connect\-delay\fR)\&.
 .RE
 .sp
 .RS 4
@@ -902,10 +915,16 @@ option\&.
 .TS
 allbox tab(:);
 l l s s
+l l s s
 l l l s
 ^ l l s
 ^ l l s
 ^ l l s.
+T{
+\fBDeprecated\fR
+T}:T{
+5\&.6\&.27\-ndb\-7\&.4\&.9
+T}
 T{
 \fBCommand\-Line Format\fR
 T}:T{
@@ -937,9 +956,73 @@ T}
 .sp 1
 Determines the time to wait between attempts to contact a management server when starting (the time between attempts is controlled by the
 \fB\-\-connect\-retries\fR
-option)\&. The default is 5 attempts\&.
+option)\&. The default is 5 seconds\&.
 .sp
-This option was added in MySQL Cluster NDB 7\&.2\&.9\&.
+This option is deprecated in MySQL Cluster NDB 7\&.4\&.9, and is subject to removal in a future release of MySQL Cluster\&. Use
+\fB\-\-connect\-retry\-delay\fR
+instead\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" connect-retry-delay option (ndbd)
+.\" connect-retry-delay option (ndbmtd)
+\fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s
+^ l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.6\&.27\-ndb\-7\&.4\&.9
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-connect\-retry\-delay=#
+T}
+T{
+\fBPermitted Values\fR (>= 5\&.6\&.27\-ndb\-7\&.4\&.9)
+T}:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+5
+T}
+:T{
+\fBMin Value\fR
+T}:T{
+0
+T}
+:T{
+\fBMax Value\fR
+T}:T{
+4294967295
+T}
+.TE
+.sp 1
+Determines the time to wait between attempts to contact a management server when starting (the time between attempts is controlled by the
+\fB\-\-connect\-retries\fR
+option)\&. The default is 5 seconds\&.
+.sp
+This option was added in MySQL Cluster NDB 7\&.4\&.9, and is intended to take the place of the
+\fB\-\-connect\-delay\fR
+option, which is now deprecated and subject to removal in a future release of MySQL Cluster\&.
 .RE
 .\" MySQL Cluster: log files
 .\" log files (MySQL Cluster)
@@ -1111,10 +1194,10 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for additional information about this issue\&.
+Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for additional information about this issue\&.
 Options Common to MySQL Cluster Programs(1), describes other command\-line options which can be used with
 \fBndbd\fR\&. For information about data node configuration parameters, see
-Section\ \&18.3.2.6, \(lqDefining MySQL Cluster Data Nodes\(rq\&.
+Section\ \&18.3.3.6, \(lqDefining MySQL Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR

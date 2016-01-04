@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -215,7 +215,7 @@ Kill server threads\&. If multiple thread ID values are given, there must be no 
 .sp -1
 .IP \(bu 2.3
 .\}
-old\-password \fInew\-password\fR
+old\-password \fInew_password\fR
 .sp
 This is like the
 password
@@ -231,10 +231,10 @@ Section\ \&6.1.2.4, \(lqPassword Hashing in MySQL\(rq\&.)
 .sp -1
 .IP \(bu 2.3
 .\}
-password \fInew\-password\fR
+password \fInew_password\fR
 .sp
 Set a new password\&. This changes the password to
-\fInew\-password\fR
+\fInew_password\fR
 for the account that you use with
 \fBmysqladmin\fR
 for connecting to the server\&. Thus, the next time you invoke
@@ -242,7 +242,7 @@ for connecting to the server\&. Thus, the next time you invoke
 (or any other client program) using the same account, you will need to specify the new password\&.
 .sp
 If the
-\fInew\-password\fR
+\fInew_password\fR
 value contains spaces or other characters that are special to your command interpreter, you need to enclose it within quotation marks\&. On Windows, be sure to use double quotation marks rather than single quotation marks; single quotation marks are not stripped from the password, but rather are interpreted as part of the password\&. For example:
 .sp
 .if n \{\
@@ -623,7 +623,7 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 .\}
 .\" mysqladmin: character-sets-dir option
 .\" character-sets-dir option: mysqladmin
-\fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
@@ -879,10 +879,7 @@ Read options from the named login path in the
 \&.mylogin\&.cnf
 login path file\&. A
 \(lqlogin path\(rq
-is an option group that permits only a limited set of options:
-\fBhost\fR,
-\fBuser\fR, and
-\fBpassword\fR\&. Think of a login path as a set of values that indicate the server host and the credentials for authenticating with the server\&. To create the login path file, use the
+is an option group containing options that specify which MySQL server to connect to and which account to authenticate as\&. To create or modify a login path file, use the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&. This option was added in MySQL 5\&.6\&.6\&.
@@ -986,9 +983,9 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .\}
 .\" mysqladmin: plugin-dir option
 .\" plugin-dir option: mysqladmin
-\fB\-\-plugin\-dir=\fR\fB\fIpath\fR\fR
+\fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
-The directory in which to look for plugins\&. It may be necessary to specify this option if the
+The directory in which to look for plugins\&. Specify this option if the
 \fB\-\-default\-auth\fR
 option is used to specify an authentication plugin but
 \fBmysqladmin\fR

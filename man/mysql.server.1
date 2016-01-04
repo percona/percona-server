@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql.server\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\&.SERVER\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\&.SERVER\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -177,7 +177,7 @@ shell> \fBchkconfig \-\-level 345 mysql on\fR
 On FreeBSD, startup scripts generally should go in
 /usr/local/etc/rc\&.d/\&. The
 rc(8)
-manual page states that scripts in this directory are executed only if their basename matches the
+manual page states that scripts in this directory are executed only if their base name matches the
 *\&.sh
 shell file name pattern\&. Any other files or directories present within the directory are silently ignored\&. In other words, on FreeBSD, you should install the
 mysql\&.server
@@ -260,7 +260,7 @@ as command\-line arguments\&.
 .\}
 .\" mysql.server: basedir option
 .\" basedir option: mysql.server
-\fB\-\-basedir=\fR\fB\fIpath\fR\fR
+\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
 .RE
@@ -275,7 +275,7 @@ The path to the MySQL installation directory\&.
 .\}
 .\" mysql.server: datadir option
 .\" datadir option: mysql.server
-\fB\-\-datadir=\fR\fB\fIpath\fR\fR
+\fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&.
 .RE

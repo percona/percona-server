@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 07/14/2015
+.\"      Date: 11/16/2015
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "07/14/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,7 +78,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.91.\ \& This table describes command-line options for the ndb_restore program
+.B Table\ \&18.93.\ \& This table describes command-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -308,7 +308,7 @@ All MySQL 5.6 based releases
 T}
 T{
 .PP
---backup_path=path
+--backup_path=dir_name
 T}:T{
 Path to backup files directory
 T}:T{
@@ -386,9 +386,9 @@ All MySQL 5.6 based releases
 T}
 T{
 .PP
---tab=path,
+--tab=dir_name,
 .PP
--T
+-T dir_name
 T}:T{
 Creates a tab-separated .txt file for each table in the given path
 T}:T{
@@ -590,7 +590,12 @@ requires at a minimum the
 (short form:
 \fB\-b\fR), and
 \fB\-\-backup_path\fR
-options\&.
+options\&. In addition, beginning with MySQL Cluster NDB 7\&.3\&.11 and MySQL Cluster NDB 7\&.4\&.8, when
+\fBndb_restore\fR
+is used to restore any tables containing unique indexes, you must include
+\fB\-\-disable\-indexes\fR
+or
+\fB\-\-rebuild\-indexes\fR\&. (Bug #57782, Bug #11764893)
 .sp
 .if n \{\
 .RS 4
@@ -609,7 +614,7 @@ The
 option is used to specify a connection string which tells
 ndb_restore
 where to locate the cluster management server\&. (See
-Section\ \&18.3.2.3, \(lqMySQL Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
+Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -627,7 +632,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&18.3.2.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
+Section\ \&18.3.3.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
 .PP
 You can verify that
 \fBndb_restore\fR
@@ -753,7 +758,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&17.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .PP
 Attribute promotion by
 \fBndb_restore\fR
@@ -868,7 +873,7 @@ This option is intended to complement the
 option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
-Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+Section\ \&17.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
 .PP
 \fBndb_restore\fR
 reports any truncation of data that it performs during lossy conversions once per attribute and column\&.
@@ -1097,11 +1102,19 @@ stdout, or to a file\&. These are similar to some of the options used with
 \fB\-T\fR
 .TS
 allbox tab(:);
-l l s s.
+l l s s
+l l l s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-tab=path
+\-\-tab=dir_name
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+directory name
 T}
 .TE
 .sp 1

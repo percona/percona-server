@@ -20,12 +20,15 @@ ALTER TABLE t1 ENGINE='tokudb';
 SHOW CREATE TABLE t1;
 
 # Testing bad values
+--error 1292
 INSERT INTO t1 (f_time, f_datetime, f_timestamp)
 VALUES (9999999, 999999999999999, 999999999999999);
+--error 1292
 INSERT INTO t1 (f_time, f_datetime, f_timestamp)
 VALUES (-9999999, -999999999999999, -999999999999999);
 
 # Testing zero values
+--error 1292
 INSERT INTO t1 (f_time, f_datetime, f_timestamp)
 VALUES ('00:00:00', '0000-00-00 00:00:00','0000-00-00 00:00:00');
 

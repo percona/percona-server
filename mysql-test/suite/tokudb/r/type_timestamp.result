@@ -10,7 +10,7 @@ SET TIMESTAMP=1235;
 insert into t1 values(3,NULL);
 SET TIMESTAMP=1236;
 insert into t1 (a) values(4);
-insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
+insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"2002-03-06");
 SET TIMESTAMP=1237;
 insert into t1 select * from t2;
 SET TIMESTAMP=1238;
@@ -24,7 +24,7 @@ a	t
 5	2002-03-04 00:00:00
 6	1970-01-01 03:20:37
 7	2002-03-05 00:00:00
-8	0000-00-00 00:00:00
+8	2002-03-06 00:00:00
 9	1970-01-01 03:20:38
 drop table t1,t2;
 SET TIMESTAMP=1234;
@@ -99,56 +99,52 @@ date	date_time	time_stamp
 2030-01-01	2030-01-01 00:00:00	2030-01-01 00:00:00
 drop table t1;
 create table t1 (ix timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
-Warnings:
-Warning	1265	Data truncated for column 'ix' at row 2
-Warning	1265	Data truncated for column 'ix' at row 3
-Warning	1265	Data truncated for column 'ix' at row 4
-Warning	1265	Data truncated for column 'ix' at row 5
-Warning	1265	Data truncated for column 'ix' at row 6
-Warning	1265	Data truncated for column 'ix' at row 7
-Warning	1265	Data truncated for column 'ix' at row 8
+insert into t1 values (0);
+ERROR 22007: Incorrect datetime value: '0' for column 'ix' at row 1
+insert into t1 values (20030101010160);
+ERROR 22007: Incorrect datetime value: '20030101010160' for column 'ix' at row 1
+insert into t1 values (20030101016001);
+ERROR 22007: Incorrect datetime value: '20030101016001' for column 'ix' at row 1
+insert into t1 values (20030101240101);
+ERROR 22007: Incorrect datetime value: '20030101240101' for column 'ix' at row 1
+insert into t1 values (20030132010101);
+ERROR 22007: Incorrect datetime value: '20030132010101' for column 'ix' at row 1
+insert into t1 values (20031301010101);
+ERROR 22007: Incorrect datetime value: '20031301010101' for column 'ix' at row 1
+insert into t1 values (20031200000000);
+ERROR 22007: Incorrect datetime value: '20031200000000' for column 'ix' at row 1
+insert into t1 values (20030000000000);
+ERROR 22007: Incorrect datetime value: '20030000000000' for column 'ix' at row 1
 select ix+0 from t1;
 ix+0
-0
-0
-0
-0
-0
-0
-0
-0
 truncate table t1;
-insert into t1 values ("00000000000000"),("20030101010160"),("20030101016001"),("20030101240101"),("20030132010101"),("20031301010101"),("20031200000000"),("20030000000000");
-Warnings:
-Warning	1265	Data truncated for column 'ix' at row 2
-Warning	1265	Data truncated for column 'ix' at row 3
-Warning	1265	Data truncated for column 'ix' at row 4
-Warning	1265	Data truncated for column 'ix' at row 5
-Warning	1265	Data truncated for column 'ix' at row 6
-Warning	1264	Out of range value for column 'ix' at row 7
-Warning	1264	Out of range value for column 'ix' at row 8
+insert into t1 values ("00000000000000");
+ERROR 22007: Incorrect datetime value: '00000000000000' for column 'ix' at row 1
+insert into t1 values ("20030101010160");
+ERROR 22007: Incorrect datetime value: '20030101010160' for column 'ix' at row 1
+insert into t1 values ("20030101016001");
+ERROR 22007: Incorrect datetime value: '20030101016001' for column 'ix' at row 1
+insert into t1 values ("20030101240101");
+ERROR 22007: Incorrect datetime value: '20030101240101' for column 'ix' at row 1
+insert into t1 values ("20030132010101");
+ERROR 22007: Incorrect datetime value: '20030132010101' for column 'ix' at row 1
+insert into t1 values ("20031301010101");
+ERROR 22007: Incorrect datetime value: '20031301010101' for column 'ix' at row 1
+insert into t1 values ("20031200000000");
+ERROR 22007: Incorrect datetime value: '20031200000000' for column 'ix' at row 1
+insert into t1 values ("20030000000000");
+ERROR 22007: Incorrect datetime value: '20030000000000' for column 'ix' at row 1
 select ix+0 from t1;
 ix+0
-0
-0
-0
-0
-0
-0
-0
-0
 truncate table t1;
-insert into t1 values ("0000-00-00 00:00:00 some trailer"),("2003-01-01 00:00:00 some trailer");
-Warnings:
-Warning	1265	Data truncated for column 'ix' at row 1
-Warning	1265	Data truncated for column 'ix' at row 2
+insert into t1 values ("0000-00-00 00:00:00 some trailer");
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00 some trailer' for column 'ix' at row 1
+insert into t1 values ("2003-01-01 00:00:00 some trailer");
+ERROR 22007: Incorrect datetime value: '2003-01-01 00:00:00 some trailer' for column 'ix' at row 1
 select ix+0 from t1;
 ix+0
-0
-20030101000000
 drop table t1;
-create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
 SET TIMESTAMP=1000000001;
@@ -157,22 +153,22 @@ SET TIMESTAMP=1000000002;
 insert into t1 (t1,t3) values (default, default);
 select * from t1;
 t1	t2	t3
-2003-01-01 00:00:00	2001-09-09 04:46:41	0000-00-00 00:00:00
-2003-01-01 00:00:00	NULL	0000-00-00 00:00:00
+2003-01-01 00:00:00	2001-09-09 04:46:41	1971-01-01 00:00:00
+2003-01-01 00:00:00	NULL	1971-01-01 00:00:00
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00',
   `t2` datetime DEFAULT NULL,
-  `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+  `t3` timestamp NOT NULL DEFAULT '1971-01-01 00:00:00'
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	
 t2	datetime	YES		NULL	
-t3	timestamp	NO		0000-00-00 00:00:00	
+t3	timestamp	NO		1971-01-01 00:00:00	
 drop table t1;
-create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
 SET TIMESTAMP=1000000002;
 insert into t1 values ();
 SET TIMESTAMP=1000000003;
@@ -181,20 +177,20 @@ SET TIMESTAMP=1000000003;
 insert into t1 (t1,t3) values (default, default);
 select * from t1;
 t1	t2	t3
-2001-09-09 04:46:42	2001-09-09 04:46:43	0000-00-00 00:00:00
-2001-09-09 04:46:43	NULL	0000-00-00 00:00:00
+2001-09-09 04:46:42	2001-09-09 04:46:43	1971-01-01 00:00:00
+2001-09-09 04:46:43	NULL	1971-01-01 00:00:00
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL,
-  `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+  `t3` timestamp NOT NULL DEFAULT '1971-01-01 00:00:00'
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	
 t2	datetime	YES		NULL	
-t3	timestamp	NO		0000-00-00 00:00:00	
+t3	timestamp	NO		1971-01-01 00:00:00	
 drop table t1;
 create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime);
 SET TIMESTAMP=1000000004;
@@ -246,32 +242,32 @@ Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
 drop table t1;
-create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
+create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '1971-01-01 00:00:00');
 SET TIMESTAMP=1000000007;
 insert into t1 values ();
 select * from t1;
 t1	t2	t3
-2001-09-09 04:46:47	NULL	0000-00-00 00:00:00
+2001-09-09 04:46:47	NULL	1971-01-01 00:00:00
 SET TIMESTAMP=1000000008;
 update t1 set t2=now();
 SET TIMESTAMP=1000000008;
 insert into t1 (t1,t3) values (default, default);
 select * from t1;
 t1	t2	t3
-2001-09-09 04:46:48	2001-09-09 04:46:48	0000-00-00 00:00:00
-2001-09-09 04:46:48	NULL	0000-00-00 00:00:00
+2001-09-09 04:46:48	2001-09-09 04:46:48	1971-01-01 00:00:00
+2001-09-09 04:46:48	NULL	1971-01-01 00:00:00
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL,
-  `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+  `t3` timestamp NOT NULL DEFAULT '1971-01-01 00:00:00'
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 t2	datetime	YES		NULL	
-t3	timestamp	NO		0000-00-00 00:00:00	
+t3	timestamp	NO		1971-01-01 00:00:00	
 drop table t1;
 create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime);
 SET TIMESTAMP=1000000009;
@@ -388,7 +384,7 @@ drop table t1;
 create table t1 (a bigint, b bigint);
 insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
 set timestamp=1000000019;
-alter table t1 modify a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modify b timestamp NOT NULL DEFAULT '0000-00-00 00:00:0';
+alter table t1 modify a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modify b timestamp NOT NULL DEFAULT '1971-01-01 00:00:0';
 select * from t1;
 a	b
 2001-09-09 04:46:59	2001-09-09 04:46:59
@@ -411,6 +407,8 @@ t1	CREATE TABLE "t1" (
   "b" datetime DEFAULT NULL
 )
 set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a int auto_increment primary key, b int, c timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
@@ -464,22 +462,22 @@ set time_zone= @@global.time_zone;
 CREATE TABLE t1 (
 `id` int(11) NOT NULL auto_increment,
 `username` varchar(80) NOT NULL default '',
-`posted_on` timestamp NOT NULL default '0000-00-00 00:00:00',
+`posted_on` timestamp NOT NULL default '1971-01-01 00:00:00',
 PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1;
 show fields from t1;
 Field	Type	Null	Key	Default	Extra
 id	int(11)	NO	PRI	NULL	auto_increment
 username	varchar(80)	NO			
-posted_on	timestamp	NO		0000-00-00 00:00:00	
+posted_on	timestamp	NO		1971-01-01 00:00:00	
 select is_nullable from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME='t1' and COLUMN_NAME='posted_on';
 is_nullable
 NO
 drop table t1;
 CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
-INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
+f3 TIMESTAMP NOT NULL default '1971-01-01 00:00:00');
+INSERT INTO t1 (f2,f3) VALUES (NOW(), "1971-01-01 00:00:00");
 INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
 INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
 INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
@@ -543,8 +541,10 @@ a
 2010-02-01 09:31:02
 EXPLAIN
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	range	x	x	x	x	x	x
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	x	NULL	x	x	x	x	x	x	100.00	Using where; Using index
+Warnings:
+x	x	x
 SELECT * FROM t1 WHERE a >= '2010-02-01 09:31:02.0';
 a
 2010-02-01 09:31:02
@@ -568,8 +568,10 @@ INSERT INTO t2 VALUES( '2010-02-01 09:31:11' );
 FLUSH STATUS;
 EXPLAIN
 SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-x	x	x	range	x	x	x	x	x	x
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+x	x	x	NULL	x	x	x	x	x	x	100.00	Using where; Using index
+Warnings:
+x	x	x
 SELECT * FROM t2 WHERE a < '2010-02-01 09:31:02.0';
 a
 2010-02-01 09:31:01
@@ -631,7 +633,7 @@ End of 5.5 tests
 #
 CREATE TABLE t1 (
 `c1` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-`c2` TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00'
+`c2` TIMESTAMP NOT NULL DEFAULT '1971-01-01 00:00:00'
 );
 INSERT INTO t1 VALUES ('2003-05-16 23:53:29','2000-01-27 23:13:41');
 SELECT c2-c1 FROM t1;
@@ -655,20 +657,20 @@ SET @org_mode=@@sql_mode;
 #Table creation in strict mode
 SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 Warnings:
-Warning	1681	'NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
 ERROR 42000: Invalid default value for 'c1'
 SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 Warnings:
-Warning	1681	'NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
 ERROR 42000: Invalid default value for 'c1'
 #Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
 SET @@sql_mode='NO_ZERO_DATE';
 Warnings:
-Warning	1681	'NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -677,7 +679,7 @@ Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 SET @@sql_mode='NO_ZERO_IN_DATE';
 Warnings:
-Warning	1681	'NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t3 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -694,20 +696,20 @@ CREATE TABLE t1 (c1 INT);
 #Alter table in strict mode with NO_ZERO_DATE/NO_ZERO_IN_DATE
 SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 Warnings:
-Warning	1681	'NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
 ERROR 42000: Invalid default value for 'c2'
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '0000-00-00';
 ERROR 42000: Invalid default value for 'c2'
 SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 Warnings:
-Warning	1681	'NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '2012-02-00';
 ERROR 42000: Invalid default value for 'c2'
 #Alter table in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
 SET @@sql_mode='NO_ZERO_DATE';
 Warnings:
-Warning	1681	'NO_ZERO_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
@@ -717,7 +719,7 @@ Warning	1264	Out of range value for column 'c2' at row 1
 Warning	1264	Out of range value for column 'c3' at row 1
 SET @@sql_mode='NO_ZERO_IN_DATE';
 Warnings:
-Warning	1681	'NO_ZERO_IN_DATE' is deprecated and will be removed in a future release.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE t1 ADD c4 TIMESTAMP DEFAULT '2012-02-00';
 Warnings:
 Warning	1264	Out of range value for column 'c4' at row 1

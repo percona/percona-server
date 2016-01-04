@@ -7,7 +7,10 @@ set default_storage_engine='tokudb';
 drop table if exists t1;
 --enable_warnings
 
-create table t1 (y year,y2 year(2));
+--error 1818
+create table t1 (y year(2));
+
+create table t1 (y year,y2 year(4));
 insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
 select * from t1;
 select * from t1 order by y;
@@ -27,7 +30,11 @@ drop table t1;
 # Bug #27176: Assigning a string to an year column has unexpected results
 #
 create table t1(a year);
-insert into t1 values (2000.5), ('2000.5'), ('2001a'), ('2.001E3');
+insert into t1 values (2000.5);
+insert into t1 values ('2000.5');
+--error 1265
+insert into t1 values ('2001a');
+insert into t1 values ('2.001E3');
 select * from t1;
 drop table t1;
 
@@ -37,7 +44,7 @@ drop table t1;
 --echo # Bug #49480: WHERE using YEAR columns returns unexpected results
 --echo #
 
-CREATE TABLE t2(yy YEAR(2), c2 CHAR(4));
+CREATE TABLE t2(yy YEAR(4), c2 CHAR(4));
 CREATE TABLE t4(yyyy YEAR(4), c4 CHAR(4));
 
 INSERT INTO t2 (c2) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
@@ -140,6 +147,7 @@ DROP TABLE t2, t4;
 --echo #
 
 CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
+--error 1364
 INSERT INTO t1 (s) VALUES ('bad');
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 
@@ -165,7 +173,8 @@ DROP TABLE t1;
 --echo # WL#6219: Deprecate and remove YEAR(2) type
 --echo #
 
-CREATE TABLE t1 (c1 YEAR(2), c2 YEAR(4));
+CREATE TABLE t1 (c1 YEAR(4), c2 YEAR(4));
+--error 1818
 ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
 DROP TABLE t1;
 

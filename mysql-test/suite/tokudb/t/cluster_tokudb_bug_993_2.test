@@ -27,7 +27,7 @@ insert into z1 values (-1,-1,-1,-1,-1), (-1,-2,-3,-4,-5), (-3,-4,-1,-100,-1),(-3
 
 
 
-select * from z1 group by a,b;
+select * from z1 group by a,b,c,d,e;
 
 
 explain select a,b from z1 where a < 1;

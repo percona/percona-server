@@ -54,13 +54,41 @@ drop table t1;
 #
 
 create table t1 (a decimal(4,2));
-insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
-insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
+--error 1264
+insert into t1 value (10000);
+--error 1264
+insert into t1 values (1.1e10);
+--error 1264
+insert into t1 values ("11111");
+--error 1264
+insert into t1 values (100000.1);
+--error 1264
+insert into t1 value (-10000);
+--error 1264
+insert into t1 values (-1.1e10);
+--error 1264
+insert into t1 values ("-11111");
+--error 1264
+insert into t1 values (-100000.1);
 select a from t1;
 drop table t1;
 create table t1 (a decimal(4,2) unsigned);
-insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
-insert into t1 value (-10000), (-1.1e10), ("-11111"), (-100000.1);
+--error 1264
+insert into t1 value (10000);
+--error 1264
+insert into t1 values (1.1e10);
+--error 1264
+insert into t1 values ("11111");
+--error 1264
+insert into t1 values (100000.1);
+--error 1264
+insert into t1 value (-10000);
+--error 1264
+insert into t1 values (-1.1e10);
+--error 1264
+insert into t1 values ("-11111");
+--error 1264
+insert into t1 values (-100000.1);
 select a from t1;
 drop table t1;
 
@@ -69,20 +97,27 @@ drop table t1;
 # saving in field with overflow from decimal
 #
 create table t1 (a bigint);
+--error 1264
 insert into t1 values (18446744073709551615.0);
+--error 1264
 insert into t1 values (9223372036854775808.0);
+--error 1264
 insert into t1 values (-18446744073709551615.0);
 select * from t1;
 drop table t1;
 create table t1 (a bigint unsigned);
 insert into t1 values (18446744073709551615.0);
 insert into t1 values (9223372036854775808.0);
+--error 1264
 insert into t1 values (9999999999999999999999999.000);
+--error 1264
 insert into t1 values (-1.0);
 select * from t1;
 drop table t1;
 create table t1 (a tinyint);
+--error 1264
 insert into t1 values (18446744073709551615.0);
+--error 1264
 insert into t1 values (9223372036854775808.0);
 select * from t1;
 drop table t1;
@@ -1265,6 +1300,7 @@ let $nine_81=
 
 eval SELECT substring(('M') FROM ($nine_81)) AS foo;
 eval SELECT min($nine_81) AS foo;
+--error 3037
 eval SELECT multipolygonfromtext(('4294967294.1'),($nine_81)) AS foo;
 eval SELECT convert(($nine_81), decimal(30,30)) AS foo;
 eval SELECT bit_xor($nine_81) AS foo;

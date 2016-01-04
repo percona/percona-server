@@ -39,15 +39,13 @@ key(c31)) ENGINE=tokudb;
 INSERT INTO t (c25) VALUES (NULL);
 UPDATE t SET c27=0;
 ALTER TABLE t ADD PRIMARY KEY(c19,c27)USING HASH;
-Warnings:
-Warning	1265	Data truncated for column 'c19' at row 1
+ERROR 01000: Data truncated for column 'c19' at row 1
 UPDATE t SET c27=0;
 ALTER TABLE t ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
 UPDATE t SET c27=0;
 set tokudb_disable_hot_alter=0;
 set tokudb_disable_slow_alter=1;
 ALTER TABLE t ALTER c120 DROP DEFAULT;
-ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
 set tokudb_disable_slow_alter=0;
 ALTER TABLE t ALTER c120 DROP DEFAULT;
 UPDATE t SET c27=0;

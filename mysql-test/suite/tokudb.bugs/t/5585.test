@@ -34,11 +34,11 @@ create table t2 (
   primary key (file_id, insert_ts, country),
   key idx2 (insert_ts, country));
   
-insert into t2 select t1.file_id, 'US', 5, now() from t1;
-insert into t2 select t1.file_id, 'CA', 5, now() from t1;
-insert into t2 select t1.file_id, 'JP', 5, now() from t1;
-#insert into t2 select t1.file_id, 'MX', 5, now() from t1;
-#insert into t2 select t1.file_id, 'FR', 5, now() from t1;
+insert into t2 select t1.file_id, 'US', 5, '1971-01-01' from t1;
+insert into t2 select t1.file_id, 'CA', 5, '1971-01-01' from t1;
+insert into t2 select t1.file_id, 'JP', 5, '1971-01-01' from t1;
+#insert into t2 select t1.file_id, 'MX', 5, '1971-01-01' from t1;
+#insert into t2 select t1.file_id, 'FR', 5, '1971-01-01' from t1;
 
 insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 1 day) from t2;
 insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 2 day) from t2;
@@ -48,21 +48,21 @@ insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 
 
 
 # ignore rows column
---replace_column 9 NULL;
+--replace_column 10 NULL;
 explain
 select t1.file_id, 
        t1.file_number, 
-       (select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = date(date_sub(now(),interval 1 day))) as d
+       (select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = '1971-01-01') as d
 from t1;
 
 alter table t2 engine=tokudb;
 
 # ignore rows column
---replace_column 9 NULL;
+--replace_column 10 NULL;
 explain
 select t1.file_id, 
        t1.file_number, 
-       (select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = date(date_sub(now(),interval 1 day))) as d
+       (select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = '1971-01-01') as d
 from t1;
 
 drop table if exists t1, t2;

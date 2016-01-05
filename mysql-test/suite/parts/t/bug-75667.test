@@ -1,0 +1,8 @@
+# Bug 75667. In certain cases, ALTER TABLE ... REBUILD PARTITION was not
+# handled correctly when executed on a locked table.
+--source include/have_partition.inc
+
+CREATE TABLE t1(c1 INT,c2 CHAR)PARTITION BY HASH(c1) PARTITIONS 10;
+lock tables t1 write,t1 as t0 read;
+ALTER TABLE t1 REBUILD PARTITION p0;
+DROP TABLE t1;

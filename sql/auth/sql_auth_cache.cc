@@ -1462,6 +1462,14 @@ acl_init_utility_user(bool check_no_resolve)
   acl_utility_user_host_name.str= (char *) my_malloc(key_memory_acl_mem,
                                                      HOSTNAME_LENGTH+1,
                                                      MY_ZEROFILL);
+
+  /* Buffer sizing here assumes that the utility user is using the
+  mysql_native_password-style authentication. */
+  acl_utility_user.auth_string.str=
+      static_cast<char *>(my_malloc(key_memory_acl_mem,
+                                    SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
+                                    MYF(0)));
+
   acl_utility_user_initialized= true;
 
   /* parse out the option to its component user and host name parts */
@@ -1536,14 +1544,8 @@ acl_init_utility_user(bool check_no_resolve)
     goto cleanup;
   }
 
-  /* Assume that the utility user is using the mysql_native_password-style
-  authentication, fill out the rest of the static utility user struct, and add
-  it into the acl_users list, then resort */
-  acl_utility_user.auth_string.str=
-    static_cast<char *>(my_malloc(PSI_NOT_INSTRUMENTED,
-                                  SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
-                                  MYF(0)));
-
+  /* Fill out the rest of the static utility user struct, and add it into the
+  acl_users list, then resort */
   my_make_scrambled_password_sha1(acl_utility_user.auth_string.str,
                                   utility_user_password,
                                   strlen(utility_user_password));
@@ -1637,6 +1639,7 @@ acl_free_utility_user()
     acl_utility_user_schema_access.clear();
     my_free(acl_utility_user_name.str);
     my_free(acl_utility_user_host_name.str);
+    my_free(acl_utility_user.auth_string.str);
     memset(&acl_utility_user, 0, sizeof(acl_utility_user));
     acl_utility_user_initialized= false;
   }

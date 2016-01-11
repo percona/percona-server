@@ -157,7 +157,7 @@ case "$1" in
 			chmod 755 ${MYSQLRUN}
 		fi
 
-		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
+		mysqld_safe > /dev/null &
 		verify_server start
 		if [ "$?" -eq 0 ];
 		then

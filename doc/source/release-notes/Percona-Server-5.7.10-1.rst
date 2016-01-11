@@ -47,4 +47,6 @@ Bugs Fixed
 
  Removed unnecessary code in InnoDB error monitor thread. Bug fixed :bug:`1521564` (upstream :mysqlbug:`79477`).
 
+ With :ref:`expanded_innodb_fast_index_creation` enabled, DDL queries involving |InnoDB| temporary tables would cause later queries on the same tables to produce warnings that their indexes were not found in the index translation table. Bug fixed :bug:`1233431`.
+
 Other bugs fixed: :bug:`371752` (upstream :mysqlbug:`45379`), :bug:`1441362` (upstream :mysqlbug:`56155`), :bug:`1385062` (upstream :mysqlbug:`74810`), :bug:`1519201` (upstream :mysqlbug:`79391`), :bug:`1515602`, :bug:`1506697` (upstream :mysqlbug:`57552`), :bug:`1501089` (upstream :mysqlbug:`75239`), :bug:`1447527` (upstream :mysqlbug:`75368`), :bug:`1384658` (upstream :mysqlbug:`74619`), :bug:`1384656` (upstream :mysqlbug:`74584`), and :bug:`1192052`.

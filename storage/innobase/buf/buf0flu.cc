@@ -3595,6 +3595,10 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 {
 	my_thread_init();
 
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(page_cleaner_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_workers++;
 	mutex_exit(&page_cleaner->mutex);

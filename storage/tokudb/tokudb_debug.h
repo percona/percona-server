@@ -50,6 +50,7 @@ static void tokudb_backtrace(void);
 #define TOKUDB_DEBUG_UPSERT                 (1<<12)
 #define TOKUDB_DEBUG_CHECK                  (1<<13)
 #define TOKUDB_DEBUG_ANALYZE                (1<<14)
+#define TOKUDB_DEBUG_XA                     (1<<15)
 
 #define TOKUDB_TRACE(_fmt, ...) { \
     fprintf(stderr, "%u %s:%u %s " _fmt "\n", tokudb::thread::my_tid(), \

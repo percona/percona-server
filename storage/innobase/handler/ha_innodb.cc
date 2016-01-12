@@ -1233,6 +1233,28 @@ innobase_show_status(
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type);
 
+/*************************************************************//**
+Checks if buffer pool is big enough to enable backoff algorithm.
+InnoDB empty free list algorithm backoff requires free pages
+from LRU for the best performance.
+buf_LRU_buf_pool_running_out cancels query if 1/4 of 
+buffer pool belongs to LRU or freelist.
+At the same time buf_flush_LRU_list_batch
+keeps up to BUF_LRU_MIN_LEN in LRU.
+In order to avoid deadlock baclkoff requires buffer pool
+to be at least 4*BUF_LRU_MIN_LEN,
+but flush peformance is bad because of trashing
+and additional BUF_LRU_MIN_LEN pages are requested.
+@return	true if it's possible to enable backoff. */
+static
+bool
+innodb_empty_free_list_algorithm_backoff_allowed(
+	srv_empty_free_list_t
+			algorithm,		/*!< in: desired algorithm
+						from srv_empty_free_list_t */
+	long long	buf_pool_pages);	/*!< in: total number
+						of pages inside buffer pool */
+
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can enable monitor counters/groups by specifying
@@ -3866,6 +3888,21 @@ innobase_change_buffering_inited_ok:
 	innobase_commit_concurrency_init_default();
 
 	srv_kill_idle_transaction = 0;
+
+	/* Do not enable backoff algorithm for small buffer pool. */
+	if (!innodb_empty_free_list_algorithm_backoff_allowed(
+			static_cast<srv_empty_free_list_t>(
+				srv_empty_free_list_algorithm),
+			innobase_buffer_pool_size / srv_page_size)) {
+		sql_print_information(
+				"InnoDB: innodb_empty_free_list_algorithm "
+				"has been changed to legacy "
+				"because of small buffer pool size. "
+				"In order to use backoff, "
+				"increase buffer pool at least up to 20MB.\n");
+			srv_empty_free_list_algorithm
+				= SRV_EMPTY_FREE_LIST_LEGACY;
+	}
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
@@ -19166,6 +19203,87 @@ innodb_status_output_update(
 	os_event_set(lock_sys->timeout_event);
 }
 
+/*************************************************************//**
+Empty free list algorithm.
+Checks if buffer pool is big enough to enable backoff algorithm.
+InnoDB empty free list algorithm backoff requires free pages
+from LRU for the best performance.
+buf_LRU_buf_pool_running_out cancels query if 1/4 of 
+buffer pool belongs to LRU or freelist.
+At the same time buf_flush_LRU_list_batch
+keeps up to BUF_LRU_MIN_LEN in LRU.
+In order to avoid deadlock baclkoff requires buffer pool
+to be at least 4*BUF_LRU_MIN_LEN,
+but flush peformance is bad because of trashing
+and additional BUF_LRU_MIN_LEN pages are requested.
+@return	true if it's possible to enable backoff. */
+static
+bool
+innodb_empty_free_list_algorithm_backoff_allowed(
+	srv_empty_free_list_t	algorithm,	/*!< in: desired algorithm
+						from srv_empty_free_list_t */
+	long long		buf_pool_pages)	/*!< in: total number
+						of pages inside buffer pool */
+{
+	return(buf_pool_pages >= BUF_LRU_MIN_LEN * (4 + 1)
+			|| algorithm != SRV_EMPTY_FREE_LIST_BACKOFF);
+}
+
+/*************************************************************//**
+Empty free list algorithm. This function is registered as
+a callback with MySQL. 
+@return	0 for valid algorithm */
+static
+int
+innodb_srv_empty_free_list_algorithm_validate(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	algorithm_name;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+	ulint	algo;
+	srv_empty_free_list_t 		algorithm;
+
+	algorithm_name = value->val_str(value, buff, &len);
+
+	if (!algorithm_name) {
+		return(1);
+	}
+
+	for (algo = 0; algo < array_elements(
+				innodb_empty_free_list_algorithm_names
+				) - 1;
+			algo++) {
+		if (!innobase_strcasecmp(
+				algorithm_name,
+				innodb_empty_free_list_algorithm_names[algo]))
+			break;
+	}
+
+	if (algo == array_elements( innodb_empty_free_list_algorithm_names) - 1)
+		return(1);
+
+	algorithm = static_cast<srv_empty_free_list_t>(algo);
+	if (!innodb_empty_free_list_algorithm_backoff_allowed(
+				algorithm,
+				innobase_buffer_pool_size / srv_page_size)) {
+		sql_print_warning(
+				"InnoDB: innodb_empty_free_list_algorithm "
+				"= 'backoff' requires at least"
+				" 20MB buffer pool.\n");
+		return(1);
+	}
+
+	*reinterpret_cast<ulong*>(save) = static_cast<ulong>(algorithm);
+	return(0);
+}
+
 /** Update the innodb_log_checksums parameter.
 @param[in]	thd	thread handle
 @param[in]	var	system variable
@@ -19672,7 +19790,7 @@ static MYSQL_SYSVAR_ENUM(empty_free_list_algorithm,
   "The algorithm to use for empty free list handling.  Allowed values: "
   "LEGACY: (default) Original Oracle MySQL 5.6 handling with single page flushes; "
   "BACKOFF: Wait until cleaner produces a free page.",
-  NULL, NULL, SRV_EMPTY_FREE_LIST_LEGACY,
+  innodb_srv_empty_free_list_algorithm_validate, NULL, SRV_EMPTY_FREE_LIST_LEGACY,
   // Default changed until separate LRU flusher is merged. With a single page
   // cleaner otherwise it is possible to loop forever in a query
   // thread while the cleaner is waiting for the page latch held by that

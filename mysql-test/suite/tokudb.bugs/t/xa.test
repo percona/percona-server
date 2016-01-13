@@ -68,7 +68,7 @@ xa prepare 'testa','testb';
 
 xa recover;
 
---error ER_XAER_NOTA
+--error ER_XAER_RMFAIL
 xa commit 'testb',0x2030405060,11;
 xa rollback 'testa','testb';
 

@@ -101,19 +101,26 @@ ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction
 xa recover;
 formatID	gtrid_length	bqual_length	data
 11	5	5	testb 0@P`
+xa rollback 'testb',0x2030405060,11;
+xa recover;
+formatID	gtrid_length	bqual_length	data
 xa prepare 'testa','testb';
 xa recover;
 formatID	gtrid_length	bqual_length	data
-11	5	5	testb 0@P`
 1	5	5	testatestb
 xa commit 'testb',0x2030405060,11;
-ERROR XAE04: XAER_NOTA: Unknown XID
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
 xa rollback 'testa','testb';
 xa start 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your XYZ server version for the right syntax to use near '' at line 1
 select * from t1;
 a
 20
+xa recover;
+formatID	gtrid_length	bqual_length	data
+show tables;
+Tables_in_test
+t1
 drop table t1;
 '#--------------------end------------------------#'
 SET @@session.tokudb_support_xa = @session_start_value;

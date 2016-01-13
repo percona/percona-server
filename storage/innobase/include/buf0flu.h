@@ -35,6 +35,9 @@ Created 11/5/1995 Heikki Tuuri
 /** Flag indicating if the page_cleaner is in active state. */
 extern bool buf_page_cleaner_is_active;
 
+/** Flag indicating if the lru_manager is in active state. */
+extern bool buf_lru_manager_is_active;
+
 #ifdef UNIV_DEBUG
 
 /** Value of MySQL global variable used to disable page cleaner. */
@@ -248,6 +251,15 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 /*==========================================*/
 	void*	arg);		/*!< in: a dummy parameter required by
 				os_thread_create */
+
+/** LRU manager thread
+@param[in]	arg	buffer pool instance number for this thread
+@return a dummy value */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(buf_lru_manager)(
+	void*	arg);
+
 /******************************************************************//**
 Initialize page_cleaner. */
 void

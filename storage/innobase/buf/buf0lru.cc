@@ -1399,7 +1399,7 @@ loop:
 	freed = false;
 
 	if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF
-	    && buf_page_cleaner_is_active
+	    && buf_lru_manager_is_active
 	    && (srv_shutdown_state == SRV_SHUTDOWN_NONE
 		|| srv_shutdown_state == SRV_SHUTDOWN_CLEANUP)) {
 
@@ -1443,11 +1443,11 @@ loop:
 		goto loop;
 	} else {
 
-		/* The LRU manager is not running or Oracle MySQL 5.6 algorithm
+		/* The LRU manager is not running or Oracle MySQL 5.7 algorithm
 		was requested, will perform a single page flush  */
 		ut_ad((srv_empty_free_list_algorithm
 		       == SRV_EMPTY_FREE_LIST_LEGACY)
-		      || !buf_page_cleaner_is_active
+		      || !buf_lru_manager_is_active
 		      || (srv_shutdown_state != SRV_SHUTDOWN_NONE
 			  && srv_shutdown_state != SRV_SHUTDOWN_CLEANUP));
 	}

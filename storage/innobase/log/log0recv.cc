@@ -153,15 +153,6 @@ lsn_t	recv_max_page_lsn;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-#ifndef UNIV_HOTBACKUP
-# ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t	recv_writer_thread_key;
-# endif /* UNIV_PFS_THREAD */
-
-/** Flag indicating if recv_writer thread is active. */
-volatile bool	recv_writer_thread_active = false;
-#endif /* !UNIV_HOTBACKUP */
-
 #ifndef	DBUG_OFF
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
@@ -771,7 +762,6 @@ recv_sys_create(void)
 	recv_sys = static_cast<recv_sys_t*>(ut_zalloc_nokey(sizeof(*recv_sys)));
 
 	mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
-	mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -802,11 +792,6 @@ recv_sys_close(void)
 #endif /* !UNIV_HOTBACKUP */
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
-
-#ifndef UNIV_HOTBACKUP
-		ut_ad(!recv_writer_thread_active);
-		mutex_free(&recv_sys->writer_mutex);
-#endif /* !UNIV_HOTBACKUP */
 
 		mutex_free(&recv_sys->mutex);
 
@@ -864,61 +849,6 @@ recv_sys_var_init(void)
 	recv_previous_parsed_rec_is_multi = 0;
 	recv_n_pool_free_frames	= 256;
 	recv_max_page_lsn = 0;
-}
-
-/******************************************************************//**
-recv_writer thread tasked with flushing dirty pages from the buffer
-pools.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(recv_writer_thread)(
-/*===============================*/
-	void*	arg __attribute__((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
-{
-	ut_ad(!srv_read_only_mode);
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(recv_writer_thread_key);
-#endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "recv_writer thread running, id "
-		<< os_thread_pf(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
-	recv_writer_thread_active = true;
-
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-
-		os_thread_sleep(100000);
-
-		mutex_enter(&recv_sys->writer_mutex);
-
-		if (!recv_recovery_on) {
-			mutex_exit(&recv_sys->writer_mutex);
-			break;
-		}
-
-		/* Flush pages from end of LRU if required */
-		os_event_reset(recv_sys->flush_end);
-		recv_sys->flush_type = BUF_FLUSH_LRU;
-		os_event_set(recv_sys->flush_start);
-		os_event_wait(recv_sys->flush_end);
-
-		mutex_exit(&recv_sys->writer_mutex);
-	}
-
-	recv_writer_thread_active = false;
-
-	/* We count the number of threads in os_thread_exit().
-	A created thread should always use that to exit and not
-	use return() to exit. */
-	os_thread_exit(NULL);
-
-	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1027,7 +957,6 @@ recv_sys_debug_free(void)
 	/* wake page cleaner up to progress */
 	if (!srv_read_only_mode) {
 		ut_ad(!recv_recovery_on);
-		ut_ad(!recv_writer_thread_active);
 		os_event_reset(buf_flush_event);
 		os_event_set(recv_sys->flush_start);
 	}
@@ -2609,22 +2538,14 @@ loop:
 		mutex_exit(&(recv_sys->mutex));
 		log_mutex_exit();
 
-		/* Stop the recv_writer thread from issuing any LRU
-		flush batches. */
-		mutex_enter(&recv_sys->writer_mutex);
+		os_event_reset(recv_sys->flush_end);
+		os_event_set(recv_sys->flush_start);
+		os_event_wait(recv_sys->flush_end);
 
 		/* Wait for any currently run batch to end. */
 		buf_flush_wait_LRU_batch_end();
 
-		os_event_reset(recv_sys->flush_end);
-		recv_sys->flush_type = BUF_FLUSH_LIST;
-		os_event_set(recv_sys->flush_start);
-		os_event_wait(recv_sys->flush_end);
-
 		buf_pool_invalidate();
-
-		/* Allow batches from recv_writer thread. */
-		mutex_exit(&recv_sys->writer_mutex);
 
 		log_mutex_enter();
 		mutex_enter(&(recv_sys->mutex));
@@ -3642,7 +3563,6 @@ recv_group_scan_log_recs(
 	recv_previous_parsed_rec_offset	= 0;
 	recv_previous_parsed_rec_is_multi = 0;
 	ut_ad(recv_max_page_lsn == 0);
-	ut_ad(last_phase || !recv_writer_thread_active);
 	mutex_exit(&recv_sys->mutex);
 
 	lsn_t	checkpoint_lsn	= *contiguous_lsn;
@@ -3825,12 +3745,6 @@ recv_init_crash_recovery_spaces(void)
 	}
 
 	buf_dblwr_process();
-
-	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-		/* Spawn the background thread to flush dirty pages
-		from the buffer pools. */
-		os_thread_create(recv_writer_thread, 0, 0);
-	}
 
 	return(DB_SUCCESS);
 }
@@ -4131,32 +4045,10 @@ recv_recovery_from_checkpoint_start(
 void
 recv_recovery_from_checkpoint_finish(void)
 {
-	/* Make sure that the recv_writer thread is done. This is
-	required because it grabs various mutexes and we want to
-	ensure that when we enable sync_order_checks there is no
-	mutex currently held by any thread. */
-	mutex_enter(&recv_sys->writer_mutex);
-
 	/* Free the resources of the recovery system */
 	recv_recovery_on = false;
 
-	/* By acquring the mutex we ensure that the recv_writer thread
-	won't trigger any more LRU batches. Now wait for currently
-	in progress batches to finish. */
 	buf_flush_wait_LRU_batch_end();
-
-	mutex_exit(&recv_sys->writer_mutex);
-
-	ulint count = 0;
-	while (recv_writer_thread_active) {
-		++count;
-		os_thread_sleep(100000);
-		if (srv_print_verbose_log && count > 600) {
-			ib::info() << "Waiting for recv_writer to"
-				" finish flushing of buffer pool";
-			count = 0;
-		}
-	}
 
 	recv_sys_debug_free();
 
@@ -4206,8 +4098,6 @@ void
 recv_recovery_rollback_active(void)
 /*===============================*/
 {
-	ut_ad(!recv_writer_thread_active);
-
 	/* Switch latching order checks on in sync0debug.cc, if
 	--innodb-sync-debug=true (default) */
 	ut_d(sync_check_enable());

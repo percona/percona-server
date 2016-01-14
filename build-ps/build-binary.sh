@@ -17,7 +17,8 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
 WITH_JEMALLOC=''
-DEBUG_EXTNAME=''
+WITH_MECAB_OPTION=''
+DEBUG_EXTRA=''
 WITH_SSL='/usr'
 WITH_SSL_TYPE='system'
 OPENSSL_INCLUDE=''
@@ -36,8 +37,8 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options=iqdvjt: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-yassl,with-ssl:,tag: \
+    go_out="$(getopt --options=iqdvj:m:t: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-yassl,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -56,7 +57,7 @@ do
         shift
         CMAKE_BUILD_TYPE='Debug'
         BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
-        DEBUG_EXTNAME='-DDEBUG_EXTNAME=OFF'
+        DEBUG_EXTRA="-DDEBUG_EXTNAME=OFF"
         ;;
     -v | --valgrind )
         shift
@@ -70,6 +71,11 @@ do
     -j | --with-jemalloc )
         shift
         WITH_JEMALLOC="$1"
+        shift
+        ;;
+    -m | --with-mecab )
+        shift
+        WITH_MECAB_OPTION="-DWITH_MECAB=$1"
         shift
         ;;
     --with-yassl )
@@ -170,6 +176,15 @@ COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 
+# If gcc >= 4.8 we can use ASAN in debug build but not if valgrind build also
+if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
+  GCC_VERSION=$(${CC} -dumpversion)
+  GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
+  if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
+    DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
+  fi
+fi
+
 # TokuDB cmake flags
 if test -d "$SOURCEDIR/storage/tokudb"
 then
@@ -235,7 +250,7 @@ fi
  
     cmake $SOURCEDIR ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo} \
-        $DEBUG_EXTNAME \
+        $DEBUG_EXTRA \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DFEATURE_SET=community \
         -DENABLE_DTRACE=OFF \
@@ -248,7 +263,7 @@ fi
         -DWITH_INNODB_MEMCACHED=ON \
         -DDOWNLOAD_BOOST=1 \
         -DWITH_BOOST="$WORKDIR_ABS/libboost" \
-        $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
+        $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install

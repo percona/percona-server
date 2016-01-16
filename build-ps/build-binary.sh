@@ -17,6 +17,7 @@ TARGET="$(uname -m)"
 TARGET_CFLAGS=''
 QUIET='VERBOSE=1'
 WITH_JEMALLOC=''
+WITH_MECAB_OPTION=''
 DEBUG_EXTNAME=''
 WITH_SSL='/usr'
 WITH_SSL_TYPE='system'
@@ -36,8 +37,8 @@ TAR=${TAR:-tar}
 # Check if we have a functional getopt(1)
 if ! getopt --test
 then
-    go_out="$(getopt --options=iqdvjt: \
-        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-yassl,with-ssl:,tag: \
+    go_out="$(getopt --options=iqdvj:m:t: \
+        --longoptions=i686,quiet,debug,valgrind,with-jemalloc:,with-mecab:,with-yassl,with-ssl:,tag: \
         --name="$(basename "$0")" -- "$@")"
     test $? -eq 0 || exit 1
     eval set -- $go_out
@@ -70,6 +71,11 @@ do
     -j | --with-jemalloc )
         shift
         WITH_JEMALLOC="$1"
+        shift
+        ;;
+    -m | --with-mecab )
+        shift
+        WITH_MECAB_OPTION="-DWITH_MECAB=$1"
         shift
         ;;
     --with-yassl )
@@ -248,7 +254,7 @@ fi
         -DWITH_INNODB_MEMCACHED=ON \
         -DDOWNLOAD_BOOST=1 \
         -DWITH_BOOST="$WORKDIR_ABS/libboost" \
-        $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
+        $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET
     make DESTDIR="$INSTALLDIR" install

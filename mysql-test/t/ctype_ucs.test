@@ -73,8 +73,14 @@ DROP TABLE t1;
 --echo #   and reverse() function
 --echo #
 
+# Because of the Oralce Bug #79989, there is no guarantee that after
+# including "ctype_common.inc" current value of the @@character_set_database
+# session variable will be 'latin1' and string literals without prefixes in the
+# following "SELECT" statement ('00' and '01') will have this charset.
+# As a workaround, we add "_latin1" prefix here.
+
 --echo # Problem # 1 (original report): wrong parsing of ucs2 data
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
+SELECT _latin1 '00' UNION SELECT _latin1 '10' INTO OUTFILE 'tmpp.txt';
 CREATE TABLE t1(a INT);
 LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
 (@b) SET a=REVERSE(@b);
@@ -87,7 +93,7 @@ remove_file $MYSQLD_DATADIR/test/tmpp.txt;
 
 
 --echo # Problem # 2 : if you write and read ucs2 data to a file they're lost
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
+SELECT _latin1 '00' UNION SELECT _latin1 '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
 CREATE TABLE t1(a INT);
 LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
 (@b) SET a=REVERSE(@b);

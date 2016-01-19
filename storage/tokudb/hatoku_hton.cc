@@ -75,13 +75,10 @@ static void tokudb_handle_fatal_signal(handlerton* hton, THD* thd, int sig);
 static int tokudb_close_connection(handlerton* hton, THD* thd);
 static int tokudb_commit(handlerton* hton, THD* thd, bool all);
 static int tokudb_rollback(handlerton* hton, THD* thd, bool all);
-#if TOKU_INCLUDE_XA
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all);
 static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len);
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_by_xid(handlerton* hton, XID* xid);
-#endif
-
 static int tokudb_rollback_to_savepoint(
     handlerton* hton,
     THD* thd,
@@ -368,12 +365,10 @@ static int tokudb_init_func(void *p) {
 #endif
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
-#if TOKU_INCLUDE_XA
     tokudb_hton->prepare = tokudb_xa_prepare;
     tokudb_hton->recover = tokudb_xa_recover;
     tokudb_hton->commit_by_xid = tokudb_commit_by_xid;
     tokudb_hton->rollback_by_xid = tokudb_rollback_by_xid;
-#endif
 
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
@@ -679,7 +674,6 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
 
         // count the total number of prepared txn's that we discard
         long total_prepared = 0;
-#if TOKU_INCLUDE_XA
         TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "begin XA cleanup");
         while (1) {
             // get xid's 
@@ -706,11 +700,9 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
             total_prepared += n_prepared;
         }
         TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "end XA cleanup");
-#endif
         error = db_env->close(
             db_env,
             total_prepared > 0 ? TOKUFT_DIRTY_SHUTDOWN : 0);
-#if TOKU_INCLUDE_XA
         if (error != 0 && total_prepared > 0) {
             sql_print_error(
                 "%s: %ld prepared txns still live, please shutdown, error %d",
@@ -718,7 +710,6 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
                 total_prepared,
                 error);
         } else
-#endif
         assert_always(error == 0);
         db_env = NULL;
     }
@@ -928,7 +919,6 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_RETURN(0);
 }
 
-#if TOKU_INCLUDE_XA
 static bool tokudb_sync_on_prepare(void) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     // skip sync of log if fsync log period > 0
@@ -1034,8 +1024,6 @@ cleanup:
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", r);
     TOKUDB_DBUG_RETURN(r);
 }
-
-#endif
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     TOKUDB_DBUG_ENTER("%p", savepoint);

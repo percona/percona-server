@@ -8,29 +8,45 @@ SELECT @global_start_value;
 @global_start_value
 1
 SET @@session.tokudb_support_xa = 0;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases. Only tokudb_support_xa=ON is allowed.
 SET @@session.tokudb_support_xa = DEFAULT;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases.
 SELECT @@session.tokudb_support_xa;
 @@session.tokudb_support_xa
 1
 SET @@global.tokudb_support_xa = 0;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases. Only tokudb_support_xa=ON is allowed.
 SET @@global.tokudb_support_xa = DEFAULT;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases.
 SELECT @@global.tokudb_support_xa;
 @@global.tokudb_support_xa
 1
 '#--------------------case#1 valid set support_xa------------------------#'
 SET @@session.tokudb_support_xa = 0;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases. Only tokudb_support_xa=ON is allowed.
 SELECT @@session.tokudb_support_xa;
 @@session.tokudb_support_xa
-0
+1
 SET @@session.tokudb_support_xa = 1;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases.
 SELECT @@session.tokudb_support_xa;
 @@session.tokudb_support_xa
 1
 SET @@global.tokudb_support_xa = 0;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases. Only tokudb_support_xa=ON is allowed.
 SELECT @@global.tokudb_support_xa;
 @@global.tokudb_support_xa
-0
+1
 SET @@global.tokudb_support_xa = 1;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases.
 SELECT @@global.tokudb_support_xa;
 @@global.tokudb_support_xa
 1
@@ -44,9 +60,11 @@ ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'T'
 SET @@session.tokudb_support_xa = "Y";
 ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'Y'
 SET @@session.tokudb_support_xa = OF;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases. Only tokudb_support_xa=ON is allowed.
 SELECT @@session.tokudb_support_xa;
 @@session.tokudb_support_xa
-0
+1
 SET @@global.tokudb_support_xa = 2;
 ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of '2'
 SET @@global.tokudb_support_xa = "T";
@@ -56,9 +74,11 @@ ERROR 42000: Variable 'tokudb_support_xa' can't be set to the value of 'Y'
 '#--------------------case#3 xa.test port from tokudb_mariadb/xa.test ------------------------#'
 '#--------------------xa.test with tokudb_support_xa OFF ------------------------#'
 SET @@global.tokudb_support_xa = OFF;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases. Only tokudb_support_xa=ON is allowed.
 SELECT @@global.tokudb_support_xa;
 @@global.tokudb_support_xa
-0
+1
 create table t1 (a int) engine=tokudb;
 xa start 'test1';
 insert t1 values (10);
@@ -124,10 +144,14 @@ t1
 drop table t1;
 '#--------------------end------------------------#'
 SET @@session.tokudb_support_xa = @session_start_value;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases.
 SELECT @@session.tokudb_support_xa;
 @@session.tokudb_support_xa
 1
 SET @@global.tokudb_support_xa = @global_start_value;
+Warnings:
+Warning	131	Using tokudb_support_xa is deprecated and the parameter may be removed in future releases.
 SELECT @@global.tokudb_support_xa;
 @@global.tokudb_support_xa
 1

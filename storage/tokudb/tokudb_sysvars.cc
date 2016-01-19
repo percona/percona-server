@@ -869,15 +869,34 @@ static MYSQL_THDVAR_BOOL(
     false);
 #endif
 
-#if TOKU_INCLUDE_XA
+static const char* deprecated_tokudb_support_xa =
+    "Using tokudb_support_xa is deprecated and the "
+    "parameter may be removed in future releases.";
+static const char* deprecated_tokudb_support_xa_off =
+    "Using tokudb_support_xa is deprecated and the "
+    "parameter may be removed in future releases. "
+    "Only tokudb_support_xa=ON is allowed.";
+
+static void support_xa_update(
+    THD* thd,
+    st_mysql_sys_var* var,
+    void* var_ptr,
+    const void* save) {
+    my_bool tokudb_support_xa = *static_cast<const my_bool*>(save);
+    push_warning(thd,
+                 Sql_condition::SL_WARNING,
+                 HA_ERR_WRONG_COMMAND,
+                 tokudb_support_xa ? deprecated_tokudb_support_xa :
+                 deprecated_tokudb_support_xa_off);
+}
+
 static MYSQL_THDVAR_BOOL(
     support_xa,
     PLUGIN_VAR_OPCMDARG,
     "Enable TokuDB support for the XA two-phase commit",
     NULL,
-    NULL,
+    support_xa_update,
     true);
-#endif
 
 
 
@@ -963,9 +982,7 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(disable_slow_upsert),
 #endif
 
-#if TOKU_INCLUDE_XA
     MYSQL_SYSVAR(support_xa),
-#endif
 
 #if TOKUDB_DEBUG
    MYSQL_SYSVAR(debug_pause_background_job_manager),

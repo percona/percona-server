@@ -7995,9 +7995,13 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
   /*
     The applier thread explicitly overrides the value of sql_log_bin
     with the value of log_slave_updates.
+    We may also end up here in some cases if we have a transaction with two
+    active transactional storage engines, such as is the case if this is a
+    replication applier and log_slave_updates=0.
   */
-  DBUG_ASSERT(thd->slave_thread ?
-              opt_log_slave_updates : thd->variables.sql_log_bin);
+  DBUG_ASSERT((thd->slave_thread ?
+              opt_log_slave_updates : thd->variables.sql_log_bin) ||
+              total_ha_2pc > 1);
 
   /*
     Set HA_IGNORE_DURABILITY to not flush the prepared record of the

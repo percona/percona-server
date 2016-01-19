@@ -30,6 +30,10 @@
 
 static char *tokudb_backup_plugin_version;
 
+// This is just a place holder for now and must be replaced soon with a proper
+// PSI key for this plugin.
+static PSI_memory_key tokudb_backup_mem_key = 0;
+
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
     PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
     "version of the tokudb backup plugin",
@@ -134,9 +138,18 @@ static int tokudb_backup_progress_fun(float progress, const char *progress_strin
     // set thd proc info
     thd_proc_info(be->_thd, "");
     size_t len = 100 + strlen(progress_string);
-    be->_the_string = (char *) my_realloc(be->_the_string, len, MYF(MY_FAE+MY_ALLOW_ZERO_PTR));
+    be->_the_string =
+        static_cast<char*>(my_realloc(tokudb_backup_mem_key,
+                                     be->_the_string,
+                                     len,
+                                     MYF(MY_FAE+MY_ALLOW_ZERO_PTR)));
     float percentage = progress * 100;
-    int r = snprintf(be->_the_string, len, "tokudb backup about %.0f%% done: %s", percentage, progress_string);
+    int r =
+        snprintf(be->_the_string,
+        len,
+        "tokudb backup about %.0f%% done: %s",
+        percentage,
+        progress_string);
     assert(0 < r && (size_t)r <= len);
     thd_proc_info(be->_thd, be->_the_string);
 
@@ -150,7 +163,8 @@ static void tokudb_backup_set_error(THD *thd, int error, const char *error_strin
     THDVAR(thd, last_error) = error;
     char *old_error_string = THDVAR(thd, last_error_string);
     if (error_string)
-        THDVAR(thd, last_error_string) = my_strdup(error_string, MYF(MY_FAE));
+        THDVAR(thd, last_error_string) =
+            my_strdup(tokudb_backup_mem_key, error_string, MYF(MY_FAE));
     else
         THDVAR(thd, last_error_string) = NULL;
     if (old_error_string)
@@ -158,9 +172,17 @@ static void tokudb_backup_set_error(THD *thd, int error, const char *error_strin
 }
 
 static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
-    size_t n = strlen(error_fmt) + (s1 ? strlen(s1) : 0) + (s2 ? strlen(s2) : 0) + (s3 ? strlen(s3) : 0);
-    char *error_string = static_cast<char *>(my_malloc(n+1, MYF(MY_FAE)));
+    size_t n =
+        strlen(error_fmt) +
+        (s1 ? strlen(s1) : 0) +
+        (s2 ? strlen(s2) : 0) +
+        (s3 ? strlen(s3) : 0);
+
+    char* error_string =
+        static_cast<char*>(my_malloc(tokudb_backup_mem_key, n+1, MYF(MY_FAE)));
+
     int r = snprintf(error_string, n+1, error_fmt, s1, s2, s3);
+
     assert(0 < r && (size_t)r <= n);
     tokudb_backup_set_error(thd, error, error_string);
     my_free(error_string);
@@ -257,7 +279,8 @@ public:
 
     void find_and_allocate_dirs(THD *thd) {
         // Sanitize the trailing slash of the MySQL Data Dir.
-        m_mysql_data_dir = my_strdup(mysql_real_data_home, MYF(MY_FAE));
+        m_mysql_data_dir =
+            my_strdup(tokudb_backup_mem_key, mysql_real_data_home, MYF(MY_FAE));
 #if 0
         // These APIs do not exist on MySQL 5.5 or MariaDB.  We only need this code if the tokudb storage
         // engine is NOT installed.  
@@ -402,7 +425,8 @@ private:
         }
 
         int length = strlen(opt_bin_logname);
-        char *buf = (char *)my_malloc(length + 1, 0);
+        char* buf =
+            static_cast<char*>(my_malloc(tokudb_backup_mem_key, length + 1, 0));
         if (buf == NULL) {
             return NULL;
         }
@@ -421,24 +445,38 @@ private:
         return buf;
     }
 
-    const char * find_plug_in_sys_var(const char *name, THD *thd) {
-        const char * result = NULL;
-        String null_string;
+    const char* find_plug_in_sys_var(const char* name, THD* thd) {
+        const char* result = NULL;
         String name_to_find(name, &my_charset_bin);
-        // If get_system_var fails, it calls my_error
-        Item *item = get_system_var(thd,
-                                    OPT_GLOBAL,
-                                    name_to_find.lex_string(),
-                                    null_string.lex_string());
-        if (item) {
-            String scratch;
-            String * str = item->val_str(&scratch);
-            if (str) {
-                result = my_strdup(str->ptr(), MYF(MY_FAE));
-            }
+        LEX_STRING component_name = name_to_find.lex_string();
+
+
+        // 5.7 change the interface to get_system_var and requires a
+        // Parse_context, which is something that must be provided (not NULL)
+        // and something that we do not have available to us. We now
+        // re-implement some of what get_system_var does to get at these
+        // variables
+        sys_var* var =
+            find_sys_var(
+                thd,
+                component_name.str,
+                component_name.length);
+
+        if (!var) {
+            return NULL;
         }
 
-        // delete item; // auto deleted when the query ends
+        Item_func_get_system_var* item =
+            new Item_func_get_system_var(var,
+                                         OPT_GLOBAL,
+                                         &component_name,
+                                         NULL,
+                                         0);
+        String scratch;
+        String* str = item->val_str(&scratch);
+        if (str) {
+             result = my_strdup(tokudb_backup_mem_key, str->ptr(), MYF(MY_FAE));
+        }
 
         return result;
     }
@@ -513,7 +551,10 @@ struct destination_dirs {
         }
         const int len = strlen(postfix);
         const int total_len = len + m_backup_dir_len + 1;
-        char *str = (char *)my_malloc(sizeof(char) * total_len, MYF(0));
+        char* str =
+            static_cast<char*>(my_malloc(tokudb_backup_mem_key,
+                                         sizeof(char) * total_len,
+                                         MYF(0)));
         if (str) {
             strcpy(str, m_backup_dir);
             strcat(str, postfix);

@@ -12,3 +12,20 @@ SELECT * FROM t1 FORCE INDEX (a);
 id	a	j
 1	1	NULL
 DROP TABLE t1;
+#
+# Bug 1529555: InnoDB: Failing assertion: id != srv_tmp_space.space_id() in fsp_space_modify_check
+#
+CREATE TEMPORARY TABLE t1(a CHAR (1), b varchar(1)) ENGINE=InnoDB;
+INSERT INTO t1(a) VALUES ('a'), ('a'), ('a'), ('a'), ('a'), (0);
+ALTER TABLE t1 ADD INDEX (a);
+affected rows: 6
+info: Records: 6  Duplicates: 0  Warnings: 0
+SELECT * FROM t1 FORCE INDEX (a) ORDER BY a;
+a	b
+0	NULL
+a	NULL
+a	NULL
+a	NULL
+a	NULL
+a	NULL
+DROP TABLE t1;

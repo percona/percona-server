@@ -1779,6 +1779,7 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
             TOKU_ENGINE_STATUS_ROW_S &status_row = toku_global_status_rows[row];
 
             status_var.name = status_row.columnname;
+            status_var.scope = SHOW_SCOPE_GLOBAL;
             switch (status_row.type) {
             case FS_STATE:
             case UINT64:
@@ -1834,20 +1835,22 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
             }
         }
         // Sentinel value at end.
+        toku_global_status_variables[num_rows].scope = SHOW_SCOPE_GLOBAL;
         toku_global_status_variables[num_rows].type = SHOW_LONG;
         toku_global_status_variables[num_rows].value = (char*)NullS;
         toku_global_status_variables[num_rows].name = (char*)NullS;
 
         var->type= SHOW_ARRAY;
         var->value= (char *) toku_global_status_variables;
+        var->scope = SHOW_SCOPE_GLOBAL;
     }
     if (error) { set_my_errno(error); }
     TOKUDB_DBUG_RETURN(error);
 }
 
 static SHOW_VAR toku_global_status_variables_export[]= {
-    {"Tokudb", (char*)&show_tokudb_vars, SHOW_FUNC},
-    {NullS, NullS, SHOW_LONG}
+    {"Tokudb", (char*)&show_tokudb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
 #if TOKU_INCLUDE_BACKTRACE

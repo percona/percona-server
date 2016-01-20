@@ -162,6 +162,15 @@ void TOKUDB_SHARE::static_init() {
 void TOKUDB_SHARE::static_destroy() {
     my_hash_free(&_open_tables);
 }
+const char* TOKUDB_SHARE::get_state_string(share_state_t state) {
+    static const char* state_string[] = {
+        "CLOSED",
+        "OPENED",
+        "ERROR"
+    };
+    assert_always(state == CLOSED || state == OPENED || state == ERROR);
+    return state_string[state];
+}
 void* TOKUDB_SHARE::operator new(size_t sz) {
     return tokudb::memory::malloc(sz, MYF(MY_WME|MY_ZEROFILL|MY_FAE));
 }
@@ -187,12 +196,24 @@ void TOKUDB_SHARE::init(const char* table_name) {
         _database_name,
         _table_name,
         tmp_dictionary_name);
+
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count);
+    TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 void TOKUDB_SHARE::destroy() {
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count);
+
     assert_always(_use_count == 0);
     assert_always(
         _state == TOKUDB_SHARE::CLOSED || _state == TOKUDB_SHARE::ERROR);
     thr_lock_delete(&_thr_lock);
+    TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 TOKUDB_SHARE* TOKUDB_SHARE::get_share(
     const char* table_name,
@@ -208,6 +229,14 @@ TOKUDB_SHARE* TOKUDB_SHARE::get_share(
             &_open_tables,
             (uchar*)table_name,
             length);
+
+    TOKUDB_TRACE_FOR_FLAGS(
+        TOKUDB_DEBUG_SHARE,
+        "existing share[%s] %s:share[%p]",
+        table_name,
+        share == NULL ? "not found" : "found",
+        share);
+
     if (!share) {
         if (create_new == false)
             goto exit;
@@ -238,25 +267,41 @@ exit:
     return share;
 }
 void TOKUDB_SHARE::drop_share(TOKUDB_SHARE* share) {
+    TOKUDB_TRACE_FOR_FLAGS(
+        TOKUDB_DEBUG_SHARE,
+        "share[%p]:file[%s]:state[%s]:use_count[%d]",
+        share,
+        share->_full_table_name.ptr(),
+        get_state_string(share->_state),
+        share->_use_count);
+
     _open_tables_mutex.lock();
     my_hash_delete(&_open_tables, (uchar*)share);
     _open_tables_mutex.unlock();
 }
 TOKUDB_SHARE::share_state_t TOKUDB_SHARE::addref() {
+    TOKUDB_SHARE_TRACE_FOR_FLAGS((TOKUDB_DEBUG_ENTER & TOKUDB_DEBUG_SHARE),
+        "file[%s]:state[%s]:use_count[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count);
+
     lock();
     _use_count++;
-
-    DBUG_PRINT("info", ("0x%p share->_use_count %u", this, _use_count));
 
     return _state;
 }
 int TOKUDB_SHARE::release() {
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count);
+
     int error, result = 0;
 
     _mutex.lock();
     assert_always(_use_count != 0);
     _use_count--;
-    DBUG_PRINT("info", ("0x%p share->_use_count %u", this, _use_count));
     if (_use_count == 0 && _state == TOKUDB_SHARE::OPENED) {
         // number of open DB's may not be equal to number of keys we have
         // because add_index may have added some. So, we loop through entire
@@ -300,7 +345,7 @@ int TOKUDB_SHARE::release() {
     }
     _mutex.unlock();
 
-    return result;
+    TOKUDB_SHARE_DBUG_RETURN(result);
 }
 void TOKUDB_SHARE::update_row_count(
     THD* thd,
@@ -1902,6 +1947,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         if (ret_val == 0) {
             share->set_state(TOKUDB_SHARE::OPENED);
         } else {
+            free_key_and_col_info(&share->kc_info);
             share->set_state(TOKUDB_SHARE::ERROR);
         }
         share->unlock();

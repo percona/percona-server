@@ -41,6 +41,15 @@ install_validate_password_sql_file () {
     echo $initfile
 }
 
+fix_thp_setting() {
+    # If no THP_SETTING variable specified in /etc/sysconfig/mysql don't do anything
+    if [ ! -z "${THP_SETTING}" ]; then
+      # Set whatever option is specified in environment file
+      echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+      echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+    fi
+}
+
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
     datadir=$(get_option mysqld datadir "@MYSQL_DATADIR@")
@@ -73,6 +82,7 @@ install_db () {
     fi
     exit 0
 }
+fix_thp_setting
 install_db
 
 exit 0

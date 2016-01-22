@@ -866,10 +866,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_tokudb.so
 %attr(755, root, root) %{_bindir}/ps_tokudb_admin
 %attr(755, root, root) %{_bindir}/tokuft_logprint
-#%attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
-#%attr(755, root, root) %{_libdir}/libHotBackup.so
-#%{_includedir}/backup.h
+%attr(755, root, root) %{_libdir}/mysql/plugin/tokudb_backup.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/tokudb_backup.so
+%attr(755, root, root) %{_libdir}/mysql/libHotBackup.so
+%{_includedir}/backup.h
 %endif
 
 %changelog

@@ -516,7 +516,7 @@ fi
 #
 if test $load_hotbackup -eq 1
 then
-  for libhb in "${MY_BASEDIR_VERSION}/lib" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+  for libhb in "${MY_BASEDIR_VERSION}/lib" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib" "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64/mysql" "/usr/lib/x86_64-linux-gnu/mysql" "/usr/lib/mysql"; do
     if [ -r "$libhb/libHotBackup.so" ]; then
       add_mysqld_ld_preload "$libhb/libHotBackup.so"
       break

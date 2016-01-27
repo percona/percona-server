@@ -109,7 +109,7 @@ static MYSQL_SYSVAR_INT(
     "index cardinality scale percentage",
     NULL,
     NULL,
-    50,
+    100,
     0,
     100,
     0);

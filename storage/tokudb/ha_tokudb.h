@@ -61,9 +61,9 @@ typedef struct loader_context {
 class TOKUDB_SHARE {
 public:
     enum share_state_t {
-        CLOSED,
-        OPENED,
-        ERROR
+        CLOSED = 0,
+        OPENED = 1,
+        ERROR = 2
     };
 
     // one time, start up init
@@ -87,6 +87,9 @@ public:
     // caller must hold ddl_mutex on this share and the share MUST have
     // exactly 0 _use_count
     static void drop_share(TOKUDB_SHARE* share);
+
+    // returns state string for logging/reporting
+    static const char* get_state_string(share_state_t state);
 
     void* operator new(size_t sz);
     void operator delete(void* p);
@@ -315,17 +318,34 @@ inline int TOKUDB_SHARE::use_count() const {
     return _use_count;
 }
 inline void TOKUDB_SHARE::lock() const {
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count);
     _mutex.lock();
+    TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 inline void TOKUDB_SHARE::unlock() const {
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count);
     _mutex.unlock();
+    TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 inline TOKUDB_SHARE::share_state_t TOKUDB_SHARE::state() const {
     return _state;
 }
 inline void TOKUDB_SHARE::set_state(TOKUDB_SHARE::share_state_t state) {
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]:new_state[%s]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count,
+        get_state_string(state));
+
     assert_debug(_mutex.is_owned_by_me());
     _state = state;
+    TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 inline const char* TOKUDB_SHARE::full_table_name() const {
     return _full_table_name.ptr();
@@ -346,6 +366,13 @@ inline uint TOKUDB_SHARE::table_name_length() const {
     return _table_name.length();
 }
 inline void TOKUDB_SHARE::set_row_count(uint64_t rows, bool locked) {
+    TOKUDB_SHARE_DBUG_ENTER("file[%s]:state[%s]:use_count[%d]:rows[%" PRIu64 "]:locked[%d]",
+        _full_table_name.ptr(),
+        get_state_string(_state),
+        _use_count,
+        rows,
+        locked);
+
     if (!locked) {
         lock();
     } else {
@@ -358,6 +385,7 @@ inline void TOKUDB_SHARE::set_row_count(uint64_t rows, bool locked) {
     if (!locked) {
         unlock();
     }
+    TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 inline ha_rows TOKUDB_SHARE::row_count() const {
     return _rows;

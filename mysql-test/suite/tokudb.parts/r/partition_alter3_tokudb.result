@@ -35,6 +35,8 @@ f_charbig VARCHAR(1000) )
 ENGINE = MEMORY;
 SET AUTOCOMMIT= 1;
 SET @@session.sql_mode= '';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # End of basic preparations needed for all tests
 #-----------------------------------------------
 
@@ -58,8 +60,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -81,8 +86,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -99,8 +107,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -115,8 +126,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -140,8 +154,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -164,8 +181,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -189,8 +209,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -225,8 +248,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -247,8 +273,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -268,8 +297,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -288,8 +320,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -307,8 +342,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part1	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -325,8 +363,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -342,8 +383,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -360,8 +404,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`f_date` = '1000-02-10')
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -400,8 +447,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -424,8 +474,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -452,8 +505,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -476,8 +532,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -504,8 +563,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p6	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -538,8 +600,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -563,8 +628,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	3	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -587,8 +655,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p4	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -610,8 +681,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -632,8 +706,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	part7	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -653,8 +730,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -673,8 +753,11 @@ t1	CREATE TABLE `t1` (
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1
@@ -694,8 +777,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 t1.frm
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	10.00	Using where
+Warnings:
+Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
+Note	1003	/* select#1 */ select (count(0) <> 1) AS `COUNT(*) <> 1` from `test`.`t1` where (`test`.`t1`.`f_int1` = 3)
 # check read single success: 1
 # check read all success: 1
 # check read row by row success: 1

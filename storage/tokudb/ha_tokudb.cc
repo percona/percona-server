@@ -1791,14 +1791,17 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
     if (!hidden_primary_key) {
         //
         // We need to set the ref_length to start at 5, to account for
-        // the "infinity byte" in keys, and for placing the DBT size in the first four bytes
+        // the "infinity byte" in keys, and for placing the DBT size in the
+        // first four bytes
         //
         ref_length = sizeof(uint32_t) + sizeof(uchar);
         KEY_PART_INFO* key_part = table->key_info[primary_key].key_part;
         KEY_PART_INFO* end =
             key_part + table->key_info[primary_key].user_defined_key_parts;
         for (; key_part != end; key_part++) {
-            ref_length += key_part->field->max_packed_col_length();
+            uint field_length = key_part->field->pack_length();
+            field_length += (field_length > 255 ? 2 : 1);
+            ref_length += field_length;
             TOKU_TYPE toku_type = mysql_to_toku_type(key_part->field);
             if (toku_type == toku_type_fixstring ||
                 toku_type == toku_type_varstring ||

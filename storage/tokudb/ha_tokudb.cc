@@ -360,20 +360,35 @@ void TOKUDB_SHARE::set_cardinality_counts_in_table(TABLE* table) {
                 (i == table->s->primary_key) ||
                 (table->key_info[i].flags & HA_NOSAME);
 
-            uint32_t num_key_parts = get_key_parts(&table->key_info[i]);
-            for (uint32_t j = 0; j < num_key_parts; j++) {
-                assert_always(next_key_part < _rec_per_keys);
-                ulong val = _rec_per_key[next_key_part++];
-                if (is_unique_key && j == num_key_parts-1) {
-                    val = 1;
-                } else {
-                    val =
-                        (val*tokudb::sysvars::cardinality_scale_percent)/100;
-                    if (val == 0)
-                        val = 1;
+            KEY* key = &table->key_info[i];
+
+            /* Check if this index supports index statistics. */
+            if (!key->supports_records_per_key()) {
+                continue;
+            }
+
+            for (uint32_t j = 0; j < key->actual_key_parts; j++) {
+                if (j >= key->user_defined_key_parts) {
+                    // MySQL 'hidden' keys, really needs deeper investigation
+                    // into MySQL hidden keys vs TokuDB hidden keys
+                    key->set_records_per_key(j, 1.0);
+                    key->rec_per_key[j] = 1;
+                    continue;
                 }
 
-                table->key_info[i].rec_per_key[j] = val;
+                assert_always(next_key_part < _rec_per_keys);
+                ulong val = _rec_per_key[next_key_part++];
+                val = (val*tokudb::sysvars::cardinality_scale_percent) / 100;
+                if (val == 0)
+                    val = 1;
+
+                if (_rows == 0 ||
+                   (is_unique_key && j == key->actual_key_parts - 1)) {
+                    val = 1;
+                }
+
+                key->set_records_per_key(j, static_cast<rec_per_key_t>(val));
+                key->rec_per_key[j] = val;
             }
         }
         _card_changed = false;
@@ -776,7 +791,7 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
     FILTER_KEY_PART_INFO parts[MAX_REF_PARTS];
     uint curr_skip_index = 0;
 
-    for (uint i = 0; i < get_key_parts(key); i++) {
+    for (uint i = 0; i < key->user_defined_key_parts; i++) {
         //
         // horrendous hack due to bugs in mysql, basically
         // we cannot always reliably get the offset from the same source
@@ -786,15 +801,14 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
     }
     qsort(
         parts, // start of array
-        get_key_parts(key), //num elements
+        key->user_defined_key_parts, //num elements
         sizeof(*parts), //size of each element
-        filter_key_part_compare
-        );
+        filter_key_part_compare);
 
     for (uint i = 0; i < table->s->fields; i++) {
         Field* field = table->field[i];
         uint curr_field_offset = field_offset(field, table);
-        if (curr_skip_index < get_key_parts(key)) {
+        if (curr_skip_index < key->user_defined_key_parts) {
             uint curr_skip_offset = 0;
             curr_skip_offset = parts[curr_skip_index].offset;
             if (curr_skip_offset == curr_field_offset) {
@@ -1607,7 +1621,7 @@ bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_I
     for (uint curr_index = 0; curr_index < table_share->keys; curr_index++) {
         if (curr_index == pk) continue;
         KEY* curr_key_info = &table_share->key_info[curr_index];
-        for (uint i = 0; i < get_key_parts(curr_key_info); i++) {
+        for (uint i = 0; i < curr_key_info->user_defined_key_parts; i++) {
             uint16 curr_field_index = curr_key_info->key_part[i].field->field_index;
             if (!bitmap_is_set(&kc_info->key_filters[curr_index],curr_field_index)) {
                 ret_val = false;
@@ -1693,10 +1707,12 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
 
     /* Open other keys;  These are part of the share structure */
     for (uint i = 0; i < table_share->keys; i++) {
-        share->_key_descriptors[i]._parts = get_key_parts(&table_share->key_info[i]);
+        share->_key_descriptors[i]._parts =
+            table_share->key_info[i].user_defined_key_parts;
         if (i == primary_key) {
             share->_key_descriptors[i]._is_unique = true;
-            share->_key_descriptors[i]._name = tokudb::memory::strdup("primary", 0);
+            share->_key_descriptors[i]._name =
+                tokudb::memory::strdup("primary", 0);
         } else {
             share->_key_descriptors[i]._is_unique = false;
             share->_key_descriptors[i]._name =
@@ -1733,8 +1749,9 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
         // the "infinity byte" in keys, and for placing the DBT size in the first four bytes
         //
         ref_length = sizeof(uint32_t) + sizeof(uchar);
-        KEY_PART_INFO *key_part = table->key_info[primary_key].key_part;
-        KEY_PART_INFO *end = key_part + get_key_parts(&table->key_info[primary_key]);
+        KEY_PART_INFO* key_part = table->key_info[primary_key].key_part;
+        KEY_PART_INFO* end =
+            key_part + table->key_info[primary_key].user_defined_key_parts;
         for (; key_part != end; key_part++) {
             ref_length += key_part->field->max_packed_col_length();
             TOKU_TYPE toku_type = mysql_to_toku_type(key_part->field);
@@ -2617,13 +2634,12 @@ exit:
 }
 
 uint32_t ha_tokudb::place_key_into_mysql_buff(
-    KEY* key_info, 
-    uchar * record, 
-    uchar* data
-    ) 
-{
-    KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + get_key_parts(key_info);
-    uchar *pos = data;
+    KEY* key_info,
+    uchar* record,
+    uchar* data) {
+    KEY_PART_INFO* key_part = key_info->key_part;
+    KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
+    uchar* pos = data;
 
     for (; key_part != end; key_part++) {
         if (key_part->field->null_bit) {
@@ -2683,15 +2699,14 @@ void ha_tokudb::unpack_key(uchar * record, DBT const *key, uint index) {
 }
 
 uint32_t ha_tokudb::place_key_into_dbt_buff(
-    KEY* key_info, 
-    uchar * buff, 
-    const uchar * record, 
-    bool* has_null, 
-    int key_length
-    ) 
-{
-    KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
+    KEY* key_info,
+    uchar* buff,
+    const uchar* record,
+    bool* has_null,
+    int key_length) {
+
+    KEY_PART_INFO* key_part = key_info->key_part;
+    KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
     uchar* curr_buff = buff;
     *has_null = false;
     for (; key_part != end && key_length > 0; key_part++) {
@@ -2871,27 +2886,37 @@ DBT* ha_tokudb::create_dbt_key_for_lookup(
 // Returns:
 //      the parameter key
 //
-DBT *ha_tokudb::pack_key(
-    DBT * key, 
-    uint keynr, 
-    uchar * buff, 
-    const uchar * key_ptr, 
-    uint key_length, 
-    int8_t inf_byte
-    ) 
-{
-    TOKUDB_HANDLER_DBUG_ENTER("key %p %u:%2.2x inf=%d", key_ptr, key_length, key_length > 0 ? key_ptr[0] : 0, inf_byte);
+DBT* ha_tokudb::pack_key(
+    DBT* key,
+    uint keynr,
+    uchar* buff,
+    const uchar* key_ptr,
+    uint key_length,
+    int8_t inf_byte) {
+
+    TOKUDB_HANDLER_DBUG_ENTER(
+        "key %p %u:%2.2x inf=%d",
+        key_ptr,
+        key_length,
+        key_length > 0 ? key_ptr[0] : 0,
+        inf_byte);
 #if TOKU_INCLUDE_EXTENDED_KEYS
     if (keynr != primary_key && !tokudb_test(hidden_primary_key)) {
-        DBUG_RETURN(pack_ext_key(key, keynr, buff, key_ptr, key_length, inf_byte));
+        DBUG_RETURN(pack_ext_key(
+            key,
+            keynr,
+            buff,
+            key_ptr,
+            key_length,
+            inf_byte));
     }
 #endif
-    KEY *key_info = &table->key_info[keynr];
-    KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
-    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+    KEY* key_info = &table->key_info[keynr];
+    KEY_PART_INFO* key_part = key_info->key_part;
+    KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
+    my_bitmap_map* old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
-    memset((void *) key, 0, sizeof(*key));
+    memset(key, 0, sizeof(*key));
     key->data = buff;
 
     // first put the "infinity" byte at beginning. States if missing columns are implicitly
@@ -2931,30 +2956,29 @@ DBT *ha_tokudb::pack_key(
 }
 
 #if TOKU_INCLUDE_EXTENDED_KEYS
-DBT *ha_tokudb::pack_ext_key(
-    DBT * key, 
-    uint keynr, 
-    uchar * buff, 
-    const uchar * key_ptr, 
-    uint key_length, 
-    int8_t inf_byte
-    ) 
-{
+DBT* ha_tokudb::pack_ext_key(
+    DBT* key,
+    uint keynr,
+    uchar* buff,
+    const uchar* key_ptr,
+    uint key_length,
+    int8_t inf_byte) {
+
     TOKUDB_HANDLER_DBUG_ENTER("");
 
-    // build a list of PK parts that are in the SK.  we will use this list to build the
-    // extended key if necessary. 
-    KEY *pk_key_info = &table->key_info[primary_key];
-    uint pk_parts = get_key_parts(pk_key_info);
+    // build a list of PK parts that are in the SK.  we will use this list to
+    // build the extended key if necessary.
+    KEY* pk_key_info = &table->key_info[primary_key];
+    uint pk_parts = pk_key_info->user_defined_key_parts;
     uint pk_next = 0;
     struct {
         const uchar *key_ptr;
         KEY_PART_INFO *key_part;
     } pk_info[pk_parts];
 
-    KEY *key_info = &table->key_info[keynr];
-    KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
+    KEY* key_info = &table->key_info[keynr];
+    KEY_PART_INFO* key_part = key_info->key_part;
+    KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
     memset((void *) key, 0, sizeof(*key));
@@ -4439,11 +4463,16 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-static bool index_key_is_null(TABLE *table, uint keynr, const uchar *key, uint key_len) {
+static bool index_key_is_null(
+    TABLE* table,
+    uint keynr,
+    const uchar* key,
+    uint key_len) {
+
     bool key_can_be_null = false;
-    KEY *key_info = &table->key_info[keynr];
-    KEY_PART_INFO *key_part = key_info->key_part;
-    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
+    KEY* key_info = &table->key_info[keynr];
+    KEY_PART_INFO* key_part = key_info->key_part;
+    KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
     for (; key_part != end; key_part++) {
         if (key_part->null_bit) {
             key_can_be_null = true;
@@ -6787,9 +6816,9 @@ void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
                 "key:%d:%s:%d",
                 i,
                 key->name,
-                get_key_parts(key));
+                key->user_defined_key_parts);
             uint p;
-            for (p = 0; p < get_key_parts(key); p++) {
+            for (p = 0; p < key->user_defined_key_parts; p++) {
                 KEY_PART_INFO* key_part = &key->key_part[p];
                 Field* field = key_part->field;
                 TOKUDB_HANDLER_TRACE(

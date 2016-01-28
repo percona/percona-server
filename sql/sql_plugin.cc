@@ -4166,14 +4166,14 @@ copy_system_variables(const struct system_variables *src,
   DBUG_ASSERT(src);
 
   dst= (struct system_variables *)
-    my_malloc(key_memory_per_query_vars, sizeof(struct system_variables),
+    my_malloc(key_memory_THD_variables, sizeof(struct system_variables),
               MYF(MY_WME | MY_FAE));
   *dst = *src;
 
   if (dst->dynamic_variables_ptr)
   {
     dst->dynamic_variables_ptr=
-      (char *)my_malloc(key_memory_per_query_vars, dst->dynamic_variables_size,
+      (char *)my_malloc(key_memory_THD_variables, dst->dynamic_variables_size,
                         MYF(MY_WME | MY_FAE));
     memcpy(dst->dynamic_variables_ptr,
            src->dynamic_variables_ptr,
@@ -4186,7 +4186,7 @@ copy_system_variables(const struct system_variables *src,
   {
     const char *src_value= (const char *)(i + 1);
     size_t src_length= strlen(src_value) + 1;
-    LIST *dst_el= (LIST *) my_malloc(key_memory_per_query_vars,
+    LIST *dst_el= (LIST *) my_malloc(key_memory_THD_variables,
                                      sizeof(LIST) + src_length,
                                      MYF(MY_WME | MY_FAE));
     memcpy(dst_el + 1, src_value, src_length);

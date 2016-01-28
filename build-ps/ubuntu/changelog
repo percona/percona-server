@@ -1,0 +1,5 @@
+percona-server-5.7 (5.7.10-1rc1) unstable; urgency=low
+
+  * Initial release PS 5.7.10-1rc1
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Fri, 27 Nov 2015 11:09:00 +0200

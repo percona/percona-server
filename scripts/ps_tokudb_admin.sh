@@ -213,7 +213,7 @@ if [ $FORCE_ENVFILE = 1 ]; then
 elif [ $FORCE_MYCNF = 1 ]; then
   FULL_SYSTEMD_MODE=0
 else
-  ps acx|grep mysqld_safe >null 2>&1
+  ps acx|grep mysqld_safe >/dev/null 2>&1
   FULL_SYSTEMD_MODE=$?
 fi
 
@@ -281,7 +281,9 @@ fi
 # Check location of my.cnf
 if [ $FULL_SYSTEMD_MODE = 0  ]; then
   if [ -z $MYCNF_LOCATION ]; then
-    if [ -f /etc/my.cnf ]; then
+    if [ -f /etc/mysql/percona-server.conf.d/mysqld_safe.cnf ]; then
+      MYCNF_LOCATION=/etc/mysql/percona-server.conf.d/mysqld_safe.cnf
+    elif [ -f /etc/my.cnf ]; then
       MYCNF_LOCATION=/etc/my.cnf
     elif [ -f /etc/mysql/my.cnf ]; then
       MYCNF_LOCATION=/etc/mysql/my.cnf

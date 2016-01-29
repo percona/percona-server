@@ -919,16 +919,20 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_RETURN(0);
 }
 
-static bool tokudb_sync_on_prepare(void) {
+static bool tokudb_sync_on_prepare(THD* thd) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
-    // skip sync of log if fsync log period > 0
-    if (tokudb::sysvars::fsync_log_period > 0) {
-        TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit");
-        return false;
+    bool r;
+    // skip sync of log if fsync log period > 0 or if
+    // client durability during 2PC has been set to ignore, usually because
+    // binlog coordinator is in use and performing group commit
+    if (tokudb::sysvars::fsync_log_period > 0 ||
+        thd_get_durability_property(thd) == HA_IGNORE_DURABILITY) {
+        r = false;
     } else {
-        TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit");
-        return true;
+        r = true;
     }
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", r);
+    return r;
 }   
 
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
@@ -946,7 +950,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN* txn = all ? trx->all : trx->stmt;
     if (txn) {
-        uint32_t syncflag = tokudb_sync_on_prepare() ? 0 : DB_TXN_NOSYNC;
+        uint32_t syncflag = tokudb_sync_on_prepare(thd) ? 0 : DB_TXN_NOSYNC;
         TOKUDB_TRACE_FOR_FLAGS(
             TOKUDB_DEBUG_XA,
             "doing txn prepare:%d:%p",

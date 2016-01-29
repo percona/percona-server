@@ -1,0 +1,20 @@
+#
+# Percona Server systemd service file
+#
+
+[Unit]
+Description=MySQL Community Server
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=mysql
+Group=mysql
+PermissionsStartOnly=true
+ExecStartPre=/usr/share/mysql/mysql-systemd-start pre
+ExecStart=/usr/bin/mysqld_safe
+ExecStartPost=/usr/share/mysql/mysql-systemd-start post
+TimeoutSec=600
+Restart=on-failure

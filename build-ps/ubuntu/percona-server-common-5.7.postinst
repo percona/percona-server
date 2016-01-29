@@ -1,0 +1,28 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+  configure)
+    # New packaging paradigm for my.cnf as of Dec-2014 for sharing mysql
+    # variants in Ubuntu. If the new mysql-common package does not provide
+    # the update-alternatives facility, fall back to creating a symlink
+    if [ -f /usr/share/mysql-common/configure-symlinks ]
+    then
+      /usr/share/mysql-common/configure-symlinks install percona-server "/etc/mysql/percona-server.cnf"
+    else
+      echo "Notice: configure-symlinks trigger could not be called."
+      echo "Please manually make /etc/mysql/my.cnf a symlink that points to percona-server.cnf."
+    fi  
+  ;;  
+
+  abort-upgrade|abort-remove|abort-configure)
+  ;;  
+
+  *)  
+    echo "postinst called with unknown argument '$1'" 1>&2
+    exit 1
+  ;;  
+esac
+
+#DEBHELPER#

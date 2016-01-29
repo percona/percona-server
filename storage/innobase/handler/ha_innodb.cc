@@ -2,7 +2,7 @@
 
 Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
-Copyright (c) 2009, Percona Inc.
+Copyright (c) 2009, 2016, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -533,7 +533,8 @@ static PSI_file_info	all_innodb_files[] = {
 	PSI_KEY(innodb_bmp_file),
 	PSI_KEY(innodb_data_file),
 	PSI_KEY(innodb_log_file),
-	PSI_KEY(innodb_temp_file)
+	PSI_KEY(innodb_temp_file),
+	PSI_KEY(innodb_parallel_dblwrite_file)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
@@ -4049,6 +4050,14 @@ innobase_change_buffering_inited_ok:
 				 strlen(srv_buf_dump_filename), FALSE)) {
 		sql_print_error("InnoDB: innodb_buffer_pool_filename"
 			" cannot have colon (:) in the file name.");
+		DBUG_RETURN(innobase_init_abort());
+	}
+
+	if (!is_filename_allowed(srv_parallel_doublewrite_path,
+				 strlen(srv_parallel_doublewrite_path),
+				 FALSE)) {
+		sql_print_error("InnoDB: innodb_parallel_doublewrite_path"
+				" cannot have colon (:) in the file name.");
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -20096,7 +20105,7 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
 static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Number of pages reserved in doublewrite buffer for batch flushing",
-  NULL, NULL, 120, 1, 127, 0);
+  NULL, NULL, 120, 1, MAX_DOUBLEWRITE_BATCH_SIZE, 0);
 
 #ifdef UNIV_LINUX
 
@@ -20754,6 +20763,13 @@ static	MYSQL_SYSVAR_ENUM(corrupt_table_action, srv_pass_corrupt_table,
   "All file io for the datafile after detected as corrupt are disabled, "
   "except for the deletion.",
   NULL, NULL, 0, &corrupt_table_action_typelib);
+
+static MYSQL_SYSVAR_STR(parallel_doublewrite_path,
+  srv_parallel_doublewrite_path, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Path to the parallel doublewrite file. If a relative path or a filename "
+  "only is given, it's relative to the server data directory.",
+  NULL, NULL, SRV_PARALLEL_DOUBLEWRITE_PATH_DEFAULT);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(api_trx_level),
   MYSQL_SYSVAR(api_bk_commit_interval),
@@ -20944,6 +20960,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(corrupt_table_action),
+  MYSQL_SYSVAR(parallel_doublewrite_path),
   NULL
 };
 

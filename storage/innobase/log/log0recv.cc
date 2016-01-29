@@ -2,6 +2,7 @@
 
 Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4039,7 +4040,12 @@ recv_recovery_from_checkpoint_start(
 	switch (group->format) {
 	case 0:
 		log_mutex_exit();
-		return(recv_log_format_0_recover(checkpoint_lsn));
+		err = recv_log_format_0_recover(checkpoint_lsn);
+		if (err == DB_SUCCESS) {
+			buf_parallel_dblwr_finish_recovery();
+			buf_parallel_dblwr_delete();
+		}
+		return(err);
 	case LOG_HEADER_FORMAT_CURRENT:
 		break;
 	default:
@@ -4142,6 +4148,8 @@ recv_recovery_from_checkpoint_start(
 			}
 		}
 	} else {
+		buf_parallel_dblwr_finish_recovery();
+		buf_parallel_dblwr_delete();
 		ut_ad(!rescan || recv_sys->n_addrs == 0);
 	}
 

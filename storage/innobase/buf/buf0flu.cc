@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1090,7 +1091,7 @@ buf_flush_write_block_low(
 		buf_dblwr_write_single_page(bpage, sync);
 	} else {
 		ut_ad(!sync);
-		buf_dblwr_add_to_batch(bpage);
+		buf_dblwr_add_to_batch(bpage, flush_type);
 	}
 
 	/* When doing single page flushing the IO is done synchronously
@@ -1209,7 +1210,9 @@ buf_flush_page(
 				/* avoiding deadlock possibility involves
 				doublewrite buffer, should flush it, because
 				it might hold the another block->lock. */
-				buf_dblwr_flush_buffered_writes();
+				buf_dblwr_flush_buffered_writes(
+					buf_parallel_dblwr_partition(bpage,
+								flush_type));
 			} else {
 				buf_dblwr_sync_datafiles();
 			}
@@ -1996,7 +1999,8 @@ buf_flush_end(
 	mutex_exit(&buf_pool->flush_state_mutex);
 
 	if (!srv_read_only_mode && flushed_page_count) {
-		buf_dblwr_flush_buffered_writes();
+		buf_dblwr_flush_buffered_writes(
+			buf_parallel_dblwr_partition(buf_pool, flush_type));
 	} else {
 		os_aio_simulated_wake_handler_threads();
 	}
@@ -2140,6 +2144,7 @@ passed back to caller. Ignored if NULL.
 @return true if a batch was queued successfully for each buffer pool
 instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
+static
 bool
 buf_flush_lists(
 	ulint			min_n,
@@ -2220,6 +2225,8 @@ buf_flush_single_page_from_LRU(
 	ulint		scanned;
 	buf_page_t*	bpage;
 	ibool		freed;
+
+	ut_ad(srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_LEGACY);
 
 	mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -3634,20 +3641,15 @@ DECLARE_THREAD(buf_lru_manager)(
 
 
 /*******************************************************************//**
-Synchronously flush dirty blocks from the end of the flush list of all buffer
-pool instances.
-NOTE: The calling thread is not allowed to own any latches on pages! */
+Signal the page cleaner to flush and wait until it and the LRU manager clean
+the buffer pool. */
 void
 buf_flush_sync_all_buf_pools(void)
 /*==============================*/
 {
-	bool success;
-	do {
-		success = buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-	} while (!success);
-
-	ut_a(success);
+	ut_ad(buf_page_cleaner_is_active);
+	buf_flush_request_force(LSN_MAX);
+	buf_flush_wait_flushed(LSN_MAX);
 }
 
 /** Request IO burst and wake page_cleaner up.

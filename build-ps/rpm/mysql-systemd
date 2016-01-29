@@ -75,9 +75,10 @@ pinger () {
     # Wait for ping to answer to signal startup completed,
     # might take a while in case of e.g. crash recovery
     # MySQL systemd service will timeout script if no answer
+    socket=$(parse_cnf socket server mysqld)
     while /bin/true ; do
         sleep 1
-        mysqladmin ping >/dev/null 2>&1 && break
+        mysqladmin --socket=$socket ping >/dev/null 2>&1 && break
     done
     exit 0
 }

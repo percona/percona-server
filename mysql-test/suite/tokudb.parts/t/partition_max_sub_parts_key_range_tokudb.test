@@ -22,4 +22,6 @@
 ##### Storage engine to be tested
 let $engine= 'TokuDB';
 
---source suite/parts/inc/partition_max_sub_parts_key_range.inc
+let $mysql_needed_max_files=32768;
+
+--source suite/max_parts/inc/partition_max_sub_parts_key_range.inc

@@ -79,10 +79,10 @@
 
 # Version for compat libs
 %if 0%{?rhel} == 7
-%global compatver             5.6.27
-%global percona_compatver     76.0
+%global compatver             5.6.28
+%global percona_compatver     76.1
 %global compatlib             18
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm
+%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm
 %endif
 
 # multiarch

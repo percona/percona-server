@@ -1,3 +1,14 @@
+percona-server-5.7 (5.7.10-2rc2) unstable; urgency=low
+
+  * Re-added TokuBackup to the packaging (JEN-439)
+  * PS 5.7 can't be restarted after TokuDB has been installed with
+    ps_tokudb_admin (#1527535)
+  * TokuDB upgrade fails during the 5.6 -> 5.7 upgrade (#1533580)
+  * Fixed configuration file handling in ubuntu vivid/wily (BLD-385)
+  * Added support for building with mecab plugin library (JEN-427)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Tue, 02 Feb 2016 10:02:33 +0100
+
 percona-server-5.7 (5.7.10-1rc1) unstable; urgency=low
 
   * Initial release PS 5.7.10-1rc1

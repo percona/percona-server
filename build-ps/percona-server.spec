@@ -873,6 +873,9 @@ fi
 %endif
 
 %changelog
+* Tue Feb 02 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.10-2rc2
+- Re-added TokuBackup to the packaging (JEN-439)
+
 * Thu Dec 10 2015 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.10-1rc1
 - Initial release PS 5.7.10-1rc1
 

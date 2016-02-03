@@ -1012,7 +1012,7 @@ static int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
     uchar* pos = buf;
     uint32_t num_bytes_in_field = 0;
     uint32_t charset_num = 0;
-    for (uint i = 0; i < key->user_defined_key_parts; i++){
+    for (uint i = 0; i < key->user_defined_key_parts; i++) {
         Field* field = key->key_part[i].field;
         //
         // The first byte states if there is a null byte

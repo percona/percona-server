@@ -2925,7 +2925,7 @@ static void build_completion_hash(bool rehash, bool write_info)
   /* hash MySQL functions (to be implemented) */
 
   /* hash all database names */
-  if (mysql_query(&mysql,"show databases") == 0)
+  if (mysql_query(&mysql,"show databases") == 0 || mysql_query(&mysql,"show dbs") == 0)
   {
     if (!(databases = mysql_store_result(&mysql)))
       put_info(mysql_error(&mysql),INFO_INFO);

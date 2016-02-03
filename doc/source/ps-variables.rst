@@ -445,7 +445,7 @@ System Variables
    * - :variable:`tokudb_enable_partial_eviction`
      - Yes
      - Yes
-     - Global 
+     - Global
      - No
    * - :variable:`tokudb_fanout`
      - Yes
@@ -640,7 +640,7 @@ Status Variables
    * - :variable:`Com_show_table_statistics`
      - Numeric
      - Both
-   * - :variable:`Com_show_thread_statistics`  
+   * - :variable:`Com_show_thread_statistics`
      - Numeric
      - Both
    * - :variable:`Com_show_user_statistics`
@@ -715,3 +715,795 @@ Status Variables
    * - :variable:`Threadpool_threads`
      - Numeric
      - Global
+   * - :variable:`Tokudb_DB_OPENS`
+     -
+     -
+   * - :variable:`Tokudb_DB_CLOSES`
+     -
+     -
+   * - :variable:`Tokudb_DB_OPEN_CURRENT`
+     -
+     -
+   * - :variable:`Tokudb_DB_OPEN_MAX`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_MAX_COMMITTED_XR`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_MAX_PROVISIONAL_XR`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_EXPANDED`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_MAX_MEMSIZE`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_APPLY_GC_BYTES_IN`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_APPLY_GC_BYTES_OUT`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_NORMAL_GC_BYTES_IN`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_ENTRY_NORMAL_GC_BYTES_OUT`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_PERIOD`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_FOOTPRINT`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LAST_BEGAN`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LAST_COMPLETE_BEGAN`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LAST_COMPLETE_ENDED`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_DURATION`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_DURATION_LAST`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LAST_LSN`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_TAKEN`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_FAILED`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_WAITERS_NOW`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_WAITERS_MAX`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_CLIENT_WAIT_ON_MO`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_CLIENT_WAIT_ON_CS`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_BEGIN_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LONG_BEGIN_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LONG_BEGIN_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_END_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LONG_END_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CHECKPOINT_LONG_END_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_MISS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_MISS_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_PREFETCHES`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_CURRENT`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_LIMIT`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_WRITING`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_NONLEAF`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_LEAF`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_ROLLBACK`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_CACHEPRESSURE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_SIZE_CLONED`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_EVICTIONS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_CLEANER_EXECUTIONS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_CLEANER_PERIOD`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_CLEANER_ITERATIONS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_WAIT_PRESSURE_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_WAIT_PRESSURE_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_LONG_WAIT_PRESSURE_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_LONG_WAIT_PRESSURE_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CLIENT_NUM_THREADS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CLIENT_NUM_THREADS_ACTIVE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CLIENT_QUEUE_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CLIENT_MAX_QUEUE_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CLIENT_TOTAL_ITEMS_PROCESSED`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CLIENT_TOTAL_EXECUTION_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CACHETABLE_NUM_THREADS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CACHETABLE_NUM_THREADS_ACTIVE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CACHETABLE_QUEUE_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CACHETABLE_MAX_QUEUE_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CACHETABLE_TOTAL_ITEMS_PROCESSED`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CACHETABLE_TOTAL_EXECUTION_TIME`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CHECKPOINT_NUM_THREADS`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CHECKPOINT_NUM_THREADS_ACTIVE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CHECKPOINT_QUEUE_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CHECKPOINT_MAX_QUEUE_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CHECKPOINT_TOTAL_ITEMS_PROCESSED`
+     -
+     -
+   * - :variable:`Tokudb_CACHETABLE_POOL_CHECKPOINT_TOTAL_EXECUTION_TIME`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_MEMORY_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_MEMORY_SIZE_LIMIT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_ESCALATION_NUM`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_ESCALATION_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_LATEST_POST_ESCALATION_MEMORY_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_OPEN_CURRENT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_PENDING_LOCK_REQUESTS`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_STO_ELIGIBLE_NUM`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_STO_ENDED_NUM`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_STO_ENDED_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_WAIT_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_WAIT_TIME`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_LONG_WAIT_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_LONG_WAIT_TIME`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_TIMEOUT_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_WAIT_ESCALATION_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_WAIT_ESCALATION_TIME`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_LONG_WAIT_ESCALATION_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_LOCKTREE_LONG_WAIT_ESCALATION_TIME`
+     -
+     -
+   * - :variable:`Tokudb_DICTIONARY_UPDATES`
+     -
+     -
+   * - :variable:`Tokudb_DICTIONARY_BROADCAST_UPDATES`
+     -
+     -
+   * - :variable:`Tokudb_DESCRIPTOR_SET`
+     -
+     -
+   * - :variable:`Tokudb_MESSAGES_IGNORED_BY_LEAF_DUE_TO_MSN`
+     -
+     -
+   * - :variable:`Tokudb_TOTAL_SEARCH_RETRIES`
+     -
+     -
+   * - :variable:`Tokudb_SEARCH_TRIES_GT_HEIGHT`
+     -
+     -
+   * - :variable:`Tokudb_SEARCH_TRIES_GT_HEIGHTPLUS3`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_NOT_CHECKPOINT`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_NOT_CHECKPOINT_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_NOT_CHECKPOINT_UNCOMPRESSED_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_NOT_CHECKPOINT_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_NOT_CHECKPOINT`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_NOT_CHECKPOINT_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_NOT_CHECKPOINT_UNCOMPRESSE`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_NOT_CHECKPOINT_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_CHECKPOINT`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_CHECKPOINT_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_CHECKPOINT_UNCOMPRESSED_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_FLUSHED_CHECKPOINT_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_UNCOMPRESSED_BY`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_FLUSHED_TO_DISK_CHECKPOINT_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODE_COMPRESSION_RATIO`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODE_COMPRESSION_RATIO`
+     -
+     -
+   * - :variable:`Tokudb_OVERALL_NODE_COMPRESSION_RATIO`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODE_PARTIAL_EVICTIONS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODE_PARTIAL_EVICTIONS_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODE_PARTIAL_EVICTIONS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODE_PARTIAL_EVICTIONS_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODE_FULL_EVICTIONS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODE_FULL_EVICTIONS_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODE_FULL_EVICTIONS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODE_FULL_EVICTIONS_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_CREATED`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_CREATED`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_NODES_DESTROYED`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_NODES_DESTROYED`
+     -
+     -
+   * - :variable:`Tokudb_MESSAGES_INJECTED_AT_ROOT_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_MESSAGES_FLUSHED_FROM_H1_TO_LEAVES_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_MESSAGES_IN_TREES_ESTIMATE_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_MESSAGES_INJECTED_AT_ROOT`
+     -
+     -
+   * - :variable:`Tokudb_BROADCASE_MESSAGES_INJECTED_AT_ROOT`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_DECOMPRESSED_TARGET_QUERY`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_DECOMPRESSED_PRELOCKED_RANGE`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_DECOMPRESSED_PREFETCH`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_DECOMPRESSED_FOR_WRITE`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_DECOMPRESSED_TARGET_QUERY`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_DECOMPRESSED_PRELOCKED_RANGE`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_DECOMPRESSED_PREFETCH`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_DECOMPRESSED_FOR_WRITE`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_QUERY`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_QUERY_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_QUERY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_PREFETCH`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_PREFETCH_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_PREFETCH_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_WRITE`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_WRITE_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_PIVOTS_FETCHED_FOR_WRITE_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_TARGET_QUERY`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_TARGET_QUERY_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_TARGET_QUERY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_PRELOCKED_RANGE`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_PRELOCKED_RANGE_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_PRELOCKED_RANGE_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_PREFETCH`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_PREFETCH_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_PREFETCH_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_FOR_WRITE`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_FOR_WRITE_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENTS_FETCHED_FOR_WRITE_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_TARGET_QUERY`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_TARGET_QUERY_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_TARGET_QUERY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_PRELOCKED_RANGE`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_PRELOCKED_RANGE_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_PRELOCKED_RANGE_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_PREFETCH`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_PREFETCH_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_PREFETCH_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_FOR_WRITE`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_FOR_WRITE_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_BUFFERS_FETCHED_FOR_WRITE_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_COMPRESSION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_SERIALIZATION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_DECOMPRESSION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LEAF_DESERIALIZATION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_COMPRESSION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_SERIALIZATION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_DECOMPRESSION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_NONLEAF_DESERIALIZATION_TO_MEMORY_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_ROOTS_SPLIT`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_LEAF_ROOTS_INJECTED_INTO`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_H1_ROOTS_INJECTED_INTO`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_INJECTIONS_AT_DEPTH_0`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_INJECTIONS_AT_DEPTH_1`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_INJECTIONS_AT_DEPTH_2`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_INJECTIONS_AT_DEPTH_3`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_INJECTIONS_LOWER_THAN_DEPTH_3`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_STOPPED_NONEMPTY_BUFFER`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_STOPPED_AT_HEIGHT_1`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_STOPPED_CHILD_LOCKED_OR_NOT_IN_MEMORY`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_STOPPED_CHILD_NOT_FULLY_IN_MEMORY`
+     -
+     -
+   * - :variable:`Tokudb_PROMOTION_STOPPED_AFTER_LOCKING_CHILD`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENT_DESERIALIZATION_FIXED_KEY`
+     -
+     -
+   * - :variable:`Tokudb_BASEMENT_DESERIALIZATION_VARIABLE_KEY`
+     -
+     -
+   * - :variable:`Tokudb_PRO_RIGHTMOST_LEAF_SHORTCUT_SUCCESS`
+     -
+     -
+   * - :variable:`Tokudb_PRO_RIGHTMOST_LEAF_SHORTCUT_FAIL_POS`
+     -
+     -
+   * - :variable:`Tokudb_RIGHTMOST_LEAF_SHORTCUT_FAIL_REACTIVE`
+     -
+     -
+   * - :variable:`Tokudb_CURSOR_SKIP_DELETED_LEAF_ENTRY`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_TOTAL_NODES`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_H1_NODES`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_HGT1_NODES`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_EMPTY_NODES`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_NODES_DIRTIED`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_MAX_BUFFER_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_MIN_BUFFER_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_TOTAL_BUFFER_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_MAX_BUFFER_WORKDONE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_TOTAL_BUFFER_WORKDONE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_CLEANER_NUM_DIRTIED_FOR_LEAF_MERGE`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_TOTAL`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_IN_MEMORY`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_NEEDED_IO`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES_1`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES_2`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES_3`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES_4`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES_5`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_FLUSH_CASCADES_GT_5`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_SPLIT_LEAF`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_SPLIT_NONLEAF`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_MERGE_LEAF`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_MERGE_NONLEAF`
+     -
+     -
+   * - :variable:`Tokudb_FLUSHER_BALANCE_LEAF`
+     -
+     -
+   * - :variable:`Tokudb_HOT_NUM_STARTED`
+     -
+     -
+   * - :variable:`Tokudb_HOT_NUM_COMPLETED`
+     -
+     -
+   * - :variable:`Tokudb_HOT_NUM_ABORTED`
+     -
+     -
+   * - :variable:`Tokudb_HOT_MAX_ROOT_FLUSH_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_TXN_BEGIN`
+     -
+     -
+   * - :variable:`Tokudb_TXN_BEGIN_READ_ONLY`
+     -
+     -
+   * - :variable:`Tokudb_TXN_COMMITS`
+     -
+     -
+   * - :variable:`Tokudb_TXN_ABORTS`
+     -
+     -
+   * - :variable:`Tokudb_LOGGER_NEXT_LSN`
+     -
+     -
+   * - :variable:`Tokudb_LOGGER_WRITES`
+     -
+     -
+   * - :variable:`Tokudb_LOGGER_WRITES_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LOGGER_WRITES_UNCOMPRESSED_BYTES`
+     -
+     -
+   * - :variable:`Tokudb_LOGGER_WRITES_SECONDS`
+     -
+     -
+   * - :variable:`Tokudb_LOGGER_WAIT_LONG`
+     -
+     -
+   * - :variable:`Tokudb_LOADER_NUM_CREATED`
+     -
+     -
+   * - :variable:`Tokudb_LOADER_NUM_CURRENT`
+     -
+     -
+   * - :variable:`Tokudb_LOADER_NUM_MAX`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_MALLOC_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_FREE_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_REALLOC_COUNT`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_MALLOC_FAIL`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_REALLOC_FAIL`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_REQUESTED`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_USED`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_FREED`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_MAX_REQUESTED_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_LAST_FAILED_SIZE`
+     -
+     -
+   * - :variable:`Tokudb_MEM_ESTIMATED_MAXIMUM_MEMORY_FOOTPRINT`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_MALLOCATOR_VERSION`
+     -
+     -
+   * - :variable:`Tokudb_MEMORY_MMAP_THRESHOLD`
+     -
+     -
+   * - :variable:`Tokudb_FILESYSTEM_THREADS_BLOCKED_BY_FULL_DISK`
+     -
+     -
+   * - :variable:`Tokudb_FILESYSTEM_FSYNC_TIME`
+     -
+     -
+   * - :variable:`Tokudb_FILESYSTEM_FSYNC_NUM`
+     -
+     -
+   * - :variable:`Tokudb_FILESYSTEM_LONG_FSYNC_TIME`
+     -
+     -
+   * - :variable:`Tokudb_FILESYSTEM_LONG_FSYNC_NUM`
+     -
+     -

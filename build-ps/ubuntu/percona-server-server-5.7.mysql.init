@@ -50,6 +50,15 @@ get_mysql_option() {
 	echo $RESULT
 }
 
+fix_thp_setting() {
+	THP_SETTING=$(get_mysql_option mysqld_safe thp-setting "")
+	if [ ! -z "${THP_SETTING}" ]; then
+	# Set whatever option is specified in config file
+		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+	fi
+}
+
 get_running () {
 	PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
 	if [ -z "$PIDFILE" ];
@@ -157,7 +166,10 @@ case "$1" in
 			chmod 755 ${MYSQLRUN}
 		fi
 
-		mysqld_safe > /dev/null &
+		# Needed because of TokuDB
+		fix_thp_setting
+
+		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
 		verify_server start
 		if [ "$?" -eq 0 ];
 		then

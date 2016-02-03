@@ -306,7 +306,6 @@ private:
     // cardinality counts
     uint32_t _rec_per_keys;
     uint64_t* _rec_per_key;
-    bool _card_changed;
 
     void init(const char* table_name);
     void destroy();
@@ -371,7 +370,6 @@ inline void TOKUDB_SHARE::init_cardinality_counts(
     assert_always(_rec_per_key == NULL && _rec_per_keys == 0);
     _rec_per_keys = rec_per_keys;
     _rec_per_key = rec_per_key;
-    _card_changed = true;
 }
 inline void TOKUDB_SHARE::update_cardinality_counts(
     uint32_t rec_per_keys,
@@ -382,7 +380,6 @@ inline void TOKUDB_SHARE::update_cardinality_counts(
     assert_always(rec_per_keys == _rec_per_keys);
     assert_always(rec_per_key != NULL);
     memcpy(_rec_per_key, rec_per_key, _rec_per_keys * sizeof(uint64_t));
-    _card_changed = true;
 }
 inline void TOKUDB_SHARE::disallow_auto_analysis() {
     assert_debug(_mutex.is_owned_by_me());

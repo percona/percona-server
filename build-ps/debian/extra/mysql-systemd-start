@@ -18,6 +18,15 @@ pinger () {
 	done
 }
 
+fix_thp_setting() {
+	THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2)
+	if [ ! -z "${THP_SETTING}" ]; then
+		# Set whatever option is specified in config file
+		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+	fi
+}
+
 sanity () {
 	MYSQLRUN=/var/run/mysqld
 	MYSQLDATA=$(get_path datadir)
@@ -81,6 +90,9 @@ sanity () {
 		echo "Percona Server configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
 		exit 1
 	fi
+
+	# Needed because of TokuDB
+	fix_thp_setting
 }
 
 case $1 in

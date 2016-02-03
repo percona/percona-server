@@ -851,10 +851,7 @@ fi
 # Change transparent huge pages setting if thp-setting option specified
 if [ -n "$thp_setting" ]
 then
-  if [ $(id -u) -ne 0 ]; then
-    log_error "mysqld_safe must be run as root for setting transparent huge pages!"
-    exit 1
-  elif [ $thp_setting != "always" -a $thp_setting != "madvise" -a $thp_setting != "never" ]; then
+  if [ $thp_setting != "always" -a $thp_setting != "madvise" -a $thp_setting != "never" ]; then
     log_error "Invalid value for thp-setting=$thp_setting in config file. Valid values are: always, madvise or never"
     exit 1
   else
@@ -867,6 +864,9 @@ then
     fi
     if [ $STATUS_THP -eq 0 ]; then
       log_notice "Transparent huge pages are already set to: ${thp_setting}."
+    elif [ $(id -u) -ne 0 ]; then
+      log_error "mysqld_safe must be run as root for setting transparent huge pages!"
+      exit 1
     else
       if [ -f /sys/kernel/mm/transparent_hugepage/defrag ]; then
         echo $thp_setting > /sys/kernel/mm/transparent_hugepage/defrag

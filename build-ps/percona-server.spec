@@ -427,7 +427,7 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/my.cnf %{buildroot}%{_sysconfdir
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
-install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysqld
+install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
 %endif
 
 # Add libdir to linker
@@ -492,7 +492,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 %else
-/sbin/chkconfig --add mysqld
+/sbin/chkconfig --add mysql
 %endif
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
@@ -507,8 +507,8 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
 %systemd_preun mysqld.service
 %else
 if [ "$1" = 0 ]; then
-    /sbin/service mysqld stop >/dev/null 2>&1 || :
-    /sbin/chkconfig --del mysqld
+    /sbin/service mysql stop >/dev/null 2>&1 || :
+    /sbin/chkconfig --del mysql
 fi
 %endif
 
@@ -517,7 +517,7 @@ fi
 %systemd_postun_with_restart mysqld.service
 %else
 if [ $1 -ge 1 ]; then
-    /sbin/service mysqld condrestart >/dev/null 2>&1 || :
+    /sbin/service mysql condrestart >/dev/null 2>&1 || :
 fi
 %endif
 
@@ -692,7 +692,7 @@ fi
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %else
-%attr(755, root, root) %{_sysconfdir}/init.d/mysqld
+%attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(751, mysql, mysql) /var/lib/mysql

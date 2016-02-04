@@ -103,7 +103,7 @@ Percentage of table change as ``INSERT/UPDATE/DELETE`` commands to trigger an ``
   :scope: Global
   :dyn: Yes
   :vartype: Numeric
-  :default: 50
+  :default: 100
   :range: 0-100
 
 Percentage to scale table/index statistics when sending to the server to make an index appear to be either more or less unique than it actually is. |InnoDB| has a hard coded scaling factor of 50%. So if a table of 200 rows had an index with 40 unique values, InnoDB would return 200/40/2 or 2 for the index. The new TokuDB formula is the same but factored differently to use percent, for the same table.index (200/40 * :variable:`tokudb_cardinality_scale`) / 100, for a scale of 50% the result would also be 2 for the index.

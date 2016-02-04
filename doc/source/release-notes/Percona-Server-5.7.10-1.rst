@@ -4,7 +4,7 @@
  |Percona Server| 5.7.10-1
 ===========================
 
- Percona is glad to announce the first Release Candidate release of |Percona Server| 5.7.10-1 on December 14th, 2015 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-1/>`_ and from the :doc:`Percona Software Repositories </installation>`).
+ Percona is glad to announce the first Release Candidate release of |Percona Server| 5.7.10-1 on December 14th, 2015 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-1rc1/>`_ and from the :doc:`Percona Software Repositories </installation>`).
 
  Based on `MySQL 5.7.10 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-10.html>`_, including all the bug fixes in it, |Percona Server| 5.7.10-1 is the current Release Candidate release in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source and free, all the details of the release can be found in the `5.7.10-1 milestone at Launchpad <https://launchpad.net/percona-server/+milestone/5.7.10-1rc1>`_
 
@@ -27,7 +27,9 @@ Known issues
  Variables :variable:`innodb_show_verbose_locks` and :variable:`innodb_show_locks_held` are not working correctly.
 
  In |Percona Server| 5.7 `super_read_only <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_ feature has been replaced with upstream implementation. There are currently two know issues compared to |Percona Server| 5.6 implementation: 
+
   * Bug :mysqlbug:`78963`, :variable:`super_read_only` aborts ``STOP SLAVE`` if variable :variable:`relay_log_info_repository` is set to ``TABLE`` which could lead to a server crash in Debug builds.
+
   * Bug :mysqlbug:`79328`, :variable:`super_read_only` set as a server option has no effect.
 
  Using primary key with a ``BLOB`` in |TokuDB| table could lead to a server crash (:tokubug:`916`).

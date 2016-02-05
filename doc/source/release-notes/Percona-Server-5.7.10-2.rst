@@ -15,12 +15,12 @@ New Features
 
  5.7 binlog group commit algorithm is now supported in |TokuDB| as well.  
 
- New |TokuDB| index statistics reporting has been implemented to be compatible with the changes implemented in upstream 5.7. Following the |InnoDB| example, the default value for :variable:`tokudb_cardinality_scale` has been changed from ``50%`` to ``100%``. Implementing this also addresses a server crash deep in the optimizer code. 
+ New |TokuDB| index statistics reporting has been implemented to be compatible with the changes implemented in upstream 5.7. Following the |InnoDB| example, the default value for :variable:`tokudb_cardinality_scale_percent` has been changed from ``50%`` to ``100%``. Implementing this also addresses a server crash deep in the optimizer code. 
 
 Known Issues
 ============
 
- In |Percona Server| 5.7 `super_read_only <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_ feature has been replaced with upstream implementation. There are currently two know issues compared to |Percona Server| 5.6 implementation:
+ In |Percona Server| 5.7 `super_read_only <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_ feature has been replaced with upstream implementation. There are currently two known issues compared to |Percona Server| 5.6 implementation:
 
    * Bug :mysqlbug:`78963`, :variable:`super_read_only` aborts ``STOP SLAVE`` if variable :variable:`relay_log_info_repository` is set to ``TABLE`` which could lead to a server crash in Debug builds.
 
@@ -51,6 +51,8 @@ Bugs Fixed
 
  Fixed server assertion caused by ``Performance Schema`` memory key mix-up in ``SET STATEMENT ... FOR ...`` statements. Bug fixed :bug:`1534874`.
 
+ Service name on *CentOS* 6 has been renamed from ``mysqld`` back to ``mysql``. This change requires manual service restart after being upgraded from |Percona Server| :rn:`5.7.10-1`. Bug fixed :bug:`1542332`.
+
  Setting the :variable:`innodb_sched_priority_purge` (available only in debug builds) while purge threads were stopped would cause a server crash. Bug fixed :bug:`1368552`.
 
  Enabling |TokuDB| with ``ps_tokudb_admin`` script inside the Docker container would cause an error due to insufficient privileges even when running as root. In order for this script to be used inside docker containers this error has been changed to a warning that a check is impossible. Bug fixed :bug:`1520890`. 
@@ -75,4 +77,4 @@ Bugs Fixed
 
  Variable :variable:`tokudb_support_xa` has been modified to prevent setting it to anything but ``ON``/``ENABLED`` and to print a SQL warning anytime an attempt is made to change it, just like :variable:`innodb_support_xa`. Bug fixed :tokubug:`928`.
 
-Other bugs fixed: :bug:`1179451`, :bug:`1534246`, :bug:`1524763`, :bug:`1525109` (upstream :mysqlbug:`79569`), :bug:`1530102`, :tokubug:`897`, :tokubug:`898`, :tokubug:`899`, :tokubug:`900`, :tokubug:`901`, :tokubug:`901`, :tokubug:`902`, :tokubug:`903`, :tokubug:`905`, :tokubug:`906`, :tokubug:`907`, :tokubug:`908`, :tokubug:`909`, :tokubug:`910`, :tokubug:`911`, :tokubug:`912`, :tokubug:`913`, :tokubug:`915`. :tokubug:`919`, and :tokubug:`904`. 
+Other bugs fixed: :bug:`1179451`, :bug:`1534246`, :bug:`1524763`, :bug:`1525109` (upstream :mysqlbug:`79569`), :bug:`1530102`, :tokubug:`897`, :tokubug:`898`, :tokubug:`899`, :tokubug:`900`, :tokubug:`901`, :tokubug:`902`, :tokubug:`903`, :tokubug:`905`, :tokubug:`906`, :tokubug:`907`, :tokubug:`908`, :tokubug:`909`, :tokubug:`910`, :tokubug:`911`, :tokubug:`912`, :tokubug:`913`, :tokubug:`915`, :tokubug:`919`, and :tokubug:`904`. 

@@ -12,15 +12,13 @@ The following is a summary of the more relevant changes in the 5.7 series. For m
 
   * :ref:`changed_in_57`
 
+  * `Upgrading MySQL <http://dev.mysql.com/doc/refman/5.7/en/upgrading.html>`_
+
   * `Upgrading from MySQL 5.6 to 5.7 <http://dev.mysql.com/doc/refman/5.7/en/upgrading-from-previous-series.html>`_
 
 .. warning:: 
 
  Upgrade from 5.6 to 5.7 on a crashed instance is not recommended. If the server instance has crashed, crash recovery should be run before proceeding with the upgrade. 
-
-.. note::
-
- Upgrading the from older |Percona Server| version that doesn't have default (16k) |InnoDB| page size is not recommended. This could happen if the variable `innodb_page_size <http://www.percona.com/doc/percona-server/5.5/flexibility/innodb_files_extend.html>`_ was set to non-default value.
 
 Upgrading using the Percona repositories
 ========================================
@@ -36,43 +34,87 @@ Instructions for enabling the repositories in a system can be found in:
 ``DEB``-based distributions
 ---------------------------
 
-Having done the full backup (or dump if possible), stop the server: ::
+.. note::
 
-  $ sudo /etc/init.d/mysqld stop
+  Following commands will need to be run either as a root user or with :program:`sudo`.
+
+Having done the full backup (or dump if possible), stop the server: 
+
+.. code-block:: bash
+
+  $ service mysql stop
 
 and proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
 
-Then install the new server with: ::
+.. note:: 
 
-  $ sudo apt-get install percona-server-server-5.7
+  If you're running *Debian*/*Ubuntu* system with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager you can invoke the above command with :program:`systemctl` instead of :program:`service`. Currently both are supported.
 
-The installation script will run automatically :command:`mysql_upgrade` to migrate to the new grant tables, rebuild the indexes where needed and then start the server.
+Then install the new server with: 
+
+.. code-block:: bash
+
+  $ apt-get install percona-server-server-5.7
+
+The installation script will *NOT* run automatically :command:`mysql_upgrade` as it was the case in previous versions. You'll need to run the command manually and restart the service after it's finished.
+
+.. code-block:: bash
+
+  $ mysql_upgrade
+
+  Checking if update is needed.
+  Checking server version.
+  Running queries to upgrade MySQL server.
+  Checking system database.
+  mysql.columns_priv                                 OK
+  mysql.db                                           OK
+  mysql.engine_cost                                  OK
+  ...
+  Upgrade process completed successfully.
+  Checking if update is needed.
+
+  $ service mysql restart
 
 Note that this procedure is the same for upgrading from |MySQL| 5.6 or 5.7 to |Percona Server| 5.7.
 
 ``RPM``-based distributions
 ---------------------------
 
-Having done the full backup (and dump if possible), stop the server: ::
+.. note::
 
-  $ /sbin/service mysql stop
+  Following commands will need to be run either as a root user or with :program:`sudo`.
 
-and check your installed packages with: ::
+Having done the full backup (and dump if possible), stop the server: 
+
+.. code-block:: bash
+
+  $ service mysql stop
+
+.. note::
+
+  If you're running *RHEL*/*CentOS* system with `systemd <http://freedesktop.org/wiki/Software/systemd/>`_ as the default system and service manager you can invoke the above command with :program:`systemctl` instead of :program:`service`. Currently both are supported.
+
+and check your installed packages with: 
+
+.. code-block:: bash
 
   $ rpm -qa | grep Percona-Server
-  Percona-Server-client-55-5.5.29-rel29.4.401.rhel6.x86_64.rpm
-  Percona-Server-server-55-5.5.29-rel29.4.401.rhel6.x86_64.rpm
-  Percona-Server-shared-55-5.5.29-rel29.4.401.rhel6.x86_64.rpm
+  Percona-Server-shared-56-5.6.28-rel76.1.el7.x86_64
+  Percona-Server-server-56-5.6.28-rel76.1.el7.x86_64
+  Percona-Server-devel-56-5.6.28-rel76.1.el7.x86_64
+  Percona-Server-client-56-5.6.28-rel76.1.el7.x86_64
+  Percona-Server-test-56-5.6.28-rel76.1.el7.x86_64
+  Percona-Server-56-debuginfo-5.6.28-rel76.1.el7.x86_64
 
-You may have a forth, ``shared-compat``, which is for compatibility purposes.
+After checking, proceed to remove them without dependencies: 
 
-After checking, proceed to remove them without dependencies: ::
+.. code-block:: bash
 
   $ rpm -qa | grep Percona-Server | xargs rpm -e --nodeps
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if omitted.
 
-Note that this procedure is the same for upgrading from |MySQL| 5.5 or 5.6 to |Percona Server| 5.6: just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from |MySQL| 5.6 or 5.7 to |Percona Server| 5.7: just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
 You will have to install the following packages:
 
@@ -80,30 +122,40 @@ You will have to install the following packages:
 
   * ``Percona-Server-client-57``
 
-::
+.. code-block:: bash
 
   $ yum install Percona-Server-server-57 Percona-Server-client-57
 
-Once installed, proceed to modify your configuration file - :file:`my.cnf` - and recompile the plugins if necessary, as explained at the beginning of this guide.
+Once installed, proceed to modify your configuration file - :file:`my.cnf` - and reinstall the plugins if necessary, as explained at the beginning of this guide.
 
-As the schema of the grant table has changed, the server must be started without reading them: ::
+You can now start the ``mysql`` service:
 
-  $  /usr/sbin/mysqld --skip-grant-tables --user=mysql &
+.. code-block:: bash
 
-and use ``mysql_upgrade`` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: ::
+  $ service mysql start
+
+and use ``mysql_upgrade`` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
+
+.. code-block:: bash
 
   $ mysql_upgrade
+  Checking if update is needed.
+  Checking server version.
+  Running queries to upgrade MySQL server.
+  Checking system database.
+  mysql.columns_priv                                 OK
+  mysql.db                                           OK
   ...
-  OK
+  pgrade process completed successfully.
+  Checking if update is needed.
 
-Once this is done, just restart the server as usual: ::
+Once this is done, just restart the server as usual: 
 
-  $ /sbin/service mysql restart
+.. code-block:: bash
 
-If it can't find the PID file, kill the server and start it normally: ::
+  $ service mysql restart
 
-  $ killall /usr/sbin/mysqld
-  $ /sbin/service mysql start
+After the service has been successfully restarted you can use the new |Percona Server| 5.7.
 
 Upgrading using Standalone Packages
 ===================================
@@ -117,7 +169,7 @@ Having done the full backup (and dump if possible), stop the server: ::
 
 and remove the the installed packages with their dependencies: ::
 
-  $ sudo apt-get autoremove percona-server-server-55 percona-server-client-55
+  $ sudo apt-get autoremove percona-server-server-56 percona-server-client-56
 
 Once removed, proceed to do the modifications needed in your configuration file, as explained at the beginning of this guide.
 

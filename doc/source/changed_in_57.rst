@@ -57,6 +57,7 @@ Some |Percona Server| 5.6 features have been replaced by similar or equivalent |
  * Support for `Multiple user level locks per connection <https://www.percona.com/doc/percona-server/5.6/scalability/multiple_user_level_locks.html>`_ has been replaced by Oracle implementation, which is based on the same contributed patch by *Kostja Osipov*.
  * `super-read-only option <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_ has been replaced by Oracle `super_read_only <http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_super_read_only>`_ variable implementation.
  * Mutex names in ``SHOW ENGINE INNODB MUTEX`` have been replaced by Oracle mutex name implementation.
+ * |Percona Server| now uses packaging similar to the upstream |MySQL| version. Most important change is that for *Debian*/*Ubuntu* upgrades you now need to run ``mysql_upgrade`` manually.
 
 List of status variables that are no longer available in |Percona Server| 5.6
 =============================================================================

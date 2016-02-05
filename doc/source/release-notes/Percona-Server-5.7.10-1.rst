@@ -26,7 +26,7 @@ Known issues
 
  Variables :variable:`innodb_show_verbose_locks` and :variable:`innodb_show_locks_held` are not working correctly.
 
- In |Percona Server| 5.7 `super_read_only <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_ feature has been replaced with upstream implementation. There are currently two know issues compared to |Percona Server| 5.6 implementation: 
+ In |Percona Server| 5.7 `super_read_only <https://www.percona.com/doc/percona-server/5.6/management/super_read_only.html>`_ feature has been replaced with upstream implementation. There are currently two known issues compared to |Percona Server| 5.6 implementation: 
 
   * Bug :mysqlbug:`78963`, :variable:`super_read_only` aborts ``STOP SLAVE`` if variable :variable:`relay_log_info_repository` is set to ``TABLE`` which could lead to a server crash in Debug builds.
 

@@ -62,16 +62,6 @@ Installing |Percona Server| from Percona ``yum`` repository
      Preparing...                ########################################### [100%]
         1:percona-release        ########################################### [100%]
 
-.. note:: 
-
-  *RHEL*/*Centos* 5 doesn't support installing the packages directly from the remote location so you'll need to download the package first and install it manually with :program:`rpm`:
-
-    .. code-block:: bash
-
-      wget http://www.percona.com/downloads/percona-release/redhat/0.1-3/percona-release-0.1-3.noarch.rpm
-      rpm -ivH percona-release-0.1-3.noarch.rpm
-
-
 2. Testing the repository
    
    Make sure packages are now available from the repository, by executing the following command: 

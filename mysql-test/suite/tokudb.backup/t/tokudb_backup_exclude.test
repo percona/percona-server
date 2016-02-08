@@ -32,7 +32,7 @@ select @@session.tokudb_backup_last_error_string;
 
 
 # This should filter all files for the t1a and t1c tables
-set session tokudb_backup_exclude='(t1a|t1c)+';
+set session tokudb_backup_exclude='(t1a|t1c|mysqld_safe\.pid)+';
 
 disable_query_log;
 --exec mkdir $MYSQLTEST_VARDIR/tmp/backup
@@ -48,7 +48,7 @@ select @@session.tokudb_backup_last_error_string;
 --exec rm -rf $MYSQLTEST_VARDIR/tmp/backup
 
 # This should filter all files for the t1a, t1b, and t1c tables
-set session tokudb_backup_exclude='t1[abc]+';
+set session tokudb_backup_exclude='(t1[abc]|mysqld_safe\.pid)+';
 
 disable_query_log;
 --exec mkdir $MYSQLTEST_VARDIR/tmp/backup

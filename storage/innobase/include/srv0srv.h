@@ -561,7 +561,7 @@ extern mysql_pfs_key_t	io_log_thread_key;
 extern mysql_pfs_key_t	io_read_thread_key;
 extern mysql_pfs_key_t	io_write_thread_key;
 extern mysql_pfs_key_t	page_cleaner_thread_key;
-extern mysql_pfs_key_t	recv_writer_thread_key;
+extern mysql_pfs_key_t	buf_lru_manager_thread_key;
 extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;

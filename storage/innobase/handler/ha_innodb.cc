@@ -435,7 +435,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
-	PSI_KEY(recv_writer_mutex),
 	PSI_KEY(redo_rseg_mutex),
 	PSI_KEY(noredo_rseg_mutex),
 #  ifdef UNIV_DEBUG
@@ -513,7 +512,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(io_read_thread),
 	PSI_KEY(io_write_thread),
 	PSI_KEY(page_cleaner_thread),
-	PSI_KEY(recv_writer_thread),
+	PSI_KEY(buf_lru_manager_thread),
 	PSI_KEY(srv_error_monitor_thread),
 	PSI_KEY(srv_lock_timeout_thread),
 	PSI_KEY(srv_master_thread),
@@ -19790,11 +19789,8 @@ static MYSQL_SYSVAR_ENUM(empty_free_list_algorithm,
   "The algorithm to use for empty free list handling.  Allowed values: "
   "LEGACY: (default) Original Oracle MySQL 5.6 handling with single page flushes; "
   "BACKOFF: Wait until cleaner produces a free page.",
-  innodb_srv_empty_free_list_algorithm_validate, NULL, SRV_EMPTY_FREE_LIST_LEGACY,
-  // Default changed until separate LRU flusher is merged. With a single page
-  // cleaner otherwise it is possible to loop forever in a query
-  // thread while the cleaner is waiting for the page latch held by that
-  // thread. See sys_vars.log_slow_admin_statements_func in 5.7.5.
+  innodb_srv_empty_free_list_algorithm_validate, NULL,
+  SRV_EMPTY_FREE_LIST_BACKOFF,
   &innodb_empty_free_list_algorithm_typelib);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,

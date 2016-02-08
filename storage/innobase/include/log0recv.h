@@ -335,16 +335,10 @@ struct recv_sys_t{
 	ib_mutex_t		mutex;	/*!< mutex protecting the fields apply_log_recs,
 				n_addrs, and the state field in each recv_addr
 				struct */
-	ib_mutex_t		writer_mutex;/*!< mutex coordinating
-				flushing between recv_writer_thread and
-				the recovery thread. */
 	os_event_t		flush_start;/*!< event to acticate
 				page cleaner threads */
 	os_event_t		flush_end;/*!< event to signal that the page
 				cleaner has finished the request */
-	buf_flush_t		flush_type;/*!< type of the flush request.
-				BUF_FLUSH_LRU: flush end of LRU, keeping free blocks.
-				BUF_FLUSH_LIST: flush all of blocks. */
 #endif /* !UNIV_HOTBACKUP */
 	ibool		apply_log_recs;
 				/*!< this is TRUE when log rec application to
@@ -432,11 +426,6 @@ extern bool		recv_lsn_checks_on;
 /** TRUE when the redo log is being backed up */
 extern bool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
-
-#ifndef UNIV_HOTBACKUP
-/** Flag indicating if recv_writer thread is active. */
-extern volatile bool	recv_writer_thread_active;
-#endif /* !UNIV_HOTBACKUP */
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */

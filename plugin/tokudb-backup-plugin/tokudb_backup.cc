@@ -28,7 +28,8 @@
 #define TOKUDB_BACKUP_PLUGIN_VERSION_STRING NULL
 #endif
 
-static char *tokudb_backup_plugin_version;
+static char* tokudb_backup_plugin_version;
+static const char* tokudb_backup_exclude_default="(mysqld_safe\\.pid)+";
 
 // This is just a place holder for now and must be replaced soon with a proper
 // PSI key for this plugin.
@@ -63,7 +64,7 @@ static MYSQL_THDVAR_STR(last_error_string,
 static MYSQL_THDVAR_STR(exclude,
     PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
     "exclude source file regular expression",
-    NULL, NULL, NULL);
+    NULL, NULL, tokudb_backup_exclude_default);
 
 static int tokudb_backup_check_dir(THD* thd, struct st_mysql_sys_var* var,
                                    void* save, struct st_mysql_value* value);

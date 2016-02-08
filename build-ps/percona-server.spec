@@ -79,10 +79,10 @@
 
 # Version for compat libs
 %if 0%{?rhel} == 7
-%global compatver             5.6.27
-%global percona_compatver     76.0
+%global compatver             5.6.28
+%global percona_compatver     76.1
 %global compatlib             18
-%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/LATEST/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm
+%global compatsrc             https://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-%{compatver}-%{percona_compatver}/binary/redhat/7/x86_64/Percona-Server-shared-56-%{compatver}-rel%{percona_compatver}.el7.x86_64.rpm
 %endif
 
 # multiarch
@@ -427,7 +427,7 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/my.cnf %{buildroot}%{_sysconfdir
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
-install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysqld
+install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
 %endif
 
 # Add libdir to linker
@@ -492,7 +492,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
 %else
-/sbin/chkconfig --add mysqld
+/sbin/chkconfig --add mysql
 %endif
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
@@ -507,8 +507,8 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
 %systemd_preun mysqld.service
 %else
 if [ "$1" = 0 ]; then
-    /sbin/service mysqld stop >/dev/null 2>&1 || :
-    /sbin/chkconfig --del mysqld
+    /sbin/service mysql stop >/dev/null 2>&1 || :
+    /sbin/chkconfig --del mysql
 fi
 %endif
 
@@ -517,7 +517,7 @@ fi
 %systemd_postun_with_restart mysqld.service
 %else
 if [ $1 -ge 1 ]; then
-    /sbin/service mysqld condrestart >/dev/null 2>&1 || :
+    /sbin/service mysql condrestart >/dev/null 2>&1 || :
 fi
 %endif
 
@@ -692,7 +692,7 @@ fi
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %else
-%attr(755, root, root) %{_sysconfdir}/init.d/mysqld
+%attr(755, root, root) %{_sysconfdir}/init.d/mysql
 %endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(751, mysql, mysql) /var/lib/mysql
@@ -873,6 +873,9 @@ fi
 %endif
 
 %changelog
+* Tue Feb 02 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.10-2rc2
+- Re-added TokuBackup to the packaging (JEN-439)
+
 * Thu Dec 10 2015 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.10-1rc1
 - Initial release PS 5.7.10-1rc1
 

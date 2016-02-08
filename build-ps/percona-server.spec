@@ -494,6 +494,20 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %else
 /sbin/chkconfig --add mysqld
 %endif
+# We need this because we don't provide my.cnf on centos 6
+# and the default system one doesn't have info needed
+%if 0%{?rhel} < 7
+if [ $1 -eq 1 ]; then
+  cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
+  if [ $cnflog = 0 -a -f /etc/my.cnf ]; then
+    sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
+  fi
+  cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
+  if [ $cnfpid = 0 -a -f /etc/my.cnf ]; then
+    sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
+  fi
+fi
+%endif
 
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"

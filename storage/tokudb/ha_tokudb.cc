@@ -396,49 +396,41 @@ void TOKUDB_SHARE::update_row_count(
     unlock();
 }
 void TOKUDB_SHARE::set_cardinality_counts_in_table(TABLE* table) {
-    // if there is nothing new to report, just skip it.
-    if (_card_changed) {
-        lock();
-        uint32_t next_key_part = 0;
-        for (uint32_t i = 0; i < table->s->keys; i++) {
-            bool is_unique_key =
-                (i == table->s->primary_key) ||
-                (table->key_info[i].flags & HA_NOSAME);
+    lock();
+    uint32_t next_key_part = 0;
+    for (uint32_t i = 0; i < table->s->keys; i++) {
+        KEY* key = &table->key_info[i];
+        bool is_unique_key =
+            (i == table->s->primary_key) || (key->flags & HA_NOSAME);
 
-            KEY* key = &table->key_info[i];
+        /* Check if this index supports index statistics. */
+        if (!key->supports_records_per_key()) {
+            continue;
+        }
 
-            /* Check if this index supports index statistics. */
-            if (!key->supports_records_per_key()) {
+        for (uint32_t j = 0; j < key->actual_key_parts; j++) {
+            if (j >= key->user_defined_key_parts) {
+                // MySQL 'hidden' keys, really needs deeper investigation
+                // into MySQL hidden keys vs TokuDB hidden keys
+                key->set_records_per_key(j, 1.0);
+                key->rec_per_key[j] = 1;
                 continue;
             }
 
-            for (uint32_t j = 0; j < key->actual_key_parts; j++) {
-                if (j >= key->user_defined_key_parts) {
-                    // MySQL 'hidden' keys, really needs deeper investigation
-                    // into MySQL hidden keys vs TokuDB hidden keys
-                    key->set_records_per_key(j, 1.0);
-                    key->rec_per_key[j] = 1;
-                    continue;
-                }
-
-                assert_always(next_key_part < _rec_per_keys);
-                ulong val = _rec_per_key[next_key_part++];
-                val = (val*tokudb::sysvars::cardinality_scale_percent) / 100;
-                if (val == 0)
-                    val = 1;
-
-                if (_rows == 0 ||
-                   (is_unique_key && j == key->actual_key_parts - 1)) {
-                    val = 1;
-                }
-
-                key->set_records_per_key(j, static_cast<rec_per_key_t>(val));
-                key->rec_per_key[j] = val;
+            assert_always(next_key_part < _rec_per_keys);
+            ulong val = _rec_per_key[next_key_part++];
+            val = (val * tokudb::sysvars::cardinality_scale_percent) / 100;
+            if (val == 0 || _rows == 0 ||
+                (is_unique_key && j == key->actual_key_parts - 1)) {
+                val = 1;
             }
+            key->set_records_per_key(
+                j,
+                static_cast<rec_per_key_t>(val));
+            key->rec_per_key[j] = val;
         }
-        _card_changed = false;
-        unlock();
     }
+    unlock();
 }
 
 #define HANDLE_INVALID_CURSOR() \
@@ -832,7 +824,12 @@ static int filter_key_part_compare (const void* left, const void* right) {
 // if key, table have proper info set. I had to verify by checking
 // in the debugger.
 //
-void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offset_from_keypart) {
+void set_key_filter(
+    MY_BITMAP* key_filter,
+    KEY* key,
+    TABLE* table,
+    bool get_offset_from_keypart) {
+
     FILTER_KEY_PART_INFO parts[MAX_REF_PARTS];
     uint curr_skip_index = 0;
 
@@ -841,7 +838,10 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
         // horrendous hack due to bugs in mysql, basically
         // we cannot always reliably get the offset from the same source
         //
-        parts[i].offset = get_offset_from_keypart ? key->key_part[i].offset : field_offset(key->key_part[i].field, table);
+        parts[i].offset =
+            get_offset_from_keypart ?
+                key->key_part[i].offset :
+                field_offset(key->key_part[i].field, table);
         parts[i].part_index = i;
     }
     qsort(
@@ -1655,7 +1655,11 @@ exit:
     return error;
 }
 
-bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk) {
+bool ha_tokudb::can_replace_into_be_fast(
+    TABLE_SHARE* table_share,
+    KEY_AND_COL_INFO* kc_info,
+    uint pk) {
+
     uint curr_num_DBs = table_share->keys + tokudb_test(hidden_primary_key);
     bool ret_val;
     if (curr_num_DBs == 1) {
@@ -2686,6 +2690,7 @@ uint32_t ha_tokudb::place_key_into_mysql_buff(
     KEY* key_info,
     uchar* record,
     uchar* data) {
+
     KEY_PART_INFO* key_part = key_info->key_part;
     KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
     uchar* pos = data;
@@ -3028,7 +3033,7 @@ DBT* ha_tokudb::pack_ext_key(
     KEY* key_info = &table->key_info[keynr];
     KEY_PART_INFO* key_part = key_info->key_part;
     KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
-    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+    my_bitmap_map* old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
     memset((void *) key, 0, sizeof(*key));
     key->data = buff;
@@ -6057,11 +6062,7 @@ int ha_tokudb::info(uint flag) {
 #endif
     DB_TXN* txn = NULL;
     if (flag & HA_STATUS_VARIABLE) {
-        // Just to get optimizations right
         stats.records = share->row_count() + share->rows_from_locked_table;
-        if (stats.records == 0) {
-            stats.records++;
-        }
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
             uint64_t num_rows = 0;
@@ -6080,9 +6081,6 @@ int ha_tokudb::info(uint flag) {
             if (error == 0) {
                 share->set_row_count(num_rows, false);
                 stats.records = num_rows;
-                if (stats.records == 0) {
-                    stats.records++;
-                }
             } else {
                 goto cleanup;
             }
@@ -6162,6 +6160,22 @@ int ha_tokudb::info(uint flag) {
                 }
                 stats.delete_length += frag_info.unused_bytes;
             }
+        }
+
+        /*
+        The following comment and logic has been taken from InnoDB and 
+        an old hack was removed that forced to always set stats.records > 0
+        ---
+        The MySQL optimizer seems to assume in a left join that n_rows
+        is an accurate estimate if it is zero. Of course, it is not,
+        since we do not have any locks on the rows yet at this phase.
+        Since SHOW TABLE STATUS seems to call this function with the
+        HA_STATUS_TIME flag set, while the left join optimizer does not
+        set that flag, we add one to a zero value if the flag is not
+        set. That way SHOW TABLE STATUS will show the best estimate,
+        while the optimizer never sees the table empty. */
+        if (stats.records == 0 && !(flag & HA_STATUS_TIME)) {
+            stats.records++;
         }
     }
     if ((flag & HA_STATUS_CONST)) {

@@ -75,9 +75,20 @@ pinger () {
     # Wait for ping to answer to signal startup completed,
     # might take a while in case of e.g. crash recovery
     # MySQL systemd service will timeout script if no answer
+    datadir=$(parse_cnf datadir server mysqld)
+    if [[ -z ${datadir:-} ]]; then
+        datadir="/var/lib/mysql"
+    fi
+    socket=$(parse_cnf socket server mysqld)
+    case $socket in
+        /*) adminsocket="$socket" ;;
+        "") adminsocket="$datadir/mysql.sock" ;;
+        *) adminsocket="$datadir/$socket" ;;
+    esac
+
     while /bin/true ; do
         sleep 1
-        mysqladmin ping >/dev/null 2>&1 && break
+        mysqladmin --no-defaults --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping >/dev/null 2>&1 && break
     done
     exit 0
 }

@@ -8638,6 +8638,10 @@ int ha_tokudb::delete_all_rows_internal() {
     uint curr_num_DBs = 0;
     DB_TXN* txn = NULL;
 
+    // this should be enough to handle locking as the higher level MDL
+    // on this table should prevent any new analyze tasks.
+    share->cancel_background_jobs();
+
     error = txn_begin(db_env, 0, &txn, 0, ha_thd());
     if (error) {
         goto cleanup;
@@ -8664,6 +8668,8 @@ int ha_tokudb::delete_all_rows_internal() {
             goto cleanup;
         }
     }
+
+    DEBUG_SYNC(ha_thd(), "tokudb_after_truncate_all_dictionarys");
 
     // zap the row count
     if (error == 0) {

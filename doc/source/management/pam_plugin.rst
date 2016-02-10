@@ -72,6 +72,11 @@ Supplementary groups support
 
 This feature enables using secondary groups in the mapping part of the authentication string, like "``mysql, developers=joe, dba=mark``". Previously only primary groups could have been specified there. If user is a member of both ``developers`` and ``dba``, PAM plugin will map it to the ``joe`` because ``developers`` matches first. 
 
+Known issues
+============
+
+Default mysql stack size is not enough to handle ``pam_ecryptfs`` module. Workaround is to increase the |MySQL| stack size by setting the `thread-stack <https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_thread_stack>`_ variable to at least ``512KB`` or by increasing the old value by ``256KB``.
+
 Version Specific Information
 ============================
 

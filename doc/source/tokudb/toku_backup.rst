@@ -63,19 +63,13 @@ To install |Percona TokuBackup|:
 Making a Backup
 ---------------
 
-To run |Percona TokuBackup|, the backup destination directory must exist, be writable and empty. Once this directory is created, the backup can be run using the following command:
+To run |Percona TokuBackup|, the backup destination directory must exist, be writable and owned by the same user under which |MySQL| server is running (usually ``mysql``) and empty. Once this directory is created, the backup can be run using the following command:
 
 .. code-block:: mysql
 
- mysql> backup to '/path_to_empty_directory';
+  mysql> set tokudb_backup_dir='/path_to_empty_directory';
 
-You can change the backup directory by setting the :variable:`tokudb_backup_dir` variable to an empty directory as follows:
-
-.. code-block:: mysql
-
- mysql> set tokudb_backup_dir='/path_to_empty_directory';
-
-.. note:: Setting the :variable:`tokudb_backup_dir` variable automatically starts the backup process to the specified directory.
+.. note:: Setting the :variable:`tokudb_backup_dir` variable automatically starts the backup process to the specified directory. Percona TokuBackup will take full backup each time, currently there is no incremental backup option
 
 Restoring From Backup
 ---------------------
@@ -95,6 +89,17 @@ Since attributes of files are preserved, in most cases you will need to change t
 .. code-block:: bash
 
   $ chown -R mysql:mysql /var/lib/mysql
+
+If you have changed default |TokuDB| data directory (:variable:`tokudb_data_dir`) or |TokuDB| log directory (:variable:`tokudb_log_dir`) or both of them, you will see separate folders for each setting in backup directory after taking backup. You'll need to restore each folder separately: 
+
+.. code-block:: bash
+
+  $ rsync -avrP /data/backup/mysql_data_dir/ /var/lib/mysql/
+  $ rsync -avrP /data/backup/tokudb_data_dir/ /path/to/original/tokudb_data_dir/
+  $ rsync -avrP /data/backup/tokudb_log_dir/ /path/to/original/tokudb_log_dir/
+  $ chown -R mysql:mysql /var/lib/mysql
+  $ chown -R mysql:mysql /path/to/original/tokudb_data_dir
+  $ chown -R mysql:mysql /path/to/original/tokudb_log_dir
 
 Advanced Configuration
 ----------------------
@@ -116,7 +121,7 @@ For example, to exclude all :file:`lost+found` directories from backup, use the 
 
 .. code-block:: mysql
 
- mysql> SET tokudb_backup_exclude='/lost\\+found($|/)';
+  mysql> SET tokudb_backup_exclude='/lost\\+found($|/)';
 
 Throttling Backup Rate
 **********************
@@ -125,7 +130,7 @@ You can throttle the backup rate using the :variable:`tokudb_backup_throttle` se
 
 .. code-block:: mysql
 
- mysql> SET tokudb_backup_throttle=1000000;
+  mysql> SET tokudb_backup_throttle=1000000;
 
 Restricting Backup Target
 *************************
@@ -136,12 +141,12 @@ The default is ``null``, backups have no restricted locations. This read-only va
 
 .. code-block:: mysql
 
- mysql> SHOW VARIABLES LIKE 'tokudb_backup_allowed_prefix';
- +------------------------------+-----------+
- | Variable_name                | Value     |
- +------------------------------+-----------+
- | tokudb_backup_allowed_prefix | /dumpdir  |
- +------------------------------+-----------+
+  mysql> SHOW VARIABLES LIKE 'tokudb_backup_allowed_prefix';
+  +------------------------------+-----------+
+  | Variable_name                | Value     |
+  +------------------------------+-----------+
+  | tokudb_backup_allowed_prefix | /dumpdir  |
+  +------------------------------+-----------+
 
 
 Reporting Errors
@@ -151,20 +156,48 @@ Reporting Errors
 
 .. code-block:: mysql
 
- mysql> SET tokudb_backup_dir='/tmp/backupdir';
- ERROR 1231 (42000): Variable 'tokudb_backup_dir' can't be set to the value of '/tmp/backupdir'
+  mysql> SET tokudb_backup_dir='/tmp/backupdir';
+  ERROR 1231 (42000): Variable 'tokudb_backup_dir' can't be set to the value of '/tmp/backupdir'
 
- mysql> SELECT @@tokudb_backup_last_error;
- +----------------------------+
- | @@tokudb_backup_last_error |
- +----------------------------+
- |                         17 |
- +----------------------------+
+  mysql> SELECT @@tokudb_backup_last_error;
+  +----------------------------+
+  | @@tokudb_backup_last_error |
+  +----------------------------+
+  |                         17 |
+  +----------------------------+
  
- mysql> SELECT @@tokudb_backup_last_error_string;
- +---------------------------------------------------+
- | @@tokudb_backup_last_error_string                 |
- +---------------------------------------------------+
- | tokudb backup couldn't create needed directories. |
- +---------------------------------------------------+
+  mysql> SELECT @@tokudb_backup_last_error_string;
+  +---------------------------------------------------+
+  | @@tokudb_backup_last_error_string                 |
+  +---------------------------------------------------+
+  | tokudb backup couldn't create needed directories. |
+  +---------------------------------------------------+
+
+Limitations and known issues
+----------------------------
+
+* You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables with |TokuBackup|. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is ``innodb_use_native_aio=0``.
+  
+* To be able to run Point-In-Time-Recovery you'll need to manually get the binary log position.
+
+* Transactional storage engines (|TokuDB| and |InnoDB|) will perform recovery on the backup copy of the database when it is first started.
+
+* Tables using non-transactional storage engines (|MyISAM|) are not locked during the copy and may report issues when starting up the backup. It is best to avoid operations that modify these tables at the end of a hot backup operation (adding/changing users, stored procedures, etc.).
+
+* The database is copied locally to the path specified in :file:`/path/to/backup`. This folder must exist, be writable, be empty, and contain enough space for a full copy of the database.
+
+* |TokuBackup| always makes a backup of the |MySQL| :variable:`datadir` and optionally the :variable:`tokudb_data_dir`, :variable:`tokudb_log_dir`, and the binary log folder. The latter three are only backed up separately if they are not the same as or contained in the |MySQL| :variable:`datadir`. None of these three folders can be a parent of the |MySQL| :variable:`datadir`.
+
+* No other directory structures are supported. All |InnoDB|, |MyISAM|, and other storage engine files must be within the |MySQL| :variable:`datadir`.
+
+* |TokuBackup| does not follow symbolic links.
+
+* |TokuBackup| does not backup |MySQL| configuration file(s). 
+
+* |TokuBackup| does not backup tablespaces if they are out of :variable:`datadir`.
+
+* Due to upstream bug :mysqlbug:`80183`, |TokuBackup| can't recover backed-up table data if backup was taken while running ``OPTIMIZE TABLE`` or ``ALTER TABLE ... TABLESPACE``.
+
+* |TokuBackup| doesn't support incremental backups.
+
 

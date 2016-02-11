@@ -887,6 +887,9 @@ fi
 %endif
 
 %changelog
+* Thu Feb 11 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.10-3
+- Fix for centos6 to write temp pass into log file instead of stdout (#1541769)
+
 * Tue Feb 02 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.10-2rc2
 - Re-added TokuBackup to the packaging (JEN-439)
 

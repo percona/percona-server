@@ -186,11 +186,15 @@ This session level variable throttles the write rate in bytes per second of the 
 
 When enabled, this session level variable serves two purposes, to point to the destination directory where the backups will be dumped and to kick off the backup as soon as it is set.
 
-
 .. variable:: tokudb_backup_exclude
- 
- *Supported since 7.5.5*
 
+   :cli: Yes
+   :conf: Yes
+   :scope: Global/Session
+   :dyn: Yes
+   :vartype: String
+   :default: ``(mysqld_safe\.pid)+``
+ 
 Use this variable to set a regular expression that defines source files excluded from backup. For example, to exclude all :file:`lost+found` directories, use the following command:
 
 .. code-block:: mysql

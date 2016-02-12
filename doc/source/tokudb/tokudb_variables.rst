@@ -250,6 +250,8 @@ This variable configures the directory name where the |TokuDB| tables are stored
 
 This variable specifies the directory where the |TokuDB| log files are stored. The default location is the MySQL data directory. Configuring a separate log directory is somewhat involved. Please contact Percona support for more details.
 
+.. warning:: After changing |TokuDB| log directory path, the old |TokuDB| recovery log file should be moved to new directory prior to start of |MySQL| server and log file's owner must be the ``mysql`` user. Otherwise server will fail to initialize the |TokuDB| store engine restart.
+
 .. variable:: tokudb_tmp_dir
 
 This variable specifies the directory where the |TokuDB| bulk loader stores temporary files. The bulk loader can create large temporary files while it is loading a table, so putting these temporary files on a disk separate from the data directory can be useful.

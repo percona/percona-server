@@ -96,7 +96,8 @@ Backup
 
 **How do I back up a system with TokuDB tables?**
 
-*Taking backups with :ref:`TokuBackup`*
+Taking backups with :ref:`toku_backup`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 |TokuDB| is capable of performing online backups with :ref:`toku_backup`. To perform a backup, execute ``backup to '/path/to/backup';``. This will create backup of the server and return when complete. The backup can be used by another server using a copy of the binaries on the source server. You can view the progress of the backup by executing ``SHOW PROCESSLIST;``. |TokuBackup| produces a copy of your running |MySQL| server that is consistent at the end time of the backup process. The thread copying files from source to destination can be throttled by setting the :variable:`tokudb_backup_throttle` server variable. For more information check :ref:`toku_backup`.
 
@@ -104,7 +105,7 @@ Backup
 
   * Currently, |TokuBackup| only supports tables using the |TokuDB| storage engine and the |MyISAM| tables in the ``mysql`` database. 
 
-    .. warning:: You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables via |TokuBackup| utility. The appropriate setting is :variable:`innodb_use_native_aio` to ``0``.
+    .. warning:: You must disable |InnoDB| asynchronous IO if backing up |InnoDB| tables via |TokuBackup| utility. Otherwise you will have inconsistent, unrecoverable backups. The appropriate setting is :variable:`innodb_use_native_aio` to ``0``.
 
   * Transactional storage engines (|TokuDB| and |InnoDB|) will perform recovery on the backup copy of the database when it is first started.
 
@@ -120,7 +121,8 @@ Backup
 
   * |TokuBackup| does not follow symbolic links.
 
-*Other options for taking backups*
+Other options for taking backups
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   |TokuDB| tables are represented in the file system with dictionary files, log files, and metadata files. A consistent copy of all of these files must be made during a backup. Copying the files while they may be modified by a running |MySQL| may result in an inconsistent copy of the database.
 

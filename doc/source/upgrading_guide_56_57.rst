@@ -175,18 +175,18 @@ Once removed, proceed to do the modifications needed in your configuration file,
 
 Then, download the following packages for your architecture:
 
-  * ``percona-server-server-5.6``
+  * ``percona-server-server-5.7``
 
-  * ``percona-server-client-5.6``
+  * ``percona-server-client-5.7``
 
-  * ``percona-server-common-5.6``
+  * ``percona-server-common-5.7``
 
-  * ``libperconaserverclient18``
+  * ``libperconaserverclient20``
 
-At the moment of writing this guide, for *Ubuntu* 12.04LTS on ``x86_64``, a way of doing this is: ::
+At the moment of writing this guide, for *Debian* 8.0 (*jessie*) on ``x86_64``, a way of doing this is: ::
 
   $ wget -r -l 1 -nd -A deb -R "*dev*" \
-  http://www.percona.com/downloads/Percona-Server-5.6/LATEST/deb/precise/x86_64/
+  http://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/debian/jessie/x86_64/
 
 Install them in one command: ::
 
@@ -198,7 +198,7 @@ The installation won't succeed as there will be missing dependencies. To handle 
 
 and all dependencies will be handled by :command:`apt`.
 
-The installation script will run automatically :command:`mysql_upgrade` to migrate to the new grant tables and rebuild the indexes where needed.
+The installation script will not run automatically :command:`mysql_upgrade`, so you'll need to run it yourself and restart the service afterwards.
 
 RPM-based distributions
 -----------------------
@@ -224,32 +224,32 @@ After checked that, proceed to remove them without dependencies: ::
 
 It is important that you remove it without dependencies as many packages may depend on these (as they replace ``mysql``) and will be removed if ommited.
 
-Note that this procedure is the same for upgrading from |MySQL| 5.5 to |Percona Server| 5.6, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
+Note that this procedure is the same for upgrading from |MySQL| 5.6 to |Percona Server| 5.7, just grep ``'^mysql-'`` instead of ``Percona-Server`` and remove them.
 
 Download the following packages for your architecture:
 
-  * ``Percona-Server-server-56``
+  * ``Percona-Server-server-57``
 
-  * ``Percona-Server-client-56``
+  * ``Percona-Server-client-57``
 
-  * ``Percona-Server-shared-56``
+  * ``Percona-Server-shared-57``
 
 At the moment of writing this guide, a way of doing this is: ::
 
   $ wget -r -l 1 -nd -A rpm -R "*devel*,*debuginfo*" \
-  http://www.percona.com/downloads/Percona-Server-5.6/LATEST/RPM/rhel6/x86_64/
+  http://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/redhat/6/x86_64/
 
 Install them in one command: ::
 
-  $ rpm -ivh Percona-Server-shared-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm \ 
-  Percona-Server-client-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm \
-  Percona-Server-server-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
+  $ rpm -ivh Percona-Server-shared-57-5.7.10-3.1.el6.x86_64.rpm \
+  Percona-Server-client-57-5.7.10-3.1.el6.x86_64.rpm \
+  Percona-Server-server-57-5.7.10-3.1.el6.x86_64.rpm
 
 If you don't install all "at the same time", you will need to do it in a specific order - ``shared``, ``client``, ``server``: ::
 
-  $ rpm -ivh Percona-Server-shared-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
-  $ rpm -ivh Percona-Server-client-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
-  $ rpm -ivh Percona-Server-server-56-5.6.6-alpha60.1.285.rhel6.x86_64.rpm
+  $ rpm -ivh Percona-Server-shared-57-5.7.10-3.1.el6.x86_64.rpm
+  $ rpm -ivh Percona-Server-client-57-5.7.10-3.1.el6.x86_64.rpm
+  $ rpm -ivh Percona-Server-server-57-5.7.10-3.1.el6.x86_64.rpm
 
 Otherwise, the dependencies won't be met and the installation will fail.
 

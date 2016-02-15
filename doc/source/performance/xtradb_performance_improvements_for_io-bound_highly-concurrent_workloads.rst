@@ -29,6 +29,23 @@ Even the above implementation does not fully resolve the buffer pool free list m
 
 When ``legacy`` option is set, server will used the upstream algorithm and when the ``backoff`` is selected, |Percona| implementation will be used.
 
+.. _lru_manager_threads:
+
+Multi-threaded LRU flusher
+==========================
+
+|Percona Server| :rn:`5.7.10-3` has introduced a true multi-threaded LRU flushing. In this scheme, each buffer pool instance has its own dedicated LRU manager thread that is tasked with performing LRU flushes and evictions to refill the free list of that buffer pool instance. Existing multi-threaded flusher no longer does any LRU flushing and is tasked with flush list flushing only.
+
+This has been done to address the shortcomings of the existing MySQL 5.7 multi-threaded flusher:
+
+* All threads still synchronize on each coordinator thread iteration. If a particular flushing job is stuck on one of the worker threads, the rest will idle until the stuck one completes.
+* The coordinator thread heuristics focus on flush list adaptive flushing without considering the state of free lists, which might be in need of urgent refill for a subset of buffer pool instances on a loaded server.
+* LRU flushing is serialized with flush list flushing for each buffer pool instance, introducing the risk that the right flushing mode will not happen for a particular instance because it is being flushed in the other mode.
+
+The following |InnoDB| metrics are no longer accounted, as their semantics do not make sense under the current LRU flushing design: ``buffer_LRU_batch_flush_avg_time_slot``, ``buffer_LRU_batch_flush_avg_pass``, ``buffer_LRU_batch_flush_avg_time_thread``, ``buffer_LRU_batch_flush_avg_time_est``.
+
+The need for |InnoDB| recovery thread writer threads is also removed, consequently all associated code is deleted.
+
 |Percona Server| has introduced several options, only available in builds compiled with ``UNIV_PERF_DEBUG`` C preprocessor define.
 
 .. variable:: innodb_sched_priority_master
@@ -39,6 +56,7 @@ When ``legacy`` option is set, server will used the upstream algorithm and when 
    :dyn: Yes
    :vartype: Boolean
 
+
 Version Specific Information
 ============================
 
@@ -46,6 +64,12 @@ Version Specific Information
 
         * Feature partially ported from |Percona Server| 5.6
 
+  * :rn:`5.7.10-3` 
+
+        * Implemented support for multi-threaded LRU
+
 Other Reading
 =============
 * :ref:`page_cleaner_tuning`
+
+* Bug :mysqlbug:`74637` - make dirty page flushing more adaptive

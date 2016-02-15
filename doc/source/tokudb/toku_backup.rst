@@ -125,6 +125,8 @@ For example, to exclude all :file:`lost+found` directories from backup, use the 
 
   mysql> SET tokudb_backup_exclude='/lost\\+found($|/)';
 
+.. note:: In |Percona Server| :rn:`5.7.10-3` to address bug :backupbug:`125`, server ``pid`` file is excluded by default. If you're providing your own additions to the exclusions and have the ``pid`` file in the default location, you will need to add the mysqld_safe.pid entry.
+
 Throttling Backup Rate
 **********************
 

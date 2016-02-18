@@ -16,6 +16,12 @@ create table foo (a int, b int, c int, d int, e int, key(a,b,c)) engine=TokuDB;
 
 insert into foo (a,b,c) select * from a,b,c;
 
+# wait for the bjm queue to empty
+-- disable_query_log
+let $wait_condition=select count(*)=0 from information_schema.tokudb_background_job_status;
+-- source include/wait_condition.inc
+-- enable_query_log
+
 flush status;
 show status like '%Handler_read_next%';
 replace_column 9 NA;

@@ -2,8 +2,11 @@
 
 -- disable_query_log
 
-set @orig_throttle = @@session.tokudb_analyze_throttle;
-set @orig_time = @@session.tokudb_analyze_time;
+# this test is explicitly testing analyze functionality so we need to disable
+# the auto and background analysis (on by default in 5.7) for this test
+set session tokudb_auto_analyze = 0;
+set session tokudb_analyze_in_background = 0;
+
 set @orig_scale_percent = @@global.tokudb_cardinality_scale_percent;
 
 create table tt (a int, b int, c int, d int, primary key(a), key(b), key(c), key(d)) engine=tokudb;
@@ -49,8 +52,6 @@ show indexes from tt;
 -- disable_query_log
 
 drop table tt;
-set session tokudb_analyze_throttle = @orig_throttle;
-set session tokudb_analyze_time = @orig_time;
 set global tokudb_cardinality_scale_percent = @orig_scale_percent;
 
 -- enable_query_log

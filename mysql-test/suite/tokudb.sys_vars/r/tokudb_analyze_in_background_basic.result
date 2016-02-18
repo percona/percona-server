@@ -1,11 +1,11 @@
 SET @orig_global = @@global.tokudb_analyze_in_background;
 SELECT @orig_global;
 @orig_global
-0
+1
 SET @orig_session = @@session.tokudb_analyze_in_background;
 SELECT @orig_session;
 @orig_session
-0
+1
 SET GLOBAL tokudb_analyze_in_background = 0;
 SELECT @@global.tokudb_analyze_in_background;
 @@global.tokudb_analyze_in_background
@@ -17,7 +17,7 @@ SELECT @@global.tokudb_analyze_in_background;
 SET GLOBAL tokudb_analyze_in_background = DEFAULT;
 SELECT @@global.tokudb_analyze_in_background;
 @@global.tokudb_analyze_in_background
-0
+1
 SET GLOBAL tokudb_analyze_in_background = -6;
 SELECT @@global.tokudb_analyze_in_background;
 @@global.tokudb_analyze_in_background
@@ -92,8 +92,8 @@ tokudb_analyze_in_background	ON
 SET SESSION tokudb_analyze_in_background = @orig_session;
 SELECT @@session.tokudb_analyze_in_background;
 @@session.tokudb_analyze_in_background
-0
+1
 SET GLOBAL tokudb_analyze_in_background = @orig_global;
 SELECT @@global.tokudb_analyze_in_background;
 @@global.tokudb_analyze_in_background
-0
+1

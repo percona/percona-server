@@ -459,7 +459,7 @@ static MYSQL_THDVAR_BOOL(
     "dispatch ANALYZE TABLE to background job.",
     NULL,
     NULL,
-    false);
+    true);
 
 const char* srv_analyze_mode_names[] = {
     "TOKUDB_ANALYZE_STANDARD",
@@ -515,7 +515,7 @@ static MYSQL_THDVAR_ULONGLONG(
     "auto analyze threshold (percent)",
     NULL,
     NULL,
-    0,
+    30,
     0,
     ~0U,
     1);

@@ -1,5 +1,7 @@
 set default_storage_engine='tokudb';
 drop table if exists t;
+set session tokudb_auto_analyze = 0;
+set session tokudb_analyze_in_background = 0;
 create table t (id int, x int, primary key (id), key (x)) partition by hash(id) partitions 2;
 show indexes from t;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment

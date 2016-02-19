@@ -13,9 +13,23 @@ while ($i < 1000) {
     inc $i;
 }
 
-# test that analyze computes the correct cardinality for the keys
+# wait for the bjm queue to empty
+-- disable_query_log
+let $wait_condition=select count(*)=0 from information_schema.tokudb_background_job_status;
+-- source include/wait_condition.inc
+-- enable_query_log
+
 show indexes from tt;
+
+# test that analyze computes the correct cardinality for the keys
 analyze table tt;
+
+# wait for the bjm queue to empty
+-- disable_query_log
+let $wait_condition=select count(*)=0 from information_schema.tokudb_background_job_status;
+-- source include/wait_condition.inc
+-- enable_query_log
+
 show indexes from tt;
 
 # test that cardinality is persistent
@@ -32,9 +46,23 @@ while ($i < 1000) {
     inc $i;
 }
 
-# test that analyze computes the correct cardinality for the keys
+# wait for the bjm queue to empty
+-- disable_query_log
+let $wait_condition=select count(*)=0 from information_schema.tokudb_background_job_status;
+-- source include/wait_condition.inc
+-- enable_query_log
+
 show indexes from tt;
+
+# test that analyze computes the correct cardinality for the keys
 analyze table tt;
+
+# wait for the bjm queue to empty
+-- disable_query_log
+let $wait_condition=select count(*)=0 from information_schema.tokudb_background_job_status;
+-- source include/wait_condition.inc
+-- enable_query_log
+
 show indexes from tt;
 
 # test that cardinality is persistent
@@ -42,5 +70,3 @@ flush tables;
 show indexes from tt;
 
 drop table tt;
-
-

@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -890,8 +890,8 @@
 # write_keys() and find_all_keys().
 # They both return ha_rows, which is platform dependent.
 #
-# The '...' wildcards are for 'fun:inline_mysql_file_write' which *may*
-# be inlined.
+# The '...' wildcards are for 'fun:inline_mysql_file_write' and
+# 'fun:find_all_keys' which *may* be inlined.
 {
    Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / one
    Memcheck:Param

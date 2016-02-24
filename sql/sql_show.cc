@@ -1007,7 +1007,7 @@ static const char *require_quotes(const char *name, uint name_length)
 bool
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
-  int q= get_quote_char_for_identifier(thd, name, length);
+  int q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
   return packet->append_identifier(name, length, system_charset_info, q);
 }
 

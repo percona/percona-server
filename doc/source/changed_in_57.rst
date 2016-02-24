@@ -59,7 +59,7 @@ Some |Percona Server| 5.6 features have been replaced by similar or equivalent |
  * Mutex names in ``SHOW ENGINE INNODB MUTEX`` have been replaced by Oracle mutex name implementation.
  * |Percona Server| now uses packaging similar to the upstream |MySQL| version. Most important change is that for *Debian*/*Ubuntu* upgrades you now need to run ``mysql_upgrade`` manually.
 
-List of status variables that are no longer available in |Percona Server| 5.6
+List of status variables that are no longer available in |Percona Server| 5.7
 =============================================================================
 
 Following status variables available in |Percona Server| 5.6 are no longer present in |Percona Server| 5.7:

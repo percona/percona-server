@@ -73,6 +73,9 @@ Installing |Percona Server| from Percona ``apt`` repository
 
      $ sudo apt-get install percona-server-server-5.7 
 
+.. note:: 
+
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide.
 
 Percona ``apt`` Testing repository
 ----------------------------------
@@ -100,34 +103,33 @@ For more information about the pinning you can check the official `debian wiki <
 Installing |Percona Server| using downloaded deb packages
 =========================================================
 
-Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| 5.7.10-1 release packages for *Debian* 8.0:  
+Download the packages of the desired series for your architecture from the `download page <http://www.percona.com/downloads/Percona-Server-5.7/>`_. The easiest way is to download bundle which contains all the packages. Following example will download |Percona Server| :rn:`5.7.10-3` release packages for *Debian* 8.0:  
 
  .. code-block:: bash
 
-   $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-1/binary/debian/jessie/x86_64/Percona-Server-5.7.10-1-jessie-x86_64-bundle.tar 
+   $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/debian/jessie/x86_64/Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
 
 You should then unpack the bundle to get the packages:
 
  .. code-block:: bash
 
-   $ tar xvf Percona-Server-5.7.10-1-jessie-x86_64-bundle.tar
+   $ tar xvf Percona-Server-5.7.10-3-r63dafaf-jessie-x86_64-bundle.tar
 
 After you unpack the bundle you should see the following packages:
 
   .. code-block:: bash
 
     $ ls *.deb
-    libperconaserverclient18.1-dev_5.6.25-73.1-1.jessie_amd64.deb
-    libperconaserverclient18.1_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-5.6-dbg_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-client-5.6_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-client_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-common-5.6_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-server-5.6_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-server_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-source-5.6_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-test-5.6_5.6.25-73.1-1.jessie_amd64.deb
-    percona-server-tokudb-5.6_5.6.25-73.1-1.jessie_amd64.deb
+    libperconaserverclient20-dev_5.7.10-3-1.jessie_amd64.deb
+    libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb
+    percona-server-5.7-dbg_5.7.10-3-1.jessie_amd64.deb
+    percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb
+    percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb
+    percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb
+    percona-server-source-5.7_5.7.10-3-1.jessie_amd64.deb
+    percona-server-test-5.7_5.7.10-3-1.jessie_amd64.deb
+    percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb
+
 
 Now you can install |Percona Server| by running:
 
@@ -135,9 +137,13 @@ Now you can install |Percona Server| by running:
 
     $ sudo dpkg -i *.deb
 
-This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient18.1_5.6.25-73.1-1.jessie_amd64.deb``, ``percona-server-client-5.6_5.6.25-73.1-1.jessie_amd64.deb``, ``percona-server-common-5.6_5.6.25-73.1-1.jessie_amd64.deb``, and ``percona-server-server-5.6_5.6.25-73.1-1.jessie_amd64.deb``). 
+This will install all the packages from the bundle. Another option is to download/specify only the packages you need for running |Percona Server| installation (``libperconaserverclient20_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-client-5.7_5.7.10-3-1.jessie_amd64.deb``, ``percona-server-common-5.7_5.7.10-3-1.jessie_amd64.deb``, and ``percona-server-server-5.7_5.7.10-3-1.jessie_amd64.deb``. Optionally you can install ``percona-server-tokudb-5.7_5.7.10-3-1.jessie_amd64.deb`` if you want |TokuDB| storage engine). 
 
-.. note:: 
+.. note::
+
+  |Percona Server| 5.7 comes with the :ref:`TokuDB storage engine <tokudb_intro>`. You can find more information on how to install and enable the |TokuDB| storage in the :ref:`tokudb_installation` guide. 
+
+.. warning:: 
 
   When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
 

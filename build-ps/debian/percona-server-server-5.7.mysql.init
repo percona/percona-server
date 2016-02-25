@@ -61,10 +61,15 @@ fix_thp_setting() {
 
 get_running () {
 	PIDFILE=$(get_mysql_option mysqld_safe pid-file "")
+	MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
 	if [ -z "$PIDFILE" ];
 	then
 		PIDFILE=$(get_mysql_option mysqld pid-file "$MYSQLDATA/$(hostname).pid")
 	fi
+	case $PIDFILE in
+		/*) ;;
+		*) PIDFILE="$MYSQLDATA/$PIDFILE" ;;
+	esac
 	if [ -e "$PIDFILE" ] && [ -d "/proc/$(cat "$PIDFILE")" ];
 	then
 		echo 1

@@ -230,6 +230,8 @@ To enable Read Free Replication, the servers must be configured as follows:
 
 .. note:: As long as the master is using row based replication, this optimization is available on a |TokuDB| slave. This means that it's available even if the master is using |InnoDB| or |MyISAM| tables, or running non-TokuDB binaries.
 
+.. warning:: |TokuDB| Read Free Replication will not propagate ``UPDATE`` and ``DELETE`` events reliably if |TokuDB| table is missing the primary key which will eventually lead to data inconsistency on the slave.
+
 Transactions and ACID-compliant Recovery
 ----------------------------------------
 

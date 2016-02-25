@@ -306,6 +306,8 @@ This variable specifies the maximum number of bytes per second the copier of a h
 
 When disabled, |TokuDB| replication slaves skip row lookups for *delete row* log events and *update row* log events, which eliminates all associated read IO for these operations.
 
+.. warning:: |TokuDB| Read Free Replication will not propagate ``UPDATE`` and ``DELETE`` events reliably if |TokuDB| table is missing the primary key which will eventually lead to data inconsistency on the slave. 
+
 .. note:: Optimization is only enabled when :variable:`read_only` is ``1`` and  :variable:`binlog_format` is ``ROW``.
 
 By default, :variable:`tokudb_rpl_lookup_rows` is enabled.

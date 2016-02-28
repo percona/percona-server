@@ -256,9 +256,10 @@ void threadpool_remove_connection(THD *thd)
   close_connection(thd, 0);
 
   thd->release_resources();
-  dec_connection_count(thd);
 
   remove_global_thread(thd);
+  dec_connection_count(thd);
+
   delete thd;
 
   /*

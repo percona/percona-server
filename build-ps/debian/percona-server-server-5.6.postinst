@@ -18,7 +18,7 @@ invoke() {
   fi
 }
 
-MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables"
+MYSQL_BOOTSTRAP="/usr/sbin/mysqld --bootstrap --user=mysql --skip-grant-tables --skip-log-bin"
 
 test_mysql_access() {
        mysql --no-defaults -u root -h localhost </dev/null >/dev/null 2>&1
@@ -139,14 +139,17 @@ EOF
 
     # initiate databases. Output is not allowed by debconf :-(
     # Debian: beware of the bashisms... 
-    # Debian: can safely run on upgrades with existing databases 
-    set +e
-    /usr//bin/mysql_install_db --user=mysql --rpm 2>&1 |
-        $ERR_LOGGER
-    if [ "$?" != "0" ]; then
-      echo "ATTENTION: An error has occured. More info is in the syslog!"
+    # Don't run this on upgrades (#1507812, #1457614)
+    if [ -z "$2" ];
+    then
+      set +e
+      /usr//bin/mysql_install_db --user=mysql --rpm 2>&1 |
+          $ERR_LOGGER
+      if [ "$?" != "0" ]; then
+        echo "ATTENTION: An error has occured. More info is in the syslog!"
+      fi
+      set -e
     fi
-    set -e
     
     ## On every reconfiguration the maintenance user is recreated.
     #

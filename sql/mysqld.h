@@ -352,8 +352,6 @@ extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
 extern uint mysqld_extra_port;
 
-extern ulonglong opt_log_warnings_suppress;
-
 extern char* enforce_storage_engine;
 
 extern char* utility_user;

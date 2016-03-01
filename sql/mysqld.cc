@@ -644,8 +644,6 @@ SHOW_COMP_OPTION have_backup_locks;
 SHOW_COMP_OPTION have_backup_safe_binlog_info;
 SHOW_COMP_OPTION have_snapshot_cloning;
 
-ulonglong opt_log_warnings_suppress= 0;
-
 char* enforce_storage_engine= NULL;
 
 char* utility_user= NULL;

@@ -1,3 +1,0 @@
-SELECT @@global.log_warnings_suppress;
-@@global.log_warnings_suppress
-

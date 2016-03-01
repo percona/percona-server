@@ -119,7 +119,6 @@ enum enum_log_slow_filter {
   SLOG_F_FILESORT_DISK
 };
 #define SLOG_SLOW_RATE_LIMIT_MAX	1000
-enum enum_log_warnings_suppress { log_warnings_suppress_1592 };
 enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
                                                     HASH_ALGORITHM_MURMUR32= 1 };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,

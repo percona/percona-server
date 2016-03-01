@@ -492,9 +492,6 @@ The following options may be given as the first argument:
  at will.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
- --log-warnings-suppress=name 
- disable logging of enumerated warnings: 1592: unsafe
- statements for binary logging; possible values : [1592]
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -1441,7 +1438,6 @@ log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
 log-warnings 0
-log-warnings-suppress 
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1

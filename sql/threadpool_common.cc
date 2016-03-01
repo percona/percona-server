@@ -207,9 +207,9 @@ void threadpool_remove_connection(THD *thd)
   close_connection(thd, 0);
 
   thd->release_resources();
-  Connection_handler_manager::dec_connection_count(false);
 
   Global_THD_manager::get_instance()->remove_thd(thd);
+  Connection_handler_manager::dec_connection_count(false);
   delete thd;
 
   worker_context.restore();

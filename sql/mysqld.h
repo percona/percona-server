@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,6 +122,7 @@ extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log;
 extern my_bool opt_log_slave_updates;
+extern my_bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern ulonglong slow_query_log_always_write_time;
 extern my_bool opt_backup_history_log;
@@ -924,6 +925,7 @@ enum options_mysqld
   OPT_WANT_CORE,
   OPT_LOG_ERROR,
   OPT_MAX_LONG_DATA_SIZE,
+  OPT_EARLY_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_LOAD_ADD,
   OPT_SSL_CRL,

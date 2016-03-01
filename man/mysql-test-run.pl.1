@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "11/26/2015" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "02/01/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -865,13 +865,13 @@ option\&.
 .\}
 .\" mysql-test-run.pl: debug-sync-timeout option
 .\" debug-sync-timeout option: mysql-test-run.pl
-\fB\-\-debug\-sync\-timeout=\fR\fB\fIN\fR\fR
+\fB\-\-debug\-sync\-timeout=\fR\fB\fIseconds\fR\fR
 .sp
 Controls whether the Debug Sync facility for testing and debugging is enabled\&. The option value is a timeout in seconds\&. The default value is 300\&. A value of 0 disables Debug Sync\&. The value of this option also becomes the default timeout for individual synchronization points\&.
 .sp
 \fBmysql\-test\-run\&.pl\fR
 passes
-\fB\-\-loose\-debug\-sync\-timeout=\fR\fB\fIN\fR\fR
+\fB\-\-loose\-debug\-sync\-timeout=\fR\fB\fIseconds\fR\fR
 to
 \fBmysqld\fR\&. The
 \fB\-\-loose\fR
@@ -1562,7 +1562,7 @@ not to generate a timing file\&. The effect of this is that the report from each
 .\" nounit-tests option: mysql-test-run.pl
 \fB\-\-nounit\-tests\fR
 .sp
-Do not run unit tests, overriding default behaviour or setting of the
+Do not run unit tests, overriding default behavior or setting of the
 MTR_UNIT_TESTS
 variable\&.
 .sp
@@ -1809,7 +1809,7 @@ Allow a failed and retried test to fail more than the default 2 times before giv
 .\}
 .\" mysql-test-run.pl: shutdown-timeout option
 .\" shutdown-timeout option: mysql-test-run.pl
-\fB\-\-shutdown\-timeout=\fR\fB\fISECONDS\fR\fR
+\fB\-\-shutdown\-timeout=\fR\fB\fIseconds\fR\fR
 .sp
 Max number of seconds to wait for servers to do controlled shutdown before killing them\&. Default is 10\&.
 .RE
@@ -2206,7 +2206,7 @@ directory)\&.
 .\" suite-timeout option: mysql-test-run.pl
 \fB\-\-suite\-timeout=\fR\fB\fIminutes\fR\fR
 .sp
-Specify the maximum test suite runtime\&.
+Specify the maximum test suite runtime in minutes\&.
 .RE
 .sp
 .RS 4
@@ -2219,9 +2219,9 @@ Specify the maximum test suite runtime\&.
 .\}
 .\" mysql-test-run.pl: testcase-timeout option
 .\" testcase-timeout option: mysql-test-run.pl
-\fB\-\-testcase\-timeout\fR
+\fB\-\-testcase\-timeout=\fR\fB\fIminutes\fR\fR
 .sp
-Specify the maximum test case runtime\&.
+Specify the maximum test case runtime in minutes\&.
 .RE
 .sp
 .RS 4
@@ -2303,7 +2303,7 @@ will be set to the path for this directory, whether it has the default value or 
 .\" unit-tests option: mysql-test-run.pl
 \fB\-\-unit\-tests\fR
 .sp
-Force running of unit tests, overriding default behaviour or setting of the
+Force running of unit tests, overriding default behavior or setting of the
 MTR_UNIT_TESTS
 variable\&.
 .sp
@@ -2623,10 +2623,26 @@ Run only test cases that have
 ndb
 in their name\&.
 .RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+The hostname resolves to 127\&.0\&.0\&.1 and not to the actual IP address\&.
+.sp .5v
+.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

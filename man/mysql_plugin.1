@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_plugin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/28/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_PLUGIN\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_PLUGIN\FR" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,6 +34,29 @@ mysql_plugin \- configure MySQL server plugins
 .HP \w'\fBmysql_plugin\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIplugin\fR\fR\fB\ {ENABLE|DISABLE}\fR\ 'u
 \fBmysql_plugin [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIplugin\fR\fR\fB {ENABLE|DISABLE}\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fBmysql_plugin\fR
+is deprecated as of MySQL 5\&.7\&.11 and removed in MySQL 5\&.8\&. Alternatives include loading plugins at server startup using the
+\fB\-\-plugin\-load\fR
+or
+\fB\-\-plugin\-load\-add\fR
+option, or at runtime using the
+INSTALL PLUGIN
+statement\&.
+.sp .5v
+.RE
 .PP
 The
 \fBmysql_plugin\fR
@@ -368,7 +391,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

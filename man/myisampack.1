@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/28/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -245,13 +245,7 @@ have identical structure (same column names and types, same indexes, and so fort
 \fIbig_tbl_name\fR
 must not exist prior to the join operation\&. All source tables named on the command line to be merged into
 \fIbig_tbl_name\fR
-must exist\&. The source tables are read for the join operation but not modified\&. The join operation does not create a
-\&.frm
-file for
-\fIbig_tbl_name\fR, so after the join operation finishes, copy the
-\&.frm
-file from one of the source tables and name it
-\fIbig_tbl_name\fR\&.frm\&.
+must exist\&. The source tables are read for the join operation but not modified\&.
 .RE
 .sp
 .RS 4
@@ -860,7 +854,7 @@ option to
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

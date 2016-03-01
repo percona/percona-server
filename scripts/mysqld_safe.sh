@@ -31,6 +31,7 @@ syslog_tag=
 user='@MYSQLD_USER@'
 pid_file=
 err_log=
+timestamp_format=UTC
 
 syslog_tag_mysqld=mysqld
 syslog_tag_mysqld_safe=mysqld_safe
@@ -102,6 +103,10 @@ Usage: $0 [OPTIONS]
   --numa-interleave          Run mysqld with its memory interleaved
                              on all NUMA nodes
 ${thp_usage}
+  --mysqld-safe-log-         TYPE must be one of UTC (ISO 8601 UTC),
+    timestamps=TYPE          system (ISO 8601 local time), hyphen
+                             (hyphenated date a la mysqld 5.6), legacy
+                             (legacy non-ISO 8601 mysqld_safe timestamps)
 
 All other options are passed to the mysqld program.
 
@@ -142,7 +147,7 @@ log_generic () {
   priority="$1"
   shift
 
-  msg="`date +'%y%m%d %H:%M:%S'` mysqld_safe $*"
+  msg="`eval $DATE` mysqld_safe $*"
   echo "$msg"
   case $logging in
     init) ;;  # Just echo the message, don't save it anywhere
@@ -245,6 +250,7 @@ parse_arguments() {
       --skip-kill-mysqld*) KILL_MYSQLD=0 ;;
       --thp-setting=*) thp_setting="$val" ;;
       --preload-hotbackup) load_hotbackup=1 ;;
+      --mysqld-safe-log-timestamps=*) timestamp_format="$val" ;;
       --syslog) want_syslog=1 ;;
       --skip-syslog) want_syslog=0 ;;
       --syslog-tag=*) syslog_tag="$val" ;;
@@ -523,6 +529,19 @@ then
     fi
   done
 fi
+
+#
+# Sort out date command from $timestamp_format early so we'll start off
+# with correct log messages.
+#
+case "$timestamp_format" in
+    UTC|utc)       DATE="date -u +%Y-%m-%dT%H:%M:%S.%06NZ";;
+    SYSTEM|system) DATE="date +%Y-%m-%dT%H:%M:%S.%06N%:z";;
+    HYPHEN|hyphen) DATE="date +'%Y-%m-%d %H:%M:%S'";;
+    LEGACY|legacy) DATE="date +'%y%m%d %H:%M:%S'";;
+    *)             DATE="date -u +%Y-%m-%dT%H:%M:%S.%06NZ";
+                   log_error "unknown data format $timestamp_format, using UTC";;
+esac
 
 #
 # Try to find the plugin directory

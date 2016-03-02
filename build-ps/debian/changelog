@@ -1,3 +1,10 @@
+percona-server-5.5 (5.5.48-rel37.8) unstable; urgency=low
+
+  * Package upgrade on Ubuntu runs mysql_install_db even though data directory
+    already exists (#1457614)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Wed, 02 Mar 2016 14:43:28 +0100
+
 percona-server-5.5 (5.5.46-rel37.5) unstable; urgency=low
 
   * Create default file for debian init script timeout params (bug1434022)

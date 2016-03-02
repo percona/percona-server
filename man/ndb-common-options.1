@@ -2,12 +2,12 @@
 .\"     Title: Options Common to MySQL Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/16/2015
+.\"      Date: 01/14/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO MY" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "OPTIONS COMMON TO MY" "1" "01/14/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -160,8 +160,7 @@ T{
 .PP
 --connect-retries=#
 T}:T{
-Set the number of times to retry a connection before giving up; 0 means
-          1 attempt only (and no retries)
+Set the number of times to retry a connection before giving up
 T}:T{
 .PP
 ADDED: NDB 7.4.9
@@ -170,8 +169,7 @@ T{
 .PP
 --connect-retry-delay=#
 T}:T{
-Time to wait between attempts to contact a management server, in
-          seconds; 0 means do not wait between attempts
+Time to wait between attempts to contact a management server, in seconds
 T}:T{
 .PP
 ADDED: NDB 7.4.9
@@ -410,7 +408,7 @@ l l l s
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.27\-ndb\-7\&.4\&.9
+5\&.6\&.28\-ndb\-7\&.4\&.9
 T}
 T{
 \fBCommand\-Line Format\fR
@@ -418,7 +416,7 @@ T}:T{
 \-\-connect\-retries=#
 T}
 T{
-\fBPermitted Values\fR (>= 5\&.6\&.27\-ndb\-7\&.4\&.9)
+\fBPermitted Values\fR (>= 5\&.6\&.28\-ndb\-7\&.4\&.9)
 T}:T{
 \fBType\fR
 T}:T{
@@ -484,7 +482,7 @@ l l l s
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.27\-ndb\-7\&.4\&.9
+5\&.6\&.28\-ndb\-7\&.4\&.9
 T}
 T{
 \fBCommand\-Line Format\fR
@@ -492,7 +490,7 @@ T}:T{
 \-\-connect\-retry\-delay=#
 T}
 T{
-\fBPermitted Values\fR (>= 5\&.6\&.27\-ndb\-7\&.4\&.9)
+\fBPermitted Values\fR (>= 5\&.6\&.28\-ndb\-7\&.4\&.9)
 T}:T{
 \fBType\fR
 T}:T{
@@ -754,7 +752,7 @@ Section\ \&18.5.5, \(lqPerforming a Rolling Restart of a MySQL Cluster\(rq), for
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

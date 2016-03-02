@@ -169,7 +169,7 @@ static void query_response_time_audit_notify(MYSQL_THD thd,
     if (THDVAR(thd, exec_time_debug)) {
       ulonglong t = THDVAR(thd, exec_time_debug);
       if ((thd->lex->sql_command == SQLCOM_SET_OPTION) ||
-          (thd->lex->spname && thd->stmt_arena &&
+          (thd->sp_runtime_ctx && thd->lex->spname && thd->stmt_arena &&
               ((sp_lex_instr *)thd->stmt_arena)->get_command() ==
               SQLCOM_SET_OPTION )) {
           t = 0;

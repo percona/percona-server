@@ -609,12 +609,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
 }
 
-bool sqlcom_can_generate_row_events(const THD *thd)
+bool sqlcom_can_generate_row_events(enum enum_sql_command command)
 {
-  return (sql_command_flags[thd->lex->sql_command] &
-          CF_CAN_GENERATE_ROW_EVENTS);
+  return (sql_command_flags[command] & CF_CAN_GENERATE_ROW_EVENTS);
 }
- 
+
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
@@ -2015,7 +2014,7 @@ bool log_slow_applicable(THD *thd)
   {
     if (thd->lex->sql_command == SQLCOM_CALL)
     {
-      if (thd->stmt_arena)
+      if (thd->sp_runtime_ctx && thd->stmt_arena)
       {
         int sql_command= ((sp_lex_instr *)thd->stmt_arena)->get_command();
         if (sql_command == SQLCOM_CALL || sql_command == -1)

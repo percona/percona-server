@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/16/2015
+.\"      Date: 01/14/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "11/16/2015" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "01/14/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -118,8 +118,8 @@ T{
 .PP
 -t
 T}:T{
-Set the number of times to retry a connection before giving up; 0 means
-          1 attempt only (and no retries)
+Set the number of times to retry a connection before giving up; synonym
+          for --connect-retries
 T}:T{
 .PP
 All MySQL 5.6 based releases
@@ -159,7 +159,7 @@ l l l s
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.27\-ndb\-7\&.4\&.9
+5\&.6\&.28\-ndb\-7\&.4\&.9
 T}
 T{
 \fBCommand\-Line Format\fR
@@ -167,7 +167,7 @@ T}:T{
 \-\-connect\-retries=#
 T}
 T{
-\fBPermitted Values\fR (>= 5\&.6\&.27\-ndb\-7\&.4\&.9)
+\fBPermitted Values\fR (>= 5\&.6\&.28\-ndb\-7\&.4\&.9)
 T}:T{
 \fBType\fR
 T}:T{
@@ -287,7 +287,7 @@ l l l s
 T{
 \fBDeprecated\fR
 T}:T{
-5\&.6\&.27\-ndb\-7\&.4\&.9
+5\&.6\&.28\-ndb\-7\&.4\&.9
 T}
 T{
 \fBCommand\-Line Format\fR
@@ -333,7 +333,7 @@ Section\ \&18.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

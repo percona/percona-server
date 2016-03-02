@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/06/2015
+.\"      Date: 01/14/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "11/06/2015" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "01/14/2016" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -2260,7 +2260,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.9.4, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.9.5, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2301,9 +2301,15 @@ This option should be used only when
 \fBmysqldump\fR
 is run on the same machine as the
 \fBmysqld\fR
-server\&. You must have the
+server\&. Because the server creates files
+*\&.txt
+file in the directory that you specify, the directory must be writable by the server and the MySQL account that you use must have the
 FILE
-privilege, and the server must have permission to write files in the directory that you specify\&.
+privilege\&. Because
+\fBmysqldump\fR
+creates
+*\&.sql
+in the same directory, it must be writable by your system login account\&.
 .sp .5v
 .RE
 By default, the
@@ -2764,7 +2770,7 @@ Section\ \&C.5, \(lqRestrictions on Views\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

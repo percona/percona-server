@@ -74,6 +74,20 @@ This means there were: ::
 Usage
 =====
 
+To start collecting query time metrics, :variable:`query_response_time_stats` should be enabled:
+
+.. code-block:: mysql
+
+  SET GLOBAL query_response_time_stats = on;
+
+And to make it persistent, add the same to :file:`my.cnf`:
+
+.. code-block:: none
+
+  [mysqld]
+  query_response_time_stats = on
+
+
 SELECT
 ------
 

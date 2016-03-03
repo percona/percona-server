@@ -1514,6 +1514,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Thu Mar 03 2016 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed systemctl start mysqld fails with timeout if
+  custom path for socket specified (#1534825)
+
 * Tue Nov 24 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Added dependency on numactl-devel

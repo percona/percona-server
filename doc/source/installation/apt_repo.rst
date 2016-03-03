@@ -10,7 +10,6 @@ Supported Releases:
 
 * Debian:
 
- * 6.0 (squeeze)
  * 7.0 (wheezy)
  * 8.0 (jessie)
 

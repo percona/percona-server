@@ -1344,6 +1344,11 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
+* Wed Mar 02 2016 Tomislav Plavcic <tomislav.plavcic@percona.com>
+
+- Fixed systemctl start mysqld fails with timeout if
+  custom path for socket specified (#1534825)
+
 * Wed Jun 24 2015 Tomislav Plavcic <tomislav.plavcic@percona.com>
 
 - Fixed missing symlinks for libmysqlclient library (bug1408500)

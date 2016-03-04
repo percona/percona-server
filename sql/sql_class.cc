@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4040,7 +4041,12 @@ void THD::end_attachable_transaction()
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   if (thd == NULL)
-    return current_thd->killed;
+  {
+    MYSQL_THD curr_thd= current_thd;
+    if (curr_thd)
+      return curr_thd->killed;
+    return FALSE;
+  }
   return thd->killed;
 }
 

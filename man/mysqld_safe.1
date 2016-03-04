@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/28/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -250,6 +250,94 @@ cannot find the server, use this option to indicate the path name to the directo
 .sp
 Write the error log to the given file\&. See
 Section\ \&5.2.2, \(lqThe Error Log\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqld_safe: mysqld-safe-log-timestamps option
+.\" mysqld-safe-log-timestamps option: mysqld_safe
+\fB\-\-mysqld\-safe\-log\-timestamps\fR
+.sp
+This option controls the format for timestamps in log output produced by
+\fBmysqld_safe\fR\&. The following list describes the permitted values\&. For any other value,
+\fBmysqld_safe\fR
+logs a warning and uses
+UTC
+format\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+UTC,
+utc
+.sp
+ISO 8601 UTC format (same as
+\fB\-\-log_timestamps=UTC\fR
+for the server)\&. This is the default\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+SYSTEM,
+system
+.sp
+ISO 8601 local time format (same as
+\fB\-\-log_timestamps=SYSTEM\fR
+for the server)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+HYPHEN,
+hyphen
+.sp
+YY\-MM\-DD h:mm:ss
+format, as in
+\fBmysqld_safe\fR
+for MySQL 5\&.6\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+LEGACY,
+legacy
+.sp
+YYMMDD hh:mm:ss
+format, as in
+\fBmysqld_safe\fR
+prior to MySQL 5\&.6\&.
+.RE
+.sp
+This option was added in MySQL 5\&.7\&.11\&.
 .RE
 .sp
 .RS 4
@@ -935,7 +1023,7 @@ Section\ \&5.2.2, \(lqThe Error Log\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

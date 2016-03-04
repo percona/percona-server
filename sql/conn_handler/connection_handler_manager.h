@@ -50,6 +50,7 @@ class Connection_handler_manager
   static Connection_handler_manager* m_instance;
 
   static mysql_mutex_t LOCK_connection_count;
+  static mysql_cond_t COND_connection_count;
 
   // Pointer to current connection handler in use
   Connection_handler* m_connection_handler;
@@ -196,6 +197,11 @@ public:
       extra_connection_count--;
     else
       connection_count--;
+    /*
+      Notify shutdown thread when last connection is done with its job
+    */
+    if (connection_count == 0 && extra_connection_count == 0)
+      mysql_cond_signal(&COND_connection_count);
     mysql_mutex_unlock(&LOCK_connection_count);
   }
 
@@ -240,5 +246,11 @@ public:
                            connection channel information.
   */
   void process_new_connection(Channel_info* channel_info);
+
+  /**
+    Waits until all connections are done with their job. In other words,
+    wat till connection_count to become zero.
+  */
+  static void wait_till_no_connection();
 };
 #endif // CONNECTION_HANDLER_MANAGER_INCLUDED.

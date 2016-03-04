@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqltest\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQLTEST\FR" "1" "11/26/2015" "MySQL" "MySQL Database System"
+.TH "\FBMYSQLTEST\FR" "1" "02/01/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -868,6 +868,23 @@ for its reporting\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+.\" mysqltest: tls-version option
+.\" tls-version option: mysqltest
+\fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.sp
+The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more of these protocols: TLSv1, TLSv1\&.1, TLSv1\&.2\&. (TLSv1\&.2 is supported only if MySQL was compiled using OpenSSL 1\&.0\&.1 or higher\&. It is not supported if MySQL was compiled using yaSSL\&.)
+.sp
+This option was added in MySQL 5\&.7\&.10\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 .\" mysqltest: tmpdir option
 .\" tmpdir option: mysqltest
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
@@ -943,7 +960,7 @@ statement is wrapped inside a view\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

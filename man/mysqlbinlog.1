@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/28/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1154,17 +1154,31 @@ option value is treated as a prefix that modifies output file names\&.
 .\}
 .\" mysqlbinlog: rewrite-db option
 .\" rewrite-db option: mysqlbinlog
-\fB\-\-rewrite\-db=\*(Aq\fR\fB\fIdboldname\fR\fR\fB\->\fR\fB\fIdbnewname\fR\fR\fB\*(Aq\fR
+\fB\-\-rewrite\-db=\*(Aq\fR\fB\fIfrom_name\fR\fR\fB\->\fR\fB\fIto_name\fR\fR\fB\*(Aq\fR
 .sp
 In MySQL 5\&.7\&.8 and later, when reading from a row\-based or statement\-based log, rewrite all occurrences of
-\fIdboldname\fR
+\fIfrom_name\fR
 to
-\fIdbnewname\fR\&. Rewriting is done on the rows, for row\-based logs, as well as on the
+\fIto_name\fR\&. Rewriting is done on the rows, for row\-based logs, as well as on the
 USE
-clauses, for statement\-based logs\&. In MySQL versions prior to 5\&.7\&.8, for use when restoring tables logged using the row\-based format to a database having a different name from the original database\&.
+clauses, for statement\-based logs\&. In MySQL versions prior to 5\&.7\&.8, this option was only for use when restoring tables logged using the row\-based format\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+Statements in which table names are qualified with database names are not rewritten to use the new name when using this option\&.
+.sp .5v
+.RE
 The rewrite rule employed as a value for this option is a string having the form
-\*(Aq\fIdboldname\fR\->\fIdbnewname\fR\*(Aq, as shown previously, and for this reason must be enclosed by quotation marks\&.
+\*(Aq\fIfrom_name\fR\->\fIto_name\fR\*(Aq, as shown previously, and for this reason must be enclosed by quotation marks\&.
 .sp
 To employ multiple rewrite rules, specify the option multiple times, as shown here:
 .sp
@@ -1372,7 +1386,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.12.4, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.12.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1526,6 +1540,24 @@ Stop reading the binary log at the first event having a position equal to or gre
 .sp
 This option is useful for point\-in\-time recovery\&. See
 Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqlbinlog: tls-version option
+.\" tls-version option: mysqlbinlog
+\fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
+.sp
+The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.3.12.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 5\&.7\&.10\&.
 .RE
 .sp
 .RS 4
@@ -3048,7 +3080,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

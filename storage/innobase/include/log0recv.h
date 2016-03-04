@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,6 +36,7 @@ Created 9/20/1997 Heikki Tuuri
 #include "ut0new.h"
 
 #include <list>
+#include <vector>
 
 /** Check the 4-byte checksum to the trailer checksum field of a log
 block.
@@ -329,6 +330,16 @@ struct recv_dblwr_t {
 	list	pages;
 };
 
+/* Recovery encryption information */
+typedef	struct recv_encryption {
+	ulint		space_id;	/*!< the page number */
+	byte*		key;		/*!< encryption key */
+	byte*		iv;		/*!< encryption iv */
+} recv_encryption_t;
+
+typedef std::vector<recv_encryption_t, ut_allocator<recv_encryption_t> >
+		encryption_list_t;
+
 /** Recovery system data structure */
 struct recv_sys_t{
 #ifndef UNIV_HOTBACKUP
@@ -391,6 +402,9 @@ struct recv_sys_t{
 				addresses in the hash table */
 
 	recv_dblwr_t	dblwr;
+
+	encryption_list_t*	/*!< Encryption information list */
+			encryption_list;
 };
 
 /** The recovery system */

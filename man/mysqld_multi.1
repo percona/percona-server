@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 11/28/2015
+.\"      Date: 02/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "11/28/2015" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -643,42 +643,44 @@ in the option file\&. This gives you more flexibility\&.
 .RS 4
 .\}
 .nf
-# This file should probably be in your home dir (~/\&.my\&.cnf)
-# or /etc/my\&.cnf
-# Version 2\&.1 by Jani Tolonen
+# This is an example of a my\&.cnf file for mysqld_multi\&.
+# Usually this file is located in home dir ~/\&.my\&.cnf or /etc/my\&.cnf
 [mysqld_multi]
-mysqld     = /usr/local/bin/mysqld_safe
-mysqladmin = /usr/local/bin/mysqladmin
+mysqld     = /usr/local/mysql/bin/mysqld_safe
+mysqladmin = /usr/local/mysql/bin/mysqladmin
 user       = multi_admin
-password   = multipass
+password   = my_password
 [mysqld2]
 socket     = /tmp/mysql\&.sock2
 port       = 3307
-pid\-file   = /usr/local/mysql/var2/hostname\&.pid2
-datadir    = /usr/local/mysql/var2
-language   = /usr/local/share/mysql/english
-user       = john
+pid\-file   = /usr/local/mysql/data2/hostname\&.pid2
+datadir    = /usr/local/mysql/data2
+language   = /usr/local/mysql/share/mysql/english
+user       = unix_user1
 [mysqld3]
+mysqld     = /path/to/mysqld_safe
+ledir      = /path/to/mysqld\-binary/
+mysqladmin = /path/to/mysqladmin
 socket     = /tmp/mysql\&.sock3
 port       = 3308
-pid\-file   = /usr/local/mysql/var3/hostname\&.pid3
-datadir    = /usr/local/mysql/var3
-language   = /usr/local/share/mysql/swedish
-user       = monty
+pid\-file   = /usr/local/mysql/data3/hostname\&.pid3
+datadir    = /usr/local/mysql/data3
+language   = /usr/local/mysql/share/mysql/swedish
+user       = unix_user2
 [mysqld4]
 socket     = /tmp/mysql\&.sock4
 port       = 3309
-pid\-file   = /usr/local/mysql/var4/hostname\&.pid4
-datadir    = /usr/local/mysql/var4
-language   = /usr/local/share/mysql/estonia
-user       = tonu
+pid\-file   = /usr/local/mysql/data4/hostname\&.pid4
+datadir    = /usr/local/mysql/data4
+language   = /usr/local/mysql/share/mysql/estonia
+user       = unix_user3
 [mysqld6]
 socket     = /tmp/mysql\&.sock6
 port       = 3311
-pid\-file   = /usr/local/mysql/var6/hostname\&.pid6
-datadir    = /usr/local/mysql/var6
-language   = /usr/local/share/mysql/japanese
-user       = jani
+pid\-file   = /usr/local/mysql/data6/hostname\&.pid6
+datadir    = /usr/local/mysql/data6
+language   = /usr/local/mysql/share/mysql/japanese
+user       = unix_user4
 .fi
 .if n \{\
 .RE
@@ -689,7 +691,7 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

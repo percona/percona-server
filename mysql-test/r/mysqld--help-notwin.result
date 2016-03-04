@@ -229,6 +229,11 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --early-plugin-load=name 
+ Optional semicolon-separated list of plugins to load
+ before storage engine initialization, where each plugin
+ is identified as name=library, where name is the plugin
+ name and library is the plugin library in plugin_dir.
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -454,6 +459,10 @@ The following options may be given as the first argument:
  Multiple flags allowed in a comma-separated string.
  [microtime, query_plan, innodb, profiling,
  profiling_use_getrusage]
+ --log-statements-unsafe-for-binlog 
+ Log statements considered unsafe when using statement
+ based binary logging.
+ (Defaults to on; use --skip-log-statements-unsafe-for-binlog to disable.)
  --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
  error log file may additionally be sent to the host
  operating system's system log ("syslog").
@@ -492,9 +501,6 @@ The following options may be given as the first argument:
  at will.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
- --log-warnings-suppress=name 
- disable logging of enumerated warnings: 1592: unsafe
- statements for binary logging; possible values : [1592]
  --long-query-time=# Log all queries that have taken more than long_query_time
  seconds to execute to file. The argument will be treated
  as a decimal value with microsecond precision
@@ -1353,7 +1359,7 @@ daemonize FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
-default-password-lifetime 360
+default-password-lifetime 0
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1432,6 +1438,7 @@ log-slow-rate-type session
 log-slow-slave-statements FALSE
 log-slow-sp-statements ON
 log-slow-verbosity 
+log-statements-unsafe-for-binlog TRUE
 log-syslog FALSE
 log-syslog-facility daemon
 log-syslog-include-pid TRUE
@@ -1441,7 +1448,6 @@ log-tc-size 24576
 log-throttle-queries-not-using-indexes 0
 log-timestamps UTC
 log-warnings 0
-log-warnings-suppress 
 long-query-time 10
 low-priority-updates FALSE
 lower-case-table-names 1
@@ -1555,7 +1561,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 200
+performance-schema-max-statement-classes 201
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1

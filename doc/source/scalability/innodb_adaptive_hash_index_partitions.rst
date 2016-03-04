@@ -4,9 +4,9 @@
  Multiple Adaptive Hash Search Partitions
 ==========================================
 
-The |InnoDB| adaptive hash index can have contention issues on multi-core systems when you run a mix of read and write queries that need to scan secondary indexes. This feature splits the adaptive hash index across several partitions to avoid such problems.
+The |InnoDB| adaptive hash index can have contention issues on multi-core systems when you run a mix of read and write queries that need to scan secondary indexes. This feature splits the adaptive hash index across several equal-sized partitions to avoid such problems.
 
-The number of adaptive hash partitions specified by the variable :variable:`innodb_adaptive_hash_index_partitions` are created, and hash indexes are assigned to each one based on ``index_id``. This should help to solve contention problems in the adaptive hash search process when they occur.
+The number of adaptive hash partitions specified by the variable :variable:`innodb_adaptive_hash_index_partitions` are created, and each hash index is assigned to a particular partition based on ``index_id``. Thus the effect from the AHI partitioning is greatest when the AHI accesses are uniformly spread over a large number of indexes (table primary and secondary keys). However, if there are certain few hot indexes, then their corresponding AHI partitions will be hot as well, while others might be completely unused.
 
 
 Version Specific Information

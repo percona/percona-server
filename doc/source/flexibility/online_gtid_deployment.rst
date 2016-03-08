@@ -4,7 +4,7 @@
  Online GTID deployment
 ========================
 
-|Percona Server| now supports Online GTID deployment. This enables GTID to be deployed on existing replication setups without making the master read-only and stopping all the slaves. This feature was ported from the *Facebook* branch. Before this feature was implemented deploying the GTID replication on already existing replication setups required making a master :variable:`read_only`, shutting down all |MySQL| instances in the replica set simultaneously at the same position, enabling the :variable:`gtid_mode` variable in :file:`my.cnf`, and then starting all of the instances. 
+|Percona Server| now supports Online GTID deployment. This enables GTID to be deployed on existing replication setups without making the master read-only and stopping all the slaves. This feature was ported from the *Facebook* branch. Before this feature was implemented deploying the GTID replication on already existing replication setups required making a master :variable:`read_only`, shutting down all |MySQL| instances in the replica set simultaneously at the same position, enabling the :variable:`gtid_mode` variable in :file:`my.cnf`, and then starting all of the instances. **NOTE:** This feature does not provide means to disable GTIDs online. Disabling GTIDs online is available in |Percona Server| 5.7.
 
 With :variable:`gtid_deployment_step` enabled, a host cannot generate GTID values on its own, but if GTID logged events are received through replication stream from master, they will be logged.
 

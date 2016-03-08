@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -119,25 +120,6 @@ bool
 buf_flush_do_batch(
 	buf_pool_t*		buf_pool,
 	buf_flush_t		type,
-	ulint			min_n,
-	lsn_t			lsn_limit,
-	ulint*			n_processed);
-
-/** This utility flushes dirty blocks from the end of the flush list of all
-buffer pool instances.
-NOTE: The calling thread is not allowed to own any latches on pages!
-@param[in]	min_n		wished minimum mumber of blocks flushed (it is
-not guaranteed that the actual number is that big, though)
-@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
-oldest_modification is smaller than this should be flushed (if their number
-does not exceed min_n), otherwise ignored
-@param[out]	n_processed	the number of pages which were processed is
-passed back to caller. Ignored if NULL.
-@return true if a batch was queued successfully for each buffer pool
-instance. false if another batch of same type was already running in
-at least one of the buffer pool instance */
-bool
-buf_flush_lists(
 	ulint			min_n,
 	lsn_t			lsn_limit,
 	ulint*			n_processed);
@@ -352,9 +334,8 @@ buf_flush_get_dirty_pages_count(
 	FlushObserver*	observer);	/*!< in: flush observer to check */
 
 /*******************************************************************//**
-Synchronously flush dirty blocks from the end of the flush list of all buffer
-pool instances.
-NOTE: The calling thread is not allowed to own any latches on pages! */
+Signal the page cleaner to flush and wait until it and the LRU manager clean
+the buffer pool. */
 void
 buf_flush_sync_all_buf_pools(void);
 /*==============================*/

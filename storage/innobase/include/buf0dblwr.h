@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,12 +28,18 @@ Created 2011/12/19 Inaam Rana
 #define buf0dblwr_h
 
 #include "univ.i"
+#include "buf0buf.h"
 #include "ut0byte.h"
 #include "log0log.h"
 #include "buf0types.h"
 #include "log0recv.h"
 
 #ifndef UNIV_HOTBACKUP
+
+/** Maximum doublewrite batch size. This cannot be set higher than 127, the
+legacy innodb_doublewrite_batch_size maximum value, without decoupling the
+legacy buffer sizing in the system tablespace from it. */
+enum { MAX_DOUBLEWRITE_BATCH_SIZE = 127 };
 
 /** Doublewrite system */
 extern buf_dblwr_t*	buf_dblwr;
@@ -55,6 +62,7 @@ upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
+__attribute__((warn_unused_result))
 dberr_t
 buf_dblwr_init_or_load_pages(
 	os_file_t	file,
@@ -91,7 +99,8 @@ space to appear. */
 void
 buf_dblwr_add_to_batch(
 /*====================*/
-	buf_page_t*	bpage);	/*!< in: buffer block to write */
+	buf_page_t*	bpage,	/*!< in: buffer block to write */
+	buf_flush_t	flush_type);/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 
 /********************************************************************//**
 Flush a batch of writes to the datafiles that have already been
@@ -100,14 +109,15 @@ void
 buf_dblwr_sync_datafiles();
 
 /********************************************************************//**
-Flushes possible buffered writes from the doublewrite memory buffer to disk,
-and also wakes up the aio thread if simulated aio is used. It is very
-important to call this function after a batch of writes has been posted,
-and also when we may have to wait for a page latch! Otherwise a deadlock
-of threads can occur. */
+Flushes possible buffered writes from the specified partition of the
+doublewrite memory buffer to disk, and also wakes up the aio thread if
+simulated aio is used. It is very important to call this function after a batch
+of writes has been posted, and also when we may have to wait for a page latch!
+Otherwise a deadlock of threads can occur. */
 void
-buf_dblwr_flush_buffered_writes(void);
-/*=================================*/
+buf_dblwr_flush_buffered_writes(
+/*============================*/
+	ulint dblwr_partition);	/*!< in: doublewrite partition */
 /********************************************************************//**
 Writes a page to the doublewrite buffer on disk, sync it, then write
 the page to the datafile and sync the datafile. This function is used
@@ -122,19 +132,98 @@ buf_dblwr_write_single_page(
 	buf_page_t*	bpage,	/*!< in: buffer block to write */
 	bool		sync);	/*!< in: true if sync IO requested */
 
+/** Return the doublewrite partition number for a given buffer page and flush
+type.
+@return the doublewrite partition number */
+__attribute__((warn_unused_result))
+UNIV_INLINE
+ulint
+buf_parallel_dblwr_partition(const buf_page_t* bpage, buf_flush_t flush_type);
+
+/** Return the doublewrite partition number for a given buffer pool and flush
+type.
+@return the doublewrite partition number */
+__attribute__((warn_unused_result))
+UNIV_INLINE
+ulint
+buf_parallel_dblwr_partition(const buf_pool_t* buf_pool,
+			     buf_flush_t flush_type);
+
+/** Initialize parallel doublewrite subsystem: create its data structure and
+the disk file.
+@return DB_SUCCESS or error code */
+__attribute__((warn_unused_result))
+dberr_t
+buf_parallel_dblwr_create(void);
+
+/** Delete the parallel doublewrite file, if its path already has been
+computed. It is up to the caller to ensure that this called at safe point */
+void
+buf_parallel_dblwr_delete(void);
+
+/** Close and delete the doublewrite buffer file and free its memory data
+structure. */
+void
+buf_parallel_dblwr_destroy(void);
+
+/** Release any unused parallel doublewrite pages and free their underlying
+buffer at the end of crash recovery */
+void
+buf_parallel_dblwr_finish_recovery(void);
+
+/** A single parallel doublewrite partition data structure */
+struct parallel_dblwr_shard_t {
+	/** First free position in write_buf measured in units of
+	UNIV_PAGE_SIZE */
+	ulint		first_free;
+	/** Number of pages posted to I/O in this doublewrite batch */
+	ulint		batch_size;
+	/** Raw heap pointer for write_buf */
+	byte*		write_buf_unaligned;
+	/** Write buffer used in writing to the doublewrite buffer, aligned
+	on UNIV_PAGE_SIZE */
+	byte*		write_buf;
+	/** Array to store pointers to the buffer blocks which have been cached
+	to write_buf */
+	buf_page_t**	buf_block_arr;
+	/** I/O for a doublewrite batch completion event */
+	os_event_t	batch_completed;
+};
+
+/** Maximum possible number of doublewrite partitions */
+enum { MAX_DBLWR_SHARDS = MAX_BUFFER_POOLS * 2 };
+
+/** Parallel doublewrite buffer data structure */
+class parallel_dblwr_t {
+public:
+	/** Parallel doublewrite buffer file handle */
+	os_file_t		file;
+	/** Path to the parallel doublewrite buffer */
+	char*			path;
+	/** Individual parallel doublewrite partitions */
+	parallel_dblwr_shard_t	shard[MAX_DBLWR_SHARDS];
+	/** Buffer for reading in parallel doublewrite buffer pages
+	during crash recovery */
+	byte*			recovery_buf_unaligned;
+
+	/** Default constructor for the parallel doublewrite instance */
+	parallel_dblwr_t(void)
+		:
+		file(OS_FILE_CLOSED),
+		path(NULL),
+		recovery_buf_unaligned(NULL)
+	{ }
+};
+
+/** The parallel doublewrite buffer */
+extern parallel_dblwr_t parallel_dblwr_buf;
+
 /** Doublewrite control struct */
 struct buf_dblwr_t{
-	ib_mutex_t	mutex;	/*!< mutex protecting the first_free
-				field and write_buf */
+	ib_mutex_t	mutex;	/*!< mutex protecting write_buf */
 	ulint		block1;	/*!< the page number of the first
 				doublewrite block (64 pages) */
 	ulint		block2;	/*!< page number of the second block */
-	ulint		first_free;/*!< first free position in write_buf
-				measured in units of UNIV_PAGE_SIZE */
-	ulint		b_reserved;/*!< number of slots currently reserved
-				for batch flush. */
-	os_event_t	b_event;/*!< event where threads wait for a
-				batch flush to end. */
 	ulint		s_reserved;/*!< number of slots currently
 				reserved for single page flushes. */
 	os_event_t	s_event;/*!< event where threads wait for a
@@ -142,9 +231,6 @@ struct buf_dblwr_t{
 	bool*		in_use;	/*!< flag used to indicate if a slot is
 				in use. Only used for single page
 				flushes. */
-	bool		batch_running;/*!< set to TRUE if currently a batch
-				is being written from the doublewrite
-				buffer. */
 	byte*		write_buf;/*!< write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE
@@ -158,5 +244,9 @@ struct buf_dblwr_t{
 
 
 #endif /* UNIV_HOTBACKUP */
+
+#ifndef UNIV_NONINL
+#include "buf0dblwr.ic"
+#endif
 
 #endif

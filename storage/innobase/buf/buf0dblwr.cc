@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +29,7 @@ Created 2011/12/19
 
 #ifdef UNIV_NONINL
 #include "buf0buf.ic"
+#include "buf0dblrw.ic"
 #endif
 
 #include "buf0buf.h"
@@ -139,11 +141,8 @@ buf_dblwr_init(
 
 	mutex_create(LATCH_ID_BUF_DBLWR, &buf_dblwr->mutex);
 
-	buf_dblwr->b_event = os_event_create("dblwr_batch_event");
 	buf_dblwr->s_event = os_event_create("dblwr_single_event");
-	buf_dblwr->first_free = 0;
 	buf_dblwr->s_reserved = 0;
-	buf_dblwr->b_reserved = 0;
 
 	buf_dblwr->block1 = mach_read_from_4(
 		doublewrite + TRX_SYS_DOUBLEWRITE_BLOCK1);
@@ -338,6 +337,108 @@ start_again:
 	goto start_again;
 }
 
+/** Compute the path to the parallel doublewrite buffer, if not already done */
+__attribute__((warn_unused_result))
+static
+dberr_t
+buf_parallel_dblwr_make_path(void)
+{
+	if (parallel_dblwr_buf.path)
+		return(DB_SUCCESS);
+
+	char path[FN_REFLEN];
+	const char *dir;
+
+	ut_ad(srv_parallel_doublewrite_path);
+
+	if (is_absolute_path(srv_parallel_doublewrite_path)) {
+
+		strncpy(path, srv_parallel_doublewrite_path, sizeof(path));
+	} else {
+
+		/* A relative path to the parallel doublewrite file is based
+		either on srv_data_home, either mysql data directory if the
+		former is empty. */
+		dir = srv_data_home[0] ? srv_data_home
+			: fil_path_to_mysql_datadir;
+		if (dir[strlen(dir) - 1] == OS_PATH_SEPARATOR) {
+
+			ut_snprintf(path, sizeof(path), "%s%s",
+				    dir,
+				    srv_parallel_doublewrite_path);
+		} else {
+
+			ut_snprintf(path, sizeof(path), "%s%c%s",
+				    dir,
+				    OS_PATH_SEPARATOR,
+				    srv_parallel_doublewrite_path);
+		}
+	}
+
+	os_file_type_t	type;
+	bool		exists = false;
+	bool		ret;
+
+	ret = os_file_status(path, &exists, &type);
+
+	/* For realpath() to succeed the file must exist. */
+
+	if (ret && exists) {
+		if (my_realpath(path, path, MY_WME) != 0) {
+
+			return(DB_ERROR);
+		}
+		if (type != OS_FILE_TYPE_FILE) {
+			ib::error() << "Parallel doublewrite path "
+				    << path << " must point to a regular "
+				"file";
+			return(DB_WRONG_FILE_NAME);
+		}
+	} else if (!is_absolute_path(srv_parallel_doublewrite_path)) {
+		/* If it does not exist, and is not an absolute path, then
+		resolve only the directory part and append
+		srv_parallel_doublewrite_path to it. */
+		char	dir_full[FN_REFLEN];
+
+		if (my_realpath(dir_full, dir, MY_WME) != 0) {
+
+			return(DB_ERROR);
+		}
+
+		if (dir_full[strlen(dir_full) - 1] == OS_PATH_SEPARATOR) {
+
+			ut_snprintf(path, sizeof(path), "%s%s",
+				    dir_full,
+				    srv_parallel_doublewrite_path);
+		} else {
+
+			ut_snprintf(path, sizeof(path), "%s%c%s",
+				    dir_full,
+				    OS_PATH_SEPARATOR,
+				    srv_parallel_doublewrite_path);
+		}
+	}
+
+	parallel_dblwr_buf.path = mem_strdup(path);
+
+	return(parallel_dblwr_buf.path ? DB_SUCCESS : DB_OUT_OF_MEMORY);
+}
+
+/** Close the parallel doublewrite buffer file */
+static
+void
+buf_parallel_dblwr_close(void)
+{
+	if (parallel_dblwr_buf.file != OS_FILE_CLOSED) {
+		os_file_close(parallel_dblwr_buf.file);
+		parallel_dblwr_buf.file = OS_FILE_CLOSED;
+	}
+}
+
+/** Maximum possible parallel doublewrite buffer file size in bytes */
+#define MAX_DOUBLEWRITE_FILE_SIZE \
+	((MAX_DOUBLEWRITE_BATCH_SIZE) * (MAX_DBLWR_SHARDS) * (UNIV_PAGE_SIZE))
+
 /**
 At database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
@@ -514,6 +615,108 @@ buf_dblwr_init_or_load_pages(
 		page += univ_page_size.physical();
 	}
 
+	err = buf_parallel_dblwr_make_path();
+	if (err != DB_SUCCESS)
+		return(err);
+
+	ut_ad(parallel_dblwr_buf.file == OS_FILE_CLOSED);
+	bool success;
+	parallel_dblwr_buf.file
+		= os_file_create_simple_no_error_handling(
+			innodb_parallel_dblwrite_file_key,
+			parallel_dblwr_buf.path,
+			OS_FILE_OPEN, OS_FILE_READ_ONLY, true, &success);
+	if (!success) {
+		/* We are not supposed to check errno != ENOENT directly, but
+		os_file_get_last_error will spam error log if it's handled
+		there. */
+		if (errno != ENOENT) {
+			os_file_get_last_error(true);
+			ib::error()
+				<< "Failed to open the parallel doublewrite "
+				"buffer at " << parallel_dblwr_buf.path;
+			ut_free(unaligned_read_buf);
+			return(DB_CANNOT_OPEN_FILE);
+		}
+		/* Failed to open because the file did not exist: OK */
+		ib::info() << "Crash recovery did not find the parallel "
+			"doublewrite buffer at "
+			   << parallel_dblwr_buf.path;
+	} else {
+		/* Cannot possibly be upgrading from 4.1 */
+		ut_ad(!reset_space_ids);
+
+		os_file_set_nocache(parallel_dblwr_buf.file,
+				    parallel_dblwr_buf.path,
+				    "open");
+
+		os_offset_t size = os_file_get_size(parallel_dblwr_buf.file);
+
+		if (size > MAX_DOUBLEWRITE_FILE_SIZE) {
+			ib::error() << "Parallel doublewrite buffer size "
+				    << size
+				    << " bytes is larger than the maximum "
+				"size " << MAX_DOUBLEWRITE_FILE_SIZE
+				    << " bytes supported by this server "
+				"version";
+			buf_parallel_dblwr_close();
+			ut_free(unaligned_read_buf);
+			return(DB_CORRUPTION);
+		}
+
+		if (size % UNIV_PAGE_SIZE) {
+			ib::error() << "Parallel doublewrite buffer size "
+				    << size << " bytes is not a multiple of "
+				"a page size "
+				    << UNIV_PAGE_SIZE << " bytes";
+			buf_parallel_dblwr_close();
+			ut_free(unaligned_read_buf);
+			return(DB_CORRUPTION);
+		}
+
+		if (size == 0) {
+			ib::info()
+				<< "Parallel doublewrite buffer is zero-sized";
+			buf_parallel_dblwr_close();
+			ut_free(unaligned_read_buf);
+			return(DB_SUCCESS);
+		}
+
+		ib::info() << "Recovering partial pages from the parallel "
+			"doublewrite buffer at " << parallel_dblwr_buf.path;
+
+		parallel_dblwr_buf.recovery_buf_unaligned
+			= static_cast<byte *>(
+				ut_malloc(size + UNIV_PAGE_SIZE,
+					  mem_key_parallel_doublewrite));
+		if (!parallel_dblwr_buf.recovery_buf_unaligned) {
+			buf_parallel_dblwr_close();
+			ut_free(unaligned_read_buf);
+			return(DB_OUT_OF_MEMORY);
+		}
+		byte* recovery_buf = static_cast<byte *>
+			(ut_align(parallel_dblwr_buf.recovery_buf_unaligned,
+				  UNIV_PAGE_SIZE));
+
+		err = os_file_read(read_request, parallel_dblwr_buf.file,
+				   recovery_buf, 0, size);
+		if (err != DB_SUCCESS) {
+			ib::error() << "Failed to read the parallel "
+				"doublewrite buffer";
+			buf_parallel_dblwr_close();
+			ut_free(unaligned_read_buf);
+			ut_free(parallel_dblwr_buf.recovery_buf_unaligned);
+			return(DB_ERROR);
+		}
+
+		for (page = recovery_buf; page < recovery_buf + size;
+		     page += UNIV_PAGE_SIZE) {
+
+			recv_dblwr.add(page);
+		}
+		buf_parallel_dblwr_close();
+	}
+
 	if (reset_space_ids) {
 		os_file_flush(file);
 	}
@@ -521,6 +724,28 @@ buf_dblwr_init_or_load_pages(
 	ut_free(unaligned_read_buf);
 
 	return(DB_SUCCESS);
+}
+
+/** Delete the parallel doublewrite file, if its path already has been
+computed. It is up to the caller to ensure that this called at safe point */
+void
+buf_parallel_dblwr_delete(void)
+{
+	if (parallel_dblwr_buf.path) {
+
+		os_file_delete_if_exists(innodb_parallel_dblwrite_file_key,
+					 parallel_dblwr_buf.path, NULL);
+	}
+}
+
+/** Release any unused parallel doublewrite pages and free their underlying
+buffer at the end of crash recovery */
+void
+buf_parallel_dblwr_finish_recovery(void)
+{
+	recv_sys->dblwr.pages.clear();
+	ut_free(parallel_dblwr_buf.recovery_buf_unaligned);
+	parallel_dblwr_buf.recovery_buf_unaligned = NULL;
 }
 
 /** Process and remove the double write buffer pages for all tablespaces. */
@@ -683,10 +908,18 @@ buf_dblwr_process(void)
 		}
 	}
 
-	recv_dblwr.pages.clear();
-
 	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	ut_free(unaligned_read_buf);
+
+	buf_parallel_dblwr_finish_recovery();
+
+	/* If parallel doublewrite buffer was used, now it's safe to
+	delete and re-create it. */
+	buf_parallel_dblwr_delete();
+	if (buf_parallel_dblwr_create() != DB_SUCCESS) {
+		ib::fatal()
+			<< "Creating the parallel doublewrite buffer failed";
+	}
 }
 
 /****************************************************************//**
@@ -698,9 +931,7 @@ buf_dblwr_free(void)
 	/* Free the double write data structures. */
 	ut_a(buf_dblwr != NULL);
 	ut_ad(buf_dblwr->s_reserved == 0);
-	ut_ad(buf_dblwr->b_reserved == 0);
 
-	os_event_destroy(buf_dblwr->b_event);
 	os_event_destroy(buf_dblwr->s_event);
 	ut_free(buf_dblwr->write_buf_unaligned);
 	buf_dblwr->write_buf_unaligned = NULL;
@@ -735,35 +966,30 @@ buf_dblwr_update(
 	switch (flush_type) {
 	case BUF_FLUSH_LIST:
 	case BUF_FLUSH_LRU:
-		mutex_enter(&buf_dblwr->mutex);
+		{
+			ulint i = buf_parallel_dblwr_partition(bpage,
+							       flush_type);
+			struct parallel_dblwr_shard_t* dblwr_shard
+				= &parallel_dblwr_buf.shard[i];
 
-		ut_ad(buf_dblwr->batch_running);
-		ut_ad(buf_dblwr->b_reserved > 0);
-		ut_ad(buf_dblwr->b_reserved <= buf_dblwr->first_free);
+			ut_ad(!os_event_is_set(dblwr_shard->batch_completed));
 
-		buf_dblwr->b_reserved--;
+			if (os_atomic_decrement_ulint(&dblwr_shard->batch_size,
+						      1)
+			    == 0) {
 
-		if (buf_dblwr->b_reserved == 0) {
-			mutex_exit(&buf_dblwr->mutex);
-			/* This will finish the batch. Sync data files
-			to the disk. */
-			fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
-			mutex_enter(&buf_dblwr->mutex);
+				/* The last page from the doublewrite batch. */
+				os_event_set(dblwr_shard->batch_completed);
+			}
 
-			/* We can now reuse the doublewrite memory buffer: */
-			buf_dblwr->first_free = 0;
-			buf_dblwr->batch_running = false;
-			os_event_set(buf_dblwr->b_event);
+			break;
 		}
-
-		mutex_exit(&buf_dblwr->mutex);
-		break;
 	case BUF_FLUSH_SINGLE_PAGE:
 		{
 			const ulint size = 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
 			ulint i;
 			mutex_enter(&buf_dblwr->mutex);
-			for (i = srv_doublewrite_batch_size; i < size; ++i) {
+			for (i = 0; i < size; ++i) {
 				if (buf_dblwr->buf_block_arr[i] == bpage) {
 					buf_dblwr->s_reserved--;
 					buf_dblwr->buf_block_arr[i] = NULL;
@@ -929,18 +1155,20 @@ buf_dblwr_write_block_to_datafile(
 }
 
 /********************************************************************//**
-Flushes possible buffered writes from the doublewrite memory buffer to disk,
-and also wakes up the aio thread if simulated aio is used. It is very
-important to call this function after a batch of writes has been posted,
-and also when we may have to wait for a page latch! Otherwise a deadlock
-of threads can occur. */
+Flushes possible buffered writes from the specified partition of the
+doublewrite memory buffer to disk, and also wakes up the aio thread if
+simulated aio is used. It is very important to call this function after a batch
+of writes has been posted, and also when we may have to wait for a page latch!
+Otherwise a deadlock of threads can occur. */
 void
-buf_dblwr_flush_buffered_writes(void)
-/*=================================*/
+buf_dblwr_flush_buffered_writes(
+/*============================*/
+	ulint dblwr_partition)	/*!< in: doublewrite partition */
 {
 	byte*		write_buf;
-	ulint		first_free;
 	ulint		len;
+
+	ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);
 
 	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
@@ -950,16 +1178,14 @@ buf_dblwr_flush_buffered_writes(void)
 
 	ut_ad(!srv_read_only_mode);
 
-try_again:
-	mutex_enter(&buf_dblwr->mutex);
+	struct parallel_dblwr_shard_t* dblwr_shard
+		= &parallel_dblwr_buf.shard[dblwr_partition];
 
 	/* Write first to doublewrite buffer blocks. We use synchronous
 	aio and thus know that file write has been completed when the
 	control returns. */
 
-	if (buf_dblwr->first_free == 0) {
-
-		mutex_exit(&buf_dblwr->mutex);
+	if (dblwr_shard->first_free == 0) {
 
 		/* Wake possible simulated aio thread as there could be
 		system temporary tablespace pages active for flushing.
@@ -970,39 +1196,15 @@ try_again:
 		return;
 	}
 
-	if (buf_dblwr->batch_running) {
-		/* Another thread is running the batch right now. Wait
-		for it to finish. */
-		int64_t	sig_count = os_event_reset(buf_dblwr->b_event);
-		mutex_exit(&buf_dblwr->mutex);
-
-		os_event_wait_low(buf_dblwr->b_event, sig_count);
-		goto try_again;
-	}
-
-	ut_a(!buf_dblwr->batch_running);
-	ut_ad(buf_dblwr->first_free == buf_dblwr->b_reserved);
-
-	/* Disallow anyone else to post to doublewrite buffer or to
-	start another batch of flushing. */
-	buf_dblwr->batch_running = true;
-	first_free = buf_dblwr->first_free;
-
-	/* Now safe to release the mutex. Note that though no other
-	thread is allowed to post to the doublewrite batch flushing
-	but any threads working on single page flushes are allowed
-	to proceed. */
-	mutex_exit(&buf_dblwr->mutex);
-
-	write_buf = buf_dblwr->write_buf;
+	write_buf = dblwr_shard->write_buf;
 
 	for (ulint len2 = 0, i = 0;
-	     i < buf_dblwr->first_free;
+	     i < dblwr_shard->first_free;
 	     len2 += UNIV_PAGE_SIZE, i++) {
 
 		const buf_block_t*	block;
 
-		block = (buf_block_t*) buf_dblwr->buf_block_arr[i];
+		block = (buf_block_t*)dblwr_shard->buf_block_arr[i];
 
 		if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE
 		    || block->page.zip.data) {
@@ -1020,57 +1222,60 @@ try_again:
 		buf_dblwr_check_page_lsn(write_buf + len2);
 	}
 
-	/* Write out the first block of the doublewrite buffer */
-	len = ut_min(TRX_SYS_DOUBLEWRITE_BLOCK_SIZE,
-		     buf_dblwr->first_free) * UNIV_PAGE_SIZE;
+	len = dblwr_shard->first_free * UNIV_PAGE_SIZE;
 
-	fil_io(IORequestWrite, true,
-	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block1), univ_page_size,
-	       0, len, (void*) write_buf, NULL);
+	/* Find our part of the doublewrite buffer */
+	os_offset_t file_pos = dblwr_partition
+		* srv_doublewrite_batch_size * UNIV_PAGE_SIZE;
+	IORequest io_req(IORequest::WRITE | IORequest::NO_COMPRESSION);
 
-	if (buf_dblwr->first_free <= TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
-		/* No unwritten pages in the second block. */
-		goto flush;
-	}
+#ifdef UNIV_DEBUG
+	/* The file size must not increase */
+	os_offset_t desired_size = srv_doublewrite_batch_size * UNIV_PAGE_SIZE
+		* buf_parallel_dblwr_shard_num();
+	os_offset_t actual_size = os_file_get_size(parallel_dblwr_buf.file);
+	ut_ad(desired_size == actual_size);
+	ut_ad(file_pos + len <= actual_size);
+	/* We must not touch neighboring buffers */
+	ut_ad(file_pos + len <= (dblwr_partition + 1)
+	      * srv_doublewrite_batch_size * UNIV_PAGE_SIZE);
+#endif
 
-	/* Write out the second block of the doublewrite buffer. */
-	len = (buf_dblwr->first_free - TRX_SYS_DOUBLEWRITE_BLOCK_SIZE)
-	       * UNIV_PAGE_SIZE;
+	os_file_write(io_req, parallel_dblwr_buf.path, parallel_dblwr_buf.file,
+		      write_buf, file_pos, len);
 
-	write_buf = buf_dblwr->write_buf
-		    + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE;
+	ut_ad(dblwr_shard->first_free <= srv_doublewrite_batch_size);
 
-	fil_io(IORequestWrite, true,
-	       page_id_t(TRX_SYS_SPACE, buf_dblwr->block2), univ_page_size,
-	       0, len, (void*) write_buf, NULL);
-
-flush:
 	/* increment the doublewrite flushed pages counter */
-	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_pages_written.add(dblwr_shard->first_free);
 	srv_stats.dblwr_writes.inc();
 
-	/* Now flush the doublewrite buffer data to disk */
-	fil_flush(TRX_SYS_SPACE);
+	/* Now flush the doublewrite buffer data to disk, unless
+	innodb_flush_method is one of O_SYNC, O_DIRECT_NO_FSYNC, or
+	ALL_O_DIRECT. */
+	switch (srv_unix_file_flush_method) {
+	case SRV_UNIX_NOSYNC:
+	case SRV_UNIX_O_DSYNC:
+	case SRV_UNIX_O_DIRECT_NO_FSYNC:
+	case SRV_UNIX_ALL_O_DIRECT:
+		break;
+	case SRV_UNIX_FSYNC:
+	case SRV_UNIX_LITTLESYNC:
+	case SRV_UNIX_O_DIRECT:
+		os_file_flush(parallel_dblwr_buf.file);
+		break;
+	}
 
 	/* We know that the writes have been flushed to disk now
 	and in recovery we will find them in the doublewrite buffer
 	blocks. Next do the writes to the intended positions. */
 
-	/* Up to this point first_free and buf_dblwr->first_free are
-	same because we have set the buf_dblwr->batch_running flag
-	disallowing any other thread to post any request but we
-	can't safely access buf_dblwr->first_free in the loop below.
-	This is so because it is possible that after we are done with
-	the last iteration and before we terminate the loop, the batch
-	gets finished in the IO helper thread and another thread posts
-	a new batch setting buf_dblwr->first_free to a higher value.
-	If this happens and we are using buf_dblwr->first_free in the
-	loop termination condition then we'll end up dispatching
-	the same block twice from two different threads. */
-	ut_ad(first_free == buf_dblwr->first_free);
-	for (ulint i = 0; i < first_free; i++) {
+	dblwr_shard->batch_size = dblwr_shard->first_free;
+	os_wmb;
+
+	for (ulint i = 0; i < dblwr_shard->first_free; i++) {
 		buf_dblwr_write_block_to_datafile(
-			buf_dblwr->buf_block_arr[i], false);
+			dblwr_shard->buf_block_arr[i], false);
 	}
 
 	/* Wake possible simulated aio thread to actually post the
@@ -1078,6 +1283,19 @@ flush:
 	at this point. We leave it to the IO helper thread to flush
 	datafiles when the whole batch has been processed. */
 	os_aio_simulated_wake_handler_threads();
+
+	os_event_wait(dblwr_shard->batch_completed);
+	os_event_reset(dblwr_shard->batch_completed);
+
+#ifdef UNIV_DEBUG
+	os_rmb;
+	ut_ad(dblwr_shard->batch_size == 0);
+#endif
+	dblwr_shard->first_free = 0;
+
+	/* This will finish the batch. Sync data files
+	to the disk. */
+	fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 }
 
 /********************************************************************//**
@@ -1087,41 +1305,31 @@ space to appear. */
 void
 buf_dblwr_add_to_batch(
 /*====================*/
-	buf_page_t*	bpage)	/*!< in: buffer block to write */
+	buf_page_t*	bpage,	/*!< in: buffer block to write */
+	buf_flush_t	flush_type)/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
+	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
+	ulint dblwr_partition = buf_parallel_dblwr_partition(bpage,
+							     flush_type);
+	struct parallel_dblwr_shard_t* dblwr_shard
+		= &parallel_dblwr_buf.shard[dblwr_partition];
+
 try_again:
-	mutex_enter(&buf_dblwr->mutex);
+	ut_a(dblwr_shard->first_free <= srv_doublewrite_batch_size);
+	ut_ad(!os_event_is_set(dblwr_shard->batch_completed));
 
-	ut_a(buf_dblwr->first_free <= srv_doublewrite_batch_size);
+	if (dblwr_shard->first_free == srv_doublewrite_batch_size) {
 
-	if (buf_dblwr->batch_running) {
-
-		/* This not nearly as bad as it looks. There is only
-		page_cleaner thread which does background flushing
-		in batches therefore it is unlikely to be a contention
-		point. The only exception is when a user thread is
-		forced to do a flush batch because of a sync
-		checkpoint. */
-		int64_t	sig_count = os_event_reset(buf_dblwr->b_event);
-		mutex_exit(&buf_dblwr->mutex);
-
-		os_event_wait_low(buf_dblwr->b_event, sig_count);
-		goto try_again;
-	}
-
-	if (buf_dblwr->first_free == srv_doublewrite_batch_size) {
-		mutex_exit(&(buf_dblwr->mutex));
-
-		buf_dblwr_flush_buffered_writes();
+		buf_dblwr_flush_buffered_writes(dblwr_partition);
 
 		goto try_again;
 	}
 
-	byte*	p = buf_dblwr->write_buf
-		+ univ_page_size.physical() * buf_dblwr->first_free;
+	byte*	p = dblwr_shard->write_buf
+		+ univ_page_size.physical() * dblwr_shard->first_free;
 
 	if (bpage->size.is_compressed()) {
 		UNIV_MEM_ASSERT_RW(bpage->zip.data, bpage->size.physical());
@@ -1140,24 +1348,10 @@ try_again:
 		memcpy(p, ((buf_block_t*) bpage)->frame, bpage->size.logical());
 	}
 
-	buf_dblwr->buf_block_arr[buf_dblwr->first_free] = bpage;
+	dblwr_shard->buf_block_arr[dblwr_shard->first_free++] = bpage;
 
-	buf_dblwr->first_free++;
-	buf_dblwr->b_reserved++;
-
-	ut_ad(!buf_dblwr->batch_running);
-	ut_ad(buf_dblwr->first_free == buf_dblwr->b_reserved);
-	ut_ad(buf_dblwr->b_reserved <= srv_doublewrite_batch_size);
-
-	if (buf_dblwr->first_free == srv_doublewrite_batch_size) {
-		mutex_exit(&(buf_dblwr->mutex));
-
-		buf_dblwr_flush_buffered_writes();
-
-		return;
-	}
-
-	mutex_exit(&(buf_dblwr->mutex));
+	ut_ad(!os_event_is_set(dblwr_shard->batch_completed));
+	ut_ad(dblwr_shard->first_free <= srv_doublewrite_batch_size);
 }
 
 /********************************************************************//**
@@ -1174,7 +1368,6 @@ buf_dblwr_write_single_page(
 	buf_page_t*	bpage,	/*!< in: buffer block to write */
 	bool		sync)	/*!< in: true if sync IO requested */
 {
-	ulint		n_slots;
 	ulint		size;
 	ulint		offset;
 	ulint		i;
@@ -1183,12 +1376,7 @@ buf_dblwr_write_single_page(
 	ut_a(srv_use_doublewrite_buf);
 	ut_a(buf_dblwr != NULL);
 
-	/* total number of slots available for single page flushes
-	starts from srv_doublewrite_batch_size to the end of the
-	buffer. */
 	size = 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE;
-	ut_a(size > srv_doublewrite_batch_size);
-	n_slots = size - srv_doublewrite_batch_size;
 
 	if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 
@@ -1206,7 +1394,7 @@ buf_dblwr_write_single_page(
 
 retry:
 	mutex_enter(&buf_dblwr->mutex);
-	if (buf_dblwr->s_reserved == n_slots) {
+	if (buf_dblwr->s_reserved == size) {
 
 		/* All slots are reserved. */
 		int64_t	sig_count = os_event_reset(buf_dblwr->s_event);
@@ -1216,7 +1404,7 @@ retry:
 		goto retry;
 	}
 
-	for (i = srv_doublewrite_batch_size; i < size; ++i) {
+	for (i = 0; i < size; ++i) {
 
 		if (!buf_dblwr->in_use[i]) {
 			break;
@@ -1287,4 +1475,149 @@ retry:
 	blocks. Next do the write to the intended position. */
 	buf_dblwr_write_block_to_datafile(bpage, sync);
 }
+
+/** Compute the size and path of the parallel doublewrite buffer, create it,
+and disable OS caching for it
+@return DB_SUCCESS or error code */
+static __attribute__((warn_unused_result))
+dberr_t
+buf_parallel_dblwr_file_create(void)
+{
+	ut_ad(!srv_read_only_mode);
+	/* The buffer size is two doublewrite batches (one for LRU, one for
+	flush list flusher) per buffer pool instance. */
+	os_offset_t size = srv_doublewrite_batch_size * UNIV_PAGE_SIZE
+		* buf_parallel_dblwr_shard_num();
+	ut_a(size <= MAX_DOUBLEWRITE_FILE_SIZE);
+	ut_a(size > 0);
+	ut_a(size % UNIV_PAGE_SIZE == 0);
+
+	dberr_t err = buf_parallel_dblwr_make_path();
+	if (err != DB_SUCCESS)
+		return(err);
+
+	ut_ad(parallel_dblwr_buf.file == OS_FILE_CLOSED);
+	ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);
+
+	/* Set O_SYNC if innodb_flush_method == O_DSYNC. */
+	ulint o_sync = (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC)
+		? OS_FILE_O_SYNC : 0;
+
+	bool success;
+	parallel_dblwr_buf.file
+		= os_file_create_simple(innodb_parallel_dblwrite_file_key,
+					parallel_dblwr_buf.path,
+					OS_FILE_CREATE | o_sync,
+					OS_FILE_READ_WRITE, false, &success);
+	if (!success) {
+		if (os_file_get_last_error(false) == OS_FILE_ALREADY_EXISTS) {
+			ib::error() << "A parallel doublewrite file "
+				    << parallel_dblwr_buf.path
+				    << " found on startup.";
+		}
+		return(DB_ERROR);
+	}
+
+	os_file_set_nocache(parallel_dblwr_buf.file, parallel_dblwr_buf.path,
+			    "create");
+
+	success = os_file_set_size(parallel_dblwr_buf.path,
+				   parallel_dblwr_buf.file, size, false);
+	if (!success) {
+		buf_parallel_dblwr_destroy();
+		return(DB_ERROR);
+	}
+	ut_ad(os_file_get_size(parallel_dblwr_buf.file) == size);
+
+	ib::info() << "Created parallel doublewrite buffer at "
+		   << parallel_dblwr_buf.path << ", size "
+		   << os_file_get_size(parallel_dblwr_buf.file) << " bytes";
+
+	return(DB_SUCCESS);
+}
+
+/** Initialize parallel doublewrite subsystem: create its data structure and
+the disk file.
+@return DB_SUCCESS or error code */
+dberr_t
+buf_parallel_dblwr_create(void)
+{
+	if (parallel_dblwr_buf.file != OS_FILE_CLOSED
+	    || srv_read_only_mode) {
+
+		ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);
+		return(DB_SUCCESS);
+	}
+
+	memset(parallel_dblwr_buf.shard, 0, sizeof(parallel_dblwr_buf.shard));
+
+	dberr_t err = buf_parallel_dblwr_file_create();
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	for (ulint i = 0; i < buf_parallel_dblwr_shard_num(); i++) {
+
+		struct parallel_dblwr_shard_t* dblwr_shard
+			= &parallel_dblwr_buf.shard[i];
+
+		dblwr_shard->write_buf_unaligned
+			= static_cast<byte*>(ut_malloc((1
+					  + srv_doublewrite_batch_size)
+						       * UNIV_PAGE_SIZE,
+					mem_key_parallel_doublewrite));
+		if (!dblwr_shard->write_buf_unaligned) {
+			buf_parallel_dblwr_destroy();
+			return(DB_OUT_OF_MEMORY);
+		}
+		dblwr_shard->write_buf = static_cast<byte*>(
+			ut_align(dblwr_shard->write_buf_unaligned,
+				 UNIV_PAGE_SIZE));
+		dblwr_shard->buf_block_arr
+			= static_cast<buf_page_t**>(
+			ut_zalloc(srv_doublewrite_batch_size
+				  * sizeof(void*),
+				  mem_key_parallel_doublewrite));
+		if (!dblwr_shard->buf_block_arr) {
+			buf_parallel_dblwr_destroy();
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		dblwr_shard->batch_completed
+			= os_event_create("parallel_dblwr_batch_completed");
+		os_event_reset(dblwr_shard->batch_completed);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Close and delete the doublewrite buffer file and free its memory data
+structure. */
+void
+buf_parallel_dblwr_destroy(void)
+{
+	for (ulint i = 0; i < buf_parallel_dblwr_shard_num(); i++) {
+
+		struct parallel_dblwr_shard_t* dblwr_shard
+			= &parallel_dblwr_buf.shard[i];
+
+		if (dblwr_shard->write_buf_unaligned
+		    && dblwr_shard->buf_block_arr) {
+			os_event_destroy(dblwr_shard->batch_completed);
+		}
+
+		ut_free(dblwr_shard->write_buf_unaligned);
+		ut_free(dblwr_shard->buf_block_arr);
+	}
+
+	buf_parallel_dblwr_close();
+	buf_parallel_dblwr_delete();
+
+	ut_free(parallel_dblwr_buf.path);
+	parallel_dblwr_buf.path = NULL;
+}
+
+/** The parallel doublewrite buffer */
+parallel_dblwr_t parallel_dblwr_buf;
+
 #endif /* !UNIV_HOTBACKUP */

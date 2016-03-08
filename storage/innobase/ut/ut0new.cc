@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,6 +51,7 @@ PSI_memory_key	mem_key_log_online_read_buf;
 PSI_memory_key	mem_key_log_online_iterator_files;
 PSI_memory_key	mem_key_log_online_iterator_page;
 PSI_memory_key	mem_key_trx_distinct_page_access_hash;
+PSI_memory_key	mem_key_parallel_doublewrite;
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -84,6 +86,7 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_trx_distinct_page_access_hash,
 	 "trx_distinct_page_access_hash", 0},
 	{&mem_key_partitioning, "partitioning", 0},
+	{&mem_key_parallel_doublewrite, "parallel_doublewrite", 0},
 };
 
 /** Map used for default performance schema keys, based on file name of the

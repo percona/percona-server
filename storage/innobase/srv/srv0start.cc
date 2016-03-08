@@ -2,7 +2,7 @@
 
 Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
-Copyright (c) 2009, Percona Inc.
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -2173,6 +2173,11 @@ files_checked:
 
 		purge_queue = trx_sys_init_at_db_start();
 
+		/* Create the per-buffer pool instance doublewrite buffers */
+		err = buf_parallel_dblwr_create();
+		if (err != DB_SUCCESS)
+			return(srv_init_abort(err));
+
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
@@ -2235,7 +2240,18 @@ files_checked:
 
 		err = recv_recovery_from_checkpoint_start(flushed_lsn);
 
-		recv_sys->dblwr.pages.clear();
+		/* Doublewrite-recovered pages should have been either
+		processed, either it should have been impossible to process
+		them due to a missing tablespace or innodb_force_recovery
+		setting, or server being read-only, or instance being
+		corrupted. */
+		ut_ad(recv_sys->dblwr.pages.empty()
+		      || err == DB_TABLESPACE_NOT_FOUND
+		      || (err == DB_SUCCESS
+			  && (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO))
+		      || err == DB_ERROR || err == DB_CORRUPTION
+		      || err == DB_READ_ONLY);
+		buf_parallel_dblwr_finish_recovery();
 
 		if (err == DB_SUCCESS) {
 			/* Initialize the change buffer. */
@@ -2256,6 +2272,10 @@ files_checked:
 
 			return(srv_init_abort(DB_ERROR));
 		}
+
+		err = buf_parallel_dblwr_create();
+		if (err != DB_SUCCESS)
+			return(srv_init_abort(err));
 
 		init_log_online();
 

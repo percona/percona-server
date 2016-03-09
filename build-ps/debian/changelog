@@ -1,3 +1,11 @@
+percona-server-5.6 (5.6.29-rel76.2) unstable; urgency=low
+
+  * Fixed upgrade on Ubuntu runs mysql_install_db even though data directory
+    already exists (#1457614)
+  * Fixed Debian package ignores GTID options when restarts server (#1507812)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Thu, 03 Mar 2016 08:36:49 +0100
+
 percona-server-5.6 (5.6.27-rel76.0) unstable; urgency=low
 
   * Added dependency on libnuma-dev

@@ -1,19 +1,19 @@
 diff -rup old/client/base/CMakeLists.txt new/client/base/CMakeLists.txt
---- old/client/base/CMakeLists.txt	2016-02-11 11:30:15.000000000 +0100
-+++ new/client/base/CMakeLists.txt	2016-02-11 11:41:40.986448790 +0100
+--- old/client/base/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
++++ new/client/base/CMakeLists.txt	2016-03-09 11:44:10.259330311 +0100
 @@ -52,7 +52,7 @@ ADD_COMPILE_FLAGS(
    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
  )
  
--TARGET_LINK_LIBRARIES(client_base perconaserverclient boost_lib)
-+TARGET_LINK_LIBRARIES(client_base mysqlclient boost_lib)
+-TARGET_LINK_LIBRARIES(client_base perconaserverclient)
++TARGET_LINK_LIBRARIES(client_base mysqlclient)
  
  # Do not build library unless it is needed by some other target.
  SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
 diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
---- old/client/CMakeLists.txt	2016-02-11 11:30:15.000000000 +0100
-+++ new/client/CMakeLists.txt	2016-02-11 11:41:40.990448790 +0100
-@@ -116,7 +116,7 @@ ENDIF()
+--- old/client/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
++++ new/client/CMakeLists.txt	2016-03-09 11:41:15.159325622 +0100
+@@ -42,7 +42,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compil
  
  ADD_DEFINITIONS(${SSL_DEFINES})
  MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc)
@@ -22,7 +22,7 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
  IF(UNIX)
    TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
  ENDIF(UNIX)
-@@ -128,57 +128,57 @@ IF(NOT WITHOUT_SERVER)
+@@ -54,57 +54,57 @@ IF(NOT WITHOUT_SERVER)
  ADD_COMPILE_FLAGS(
    upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
  )
@@ -94,20 +94,20 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
      auth_utils.cc mysql_install_db.cc
      COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
 diff -rup old/client/dump/CMakeLists.txt new/client/dump/CMakeLists.txt
---- old/client/dump/CMakeLists.txt	2016-02-11 11:30:15.000000000 +0100
-+++ new/client/dump/CMakeLists.txt	2016-02-11 11:41:40.990448790 +0100
-@@ -145,7 +145,7 @@ IF (NOT (CMAKE_CXX_COMPILER_ID STREQUAL
+--- old/client/dump/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
++++ new/client/dump/CMakeLists.txt	2016-03-09 11:46:03.091333332 +0100
+@@ -16,7 +16,7 @@
  
-   # Store the executable in our parent directory.
-   # Why? In pushbuild we do 'touch client/mysql*' to prevent rebuild,
--  #      in the case where we have a separate build of libperconaserverclient.so
-+  #      in the case where we have a separate build of libmysqlclient.so
-   IF (NOT WIN32)
-     SET_TARGET_PROPERTIES(mysqlpump
-       PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client)
+ # Exclude mysqlpump tool from being compiled by SunStudio compiler. It has bug
+ # that forbids usage of pure virtual interfaces (and other classes with no
+-# fields) without dummy workarounds. In fact, only libperconaserver must be build with
++# fields) without dummy workarounds. In fact, only libmysqlclient must be build with
+ # this toolset, so it is acceptable to exclude mysqlpump here.
+ 
+ INCLUDE_DIRECTORIES(
 diff -rup old/cmake/libutils.cmake new/cmake/libutils.cmake
---- old/cmake/libutils.cmake	2016-02-11 11:30:15.000000000 +0100
-+++ new/cmake/libutils.cmake	2016-02-11 11:41:40.990448790 +0100
+--- old/cmake/libutils.cmake	2016-03-09 09:25:21.000000000 +0100
++++ new/cmake/libutils.cmake	2016-03-09 11:41:15.159325622 +0100
 @@ -28,8 +28,8 @@
  # excessive recompiles.
  
@@ -129,8 +129,8 @@ diff -rup old/cmake/libutils.cmake new/cmake/libutils.cmake
  MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
    # To produce a library we need at least one source file.
 diff -rup old/include/mysql.h new/include/mysql.h
---- old/include/mysql.h	2016-02-11 11:30:15.000000000 +0100
-+++ new/include/mysql.h	2016-02-11 11:41:40.990448790 +0100
+--- old/include/mysql.h	2016-03-09 09:25:21.000000000 +0100
++++ new/include/mysql.h	2016-03-09 11:41:15.159325622 +0100
 @@ -15,7 +15,7 @@
  
  /*
@@ -140,7 +140,7 @@ diff -rup old/include/mysql.h new/include/mysql.h
  
    The ABI should never be changed in a released product of MySQL,
    thus you need to take great care when changing the file. In case
-@@ -327,12 +327,12 @@ void STDCALL mysql_server_end(void);
+@@ -334,12 +334,12 @@ void STDCALL mysql_server_end(void);
  
  /*
    mysql_server_init/end need to be called when using libmysqld or
@@ -156,8 +156,8 @@ diff -rup old/include/mysql.h new/include/mysql.h
  */
  #define mysql_library_init mysql_server_init
 diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
---- old/libmysql/CMakeLists.txt	2016-02-11 11:30:15.000000000 +0100
-+++ new/libmysql/CMakeLists.txt	2016-02-11 11:41:40.990448790 +0100
+--- old/libmysql/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
++++ new/libmysql/CMakeLists.txt	2016-03-09 11:41:15.159325622 +0100
 @@ -214,12 +214,12 @@ IF(WIN32)
    LIST(APPEND LIBS auth_win_client)
  ENDIF()
@@ -207,8 +207,8 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
  
    ENDIF()
 diff -rup old/libmysql/libmysql.map new/libmysql/libmysql.map
---- old/libmysql/libmysql.map	2016-02-11 11:29:02.000000000 +0100
-+++ new/libmysql/libmysql.map	2016-02-11 11:41:40.994448790 +0100
+--- old/libmysql/libmysql.map	2016-03-09 09:25:21.000000000 +0100
++++ new/libmysql/libmysql.map	2016-03-09 11:41:15.159325622 +0100
 @@ -1,5 +1,5 @@
  # symbols exported from mysql 5.1
 -libperconaserverclient_16 {
@@ -244,8 +244,8 @@ diff -rup old/libmysql/libmysql.map new/libmysql/libmysql.map
  	get_tty_password;
  };
 diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
---- old/libmysql/libmysql.ver.in	2016-02-11 11:30:15.000000000 +0100
-+++ new/libmysql/libmysql.ver.in	2016-02-11 11:41:40.994448790 +0100
+--- old/libmysql/libmysql.ver.in	2016-03-09 09:25:21.000000000 +0100
++++ new/libmysql/libmysql.ver.in	2016-03-09 11:41:15.159325622 +0100
 @@ -14,5 +14,5 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
  
@@ -254,8 +254,8 @@ diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
 +libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.@SHARED_LIB_MINOR_VERSION@
  { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; local: *; };
 diff -rup old/plugin/percona-pam-for-mysql/CMakeLists.txt new/plugin/percona-pam-for-mysql/CMakeLists.txt
---- old/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-02-11 11:30:16.000000000 +0100
-+++ new/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-02-11 11:41:40.994448790 +0100
+--- old/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-03-09 09:25:25.000000000 +0100
++++ new/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-03-09 11:41:15.163325622 +0100
 @@ -37,7 +37,7 @@ IF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE
    MYSQL_ADD_PLUGIN(dialog
                     src/dialog.c
@@ -266,8 +266,8 @@ diff -rup old/plugin/percona-pam-for-mysql/CMakeLists.txt new/plugin/percona-pam
  ENDIF(HAVE_PAM AND HAVE_GETPWNAM_R AND HAVE_GETGRGID_R AND HAVE_DLFCN_H)
  ENDIF(WITH_PAM)
 diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
---- old/scripts/CMakeLists.txt	2016-02-11 11:30:16.000000000 +0100
-+++ new/scripts/CMakeLists.txt	2016-02-11 11:41:40.994448790 +0100
+--- old/scripts/CMakeLists.txt	2016-03-09 09:25:25.000000000 +0100
++++ new/scripts/CMakeLists.txt	2016-03-09 11:41:15.163325622 +0100
 @@ -319,7 +319,7 @@ ELSE()
  ENDIF()
  
@@ -296,8 +296,8 @@ diff -rup old/scripts/CMakeLists.txt new/scripts/CMakeLists.txt
    GET_TARGET_PROPERTY(LIBMYSQL_OS_SHLIB_VERSION libmysql VERSION)
    GET_TARGET_PROPERTY(LIBMYSQL_OS_OUTPUT_NAME libmysql OUTPUT_NAME)
 diff -rup old/sql/auth/password.c new/sql/auth/password.c
---- old/sql/auth/password.c	2016-02-11 11:30:16.000000000 +0100
-+++ new/sql/auth/password.c	2016-02-11 11:41:40.994448790 +0100
+--- old/sql/auth/password.c	2016-03-09 09:25:25.000000000 +0100
++++ new/sql/auth/password.c	2016-03-09 11:41:15.163325622 +0100
 @@ -29,7 +29,7 @@
    The password is saved (in user.password) by using the PASSWORD() function in
    mysql.
@@ -308,8 +308,8 @@ diff -rup old/sql/auth/password.c new/sql/auth/password.c
    Example:
      update user set password=PASSWORD("hello") where user="test"
 diff -rup old/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile new/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile
---- old/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile	2016-02-11 11:41:40.994448790 +0100
+--- old/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile	2016-03-09 11:41:15.163325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -320,8 +320,8 @@ diff -rup old/storage/ndb/ndbapi-examples/mgmapi_logevent/Makefile new/storage/n
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/mgmapi  -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile new/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile
---- old/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile	2016-02-11 11:41:40.994448790 +0100
+--- old/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile	2016-03-09 11:41:15.163325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -332,8 +332,8 @@ diff -rup old/storage/ndb/ndbapi-examples/mgmapi_logevent2/Makefile new/storage/
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/mgmapi  -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_async/Makefile new/storage/ndb/ndbapi-examples/ndbapi_async/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_async/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_async/Makefile	2016-02-11 11:41:40.994448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_async/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_async/Makefile	2016-03-09 11:41:15.163325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -344,8 +344,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_async/Makefile new/storage/ndb/
  $(TARGET).o: $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile new/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -28,7 +28,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -356,8 +356,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_async1/Makefile new/storage/ndb
  $(TARGET).o: $(SRCS)
  	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile new/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -368,8 +368,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_blob/Makefile new/storage/ndb/n
  $(TARGET).o: $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile new/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -380,8 +380,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_blob_ndbrecord/Makefile new/sto
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_event/Makefile new/storage/ndb/ndbapi-examples/ndbapi_event/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_event/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_event/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_event/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_event/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -392,8 +392,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_event/Makefile new/storage/ndb/
  $(TARGET).o: $(SRCS) Makefile
  	$(CXX) $(CFLAGS) $(DEBUG) -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi -I$(TOP_SRCDIR)/include $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile new/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -404,8 +404,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_recattr_vs_record/Makefile new/
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile new/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -28,7 +28,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -416,8 +416,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_retries/Makefile new/storage/nd
  $(TARGET).o: $(SRCS)
  	$(CXX) $(CFLAGS)  -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile new/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -428,8 +428,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_scan/Makefile new/storage/ndb/n
  $(TARGET).o: $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile new/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -440,8 +440,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_simple/Makefile new/storage/ndb
  $(TARGET).o: $(SRCS)
  	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile new/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -452,8 +452,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_simple_dual/Makefile new/storag
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(TOP_SRCDIR)/include -I$(INCLUDE_DIR) -I$(INCLUDE_DIR)/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile new/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -464,8 +464,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_simple_index/Makefile new/stora
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile new/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile
---- old/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile	2016-02-11 11:41:40.998448790 +0100
+--- old/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile	2016-03-09 09:25:26.000000000 +0100
++++ new/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile	2016-03-09 11:41:15.167325622 +0100
 @@ -29,7 +29,7 @@ LIB_DIR = -L$(TOP_SRCDIR)/storage/ndb/sr
  SYS_LIB = 
  
@@ -476,8 +476,8 @@ diff -rup old/storage/ndb/ndbapi-examples/ndbapi_s_i_ndbrecord/Makefile new/stor
  $(OBJS): $(SRCS)
  	$(CXX) $(CFLAGS) -I$(INCLUDE_DIR)/include -I$(INCLUDE_DIR)/storage/ndb/include -I$(INCLUDE_DIR)/storage/ndb/include/ndbapi $(SRCS)
 diff -rup old/storage/ndb/test/run-test/CMakeLists.txt new/storage/ndb/test/run-test/CMakeLists.txt
---- old/storage/ndb/test/run-test/CMakeLists.txt	2016-02-11 11:30:18.000000000 +0100
-+++ new/storage/ndb/test/run-test/CMakeLists.txt	2016-02-11 11:41:41.002448790 +0100
+--- old/storage/ndb/test/run-test/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
++++ new/storage/ndb/test/run-test/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100
 @@ -32,7 +32,7 @@ IF(NOT WIN32)
    ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
  ENDIF()
@@ -488,8 +488,8 @@ diff -rup old/storage/ndb/test/run-test/CMakeLists.txt new/storage/ndb/test/run-
  FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
  ADD_TEST(NAME check_testcase_files
 diff -rup old/support-files/MySQL-shared-compat.spec.sh new/support-files/MySQL-shared-compat.spec.sh
---- old/support-files/MySQL-shared-compat.spec.sh	2016-02-11 11:29:06.000000000 +0100
-+++ new/support-files/MySQL-shared-compat.spec.sh	2016-02-11 11:41:41.002448790 +0100
+--- old/support-files/MySQL-shared-compat.spec.sh	2016-03-09 09:25:27.000000000 +0100
++++ new/support-files/MySQL-shared-compat.spec.sh	2016-03-09 11:41:15.167325622 +0100
 @@ -82,7 +82,7 @@ rpm2cpio %{SOURCE3} | cpio -iv --make-di
  
  %files
@@ -500,8 +500,8 @@ diff -rup old/support-files/MySQL-shared-compat.spec.sh new/support-files/MySQL-
  # The spec file changelog only includes changes made to the spec file
  # itself - note that they must be ordered by date (important when
 diff -rup old/testclients/CMakeLists.txt new/testclients/CMakeLists.txt
---- old/testclients/CMakeLists.txt	2016-02-11 11:30:18.000000000 +0100
-+++ new/testclients/CMakeLists.txt	2016-02-11 11:41:41.002448790 +0100
+--- old/testclients/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
++++ new/testclients/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100
 @@ -18,12 +18,12 @@ ADD_DEFINITIONS("-DMYSQL_CLIENT")
  INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
  

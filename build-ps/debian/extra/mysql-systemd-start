@@ -8,7 +8,7 @@
 # post mode :  ping server until answer is received
 
 get_path () {
-	my_print_defaults mysqld | grep ${1} | cut -d= -f2
+	my_print_defaults mysqld | grep ${1} | cut -d= -f2 | tail -n 1
 }
 
 pinger () {
@@ -19,7 +19,7 @@ pinger () {
 }
 
 fix_thp_setting() {
-	THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2)
+	THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2 | tail -n 1)
 	if [ ! -z "${THP_SETTING}" ]; then
 		# Set whatever option is specified in config file
 		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag

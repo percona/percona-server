@@ -4,6 +4,7 @@ percona-server-5.7 (5.7.11-4) unstable; urgency=low
     path specified (#1549333)
   * Fixed systemd script brakes if there are multiple same options specified
     (#1554976)
+  * Included keyring_file.so plugin
 
  -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Wed, 09 Mar 2016 09:31:40 +0100
 

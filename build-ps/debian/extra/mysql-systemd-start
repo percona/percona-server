@@ -32,6 +32,7 @@ sanity () {
 	MYSQLDATA=$(get_path datadir)
 	MYSQLFILES=/var/lib/mysql-files
 	MYSQLLOG=/var/log/mysql
+	MYSQLKEYRING=/var/lib/mysql-keyring
 
 	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 	then
@@ -45,6 +46,13 @@ sanity () {
 		mkdir ${MYSQLFILES}
 		chown mysql:mysql ${MYSQLFILES}
 		chmod 770 ${MYSQLFILES}
+	fi
+
+	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
+	then
+		mkdir ${MYSQLKEYRING}
+		chown mysql:mysql ${MYSQLKEYRING}
+		chmod 750 ${MYSQLKEYRING}
 	fi
 
 	if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];

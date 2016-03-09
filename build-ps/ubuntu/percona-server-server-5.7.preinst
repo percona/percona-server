@@ -43,6 +43,7 @@ case "$1" in
 
 		MYSQLDATA=/var/lib/mysql
 		MYSQLFILES=/var/lib/mysql-files
+		MYSQLKEYRING=/var/lib/mysql-keyring
 		MYSQLLOG=/var/log/mysql
 		MYSQLRUN=/var/run/mysqld
 
@@ -68,6 +69,13 @@ case "$1" in
 			mkdir ${MYSQLFILES}
 			chown mysql:mysql ${MYSQLFILES}
 			chmod 770 ${MYSQLFILES}
+		fi
+
+		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
+		then
+			mkdir ${MYSQLKEYRING}
+			chown mysql:mysql ${MYSQLKEYRING}
+			chmod 750 ${MYSQLKEYRING}
 		fi
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];

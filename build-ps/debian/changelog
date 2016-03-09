@@ -1,3 +1,10 @@
+percona-server-5.7 (5.7.11-4) unstable; urgency=low
+
+  * Fixed sysvinit script doesn't tolerate pid-file option without
+    path specified (#1549333)
+
+ -- Tomislav Plavcic <tomislav.plavcic@percona.com>  Wed, 09 Mar 2016 09:31:40 +0100
+
 percona-server-5.7 (5.7.10-2rc2) unstable; urgency=low
 
   * Re-added TokuBackup to the packaging (JEN-439)

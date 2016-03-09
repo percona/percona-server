@@ -657,6 +657,10 @@ struct srv_sys_t{
 	srv_stats_t::ulint_ctr_1_t
 			activity_count;		/*!< For tracking server
 						activity */
+	srv_stats_t::ulint_ctr_1_t
+			ibuf_merge_activity_count;/*!< For tracking change
+						buffer merge activity, a subset
+						of overall server activity */
 };
 
 static srv_sys_t*	srv_sys	= NULL;
@@ -2067,10 +2071,15 @@ rescan_idle:
 /******************************************************************//**
 Increment the server activity count. */
 void
-srv_inc_activity_count(void)
-/*========================*/
+srv_inc_activity_count(
+/*===================*/
+	bool ibuf_merge_activity)	/*!< whether this activity bump
+					is caused by the background
+					change buffer merge */
 {
 	srv_sys->activity_count.inc();
+	if (ibuf_merge_activity)
+		srv_sys->ibuf_merge_activity_count.inc();
 }
 
 /**********************************************************************//**
@@ -2288,15 +2297,48 @@ srv_get_activity_count(void)
 	return(srv_sys->activity_count);
 }
 
+/** Get current server ibuf merge activity count.
+@return ibuf merge activity count */
+static
+ulint
+srv_get_ibuf_merge_activity_count(void)
+{
+	return(srv_sys->ibuf_merge_activity_count);
+}
+
 /*******************************************************************//**
-Check if there has been any activity.
+Check if there has been any activity. Considers background change buffer
+merge as regular server activity unless a non-default
+old_ibuf_merge_activity_count value is passed, in which case the merge will be
+treated as keeping server idle.
 @return FALSE if no change in activity counter. */
 ibool
 srv_check_activity(
 /*===============*/
-	ulint		old_activity_count)	/*!< in: old activity count */
+	ulint		old_activity_count,	/*!< in: old activity count */
+						/*!< old change buffer merge
+						activity count, or
+						ULINT_UNDEFINED */
+	ulint		old_ibuf_merge_activity_count)
 {
-	return(srv_sys->activity_count != old_activity_count);
+	ulint	new_activity_count = srv_sys->activity_count;
+	if (old_ibuf_merge_activity_count == ULINT_UNDEFINED)
+		return(new_activity_count != old_activity_count);
+
+	/* If we care about ibuf merge activity, then the server is considered
+	idle if all activity, if any, was due to ibuf merge. */
+	ulint	new_ibuf_merge_activity_count
+		= srv_sys->ibuf_merge_activity_count;
+
+	ut_ad(new_ibuf_merge_activity_count <= new_activity_count);
+	ut_ad(new_ibuf_merge_activity_count >= old_ibuf_merge_activity_count);
+	ut_ad(new_activity_count >= old_activity_count);
+
+	ulint	ibuf_merge_activity_delta =
+		new_ibuf_merge_activity_count - old_ibuf_merge_activity_count;
+	ulint	activity_delta = new_activity_count - old_activity_count;
+
+	return (activity_delta > ibuf_merge_activity_delta);
 }
 
 /********************************************************************//**
@@ -2699,6 +2741,8 @@ DECLARE_THREAD(srv_master_thread)(
 
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
+	ulint		old_ibuf_merge_activity_count
+		= srv_get_ibuf_merge_activity_count();
 	ib_time_t	last_print_time;
 
 	ut_ad(!srv_read_only_mode);
@@ -2736,8 +2780,12 @@ loop:
 
 		srv_current_thread_priority = srv_master_thread_priority;
 
-		if (srv_check_activity(old_activity_count)) {
+		if (srv_check_activity(old_activity_count,
+				       old_ibuf_merge_activity_count)) {
+
 			old_activity_count = srv_get_activity_count();
+			old_ibuf_merge_activity_count
+				= srv_get_ibuf_merge_activity_count();
 			srv_master_do_active_tasks();
 		} else {
 			srv_master_do_idle_tasks();

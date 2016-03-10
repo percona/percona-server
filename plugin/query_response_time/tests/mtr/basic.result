@@ -39,7 +39,12 @@ SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
 SELECT 1;
 1
 1
+#
+# Bug 1538019: Crash on attempting to execute non-existing prepared statement
+#
+EXECUTE bug1538019;
+ERROR HY000: Unknown prepared statement handler (bug1538019) given to EXECUTE
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(COUNT)
-2
+3

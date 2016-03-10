@@ -1,0 +1,24 @@
+#
+# Bug 1540338 (CREATE TABLE ... LIKE ... may create a system table with an unsupported enforced engine)
+#
+SELECT ENGINE INTO @mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="proc";
+include/assert.inc [Enforced SE and existing mysql.proc SE must differ]
+RENAME TABLE mysql.proc TO proc_backup;
+SELECT ENGINE INTO @proc_backup_engine FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA="test" AND TABLE_NAME="proc_backup";
+include/assert.inc [RENAME TABLE must not change SE]
+SET SESSION sql_mode='';
+CREATE TABLE mysql.proc LIKE proc_backup;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.proc]
+SET SESSION sql_mode=NO_ENGINE_SUBSTITUTION;
+CREATE TABLE mysql.proc LIKE proc_backup;
+ERROR 42000: Unknown storage engine 'MyISAM'
+SET SESSION sql_mode=default;
+RENAME TABLE proc_backup TO mysql.proc;
+SELECT ENGINE INTO @new_mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="proc";
+include/assert.inc [RENAME TABLE must not change SE]
+# Verify that mysql.proc is working
+select routine_name,routine_schema from information_schema.routines where routine_schema like 'bug0%';
+routine_name	routine_schema

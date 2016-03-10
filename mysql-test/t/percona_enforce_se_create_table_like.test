@@ -1,0 +1,50 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug 1540338 (CREATE TABLE ... LIKE ... may create a system table with an unsupported enforced engine)
+--echo #
+
+# We cannot put --enforce-storage-engine=INNODB into an MTR option file as that
+# will break the testcase check afterwards
+--let $restart_parameters=restart:--enforce-storage-engine=INNODB
+--source include/restart_mysqld.inc
+
+SELECT ENGINE INTO @mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="proc";
+
+--let $assert_text= Enforced SE and existing mysql.proc SE must differ
+--let $assert_cond= @@enforce_storage_engine != @mysql_proc_engine
+--source include/assert.inc
+
+RENAME TABLE mysql.proc TO proc_backup;
+
+SELECT ENGINE INTO @proc_backup_engine FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA="test" AND TABLE_NAME="proc_backup";
+
+--let $assert_text= RENAME TABLE must not change SE
+--let $assert_cond= @mysql_proc_engine = @proc_backup_engine
+--source include/assert.inc
+
+SET SESSION sql_mode='';
+--error ER_UNSUPPORTED_ENGINE
+CREATE TABLE mysql.proc LIKE proc_backup;
+
+SET SESSION sql_mode=NO_ENGINE_SUBSTITUTION;
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE mysql.proc LIKE proc_backup;
+SET SESSION sql_mode=default;
+
+RENAME TABLE proc_backup TO mysql.proc;
+
+SELECT ENGINE INTO @new_mysql_proc_engine FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA="mysql" AND TABLE_NAME="proc";
+
+--let $assert_text= RENAME TABLE must not change SE
+--let $assert_cond= @mysql_proc_engine = @new_mysql_proc_engine
+--source include/assert.inc
+
+--echo # Verify that mysql.proc is working
+select routine_name,routine_schema from information_schema.routines where routine_schema like 'bug0%';
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

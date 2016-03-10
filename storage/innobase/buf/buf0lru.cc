@@ -2556,6 +2556,10 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/*!< in: block, must contain a file page and
 				be in a state where it can be freed */
 {
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+	ut_a(block->n_pointers == 0);
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 
 	if (buf_pool->flush_rbt == NULL) {

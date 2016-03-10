@@ -1163,6 +1163,9 @@ btr_search_drop_page_hash_index(buf_block_t* block)
 	btr_search_t*		info;
 
 	if (!btr_search_enabled) {
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+		ut_a(block->n_pointers == 0);
+#endif
 		return;
 	}
 
@@ -1172,6 +1175,9 @@ retry:
 	index = block->index;
 
 	if (index == NULL) {
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+		ut_a(block->n_pointers == 0);
+#endif
 		return;
 	}
 
@@ -1199,6 +1205,9 @@ retry:
 
 	if (block->index == NULL) {
 		rw_lock_s_unlock(latch);
+#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
+		ut_a(block->n_pointers == 0);
+#endif
 		return;
 	}
 

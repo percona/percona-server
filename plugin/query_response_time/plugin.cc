@@ -161,7 +161,10 @@ static int query_response_time_audit_notify(MYSQL_THD thd,
         /* otherwise */
         &thd->lex->prepared_stmt_name;
       Prepared_statement *stmt= thd->stmt_map.find_by_name(*name);
-      sql_command= stmt->lex->sql_command;
+      /* In case of EXECUTE <non-existing-PS>, keep SQLCOM_EXECUTE as the
+      command. */
+      if (likely(stmt && stmt->lex))
+        sql_command= stmt->lex->sql_command;
     }
     QUERY_TYPE query_type=
       (sql_command_flags[sql_command] & CF_CHANGES_DATA) ? WRITE : READ;

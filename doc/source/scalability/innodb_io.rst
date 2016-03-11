@@ -37,7 +37,7 @@ If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will
 
 .. variable:: innodb_flush_method
 
-   :Version Info: - :rn:`5.6.13-61.0` - Ported from |Percona Server| 5.5
+   :Version Info: - :rn:`5.7.10-3` - Ported from |Percona Server| 5.6
    :cli: Yes
    :conf: Yes
    :scope: Global
@@ -51,20 +51,19 @@ This is an existing |MySQL| 5.7 system variable that has a new allowed value ``A
 The following values are allowed:
 
   * ``fdatasync``: 
-    use ``fsync()`` to flush both the data and log files.
+    use ``fsync()`` to flush data, log, and parallel doublewrite files.
 
   * ``O_SYNC``: 
-    use O_SYNC to open and flush the log files; use ``fsync()`` to flush the data files.
+    use ``O_SYNC`` to open and flush the log and parallel doublewrite files; use ``fsync()`` to flush the data files. Do not use ``fsync()`` to flush the parallel doublewrite file.
 
   * ``O_DIRECT``: 
-    use O_DIRECT to open the data files and fsync() system call to flush both the data and log files.
+    use O_DIRECT to open the data files and ``fsync()`` system call to flush data, log, and parallel doublewrite files.
 
   * ``O_DIRECT_NO_FSYNC``:
-    use O_DIRECT to open the data files but don't use ``fsync()`` system call to flush both the data and log files. This option isn't suitable for *XFS* file system.
+    use ``O_DIRECT`` to open the data files, but don't use ``fsync()`` system call to flush data, log, and parallel doublewrite files.
 
   * ``ALL_O_DIRECT``: 
-    use O_DIRECT to open both data and log files, and use ``fsync()`` to flush the data files but not the log files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings.
-
+    use ``O_DIRECT`` to open both data and log files, and use ``fsync()`` to flush the data files but not the log or parallel doublewrite files. This option is recommended when |InnoDB| log files are big (more than 8GB), otherwise there might be even a performance degradation. **Note**: When using this option on *ext4* filesystem variable `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ should be set to 4096 (default log-block-size in *ext4*) in order to avoid the ``unaligned AIO/DIO`` warnings. 
 
 Status Variables
 ----------------

@@ -37,7 +37,7 @@ System Variables
   :scope: Global/Session
   :dyn: Yes
   :vartype: Boolean
-  :default: Off
+  :default: ``ON``
 
 When this variable is set to ``ON``  it will dispatch any ``ANALYZE TABLE`` job to a background process and return immediately, otherwise ``ANALYZE TABLE`` will run in foreground/client context.
 
@@ -92,7 +92,7 @@ If an analyze is never performed on a table then the cardinality is ``1`` for pr
   :scope: Global/Session
   :dyn: Yes
   :vartype: Numeric
-  :default: 0
+  :default: 30
 
 Percentage of table change as ``INSERT/UPDATE/DELETE`` commands to trigger an ``ANALYZE TABLE`` using the current session :variable:`tokudb_analyze_in_background`, :variable:`tokudb_analyze_mode`, :variable:`tokudb_analyze_throttle`, and :variable:`tokudb_analyze_time` settings. If this variable is enabled and :variable:`tokudb_analyze_in_background` variable is set to ``OFF``, analysis will be performed directly within the client thread context that triggered the analysis. **NOTE:** |InnoDB| enabled this functionality by default when they introduced it. Due to the potential unexpected new load it might place on a server, it is disabled by default in |TokuDB|.
 
@@ -130,3 +130,6 @@ Version Specific Information
 
   * :rn:`5.7.10-1`:
     Feature ported from |Percona Server| 5.6
+
+  * :rn:`5.7.11-4`:
+    :variable:`tokudb_analyze_in_background` is now set to ``ON`` by default and :variable:`tokudb_auto_analyze` is set to ``30`` 

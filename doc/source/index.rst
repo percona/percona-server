@@ -162,6 +162,7 @@ Reference
 
    upstream-bug-fixes
    ps-variables
+   known_issues
    development
    trademark-policy
    index_info_schema_tables

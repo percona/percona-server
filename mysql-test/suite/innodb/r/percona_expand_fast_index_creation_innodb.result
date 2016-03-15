@@ -29,3 +29,19 @@ a	NULL
 a	NULL
 a	NULL
 DROP TABLE t1;
+#
+# Bug 1554622: InnoDB: Failing assertion: fil_space_get_type(id) == FIL_TYPE_TABLESPACE in file fsp0fsp.cc line 778
+#
+SET @saved_innodb_file_per_table=@@innodb_file_per_table;
+SET @saved_innodb_file_format=@@innodb_file_format;
+SET GLOBAL innodb_file_per_table=ON;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TEMPORARY TABLE t1(id int, key id (id)) engine=innodb;
+INSERT INTO t1 VALUES(0xABE3);
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+SELECT * FROM t1;
+id
+44003
+DROP TABLE t1;
+SET GLOBAL innodb_file_format=@saved_innodb_file_format;
+SET GLOBAL innodb_file_per_table=@saved_innodb_file_per_table;

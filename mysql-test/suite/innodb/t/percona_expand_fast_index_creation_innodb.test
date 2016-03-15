@@ -41,3 +41,16 @@ ALTER TABLE t1 ADD INDEX (a);
 SELECT * FROM t1 FORCE INDEX (a) ORDER BY a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 1554622: InnoDB: Failing assertion: fil_space_get_type(id) == FIL_TYPE_TABLESPACE in file fsp0fsp.cc line 778
+--echo #
+
+CREATE TEMPORARY TABLE t1(id int, key id (id)) engine=innodb;
+INSERT INTO t1 VALUES(0xABE3);
+
+ALTER TABLE t1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

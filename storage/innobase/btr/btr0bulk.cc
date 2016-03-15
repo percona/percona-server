@@ -62,8 +62,8 @@ PageBulk::init()
 		the allocation order, and we will always generate redo log
 		for page allocation, even when creating a new tablespace. */
 		mtr_start(&alloc_mtr);
-		if (dict_index_get_space(m_index)
-		    == srv_tmp_space.space_id()) {
+		if (dict_table_is_temporary(m_index->table)) {
+
 			/* We are bulk loading a temporary table index. No need
 			to redo-log it. */
 			alloc_mtr.set_log_mode(MTR_LOG_NO_REDO);
@@ -951,8 +951,8 @@ BtrBulk::finish(dberr_t	err)
 					       m_flush_observer);
 
 		mtr_start(&mtr);
-		if (dict_index_get_space(m_index)
-		    == srv_tmp_space.space_id()) {
+		if (dict_table_is_temporary(m_index->table)) {
+
 			/* We are bulk loading a temporary table index. No need
 			to redo-log it. */
 			mtr.set_log_mode(MTR_LOG_NO_REDO);

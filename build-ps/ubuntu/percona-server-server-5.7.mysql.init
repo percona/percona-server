@@ -124,6 +124,7 @@ case "$1" in
 		MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
 		MYSQLFILES=/var/lib/mysql-files
 		MYSQLLOG=/var/log/mysql
+		MYSQLKEYRING=/var/lib/mysql-keyring
 
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 		then
@@ -139,7 +140,14 @@ case "$1" in
 			chmod 770 ${MYSQLFILES}
 		fi
 
-		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
+		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
+		then
+			mkdir ${MYSQLKEYRING}
+			chown mysql:mysql ${MYSQLKEYRING}
+			chmod 750 ${MYSQLKEYRING}
+		fi
+
+		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ] && [ -d ${MYSQLKEYRING} ];
 		then
 			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
 			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"

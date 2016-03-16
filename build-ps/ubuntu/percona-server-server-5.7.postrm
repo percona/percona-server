@@ -75,6 +75,7 @@ case "$1" in
 	MYSQLFILES=/var/lib/mysql-files
 	MYSQLLOG=/var/log/mysql
 	MYSQLRUN=/var/run/mysqld
+	MYSQLKEYRING=/var/lib/mysql-keyring
 
 	server_stop
 
@@ -140,6 +141,11 @@ case "$1" in
 		if [ -d ${MYSQLFILES} ] || [ -L ${MYSQLFILES} ];
 		then
 			rm -rf ${MYSQLFILES}
+		fi
+
+		if [ -d ${MYSQLKEYRING} ] || [ -L ${MYSQLKEYRING} ];
+		then
+			rm -rf ${MYSQLKEYRING}
 		fi
 
 		if getent passwd mysql >/dev/null;

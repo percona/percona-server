@@ -349,7 +349,7 @@ void Rdb_tbl_prop_coll::read_stats_from_tbl_props(
   const auto &user_properties = table_props->user_collected_properties;
   const auto it2 = user_properties.find(std::string(INDEXSTATS_KEY));
   if (it2 != user_properties.end()) {
-    auto result __attribute__((__unused__)) =
+    auto result MY_ATTRIBUTE((__unused__)) =
         Rdb_index_stats::unmaterialize(it2->second, out_stats_vector);
     DBUG_ASSERT(result == 0);
   }

@@ -178,7 +178,7 @@ Status Rdb_mutex::Lock() {
 // If implementing a custom version of this class, the implementation may
 // choose to ignore the timeout.
 // Return OK on success, or other Status on failure.
-Status Rdb_mutex::TryLockFor(int64_t timeout_time __attribute__((__unused__))) {
+Status Rdb_mutex::TryLockFor(int64_t timeout_time MY_ATTRIBUTE((__unused__))) {
   /*
     Note: PThreads API has pthread_mutex_timedlock(), but mysql's
     mysql_mutex_* wrappers do not wrap that function.

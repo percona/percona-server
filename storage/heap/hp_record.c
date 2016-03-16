@@ -76,7 +76,7 @@ uint hp_get_encoded_data_length(HP_SHARE *info, const uchar *record,
                              (uint) *(uchar *) (record + src_offset) :
                              uint2korr(record + src_offset));
     }
-    else if (column->type == MYSQL_TYPE_BLOB)
+    else if (is_blob_column(column))
     {
       uint pack_length= column->length_bytes;
 
@@ -257,7 +257,7 @@ uint hp_process_record_data_to_chunkset(HP_SHARE *info, const uchar *record,
       pack_length= column->length_bytes;
       length= pack_length + (pack_length == 1 ? (uint) *data : uint2korr(data));
     }
-    else if (column->type == MYSQL_TYPE_BLOB)
+    else if (is_blob_column(column))
     {
       uint pack_length;
 
@@ -396,7 +396,7 @@ int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos)
     }
 
     to= record + column->offset;
-    if (column->type == MYSQL_TYPE_VARCHAR || column->type == MYSQL_TYPE_BLOB)
+    if (column->type == MYSQL_TYPE_VARCHAR || is_blob_column(column))
     {
       uint pack_length, i;
       uchar *tmp= to;
@@ -417,7 +417,7 @@ int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos)
       */
       length= hp_calc_blob_length(pack_length, tmp);
 
-      if (column->type == MYSQL_TYPE_BLOB && length == 0)
+      if (is_blob_column(column) && length == 0)
       {
         /*
           Store a zero pointer for zero-length BLOBs because the server
@@ -425,7 +425,7 @@ int hp_extract_record(HP_INFO *info, uchar *record, const uchar *pos)
         */
         *(uchar **) to= 0;
       }
-      else if (column->type == MYSQL_TYPE_BLOB && length > 0)
+      else if (is_blob_column(column) && length > 0)
       {
         uint newsize= info->blob_offset + length;
 

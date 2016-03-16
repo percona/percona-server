@@ -32,6 +32,7 @@ extern "C" {
 
 #include "my_compare.h"
 #include "my_tree.h"
+#include "binary_log_types.h" // enum_field_types
 
 /* Define index limits to be identical to MyISAM ones for compatibility. */
 
@@ -142,7 +143,7 @@ typedef struct st_hp_keydef		/* Key definition with open */
 
 typedef struct st_heap_columndef		/* column information */
 {
-  int16  type;	  			/* en_fieldtype */
+  enum_field_types  type;	  	/* en_fieldtype */
   uint32 length;		  	/* length of field */
   uint32 offset;		  	/* Offset to position in row */
   uint8  null_bit;			/* If column may be 0 */

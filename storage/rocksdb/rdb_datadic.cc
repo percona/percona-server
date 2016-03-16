@@ -731,10 +731,10 @@ uint Rdb_key_def::pack_hidden_pk(const longlong &hidden_pk_id,
 
 void rdb_pack_with_make_sort_key(Rdb_field_packing *const fpi,
                                  Field *const field,
-                                 uchar *const buf __attribute__((__unused__)),
+                                 uchar *const buf MY_ATTRIBUTE((__unused__)),
                                  uchar **dst,
                                  Rdb_pack_field_context *const pack_ctx
-                                 __attribute__((__unused__))) {
+                                 MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(fpi != nullptr);
   DBUG_ASSERT(field != nullptr);
   DBUG_ASSERT(dst != nullptr);
@@ -1046,7 +1046,7 @@ bool Rdb_key_def::index_format_min_check(const int &pk_min,
 */
 
 int rdb_skip_max_length(const Rdb_field_packing *const fpi,
-                        const Field *const field __attribute__((__unused__)),
+                        const Field *const field MY_ATTRIBUTE((__unused__)),
                         Rdb_string_reader *const reader) {
   if (!reader->read(fpi->m_max_image_len))
     return HA_EXIT_FAILURE;
@@ -1068,7 +1068,7 @@ static_assert((RDB_ESCAPE_LENGTH - 1) % 2 == 0,
 */
 
 static int rdb_skip_variable_length(const Rdb_field_packing *const fpi
-                                    __attribute__((__unused__)),
+                                    MY_ATTRIBUTE((__unused__)),
                                     const Field *const field,
                                     Rdb_string_reader *const reader) {
   const uchar *ptr;
@@ -1163,7 +1163,7 @@ static int rdb_skip_variable_space_pad(const Rdb_field_packing *const fpi,
 int rdb_unpack_integer(Rdb_field_packing *const fpi, Field *const field,
                        uchar *const to, Rdb_string_reader *const reader,
                        Rdb_string_reader *const unp_reader
-                       __attribute__((__unused__))) {
+                       MY_ATTRIBUTE((__unused__))) {
   const int length = fpi->m_max_image_len;
 
   const uchar *from;
@@ -1290,12 +1290,12 @@ static int rdb_unpack_floating_point(
   allowed in the database.
 */
 static int rdb_unpack_double(Rdb_field_packing *const fpi
-                             __attribute__((__unused__)),
-                             Field *const field __attribute__((__unused__)),
+                             MY_ATTRIBUTE((__unused__)),
+                             Field *const field MY_ATTRIBUTE((__unused__)),
                              uchar *const field_ptr,
                              Rdb_string_reader *const reader,
                              Rdb_string_reader *const unp_reader
-                             __attribute__((__unused__))) {
+                             MY_ATTRIBUTE((__unused__))) {
   static double zero_val = 0.0;
   static const uchar zero_pattern[8] = {128, 0, 0, 0, 0, 0, 0, 0};
 
@@ -1317,11 +1317,11 @@ static int rdb_unpack_double(Rdb_field_packing *const fpi
   allowed in the database.
 */
 static int rdb_unpack_float(Rdb_field_packing *const,
-                            Field *const field __attribute__((__unused__)),
+                            Field *const field MY_ATTRIBUTE((__unused__)),
                             uchar *const field_ptr,
                             Rdb_string_reader *const reader,
                             Rdb_string_reader *const unp_reader
-                            __attribute__((__unused__))) {
+                            MY_ATTRIBUTE((__unused__))) {
   static float zero_val = 0.0;
   static const uchar zero_pattern[4] = {128, 0, 0, 0};
 
@@ -1338,7 +1338,7 @@ static int rdb_unpack_float(Rdb_field_packing *const,
 int rdb_unpack_newdate(Rdb_field_packing *const fpi, Field *constfield,
                        uchar *const field_ptr, Rdb_string_reader *const reader,
                        Rdb_string_reader *const unp_reader
-                       __attribute__((__unused__))) {
+                       MY_ATTRIBUTE((__unused__))) {
   const char *from;
   DBUG_ASSERT(fpi->m_max_image_len == 3);
 
@@ -1361,7 +1361,7 @@ static int rdb_unpack_binary_str(Rdb_field_packing *const fpi,
                                  Field *const field, uchar *const to,
                                  Rdb_string_reader *const reader,
                                  Rdb_string_reader *const unp_reader
-                                 __attribute__((__unused__))) {
+                                 MY_ATTRIBUTE((__unused__))) {
   const char *from;
   if (!(from = reader->read(fpi->m_max_image_len)))
     return UNPACK_FAILURE; /* Mem-comparable image doesn't have enough bytes */
@@ -1379,7 +1379,7 @@ static int rdb_unpack_binary_str(Rdb_field_packing *const fpi,
 static int rdb_unpack_utf8_str(Rdb_field_packing *const fpi, Field *const field,
                                uchar *dst, Rdb_string_reader *const reader,
                                Rdb_string_reader *const unp_reader
-                               __attribute__((__unused__))) {
+                               MY_ATTRIBUTE((__unused__))) {
   my_core::CHARSET_INFO *const cset = (my_core::CHARSET_INFO *)field->charset();
   const uchar *src;
   if (!(src = (const uchar *)reader->read(fpi->m_max_image_len)))
@@ -1409,7 +1409,7 @@ static int rdb_unpack_utf8_str(Rdb_field_packing *const fpi, Field *const field,
 
 static void rdb_pack_with_varchar_encoding(
     Rdb_field_packing *const fpi, Field *const field, uchar *buf, uchar **dst,
-    Rdb_pack_field_context *const pack_ctx __attribute__((__unused__))) {
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) {
   /*
     Use a flag byte every Nth byte. Set it to (255 - #pad) where #pad is 0
     when the var length field filled all N-1 previous bytes and #pad is
@@ -1635,7 +1635,7 @@ static int rdb_unpack_binary_or_utf8_varchar(Rdb_field_packing *const fpi,
                                              Field *const field, uchar *dst,
                                              Rdb_string_reader *const reader,
                                              Rdb_string_reader *const unp_reader
-                                             __attribute__((__unused__))) {
+                                             MY_ATTRIBUTE((__unused__))) {
   const uchar *ptr;
   size_t len = 0;
   bool finished = false;
@@ -1830,7 +1830,7 @@ static int rdb_unpack_binary_or_utf8_varchar_space_pad(
 */
 
 static void rdb_make_unpack_unknown(const Rdb_collation_codec *codec
-                                    __attribute__((__unused__)),
+                                    MY_ATTRIBUTE((__unused__)),
                                     const Field *const field,
                                     Rdb_pack_field_context *const pack_ctx) {
   pack_ctx->writer->write(field->ptr, field->pack_length());
@@ -1845,11 +1845,11 @@ static void rdb_make_unpack_unknown(const Rdb_collation_codec *codec
 */
 
 static void rdb_dummy_make_unpack_info(const Rdb_collation_codec *codec
-                                       __attribute__((__unused__)),
+                                       MY_ATTRIBUTE((__unused__)),
                                        const Field *field
-                                       __attribute__((__unused__)),
+                                       MY_ATTRIBUTE((__unused__)),
                                        Rdb_pack_field_context *pack_ctx
-                                       __attribute__((__unused__))) {}
+                                       MY_ATTRIBUTE((__unused__))) {}
 
 /*
   Function of type rdb_index_field_unpack_t
@@ -1879,7 +1879,7 @@ static int rdb_unpack_unknown(Rdb_field_packing *const fpi, Field *const field,
 */
 
 static void rdb_make_unpack_unknown_varchar(
-    const Rdb_collation_codec *const codec __attribute__((__unused__)),
+    const Rdb_collation_codec *const codec MY_ATTRIBUTE((__unused__)),
     const Field *const field, Rdb_pack_field_context *const pack_ctx) {
   const auto f = static_cast<const Field_varstring *>(field);
   uint len = f->length_bytes == 1 ? (uint)*f->ptr : uint2korr(f->ptr);
@@ -2109,7 +2109,7 @@ static void rdb_make_unpack_simple(const Rdb_collation_codec *const codec,
 */
 
 static int rdb_unpack_simple(Rdb_field_packing *const fpi,
-                             Field *const field __attribute__((__unused__)),
+                             Field *const field MY_ATTRIBUTE((__unused__)),
                              uchar *const dst, Rdb_string_reader *const reader,
                              Rdb_string_reader *const unp_reader) {
   const uchar *ptr;
@@ -2686,7 +2686,7 @@ void Rdb_tbl_def::check_if_is_mysql_system_table() {
 }
 
 void Rdb_tbl_def::set_name(const std::string &name) {
-  int err __attribute__((__unused__));
+  int err MY_ATTRIBUTE((__unused__));
 
   m_dbname_tablename = name;
   err = rdb_split_normalized_tablename(name, &m_dbname, &m_tablename,
@@ -2705,7 +2705,7 @@ void Rdb_tbl_def::set_name(const std::string &name) {
 const uchar *Rdb_ddl_manager::get_hash_key(Rdb_tbl_def *const rec,
                                            size_t *const length,
                                            my_bool not_used
-                                           __attribute__((__unused__))) {
+                                           MY_ATTRIBUTE((__unused__))) {
   const std::string &dbname_tablename = rec->full_tablename();
   *length = dbname_tablename.size();
   return reinterpret_cast<const uchar *>(dbname_tablename.c_str());

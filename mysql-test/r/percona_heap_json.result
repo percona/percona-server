@@ -1,0 +1,12 @@
+#
+# Bug 1536469 (Assertion `length == 0 || json_binary::parse_binary(ptr, length).is_valid()'
+# failed in sql/field.cc:8975: type_conversion_status Field_json::store_binary(const char*, size_t))
+#
+CREATE TABLE t0(utf0k json) ENGINE=MEMORY;
+INSERT INTO t0 values('0');
+INSERT INTO t0 VALUES('DBMS stands for DataBase ...');
+ERROR 22032: Invalid JSON text: "Invalid value." at position 0 in value (or column) 'DBMS stands for DataBase ...'.
+SELECT * FROM t0;
+utf0k
+0
+DROP TABLE t0;

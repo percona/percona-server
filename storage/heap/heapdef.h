@@ -61,6 +61,9 @@ if (!(info->update & HA_STATE_AKTIV))\
   ((rec_length + (info)->chunk_dataspace_length - 1) / \
    (info)->chunk_dataspace_length)
 
+#define is_blob_column(c) \
+  ((c)->type == MYSQL_TYPE_BLOB || (c)->type == MYSQL_TYPE_JSON)
+
 typedef struct st_hp_hash_info
 {
   struct st_hp_hash_info *next_key;

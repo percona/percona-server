@@ -684,7 +684,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   {
     Field* field= *(table_arg->field + column_idx);
     HP_COLUMNDEF* column= columndef + column_idx;
-    column->type= (uint16) field->type();
+    column->type= field->type();
     column->length= field->pack_length();
     column->offset= field->offset(table_arg->record[0]);
 
@@ -703,7 +703,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
     {
       column->length_bytes= (uint8) (((Field_varstring *) field)->length_bytes);
     }
-    else if (field->type() == MYSQL_TYPE_BLOB)
+    else if (field->flags & BLOB_FLAG)
     {
       blobs++;
       column->length_bytes= (uint8)

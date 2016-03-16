@@ -138,7 +138,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
         HP_COLUMNDEF *column= create_info->columndef + i;
 	if ((column->type == MYSQL_TYPE_VARCHAR &&
 	     (column->length - column->length_bytes) >= 32) ||
-	    column->type == MYSQL_TYPE_BLOB)
+            is_blob_column(column))
         {
             /*
               The field has to be either blob or >= 5.0.3 true VARCHAR

@@ -3860,11 +3860,19 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 }
 
 // set the put flags for the main dictionary
-void ha_tokudb::set_main_dict_put_flags(THD* thd, bool opt_eligible, uint32_t* put_flags) {
+void ha_tokudb::set_main_dict_put_flags(
+    THD* thd,
+    bool opt_eligible,
+    uint32_t* put_flags) {
+
     uint32_t old_prelock_flags = 0;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     bool in_hot_index = share->num_DBs > curr_num_DBs;
-    bool using_ignore_flag_opt = do_ignore_flag_optimization(thd, table, share->replace_into_fast && !using_ignore_no_key);
+    bool using_ignore_flag_opt =
+        do_ignore_flag_optimization(
+            thd,
+            table,
+            share->replace_into_fast && !using_ignore_no_key);
     //
     // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
@@ -3876,31 +3884,33 @@ void ha_tokudb::set_main_dict_put_flags(THD* thd, bool opt_eligible, uint32_t* p
     // to do. We cannot do this if otherwise, because then we lose
     // consistency between indexes
     //
-    if (hidden_primary_key) 
-    {
+    if (hidden_primary_key) {
         *put_flags = old_prelock_flags;
-    }
-    else if (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) && !is_replace_into(thd) && !is_insert_ignore(thd))
-    {
+    } else if (!do_unique_checks(thd, in_rpl_write_rows | in_rpl_update_rows) &&
+               !is_replace_into(thd) &&
+               !is_insert_ignore(thd)) {
         *put_flags = old_prelock_flags;
-    }
-    else if (using_ignore_flag_opt && is_replace_into(thd) 
-            && !in_hot_index)
-    {
+    } else if (using_ignore_flag_opt && is_replace_into(thd) && !in_hot_index) {
         *put_flags = old_prelock_flags;
-    }
-    else if (opt_eligible && using_ignore_flag_opt && is_insert_ignore(thd) 
-            && !in_hot_index)
-    {
-        *put_flags = DB_NOOVERWRITE_NO_ERROR | old_prelock_flags;
-    }
-    else 
-    {
+    } else if (opt_eligible && using_ignore_flag_opt &&
+               is_insert_ignore(thd) &&
+               !in_hot_index) {
+        // GL on DB-937 : This is incorrect. The server expects an SE to
+        // return ER_DUP_ENTRY on a dup key hit even when IGNORE is in use.
+        // This is so the server can set the correct warnings on the statement.
+        //*put_flags = DB_NOOVERWRITE_NO_ERROR | old_prelock_flags;
+        *put_flags = DB_NOOVERWRITE | old_prelock_flags;
+    } else {
         *put_flags = DB_NOOVERWRITE | old_prelock_flags;
     }
 }
 
-int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
+int ha_tokudb::insert_row_to_main_dictionary(
+    uchar* record,
+    DBT* pk_key,
+    DBT* pk_val,
+    DB_TXN* txn) {
+
     int error = 0;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     assert_always(curr_num_DBs == 1);
@@ -3923,7 +3933,12 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
+int ha_tokudb::insert_rows_to_dictionaries_mult(
+    DBT* pk_key,
+    DBT* pk_val,
+    DB_TXN* txn,
+    THD* thd) {
+
     int error = 0;
     uint curr_num_DBs = share->num_DBs;
     set_main_dict_put_flags(thd, true, &mult_put_flags[primary_key]);
@@ -3950,14 +3965,24 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
                 // just as the ydb layer would have in
                 // env->put_multiple(), except that
                 // we will just do a put() right away.
-                error = tokudb_generate_row(db, src_db,
-                        &mult_key_dbt_array[i].dbts[0], &mult_rec_dbt_array[i].dbts[0], 
-                        pk_key, pk_val);
+                error =
+                    tokudb_generate_row(
+                        db,
+                        src_db,
+                        &mult_key_dbt_array[i].dbts[0],
+                        &mult_rec_dbt_array[i].dbts[0],
+                        pk_key,
+                        pk_val);
                 if (error != 0) {
                     goto out;
                 }
-                error = db->put(db, txn, &mult_key_dbt_array[i].dbts[0], 
-                        &mult_rec_dbt_array[i].dbts[0], flags);
+                error =
+                    db->put(
+                        db,
+                        txn,
+                        &mult_key_dbt_array[i].dbts[0],
+                        &mult_rec_dbt_array[i].dbts[0],
+                        flags);
             }
             if (error != 0) {
                 goto out;
@@ -3965,18 +3990,18 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
         }
     } else {
         // not insert ignore, so we can use put multiple
-        error = db_env->put_multiple(
-            db_env, 
-            share->key_file[primary_key], 
-            txn, 
-            pk_key, 
-            pk_val,
-            curr_num_DBs, 
-            share->key_file, 
-            mult_key_dbt_array,
-            mult_rec_dbt_array,
-            mult_put_flags
-            );
+        error =
+            db_env->put_multiple(
+                db_env,
+                share->key_file[primary_key],
+                txn,
+                pk_key,
+                pk_val,
+                curr_num_DBs,
+                share->key_file,
+                mult_key_dbt_array,
+                mult_rec_dbt_array,
+                mult_put_flags);
     }
 
 out:
@@ -4014,7 +4039,8 @@ int ha_tokudb::write_row(uchar * record) {
 
     //
     // some crap that needs to be done because MySQL does not properly abstract
-    // this work away from us, namely filling in auto increment and setting auto timestamp
+    // this work away from us, namely filling in auto increment and setting
+    // auto timestamp
     //
     ha_statistic_increment(&SSV::ha_write_count);
 #if MYSQL_VERSION_ID < 50600
@@ -4030,9 +4056,9 @@ int ha_tokudb::write_row(uchar * record) {
 
     //
     // check to see if some value for the auto increment column that is bigger
-    // than anything else til now is being used. If so, update the metadata to reflect it
-    // the goal here is we never want to have a dup key error due to a bad increment
-    // of the auto inc field.
+    // than anything else til now is being used. If so, update the metadata to
+    // reflect it the goal here is we never want to have a dup key error due to
+    // a bad increment of the auto inc field.
     //
     if (share->has_auto_inc && record == table->record[0]) {
         share->lock();
@@ -4059,8 +4085,7 @@ int ha_tokudb::write_row(uchar * record) {
     if (!num_DBs_locked_in_bulk) {
         share->_num_DBs_lock.lock_read();
         num_DBs_locked = true;
-    }
-    else {
+    } else {
         lock_count++;
         if (lock_count >= 2000) {
             share->_num_DBs_lock.unlock();
@@ -4081,14 +4106,30 @@ int ha_tokudb::write_row(uchar * record) {
         }
     }
 
-    create_dbt_key_from_table(&prim_key, primary_key, primary_key_buff, record, &has_null);
-    if ((error = pack_row(&row, (const uchar *) record, primary_key))){
+    create_dbt_key_from_table(
+        &prim_key,
+        primary_key,
+        primary_key_buff,
+        record,
+        &has_null);
+    if ((error = pack_row(&row, (const uchar*)record, primary_key))) {
         goto cleanup;
     }
 
-    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast && !using_ignore_no_key)));
+    create_sub_trans =
+        (using_ignore &&
+        !(do_ignore_flag_optimization(
+            thd,
+            table,
+            share->replace_into_fast && !using_ignore_no_key)));
     if (create_sub_trans) {
-        error = txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION, thd);
+        error =
+            txn_begin(
+                db_env,
+                transaction,
+                &sub_trans,
+                DB_INHERIT_ISOLATION,
+                thd);
         if (error) {
             goto cleanup;
         }
@@ -4108,10 +4149,20 @@ int ha_tokudb::write_row(uchar * record) {
         error = do_uniqueness_checks(record, txn, thd);
         if (error) {
             // for #4633
-            // if we have a duplicate key error, let's check the primary key to see
-            // if there is a duplicate there. If so, set last_dup_key to the pk
-            if (error == DB_KEYEXIST && !tokudb_test(hidden_primary_key) && last_dup_key != primary_key) {
-                int r = share->file->getf_set(share->file, txn, DB_SERIALIZABLE, &prim_key, smart_dbt_do_nothing, NULL);
+            // if we have a duplicate key error, let's check the primary key to
+            // see if there is a duplicate there. If so, set last_dup_key to the
+            // pk
+            if (error == DB_KEYEXIST &&
+                !tokudb_test(hidden_primary_key) &&
+                last_dup_key != primary_key) {
+                int r =
+                    share->file->getf_set(
+                        share->file,
+                        txn,
+                        DB_SERIALIZABLE,
+                        &prim_key,
+                        smart_dbt_do_nothing,
+                        NULL);
                 if (r == 0) {
                     // if we get no error, that means the row
                     // was found and this is a duplicate key,
@@ -4156,8 +4207,7 @@ cleanup:
         // we want to return.
         if (error) {
             abort_txn(sub_trans);
-        }
-        else {
+        } else {
             commit_txn(sub_trans, DB_TXN_NOSYNC);
         }
     }

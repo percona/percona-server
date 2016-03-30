@@ -240,6 +240,8 @@ a	b
 4	40
 savepoint b;
 insert ignore into t1 values (8,80),(1,100),(9,90);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 select * from t1;
 a	b
 1	10

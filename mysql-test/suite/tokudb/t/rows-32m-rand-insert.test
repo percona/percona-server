@@ -16,6 +16,10 @@ set global max_allowed_packet=100000000;
 
 connect(conn1,localhost,root,,);
 
+# disable warnings here as we will get a lot of unpredictable
+# 1062 Dulicate entry warnings in 5.7 with fix for DB-937
+--disable_warnings
+
 let $nrows=1000;
 let $maxid=$nrows;
 let $maxblob=32*1024*1024;
@@ -23,6 +27,8 @@ while ($nrows) {
       eval insert ignore into t (id,v) values (floor(rand()*$maxid),repeat('a',($maxblob-4)*rand()));
       dec $nrows;
 }
+
+--enable_warnings
 
 connection default;
 disconnect conn1;

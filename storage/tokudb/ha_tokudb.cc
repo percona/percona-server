@@ -3862,7 +3862,6 @@ void ha_tokudb::test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val) {
 // set the put flags for the main dictionary
 void ha_tokudb::set_main_dict_put_flags(
     THD* thd,
-    bool opt_eligible,
     uint32_t* put_flags) {
 
     uint32_t old_prelock_flags = 0;
@@ -3892,15 +3891,10 @@ void ha_tokudb::set_main_dict_put_flags(
         *put_flags = old_prelock_flags;
     } else if (using_ignore_flag_opt && is_replace_into(thd) && !in_hot_index) {
         *put_flags = old_prelock_flags;
-    } else if (opt_eligible && using_ignore_flag_opt &&
-               is_insert_ignore(thd) &&
-               !in_hot_index) {
-        // GL on DB-937 : This is incorrect. The server expects an SE to
-        // return ER_DUP_ENTRY on a dup key hit even when IGNORE is in use.
-        // This is so the server can set the correct warnings on the statement.
-        //*put_flags = DB_NOOVERWRITE_NO_ERROR | old_prelock_flags;
-        *put_flags = DB_NOOVERWRITE | old_prelock_flags;
     } else {
+        // GL on DB-937 : The server expects an SE to return ER_DUP_ENTRY on a
+        // dup key hit even when IGNORE is in use. This is so the server can
+        // set the correct warnings on the statement.
         *put_flags = DB_NOOVERWRITE | old_prelock_flags;
     }
 }
@@ -3917,7 +3911,7 @@ int ha_tokudb::insert_row_to_main_dictionary(
 
     uint32_t put_flags = mult_put_flags[primary_key];
     THD *thd = ha_thd(); 
-    set_main_dict_put_flags(thd, true, &put_flags);
+    set_main_dict_put_flags(thd, &put_flags);
 
     // for test, make unique checks have a very long duration
     if ((put_flags & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)
@@ -3941,7 +3935,7 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(
 
     int error = 0;
     uint curr_num_DBs = share->num_DBs;
-    set_main_dict_put_flags(thd, true, &mult_put_flags[primary_key]);
+    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
     uint32_t flags = mult_put_flags[primary_key];
 
     // for test, make unique checks have a very long duration
@@ -4349,7 +4343,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     error = pack_old_row_for_update(&old_prim_row, old_row, primary_key);
     if (error) { goto cleanup; }
 
-    set_main_dict_put_flags(thd, false, &mult_put_flags[primary_key]);
+    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
 
     // for test, make unique checks have a very long duration
     if ((mult_put_flags[primary_key] & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)

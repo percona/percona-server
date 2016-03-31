@@ -772,10 +772,11 @@ int TOKUDB_SHARE::analyze_standard(THD* thd, DB_TXN* txn) {
     int result = HA_ADMIN_OK;
 
     // stub out analyze if optimize is remapped to alter recreate + analyze
-    // when not auto analyze
-    if (txn &&
-        thd_sql_command(thd) != SQLCOM_ANALYZE &&
-        thd_sql_command(thd) != SQLCOM_ALTER_TABLE) {
+    // when not auto analyze or if this is an alter
+    if ((txn &&
+         thd_sql_command(thd) != SQLCOM_ANALYZE &&
+         thd_sql_command(thd) != SQLCOM_ALTER_TABLE) ||
+        thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
         TOKUDB_HANDLER_DBUG_RETURN(result);
     }
 

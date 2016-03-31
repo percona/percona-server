@@ -710,7 +710,7 @@ private:
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info, int lock_flags);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
-    void set_main_dict_put_flags(THD* thd, bool opt_eligible, uint32_t* put_flags);
+    void set_main_dict_put_flags(THD* thd, uint32_t* put_flags);
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     void test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);

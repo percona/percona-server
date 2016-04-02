@@ -2416,6 +2416,15 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                  mysql_error(mysql));
       ret= 2;
     }
+    else if (mysql_errno(mysql) == 1193)
+    {
+      mi->master_uuid[0]= 0;
+      mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+                 "Unknown system variable 'SERVER_UUID' on master. "
+                 "A probable cause is that the variable is not supported on the "
+                 "master (version: %s), even though it is on the slave (version: %s)",
+                 mysql->server_version, server_version);
+    }
     else
     {
       /* Fatal error */

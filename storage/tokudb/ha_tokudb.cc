@@ -370,17 +370,20 @@ void TOKUDB_SHARE::update_row_count(
         pct_of_rows_changed_to_trigger = ((_rows * auto_threshold) / 100);
         if (_row_delta_activity >= pct_of_rows_changed_to_trigger) {
             char msg[200];
-            snprintf(
-                msg,
-                sizeof(msg),
-                "TokuDB: Auto %s background analysis for %s, delta_activity "
-                "%llu is greater than %llu percent of %llu rows.",
-                tokudb::sysvars::analyze_in_background(thd) > 0 ?
-                    "scheduling" : "running",
-                full_table_name(),
-                _row_delta_activity,
-                auto_threshold,
-                (ulonglong)(_rows));
+            if (TOKUDB_UNLIKELY(tokudb::sysvars::debug > 0)) {
+                snprintf(
+                    msg,
+                    sizeof(msg),
+                    "TokuDB: Auto %s background analysis for %s, "
+                    "delta_activity %llu is greater than %llu "
+                    "percent of %llu rows.",
+                    tokudb::sysvars::analyze_in_background(thd) > 0 ?
+                        "scheduling" : "running",
+                    full_table_name(),
+                    _row_delta_activity,
+                    auto_threshold,
+                    (ulonglong)(_rows));
+            }
 
             // analyze_standard will unlock _mutex regardless of success/failure
             int ret = analyze_standard(thd, NULL);

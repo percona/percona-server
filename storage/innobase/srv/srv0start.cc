@@ -2409,40 +2409,6 @@ files_checked:
 
 		create_log_files_rename(logfilename, dirnamelen,
 					max_flushed_lsn, logfile0);
-#ifdef UNIV_LOG_ARCHIVE
-	} else if (srv_archive_recovery) {
-
-		ib_logf(IB_LOG_LEVEL_INFO,
-			" Starting archive recovery from a backup...");
-
-		err = recv_recovery_from_archive_start(
-			min_flushed_lsn, srv_archive_recovery_limit_lsn,
-			min_arch_log_no);
-		if (err != DB_SUCCESS) {
-
-			return(DB_ERROR);
-		}
-		/* Since ibuf init is in dict_boot, and ibuf is needed
-		in any disk i/o, first call dict_boot */
-
-		err = dict_boot();
-
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
-
-		ib_bh = trx_sys_init_at_db_start();
-		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
-
-		/* The purge system needs to create the purge view and
-		therefore requires that the trx_sys is inited. */
-
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
-
-		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-		recv_recovery_from_archive_finish();
-#endif /* UNIV_LOG_ARCHIVE */
 	} else {
 
 		/* Check if we support the max format that is stamped

@@ -4,15 +4,9 @@
 Expanded Fast Index Creation
 ============================
 
-Percona has implemented several changes related to |MySQL|'s fast index creation feature. This feature expands the ``ALTER TABLE`` command by adding a new clause that provides online index renaming capability, that is renaming indexes without rebuilding the whole table.
-
-Enabling Expanded Fast Index Creation
-=====================================
-
-Fast index creation was implemented in |MySQL| as a way to speed up the process of adding or dropping indexes on tables with many rows. However, cases have been found in which fast index creation creates an inconsistency between |MySQL| and |InnoDB| data dictionaries.
+Percona has implemented several changes related to |MySQL|'s fast index creation feature. Fast index creation was implemented in |MySQL| as a way to speed up the process of adding or dropping indexes on tables with many rows. 
 
 This feature implements a session variable that enables extended fast index creation. Besides optimizing DDL directly, :variable:`expand_fast_index_creation` may also optimize index access for subsequent DML statements because using it results in much less fragmented indexes.
-
 
 :command:`mysqldump`
 --------------------

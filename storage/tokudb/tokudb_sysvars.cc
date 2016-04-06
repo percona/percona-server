@@ -734,17 +734,6 @@ static MYSQL_THDVAR_ULONGLONG(
     ~0ULL,
     1);
 
-static MYSQL_THDVAR_UINT(
-    pk_insert_mode,
-    0,
-    "set the primary key insert mode",
-    NULL,
-    NULL,
-    1,
-    0,
-    2,
-    1);
-
 static MYSQL_THDVAR_BOOL(
     prelock_empty,
     0,
@@ -966,7 +955,6 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(optimize_index_fraction),
     MYSQL_SYSVAR(optimize_index_name),
     MYSQL_SYSVAR(optimize_throttle),
-    MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(prelock_empty),
     MYSQL_SYSVAR(read_block_size),
     MYSQL_SYSVAR(read_buf_size),
@@ -1080,9 +1068,6 @@ const char* optimize_index_name(THD* thd) {
 ulonglong optimize_throttle(THD* thd) {
     return THDVAR(thd, optimize_throttle);
 }
-uint pk_insert_mode(THD* thd) {
-    return THDVAR(thd, pk_insert_mode);
-}
 my_bool prelock_empty(THD* thd) {
     return (THDVAR(thd, prelock_empty) != 0);
 }
@@ -1113,6 +1098,8 @@ ulonglong rpl_unique_checks_delay(THD* thd) {
 my_bool support_xa(THD* thd) {
     return (THDVAR(thd, support_xa) != 0);
 }
-
+void set_support_xa(THD* thd, my_bool xa) {
+    THDVAR(thd, support_xa) = xa;
+}
 } // namespace sysvars
 } // namespace tokudb

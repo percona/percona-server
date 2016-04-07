@@ -1583,7 +1583,7 @@ os_file_set_atomic_writes(
 #else
 	ib_logf(IB_LOG_LEVEL_ERROR,
 		"trying to enable atomic writes on non-supported platform! "
-		"Please restart with innodb_use_atomic_writes disabled.\n");
+		"Please restart with innodb_use_atomic_writes disabled.");
 	return(FALSE);
 #endif
 }
@@ -2202,7 +2202,7 @@ os_file_set_size(
 
 			ib_logf(IB_LOG_LEVEL_ERROR, "preallocating file "
 				"space for file \'%s\' failed.  Current size "
-				INT64PF ", desired size " INT64PF "\n",
+				INT64PF ", desired size " INT64PF,
 				name, current_size, size);
 			os_file_handle_error_no_exit (name, "posix_fallocate",
 						      FALSE);

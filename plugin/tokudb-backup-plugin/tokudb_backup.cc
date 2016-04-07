@@ -17,7 +17,7 @@
 #endif
 #include <sql_acl.h>   // SUPER_ACL
 #include <sql_parse.h> // check_global_access
-#include "backup/backup.h"
+#include "Percona-TokuBackup/backup/backup.h"
 #include <regex.h>
 
 #ifdef TOKUDB_BACKUP_PLUGIN_VERSION

@@ -319,8 +319,6 @@ UNIV_INTERN ulong	srv_read_ahead_threshold	= 56;
 
 #ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
-UNIV_INTERN ibool		srv_archive_recovery	= 0;
-UNIV_INTERN ib_uint64_t	srv_archive_recovery_limit_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 
 /* This parameter is used to throttle the number of insert buffers that are

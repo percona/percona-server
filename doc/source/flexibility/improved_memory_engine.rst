@@ -61,6 +61,11 @@ Minimum Block Size
 
 The block size has to be big enough to store all fixed-length information in the first block. If not, the ``CREATE TABLE`` or ``ALTER TABLE`` statements will fail (see below).
 
+Limitations
+===========
+
+|MyISAM| tables are still used for query optimizer internal temporary tables where the ``MEMORY`` tables could be used now instead: for temporary tables containing large ``VARCHAR``s, ``BLOB``, and ``TEXT`` columns.
+
 Setting Row Format
 ==================
 

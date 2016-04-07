@@ -2381,6 +2381,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
+  DBUG_EXECUTE_IF("dbug.simulate_no_server_uuid",
+                  {
+                    DBUG_SET("+d,inject_ER_UNKNOWN_SYSTEM_VARIABLE");
+                  });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_UUID")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
@@ -2416,6 +2420,15 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                  mysql_error(mysql));
       ret= 2;
     }
+    else if (mysql_errno(mysql) == ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      mi->master_uuid[0]= 0;
+      mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
+                 "Unknown system variable 'SERVER_UUID' on master. A probable "
+                 "cause is that the variable is not supported on the master "
+                 "(version: %s), even though it is on the slave (version: %s)",
+                 mysql->server_version, server_version);
+    }
     else
     {
       /* Fatal error */
@@ -2425,15 +2438,6 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                  errmsg);
       ret= 1;
     }
-  }
-  else if (!master_row && master_res)
-  {
-    mi->master_uuid[0]= 0;
-    mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
-               "Unknown system variable 'SERVER_UUID' on master. "
-               "A probable cause is that the variable is not supported on the "
-               "master (version: %s), even though it is on the slave (version: %s)",
-               mysql->server_version, server_version);
   }
 
   if (master_res)

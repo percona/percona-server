@@ -5185,8 +5185,8 @@ retry:
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"preallocating file space for file \'%s\' "
 				"failed.  Current size " INT64PF
-				", len " INT64PF ", desired size " INT64PF
-				"\n", node->name, start_offset, end_offset,
+				", len " INT64PF ", desired size " INT64PF,
+				node->name, start_offset, end_offset,
 				start_offset + end_offset);
 		}
 		mutex_enter(&fil_system->mutex);
@@ -6780,27 +6780,6 @@ fil_mtr_rename_log(
 
 /*************************************************************************
 functions to access is_corrupt flag of fil_space_t*/
-
-ibool
-fil_space_is_corrupt(
-/*=================*/
-	ulint	space_id)
-{
-	fil_space_t*	space;
-	ibool		ret = FALSE;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(space_id);
-
-	if (UNIV_UNLIKELY(space && space->is_corrupt)) {
-		ret = TRUE;
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	return(ret);
-}
 
 void
 fil_space_set_corrupt(

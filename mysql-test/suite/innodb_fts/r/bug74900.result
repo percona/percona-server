@@ -1,0 +1,13 @@
+call mtr.add_suppression("Error: table \"nonexisting\".\"FTS");
+call mtr.add_suppression("InnoDB: File ./test/FTS_");
+SET @saved_innodb_file_format=@@GLOBAL.innodb_file_format;
+SET GLOBAL innodb_file_format=Barracuda;
+CREATE TABLE t1 (s1 CHAR) ENGINE=InnoDB;
+CREATE FULLTEXT INDEX i ON t1(s1);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+ALTER TABLE t1 RENAME nonexisting.t1;
+ERROR HY000: Error on rename of './test/t1' to './nonexisting/t1' (errno: <unknown>)
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+DROP TABLE t1;
+SET GLOBAL innodb_file_format=@saved_innodb_file_format;

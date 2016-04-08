@@ -1,0 +1,20 @@
+# Testcase for bug 74900
+--source include/have_innodb.inc
+
+call mtr.add_suppression("Error: table \"nonexisting\".\"FTS");
+call mtr.add_suppression("InnoDB: File ./test/FTS_");
+
+SET @saved_innodb_file_format=@@GLOBAL.innodb_file_format;
+SET GLOBAL innodb_file_format=Barracuda;
+
+CREATE TABLE t1 (s1 CHAR) ENGINE=InnoDB;
+CREATE FULLTEXT INDEX i ON t1(s1);
+
+--replace_regex /\(errno: .*\)/(errno: <unknown>)/
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 RENAME nonexisting.t1;
+ALTER TABLE t1 KEY_BLOCK_SIZE=2;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_file_format=@saved_innodb_file_format;

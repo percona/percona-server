@@ -583,10 +583,8 @@ log_mem_free(void);
 /*==============*/
 
 /****************************************************************//**
-Safely reads the log_sys->tracked_lsn value.  Uses atomic operations
-if available, otherwise this field is protected with the log system
-mutex.  The writer counterpart function is log_set_tracked_lsn() in
-log0online.c.
+Safely reads the log_sys->tracked_lsn value.  The writer counterpart function
+is log_set_tracked_lsn() in log0online.c.
 
 @return log_sys->tracked_lsn value. */
 UNIV_INLINE

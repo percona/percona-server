@@ -2312,7 +2312,7 @@ DECLARE_THREAD(srv_redo_log_follow_thread)(
 				/* TODO: sync with I_S log tracking status? */
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"log tracking bitmap write failed, "
-					"stopping log tracking thread!\n");
+					"stopping log tracking thread!");
 				break;
 			}
 			os_event_set(srv_redo_log_tracked_event);
@@ -2354,7 +2354,7 @@ purge_archived_logs(
 		if (!dir) {
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"opening archived log directory %s failed. "
-				"Purge archived logs are not available\n",
+				"Purge archived logs are not available",
 				srv_arch_dir);
 			/* failed to open directory */
 			return(DB_ERROR);
@@ -2442,7 +2442,7 @@ purge_archived_logs(
 					     archived_log_filename)) {
 
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"can't delete archived log file %s.\n",
+				"can't delete archived log file %s.",
 				archived_log_filename);
 
 			mutex_exit(&log_sys->mutex);

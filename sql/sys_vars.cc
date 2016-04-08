@@ -4219,7 +4219,8 @@ static ulonglong update_log_slow_verbosity_replace(ulonglong value, ulonglong wh
   }
   return value;
 }
-void update_log_slow_verbosity(ulonglong* value_ptr)
+
+static void update_log_slow_verbosity(ulonglong* value_ptr)
 {
   ulonglong &value    = *value_ptr;
   ulonglong microtime= ULL(1) << SLOG_V_MICROTIME;
@@ -4232,6 +4233,7 @@ void update_log_slow_verbosity(ulonglong* value_ptr)
   value= update_log_slow_verbosity_replace(value,standard,microtime | query_plan);
   value= update_log_slow_verbosity_replace(value,full,microtime | query_plan | innodb);
 }
+
 static bool update_log_slow_verbosity_helper(sys_var */*self*/, THD *thd,
                                           enum_var_type type)
 {

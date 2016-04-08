@@ -365,7 +365,7 @@ extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
-  key_LOCK_stats, key_LOCK_global_user_client_stats,
+  key_LOCK_global_user_client_stats,
   key_LOCK_global_table_stats, key_LOCK_global_index_stats,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
@@ -627,7 +627,7 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-       LOCK_stats, LOCK_global_user_client_stats,
+       LOCK_global_user_client_stats,
        LOCK_global_table_stats, LOCK_global_index_stats;
 #ifdef HAVE_OPENSSL
 extern char* des_key_file;

@@ -5383,12 +5383,6 @@ restart:
         if (need_prelocking && ! *start)
           *start= thd->lex->query_tables;
 
-        if (need_prelocking && ! thd->lex->requires_prelocking())
-          thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
-
-        if (need_prelocking && ! *start)
-          *start= thd->lex->query_tables;
-
         if (error)
         {
           if (ot_ctx.can_recover_from_failed_open())

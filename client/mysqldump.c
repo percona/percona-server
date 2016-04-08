@@ -219,7 +219,7 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 
 HASH ignore_table;
 
-LIST *skipped_keys_list;
+static LIST *skipped_keys_list;
 
 static struct my_option my_long_options[] =
 {

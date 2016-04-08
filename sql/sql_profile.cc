@@ -538,7 +538,7 @@ void PROFILING::set_query_source(char *query_source_arg, uint query_length_arg)
   DBUG_VOID_RETURN;
 }
 
-bool PROFILING::enabled_getrusage()
+bool PROFILING::enabled_getrusage() const
 {
   return ((thd->variables.log_slow_verbosity & (ULL(1) << SLOG_V_PROFILING_USE_GETRUSAGE)) != 0);
 }
@@ -582,7 +582,7 @@ static void my_b_print_status(IO_CACHE *log_file, const char *status,
   Print output for current query to file 
 */
 
-int PROFILING::print_current(IO_CACHE *log_file)
+int PROFILING::print_current(IO_CACHE *log_file) const
 {
   DBUG_ENTER("PROFILING::print_current");
   ulonglong row_number= 0;

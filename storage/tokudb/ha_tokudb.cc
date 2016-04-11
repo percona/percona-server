@@ -462,19 +462,13 @@ static inline bool do_ignore_flag_optimization(
     bool opt_eligible) {
 
     bool do_opt = false;
-    if (opt_eligible) {
-        if (is_replace_into(thd) || is_insert_ignore(thd)) {
-            uint pk_insert_mode = tokudb::sysvars::pk_insert_mode(thd);
-            if ((!table->triggers && pk_insert_mode < 2) ||
-                pk_insert_mode == 0) {
-                if (mysql_bin_log.is_open() &&
-                    thd->variables.binlog_format != BINLOG_FORMAT_STMT) {
-                    do_opt = false;
-                } else {
-                    do_opt = true;
-                }
-            }
-        }
+    if (opt_eligible &&
+        (is_replace_into(thd) || is_insert_ignore(thd)) &&
+        tokudb::sysvars::pk_insert_mode(thd) == 1 &&
+        !table->triggers &&
+        !(mysql_bin_log.is_open() &&
+         thd->variables.binlog_format != BINLOG_FORMAT_STMT)) {
+        do_opt = true;
     }
     return do_opt;
 }

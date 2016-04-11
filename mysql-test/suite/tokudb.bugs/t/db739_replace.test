@@ -23,7 +23,6 @@ while ($id < 1000) {
 }
 
 delete from t where id=404;
-set tokudb_pk_insert_mode=2;
 replace into t values (404,0,0,0);
 
 drop table t;

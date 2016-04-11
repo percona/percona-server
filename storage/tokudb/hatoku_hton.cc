@@ -407,6 +407,14 @@ static int tokudb_init_func(void *p) {
     db_env->set_errcall(db_env, tokudb_print_error);
     db_env->set_errpfx(db_env, tokudb_hton_name);
 
+    // Handle deprecated options
+    if (!tokudb::sysvars::support_xa(NULL)) {
+        TOKUDB_TRACE("Using tokudb_support_xa is deprecated and the "
+            "parameter may be removed in future releases. "
+            "See documentation and release notes for details");
+           tokudb::sysvars::set_support_xa(NULL, TRUE);
+    }
+
     //
     // set default comparison functions
     //

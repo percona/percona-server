@@ -1,4 +1,3 @@
-SET @old_default_storage_engine=@@default_storage_engine;
 SET default_storage_engine=MEMORY;
 drop table if exists t1,t2,t3,t4,t5,t6,t7;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
@@ -944,4 +943,3 @@ length(data)
 drop table t1;
 SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
 SET GLOBAL max_heap_table_size = @old_max_heap_table_size;
-SET default_storage_engine=@old_default_storage_engine;

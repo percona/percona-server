@@ -6,7 +6,6 @@
 # Modified tests from type_blob.test
 ########################################################################
 
-SET @old_default_storage_engine=@@default_storage_engine;
 SET default_storage_engine=MEMORY;
 
 #
@@ -630,4 +629,3 @@ connection default;
 
 SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
 SET GLOBAL max_heap_table_size = @old_max_heap_table_size;
-SET default_storage_engine=@old_default_storage_engine;

@@ -243,7 +243,7 @@ private:
 
 public:
 
-  inline PROFILING * get_profiling() const { return profiling; };
+  PROFILING * get_profiling() const { return profiling; };
 
 };
 

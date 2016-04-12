@@ -235,7 +235,7 @@ private:
 
 public:
 
-  inline PROFILING * get_profiling() { return profiling; };
+  PROFILING * get_profiling() const { return profiling; };
 
 };
 
@@ -282,11 +282,11 @@ public:
 
   /* SHOW PROFILES */
   bool show_profiles();
-  bool enabled_getrusage();
+  bool enabled_getrusage() const;
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
   int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
-  int print_current(IO_CACHE *log_file);
+  int print_current(IO_CACHE *log_file) const;
 };
 
 #  endif /* HAVE_PROFILING */

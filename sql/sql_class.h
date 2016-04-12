@@ -3256,7 +3256,6 @@ public:
 
   /// @todo: slave_thread is completely redundant, we should use 'system_thread' instead /sven
   bool       slave_thread, one_shot_set;
-  bool       extra_port;                        /* If extra connection */
 
   bool	     no_errors;
   uchar      password;

@@ -344,7 +344,7 @@ int hp_reallocate_chunkset(HP_DATASPACE *info, uint chunk_count, uchar *pos)
   {
     /* Update should never change chunk_count in fixed-size mode */
     my_errno= HA_ERR_WRONG_COMMAND;
-    return my_errno;
+    DBUG_RETURN(my_errno);
   }
 
   /* Reallocate never moves the first chunk */

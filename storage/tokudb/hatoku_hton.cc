@@ -60,7 +60,8 @@ static handler* tokudb_create_handler(
 static void tokudb_print_error(
     const DB_ENV* db_env,
     const char* db_errpfx,
-    const char* buffer);
+    const char* buffer,
+    bool err);
 static void tokudb_cleanup_log_files(void);
 static int tokudb_end(handlerton* hton, ha_panic_function type);
 static bool tokudb_flush_logs(handlerton* hton, bool binlog_group_commit);
@@ -1488,8 +1489,12 @@ static void tokudb_handle_fatal_signal(
 static void tokudb_print_error(
     const DB_ENV* db_env,
     const char* db_errpfx,
-    const char* buffer) {
-    sql_print_error("%s: %s", db_errpfx, buffer);
+    const char* buffer,
+    bool err) {
+    if (err)
+        sql_print_error("%s: %s", db_errpfx, buffer);
+    else
+        sql_print_warning("%s: %s", db_errpfx, buffer);
 }
 
 static void tokudb_cleanup_log_files(void) {

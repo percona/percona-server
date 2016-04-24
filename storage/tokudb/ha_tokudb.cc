@@ -368,28 +368,26 @@ void TOKUDB_SHARE::update_row_count(
     if (delta && auto_threshold > 0 && _allow_auto_analysis) {
         ulonglong pct_of_rows_changed_to_trigger;
         pct_of_rows_changed_to_trigger = ((_rows * auto_threshold) / 100);
-        if (_row_delta_activity >= pct_of_rows_changed_to_trigger) {
+        if (TOKUDB_UNLIKELY(_row_delta_activity >= pct_of_rows_changed_to_trigger)) {
             char msg[200];
-            if (TOKUDB_UNLIKELY(tokudb::sysvars::debug > 0)) {
-                snprintf(
-                    msg,
-                    sizeof(msg),
-                    "TokuDB: Auto %s background analysis for %s, "
-                    "delta_activity %llu is greater than %llu "
-                    "percent of %llu rows.",
-                    tokudb::sysvars::analyze_in_background(thd) > 0 ?
-                        "scheduling" : "running",
-                    full_table_name(),
-                    _row_delta_activity,
-                    auto_threshold,
-                    (ulonglong)(_rows));
-            }
+            snprintf(
+                msg,
+                sizeof(msg),
+                "TokuDB: Auto %s background analysis for %s, "
+                "delta_activity %llu is greater than %llu "
+                "percent of %llu rows.",
+                tokudb::sysvars::analyze_in_background(thd) > 0 ?
+                    "scheduled" : "run",
+                full_table_name(),
+                _row_delta_activity,
+                auto_threshold,
+                (ulonglong)(_rows));
 
             // analyze_standard will unlock _mutex regardless of success/failure
             int ret = analyze_standard(thd, NULL);
-            if (ret == 0) {
+            if (TOKUDB_UNLIKELY(ret == 0 && tokudb::sysvars::debug > 0)) {
                 sql_print_information("%s - succeeded.", msg);
-            } else {
+            } else if (TOKUDB_UNLIKELY(ret != 0)) {
                 sql_print_information(
                     "%s - failed, likely a job already running.",
                     msg);

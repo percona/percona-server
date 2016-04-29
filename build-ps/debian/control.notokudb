@@ -132,8 +132,7 @@ Description: Percona Server database client binaries
  query language in the world. The main goals of Percona Server are speed,
  robustness and ease of use.
  .
- This package includes the client binaries and the additional tools
- innotop and mysqlreport.
+ This package includes the client binaries.
 
 Package: percona-server-server-5.6
 Architecture: any

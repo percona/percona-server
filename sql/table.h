@@ -752,6 +752,12 @@ struct TABLE_SHARE
   */ 
   const File_parser *view_def;
 
+  /**
+    True in the case if tokudb read-free-replication is used for the table
+    without explicit pk and corresponding warning was issued to disable
+    repeated warning.
+  */
+  bool rfr_lookup_warning;
 
   /*
     Set share's table cache key and update its db and table name appropriately.

@@ -3930,6 +3930,7 @@ log_shutdown(void)
 	rw_lock_free(&log_sys->checkpoint_lock);
 
 	mutex_free(&log_sys->mutex);
+	mutex_free(&log_sys->log_flush_order_mutex);
 
 #ifdef UNIV_LOG_ARCHIVE
 	rw_lock_free(&log_sys->archive_lock);

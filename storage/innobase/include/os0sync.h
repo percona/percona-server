@@ -94,16 +94,62 @@ struct os_event {
 #endif
 	os_fast_mutex_t	os_mutex;	/*!< this mutex protects the next
 					fields */
-	ibool		is_set;		/*!< this is TRUE when the event is
-					in the signaled state, i.e., a thread
-					does not stop if it tries to wait for
-					this event */
-	ib_int64_t	signal_count;	/*!< this is incremented each time
-					the event becomes signaled */
+private:
+	/** Masks for the event signal count and set flag in the count_and_set
+	field */
+	enum { count_mask = 0x7fffffffffffffffULL,
+	       set_mask   = 0x8000000000000000ULL};
+
+	/** The MSB is set whenever when the event is in the signaled state,
+	i.e. a thread does not stop if it tries to wait for this event. Lower
+	bits are incremented each time the event becomes signaled. */
+	ib_uint64_t	count_and_set;
+public:
 	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_t) os_event_list;
-					/*!< list of all created events */
+
+	/** Initialise count_and_set field */
+	void init_count_and_set(void)
+	{
+		/* We return this value in os_event_reset(), which can then be
+		be used to pass to the os_event_wait_low(). The value of zero
+		is reserved in os_event_wait_low() for the case when the
+		caller does not want to pass any signal_count value. To
+		distinguish between the two cases we initialize signal_count
+		to 1 here. */
+		count_and_set = 1;
+	}
+
+	/** Mark this event as set */
+	void set(void)
+	{
+		count_and_set |= set_mask;
+	}
+
+	/** Unmark this event as set */
+	void reset(void)
+	{
+		count_and_set &= count_mask;
+	}
+
+	/** Return true if this event is set */
+	bool is_set(void) const
+	{
+		return count_and_set & set_mask;
+	}
+
+	/** Bump signal count for this event */
+	void inc_signal_count(void)
+	{
+		ut_ad(static_cast<ib_uint64_t>(signal_count()) < count_mask);
+		count_and_set++;
+	}
+
+	/** Return how many times this event has been signalled */
+	ib_int64_t signal_count(void) const
+	{
+		return (count_and_set & count_mask);
+	}
 };
 
 /** Denotes an infinite delay for os_event_wait_time() */
@@ -115,8 +161,7 @@ struct os_event {
 /** Operating system mutex handle */
 typedef struct os_mutex_t*	os_ib_mutex_t;
 
-/** Mutex protecting counts and the event and OS 'slow' mutex lists */
-extern os_ib_mutex_t	os_sync_mutex;
+// All the os_*_count variables are accessed atomically
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
@@ -132,12 +177,15 @@ UNIV_INTERN
 void
 os_sync_init(void);
 /*==============*/
-/*********************************************************//**
-Frees created events and OS 'slow' mutexes. */
+
+/** Create an event semaphore, i.e., a semaphore which may just have two
+states: signaled and nonsignaled. The created event is manual reset: it must be
+reset explicitly by calling sync_os_reset_event.
+@param[in,out]	event	memory block where to create the event */
 UNIV_INTERN
 void
-os_sync_free(void);
-/*==============*/
+os_event_create(os_event_t event);
+
 /*********************************************************//**
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
@@ -173,7 +221,10 @@ UNIV_INTERN
 void
 os_event_free(
 /*==========*/
-	os_event_t	event);	/*!< in: event to free */
+	os_event_t	event,	/*!< in: event to free */
+	bool		free_memory = true);
+				/*!< in: if true, deallocate the event memory
+				block too */
 
 /**********************************************************//**
 Waits for an event object until it is in the signaled state.

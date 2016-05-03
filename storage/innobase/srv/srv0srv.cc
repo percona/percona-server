@@ -1543,6 +1543,8 @@ srv_export_innodb_status(void)
 
 	mem_adaptive_hash = 0;
 
+	rw_lock_s_lock(btr_search_latches[0]);
+
 	ut_ad(btr_search_sys->hash_tables);
 
 	for (i = 0; i < btr_ahi_parts; i++) {
@@ -1559,10 +1561,15 @@ srv_export_innodb_status(void)
 		mem_adaptive_hash += ht->n_cells * sizeof(hash_cell_t);
 	}
 
+	rw_lock_s_unlock(btr_search_latches[0]);
+
+	mutex_enter(&dict_sys->mutex);
+
 	mem_dictionary = (dict_sys ? ((dict_sys->table_hash->n_cells
 					+ dict_sys->table_id_hash->n_cells
 				      ) * sizeof(hash_cell_t)
 				+ dict_sys->size) : 0);
+	mutex_exit(&dict_sys->mutex);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 

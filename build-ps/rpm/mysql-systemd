@@ -88,7 +88,7 @@ pinger () {
 
     while /bin/true ; do
         sleep 1
-        mysqladmin --no-defaults --socket="$adminsocket" --user=UNKNOWN_MYSQL_USER ping >/dev/null 2>&1 && break
+        mysqladmin --socket="$adminsocket" ping >/dev/null 2>&1 && break
     done
     exit 0
 }

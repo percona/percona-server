@@ -504,10 +504,7 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
     TOKUDB_HANDLER_DBUG_ENTER("");
     assert_always(table_share);
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
-        HA_KEYREAD_ONLY | HA_READ_RANGE);
-#if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
-    flags |= HA_DO_INDEX_COND_PUSHDOWN;
-#endif
+        HA_KEYREAD_ONLY | HA_READ_RANGE | HA_DO_INDEX_COND_PUSHDOWN);
     if (key_is_clustering(&table_share->key_info[idx])) {
         flags |= HA_CLUSTERED_INDEX;
     }
@@ -5251,11 +5248,26 @@ int ha_tokudb::fill_range_query_buf(
             toku_handler_index_cond_check(toku_pushed_idx_cond);
 
         // If we have reason to stop, we set icp_went_out_of_range and get out
+        // otherwise, if we simply see that the current key is no match,
+        // we tell the cursor to continue and don't store
+        // the key locally
         if (result == ICP_OUT_OF_RANGE || thd_killed(thd)) {
             icp_went_out_of_range = true;
             error = 0;
+            DEBUG_SYNC(ha_thd(), "tokudb_icp_asc_scan_out_of_range");
             goto cleanup;
         } else if (result == ICP_NO_MATCH) {
+            // if we are performing a DESC ICP scan and have no end_range
+            // to compare to stop using ICP filtering as there isn't much more
+            // that we can do without going through contortions with remembering
+            // and comparing key parts.
+            if (!end_range &&
+                direction < 0) {
+
+                cancel_pushed_idx_cond();
+                DEBUG_SYNC(ha_thd(), "tokudb_icp_desc_scan_invalidate");
+            }
+
             error = TOKUDB_CURSOR_CONTINUE;
             goto cleanup;
         }
@@ -8832,6 +8844,11 @@ Item* ha_tokudb::idx_cond_push(uint keyno_arg, Item* idx_cond_arg) {
     toku_pushed_idx_cond_keyno = keyno_arg;
     toku_pushed_idx_cond = idx_cond_arg;
     return idx_cond_arg;
+}
+
+void ha_tokudb::cancel_pushed_idx_cond() {
+    invalidate_icp();
+    handler::cancel_pushed_idx_cond();
 }
 
 void ha_tokudb::cleanup_txn(DB_TXN *txn) {

@@ -904,7 +904,7 @@ public:
 #endif
 
     Item* idx_cond_push(uint keyno, class Item* idx_cond);
-
+    void cancel_pushed_idx_cond();
 
 #if TOKU_INCLUDE_ALTER_56
  public:

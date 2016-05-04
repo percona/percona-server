@@ -74,10 +74,6 @@ This means there were: ::
 Logging the queries in separate ``READ`` and ``WRITE`` tables
 =============================================================
 
-.. note::
-
-  This feature is considered **BETA** quality.
-
 |Percona Server| is now able to log the queries response times into separate ``READ`` and ``WRITE`` ``INFORMATION_SCHEMA`` tables. The two new tables are named :table:`QUERY_RESPONSE_TIME_READ` and :table:`QUERY_RESPONSE_TIME_WRITE` respectively. The decision on whether a query is a ``read`` or a ``write`` is based on the type of the command. Thus, for example, an ``UPDATE ... WHERE <condition>`` is always logged as a ``write`` query even if ``<condition>`` is always false and thus no actual writes happen during its execution.
 
 Following SQL commands will be considered as ``WRITE`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_WRITE` table: ``CREATE_TABLE``, ``CREATE_INDEX``, ``ALTER_TABLE``, ``TRUNCATE``, ``DROP_TABLE``, ``LOAD``, ``CREATE_DB``, ``DROP_DB``, ``ALTER_DB``, ``RENAME_TABLE``, ``DROP_INDEX``, ``CREATE_VIEW``, ``DROP_VIEW``, ``CREATE_TRIGGER``, ``DROP_TRIGGER``, ``CREATE_EVENT``, ``ALTER_EVENT``, ``DROP_EVENT``, ``UPDATE``, ``UPDATE_MULTI``, ``INSERT``, ``INSERT_SELECT``, ``DELETE``, ``DELETE_MULTI``, ``REPLACE``, ``REPLACE_SELECT``, ``CREATE_USER``, ``RENAME_USER``, ``DROP_USER``, ``ALTER_USER``, ``GRANT``, ``REVOKE``, ``REVOKE_ALL``, ``OPTIMIZE``, ``CREATE_FUNCTION``, ``CREATE_PROCEDURE``, ``CREATE_SPFUNCTION``, ``DROP_PROCEDURE``, ``DROP_FUNCTION``, ``ALTER_PROCEDURE``, ``ALTER_FUNCTION``, ``INSTALL_PLUGIN``, and ``UNINSTALL_PLUGIN``. Commands not listed here are considered as ``READ`` queries and will be logged into the :table:`QUERY_RESPONSE_TIME_READ` table.

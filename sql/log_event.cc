@@ -9435,16 +9435,36 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
   TABLE *table= this->m_table;
   uint event_type= this->get_general_type_code();
   MY_BITMAP *cols= &this->m_cols;
+  bool delete_update_lookup_condition= false;
   this->m_rows_lookup_algorithm= ROW_LOOKUP_NOT_NEEDED;
   this->m_key_index= MAX_KEY;
   this->m_key_info= NULL;
 
   // row lookup not needed
   if (event_type == binary_log::WRITE_ROWS_EVENT ||
-      ((event_type == binary_log::DELETE_ROWS_EVENT ||
-        event_type == binary_log::UPDATE_ROWS_EVENT) &&
-      get_flags(COMPLETE_ROWS_F) && !m_table->file->rpl_lookup_rows()))
-    DBUG_VOID_RETURN;
+     (delete_update_lookup_condition= ((event_type == binary_log::DELETE_ROWS_EVENT ||
+                                        event_type == binary_log::UPDATE_ROWS_EVENT) &&
+                                      get_flags(COMPLETE_ROWS_F) &&
+                                      !m_table->file->rpl_lookup_rows())))
+  {
+    if (delete_update_lookup_condition &&
+        table->file->ht->db_type == DB_TYPE_TOKUDB &&
+        table->s->primary_key == MAX_KEY)
+    {
+        if (!table->s->rfr_lookup_warning)
+        {
+          sql_print_warning("Slave: read free replication is disabled "
+                            "for tokudb table `%s.%s` "
+                            "as it does not have implicit primary key, "
+                            "continue with rows lookup",
+                            print_slave_db_safe(table->s->db.str),
+                            m_table->s->table_name.str);
+          table->s->rfr_lookup_warning= true;
+        }
+    }
+    else
+      DBUG_VOID_RETURN;
+  }
 
   if (!(slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN))
     goto TABLE_OR_INDEX_HASH_SCAN;

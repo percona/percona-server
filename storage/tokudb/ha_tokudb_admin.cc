@@ -615,8 +615,8 @@ int standard_t::analyze_key(uint64_t* rec_per_key_part) {
                 analyze_standard_cursor_callback,
                 this);
 
-            memset(&key, 0, sizeof(DBT)); key.flags = DB_DBT_REALLOC;
-            memset(&prev_key, 0, sizeof(DBT)); prev_key.flags = DB_DBT_REALLOC;
+            memset(&key, 0, sizeof(DBT));
+            memset(&prev_key, 0, sizeof(DBT));
             copy_key = true;
         }
 
@@ -684,11 +684,6 @@ int standard_t::analyze_key(uint64_t* rec_per_key_part) {
             _key_elapsed_time >= _half_time &&
             _rows < _half_rows)) {
 
-            // use global free as PerconaFT uses global malloc to allocate
-            // the keys...realistically, FT should have its own key free
-            // function to ensure the same allocater is used to free whatever
-            // it allocated
-            ::free(key.data); key.data = NULL;
             tokudb::memory::free(prev_key.data); prev_key.data = NULL;
             close_error = cursor->c_close(cursor);
             assert_always(close_error == 0);
@@ -697,12 +692,6 @@ int standard_t::analyze_key(uint64_t* rec_per_key_part) {
         }
     }
     // cleanup
-    // use global free as PerconaFT uses global malloc to allocate
-    // the keys...realistically, FT should have its own key free
-    // function to ensure the same allocater is used to free whatever
-    // it allocated
-
-    if (key.data) ::free(key.data);
     if (prev_key.data) tokudb::memory::free(prev_key.data);
     if (cursor) close_error = cursor->c_close(cursor);
     assert_always(close_error == 0);

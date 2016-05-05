@@ -23,7 +23,7 @@ Although the default values for the thread pool should provide good performance,
 Priority connection scheduling
 ==============================
 
-In |Percona Server| :rn:`5.6.11-60.3` priority connection scheduling for thread pool has been implemented. Even though thread pool puts a limit on the number of concurrently running queries, the number of open transactions may remain high, because connections with already started transactions are put to the end of the queue. Higher number of open transactions has a number of implications on the currently running queries. To improve the performance new :variable:`thread_pool_high_prio_tickets` variable has been introduced.
+Even though thread pool puts a limit on the number of concurrently running queries, the number of open transactions may remain high, because connections with already started transactions are put to the end of the queue. Higher number of open transactions has a number of implications on the currently running queries. To improve the performance new :variable:`thread_pool_high_prio_tickets` variable has been introduced.
 
 This variable controls the high priority queue policy. Each new connection is assigned this many tickets to enter the high priority queue. Whenever a query has to be queued to be executed later because no threads are available, the thread pool puts the connection into the high priority queue if the following conditions apply:
 
@@ -56,13 +56,13 @@ Such situations are prevented by throttling the low priority queue when the tota
 Handling of Long Network Waits
 ==============================
 
-Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_ in |Percona Server| :rn:`5.6.15-63.0`.
+Certain types of workloads (large result sets, BLOBs, slow clients) can have longer waits on network I/O (socket reads and writes). Whenever server waits, this should be communicated to the Thread Pool, so it can start new query by either waking a waiting thread or sometimes creating a new one. This implementation has been ported from |MariaDB| patch `MDEV-156 <https://mariadb.atlassian.net/browse/MDEV-156>`_. 
 
 
 Version Specific Information
 ============================
 
- * :rn:`5.6.10-60.2`
+ * :rn:`5.7.10-1`
     ``Thread Pool`` feature ported from |Percona Server| 5.6. 
 
 System Variables
@@ -163,7 +163,9 @@ The number of milliseconds before a running thread is considered stalled. When t
      :vartype: Numeric
      :default: 0
 
-This variable can be used to specify additional port |Percona Server| will listen on. This can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled. To connect to the extra port following command can be used: ::
+This variable can be used to specify additional port |Percona Server| will listen on. This can be used in case no new connections can be established due to all worker threads being busy or being locked when ``pool-of-threads`` feature is enabled. To connect to the extra port following command can be used: 
+
+.. code-block:: bash
 
   mysql --port='extra-port-number' --protocol=tcp
 

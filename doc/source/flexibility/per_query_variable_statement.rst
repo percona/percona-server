@@ -19,11 +19,11 @@ If we want to increase the :variable:`sort_buffer_size` value just for one speci
 
    mysql> SET STATEMENT sort_buffer_size=100000 FOR SELECT name FROM name ORDER BY name;
 
-This feature can also be used with :ref:`statement_timeout` to limit the execution time for a specific query:
+This feature can also be used with `max_execution_time <http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_execution_time>`_ to limit the execution time for a specific query:
 
 .. code-block:: mysql
 
-   mysql> SET STATEMENT max_statement_time=1000 FOR SELECT name FROM name ORDER BY name;
+   mysql> SET STATEMENT max_execution_time=1000 FOR SELECT name FROM name ORDER BY name;
 
 We can provide more than one variable we want to set up:
 

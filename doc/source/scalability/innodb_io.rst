@@ -27,13 +27,15 @@ System Variables
    :default: True
    :range: True/False
 
-This variable is used to control the ability of the user to set the value of the global |MySQL| variable ``innodb_flush_log_at_trx_commit``.
+This variable is used to control the ability of the user to set the value of the global |MySQL| variable :variable:`innodb_flush_log_at_trx_commit`.
 
-If ``innodb_use_global_flush_log_at_trx_commit=0`` (False), the client can set the global |MySQL| variable, using: ::
+If :variable:`innodb_use_global_flush_log_at_trx_commit` is set to ``0`` (False), the client can set the global |MySQL| variable, using: 
+
+.. code-block:: mysql
 
   SET innodb_use_global_flush_log_at_trx_commit=N
 
-If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will use the current value of ``innodb_flush_log_at_trx_commit``, and the user cannot reset the value of the global variable using a ``SET`` command.
+If :variable:`innodb_use_global_flush_log_at_trx_commit` is set to ``1`` (True), the user session will use the current value of :variable:`innodb_flush_log_at_trx_commit`, and the user cannot reset the value of the global variable using a ``SET`` command.
 
 .. variable:: innodb_flush_method
 
@@ -46,7 +48,7 @@ If ``innodb_use_global_flush_log_at_trx_commit=1`` (True), the user session will
    :default: ``fdatasync``
    :allowed: ``fdatasync``, ``O_DSYNC``, ``O_DIRECT``, ``O_DIRECT_NO_FSYNC``, ``ALL_O_DIRECT``
 
-This is an existing |MySQL| 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method |InnoDB| uses to flush its data and log files. (See ``innodb_flush_method`` in the |MySQL| 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
+This is an existing |MySQL| 5.7 system variable that has a new allowed value ``ALL_O_DIRECT``. It determines the method |InnoDB| uses to flush its data and log files. (See :variable:`innodb_flush_method` in the |MySQL| 5.7 `Reference Manual <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_flush_method>`_).
 
 The following values are allowed:
 
@@ -68,7 +70,9 @@ The following values are allowed:
 Status Variables
 ----------------
 
-The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity: ::
+The following information has been added to ``SHOW ENGINE INNODB STATUS`` to confirm the checkpointing activity: 
+
+.. code-block:: guess 
 
   The max checkpoint age
   The current checkpoint age target

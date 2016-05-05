@@ -77,7 +77,7 @@ Created 11/5/1995 Heikki Tuuri
 #include <map>
 #include <sstream>
 
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA) && !defined(UNIV_INNOCHECKSUM)
 #include <numa.h>
 #include <numaif.h>
 

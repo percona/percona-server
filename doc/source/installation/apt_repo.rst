@@ -145,13 +145,17 @@ This will install all the packages from the bundle. Another option is to downloa
 
 .. warning:: 
 
-  When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself.
+  When installing packages manually like this, you'll need to make sure to resolve all the dependencies and install missing packages yourself. Following packages will need to be installed before you can manually install Percona Server: ``mysql-common``, ``libjemalloc1``, ``libaio1`` and ``libmecab2``
 
 
 Running |Percona Server|
 ========================
 
-|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/mysql/my.cnf`. *Debian* and *Ubuntu* installation automatically creates a special ``debian-sys-maint`` user which is used by the control scripts to control the |Percona Server| ``mysqld`` and ``mysqld_safe`` services. Login details for that user can be found in :file:`/etc/mysql/debian.cnf`. 
+|Percona Server| stores the data files in :file:`/var/lib/mysql/` by default. You can find the configuration file that is used to manage |Percona Server| in :file:`/etc/mysql/my.cnf`. 
+
+.. note:: 
+
+  *Debian* and *Ubuntu* installation doesn't automatically create a special ``debian-sys-maint`` user which can be used by the control scripts to control the |Percona Server| ``mysqld`` and ``mysqld_safe`` services like it was the case with previous |Percona Server| versions. If you still require this user you'll need to create it manually.
 
 1. Starting the service
 

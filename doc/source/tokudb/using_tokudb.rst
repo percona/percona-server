@@ -300,6 +300,6 @@ Progress Tracking
 Migrating to TokuDB
 -------------------
 
-To convert an existing table to use the |TokuDB| engine, run ``ALTER TABLE... ENGINE=TokuDB``. If you wish to load from a file, use ``LOAD DATA INFILE`` and not ``mysqldump``. Using ``mysqldump`` will be much slower. To create a file that can be loaded with ``LOAD DATA INFILE``, refer to the ``INTO OUTFILE`` option of the `SELECT Syntax <http://dev.mysql.com/doc/refman/5.5/en/select.html>`_.
+To convert an existing table to use the |TokuDB| engine, run ``ALTER TABLE... ENGINE=TokuDB``. If you wish to load from a file, use ``LOAD DATA INFILE`` and not ``mysqldump``. Using ``mysqldump`` will be much slower. To create a file that can be loaded with ``LOAD DATA INFILE``, refer to the ``INTO OUTFILE`` option of the `SELECT Syntax <http://dev.mysql.com/doc/refman/5.7/en/select.html>`_.
 
 .. note:: Creating this file does not save the schema of your table, so you may want to create a copy of that as well.

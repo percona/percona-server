@@ -15,7 +15,7 @@ Known Issues
 
 **Replication and binary logging**: |TokuDB| supports binary logging and replication, with one restriction. |TokuDB| does not implement a lock on the auto-increment function, so concurrent insert statements with one or more of the statements inserting multiple rows may result in a non-deterministic interleaving of the auto-increment values. When running replication with these concurrent inserts, the auto-increment values on the slave table may not match the auto-increment values on the master table. Note that this is only an issue with Statement Based Replication (SBR), and not Row Based Replication (RBR).
 
-For more information about auto-increment and replication, see the |MySQL| Reference Manual: `AUTO_INCREMENT handling in InnoDB <http://dev.mysql.com/doc/refman/5.5/en/innodb-auto-increment-handling.html>`_.
+For more information about auto-increment and replication, see the |MySQL| Reference Manual: `AUTO_INCREMENT handling in InnoDB <http://dev.mysql.com/doc/refman/5.7/en/innodb-auto-increment-handling.html>`_.
 
 In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with no secondary indexes or tables where secondary indexes are subsets of the primary, the session variable :variable:`tokudb_pk_insert_mode` controls whether row based replication will work.
 

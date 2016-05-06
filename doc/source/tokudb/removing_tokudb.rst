@@ -22,7 +22,7 @@ If you still need the data in the TokuDB tables you'll need to alter the tables 
 Removing the plugins
 --------------------
 
-If you're using |Percona Server| :rn:`5.6.22-72.0` or later you can use the ``ps_tokudb_admin`` script to remove the plugins:
+To remove the |TokuDB| storage engine with all installed plugins you can use the ``ps_tokudb_admin`` script:
 
 .. code-block:: bash
 
@@ -50,7 +50,7 @@ Script output should look like this:
   Uninstalling TokuDB plugin...
   >> Successfuly uninstalled TokuDB plugin.
 
-Prior to |Percona Server| :rn:`5.6.22-72.0` TokuDB storage engine requires manual removal: 
+Another option is to manually remove the |TokuDB| storage engine with all installed plugins:
 
 .. code-block:: mysql
 
@@ -61,18 +61,19 @@ Prior to |Percona Server| :rn:`5.6.22-72.0` TokuDB storage engine requires manua
  UNINSTALL PLUGIN tokudb_trx;
  UNINSTALL PLUGIN tokudb_locks;
  UNINSTALL PLUGIN tokudb_lock_waits;
+ UNINSTALL PLUGIN tokudb_background_job_status;
 
 After the engine and the plugins have been uninstalled you can remove the TokuDB package by using the apt/yum commands: 
 
 .. code-block:: bash
 
- [root@centos ~]# yum remove Percona-Server-tokudb-56.x86_64
+ [root@centos ~]# yum remove Percona-Server-tokudb-57.x86_64
 
 or
 
 .. code-block:: bash
 
- root@wheezy:~# apt-get remove percona-server-tokudb-5.6
+ root@wheezy:~# apt-get remove percona-server-tokudb-5.7
  
 .. note::
 

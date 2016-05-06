@@ -70,6 +70,16 @@
     the Oracle distribution of MySQL as distinct from the drop-in
     replacements such as :term:`MariaDB` and :term:`Percona Server`.
 
+  NUMA
+    Non-Uniform Memory Access 
+    (`NUMA <http://en.wikipedia.org/wiki/Non-Uniform_Memory_Access>`_) is a
+    computer memory design used in multiprocessing, where the memory access
+    time depends on the memory location relative to a processor. Under NUMA,
+    a processor can access its own local memory faster than non-local memory,
+    that is, memory local to another processor or memory shared between
+    processors. The whole system may still operate as one unit, and all memory
+    is basically accessible from everywhere, but at a potentially higher latency
+    and lower performance.
 
   Percona Server
     Percona's branch of :term:`MySQL` with performance and management improvements.

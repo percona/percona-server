@@ -76,5 +76,5 @@ If you have a high-concurrency workload this section may look like this:
    18 RW-shared spins 27550, OS waits 13682; RW-excl spins 0, OS waits 0
 
 
-Note that in the second case you will see indications that threads are waiting for a mutex created in the file buf/buf0buf.c (lines 5 to 7 or 8 to 10). Such an indication is a sign of buffer pool contention.
+Note that in the second case you will see indications that threads are waiting for a mutex created in the file :file:`buf/buf0buf.c` (lines 5 to 7 or 8 to 10). Such an indication is a sign of buffer pool contention.
 

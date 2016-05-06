@@ -128,7 +128,7 @@ You will have to install the following package:
 
   $ yum install Percona-Server-server-57 
 
-If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |TokuDB| package as when doing the upgrade: 
+If you're using |Percona Server| 5.6 with |TokuDB| you'll need to specify the |TokuDB| package as well when doing the upgrade: 
 
 .. code-block:: bash
 
@@ -260,7 +260,7 @@ and check your installed packages:
   Percona-Server-client-56-5.6.28-rel76.1.el6.x86_64
   Percona-Server-tokudb-56-5.6.28-rel76.1.el6.x86_64
 
-You may have a forth, ``shared-compat``, which is for compatibility purposes.
+You may have a fourth, ``shared-compat``, which is for compatibility purposes.
 
 After checked that, proceed to remove them without dependencies: ::
 

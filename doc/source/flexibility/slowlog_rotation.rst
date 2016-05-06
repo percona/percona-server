@@ -8,7 +8,7 @@
 
    This feature is currently considered BETA quality.
 
-Percona has implemented two new variables, :variable:`max_slowlog_size` and :variable:`max_slowlog_files` to provide users with ability to control the slow query log disk usage. These variables have the same behavior as upstream variable `max_binlog_size <https://dev.mysql.com/doc/refman/5.6/en/replication-options-binary-log.html#sysvar_max_binlog_size>`_ and :variable:`max_binlog_files` variable used for controlling the binary log.
+Percona has implemented two new variables, :variable:`max_slowlog_size` and :variable:`max_slowlog_files` to provide users with ability to control the slow query log disk usage. These variables have the same behavior as upstream variable `max_binlog_size <https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_max_binlog_size>`_ and :variable:`max_binlog_files` variable used for controlling the binary log.
 
 .. warning::
 

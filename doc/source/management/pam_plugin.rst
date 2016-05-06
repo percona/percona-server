@@ -75,7 +75,7 @@ This feature enables using secondary groups in the mapping part of the authentic
 Known issues
 ============
 
-Default mysql stack size is not enough to handle ``pam_ecryptfs`` module. Workaround is to increase the |MySQL| stack size by setting the `thread-stack <https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_thread_stack>`_ variable to at least ``512KB`` or by increasing the old value by ``256KB``.
+Default mysql stack size is not enough to handle ``pam_ecryptfs`` module. Workaround is to increase the |MySQL| stack size by setting the `thread-stack <https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_thread_stack>`_ variable to at least ``512KB`` or by increasing the old value by ``256KB``.
 
 Version Specific Information
 ============================

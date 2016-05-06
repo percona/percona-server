@@ -1164,6 +1164,7 @@ trx_sys_close(void)
 
 	/* Free the double write data structures. */
 	buf_dblwr_free();
+	buf_parallel_dblwr_free(srv_fast_shutdown != 2);
 
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);

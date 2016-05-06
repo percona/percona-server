@@ -1524,7 +1524,7 @@ buf_parallel_dblwr_file_create(void)
 	success = os_file_set_size(parallel_dblwr_buf.path,
 				   parallel_dblwr_buf.file, size, false);
 	if (!success) {
-		buf_parallel_dblwr_destroy();
+		buf_parallel_dblwr_free(true);
 		return(DB_ERROR);
 	}
 	ut_ad(os_file_get_size(parallel_dblwr_buf.file) == size);
@@ -1567,7 +1567,7 @@ buf_parallel_dblwr_create(void)
 						       * UNIV_PAGE_SIZE,
 					mem_key_parallel_doublewrite));
 		if (!dblwr_shard->write_buf_unaligned) {
-			buf_parallel_dblwr_destroy();
+			buf_parallel_dblwr_free(true);
 			return(DB_OUT_OF_MEMORY);
 		}
 		dblwr_shard->write_buf = static_cast<byte*>(
@@ -1579,7 +1579,7 @@ buf_parallel_dblwr_create(void)
 				  * sizeof(void*),
 				  mem_key_parallel_doublewrite));
 		if (!dblwr_shard->buf_block_arr) {
-			buf_parallel_dblwr_destroy();
+			buf_parallel_dblwr_free(true);
 			return(DB_OUT_OF_MEMORY);
 		}
 
@@ -1591,10 +1591,11 @@ buf_parallel_dblwr_create(void)
 	return(DB_SUCCESS);
 }
 
-/** Close and delete the doublewrite buffer file and free its memory data
-structure. */
+/** Cleanup parallel doublewrite memory structures and optionally close and
+delete the doublewrite buffer file too.
+@param	delete_file	whether to close and delete the buffer file too  */
 void
-buf_parallel_dblwr_destroy(void)
+buf_parallel_dblwr_free(bool delete_file)
 {
 	for (ulint i = 0; i < buf_parallel_dblwr_shard_num(); i++) {
 
@@ -1610,8 +1611,10 @@ buf_parallel_dblwr_destroy(void)
 		ut_free(dblwr_shard->buf_block_arr);
 	}
 
-	buf_parallel_dblwr_close();
-	buf_parallel_dblwr_delete();
+	if (delete_file) {
+		buf_parallel_dblwr_close();
+		buf_parallel_dblwr_delete();
+	}
 
 	ut_free(parallel_dblwr_buf.path);
 	parallel_dblwr_buf.path = NULL;

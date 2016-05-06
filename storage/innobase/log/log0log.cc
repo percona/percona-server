@@ -2405,8 +2405,6 @@ loop:
 		fil_write_flushed_lsn(lsn);
 	}
 
-	buf_parallel_dblwr_destroy();
-
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */

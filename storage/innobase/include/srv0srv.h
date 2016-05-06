@@ -308,6 +308,9 @@ extern ib_uint64_t	srv_log_file_size;
 extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern uint	srv_flush_log_at_timeout;
+
+enum { DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE = 8 * 1024L };
+
 extern ulong	srv_log_write_ahead_size;
 extern char	srv_use_global_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;

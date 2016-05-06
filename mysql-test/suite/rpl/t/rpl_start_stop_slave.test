@@ -19,6 +19,10 @@
 --source include/master-slave.inc
 
 connection slave;
+
+--let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE state LIKE 'Waiting for master to send event'
+--source include/wait_condition.inc
+
 --let $connection_id=`SELECT id FROM information_schema.processlist where state LIKE 'Waiting for master to send event'`
 
 set @time_before_kill := (select CURRENT_TIMESTAMP);

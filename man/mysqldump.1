@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/14/2016
+.\"      Date: 03/01/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "01/14/2016" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "03/01/2016" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1272,7 +1272,7 @@ prints the error message, but it also writes an SQL comment containing the view 
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.3.7.5, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&6.4.1.5, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
 .sp
 This option was added in MySQL 5\&.5\&.47\&.
 .RE
@@ -1497,13 +1497,13 @@ option automatically turns off
 also is specified, in which case, a global read lock is acquired only for a short time at the beginning of the dump (see the description for
 \fB\-\-single\-transaction\fR)\&. In all cases, any action on logs happens at the exact moment of the dump\&.
 .sp
-It is also possible to set up a slave by dumping an existing slave of the master\&. In MySQL 5\&.5\&.3 and later, you can create such a dump using the
+It is also possible to set up a slave by dumping an existing slave of the master\&. In MySQL 5\&.5\&.3 and higher, you can create such a dump using the
 \fB\-\-dump\-slave\fR
 option, which overrides
 \fB\-\-master\-data\fR
 and causes it to be ignored if both options are used\&.
 .sp
-In MySQL 5\&.2\&.2 and earlier, use the following procedure on the existing slave:
+Before MySQL 5\&.5\&.3, use the following procedure on the existing slave:
 .sp
 .RS 4
 .ie n \{\
@@ -2260,7 +2260,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.9.5, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.8.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4

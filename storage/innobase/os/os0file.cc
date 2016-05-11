@@ -378,6 +378,42 @@ os_get_os_version(void)
 #endif /* __WIN__ */
 
 /***********************************************************************//**
+For an EINVAL I/O error, prints a diagnostic message if innodb_flush_method
+== ALL_O_DIRECT.
+@return true if the diagnostic message was printed
+@return false if the diagnostic message does not apply */
+static
+bool
+os_diagnose_all_o_direct_einval(
+/*============================*/
+	ulint err)	/*!< in: C error code */
+{
+	if ((err == EINVAL)
+	    && (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT)) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"The error might be caused by redo log I/O not "
+			"satisfying innodb_flush_method=ALL_O_DIRECT "
+			"requirements by the underlying file system.");
+		if (srv_log_block_size != 512)
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"This might be caused by an incompatible "
+				"non-default innodb_log_block_size value %lu.",
+				srv_log_block_size);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Please file a bug at https://bugs.percona.com and "
+			"include this error message, my.cnf settings, and "
+			"information about the file system where the redo log "
+			"resides.");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"A possible workaround is to change "
+			"innodb_flush_method value to something else "
+			"than ALL_O_DIRECT.");
+		return(true);
+	}
+	return(false);
+}
+
+/***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
 The number should be retrieved before any other OS calls (because they may
 overwrite the error number). If the number is not known to this program,
@@ -512,7 +548,7 @@ os_file_get_last_error_low(
 				"InnoDB: The error means mysqld does not have"
 				" the access rights to\n"
 				"InnoDB: the directory.\n");
-		} else {
+		} else if (!os_diagnose_all_o_direct_einval(err)) {
 			if (strerror(err) != NULL) {
 				fprintf(stderr,
 					"InnoDB: Error number %d"
@@ -2672,6 +2708,9 @@ os_file_pwrite(
 	/* Handle partial writes and signal interruptions correctly */
 	for (ret = 0; ret < (ssize_t) n; ) {
 		n_written = pwrite(file, buf, (ssize_t)n - ret, offs);
+		DBUG_EXECUTE_IF("xb_simulate_all_o_direct_write_failure",
+				n_written = -1;
+				errno = EINVAL;);
 		if (n_written >= 0) {
 			ret += n_written;
 			offs += n_written;
@@ -2843,6 +2882,10 @@ try_again:
 
 try_again:
 	ret = os_file_pread(file, buf, n, offset, trx);
+
+	DBUG_EXECUTE_IF("xb_simulate_all_o_direct_read_failure",
+			ret = -1;
+			errno = EINVAL;);
 
 	if ((ulint) ret == n) {
 		return(TRUE);
@@ -3219,6 +3262,8 @@ retry:
 			" are described at\n"
 			"InnoDB: "
 			REFMAN "operating-system-error-codes.html\n");
+
+		os_diagnose_all_o_direct_einval(errno);
 
 		os_has_said_disk_full = TRUE;
 	}

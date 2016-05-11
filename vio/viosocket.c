@@ -487,8 +487,9 @@ int vio_shutdown(Vio * vio, int how)
 
   r= vio_cancel(vio, how);
 
-  if (mysql_socket_close(vio->mysql_socket))
-    r= -1;
+  if (vio->inactive == FALSE)
+    if (mysql_socket_close(vio->mysql_socket))
+      r= -1;
 
   if (r)
   {

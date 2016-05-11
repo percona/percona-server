@@ -232,6 +232,7 @@ our $glob_debugger= 0;
 our $opt_gdb;
 our $opt_client_gdb;
 my $opt_boot_gdb;
+our $opt_lldb;
 our $opt_dbx;
 our $opt_client_dbx;
 my $opt_boot_dbx;
@@ -1099,6 +1100,7 @@ sub command_line_setup {
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
+             "lldb"                     => \$opt_lldb,
              'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
@@ -1558,7 +1560,7 @@ sub command_line_setup {
       $opt_debugger= undef;
     }
 
-    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
+    if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_lldb || $opt_manual_lldb || 
          $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
          $opt_manual_dbx)
     {
@@ -1587,7 +1589,7 @@ sub command_line_setup {
   # Check debug related options
   # --------------------------------------------------------------------------
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd || 
-       $opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd || 
+       $opt_manual_gdb || $opt_lldb || $opt_manual_lldb || $opt_manual_ddd || 
        $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
        $opt_debugger || $opt_client_debugger )
   {
@@ -5302,7 +5304,7 @@ sub mysqld_start ($$) {
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
   }
-  elsif ( $opt_manual_lldb )
+  elsif ( $opt_lldb || $opt_manual_lldb )
   {
     lldb_arguments(\$args, \$exe, $mysqld->name());
   }
@@ -6066,19 +6068,23 @@ sub start_mysqltest ($) {
 }
 
 sub create_debug_statement {
+  my $run = shift;
   my $args= shift;
   my $input= shift;
+  my @params_to_quote = ("--plugin_load=", "--plugin_load_add=");
 
   # Put $args into a single string
   my $str= join(" ", @$$args);
-  my $runline= $input ? "run $str < $input" : "run $str";
+  my $runline= $input ? "$run $str < $input" : "$run $str";
 
-  # add quotes to escape ; in plugin_load option
-  my $pos1 = index($runline, "--plugin_load=");
-  if ( $pos1 != -1 ) {
-    my $pos2 = index($runline, " ",$pos1);
-    substr($runline,$pos1+14,0) = "\"";
-    substr($runline,$pos2+1,0) = "\"";
+  foreach my $param_to_quote (@params_to_quote) {
+    # add quotes to escape ; in plugin_load option
+    my $pos1 = index($runline, $param_to_quote);
+    if ( $pos1 != -1 ) {
+      my $pos2 = index($runline, " ",$pos1);
+      substr($runline,$pos1+length($param_to_quote),0) = "\"";
+      substr($runline,$pos2+1,0) = "\"";
+    }
   }
 
   return $runline;
@@ -6098,7 +6104,7 @@ sub gdb_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  my $runline=create_debug_statement($args,$input);
+  my $runline=create_debug_statement("run", $args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6146,19 +6152,37 @@ sub lldb_arguments {
   my $lldb_init_file= "$opt_vardir/tmp/lldbinit.$type";
   unlink($lldb_init_file);
 
-  my $runline=create_debug_statement($args,$input);
+  my $lldb_start_file= "$opt_vardir/tmp/lldbstart.$type";
+  unlink($lldb_start_file);
+
+  my $runline=create_debug_statement("process launch --", $args, $input);
 
   # write init file for mysqld or client
   mtr_tofile($lldb_init_file,
 	     "b main\n" .
 	     $runline);
 
+  if ( $opt_manual_lldb )
+  {
     print "\nTo start lldb for $type, type in another window:\n";
     print "cd $glob_mysql_test_dir && lldb -s $lldb_init_file $$exe\n";
 
     # Indicate the exe should not be started
     $$exe= undef;
     return;
+  }
+
+  mtr_tofile($lldb_start_file, "lldb -s $lldb_init_file $$exe\n");
+  chmod 0755, $lldb_start_file;
+
+  $$args= [];
+  mtr_add_arg($$args, "-n");
+  mtr_add_arg($$args, "-W");
+  mtr_add_arg($$args, "-a");
+  mtr_add_arg($$args, "Terminal");
+  mtr_add_arg($$args, $lldb_start_file);
+
+  $$exe= "open";
 }
 
 #
@@ -6175,7 +6199,7 @@ sub ddd_arguments {
   # Remove the old gdbinit file
   unlink($gdb_init_file);
 
-  my $runline=create_debug_statement($args,$input);
+  my $runline=create_debug_statement("run", $args,$input);
 
   # write init file for mysqld or client
   mtr_tofile($gdb_init_file,
@@ -6645,6 +6669,7 @@ Options for debugging the product
                         test(s)
   manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
+  lldb                  Start mysqld(s) in lldb
   manual-lldb           Let user manually start mysqld in lldb, before running 
                         test(s)
   strace-client         Create strace output for mysqltest client, 

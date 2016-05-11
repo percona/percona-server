@@ -637,10 +637,7 @@ struct TTASEventMutex {
 		uint32_t	line)
 		UNIV_NOTHROW
 	{
-		ut_a(m_event == 0);
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
-
-		m_event = os_event_create(sync_latch_get_name(id));
 
 		m_policy.init(*this, id, filename, line);
 	}
@@ -652,10 +649,6 @@ struct TTASEventMutex {
 		UNIV_NOTHROW
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
-
-		/* We have to free the event before InnoDB shuts down. */
-		os_event_destroy(m_event);
-		m_event = 0;
 
 		m_policy.destroy();
 	}
@@ -715,7 +708,7 @@ struct TTASEventMutex {
 	os_event_t event()
 		UNIV_NOTHROW
 	{
-		return(m_event);
+		return(&m_event);
 	}
 
 	/** @return true if locked by some thread */
@@ -909,7 +902,7 @@ private:
 	lock_word_t		m_waiters;
 
 	/** Used by sync0arr.cc for the wait queue */
-	os_event_t		m_event;
+	struct os_event		m_event;
 
 	/** Policy data */
 	MutexPolicy		m_policy;

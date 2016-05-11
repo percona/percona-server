@@ -636,11 +636,11 @@ struct rw_lock_t
 	volatile os_thread_id_t	writer_thread;
 
 	/** Used by sync0arr.cc for thread queueing */
-	os_event_t	event;
+	struct os_event	event;
 
 	/** Event for next-writer to wait on. A thread must decrement
 	lock_word before waiting. */
-	os_event_t	wait_ex_event;
+	struct os_event	wait_ex_event;
 
 	/** File name where lock created */
 	const char*	cfile_name;
@@ -682,20 +682,24 @@ struct rw_lock_t
 #ifdef UNIV_DEBUG
 /** Value of rw_lock_t::magic_n */
 # define RW_LOCK_MAGIC_N	22643
+#endif /* UNIV_DEBUG */
 
 	/** Constructor */
 	rw_lock_t()
 	{
-		magic_n = RW_LOCK_MAGIC_N;
+		ut_d(magic_n = RW_LOCK_MAGIC_N;)
 	}
 
 	/** Destructor */
 	virtual ~rw_lock_t()
 	{
+#ifdef UNIV_DEBUG
 		ut_ad(magic_n == RW_LOCK_MAGIC_N);
 		magic_n = 0;
+#endif /* UNIV_DEBUG */
 	}
 
+#ifdef UNIV_DEBUG
 	virtual std::string to_string() const;
 	virtual std::string locked_from() const;
 

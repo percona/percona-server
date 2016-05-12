@@ -56,6 +56,7 @@
 #include "transaction.h"
 #include "debug_sync.h"
 #include "sql_parse.h"                          // is_update_query
+#include "sql_connect.h"
 #include "sql_callback.h"
 #include "lock.h"
 #include "global_threads.h"
@@ -1736,6 +1737,10 @@ void THD::cleanup(void)
   sp_cache_clear(&sp_func_cache);
   mysql_ull_cleanup(this);
 
+  if (unlikely(opt_userstat))
+  {
+    remove_thread_stats(this);
+  }
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
   /*

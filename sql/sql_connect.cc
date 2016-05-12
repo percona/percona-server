@@ -571,6 +571,19 @@ static void update_global_thread_stats_with_thread(THD* thd,
   thread_stats->empty_queries+=        thd->diff_empty_queries;
 }
 
+void remove_thread_stats(THD* thd)
+{
+  THREAD_STATS* thread_stats;
+  DBUG_PRINT("info",
+             ("Removing stats for %s", (uchar *) &(thd->thread_id)));
+  if ((thread_stats = (THREAD_STATS *) my_hash_search(&global_thread_stats,
+                                                       (uchar*) &(thd->thread_id),
+                                                       sizeof(my_thread_id))))
+  {
+      my_hash_delete(&global_thread_stats, (uchar *) thread_stats);
+  }
+}
+
 // Updates the global stats of a user or client
 void update_global_user_stats(THD* thd, bool create_user, time_t now)
 {
@@ -1553,8 +1566,9 @@ end_thread:
     }
 
     if (MYSQL_CALLBACK_ELSE(thd->scheduler, end_thread, (thd, 1), 0))
+    {
       return;                                 // Probably no-threads
-
+    }
     /*
       If end_thread() returns, we are either running with
       thread-handler=no-threads or this thread has been schedule to

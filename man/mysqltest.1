@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqltest\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/14/2016
+.\"      Date: 02/29/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQLTEST\FR" "1" "01/14/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQLTEST\FR" "1" "02/29/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -891,6 +891,26 @@ This option was added in MySQL 5\&.7\&.10\&.
 \fB\-t \fR\fB\fIdir_name\fR\fR
 .sp
 The temporary directory where socket files are created\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+.\" mysqltest: trace-exec option
+.\" trace-exec option: mysqltest
+\fB\-\-trace\-exec\fR
+.sp
+If enabled, this option causes
+\fBmysqltest\fR
+to immediately display the output from executed programs to
+stdout\&.
+.sp
+This option was added in MySQL 5\&.8\&.0\&.
 .RE
 .sp
 .RS 4

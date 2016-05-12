@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1688,7 +1688,7 @@ int ha_federated::close(void)
     FLUSH TABLES will quit the connection and if connection is broken,
     it will reconnect again and quit silently.
   */
-  if (mysql && !vio_is_connected(mysql->net.vio))
+  if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
      mysql->net.error= 2;
 
   /* Disconnect from mysql */
@@ -1702,7 +1702,7 @@ int ha_federated::close(void)
     if the original query was not issued against the FEDERATED table.
     So, don't propagate errors from mysql_close().
   */
-  if (table->in_use)
+  if (table->in_use && thd != table->in_use)
     table->in_use->clear_error();
 
   /* Clear possible errors from mysql_close(), see LP bug #813587. */

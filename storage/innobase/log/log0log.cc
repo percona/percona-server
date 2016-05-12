@@ -259,9 +259,9 @@ log_buffer_extend(
 	srv_log_buffer_size = len / UNIV_PAGE_SIZE + 1;
 	ut_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(LOG_BUFFER_SIZE + srv_log_write_ahead_size));
 	log_sys->buf = static_cast<byte*>(
-		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+		ut_align(log_sys->buf_ptr, srv_log_write_ahead_size));
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
 		- LOG_BUF_FLUSH_MARGIN;
@@ -858,10 +858,10 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(LOG_BUFFER_SIZE + srv_log_write_ahead_size));
 
 	log_sys->buf = static_cast<byte*>(
-		ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+		ut_align(log_sys->buf_ptr, srv_log_write_ahead_size));
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
@@ -889,10 +889,10 @@ log_init(void)
 		SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(OS_FILE_LOG_BLOCK_SIZE + srv_log_write_ahead_size));
 
 	log_sys->checkpoint_buf = static_cast<byte*>(
-		ut_align(log_sys->checkpoint_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+		ut_align(log_sys->checkpoint_buf_ptr, srv_log_write_ahead_size));
 
 	/*----------------------------*/
 
@@ -943,18 +943,18 @@ log_group_init(
 	for (i = 0; i < n_files; i++) {
 		group->file_header_bufs_ptr[i] = static_cast<byte*>(
 			ut_zalloc_nokey(LOG_FILE_HDR_SIZE
-					+ OS_FILE_LOG_BLOCK_SIZE));
+					+ srv_log_write_ahead_size));
 
 		group->file_header_bufs[i] = static_cast<byte*>(
 			ut_align(group->file_header_bufs_ptr[i],
-				 OS_FILE_LOG_BLOCK_SIZE));
+				 srv_log_write_ahead_size));
 	}
 
 	group->checkpoint_buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
+		ut_zalloc_nokey(OS_FILE_LOG_BLOCK_SIZE + srv_log_write_ahead_size));
 
 	group->checkpoint_buf = static_cast<byte*>(
-		ut_align(group->checkpoint_buf_ptr,OS_FILE_LOG_BLOCK_SIZE));
+		ut_align(group->checkpoint_buf_ptr,srv_log_write_ahead_size));
 
 	UT_LIST_ADD_LAST(log_sys->log_groups, group);
 

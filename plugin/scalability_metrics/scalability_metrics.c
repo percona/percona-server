@@ -109,7 +109,8 @@ sm_thd_data_t *sm_thd_data_get(MYSQL_THD thd)
   sm_thd_data_t *thd_data = (sm_thd_data_t *) (intptr) THDVAR(thd, thd_data);
   if (unlikely(thd_data == NULL))
   {
-    thd_data= calloc(sizeof(sm_thd_data_t), 1);
+    thd_data= my_malloc(sizeof(sm_thd_data_t),
+                        MYF(MY_FAE | MY_WME | MY_ZEROFILL));
     mysql_mutex_lock(&thd_list_mutex);
     thd_data->backref= list_push(thd_list_root, thd_data);
     mysql_mutex_unlock(&thd_list_mutex);
@@ -130,8 +131,8 @@ void sm_thd_data_release(MYSQL_THD thd)
     mysql_mutex_lock(&thd_list_mutex);
     thd_list_root= list_delete(thd_list_root, thd_data->backref);
     mysql_mutex_unlock(&thd_list_mutex);
-    free(thd_data->backref);
-    free(thd_data);
+    my_free(thd_data->backref);
+    my_free(thd_data);
     THDVAR(thd, thd_data)= 0;
   }
 }

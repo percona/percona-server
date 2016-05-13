@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/14/2016
+.\"      Date: 03/02/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "01/14/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -590,12 +590,7 @@ requires at a minimum the
 (short form:
 \fB\-b\fR), and
 \fB\-\-backup_path\fR
-options\&. In addition, beginning with MySQL Cluster NDB 7\&.3\&.11 and MySQL Cluster NDB 7\&.4\&.8, when
-\fBndb_restore\fR
-is used to restore any tables containing unique indexes, you must include
-\fB\-\-disable\-indexes\fR
-or
-\fB\-\-rebuild\-indexes\fR\&. (Bug #57782, Bug #11764893)
+options\&.
 .sp
 .if n \{\
 .RS 4
@@ -607,6 +602,29 @@ ndb_restore [\-c \fIconnection_string\fR] \-n \fInode_id\fR \-b \fIbackup_id\fR 
 .if n \{\
 .RE
 .\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+In MySQL Cluster NDB 7\&.3\&.11 and MySQL Cluster NDB 7\&.4\&.8
+\fIonly\fR, when
+\fBndb_restore\fR
+is used to restore any tables containing unique indexes, you must include
+\fB\-\-disable\-indexes\fR
+or
+\fB\-\-rebuild\-indexes\fR\&. (Bug #57782, Bug #11764893) This is not a requirement in later versions\&. (Bug #22345748)
+.sp .5v
+.RE
 .PP
 .\" restore_connect option (ndb_restore)
 The

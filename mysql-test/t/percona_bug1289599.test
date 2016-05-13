@@ -14,6 +14,7 @@ connect (con2,localhost,root);
 
 call mtr.add_suppression("The plugin 'auth_socket' used to authenticate user .* is not loaded. Nobody can currently login using this account.");
 
+--let $old_plugin_value= `SELECT DISTINCT plugin FROM mysql.user`
 update mysql.user set plugin='auth_socket';
 flush privileges;
 
@@ -40,7 +41,10 @@ change_user $USER;
 
 connection default;
 
-update mysql.user set plugin='';
+--echo executing update mysql.user set plugin='<old_plugin_value>'
+--disable_query_log
+eval update mysql.user set plugin='$old_plugin_value';
+--enable_query_log
 flush privileges;
 uninstall plugin auth_socket;
 

@@ -1490,7 +1490,9 @@ sync_latch_meta_init()
 	LATCH_ADD(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK,
 		  sync_array_mutex_key);
 
+#ifdef _WIN32
 	LATCH_ADD(THREAD_MUTEX, SYNC_NO_ORDER_CHECK, thread_mutex_key);
+#endif
 
 	LATCH_ADD(ZIP_PAD_MUTEX, SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
 
@@ -1786,8 +1788,7 @@ sync_check_init()
 	sync_array_init(OS_THREAD_MAX_N);
 }
 
-/** Frees the resources in InnoDB's own synchronization data structures. Use
-os_sync_free() after calling this. */
+/** Frees the resources in InnoDB's own synchronization data structures. */
 void
 sync_check_close()
 {

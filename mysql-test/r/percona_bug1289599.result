@@ -8,6 +8,6 @@ install plugin auth_socket soname 'auth_socket.so';
 connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
 Got one of the listed errors
 Got one of the listed errors
-update mysql.user set plugin='';
+executing update mysql.user set plugin='<old_plugin_value>'
 flush privileges;
 uninstall plugin auth_socket;

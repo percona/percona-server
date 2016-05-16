@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 01/14/2016
+.\"      Date: 03/02/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "01/14/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -612,7 +612,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.3.8.7, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.) This option was added in MySQL 5\&.6\&.7\&.
+Section\ \&6.4.1.7, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.) This option was added in MySQL 5\&.6\&.7\&.
 .RE
 .sp
 .RS 4
@@ -1282,7 +1282,7 @@ to disable it\&.
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them will be removed in a future MySQL release\&. For account upgrade instructions, see
-Section\ \&6.3.8.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -1308,7 +1308,7 @@ The server sends the public key to the client as needed, so it is not necessary 
 For additional discussion regarding use of the
 sha256_password
 plugin, including how to get the RSA public key, see
-Section\ \&6.3.8.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
+Section\ \&6.4.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
 .sp
 This option is available only if MySQL was built using OpenSSL\&. It was added in MySQL 5\&.6\&.6 under the name
 \fB\-\-server\-public\-key\fR
@@ -1453,7 +1453,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.10.5, \(lqSSL Command Options\(rq\&.
+Section\ \&6.3.9.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3267,7 +3267,7 @@ left\-arrow
 and
 right\-arrow
 keys move horizontally within the current input line, and the
-up\-arror
+up\-arrow
 and
 down\-arrow
 keys move up and down through the set of previously entered lines\&.

@@ -10,7 +10,6 @@ Supported Releases:
 
 * Debian:
 
- * 6.0 (squeeze)
  * 7.0 (wheezy)
  * 8.0 (jessie)
 
@@ -18,8 +17,8 @@ Supported Releases:
 
  * 12.04LTS (precise)
  * 14.04LTS (trusty)
- * 15.04 (vivid)
  * 15.10 (wily)
+ * 16.04LTS (xenial)
 
 Supported Platforms:
 

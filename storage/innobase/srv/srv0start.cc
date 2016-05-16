@@ -3024,8 +3024,7 @@ innobase_shutdown_for_mysql(void)
 		logs_empty_and_mark_files_at_shutdown() and should have
 		already quit or is quitting right now. */
 
-		os_mutex_enter(os_sync_mutex);
-
+		os_rmb;
 		if (os_thread_count == 0) {
 			/* All the threads have exited or are just exiting;
 			NOTE that the threads may not have completed their
@@ -3035,14 +3034,10 @@ innobase_shutdown_for_mysql(void)
 			os_thread_exit().  Now we just sleep 0.1
 			seconds and hope that is enough! */
 
-			os_mutex_exit(os_sync_mutex);
-
 			os_thread_sleep(100000);
 
 			break;
 		}
-
-		os_mutex_exit(os_sync_mutex);
 
 		os_thread_sleep(100000);
 	}
@@ -3104,26 +3099,23 @@ innobase_shutdown_for_mysql(void)
 	que_close();
 	row_mysql_close();
 	srv_mon_free();
-	sync_close();
 	srv_free();
 	fil_close();
 
-	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
-
-	os_sync_free();
-
-	/* 5. Free all allocated memory */
+	/* 4. Free all allocated memory */
 
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
 	mem_close();
+	sync_close();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet
 	in shutdown, and it will also free the ut_list_mutex, so it
 	should be the last one for all operation */
 	ut_free_all_mem();
 
+	os_rmb;
 	if (os_thread_count != 0
 	    || os_event_count != 0
 	    || os_mutex_count != 0

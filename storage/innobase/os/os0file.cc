@@ -786,7 +786,7 @@ os_file_lock(
 #ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Creates the seek mutexes used in positioned reads and writes. */
-UNIV_INTERN
+static
 void
 os_io_init_simple(void)
 /*===================*/
@@ -4241,6 +4241,14 @@ os_aio_free(void)
 		os_event_free(os_aio_segment_wait_events[i]);
 	}
 
+#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
+	os_mutex_free(os_file_count_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
+
+	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
+		os_mutex_free(os_file_seek_mutexes[i]);
+	}
+
 	ut_free(os_aio_segment_wait_events);
 	os_aio_segment_wait_events = 0;
 	os_aio_n_segments = 0;
@@ -5945,7 +5953,7 @@ os_aio_print(
 			srv_io_thread_function[i]);
 
 #ifndef __WIN__
-		if (os_aio_segment_wait_events[i]->is_set) {
+		if (os_aio_segment_wait_events[i]->is_set()) {
 			fprintf(file, " ev set");
 		}
 #endif /* __WIN__ */

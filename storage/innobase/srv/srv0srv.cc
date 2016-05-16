@@ -1099,8 +1099,9 @@ srv_init(void)
 
 		srv_checkpoint_completed_event = os_event_create();
 
+		srv_redo_log_tracked_event = os_event_create();
+
 		if (srv_track_changed_pages) {
-			srv_redo_log_tracked_event = os_event_create();
 			os_event_set(srv_redo_log_tracked_event);
 		}
 
@@ -1142,17 +1143,30 @@ srv_free(void)
 {
 	srv_conc_free();
 
-	/* The mutexes srv_sys->mutex and srv_sys->tasks_mutex should have
-	been freed by sync_close() already. */
+	if (!srv_read_only_mode) {
+
+		for (ulint i = 0; i < srv_sys->n_sys_threads; i++)
+			os_event_free(srv_sys->sys_threads[i].event);
+
+		os_event_free(srv_error_event);
+		os_event_free(srv_monitor_event);
+		os_event_free(srv_buf_dump_event);
+		os_event_free(srv_checkpoint_completed_event);
+		os_event_free(srv_redo_log_tracked_event);
+		mutex_free(&srv_sys->mutex);
+		mutex_free(&srv_sys->tasks_mutex);
+	}
+
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_free(&server_mutex);
+#endif
+	mutex_free(&srv_innodb_monitor_mutex);
+	mutex_free(&page_zip_stat_per_index_mutex);
+
 	mem_free(srv_sys);
 	srv_sys = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
-
-	if (!srv_read_only_mode) {
-		os_event_free(srv_buf_dump_event);
-		srv_buf_dump_event = NULL;
-	}
 }
 
 /*********************************************************************//**

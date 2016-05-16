@@ -75,7 +75,7 @@ my_bool     gdb_on_fatal = FALSE;
 #endif
 
 #if TOKUDB_CHECK_JEMALLOC
-uint        check_jemalloc = 0;
+my_bool        check_jemalloc = TRUE;
 #endif
 
 static MYSQL_SYSVAR_ULONGLONG(
@@ -417,17 +417,14 @@ static MYSQL_SYSVAR_BOOL(
 #endif
 
 #if TOKUDB_CHECK_JEMALLOC
-static MYSQL_SYSVAR_UINT(
+static MYSQL_SYSVAR_BOOL(
     check_jemalloc,
     check_jemalloc,
-    0,
-    "check if jemalloc is linked",
+    PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG,
+    "check if jemalloc is linked and transparent huge pages are disabled",
     NULL,
     NULL,
-    1,
-    0,
-    1,
-    0);
+    TRUE);
 #endif
 
 

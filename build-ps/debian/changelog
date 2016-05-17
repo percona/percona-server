@@ -1,3 +1,9 @@
+percona-server-5.6 (5.6.29-rel76.3) unstable; urgency=low
+
+  * Fix for description of the client package in debian (#1201074)
+
+ -- Evgeniy Patlan <evgeniy.patlan@percona.com>  Tue, 17 May 2016 12:58:26 +0300
+
 percona-server-5.6 (5.6.29-rel76.2) unstable; urgency=low
 
   * Fixed upgrade on Ubuntu runs mysql_install_db even though data directory

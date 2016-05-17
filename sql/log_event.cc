@@ -4635,32 +4635,9 @@ static bool is_silent_error(THD* thd)
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
-  char* query_buf;
-  int query_buf_len;
+  DBUG_ENTER("Query_log_event::do_apply_event");
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
-  DBUG_ENTER("Query_log_event::do_apply_event");
-
-  /*
-    We must allocate some extra memory for query cache
-    The query buffer layout is:
-       buffer :==
-         <statement>   The input statement(s)
-         '\0'          Terminating null char  (1 byte)
-         <length>      Length of following current database name (size_t)
-         <db_name>     Name of current database
-         <flags>       Flags struct
-  */
-  query_buf_len = q_len_arg + 1 + sizeof(size_t) + thd->db_length
-                  + QUERY_CACHE_FLAGS_SIZE + 1;
-  if ((query_buf= (char *) thd->alloc(query_buf_len)))
-  {
-    memcpy(query_buf, query_arg, q_len_arg);
-    query_buf[q_len_arg]= 0;
-    memcpy(query_buf+q_len_arg+1, (char *) &thd->db_length, sizeof(size_t));
-  }
-  else
-    goto end;
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -4743,10 +4720,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   */
   {
     thd->set_time(&when);
-
-    thd->set_query_and_id((char*) query_buf, q_len_arg,
+    thd->set_query_and_id((char*)query_arg, q_len_arg,
                           thd->charset(), next_query_id());
- 
     thd->variables.pseudo_thread_id= thread_id;		// for temp tables
     attach_temp_tables_worker(thd);
     DBUG_PRINT("query",("%s", thd->query()));
@@ -4811,7 +4786,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             result. This should be acceptable now. This is a reminder
             to fix this if any refactoring happens here sometime.
           */
-          thd->set_query((char*) query_buf, q_len_arg, thd->charset());
+          thd->set_query((char*) query_arg, q_len_arg, thd->charset());
         }
       }
       if (time_zone_len)

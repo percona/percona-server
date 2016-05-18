@@ -1,0 +1,54 @@
+call mtr.add_suppression("Too many connections");
+CREATE USER nonprivuser@localhost;
+SELECT VARIABLE_VALUE INTO @cemc_1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME='Connection_errors_max_connections';
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	1
+SELECT sleep(500000);
+# -- Success: non-SUPER user failed to connect with max_connections already being connected
+# Wait until Connection_errors_max_connections is bumped
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	2
+# -- Establishing connection 'con3' (user: root)...
+# -- Connection 'con3' has been established.
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	3
+SELECT sleep(500000);
+SELECT VARIABLE_VALUE INTO @cemc_2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME='Connection_errors_max_connections';
+# -- Success: only max_connections + 1 SUPER connections allowed on the main port
+# Wait until Connection_errors_max_connections is bumped
+SELECT VARIABLE_VALUE INTO @cemc_3 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME='Connection_errors_max_connections';
+Regular user connected on extra_port
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	3
+SELECT sleep(500000);
+# -- Success: non-SUPER user failed to connect on extra_port with extra_max_connections already being connected
+# Wait until Connection_errors_max_connections is bumped
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	3
+# -- Establishing connection 'extracon2' (user: root)...
+# -- Connection 'extracon2' has been established.
+SUPER user connected on extra_port
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	3
+KILL QUERY $con2_id
+KILL QUERY $con3_id
+KILL QUERY $extracon_id
+DROP USER nonprivuser@localhost;
+sleep(500000)
+1
+sleep(500000)
+1
+sleep(500000)
+1
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	1

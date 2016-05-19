@@ -2458,9 +2458,11 @@ public:
 
   /*** Following methods used in slow_extended.patch ***/
   void clear_slow_extended();
+private:
   void reset_sub_statement_state_slow_extended(Sub_statement_state *backup);
   void restore_sub_statement_state_slow_extended(const Sub_statement_state *backup);
   /*** The methods above used in slow_extended.patch ***/
+public:
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;

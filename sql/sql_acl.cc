@@ -11655,6 +11655,10 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       release_user_connection(thd);
       statistic_increment(connection_errors_max_connection, &LOCK_status);
       my_error(ER_CON_COUNT_ERROR, MYF(0));
+      if (log_warnings)
+      {
+        sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
+      }
       DBUG_RETURN(1);
     }
   }

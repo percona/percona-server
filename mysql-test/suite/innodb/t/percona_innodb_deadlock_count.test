@@ -1,14 +1,10 @@
 --source include/have_innodb.inc
+--source include/count_sessions.inc
+
 --echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
 --echo # Establish connection con2 (user=root)
 connect (con2,localhost,root,,);
---echo # Establish connection con3 (user=root)
-connect (con3,localhost,root,,);
---echo # Drop test table
---disable_warnings
-drop table if exists t;
---enable_warnings
 
 --echo # Create test table
 create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
@@ -16,6 +12,7 @@ create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
 insert into t values(2,1);
 insert into t values(1,2);
 
+SET GLOBAL innodb_monitor_reset = lock_deadlocks;
 #--echo # Save current deadlock count
 let $current = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
 
@@ -49,13 +46,28 @@ connection con2;
 reap;
 ROLLBACK;
 
---echo # Switch to connection con3
-connection con3;
+--echo # Switch to connection default
+connection default;
 let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
 
 --enable_result_log
+
+--disconnect con1
+--disconnect con2
+
+SELECT COUNT INTO @lock_deadlocks_var FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
+--let $assert_text= Exactly one deadlock should have been found
+--let $assert_cond= @lock_deadlocks_var = 1
+--source include/assert.inc
+SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 
 let $diff = `SELECT $result - $current`;
 echo Deadlocks: $diff;
 --echo # Drop test table
 drop table t;
+
+--disable_warnings
+SET GLOBAL innodb_monitor_reset = default;
+--enable_warnings
+
+--source include/wait_until_count_sessions.inc

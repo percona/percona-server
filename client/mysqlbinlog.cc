@@ -60,6 +60,21 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 using std::min;
 using std::max;
 
+/**
+   The function represents Log_event delete wrapper
+   to reset possibly active temp_buf member.
+   It's to be invoked in context where the member is
+   not bound with dynamically allocated memory and therefore can
+   be reset as simple as with plain assignment to NULL.
+
+   @param ev  a pointer to Log_event instance
+*/
+inline void reset_temp_buf_and_delete(Log_event *ev)
+{
+  ev->temp_buf= NULL;
+  delete ev;
+}
+
 /* Needed for Rpl_filter */
 CHARSET_INFO *table_alias_charset= &my_charset_bin;
 
@@ -2580,6 +2595,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             if ((rev->ident_len != logname_len) ||
                 memcmp(rev->new_log_ident, logname, logname_len))
             {
+              reset_temp_buf_and_delete(rev);
               DBUG_RETURN(OK_CONTINUE);
             }
             /*
@@ -2588,6 +2604,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
               log. If we are running with to_last_remote_log, we print it,
               because it serves as a useful marker between binlogs then.
             */
+            reset_temp_buf_and_delete(rev);
             continue;
           }
           /*

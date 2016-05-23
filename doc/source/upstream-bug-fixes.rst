@@ -5,33 +5,45 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`80014` - mysql build fails, memory leak in gen_lex_hash, clang address sanitizer   |
+|:Launchpad bug: :bug:`1580993`                                                                               |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
+|:Fix Released: :rn:`5.6.30-76.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`72466` - More memory overhead per page in the InnoDB buffer pool                   |
+|:Launchpad bug: :bug:`1536693`                                                                               |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
+|:Fix Released: :rn:`5.6.30-76.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`79703` - Spin rounds per wait will be negative in InnoDB status if spin waits ...  |
 |:Launchpad bug: :bug:`1527160`                                                                               |
-|:Upstream state: Open (checked on 2016-01-11)                                                                |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.28-76.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`79185` - Innodb freeze running REPLACE statements                                  |
 |:Launchpad bug: :bug:`1519094`                                                                               |
-|:Upstream state: Open (checked on 2016-01-11)                                                                |
-|:Fix Released: :rn:`5.6.26-74.0`                                                                             |
-|:Upstream fix: N/A                                                                                           |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.6.27-76.0`                                                                             |
+|:Upstream fix: 5.6.30                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`77684` - DROP TABLE IF EXISTS may brake replication if slave has replication filter|
 |:Launchpad bug: :bug:`1475107`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.26-74.0`                                                                             |
-|:Upstream fix: N/A                                                                                           |
+|:Upstream fix: 5.6.30                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`77591` - ALTER TABLE does not allow to change NULL/NOT NULL if foreign key exists  |
 |:Launchpad bug: :bug:`1470677`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.26-74.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`35125` - Allow the ability to set the server_id for a connection for logging to... |
 |:Launchpad bug: `Blueprint <https://blueprints.launchpad.net/percona-server/+spec/per-session-server-id>`_   |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.26-74.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -73,25 +85,25 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`72108` - Hard to read history file                                                 |
 |:Launchpad bug: :bug:`1296192`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.24-72.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69991` - MySQL client is broken without readline                                   |
 |:Launchpad bug: :bug:`1266386`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.24-72.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`63130` - CMake-based check for the presence of a system readline library is not... |
 |:Launchpad bug: :bug:`1266386`                                                                               |
-|:Upstream state: Can't repeat (checked on 2016-01-11)                                                        |
+|:Upstream state: Can't repeat (checked on 2016-23-05)                                                        |
 |:Fix Released: :rn:`5.6.24-72.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`53645` - SHOW GRANTS not displaying all the applicable grants                      |
 |:Launchpad bug: :bug:`1354988`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.23-72.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -127,43 +139,43 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`74987` - mtr failure on Ubuntu Utopic, mysqlhotcopy fails with wrong error(255)    |
 |:Launchpad bug: :bug:`1396330`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.22-71.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`75189` - engines suite tests depending on InnoDB implementation details            |
 |:Launchpad bug: :bug:`1401776`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.22-71.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`72475` - Binlog events with binlog_format=MIXED are unconditionally logged in ROW..|
 |:Launchpad bug: :bug:`1313901`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.21-70.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`74842` - Incorrect attribute((nonnull)) for btr_cur_ins_lock_and_undo callees      |
 |:Launchpad bug: :bug:`1390695`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.21-70.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`74440` - mysql_install_db not handling mysqld startup failure                      |
 |:Launchpad bug: :bug:`1382782`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.21-70.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`73066` - Replication stall with multi-threaded replication                         |
 |:Launchpad bug: :bug:`1331586`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.21-70.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71091` - CSV engine does not properly process ``""``, in quotes                    |
 |:Launchpad bug: :bug:`1316042`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.21-70.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -181,7 +193,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`73418` - Add --manual-lldb option to mysql-test-run.pl                             |
 |:Launchpad bug: :bug:`1328482`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.20-68.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -199,13 +211,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`72615` - MTR --mysqld=--default-storage-engine=foo incompatible w/ dynamically...  |
 |:Launchpad bug: :bug:`1318537`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.17-66.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`72163` - Rev 5774 broke rpl_plugin_load                                            |
 |:Launchpad bug: :bug:`1299688`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.17-65.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -223,25 +235,25 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71374` - Slave IO thread won't attempt auto reconnect to the master/error-code 1159|
 |:Launchpad bug: :bug:`1268729`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.16-64.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`74637` - make dirty page flushing more adaptive                                    |
 |:Launchpad BP: `Split LRU ...   <https://blueprints.launchpad.net/percona-server/+spec/lru-manager-thread>`_ |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.16-64.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71988` - page_cleaner: aggressive background flushing                              |
 |:Launchpad bug: :bug:`1238039`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.16-64.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71624` - printf size_t results in a fatal warning in 32-bit debug builds           |
 |:Launchpad bug: :bug:`1277505`                                                                               |
-|:Upstream state: Can't repeat (checked on 2016-01-11)                                                        |
+|:Upstream state: Can't repeat (checked on 2016-23-05)                                                        |
 |:Fix Released: :rn:`5.6.16-64.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -277,7 +289,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`78050` - Crash on when XA functions activated by a storage engine                  |
 |:Launchpad bug: :bug:`1255549`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.16-64.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -289,13 +301,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71270` - Failures to end bulk insert for partitioned tables handled incorrectly    |
 |:Launchpad bug: :bug:`1204871`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.16-64.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71217` - Threadpool - add thd_wait_begin/thd_wait_end to the network IO functions  |
 |:Launchpad bug: :bug:`1159743`                                                                               |
-|:Upstream state: Open (checked on 2016-01-11)                                                                |
+|:Upstream state: Open (checked on 2016-23-05)                                                                |
 |:Fix Released: :rn:`5.6.15-63.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -319,7 +331,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71411` - buf_flush_LRU() does not return correct number in case of compressed pages|
 |:Launchpad bug: :bug:`1231918`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -331,7 +343,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`70490` - Suppression is too strict on some systems                                 |
 |:Launchpad bug: :bug:`1205196`                                                                               |
-|:Upstream state: Open (checked on 2016-01-11)                                                                |
+|:Upstream state: Open (checked on 2016-23-05)                                                                |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -343,7 +355,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`70500` - Page cleaner should perform LRU flushing regardless of server activity    |
 |:Launchpad bug: :bug:`1234562`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -361,31 +373,31 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68481` - InnoDB LRU flushing for MySQL 5.6 needs work                              |
 |:Launchpad bug: :bug:`1232406`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`70453` - Add hard timeouts to page cleaner flushes                                 |
 |:Launchpad bug: :bug:`1232101`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69170` - buf_flush_LRU is lazy                                                     |
 |:Launchpad bug: :bug:`1231918`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68555` - thread convoys from log_checkpoint_margin with innodb_buffer_pool_inst... |
 |:Launchpad bug: :bug:`1236884`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-61.0`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`75534` - Solve buffer pool mutex contention by splitting it                        |
 |:Launchpad bug: :ref:`innodb_split_buf_pool_mutex`                                                           |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.13-60.6`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -415,7 +427,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`62018` - innodb adaptive hash index mutex contention                               |
 |:Launchpad bug: :bug:`1216804`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-60.6`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -433,13 +445,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`42415` - UPDATE/DELETE with LIMIT clause unsafe for SBL even with ORDER BY PK ...  |
 |:Launchpad bug: :bug:`1132194`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.13-60.5`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69639` - mysql failed to build with dtrace Sun D 1.11                              |
 |:Launchpad bug: :bug:`1196460`                                                                               |
-|:Upstream state: Open (checked on 2016-01-11)                                                                |
+|:Upstream state: Open (checked on 2016-23-05)                                                                |
 |:Fix Released: :rn:`5.6.13-60.5`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -457,7 +469,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69856` - mysql_install_db does not function properly in 5.6 for debug builds       |
 |:Launchpad bug: :bug:`1179359`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.12-60.4`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -469,7 +481,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`79117` - "change_user" command should be aware of preceding "error" command        |
 |:Launchpad bug: :bug:`1172090`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -487,7 +499,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`71183` - os_file_fsync() should handle fsync() returning EINTR                     |
 |:Launchpad bug: :bug:`1262651`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -565,7 +577,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68845` - Unnecessary log_sys->mutex reacquisition in mtr_log_reserve_and_write()   |
 |:Launchpad bug: :bug:`1163439`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -655,7 +667,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61178` - Incorrect implementation of intersect(ulonglong) in non-optimized Bitmap..|
 |:Launchpad bug: :bug:`1042517`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -667,7 +679,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`64800` - mysqldump with --include-master-host-port putting quotes around port no.  | 
 |:Launchpad bug: :bug:`1013432`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -697,13 +709,13 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`25007` - memory tables with dynamic rows format                                    |
 |:Launchpad bug: :bug:`1148822`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`61595` - mysql-test/include/wait_for_slave_param.inc timeout logic is incorrect    |
 |:Launchpad bug: :bug:`800035`                                                                                |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
@@ -711,6 +723,12 @@
 |:Launchpad bug: :bug:`764395`                                                                                |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.6.11-60.3`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`39833` - CREATE INDEX does full table copy on TEMPORARY table                      |
+|:Launchpad bug: N/A                                                                                          |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
+|:Fix Released: :rn:`5.6.10-60.2`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`68116` - InnoDB monitor may hit an assertion error in buf_page_get_gen in debug ...|
@@ -727,25 +745,25 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`20001` - Support for temp-tables in INFORMATION_SCHEMA                             |
 |:Launchpad bug: :ref:`temp_tables`                                                                           |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`49120` - mysqldump should have flag to delay creating indexes for innodb plugin    |
 |:Launchpad bug: :bug:`744103`                                                                                |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`57583` - fast index create not used during "alter table foo engine=innodb"         |
 |:Launchpad bug: :bug:`744103`                                                                                |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69146` - Optimization in buf_pool_get_oldest_modification if srv_buf_pool_instances|
 |:Launchpad bug: :bug:`1176496`                                                                               |
-|:Upstream state: Verified (checked on 2016-01-11)                                                            |
+|:Upstream state: Verified (checked on 2016-23-05)                                                            |
 |:Fix Released: :rn:`5.6.5-60.0`                                                                              |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+

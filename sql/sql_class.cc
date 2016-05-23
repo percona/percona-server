@@ -4744,8 +4744,6 @@ void THD::clear_slow_extended()
 void THD::reset_sub_statement_state_slow_extended(Sub_statement_state *backup)
 {
   DBUG_ENTER("THD::reset_sub_statement_state_slow_extended");
-  backup->sent_row_count=               m_sent_row_count;
-  backup->examined_row_count=           m_examined_row_count;
   backup->tmp_tables_used=              tmp_tables_used;
   backup->tmp_tables_disk_used=         tmp_tables_disk_used;
   backup->tmp_tables_size=              tmp_tables_size;
@@ -4765,8 +4763,6 @@ void THD::reset_sub_statement_state_slow_extended(Sub_statement_state *backup)
 void THD::restore_sub_statement_state_slow_extended(const Sub_statement_state *backup)
 {
   DBUG_ENTER("THD::restore_sub_statement_state_slow_extended");
-  m_sent_row_count=              backup->sent_row_count;
-  m_examined_row_count+=         backup->examined_row_count;
   tmp_tables_used+=              backup->tmp_tables_used;
   tmp_tables_disk_used+=         backup->tmp_tables_disk_used;
   tmp_tables_size+=              backup->tmp_tables_size;

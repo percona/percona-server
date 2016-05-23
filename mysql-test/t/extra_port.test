@@ -35,11 +35,10 @@ if ($error)
 }
 
 connection default;
-SELECT VARIABLE_VALUE INTO @cemc_2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-       WHERE VARIABLE_NAME='Connection_errors_max_connections';
---let $assert_text= Connection_errors_max_connections should have increased by 1
---let $assert_cond= @cemc_2 - @cemc_1 = 1
---source include/assert.inc
+
+--echo # Wait until Connection_errors_max_connections is bumped
+--let $wait_condition= SELECT VARIABLE_VALUE-@cemc_1 = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='Connection_errors_max_connections'
+--source include/wait_condition.inc
 
 # Threads_connected might be at 3 if server is still finishing cleaning up the failed con3
 # attempt above. Wait for it to settle.
@@ -63,7 +62,7 @@ send SELECT sleep(500000);
 --sleep 2.5
 
 connection default;
-SELECT VARIABLE_VALUE INTO @cemc_3 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT VARIABLE_VALUE INTO @cemc_2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
        WHERE VARIABLE_NAME='Connection_errors_max_connections';
 
 --disable_abort_on_error
@@ -84,11 +83,12 @@ if ($error)
 }
 
 connection default;
-SELECT VARIABLE_VALUE INTO @cemc_4 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+--echo # Wait until Connection_errors_max_connections is bumped
+--let $wait_condition= SELECT VARIABLE_VALUE-@cemc_2 = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='Connection_errors_max_connections'
+--source include/wait_condition.inc
+
+SELECT VARIABLE_VALUE INTO @cemc_3 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
        WHERE VARIABLE_NAME='Connection_errors_max_connections';
---let $assert_text= Connection_errors_max_connections should have increased by 1
---let $assert_cond= @cemc_4 - @cemc_3 = 1
---source include/assert.inc
 
 connect(extracon,127.0.0.1,nonprivuser,,test,$MASTER_EXTRA_PORT,);
 connection extracon;
@@ -120,11 +120,10 @@ if ($error)
 }
 
 connection default;
-SELECT VARIABLE_VALUE INTO @cemc_5 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-       WHERE VARIABLE_NAME='Connection_errors_max_connections';
---let $assert_text= Connection_errors_max_connections should have increased by 1
---let $assert_cond= @cemc_5 - @cemc_4 = 1
---source include/assert.inc
+--echo # Wait until Connection_errors_max_connections is bumped
+--let $wait_condition= SELECT VARIABLE_VALUE-@cemc_3 = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME='Connection_errors_max_connections'
+--source include/wait_condition.inc
+
 --let $status_var= Threads_connected
 --let $status_var_value= 3
 --source include/wait_for_status_var.inc

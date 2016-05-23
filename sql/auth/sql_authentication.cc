@@ -2447,6 +2447,7 @@ acl_authenticate(THD *thd, enum_server_command command,
         ->valid_connection_count(extra_port_connection))
     {                                         // too many connections
       release_user_connection(thd);
+      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

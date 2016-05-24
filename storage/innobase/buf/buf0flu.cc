@@ -2090,8 +2090,30 @@ buf_flush_wait_flushed(
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		buf_pool_t*	buf_pool;
 		lsn_t		oldest;
+		lsn_t		instance_newest = 0;
 
 		buf_pool = buf_pool_from_array(i);
+
+		if (new_oldest == LSN_MAX) {
+
+			buf_flush_list_mutex_enter(buf_pool);
+
+			buf_page_t* bpage
+				= UT_LIST_GET_FIRST(buf_pool->flush_list);
+
+			while (bpage != NULL
+			       && fsp_is_system_temporary(bpage->id.space())) {
+
+				bpage = UT_LIST_GET_NEXT(list, bpage);
+			}
+
+			if (bpage != NULL) {
+				ut_ad(bpage->in_flush_list);
+				instance_newest = bpage->oldest_modification;
+			}
+
+			buf_flush_list_mutex_exit(buf_pool);
+		}
 
 		for (;;) {
 			/* We don't need to wait for fsync of the flushed
@@ -2119,7 +2141,9 @@ buf_flush_wait_flushed(
 
 			buf_flush_list_mutex_exit(buf_pool);
 
-			if (oldest == 0 || oldest >= new_oldest) {
+			if (oldest == 0 || oldest >= new_oldest
+			    || (new_oldest == LSN_MAX && oldest
+				> instance_newest)) {
 				break;
 			}
 

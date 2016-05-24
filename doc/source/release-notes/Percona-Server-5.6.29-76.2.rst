@@ -1,7 +1,7 @@
-.. rn:: 5.6.27-76.2
+.. rn:: 5.6.29-76.2
 
 ==============================
- |Percona Server| 5.6.27-76.2 
+ |Percona Server| 5.6.29-76.2 
 ==============================
 
 Percona is glad to announce the release of |Percona Server| 5.6.29-76.2 on March 7th, 2016 (Downloads are available `here <http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.29-76.2/>`_ and from the :doc:`Percona Software Repositories </installation>`).

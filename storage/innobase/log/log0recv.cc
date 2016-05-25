@@ -1553,7 +1553,8 @@ fil_write_encryption_parse(
 
 	if (offset >= UNIV_PAGE_SIZE
 	    || len + offset > UNIV_PAGE_SIZE
-	    || len != ENCRYPTION_INFO_SIZE) {
+	    || (len != ENCRYPTION_INFO_SIZE_V1
+		&& len != ENCRYPTION_INFO_SIZE_V2)) {
 		recv_sys->found_corrupt_log = TRUE;
 		return(NULL);
 	}
@@ -1572,9 +1573,10 @@ fil_write_encryption_parse(
 			<< space_id << " is invalid";
 	}
 
-	ut_ad(len == ENCRYPTION_INFO_SIZE);
+	ut_ad(len == ENCRYPTION_INFO_SIZE_V1
+	      || len == ENCRYPTION_INFO_SIZE_V2);
 
-	ptr += ENCRYPTION_INFO_SIZE;
+	ptr += len;
 
 	if (space == NULL) {
 		if (is_new) {

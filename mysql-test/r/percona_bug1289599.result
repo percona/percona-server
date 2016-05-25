@@ -8,7 +8,7 @@ ERROR 28000: Access denied for user 'USER'@'localhost' (using password: NO)
 install plugin auth_socket soname 'auth_socket.so';
 connect(localhost,USER,,test,MASTER_PORT,MASTER_SOCKET);
 Got one of the listed errors
-Got one of the listed errors
+ERROR 28000: Access denied for user 'USER'@'localhost' (using password: NO)
 update mysql.user set plugin='';
 delete from mysql.user;
 insert into mysql.user select * from mysql_user_bak;

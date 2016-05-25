@@ -1473,6 +1473,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   log_slow_statement(thd);
 
   thd_proc_info(thd, "cleaning up");
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE)
+    DEBUG_SYNC(thd, "dispatch_create_table_command_before_thd_root_free");
   thd->reset_query();
   thd->command=COM_SLEEP;
   dec_thread_running();

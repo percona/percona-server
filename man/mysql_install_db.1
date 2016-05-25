@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 02/01/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 03/28/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_install_db
 .SH "NAME"
 mysql_install_db \- initialize MySQL data directory
 .SH "SYNOPSIS"
@@ -74,7 +73,7 @@ handles initialization tasks that must be performed before the MySQL server,
 .sp -1
 .IP \(bu 2.3
 .\}
-It iinitializes the MySQL data directory and creates the system tables that it contains\&.
+It initializes the MySQL data directory and creates the system tables that it contains\&.
 .RE
 .sp
 .RS 4
@@ -328,7 +327,6 @@ The
 option is available to generate random passwords for administrative accounts and mark them expired, and to not create anonymous\-user accounts\&.
 .RE
 .PP
-.\" .mysql_secret file
 If
 \fBmysql_install_db\fR
 generates a random administative password, it writes the password to a file and displays the file name\&. The password entry includes a timestamp to indicate when it was written\&. By default, the file is
@@ -669,8 +667,6 @@ passes unrecognized options to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: help option
-.\" help option: mysql_install_db
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -689,8 +685,6 @@ form of this option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: admin-auth-plugin option
-.\" admin-auth-plugin option: mysql_install_db
 \fB\-\-admin\-auth\-plugin=\fR\fB\fIplugin_name\fR\fR
 .sp
 The authentication plugin to use for the administrative account\&. The default is
@@ -707,8 +701,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: admin-host option
-.\" admin-host option: mysql_install_db
 \fB\-\-admin\-host=\fR\fB\fIhost_name\fR\fR
 .sp
 The host part to use for the adminstrative account name\&. The default is
@@ -727,8 +719,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: admin-require-ssl option
-.\" admin-require-ssl option: mysql_install_db
 \fB\-\-admin\-require\-ssl\fR
 .sp
 Whether to require SSL for the administrative account\&. The default is not to require it\&. With this option enabled, the statement that
@@ -748,8 +738,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: admin-user option
-.\" admin-user option: mysql_install_db
 \fB\-\-admin\-user=\fR\fB\fIuser_name\fR\fR
 .sp
 The user part to use for the adminstrative account name\&. The default is
@@ -768,8 +756,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: basedir option
-.\" basedir option: mysql_install_db
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
@@ -783,8 +769,6 @@ The path to the MySQL installation directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: builddir option
-.\" builddir option: mysql_install_db
 \fB\-\-builddir=\fR\fB\fIdir_name\fR\fR
 .sp
 For use with
@@ -800,8 +784,6 @@ and out\-of\-source builds\&. Set this to the location of the directory where th
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: cross-bootstrap option
-.\" cross-bootstrap option: mysql_install_db
 \fB\-\-cross\-bootstrap\fR
 .sp
 For internal use\&. This option is used for building system tables on one host intended for another\&.
@@ -817,8 +799,6 @@ This option was removed in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: datadir option
-.\" datadir option: mysql_install_db
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&. Only the last component of the path name is created if it does not exist; the parent directory must already exist or an error occurs\&.
@@ -849,7 +829,6 @@ option is mandatory and the data directory must not already exist\&. (It remains
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" defaults option
 \fB\-\-defaults\fR
 .sp
 This option causes
@@ -881,7 +860,6 @@ variant was supported\&.)
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" defaults-extra-file option
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -902,7 +880,6 @@ to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" defaults-file option
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -923,8 +900,6 @@ to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: extra-sql-file option
-.\" extra-sql-file option: mysql_install_db
 \fB\-\-extra\-sql\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-f \fR\fB\fIfile_name\fR\fR
 .sp
@@ -943,8 +918,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: force option
-.\" force option: mysql_install_db
 \fB\-\-force\fR
 .sp
 Cause
@@ -962,8 +935,6 @@ This option was removed in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: insecure option
-.\" insecure option: mysql_install_db
 \fB\-\-insecure\fR
 .sp
 Do not generate a random password for the adminstrative account\&.
@@ -1016,8 +987,6 @@ password again as part of ensuring secure deployment\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: keep-my-cnf option
-.\" keep-my-cnf option: mysql_install_db
 \fB\-\-keep\-my\-cnf\fR
 .sp
 Tell
@@ -1043,8 +1012,6 @@ file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: lc-messages option
-.\" lc-messages option: mysql_install_db
 \fB\-\-lc\-messages=name\fR
 .sp
 The locale to use for error messages\&. The default is
@@ -1064,8 +1031,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: lc-messages-dir option
-.\" lc-messages-dir option: mysql_install_db
 \fB\-\-lc\-messages\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where error messages are located\&. The value is used together with the value of
@@ -1084,8 +1049,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: ldata option
-.\" ldata option: mysql_install_db
 \fB\-\-ldata=\fR\fB\fIdir_name\fR\fR
 .sp
 A synonym for
@@ -1102,8 +1065,6 @@ This option was removed in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: login-file option
-.\" login-file option: mysql_install_db
 \fB\-\-login\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The file from which to read the login path if the
@@ -1122,8 +1083,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: login-path option
-.\" login-path option: mysql_install_db
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
 .sp
 Read options from the named login path in the
@@ -1160,8 +1119,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: mysqld-file option
-.\" mysqld-file option: mysql_install_db
 \fB\-\-mysqld\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The path name of the
@@ -1262,7 +1219,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" no-defaults option
 \fB\-\-no\-defaults\fR
 .sp
 Before MySQL 5\&.7\&.5, do not read any option files\&. If program startup fails due to reading unknown options from an option file,
@@ -1279,8 +1235,6 @@ can be used to prevent them from being read\&. For behavior of this option as of
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: random-password-file option
-.\" random-password-file option: mysql_install_db
 \fB\-\-random\-password\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The path name of the file in which to write the randomly generated password for the administrative account\&. The option value must be an absolute path name or an error occurs\&. The default is
@@ -1297,8 +1251,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: random-passwords option
-.\" random-passwords option: mysql_install_db
 \fB\-\-random\-passwords\fR
 .if n \{\
 .sp
@@ -1344,7 +1296,6 @@ accounts, and marks the password expired for those accounts\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" .mysql_secret file
 The initial random
 root
 password is written to the
@@ -1420,8 +1371,6 @@ option manually to make your MySQL installation more secure\&. This is recommend
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: rpm option
-.\" rpm option: mysql_install_db
 \fB\-\-rpm\fR
 .sp
 For internal use\&. This option is used during the MySQL installation process for install operations performed using RPM packages\&.
@@ -1437,8 +1386,6 @@ This option was removed in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: skip-name-resolve option
-.\" skip-name-resolve option: mysql_install_db
 \fB\-\-skip\-name\-resolve\fR
 .sp
 Use IP addresses rather than host names when creating grant table entries\&. This option can be useful if your DNS does not work\&.
@@ -1454,8 +1401,6 @@ This option was removed in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: skip-random-passwords option
-.\" skip-random-passwords option: mysql_install_db
 \fB\-\-skip\-random\-passwords\fR
 .if n \{\
 .sp
@@ -1511,7 +1456,6 @@ account,
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" .mysql_secret file
 The initial random
 root
 password is written to the
@@ -1606,8 +1550,6 @@ database is created that is accessible by any user\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: skip-sys-schema option
-.\" skip-sys-schema option: mysql_install_db
 \fB\-\-skip\-sys\-schema\fR
 .sp
 As of MySQL 5\&.7\&.7,
@@ -1627,8 +1569,6 @@ option suppresses this behavior\&. This option was added in MySQL 5\&.7\&.7\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: srcdir option
-.\" srcdir option: mysql_install_db
 \fB\-\-srcdir=\fR\fB\fIdir_name\fR\fR
 .sp
 For internal use\&. This option specifies the directory under which
@@ -1644,8 +1584,6 @@ looks for support files such as the error message file and the file for populati
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: user option
-.\" user option: mysql_install_db
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
@@ -1671,8 +1609,6 @@ form of this option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: verbose option
-.\" verbose option: mysql_install_db
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -1695,8 +1631,6 @@ form of this option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: version option
-.\" version option: mysql_install_db
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
@@ -1713,8 +1647,6 @@ This option was added in MySQL 5\&.7\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: windows option
-.\" windows option: mysql_install_db
 \fB\-\-windows\fR
 .sp
 For internal use\&. This option is used for creating Windows distributions\&. It is a deprecated alias for

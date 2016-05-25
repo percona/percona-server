@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 02/01/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 03/22/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "02/01/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "03/22/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql-test-run.pl
 .SH "NAME"
 mysql-test-run.pl \- run MySQL test suite
 .SH "SYNOPSIS"
@@ -286,8 +285,11 @@ Setting of a timeout in minutes or seconds, corresponding to command
                 \fB\-\-\fR\fB\fIname\fR\fR\fB\-timeout\fR\&.
                 Avaliable timeout names are TESTCASE,
                 SUITE (both in minutes) and
-                START, SHUTDOWN
-                (both in seconds)\&.
+                START, SHUTDOWN,
+                CTEST (all in seconds)\&.
+                MTR_CTEST_TIMEOUT is for
+                \fBctest\fR unit tests; it was added in
+                MySQL 5\&.8\&.0\&.
 T}
 T{
 MYSQL_CONFIG_EDITOR
@@ -389,8 +391,6 @@ not to process any following arguments as options\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: help option
-.\" help option: mysql-test-run.pl
 \fB\-\-help\fR,
 \fB\-h\fR
 .sp
@@ -405,8 +405,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: big-test option
-.\" big-test option: mysql-test-run.pl
 \fB\-\-big\-test\fR
 .sp
 Allow tests marked as "big" to run\&. Tests can be thus marked by including the line
@@ -425,8 +423,6 @@ This is typically done for tests that take very long to run, or that use very mu
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: boot-dbx option
-.\" boot-dbx option: mysql-test-run.pl
 \fB\-\-boot\-dbx\fR
 .sp
 Run the
@@ -444,8 +440,6 @@ debugger\&. This option is available from MySQL 5\&.5\&.17\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: boot-ddd option
-.\" boot-ddd option: mysql-test-run.pl
 \fB\-\-boot\-ddd\fR
 .sp
 Run the
@@ -463,8 +457,6 @@ debugger\&. This option is available from MySQL 5\&.5\&.17\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: boot-gdb option
-.\" boot-gdb option: mysql-test-run.pl
 \fB\-\-boot\-gdb\fR
 .sp
 Run the
@@ -482,8 +474,6 @@ debugger\&. This option is available from MySQL 5\&.5\&.17\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: build-thread option
-.\" build-thread option: mysql-test-run.pl
 \fB\-\-build\-thread=\fR\fB\fInumber\fR\fR
 .sp
 Specify a number to calculate port numbers from\&. The formula is 10 *
@@ -511,8 +501,6 @@ is recommended instead\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: callgrind option
-.\" callgrind option: mysql-test-run.pl
 \fB\-\-callgrind\fR
 .sp
 Instructs
@@ -529,8 +517,6 @@ to use
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: check-testcases option
-.\" check-testcases option: mysql-test-run.pl
 \fB\-\-check\-testcases\fR
 .sp
 Check test cases for side effects\&. This is done by checking system state before and after each test case; if there is any difference, a warning to that effect will be written, but the test case will not be marked as failed because of it\&. This check is enabled by default\&.
@@ -544,8 +530,6 @@ Check test cases for side effects\&. This is done by checking system state befor
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: clean-vardir option
-.\" clean-vardir option: mysql-test-run.pl
 \fB\-\-clean\-vardir\fR
 .sp
 Clean up the
@@ -562,8 +546,6 @@ directory with logs and test results etc\&. after the test run, but only if ther
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: client-bindir option
-.\" client-bindir option: mysql-test-run.pl
 \fB\-\-client\-bindir=\fR\fB\fIpath\fR\fR
 .sp
 The path to the directory where client binaries are located\&.
@@ -577,8 +559,6 @@ The path to the directory where client binaries are located\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: client-dbx option
-.\" client-dbx option: mysql-test-run.pl
 \fB\-\-client\-dbx\fR
 .sp
 Start
@@ -596,8 +576,6 @@ debugger\&. Support for dbx is available from MySQL 5\&.5\&.12\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: client-ddd option
-.\" client-ddd option: mysql-test-run.pl
 \fB\-\-client\-ddd\fR
 .sp
 Start
@@ -615,8 +593,6 @@ debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: client-debugger option
-.\" client-debugger option: mysql-test-run.pl
 \fB\-\-client\-debugger=\fR\fB\fIdebugger\fR\fR
 .sp
 Start
@@ -632,8 +608,6 @@ in the named debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: client-gdb option
-.\" client-gdb option: mysql-test-run.pl
 \fB\-\-client\-gdb\fR
 .sp
 Start
@@ -651,8 +625,6 @@ debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: client-libdir option
-.\" client-libdir option: mysql-test-run.pl
 \fB\-\-client\-libdir=\fR\fB\fIpath\fR\fR
 .sp
 The path to the directory where client libraries are located\&.
@@ -666,8 +638,6 @@ The path to the directory where client libraries are located\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: combination option
-.\" combination option: mysql-test-run.pl
 \fB\-\-combination=\fR\fB\fIvalue\fR\fR
 .sp
 Extra option to pass to
@@ -697,8 +667,6 @@ Section\ \&4.9, \(lqPassing Options from mysql-test-run.pl to mysqld or mysqltes
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: comment option
-.\" comment option: mysql-test-run.pl
 \fB\-\-comment=\fR\fB\fIstr\fR\fR
 .sp
 Write
@@ -715,8 +683,6 @@ to the output within lines filled with
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: compress option
-.\" compress option: mysql-test-run.pl
 \fB\-\-compress\fR
 .sp
 Compress all information sent between the client and the server if both support compression\&.
@@ -730,8 +696,6 @@ Compress all information sent between the client and the server if both support 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: cursor-protocol option
-.\" cursor-protocol option: mysql-test-run.pl
 \fB\-\-cursor\-protocol\fR
 .sp
 Pass the
@@ -750,8 +714,6 @@ option to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: dbx option
-.\" gdb option: mysql-test-run.pl
 \fB\-\-dbx\fR
 .sp
 Start
@@ -769,8 +731,6 @@ debugger\&. Support for dbx is available from MySQL 5\&.5\&.12\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: ddd option
-.\" ddd option: mysql-test-run.pl
 \fB\-\-ddd\fR
 .sp
 Start
@@ -788,8 +748,6 @@ debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: debug option
-.\" debug option: mysql-test-run.pl
 \fB\-\-debug\fR
 .sp
 Dump trace output for all clients and servers\&.
@@ -803,8 +761,6 @@ Dump trace output for all clients and servers\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: debugger option
-.\" debugger option: mysql-test-run.pl
 \fB\-\-debugger=\fR\fB\fIdebugger\fR\fR
 .sp
 Start
@@ -820,8 +776,6 @@ using the named debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: debug-common option
-.\" debug-common option: mysql-test-run.pl
 \fB\-\-debug\-common\fR
 .sp
 This option works similar to
@@ -839,8 +793,6 @@ which are considered the most commonly used\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: debug-server option
-.\" debug-server option: mysql-test-run.pl
 \fB\-\-debug\-server\fR
 .sp
 Runs
@@ -863,8 +815,6 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: debug-sync-timeout option
-.\" debug-sync-timeout option: mysql-test-run.pl
 \fB\-\-debug\-sync\-timeout=\fR\fB\fIseconds\fR\fR
 .sp
 Controls whether the Debug Sync facility for testing and debugging is enabled\&. The option value is a timeout in seconds\&. The default value is 300\&. A value of 0 disables Debug Sync\&. The value of this option also becomes the default timeout for individual synchronization points\&.
@@ -891,8 +841,6 @@ Section\ \&4.14, \(lqThread Synchronization in Test Cases\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: default-myisam option
-.\" default-myisam option: mysql-test-run.pl
 \fB\-\-default\-myisam\fR
 .sp
 Use MyISAM as default engine for all except InnoDB\-specific tests\&. This option is on by default in MySQL 5\&.5 and 5\&.6 but it off by default from MySQL 5\&.7\&. See also
@@ -907,8 +855,6 @@ Use MyISAM as default engine for all except InnoDB\-specific tests\&. This optio
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: defaults-file option
-.\" default-file option: mysql-test-run.pl
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Use the named file as fixed config file template for all tests\&.
@@ -922,8 +868,6 @@ Use the named file as fixed config file template for all tests\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: defaults_extra_file option
-.\" default_extra_file option: mysql-test-run.pl
 \fB\-\-defaults_extra_file=\fR\fB\fIfile_name\fR\fR
 .sp
 Add setting from the named file to all generated configs\&.
@@ -937,8 +881,6 @@ Add setting from the named file to all generated configs\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: do-test option
-.\" do-test option: mysql-test-run.pl
 \fB\-\-do\-test=\fR\fB\fIprefix\fR\fR
 .sp
 Run all test cases having a name that begins with the given
@@ -973,8 +915,6 @@ xmainytestz\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: do-test-list option
-.\" do-test-list option: mysql-test-run.pl
 \fB\-\-do\-testlist=\fR\fB\fIfile\fR\fR
 .sp
 Run all tests listed in the file
@@ -997,8 +937,6 @@ option is available from MySQL 5\&.7\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: embedded-server option
-.\" embedded-server option: mysql-test-run.pl
 \fB\-\-embedded\-server\fR
 .sp
 Use a version of
@@ -1014,8 +952,6 @@ built with the embedded server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: enable-disabled option
-.\" enable-disabled option: mysql-test-run.pl
 \fB\-\-enable\-disabled\fR
 .sp
 Ignore any
@@ -1031,8 +967,6 @@ file, and run also tests marked as disbaled\&. Success or failure of those tests
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: experimental option
-.\" experimental option: mysql-test-run.pl
 \fB\-\-experimental=\fR\fB\fIfile_name\fR\fR
 .sp
 Specify a file that contains a list of test cases that should be displayed with the
@@ -1056,8 +990,6 @@ It is also possible to supply more than one
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: explain-protocol option
-.\" explain-protocol option: mysql-test-run.pl
 \fB\-\-explain\-protocol\fR,
 .sp
 Run
@@ -1073,8 +1005,6 @@ on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: extern option
-.\" extern option: mysql-test-run.pl
 \fB\-\-extern\fR
 \fIoption\fR=\fIvalue\fR
 .sp
@@ -1109,8 +1039,6 @@ file that requires the server to be restarted with specific options, the file wi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: fast option
-.\" fast option: mysql-test-run.pl
 \fB\-\-fast\fR
 .sp
 Do not perform controlled shutdown when servers need to be restarted or at the end of the test run\&. This is equivalent to using
@@ -1125,8 +1053,6 @@ Do not perform controlled shutdown when servers need to be restarted or at the e
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: force option
-.\" force option: mysql-test-run.pl
 \fB\-\-force\fR
 .sp
 Normally,
@@ -1144,8 +1070,6 @@ causes execution to continue regardless of test case failure\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: force-restart option
-.\" force-restart option: mysql-test-run.pl
 \fB\-\-force\-restart\fR
 .sp
 Always restart the server(s) between each tast case, whether it\*(Aqs needed or not\&. Will also restart between repeated runs of the same test case\&. This may be useful e\&.g\&. when looking for the source of a memory leak, as there will only have been one test run before the server exits\&.
@@ -1159,8 +1083,6 @@ Always restart the server(s) between each tast case, whether it\*(Aqs needed or 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: gcov option
-.\" gcov option: mysql-test-run.pl
 \fB\-\-gcov\fR
 .sp
 Run tests with the
@@ -1176,8 +1098,6 @@ test coverage tool\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: gdb option
-.\" gdb option: mysql-test-run.pl
 \fB\-\-gdb\fR
 .sp
 Start
@@ -1195,8 +1115,6 @@ debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: gprof option
-.\" gprof option: mysql-test-run.pl
 \fB\-\-gprof\fR
 .sp
 Run tests with the
@@ -1212,11 +1130,7 @@ profiling tool\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: include-ndbcluster option
-.\" include-ndbcluster option: mysql-test-run.pl
 \fB\-\-include\-ndbcluster\fR,
-.\" mysql-test-run.pl: include-ndb option
-.\" include-ndb option: mysql-test-run.pl
 \fB\-\-include\-ndb\fR
 .sp
 Run also tests that need Cluster\&.
@@ -1230,8 +1144,6 @@ Run also tests that need Cluster\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: json-explain-protocol option
-.\" json-explain-protocol option: mysql-test-run.pl
 \fB\-\-json\-explain\-protocol\fR,
 .sp
 Run
@@ -1249,8 +1161,6 @@ option is available from MySQL 5\&.6\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: manual-dbx option
-.\" manual-dbx option: mysql-test-run.pl
 \fB\-\-manual\-dbx\fR
 .sp
 Use a server that has already been started by the user in the
@@ -1266,8 +1176,6 @@ debugger\&. Support for dbx is available from MySQL 5\&.5\&.12\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: manual-ddd option
-.\" manual-ddd option: mysql-test-run.pl
 \fB\-\-manual\-ddd\fR
 .sp
 Use a server that has already been started by the user in the
@@ -1283,8 +1191,6 @@ debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: manual-debug option
-.\" manual-debug option: mysql-test-run.pl
 \fB\-\-manual\-debug\fR
 .sp
 Use a server that has already been started by the user in a debugger\&.
@@ -1298,8 +1204,6 @@ Use a server that has already been started by the user in a debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: manual-gdb option
-.\" manual-gdb option: mysql-test-run.pl
 \fB\-\-manual\-gdb\fR
 .sp
 Use a server that has already been started by the user in the
@@ -1315,8 +1219,6 @@ debugger\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: mark-progress option
-.\" mark-progress option: mysql-test-run.pl
 \fB\-\-mark\-progress\fR
 .sp
 Marks progress with timing (in milliseconds) and line number in
@@ -1331,8 +1233,6 @@ var/log/\fItestname\fR\&.progress\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: max-connections option
-.\" max-connections option: mysql-test-run.pl
 \fB\-\-max\-connections=\fR\fB\fInum\fR\fR
 .sp
 The maximum number of simultaneous server connections that may be used per test\&. If not set, the maximum is 128\&. Minimum allowed limit is 8, maximum is 5120\&. Corresponds to the same option for
@@ -1347,8 +1247,6 @@ The maximum number of simultaneous server connections that may be used per test\
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: max-save-core option
-.\" max-save-core option: mysql-test-run.pl
 \fB\-\-max\-save\-core=\fR\fB\fIN\fR\fR
 .sp
 Limit the number of core files saved, to avoid filling up disks in case of a frequently crashing server\&. Defaults to 5, set to 0 for no limit\&. May also be set with the environment variable
@@ -1363,8 +1261,6 @@ MTR_MAX_SAVE_CORE
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: max-save-datadir option
-.\" max-save-datadir option: mysql-test-run.pl
 \fB\-\-max\-save\-datadir=\fR\fB\fIN\fR\fR
 .sp
 Limit the number of data directories saved after failed tests, to avoid filling up disks in case of frequent failures\&. Defaults to 20, set to 0 for no limit\&. May also be set with the environment variable
@@ -1379,8 +1275,6 @@ MTR_MAX_SAVE_DATADIR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: max-test-fail option
-.\" max-test-fail option: mysql-test-run.pl
 \fB\-\-max\-test\-fail=\fR\fB\fIN\fR\fR
 .sp
 Stop execution after the specified number of tests have failed, to avoid using up resources (and time) in case of massive failures\&. retries are noe counted, nor are failures of tests marked experimental\&. Defaults to 10, set to 0 for no limit\&. May also be set with the environment variable
@@ -1395,8 +1289,6 @@ MTR_MAX_TEST_FAIL
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: mem option
-.\" mem option: mysql-test-run.pl
 \fB\-\-mem\fR
 .sp
 This option is not supported on Windows\&.
@@ -1432,8 +1324,6 @@ option next time\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: mysqld option
-.\" mysqld option: mysql-test-run.pl
 \fB\-\-mysqld=\fR\fB\fIvalue\fR\fR
 .sp
 Extra option to pass to
@@ -1452,8 +1342,6 @@ Section\ \&4.9, \(lqPassing Options from mysql-test-run.pl to mysqld or mysqltes
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: mysqld-env option
-.\" mysqld-env option: mysql-test-run.pl
 \fB\-\-mysqld\-env=\fR\fB\fIvariable\fR\fR\fB=\fR\fB\fIvalue\fR\fR
 .sp
 Sets (or changes) an environment variable before starting
@@ -1473,8 +1361,22 @@ options to set more than one variable\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: ndb-connectstring option
-.\" ndb-connectstring option: mysql-test-run.pl
+\fB\-\-mysqltest=\fR\fB\fIoptions\fR\fR
+.sp
+Extra options to pass to
+\fBmysqltest\fR\&.
+.sp
+This option was added in MySQL 5\&.8\&.0\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-ndb\-connectstring=\fR\fB\fIstr\fR\fR
 .sp
 Pass
@@ -1492,8 +1394,6 @@ from starting a cluster\&. It is assumed that there is already a cluster running
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: nocheck-testcases option
-.\" nocheck-testcases option: mysql-test-run.pl
 \fB\-\-nocheck\-testcases\fR
 .sp
 Disable the check for test case side effects; see
@@ -1509,8 +1409,6 @@ for a description\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: nodefault-myisam option
-.\" nodefault-myisam option: mysql-test-run.pl
 \fB\-\-nodefault\-myisam\fR
 .sp
 For MySQL 5\&.5 or 5\&.6, do not override the build\-in default engine to use MyISAM instead for non\-InnoDB tests\&. Since the existing collection of tests were originally adapted for MyISAM as default, many tests will fail when this option is used, because the test behaves differently or produces different output when the engine switches to InnoDB\&.
@@ -1526,8 +1424,6 @@ From MySQL 5\&.7, the default engine for tests has been changed to InnoDB and th
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: noreorder option
-.\" noreorder option: mysql-test-run.pl
 \fB\-\-noreorder\fR
 .sp
 Do not reorder tests to reduce number of restarts, but run them in exactly the order given\&. If a whole suite is to be run, the tests are run in alphabetic order, though similiar combinations will be grouped together\&. If more than one suite is listed, the tests are run one suite at a time, in the order listed\&.
@@ -1541,8 +1437,6 @@ Do not reorder tests to reduce number of restarts, but run them in exactly the o
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: notimer option
-.\" notimer option: mysql-test-run.pl
 \fB\-\-notimer\fR
 .sp
 Cause
@@ -1558,8 +1452,6 @@ not to generate a timing file\&. The effect of this is that the report from each
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: nounit-tests option
-.\" nounit-tests option: mysql-test-run.pl
 \fB\-\-nounit\-tests\fR
 .sp
 Do not run unit tests, overriding default behavior or setting of the
@@ -1577,8 +1469,6 @@ Running of unit tests was enabled from MySQL 5\&.5\&.11\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: nowarnings option
-.\" nowarnings option: mysql-test-run.pl
 \fB\-\-nowarnings\fR
 .sp
 Do not look for and report errors and warning in the server logs\&.
@@ -1592,8 +1482,6 @@ Do not look for and report errors and warning in the server logs\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: parallel option
-.\" parallel option: mysql-test-run.pl
 \fB\-\-parallel={\fR\fB\fIN\fR\fR\fB|auto}\fR
 .sp
 Run tests using
@@ -1612,8 +1500,6 @@ for auto\-setting of
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: port-base option
-.\" port-base option: mysql-test-run.pl
 \fB\-\-port\-base=\fR\fB\fIP\fR\fR
 .sp
 Specify base of port numbers to be used; a block of 10 will be allocated\&.
@@ -1640,8 +1526,6 @@ takes precedence\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: print-testcases option
-.\" print-testcases option: mysql-test-run.pl
 \fB\-\-print\-testcases\fR
 .sp
 Do not run any tests, but print details about all tests, in the order they would have been run\&.
@@ -1655,8 +1539,6 @@ Do not run any tests, but print details about all tests, in the order they would
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: ps-protocol option
-.\" ps-protocol option: mysql-test-run.pl
 \fB\-\-ps\-protocol\fR
 .sp
 Pass the
@@ -1673,8 +1555,6 @@ option to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: record option
-.\" record option: mysql-test-run.pl
 \fB\-\-record\fR
 .sp
 Pass the
@@ -1691,8 +1571,6 @@ option to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: reorder option
-.\" reorder option: mysql-test-run.pl
 \fB\-\-reorder\fR
 .sp
 Reorder tests to minimize the number of server restarts needed\&. This is the default behavior\&. There is no guarantee that a particular set of tests will always end up in the same order\&.
@@ -1706,8 +1584,6 @@ Reorder tests to minimize the number of server restarts needed\&. This is the de
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: repeat option
-.\" repeat option: mysql-test-run.pl
 \fB\-\-repeat=\fR\fB\fIN\fR\fR
 .sp
 Run each test
@@ -1723,8 +1599,6 @@ number of times\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: report-features option
-.\" report-features option: mysql-test-run.pl
 \fB\-\-report\-features\fR
 .sp
 Display the output of
@@ -1741,8 +1615,6 @@ SHOW VARIABLES\&. This can be used to verify that binaries are built with all re
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: report-times option
-.\" report-times option: mysql-test-run.pl
 \fB\-\-report\-times\fR
 .sp
 At the end of the test run, write a summary of how much time was spent in various phases of execution\&. If you run with
@@ -1765,8 +1637,6 @@ is available from MySQL 5\&.5\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: retry option
-.\" retry option: mysql-test-run.pl
 \fB\-\-retry=\fR\fB\fIN\fR\fR
 .sp
 If a test fails, it is retried up to a maximum of
@@ -1792,8 +1662,6 @@ may fail in total, as each repetition is considered a new test case, which may i
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: retry-failure option
-.\" retry-failure option: mysql-test-run.pl
 \fB\-\-retry\-failure=\fR\fB\fIN\fR\fR
 .sp
 Allow a failed and retried test to fail more than the default 2 times before giving it up\&. Setting it to 0 or 1 effectively turns off retries
@@ -1807,8 +1675,6 @@ Allow a failed and retried test to fail more than the default 2 times before giv
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: shutdown-timeout option
-.\" shutdown-timeout option: mysql-test-run.pl
 \fB\-\-shutdown\-timeout=\fR\fB\fIseconds\fR\fR
 .sp
 Max number of seconds to wait for servers to do controlled shutdown before killing them\&. Default is 10\&.
@@ -1822,8 +1688,6 @@ Max number of seconds to wait for servers to do controlled shutdown before killi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-combinations option
-.\" skip-combinations option: mysql-test-run.pl
 \fB\-\-skip\-combinations\fR
 .sp
 Do not apply combinations; ignore combinations file or option\&.
@@ -1837,11 +1701,7 @@ Do not apply combinations; ignore combinations file or option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-ndbcluster option
-.\" skip-ndbcluster option: mysql-test-run.pl
 \fB\-\-skip\-ndbcluster\fR,
-.\" mysql-test-run.pl: skip-ndb option
-.\" skip-ndb option: mysql-test-run.pl
 \fB\-\-skip\-ndb\fR
 .sp
 Do not start NDB Cluster; skip Cluster test cases\&. This option only has effect if you do have NDB, if not it will have no effect as it cannot run those tests anyway\&.
@@ -1855,11 +1715,7 @@ Do not start NDB Cluster; skip Cluster test cases\&. This option only has effect
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-ndbcluster-slave option
-.\" skip-ndbcluster-slave option: mysql-test-run.pl
 \fB\-\-skip\-ndbcluster\-slave\fR,
-.\" mysql-test-run.pl: skip-ndb-slave option
-.\" skip-ndb-slave option: mysql-test-run.pl
 \fB\-\-skip\-ndb\-slave\fR
 .sp
 Do not start an NDB Cluster slave\&.
@@ -1873,8 +1729,6 @@ Do not start an NDB Cluster slave\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-rpl option
-.\" skip-rpl option: mysql-test-run.pl
 \fB\-\-skip\-rpl\fR
 .sp
 Skip replication test cases\&.
@@ -1888,8 +1742,6 @@ Skip replication test cases\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-ssl option
-.\" skip-ssl option: mysql-test-run.pl
 \fB\-\-skip\-ssl\fR
 .sp
 Do not start
@@ -1905,8 +1757,6 @@ with support for SSL connections\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-test option
-.\" skip-test option: mysql-test-run.pl
 \fB\-\-skip\-test=\fR\fB\fIregex\fR\fR
 .sp
 Specify a regular expression to be applied to test case names\&. Cases with names that match the expression are skipped\&. tests to skip\&.
@@ -1926,8 +1776,6 @@ option for details\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: skip-test-list option
-.\" skip-test-list option: mysql-test-run.pl
 \fB\-\-skip\-test\-list=\fR\fB\fIfile\fR\fR
 .sp
 Specify a file listing tests that should be skipped (disabled)\&.
@@ -1963,8 +1811,6 @@ are passed to the master server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: sleep option
-.\" sleep option: mysql-test-run.pl
 \fB\-\-sleep=\fR\fB\fIN\fR\fR
 .sp
 Pass
@@ -1981,8 +1827,6 @@ to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: sp-protocol option
-.\" sp-protocol option: mysql-test-run.pl
 \fB\-\-sp\-protocol\fR
 .sp
 Pass the
@@ -1999,8 +1843,6 @@ option to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: ssl option
-.\" ssl option: mysql-test-run.pl
 \fB\-\-ssl\fR
 .sp
 If
@@ -2023,8 +1865,6 @@ Couldn\*(Aqt find support for SSL
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: start option
-.\" start option: mysql-test-run.pl
 \fB\-\-start\fR
 .sp
 Initialize and start servers with the startup settings for the specified test case\&. You can use this option to start a server to which you can connect later\&. For example, after building a source distribution you can start a server and connect to it with the
@@ -2059,8 +1899,6 @@ will stop once the server has been started, but will terminate if the server die
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: start-and-exit option
-.\" start-and-exit option: mysql-test-run.pl
 \fB\-\-start\-and\-exit\fR
 .sp
 This is similar to
@@ -2077,8 +1915,6 @@ terminates once the server has been started, leaving just the server process run
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: start-dirty option
-.\" start-dirty option: mysql-test-run.pl
 \fB\-\-start\-dirty\fR
 .sp
 This is similar to
@@ -2093,8 +1929,6 @@ This is similar to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: start-from option
-.\" start-from option: mysql-test-run.pl
 \fB\-\-start\-from=\fR\fB\fItest_name\fR\fR
 .sp
 \fBmysql\-test\-run\&.pl\fR
@@ -2110,8 +1944,6 @@ sorts the list of names of the test cases to be run, and then begins with
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: strace-client option
-.\" strace-client option: mysql-test-run.pl
 \fB\-\-strace\-client\fR
 .sp
 Create
@@ -2135,8 +1967,6 @@ option is functional from MySQL 5\&.5\&.20, and only supported on Linux\&. The o
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: strace-server option
-.\" strace-server option: mysql-test-run.pl
 \fB\-\-strace\-server\fR
 .sp
 Create
@@ -2159,8 +1989,6 @@ option is available from MySQL 5\&.5\&.20, on Linux only\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: stress option
-.\" stress option: mysql-test-run.pl
 \fB\-\-stress=\fR\fB\fIstress options\fR\fR
 .sp
 Start a server, but instead of running a test, run
@@ -2183,8 +2011,6 @@ option was added in MySQL 5\&.5\&.17, it is not a direct replacement for the opt
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: suite option
-.\" suite option: mysql-test-run.pl
 \fB\-\-suite=\fR\fB\fIsuite_name\fR\fR
 .sp
 Run the named test suite\&. The default name is
@@ -2202,8 +2028,6 @@ directory)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: suite-timeout option
-.\" suite-timeout option: mysql-test-run.pl
 \fB\-\-suite\-timeout=\fR\fB\fIminutes\fR\fR
 .sp
 Specify the maximum test suite runtime in minutes\&.
@@ -2217,8 +2041,6 @@ Specify the maximum test suite runtime in minutes\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: testcase-timeout option
-.\" testcase-timeout option: mysql-test-run.pl
 \fB\-\-testcase\-timeout=\fR\fB\fIminutes\fR\fR
 .sp
 Specify the maximum test case runtime in minutes\&.
@@ -2232,8 +2054,6 @@ Specify the maximum test case runtime in minutes\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: timediff option
-.\" timediff option: mysql-test-run.pl
 \fB\-\-timediff\fR
 .sp
 Adds to each test report for a test case, the total time in sconds and milliseconds passed since the preceding test ended\&. This option can only be used together with
@@ -2248,8 +2068,6 @@ Adds to each test report for a test case, the total time in sconds and milliseco
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: timer option
-.\" timer option: mysql-test-run.pl
 \fB\-\-timer\fR
 .sp
 Cause
@@ -2266,8 +2084,6 @@ to generate a timing file\&. The default file is named
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: timestamp option
-.\" timestamp option: mysql-test-run.pl
 \fB\-\-timestamp\fR
 .sp
 Prints a timestamp before the test case name in each test report line, showing when the test ended\&.
@@ -2281,8 +2097,6 @@ Prints a timestamp before the test case name in each test report line, showing w
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: tmpdir option
-.\" tmpdir option: mysql-test-run.pl
 \fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where temporary file are stored\&. The default location is
@@ -2299,8 +2113,6 @@ will be set to the path for this directory, whether it has the default value or 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: unit-tests option
-.\" unit-tests option: mysql-test-run.pl
 \fB\-\-unit\-tests\fR
 .sp
 Force running of unit tests, overriding default behavior or setting of the
@@ -2318,8 +2130,6 @@ Running of unit tests was enabled from MySQL 5\&.5\&.11\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: unit-tests-report option
-.\" unit-tests-report option: mysql-test-run.pl
 \fB\-\-unit\-tests\-report\fR
 .sp
 Extend the unit test run by also outputting the log from the test run, independently of whether it succeeded or not\&. This option implies
@@ -2337,8 +2147,6 @@ option is available in MySQL 5\&.5 from version 5\&.5\&.44, in 5\&.6 from versio
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: user option
-.\" user option: mysql-test-run.pl
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
 The MySQL user name to use when connecting to the server\&.
@@ -2352,8 +2160,6 @@ The MySQL user name to use when connecting to the server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: user-args option
-.\" user-args option: mysql-test-run.pl
 \fB\-\-user\-args\fR
 .sp
 Drops all non\-essential command line arguments to the
@@ -2375,8 +2181,6 @@ or
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: valgrind option
-.\" valgrind option: mysql-test-run.pl
 \fB\-\-valgrind\fR
 .sp
 Run
@@ -2405,8 +2209,6 @@ is added to the list of tests when the server is run in valgrind\&. This test is
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: valgrind-clients option
-.\" valgrind-clients option: mysql-test-run.pl
 \fB\-\-valgrind\-clients\fR
 .sp
 Run all clients started by
@@ -2428,8 +2230,6 @@ was added in MySQL 5\&.7\&.9\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: valgrind-mysqld option
-.\" valgrind-mysqld option: mysql-test-run.pl
 \fB\-\-valgrind\-mysqld\fR
 .sp
 Run the
@@ -2446,8 +2246,6 @@ server with
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: valgrind-mysqltest option
-.\" valgrind-mysqltest option: mysql-test-run.pl
 \fB\-\-valgrind\-mysqltest\fR
 .sp
 Run
@@ -2464,8 +2262,6 @@ with
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: valgrind-options option
-.\" valgrind-options option: mysql-test-run.pl
 \fB\-\-valgrind\-option=\fR\fB\fIstr\fR\fR
 .sp
 Extra options to pass to
@@ -2480,8 +2276,6 @@ Extra options to pass to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: valgrind-path option
-.\" valgrind-path option: mysql-test-run.pl
 \fB\-\-valgrind\-path=\fR\fB\fIpath\fR\fR
 .sp
 Specify the path name to the
@@ -2497,8 +2291,6 @@ executable\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: vardir option
-.\" vardir option: mysql-test-run.pl
 \fB\-\-vardir=\fR\fB\fIpath\fR\fR
 .sp
 Specify the path where files generated during the test run are stored\&. The default location is
@@ -2515,8 +2307,6 @@ will be set to the path for this directory, whether it has the default value or 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: verbose option
-.\" verbose option: mysql-test-run.pl
 \fB\-\-verbose\fR
 .sp
 Give more verbose output regarding test execution\&. Use the option twice to get even more output\&. Note that the output generated within each test case is not affected\&.
@@ -2530,8 +2320,6 @@ Give more verbose output regarding test execution\&. Use the option twice to get
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: verbose-restart option
-.\" verbose-restart option: mysql-test-run.pl
 \fB\-\-verbose\-restart\fR
 .sp
 Write when and why servers are restarted between test cases\&.
@@ -2545,8 +2333,6 @@ Write when and why servers are restarted between test cases\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: view-protocol option
-.\" view-protocol option: mysql-test-run.pl
 \fB\-\-view\-protocol\fR
 .sp
 Pass the
@@ -2563,8 +2349,6 @@ option to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: vs-config option
-.\" vs-config option: mysql-test-run.pl
 \fB\-\-vs\-config=\fR\fB\fIconfig_val\fR\fR
 .sp
 Specify the configuration used to build MySQL (for example,
@@ -2580,8 +2364,6 @@ Specify the configuration used to build MySQL (for example,
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: wait-all option
-.\" wait-all option: mysql-test-run.pl
 \fB\-\-wait\-all\fR
 .sp
 If
@@ -2599,8 +2381,6 @@ is used, wait for all servers to exit before termination\&. Otherise, it will te
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: warnings option
-.\" warnings option: mysql-test-run.pl
 \fB\-\-warnings\fR
 .sp
 Search the server log for errors or warning after each test and report any suspicious ones; if any are found, the test will be marked as failed\&. This is the default behavior, it may be turned off with
@@ -2615,8 +2395,6 @@ Search the server log for errors or warning after each test and report any suspi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql-test-run.pl: with-ndbcluster-only option
-.\" with-ndbcluster-only option: mysql-test-run.pl
 \fB\-\-with\-ndbcluster\-only\fR
 .sp
 Run only test cases that have

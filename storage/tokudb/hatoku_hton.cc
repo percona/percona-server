@@ -549,7 +549,9 @@ static int tokudb_init_func(void *p) {
     db_env->set_loader_memory_size(
         db_env,
         tokudb_get_loader_memory_size_callback);
-
+#if TOKUDB_CHECK_JEMALLOC
+    db_env->set_check_thp(db_env, tokudb::sysvars::check_jemalloc);
+#endif
     r = db_env->open(
         db_env,
         tokudb_home,

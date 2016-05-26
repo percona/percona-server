@@ -89,7 +89,7 @@ extern my_bool      gdb_on_fatal;
 #endif
 
 #if TOKUDB_CHECK_JEMALLOC
-extern uint         check_jemalloc;
+extern my_bool         check_jemalloc;
 #endif
 
 #if TOKUDB_DEBUG

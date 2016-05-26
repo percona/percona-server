@@ -1,14 +1,10 @@
 --source include/have_innodb.inc
 --source include/count_sessions.inc
+
 --echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
 --echo # Establish connection con2 (user=root)
 connect (con2,localhost,root,,);
-
---echo # Drop test table
---disable_warnings
-drop table if exists t;
---enable_warnings
 
 --echo # Create test table
 create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
@@ -50,12 +46,10 @@ ROLLBACK;
 
 --echo # Switch to connection default
 connection default;
+--enable_result_log
 
 --disconnect con1
 --disconnect con2
---source include/wait_until_count_sessions.inc
-
---enable_result_log
 
 SELECT COUNT INTO @lock_deadlocks_var FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 --let $assert_text= Exactly one deadlock should have been found
@@ -63,10 +57,11 @@ SELECT COUNT INTO @lock_deadlocks_var FROM INFORMATION_SCHEMA.INNODB_METRICS WHE
 --source include/assert.inc
 SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 
-
 --echo # Drop test table
 drop table t;
 
 --disable_warnings
 SET GLOBAL innodb_monitor_reset = default;
 --enable_warnings
+
+--source include/wait_until_count_sessions.inc

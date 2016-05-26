@@ -25,8 +25,7 @@ connect (fail,localhost,u2,password);
 --error ER_ACCESS_DENIED_ERROR
 change_user u1;
 
-# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--error ER_ACCESS_DENIED_ERROR
 change_user u2;
 --enable_reconnect
 

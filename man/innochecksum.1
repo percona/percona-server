@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBinnochecksum\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 02/01/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 03/28/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBINNOCHECKSUM\FR" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBINNOCHECKSUM\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" innochecksum
 .SH "NAME"
 innochecksum \- offline InnoDB file checksum utility
 .SH "SYNOPSIS"
@@ -87,8 +86,6 @@ supports the following options\&. For options that refer to page numbers, the nu
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: help option
-.\" help option: innochecksum
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -113,8 +110,6 @@ shell> \fBinnochecksum \-\-help\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: info option
-.\" info option: innochecksum
 \fB\-\-info\fR,
 \fB\-I\fR
 .sp
@@ -140,8 +135,6 @@ shell> \fBinnochecksum \-\-info\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: version option
-.\" version option: innochecksum
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
@@ -166,8 +159,6 @@ shell> \fBinnochecksum \-\-version\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: verbose option
-.\" verbose option: innochecksum
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -258,8 +249,6 @@ page 54463 okay: 93\&.722% done
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: count option
-.\" count option: innochecksum
 \fB\-\-count\fR,
 \fB\-c\fR
 .sp
@@ -284,8 +273,6 @@ shell> \fBinnochecksum \-\-count \&.\&./data/test/tab1\&.ibd\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: start-page option
-.\" start-page option: innochecksum
 \fB\-\-start\-page=\fR\fB\fInum\fR\fR,
 \fB\-s \fR\fB\fInum\fR\fR
 .sp
@@ -322,8 +309,6 @@ shell> \fBinnochecksum \-s 600 \&.\&./data/test/tab1\&.ibd\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: end-page option
-.\" end-page option: innochecksum
 \fB\-\-end\-page=\fR\fB\fInum\fR\fR,
 \fB\-e \fR\fB\fInum\fR\fR
 .sp
@@ -360,8 +345,6 @@ shell> \fBinnochecksum \-\-p 700 \&.\&./data/test/tab1\&.ibd\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: page option
-.\" page option: innochecksum
 \fB\-\-page=\fR\fB\fInum\fR\fR,
 \fB\-p \fR\fB\fInum\fR\fR
 .sp
@@ -386,8 +369,6 @@ shell> \fBinnochecksum \-\-page=701 \&.\&./data/test/tab1\&.ibd\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: strict-check option
-.\" strict-check option: innochecksum
 \fB\-\-strict\-check\fR,
 \fB\-C\fR
 .sp
@@ -499,8 +480,6 @@ are allowed\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: no-check option
-.\" no-check option: innochecksum
 \fB\-\-no\-check\fR,
 \fB\-n\fR
 .sp
@@ -536,8 +515,6 @@ shell> \fBinnochecksum \-\-no\-check \-\-write innodb \&.\&./data/test/tab1\&.ib
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: allow-mismatches option
-.\" allow-mismatches option: innochecksum
 \fB\-\-allow\-mismatches\fR,
 \fB\-a\fR
 .sp
@@ -587,8 +564,6 @@ is set to 1, the checksum tolerates the first mismatch and terminates on the sec
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: write option
-.\" write option: innochecksum
 \fB\-\-write=\fR\fB\fIname\fR\fR,
 \fB\-w \fR\fB\fInum\fR\fR
 .sp
@@ -695,8 +670,6 @@ shell> \fBinnochecksum \-\-no\-check \-\-write crc32 \&.\&./data/test/tab1\&.ibd
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: page-type-summary option
-.\" page-type-summary option: innochecksum
 \fB\-\-page\-type\-summary\fR,
 \fB\-S\fR
 .sp
@@ -754,8 +727,6 @@ Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: page-type-dump option
-.\" page-type-dump option: innochecksum
 \fB\-\-page\-type\-dump\fR,
 \fB\-D\fR
 .sp
@@ -783,8 +754,6 @@ shell> \fBinnochecksum \-\-page\-type\-dump=/tmp/a\&.txt \&.\&./data/test/tab1\&
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: log option
-.\" log option: innochecksum
 \fB\-\-log\fR,
 \fB\-l\fR
 .sp
@@ -827,8 +796,6 @@ shell> \fBinnochecksum \-l /tmp/log\&.txt \&.\&./data/test/tab1\&.ibd\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" innochecksum: read from standard in option
-.\" read from standard in: innochecksum
 \(lq\-\(rq
 option\&.
 .sp

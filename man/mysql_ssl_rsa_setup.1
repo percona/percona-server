@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_ssl_rsa_setup\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 02/01/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 03/28/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SSL_RSA_SET" "1" "02/01/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SSL_RSA_SET" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_ssl_rsa_setup
 .SH "NAME"
 mysql_ssl_rsa_setup \- create SSL/RSA files
 .SH "SYNOPSIS"
@@ -57,7 +56,7 @@ uses the
 command, so its use is contingent on having OpenSSL installed on your machine\&.
 .PP
 Another way to generate SSL and RSA files, for MySQL distributions compiled using OpenSSL, is to have the server generated them automatically\&. See
-Section\ \&6.3.13.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&6.3.12.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -188,7 +187,7 @@ client\-key\&.pem       Client private key
 .\}
 .sp
 These files enable secure client connections using SSL; see
-Section\ \&6.3.12.4, \(lqConfiguring MySQL to Use Secure Connections\(rq\&.
+Section\ \&6.3.11.4, \(lqConfiguring MySQL to Use Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -229,12 +228,12 @@ creates no RSA files\&. Otherwise, it invokes
 to create them\&. These files enable secure password exchange using RSA over unencrypted connections for accounts authenticated by the
 sha256_password
 plugin; see
-Section\ \&6.3.9.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
+Section\ \&6.4.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
 .RE
 .PP
 For information about the characteristics of files created by
 \fBmysql_ssl_rsa_setup\fR, see
-Section\ \&6.3.13.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&6.3.12.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .PP
 At startup, the MySQL server automatically uses the SSL files created by
 \fBmysql_ssl_rsa_setup\fR
@@ -371,8 +370,6 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_ssl_rsa_setup: help option
-.\" help option: mysql_ssl_rsa_setup
 \fB\-\-help\fR,
 \fB?\fR
 .sp
@@ -387,8 +384,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_ssl_rsa_setup: datadir option
-.\" datadir option: mysql_ssl_rsa_setup
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the directory that
@@ -404,8 +399,6 @@ should check for default SSL and RSA files and in which it should create files i
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_ssl_rsa_setup: suffix option
-.\" suffix option: mysql_ssl_rsa_setup
 \fB\-\-suffix=\fR\fB\fIstr\fR\fR
 .sp
 The suffix for the Common Name attribute in X509 certificates\&. The suffix value is limited to 17 characters\&. The default is based on the MySQL version number\&.
@@ -419,8 +412,6 @@ The suffix for the Common Name attribute in X509 certificates\&. The suffix valu
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_ssl_rsa_setup: uid option
-.\" uid option: mysql_ssl_rsa_setup
 \fB\-\-uid=name\fR,
 \fB\-v\fR
 .sp
@@ -441,8 +432,6 @@ system call\&. This option was added in MySQL 5\&.7\&.8\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_ssl_rsa_setup: verbose option
-.\" verbose option: mysql_ssl_rsa_setup
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -459,8 +448,6 @@ commands it runs, and produces output to indicate whether it skips SSL or RSA fi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_ssl_rsa_setup: version option
-.\" version option: mysql_ssl_rsa_setup
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp

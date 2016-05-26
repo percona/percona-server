@@ -125,7 +125,7 @@ void thd_set_ha_data(void* thd, const struct handlerton *hton,
 int thd_command(const void* thd);
 long long thd_start_time(const void* thd);
 void thd_kill(unsigned long id);
-struct st_mysql_keyring_file
+struct st_mysql_keyring
 {
   int interface_version;
   my_bool (*mysql_key_store)(const char *key_id, const char *key_type,

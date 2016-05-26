@@ -2851,6 +2851,10 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
   DBUG_ASSERT(alloc_root_inited(&table->mem_root));
 
+  if (cloned) {
+    DEBUG_SYNC(ha_thd(), "start_handler_ha_open_cloned");
+  }
+
   if ((error=open(name,mode,test_if_locked)))
   {
     if ((error == EACCES || error == EROFS) && mode == O_RDWR &&

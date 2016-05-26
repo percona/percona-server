@@ -4048,8 +4048,6 @@ lock_deadlock_check_and_resolve(
 				lock_deadlock_joining_trx_print(trx, lock);
 			}
 
-			MONITOR_INC(MONITOR_DEADLOCK);
-
 		} else if (victim_trx_id != 0 && victim_trx_id != trx->id) {
 
 			ut_ad(victim_trx_id == ctx.wait_lock->trx->id);
@@ -4058,14 +4056,15 @@ lock_deadlock_check_and_resolve(
 			lock_deadlock_found = TRUE;
 
 			MONITOR_INC(MONITOR_DEADLOCK);
+			srv_stats.lock_deadlock_count.inc();
 		}
-
 	} while (victim_trx_id != 0 && victim_trx_id != trx->id);
 
 	/* If the joining transaction was selected as the victim. */
 	if (victim_trx_id != 0) {
 		ut_a(victim_trx_id == trx->id);
 
+		MONITOR_INC(MONITOR_DEADLOCK);
 		srv_stats.lock_deadlock_count.inc();
 
 		lock_deadlock_fputs("*** WE ROLL BACK TRANSACTION (2)\n");

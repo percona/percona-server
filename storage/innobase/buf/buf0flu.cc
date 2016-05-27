@@ -3683,7 +3683,8 @@ buf_flush_request_force(
 	lsn_t	lsn_limit)
 {
 	/* adjust based on lsn_avg_rate not to get old */
-	lsn_t	lsn_target = lsn_limit + lsn_avg_rate * 3;
+	lsn_t	lsn_target = (lsn_limit != LSN_MAX)
+		? (lsn_limit + lsn_avg_rate * 3) : LSN_MAX;
 
 	mutex_enter(&page_cleaner->mutex);
 	if (lsn_target > buf_flush_sync_lsn) {

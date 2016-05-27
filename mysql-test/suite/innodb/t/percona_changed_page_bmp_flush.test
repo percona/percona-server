@@ -66,6 +66,9 @@ INSERT INTO t1 VALUES (3, REPEAT("c", 20000));
 # Test innodb_flush_method=ALL_O_DIRECT
 # Check that the previous test produced bitmap data while the server is down.
 #
+call mtr.add_suppression("InnoDB: Warning: innodb_log_block_size has been changed from default value");
+call mtr.add_suppression("New log files created");
+
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
@@ -73,7 +76,9 @@ file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 --enable_reconnect
---exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=ALL_O_DIRECT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
+--exec echo "restart:--innodb-track-changed-pages=1 --innodb-log-block-size=4096 --innodb-flush-method=ALL_O_DIRECT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 INSERT INTO t1 VALUES (4, REPEAT("d", 20000));
@@ -89,6 +94,8 @@ file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 --enable_reconnect
+--remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
 --exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT_NO_FSYNC" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 

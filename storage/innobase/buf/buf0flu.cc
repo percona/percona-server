@@ -3686,7 +3686,9 @@ buf_flush_request_force(
 	lsn_t	lsn_target = lsn_limit + lsn_avg_rate * 3;
 
 	mutex_enter(&page_cleaner->mutex);
-	if (lsn_target > buf_flush_sync_lsn) {
+	if (lsn_limit == LSN_MAX) {
+		buf_flush_sync_lsn = lsn_limit;
+	} else if (lsn_target > buf_flush_sync_lsn) {
 		buf_flush_sync_lsn = lsn_target;
 	}
 	mutex_exit(&page_cleaner->mutex);

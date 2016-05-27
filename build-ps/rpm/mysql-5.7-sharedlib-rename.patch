@@ -487,18 +487,6 @@ diff -rup old/storage/ndb/test/run-test/CMakeLists.txt new/storage/ndb/test/run-
  
  FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
  ADD_TEST(NAME check_testcase_files
-diff -rup old/support-files/MySQL-shared-compat.spec.sh new/support-files/MySQL-shared-compat.spec.sh
---- old/support-files/MySQL-shared-compat.spec.sh	2016-03-09 09:25:27.000000000 +0100
-+++ new/support-files/MySQL-shared-compat.spec.sh	2016-03-09 11:41:15.167325622 +0100
-@@ -82,7 +82,7 @@ rpm2cpio %{SOURCE3} | cpio -iv --make-di
- 
- %files
- %defattr(-, root, root)
--%{_libdir}/libperconaserverclient*
-+%{_libdir}/libmysqlclient*
- 
- # The spec file changelog only includes changes made to the spec file
- # itself - note that they must be ordered by date (important when
 diff -rup old/testclients/CMakeLists.txt new/testclients/CMakeLists.txt
 --- old/testclients/CMakeLists.txt	2016-03-09 09:25:27.000000000 +0100
 +++ new/testclients/CMakeLists.txt	2016-03-09 11:41:15.167325622 +0100

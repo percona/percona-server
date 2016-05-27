@@ -166,7 +166,9 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 #
 my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,"
   ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,jp,stress,"
-  ."engines/iuds,engines/funcs,query_response_time,innodb_stress";
+  ."engines/iuds,engines/funcs,query_response_time,innodb_stress,"
+  ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
+  ."tokudb.rpl";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose

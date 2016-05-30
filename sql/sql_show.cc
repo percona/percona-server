@@ -3838,13 +3838,20 @@ int make_temporary_tables_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
   @param[in]      table                    I_S table
   @param[in]      tmp_table                temporary table
   @param[in]      db                       database name
+  @param[in]      table_name_only          whether to get the table names only
+  @param[in]      mem_root                 memory root for allocating cloned
+                                           handlers, must have the lifetime of
+                                           the current thread
 
   @return         Operation status
     @retval       0                        success
     @retval       1                        error
 */
 
-static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table, const char *db, bool table_name_only)
+static int store_temporary_table_record(THD *thd, TABLE *table,
+                                        TABLE *tmp_table, const char *db,
+                                        bool table_name_only,
+                                        MEM_ROOT* mem_root)
 {
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("store_temporary_table_record");
@@ -3887,7 +3894,7 @@ static int store_temporary_table_record(THD *thd, TABLE *table, TABLE *tmp_table
     /* We have only one handler object for a temp table globally and it might
     be in use by other thread.  Do not trash it by invoking handler methods on
     it but rather clone it. */
-    file = file->clone(tmp_table->s->normalized_path.str, thd->mem_root);
+    file = file->clone(tmp_table->s->normalized_path.str, mem_root);
 
     /**
         TODO: InnoDB stat(file) checks file on short names within data dictionary
@@ -3973,7 +3980,9 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, COND *cond
 
       DEBUG_SYNC(thd, "fill_global_temporary_tables_before_storing_rec");
 
-      if (store_temporary_table_record(thd_item, tables->table, tmp, thd->lex->select_lex.db, table_names_only)) {
+      if (store_temporary_table_record(thd_item, tables->table, tmp,
+                                       thd->lex->select_lex.db,
+                                       table_names_only, thd->mem_root)) {
         mysql_mutex_unlock(&thd_item->LOCK_temporary_tables);
         mysql_mutex_unlock(&LOCK_thread_count); 
         DBUG_RETURN(1);
@@ -4010,7 +4019,9 @@ int fill_temporary_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   TABLE *tmp;
 
   for (tmp=thd->temporary_tables; tmp; tmp=tmp->next) {
-    if (store_temporary_table_record(thd, tables->table, tmp, thd->lex->select_lex.db, table_names_only)) {
+    if (store_temporary_table_record(thd, tables->table, tmp,
+                                     thd->lex->select_lex.db,
+                                     table_names_only, thd->mem_root)) {
       DBUG_RETURN(1);
     }
   }

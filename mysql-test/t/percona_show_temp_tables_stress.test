@@ -1,0 +1,62 @@
+--source include/have_innodb.inc
+
+--source include/count_sessions.inc
+
+delimiter |;
+
+CREATE PROCEDURE query_temp_tables ()
+  WHILE TRUE DO
+    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+  END WHILE|
+
+delimiter ;|
+
+connect (con1,localhost,root,,);
+--let $con1_id= `SELECT connection_id()`
+send CALL query_temp_tables();
+
+connection default;
+
+--let $i=400
+--echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
+--disable_query_log
+while ($i)
+{
+  --eval CREATE TEMPORARY TABLE tmp_myisam_$i (a VARCHAR(256)) ENGINE=MyISAM
+  --eval CREATE TEMPORARY TABLE tmp_innodb_$i (a VARCHAR(256)) ENGINE=InnoDB
+  --eval CREATE TEMPORARY TABLE tmp_memory_$i (a VARCHAR(256)) ENGINE=MEMORY
+  --dec $i
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+
+--let $i=400
+--echo # Dropping the temp tables
+--disable_query_log
+while ($i)
+{
+  --eval DROP TEMPORARY TABLE tmp_myisam_$i
+  --eval DROP TEMPORARY TABLE tmp_innodb_$i
+  --eval DROP TEMPORARY TABLE tmp_memory_$i
+  --dec $i
+}
+--enable_query_log
+
+--echo KILL QUERY \$con1_id
+--disable_query_log
+eval KILL QUERY $con1_id;
+--enable_query_log
+
+connection con1;
+--disable_result_log
+--error ER_QUERY_INTERRUPTED
+reap;
+--enable_result_log
+disconnect con1;
+
+connection default;
+
+DROP PROCEDURE query_temp_tables;
+
+--source include/wait_until_count_sessions.inc

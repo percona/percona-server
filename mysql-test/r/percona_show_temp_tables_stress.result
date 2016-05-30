@@ -1,0 +1,12 @@
+CREATE PROCEDURE query_temp_tables ()
+WHILE TRUE DO
+SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+END WHILE|
+CALL query_temp_tables();
+# Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+COUNT(*)
+1200
+# Dropping the temp tables
+KILL QUERY $con1_id
+DROP PROCEDURE query_temp_tables;

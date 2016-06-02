@@ -32,6 +32,7 @@ struct audit_log_buffer {
   mysql_mutex_t mutex;
   mysql_cond_t flushed_cond;
   mysql_cond_t written_cond;
+  log_record_state_t state;
 };
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -68,8 +69,9 @@ void audit_log_flush(audit_log_buffer_t *log)
     mysql_cond_timedwait(&log->written_cond, &log->mutex, &abstime);
   }
 
-  if (log->flush_pos > log->write_pos % log->size)
+  if (log->flush_pos >= log->write_pos % log->size)
   {
+    log->state= LOG_RECORD_INCOMPLETE;
     mysql_mutex_unlock(&log->mutex);
     log->write_func(log->write_func_data,
                     log->buf + log->flush_pos,
@@ -88,6 +90,7 @@ void audit_log_flush(audit_log_buffer_t *log)
                     LOG_RECORD_COMPLETE);
     mysql_mutex_lock(&log->mutex);
     log->flush_pos+= flushlen;
+    log->state= LOG_RECORD_COMPLETE;
   }
   DBUG_ASSERT(log->write_pos >= log->flush_pos);
   mysql_cond_broadcast(&log->flushed_cond);
@@ -134,6 +137,7 @@ audit_log_buffer_t *audit_log_buffer_init(size_t size, int drop_if_full,
     log->write_func= write_func;
     log->write_func_data= data;
     log->size= size;
+    log->state= LOG_RECORD_COMPLETE;
 
     mysql_mutex_init(key_log_mutex, &log->mutex, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_log_flushed_cond, &log->flushed_cond, NULL);
@@ -163,11 +167,25 @@ void audit_log_buffer_shutdown(audit_log_buffer_t *log)
 int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf, size_t len)
 {
   if (len > log->size)
-    return(1);
+  {
+    if (!log->drop_if_full)
+    {
+      mysql_mutex_lock(&log->mutex);
+      while (log->state == LOG_RECORD_INCOMPLETE)
+      {
+        mysql_cond_wait(&log->flushed_cond, &log->mutex);
+      }
+      /* do not release log->mutex to not allow flush thread to make one more
+      incomplete record */
+      log->write_func(log->write_func_data, buf, len, LOG_RECORD_COMPLETE);
+      mysql_mutex_unlock(&log->mutex);
+    }
+    return(0);
+  }
 
   mysql_mutex_lock(&log->mutex);
 loop:
-  if (log->write_pos + len < log->flush_pos + log->size)
+  if (log->write_pos + len <= log->flush_pos + log->size)
   {
     size_t wrlen= min(len, log->size -
                               (log->write_pos % log->size));

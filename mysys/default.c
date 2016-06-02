@@ -577,6 +577,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
                                      handle_default_option, (void *) &ctx,
                                      dirs)))
   {
+    delete_dynamic(&args);
     free_root(&alloc,MYF(0));
     DBUG_RETURN(error);
   }
@@ -586,7 +587,10 @@ int my_load_defaults(const char *conf_file, const char **groups,
   */
   if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
 			       (args.elements + *argc + 1 + args_sep) *sizeof(char*))))
+  {
+    delete_dynamic(&args);
     goto err;
+  }
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */

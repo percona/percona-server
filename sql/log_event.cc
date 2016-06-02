@@ -6187,7 +6187,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
                     cs->csname, hex_str, quoted_charset_name.c_ptr(),
                     print_event_info->delimiter);
       }
-      my_afree(hex_str);
+      my_free(hex_str);
     }
       break;
     case ROW_RESULT:

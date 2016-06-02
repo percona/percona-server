@@ -8430,9 +8430,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
-        "NON_PRELOCKED",
-        "PRELOCKED",
-        "PRELOCKED_UNDER_LOCK_TABLES",
+        "LTM_NONE",
+        "LTM_LOCK_TABLES",
+        "LTM_PRELOCKED",
+        "LTM_PRELOCKED_UNDER_LOCK_TABLES"
       };
       DBUG_PRINT("debug", ("prelocked_mode: %s",
                            prelocked_mode_name[locked_tables_mode]));

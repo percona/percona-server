@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
    Copyright (C) 2012 Percona Inc.
 
    This program is free software; you can redistribute it and/or modify

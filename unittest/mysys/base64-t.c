@@ -90,6 +90,9 @@ main(void)
       diag("src length: %.8x, dst length: %.8x\n",
            (uint) src_len, (uint) dst_len);
     }
+    free(str);
+    free(src);
+    free(dst);
   }
   return exit_status();
 }

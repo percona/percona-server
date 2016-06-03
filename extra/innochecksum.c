@@ -493,12 +493,17 @@ int main(int argc, char **argv)
   while (!feof(f))
   {
     bytes= fread(p, 1, page_size, f);
-    if (!bytes && feof(f)) return 0;
+    if (!bytes && feof(f))
+    {
+      free(p);
+      return 0;
+    }
     if (bytes != page_size)
     {
       fprintf(stderr,
 	      "bytes read (%lu) doesn't match universal page size (%lu)\n",
 	      (unsigned long)bytes, page_size);
+      free(p);
       return 1;
     }
 
@@ -506,18 +511,23 @@ int main(int argc, char **argv)
     {
       /* for -f, analyze only the first page and exit */
       display_format_info(p);
+      free(p);
       return 0;
     }
 
     if (!checksum_match(p, ct, page_size, compressed, debug))
     {
       fprintf(stderr, "page %lu invalid (fails new style checksum)\n", ct);
+      free(p);
       return 1;
     }
 
     /* end if this was the last page we were supposed to check */
     if (use_end_page && (ct >= end_page))
+    {
+      free(p);
       return 0;
+    }
 
     /* do counter increase and progress printing */
     ct++;
@@ -535,6 +545,7 @@ int main(int argc, char **argv)
       }
     }
   }
+  free(p);
   return 0;
 }
 

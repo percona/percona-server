@@ -2098,6 +2098,9 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
+  /* If we are opening a new connection, close the old one first */
+  if (mysql)
+    mysql_close(mysql);
   mysql= mysql_init(NULL);
 
   if (!mysql)

@@ -3114,6 +3114,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
+  const bool sp_level_enable_slow_log = thd->enable_slow_log;
   const CSET_STRING query_backup= thd->query_string;
 #if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
@@ -3157,7 +3158,7 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
 
       query_cache_end_of_result(thd);
 
-      if (!res && unlikely(thd->enable_slow_log))
+      if (!res && unlikely(thd->enable_slow_log && sp_level_enable_slow_log))
         log_slow_statement(thd);
     }
     else
@@ -3172,6 +3173,8 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   /* Restore the original query start time */
   if (thd->enable_slow_log)
     thd->set_time(&time_info);
+
+  thd->enable_slow_log = sp_level_enable_slow_log;
 
   DBUG_RETURN(res || thd->is_error());
 }

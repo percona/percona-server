@@ -48,6 +48,8 @@ For instance, the table ``(column_a INT, column_b INT, column_c INT, PRIMARY KEY
 
   * ``2``: Insertions are slow, all triggers on the table work, and row based replication works on ``REPLACE INTO`` and ``INSERT IGNORE`` statements.
 
+**NOTE:** The :variable:`tokudb_pk_insert_mode` session variable has been deprecated in |Percona Server| :rn:`5.7.12-5` and the behavior is now that of the former :variable:`tokudb_pk_insert_mode` set to ``1``. The optimization will be used where safe and not used where not safe.
+
 .. variable:: tokudb_load_save_space
 
 This session variable changes the behavior of the bulk loader. When it is disabled the bulk loader stores intermediate data using uncompressed files (which consumes additional CPU), whereas on compresses the intermediate files. It is enabled by default.

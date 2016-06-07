@@ -1,3 +1,15 @@
+percona-server-5.7 (5.7.12-5) unstable; urgency=low
+
+  * Added packaging for new plugin
+
+ -- Evgeniy Patlan <korvin@amber>  Tue, 31 May 2016 17:37:32 +0300
+
+percona-server-5.7 (5.7.12-5) unstable; urgency=low
+
+  * Fix for description of the client package in debian (#1201074)
+
+ -- Evgeniy Patlan <evgeniy.patlan@percona.com>  Fri, 27 May 2016 09:47:38 +0300
+
 percona-server-5.7 (5.7.11-4) unstable; urgency=low
 
   * Fixed sysvinit script doesn't tolerate pid-file option without

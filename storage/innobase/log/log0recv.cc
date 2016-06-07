@@ -758,7 +758,37 @@ recv_find_max_checkpoint(
 	buf = log_sys->checkpoint_buf;
 
 	while (group) {
+
+		ulint	log_hdr_log_block_size;
+
 		group->state = LOG_GROUP_CORRUPTED;
+
+		/* Assert that we can reuse log_sys->checkpoint_buf to read the
+		part of the header that contains the log block size. */
+		ut_ad(LOG_FILE_OS_FILE_LOG_BLOCK_SIZE + 4
+		      < OS_FILE_LOG_BLOCK_SIZE);
+
+		fil_io(OS_FILE_READ | OS_FILE_LOG, true, group->space_id, 0,
+		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
+		       log_sys->checkpoint_buf, NULL);
+		log_hdr_log_block_size
+			= mach_read_from_4(log_sys->checkpoint_buf
+					   + LOG_FILE_OS_FILE_LOG_BLOCK_SIZE);
+		if (log_hdr_log_block_size == 0) {
+			/* 0 means default value */
+			log_hdr_log_block_size = 512;
+		}
+		if (UNIV_UNLIKELY(log_hdr_log_block_size
+				  != srv_log_block_size)) {
+			fprintf(stderr,
+				"InnoDB: Error: The block size of ib_logfile "
+				"%lu is not equal to innodb_log_block_size "
+				"%lu.\n"
+				"InnoDB: Error: Suggestion - Recreate log "
+				"files.\n",
+				log_hdr_log_block_size, srv_log_block_size);
+			return(DB_ERROR);
+		}
 
 		for (field = LOG_CHECKPOINT_1; field <= LOG_CHECKPOINT_2;
 		     field += LOG_CHECKPOINT_2 - LOG_CHECKPOINT_1) {
@@ -3075,7 +3105,6 @@ recv_recovery_from_checkpoint_start_func(
 	log_group_t*	group;
 	log_group_t*	max_cp_group;
 	ulint		max_cp_field;
-	ulint		log_hdr_log_block_size;
 	lsn_t		checkpoint_lsn;
 	ib_uint64_t	checkpoint_no;
 	lsn_t		group_scanned_lsn = 0;
@@ -3180,21 +3209,6 @@ recv_recovery_from_checkpoint_start_func(
 		       max_cp_group->space_id, 0,
 		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
 		       log_hdr_buf, max_cp_group);
-	}
-
-	log_hdr_log_block_size
-		= mach_read_from_4(log_hdr_buf + LOG_FILE_OS_FILE_LOG_BLOCK_SIZE);
-	if (log_hdr_log_block_size == 0) {
-		/* 0 means default value */
-		log_hdr_log_block_size = 512;
-	}
-	if (UNIV_UNLIKELY(log_hdr_log_block_size != srv_log_block_size)) {
-		fprintf(stderr,
-			"InnoDB: Error: The block size of ib_logfile (" ULINTPF
-			") is not equal to innodb_log_block_size.\n"
-			"InnoDB: Error: Suggestion - Recreate log files.\n",
-			log_hdr_log_block_size);
-		return(DB_ERROR);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE

@@ -1,26 +1,38 @@
 #
-# Test that innodb_log_block_size works with the rest of the server (bug 1114612)
+# Tests for innodb_log_block_size feature
 #
 --source include/have_innodb.inc
 
-call mtr.add_suppression("New log files created");
+--let $assert_text= innodb_log_block_size must be <> 4KB at the start of this test
+--let $assert_cond= @@innodb_log_block_size <> 4096
+--source include/assert.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+call mtr.add_suppression("New log files created");
+call mtr.add_suppression("InnoDB: Warning: innodb_log_block_size has been changed from default value");
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
-call mtr.add_suppression("InnoDB: Warning: innodb_log_block_size has been changed from default value");
+--echo #
+--echo # Bug 1155156: Verify innodb_log_block_size mismatch diagnostics
+--echo #
+--source include/shutdown_mysqld.inc
 
---echo 1st server restart
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/my_restart.err
+
+--echo # Attempting to start server with different innodb_log_block_size without deleting logs first
+--error 1
+--exec $MYSQLD_CMD --innodb-log-block-size=4096 --log-error=$SEARCH_FILE
+
+--let SEARCH_PATTERN=.*InnoDB: Error: The block size of ib_logfile .* is not equal to innodb_log_block_size
+--source include/search_pattern_in_file.inc
+
+--echo #
+--echo # Bug 1114612: Failing assertion: n % srv_log_block_size == 0 in file os0file.c line 4269
+--echo #
+
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
---enable_reconnect
---exec echo "restart:--innodb-log-block-size=4096" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-log-block-size=4096
+--source include/start_mysqld.inc
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 
@@ -28,13 +40,9 @@ INSERT INTO t1 VALUES (1), (2), (3);
 
 SELECT COUNT(*) FROM t1;
 
---echo 2nd server restart
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters=
+--source include/start_mysqld.inc
 
 DROP TABLE t1;

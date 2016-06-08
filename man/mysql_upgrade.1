@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,9 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_upgrade
-.\" upgrading MySQL
-.\" MySQL: upgrading
 .SH "NAME"
 mysql_upgrade \- check and upgrade MySQL tables
 .SH "SYNOPSIS"
@@ -234,9 +231,6 @@ database\&.
 All checked and repaired tables are marked with the current MySQL version number\&. This ensures that next time you run
 \fBmysql_upgrade\fR
 with the same version of the server, it can tell whether there is any need to check or repair the table again\&.
-.\" mysql_upgrade_info file: mysql_upgrade
-.\" mysql_upgrade: mysql_upgrade_info file
-.\" data directory: mysql_upgrade_info file
 .PP
 \fBmysql_upgrade\fR
 also saves the MySQL version number in a file named
@@ -295,8 +289,6 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: help option
-.\" help option: mysql_upgrade
 \fB\-\-help\fR
 .sp
 Display a short help message and exit\&.
@@ -310,8 +302,6 @@ Display a short help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: basedir option
-.\" basedir option: mysql_upgrade
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
@@ -325,8 +315,6 @@ The path to the MySQL installation directory\&. This option is accepted for back
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: character-sets-dir option
-.\" character-sets-dir option: mysql_upgrade
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
@@ -341,8 +329,6 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: compress option
-.\" compress option: mysql_upgrade
 \fB\-\-compress\fR
 .sp
 Compress all information sent between the client and the server if both support compression\&.
@@ -356,8 +342,6 @@ Compress all information sent between the client and the server if both support 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: datadir option
-.\" datadir option: mysql_upgrade
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the data directory\&. This option is accepted for backward compatibility but ignored\&. It is removed in MySQL 5\&.7\&.
@@ -371,8 +355,6 @@ The path to the data directory\&. This option is accepted for backward compatibi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: debug option
-.\" debug option: mysql_upgrade
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
@@ -391,8 +373,6 @@ d:t:O,/tmp/mysql_upgrade\&.trace\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: debug-check option
-.\" debug-check option: mysql_upgrade
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
@@ -406,8 +386,6 @@ Print some debugging information when the program exits\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: debug-info option
-.\" debug-info option: mysql_upgrade
 \fB\-\-debug\-info\fR,
 \fB\-T\fR
 .sp
@@ -422,8 +400,6 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: default-auth option
-.\" default-auth option: mysql_upgrade
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
@@ -440,8 +416,6 @@ This option was added in MySQL 5\&.6\&.2\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: default-character-set option
-.\" default-character-set option: mysql_upgrade
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
 .sp
 Use
@@ -458,8 +432,6 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: defaults-extra-file option
-.\" defaults-extra-file option: mysql_upgrade
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -475,8 +447,6 @@ is interpreted relative to the current directory if given as a relative path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: defaults-file option
-.\" defaults-file option: mysql_upgrade
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -492,8 +462,6 @@ is interpreted relative to the current directory if given as a relative path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: defaults-group-suffix option
-.\" defaults-group-suffix option: mysql_upgrade
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
 .sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
@@ -522,8 +490,6 @@ groups\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: force option
-.\" force option: mysql_upgrade
 \fB\-\-force\fR
 .sp
 Ignore the
@@ -541,8 +507,6 @@ has already been executed for the current version of MySQL\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: host option
-.\" host option: mysql_upgrade
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
@@ -557,8 +521,6 @@ Connect to the MySQL server on the given host\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: login-path option
-.\" login-path option: mysql_upgrade
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
 .sp
 Read options from the named login path in the
@@ -579,8 +541,6 @@ utility\&. See
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: no-defaults option
-.\" no-defaults option: mysql_upgrade
 \fB\-\-no\-defaults\fR
 .sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
@@ -606,8 +566,6 @@ utility\&. See
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: password option
-.\" password option: mysql_upgrade
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
@@ -635,8 +593,6 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: pipe option
-.\" pipe option: mysql_upgrade
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
@@ -651,8 +607,6 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: plugin-dir option
-.\" plugin-dir option: mysql_upgrade
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory in which to look for plugins\&. Specify this option if the
@@ -673,8 +627,6 @@ This option was added in MySQL 5\&.6\&.2\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: port option
-.\" port option: mysql_upgrade
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
@@ -689,8 +641,6 @@ The TCP/IP port number to use for the connection\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: print-defaults option
-.\" print-defaults option: mysql_upgrade
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
@@ -704,8 +654,6 @@ Print the program name and all options that it gets from option files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: protocol option
-.\" protocol option: mysql_upgrade
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
@@ -720,8 +668,6 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: shared-memory-base-name option
-.\" shared-memory-base-name option: mysql_upgrade
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
@@ -740,8 +686,6 @@ option to enable shared\-memory connections\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: socket option
-.\" socket option: mysql_upgrade
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
@@ -757,8 +701,6 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: SSL options
-.\" SSL options: mysql_upgrade
 \fB\-\-ssl*\fR
 .sp
 Options that begin with
@@ -775,8 +717,6 @@ Section\ \&6.3.9.5, \(lqCommand Options for Secure Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: tmpdir option
-.\" tmpdir option: mysql_upgrade
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-t \fR\fB\fIdir_name\fR\fR
 .sp
@@ -791,8 +731,6 @@ The path name of the directory to use for creating temporary files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: upgrade-system-tables option
-.\" upgrade-system-tables option: mysql_upgrade
 \fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
 .sp
@@ -807,8 +745,6 @@ Upgrade only the system tables, do not upgrade data\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: user option
-.\" user option: mysql_upgrade
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
@@ -824,8 +760,6 @@ root\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: verbose option
-.\" verbose option: mysql_upgrade
 \fB\-\-verbose\fR
 .sp
 Verbose mode\&. Print more information about what the program does\&.
@@ -839,8 +773,6 @@ Verbose mode\&. Print more information about what the program does\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: version-check option
-.\" version-check option: mysql_upgrade
 \fB\-\-version\-check\fR,
 \fB\-k\fR
 .sp
@@ -862,8 +794,6 @@ exits\&. This option is enabled by default; to disable the check, use
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_upgrade: write-binlog option
-.\" write-binlog option: mysql_upgrade
 \fB\-\-write\-binlog\fR
 .sp
 Cause binary logging to be enabled while

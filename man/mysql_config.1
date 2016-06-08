@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_config
 .SH "NAME"
 mysql_config \- display options for compiling clients
 .SH "SYNOPSIS"
@@ -49,8 +48,6 @@ supports the following options\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: cflags option
-.\" cflags option: mysql_config
 \fB\-\-cflags\fR
 .sp
 C Compiler flags to find include files and critical compiler flags and defines used when compiling the
@@ -68,8 +65,6 @@ for more portable options that contain only include paths\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: cxxflags option
-.\" cxxflags option: mysql_config
 \fB\-\-cxxflags\fR
 .sp
 Like
@@ -84,8 +79,6 @@ Like
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: include option
-.\" include option: mysql_config
 \fB\-\-include\fR
 .sp
 Compiler options to find MySQL include files\&.
@@ -99,10 +92,6 @@ Compiler options to find MySQL include files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: libmysqld-libs option
-.\" libmysqld-libs option: mysql_config
-.\" mysql_config: embedded option
-.\" embedded option: mysql_config
 \fB\-\-libmysqld\-libs\fR,
 \fB\-\-embedded\fR
 .sp
@@ -117,8 +106,6 @@ Libraries and options required to link with the MySQL embedded server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: libs option
-.\" libs option: mysql_config
 \fB\-\-libs\fR
 .sp
 Libraries and options required to link with the MySQL client library\&.
@@ -132,8 +119,6 @@ Libraries and options required to link with the MySQL client library\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: libs_r option
-.\" libs_r option: mysql_config
 \fB\-\-libs_r\fR
 .sp
 Libraries and options required to link with the thread\-safe MySQL client library\&. In MySQL 5\&.6, all client libraries are thread\-safe, so this option need not be used\&. The
@@ -149,8 +134,6 @@ option can be used in all cases\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: plugindir option
-.\" plugindir option: mysql_config
 \fB\-\-plugindir\fR
 .sp
 The default plugin directory path name, defined when configuring MySQL\&.
@@ -164,9 +147,6 @@ The default plugin directory path name, defined when configuring MySQL\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: port option
-.\" port option: mysql_config
-.\" TCP/IP
 \fB\-\-port\fR
 .sp
 The default TCP/IP port number, defined when configuring MySQL\&.
@@ -180,8 +160,6 @@ The default TCP/IP port number, defined when configuring MySQL\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: socket option
-.\" socket option: mysql_config
 \fB\-\-socket\fR
 .sp
 The default Unix socket file, defined when configuring MySQL\&.
@@ -195,8 +173,6 @@ The default Unix socket file, defined when configuring MySQL\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: variable option
-.\" variable option: mysql_config
 \fB\-\-variable=\fR\fB\fIvar_name\fR\fR
 .sp
 Display the value of the named configuration variable\&. Permitted
@@ -218,8 +194,6 @@ plugindir
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config: version option
-.\" version option: mysql_config
 \fB\-\-version\fR
 .sp
 Version number for the MySQL distribution\&.

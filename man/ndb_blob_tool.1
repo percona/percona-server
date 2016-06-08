@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_blob_tool\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_BLOB_TOOL\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_BLOB_TOOL\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_blob_tool
 .SH "NAME"
 ndb_blob_tool \- check and repair BLOB and TEXT columns of MySQL Cluster tables
 .SH "SYNOPSIS"
@@ -94,72 +93,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.84.\ \& This table describes command-line options for the ndb_blob_tool program
+.B Table\ \&18.84.\ \& This table describes command\-line options for the ndb_blob_tool program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-.PP
---check-orphans
-T}:T{
-Check for orphan blob parts
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---database=db_name,
-.PP
--d
-T}:T{
-Database to find the table in.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---delete-orphans
-T}:T{
-Delete orphan blob parts
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---dump-file=file
-T}:T{
-Write orphan keys to specified file
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---verbose,
-.PP
--v
-T}:T{
-Verbose output
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 .sp
@@ -171,8 +108,6 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_blob_tool: check-orphans option
-.\" check-orphans option: ndb_blob_tool
 \fB\-\-check\-orphans\fR
 .TS
 allbox tab(:);
@@ -209,8 +144,6 @@ Check for orphaned BLOB parts in MySQL Cluster tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_blob_tool: database option
-.\" database option: ndb_blob_tool
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-d\fR
 .TS
@@ -248,8 +181,6 @@ Specify the database to find the table in\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_blob_tool: delete-orphans option
-.\" delete-orphans option: ndb_blob_tool
 \fB\-\-delete\-orphans\fR
 .TS
 allbox tab(:);
@@ -286,8 +217,6 @@ Remove orphaned BLOB parts from MySQL Cluster tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_blob_tool: dump-file option
-.\" dump-file option: ndb_blob_tool
 \fB\-\-dump\-file=\fR\fB\fIfile\fR\fR
 .TS
 allbox tab(:);
@@ -325,8 +254,6 @@ Writes a list of orphaned BLOB column parts to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_blob_tool: verbose option
-.\" verbose option: ndb_blob_tool
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);

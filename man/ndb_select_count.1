@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_select_count\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_COUNT\" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_SELECT_COUNT\" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_select_count
 .SH "NAME"
 ndb_select_count \- print row counts for NDB tables
 .SH "SYNOPSIS"
@@ -61,54 +60,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.95.\ \& This table describes command-line options for the ndb_select_count program
+.B Table\ \&18.95.\ \& This table describes command\-line options for the ndb_select_count program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l.
-T{
-.PP
---database=dbname,
-.PP
--d
-T}:T{
-Name of the database in which the table is found
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---parallelism=#,
-.PP
--p
-T}:T{
-Degree of parallelism
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---lock=#,
-.PP
--l
-T}:T{
-Lock type
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 .PP

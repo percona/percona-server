@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDIT" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDIT" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,8 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_config_editor
-.\" .mylogin.cnf file
 .SH "NAME"
 mysql_config_editor \- configure authentication information for connecting to MySQL server
 .SH "SYNOPSIS"
@@ -78,8 +76,6 @@ When you invoke a client program to connect to the server, the client uses
 \&.mylogin\&.cnf
 in conjunction with other option files\&. Its precedence is higher than other option files, but less than options specified explicitly on the client command line\&. For information about the order in which option files are used, see
 Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
-.\" MYSQL_TEST_LOGIN_FILE environment variable
-.\" environment variable: MYSQL_TEST_LOGIN_FILE
 .PP
 To specify an alternate login path file name, set the
 MYSQL_TEST_LOGIN_FILE
@@ -148,7 +144,7 @@ groups from other option files, so it reads them from the login path file as wel
 .\}
 With a
 \fB\-\-login\-path\fR
-option, client programs additionally read the named login path from the login path ile\&. The option groups read from other option files remain the same\&. Consider this command:
+option, client programs additionally read the named login path from the login path file\&. The option groups read from other option files remain the same\&. Consider this command:
 .sp
 .if n \{\
 .RS 4
@@ -501,8 +497,6 @@ mysql_config_editor Commands and Command-Specific Options\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config_editor: help option
-.\" help option: mysql_config_editor
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -534,8 +528,6 @@ shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config_editor: debug option
-.\" debug option: mysql_config_editor
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# \fR\fB\fIdebug_options\fR\fR
 .sp
@@ -554,8 +546,6 @@ d:t:o,/tmp/mysql_config_editor\&.trace\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config_editor: verbose option
-.\" verbose option: mysql_config_editor
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -570,8 +560,6 @@ Verbose mode\&. Print more information about what the program does\&. This optio
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_config_editor: version option
-.\" version option: mysql_config_editor
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp

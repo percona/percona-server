@@ -52,5 +52,6 @@ audit_log          plugin/audit_log   AUDIT_LOG             audit_log
 query_response_time plugin/query_response_time PLUGIN_QUERY_RESPONSE_TIME QUERY_RESPONSE_TIME_AUDIT,QUERY_RESPONSE_TIME,QUERY_RESPONSE_TIME_READ,QUERY_RESPONSE_TIME_WRITE
 handlersocket      plugin/HandlerSocket-Plugin-for-MySQL HANDLER_SOCKET
 mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
+test_udf_services  plugin/udf_services TESTUDFSERVICES
 ha_tokudb          storage/tokudb             TOKUDB            tokudb,tokudb_trx,tokudb_locks,tokudb_lock_waits,tokudb_fractal_tree_info,tokudb_background_job_status
 tokudb_backup      plugin/tokudb_backup       TOKUDB_BACKUP     tokudb_backup

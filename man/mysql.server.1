@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql.server\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\&.SERVER\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\&.SERVER\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql.server
 .SH "NAME"
 mysql.server \- MySQL server startup script
 .SH "SYNOPSIS"
@@ -212,7 +211,6 @@ sections of option files\&. For backward compatibility, it also reads
 [mysql_server]
 sections, but to be current you should rename such sections to
 [mysql\&.server]\&.
-.\" changing: socket location
 .PP
 You can add options for
 \fBmysql\&.server\fR
@@ -258,8 +256,6 @@ as command\-line arguments\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql.server: basedir option
-.\" basedir option: mysql.server
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
@@ -273,8 +269,6 @@ The path to the MySQL installation directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql.server: datadir option
-.\" datadir option: mysql.server
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&.
@@ -288,8 +282,6 @@ The path to the MySQL data directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql.server: pid-file option
-.\" pid-file option: mysql.server
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The path name of the file in which the server should write its process ID\&.
@@ -328,8 +320,6 @@ groups\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql.server: service-startup-timeout option
-.\" service-startup-timeout option: mysql.server
 \fB\-\-service\-startup\-timeout=\fR\fB\fIseconds\fR\fR
 .sp
 How long in seconds to wait for confirmation of server startup\&. If the server does not start within this time,

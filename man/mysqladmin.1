@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,9 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysqladmin
-.\" administration: server
-.\" server administration
 .SH "NAME"
 mysqladmin \- client for administering a MySQL server
 .SH "SYNOPSIS"
@@ -449,8 +446,6 @@ Open tables: 19  Queries per second avg: 0\&.0268
 .if n \{\
 .RE
 .\}
-.sp
-.\" status command: results
 .PP
 The
 \fBmysqladmin status\fR
@@ -464,7 +459,6 @@ command result displays the following values:
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" uptime
 Uptime
 .sp
 The number of seconds the MySQL server has been running\&.
@@ -478,7 +472,6 @@ The number of seconds the MySQL server has been running\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" threads
 Threads
 .sp
 The number of active threads (clients)\&.
@@ -492,7 +485,6 @@ The number of active threads (clients)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" questions
 Questions
 .sp
 The number of questions (queries) from clients since the server was started\&.
@@ -506,13 +498,12 @@ The number of questions (queries) from clients since the server was started\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" slow queries
 Slow queries
 .sp
 The number of queries that have taken more than
 long_query_time
 seconds\&. See
-Section\ \&5.2.5, \(lqThe Slow Query Log\(rq\&.
+Section\ \&5.4.5, \(lqThe Slow Query Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -523,7 +514,6 @@ Section\ \&5.2.5, \(lqThe Slow Query Log\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" opens
 Opens
 .sp
 The number of tables the server has opened\&.
@@ -537,8 +527,6 @@ The number of tables the server has opened\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" flush tables
-.\" tables: flush
 Flush tables
 .sp
 The number of
@@ -556,7 +544,6 @@ commands the server has executed\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" open tables
 Open tables
 .sp
 The number of tables that currently are open\&.
@@ -567,10 +554,6 @@ If you execute
 when connecting to a local server using a Unix socket file,
 \fBmysqladmin\fR
 waits until the server\*(Aqs process ID file has been removed, to ensure that the server has stopped properly\&.
-.\" mysqladmin command options
-.\" command options: mysqladmin
-.\" options: command-line: mysqladmin
-.\" startup parameters: mysqladmin
 .PP
 \fBmysqladmin\fR
 supports the following options, which can be specified on the command line or in the
@@ -588,8 +571,6 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: help option
-.\" help option: mysqladmin
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -604,8 +585,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: bind-address option
-.\" bind-address option: mysqladmin
 \fB\-\-bind\-address=\fR\fB\fIip_address\fR\fR
 .sp
 On a computer having multiple network interfaces, use this option to select which interface to use for connecting to the MySQL server\&.
@@ -621,8 +600,6 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: character-sets-dir option
-.\" character-sets-dir option: mysqladmin
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
@@ -637,8 +614,6 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: compress option
-.\" compress option: mysqladmin
 \fB\-\-compress\fR,
 \fB\-C\fR
 .sp
@@ -653,8 +628,6 @@ Compress all information sent between the client and the server if both support 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: count option
-.\" count option: mysqladmin
 \fB\-\-count=\fR\fB\fIN\fR\fR,
 \fB\-c \fR\fB\fIN\fR\fR
 .sp
@@ -671,8 +644,6 @@ option is given\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: debug option
-.\" debug option: mysqladmin
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
@@ -691,8 +662,6 @@ d:t:o,/tmp/mysqladmin\&.trace\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: debug-check option
-.\" debug-check option: mysqladmin
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
@@ -706,8 +675,6 @@ Print some debugging information when the program exits\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: debug-info option
-.\" debug-info option: mysqladmin
 \fB\-\-debug\-info\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
@@ -721,8 +688,6 @@ Print debugging information and memory and CPU usage statistics when the program
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: default-auth option
-.\" default-auth option: mysqladmin
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
@@ -737,8 +702,6 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: default-character-set option
-.\" default-character-set option: mysqladmin
 \fB\-\-default\-character\-set=\fR\fB\fIcharset_name\fR\fR
 .sp
 Use
@@ -755,8 +718,6 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: defaults-extra-file option
-.\" defaults-extra-file option: mysqladmin
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -772,8 +733,6 @@ is interpreted relative to the current directory if given as a relative path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: defaults-file option
-.\" defaults-file option: mysqladmin
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -789,8 +748,6 @@ is interpreted relative to the current directory if given as a relative path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: defaults-group-suffix option
-.\" defaults-group-suffix option: mysqladmin
 \fB\-\-defaults\-group\-suffix=\fR\fB\fIstr\fR\fR
 .sp
 Read not only the usual option groups, but also groups with the usual names and a suffix of
@@ -819,8 +776,6 @@ groups\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: enable-cleartext-plugin option
-.\" enable-cleartext-plugin option: mysqladmin
 \fB\-\-enable\-cleartext\-plugin\fR
 .sp
 Enable the
@@ -837,8 +792,6 @@ Section\ \&6.4.1.7, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.) 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: force option
-.\" force option: mysqladmin
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
@@ -855,8 +808,6 @@ command\&. With multiple commands, continue even if an error occurs\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: host option
-.\" host option: mysqladmin
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
@@ -871,8 +822,6 @@ Connect to the MySQL server on the given host\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: login-path option
-.\" login-path option: mysqladmin
 \fB\-\-login\-path=\fR\fB\fIname\fR\fR
 .sp
 Read options from the named login path in the
@@ -893,8 +842,6 @@ utility\&. See
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: no-beep option
-.\" no-beep option: mysqladmin
 \fB\-\-no\-beep\fR,
 \fB\-b\fR
 .sp
@@ -909,8 +856,6 @@ Suppress the warning beep that is emitted by default for errors such as a failur
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: no-defaults option
-.\" no-defaults option: mysqladmin
 \fB\-\-no\-defaults\fR
 .sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
@@ -936,8 +881,6 @@ utility\&. See
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: password option
-.\" password option: mysqladmin
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
@@ -965,8 +908,6 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: pipe option
-.\" pipe option: mysqladmin
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
@@ -981,8 +922,6 @@ On Windows, connect to the server using a named pipe\&. This option applies only
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: plugin-dir option
-.\" plugin-dir option: mysqladmin
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory in which to look for plugins\&. Specify this option if the
@@ -1001,8 +940,6 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: port option
-.\" port option: mysqladmin
 \fB\-\-port=\fR\fB\fIport_num\fR\fR,
 \fB\-P \fR\fB\fIport_num\fR\fR
 .sp
@@ -1017,8 +954,6 @@ The TCP/IP port number to use for the connection\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: print-defaults option
-.\" print-defaults option: mysqladmin
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
@@ -1032,8 +967,6 @@ Print the program name and all options that it gets from option files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: protocol option
-.\" protocol option: mysqladmin
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
@@ -1048,8 +981,6 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: relative option
-.\" relative option: mysqladmin
 \fB\-\-relative\fR,
 \fB\-r\fR
 .sp
@@ -1068,8 +999,6 @@ command\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: secure-auth option
-.\" secure-auth option: mysqladmin
 \fB\-\-secure\-auth\fR
 .sp
 Do not send passwords to the server in old (pre\-4\&.1) format\&. This prevents connections except for servers that use the newer password format\&. This option is enabled by default; use
@@ -1101,8 +1030,6 @@ Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: shared-memory-base-name option
-.\" shared-memory-base-name option: mysqladmin
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
@@ -1121,8 +1048,6 @@ option to enable shared\-memory connections\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: silent option
-.\" silent option: mysqladmin
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
@@ -1137,8 +1062,6 @@ Exit silently if a connection to the server cannot be established\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: sleep option
-.\" sleep option: mysqladmin
 \fB\-\-sleep=\fR\fB\fIdelay\fR\fR,
 \fB\-i \fR\fB\fIdelay\fR\fR
 .sp
@@ -1161,8 +1084,6 @@ executes commands indefinitely until interrupted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: socket option
-.\" socket option: mysqladmin
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
@@ -1178,8 +1099,6 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: SSL options
-.\" SSL options: mysqladmin
 \fB\-\-ssl*\fR
 .sp
 Options that begin with
@@ -1196,8 +1115,6 @@ Section\ \&6.3.9.5, \(lqCommand Options for Secure Connections\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: user option
-.\" user option: mysqladmin
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
@@ -1212,8 +1129,6 @@ The MySQL user name to use when connecting to the server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: verbose option
-.\" verbose option: mysqladmin
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -1228,8 +1143,6 @@ Verbose mode\&. Print more information about what the program does\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: version option
-.\" version option: mysqladmin
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
@@ -1244,8 +1157,6 @@ Display version information and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: vertical option
-.\" vertical option: mysqladmin
 \fB\-\-vertical\fR,
 \fB\-E\fR
 .sp
@@ -1261,8 +1172,6 @@ Print output vertically\&. This is similar to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqladmin: wait option
-.\" wait option: mysqladmin
 \fB\-\-wait[=\fR\fB\fIcount\fR\fR\fB]\fR,
 \fB\-w[\fR\fB\fIcount\fR\fR\fB]\fR
 .sp
@@ -1282,8 +1191,6 @@ You can also set the following variables by using
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" connect_timeout variable
-.\" timeout: connect_timeout variable
 connect_timeout
 .sp
 The maximum number of seconds before connection timeout\&. The default value is 43200 (12 hours)\&.
@@ -1297,8 +1204,6 @@ The maximum number of seconds before connection timeout\&. The default value is 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" shutdown_timeout variable
-.\" timeout: shutdown_timeout variable
 shutdown_timeout
 .sp
 The maximum number of seconds to wait for server shutdown\&. The default value is 3600 (1 hour)\&.

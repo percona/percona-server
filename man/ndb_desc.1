@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_desc
 .SH "NAME"
 ndb_desc \- describe NDB tables
 .SH "SYNOPSIS"
@@ -325,105 +324,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.87.\ \& This table describes command-line options for the ndb_desc program
+.B Table\ \&18.87.\ \& This table describes command\-line options for the ndb_desc program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-.PP
---blob-info,
-.PP
--b
-T}:T{
-Include partition information for BLOB tables in output. Requires that
-          the -p option also be used
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---database=dbname,
-.PP
--d
-T}:T{
-Name of database containing table
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---extra-node-info,
-.PP
--n
-T}:T{
-Include partition-to-data-node mappings in output. Requires that the -p
-          option also be used
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---extra-partition-info,
-.PP
--p
-T}:T{
-Display information about partitions
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---retries=#,
-.PP
--r
-T}:T{
-Number of times to retry the connection (once per second)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---table=tbl_name,
-.PP
--t
-T}:T{
-Specify the table in which to find an index. When this option is used,
-          -p and -n have no effect and are ignored.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---unqualified,
-.PP
--u
-T}:T{
-Use unqualified table names
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 .sp
@@ -435,8 +339,6 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: blob-info option
-.\" blob-info option: ndb_desc
 \fB\-\-blob\-info\fR,
 \fB\-b\fR
 .sp
@@ -459,8 +361,6 @@ Use of this option also requires the use of the
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: database option
-.\" database option: ndb_desc
 \fB\-\-database=\fR\fB\fIdb_name\fR\fR,
 \fB\-d\fR
 .sp
@@ -475,8 +375,6 @@ Specify the database in which the table should be found\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: extra-node-info option
-.\" extra-node-info option: ndb_desc
 \fB\-\-extra\-node\-info\fR,
 \fB\-n\fR
 .sp
@@ -495,8 +393,6 @@ Use of this option also requires the use of the
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: extra-partition-info option
-.\" extra-partition-info option: ndb_desc
 \fB\-\-extra\-partition\-info\fR,
 \fB\-p\fR
 .sp
@@ -511,8 +407,6 @@ Print additional information about the table\*(Aqs partitions\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: retries option
-.\" retries option: ndb_desc
 \fB\-\-retries=\fR\fB\fI#\fR\fR,
 \fB\-r\fR
 .sp
@@ -527,8 +421,6 @@ Try to connect this many times before giving up\&. One connect attempt is made p
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: table option
-.\" table option: ndb_desc
 \fB\-\-table=\fR\fB\fItbl_name\fR\fR,
 \fB\-t\fR
 .sp
@@ -543,8 +435,6 @@ Specify the table in which to look for an index\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_desc: unqualified option
-.\" unqualified option: ndb_desc
 \fB\-\-unqualified\fR,
 \fB\-u\fR
 .sp

@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,9 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysqld_safe
-.\" tools: mysqld_safe
-.\" scripts
 .SH "NAME"
 mysqld_safe \- MySQL server startup script
 .SH "SYNOPSIS"
@@ -115,8 +112,6 @@ Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: help option
-.\" help option: mysqld_safe
 \fB\-\-help\fR
 .sp
 Display a help message and exit\&.
@@ -130,8 +125,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: basedir option
-.\" basedir option: mysqld_safe
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
@@ -145,8 +138,6 @@ The path to the MySQL installation directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: core-file-size option
-.\" core-file-size option: mysqld_safe
 \fB\-\-core\-file\-size=\fR\fB\fIsize\fR\fR
 .sp
 The size of the core file that
@@ -163,8 +154,6 @@ should be able to create\&. The option value is passed to
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: datadir option
-.\" datadir option: mysqld_safe
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the data directory\&.
@@ -178,8 +167,6 @@ The path to the data directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: defaults-extra-file option
-.\" defaults-extra-file option: mysqld_safe
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The name of an option file to be read in addition to the usual option files\&. This must be the first option on the command line if it is used\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
@@ -193,8 +180,6 @@ The name of an option file to be read in addition to the usual option files\&. T
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: defaults-file option
-.\" defaults-file option: mysqld_safe
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The name of an option file to be read instead of the usual option files\&. This must be the first option on the command line if it is used\&.
@@ -208,8 +193,6 @@ The name of an option file to be read instead of the usual option files\&. This 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: ledir option
-.\" ledir option: mysqld_safe
 \fB\-\-ledir=\fR\fB\fIdir_name\fR\fR
 .sp
 If
@@ -225,12 +208,10 @@ cannot find the server, use this option to indicate the path name to the directo
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: log-error option
-.\" log-error option: mysqld_safe
 \fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR
 .sp
 Write the error log to the given file\&. See
-Section\ \&5.2.2, \(lqThe Error Log\(rq\&.
+Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -241,17 +222,29 @@ Section\ \&5.2.2, \(lqThe Error Log\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: malloc-lib option
-.\" mysqld option: malloc-lib
 \fB\-\-malloc\-lib=[\fR\fB\fIlib_name\fR\fR\fB]\fR
-.\" memory allocation library
-.\" tcmalloc: memory allocation library
 The name of the library to use for memory allocation instead of the system
 malloc()
 library\&. Any library can be used by specifying its path name, but there is a shortcut form to enable use of the
 tcmalloc
 library that is shipped with binary MySQL distributions for Linux in MySQL 5\&.6\&. It is possible that the shortcut form will not work under certain configurations, in which case you should specify a path name instead\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+As of MySQL 5\&.6\&.31, MySQL distributions no longer include a
+tcmalloc
+library\&.
+.sp .5v
+.RE
 The
 \fB\-\-malloc\-lib\fR
 option works by modifying the
@@ -379,8 +372,6 @@ malloc\-lib=/opt/lib/libtcmalloc_minimal\&.so
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: mysqld option
-.\" mysqld option: mysqld_safe
 \fB\-\-mysqld=\fR\fB\fIprog_name\fR\fR
 .sp
 The name of the server program (in the
@@ -400,8 +391,6 @@ option to indicate the path name to the directory where the server is located\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: mysqld-version option
-.\" mysqld-version option: mysqld_safe
 \fB\-\-mysqld\-version=\fR\fB\fIsuffix\fR\fR
 .sp
 This option is similar to the
@@ -433,8 +422,6 @@ directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: nice option
-.\" nice option: mysqld_safe
 \fB\-\-nice=\fR\fB\fIpriority\fR\fR
 .sp
 Use the
@@ -450,8 +437,6 @@ program to set the server\*(Aqs scheduling priority to the given value\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: no-defaults option
-.\" no-defaults option: mysqld_safe
 \fB\-\-no\-defaults\fR
 .sp
 Do not read any option files\&. This must be the first option on the command line if it is used\&.
@@ -465,8 +450,6 @@ Do not read any option files\&. This must be the first option on the command lin
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: open-files-limit option
-.\" open-files-limit option: mysqld_safe
 \fB\-\-open\-files\-limit=\fR\fB\fIcount\fR\fR
 .sp
 The number of files that
@@ -502,8 +485,6 @@ for this to function properly\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: pid-file option
-.\" pid-file option: mysqld_safe
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The path name of the process ID file\&.
@@ -517,8 +498,6 @@ The path name of the process ID file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: plugin-dir option
-.\" plugin-dir option: mysqld_safe
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path name of the plugin directory\&.
@@ -532,9 +511,6 @@ The path name of the plugin directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: port option
-.\" port option: mysqld_safe
-.\" TCP/IP
 \fB\-\-port=\fR\fB\fIport_num\fR\fR
 .sp
 The port number that the server should use when listening for TCP/IP connections\&. The port number must be 1024 or higher unless the server is started by the
@@ -550,8 +526,6 @@ system user\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: skip-kill-mysqld option
-.\" skip-kill-mysqld option: mysqld_safe
 \fB\-\-skip\-kill\-mysqld\fR
 .sp
 Do not try to kill stray
@@ -567,8 +541,6 @@ processes at startup\&. This option works only on Linux\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: socket option
-.\" socket option: mysqld_safe
 \fB\-\-socket=\fR\fB\fIpath\fR\fR
 .sp
 The Unix socket file that the server should use when listening for local connections\&.
@@ -582,10 +554,6 @@ The Unix socket file that the server should use when listening for local connect
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: syslog option
-.\" syslog option: mysqld_safe
-.\" mysqld_safe: skip-syslog option
-.\" skip-syslog option: mysqld_safe
 \fB\-\-syslog\fR,
 \fB\-\-skip\-syslog\fR
 .sp
@@ -614,8 +582,6 @@ syslog facility/severity is used for all log messages\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: syslog-tag option
-.\" syslog-tag option: mysqld_safe
 \fB\-\-syslog\-tag=\fR\fB\fItag\fR\fR
 .sp
 For logging to
@@ -641,8 +607,6 @@ mysqld\-\fItag\fR\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: timezone option
-.\" timezone option: mysqld_safe
 \fB\-\-timezone=\fR\fB\fItimezone\fR\fR
 .sp
 Set the
@@ -658,8 +622,6 @@ time zone environment variable to the given option value\&. Consult your operati
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqld_safe: user option
-.\" user option: mysqld_safe
 \fB\-\-user={\fR\fB\fIuser_name\fR\fR\fB|\fR\fB\fIuser_id\fR\fR\fB}\fR
 .sp
 Run the

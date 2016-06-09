@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,13 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_mgm
-.\" MySQL Cluster: ndb_mgm
-.\" MySQL Cluster: management client (ndb_mgm)
-.\" management client (MySQL Cluster)
-.\" ndb_mgm
-.\" MySQL Cluster: administration
-.\" administration of MySQL Cluster
 .SH "NAME"
 ndb_mgm \- the MySQL Cluster management client
 .SH "SYNOPSIS"
@@ -73,10 +66,6 @@ shell> \fBndb_mgm ndb_mgmd\&.mysql\&.com 1186\fR
 The default host name and port number are
 localhost
 and 1186, respectively\&.
-.\" MySQL Cluster: administration
-.\" MySQL Cluster: commands
-.\" command options (MySQL Cluster): ndb_mgm
-.\" MySQL Cluster: mgm process
 .PP
 The following table includes options that are specific to the MySQL Cluster management client program
 \fBndb_mgm\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
@@ -87,54 +76,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.83.\ \& This table describes command-line options for the ndb_mgm program
+.B Table\ \&18.83.\ \& This table describes command\-line options for the ndb_mgm program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l.
-T{
-.PP
---connect-retries=#
-T}:T{
-Set the number of times to retry a connection before giving up; 0 means
-          1 attempt only (and no retries)
-T}:T{
-.PP
-ADDED: NDB 7.4.9
-T}
-T{
-.PP
---try-reconnect=#,
-.PP
--t
-T}:T{
-Set the number of times to retry a connection before giving up; synonym
-          for --connect-retries
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---execute=name,
-.PP
--e
-T}:T{
-Execute command and exit
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 .sp
@@ -146,7 +91,6 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" connect-retries option (ndb_mgm)
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
@@ -211,8 +155,6 @@ Options Common to MySQL Cluster Programs(1), for more information\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" execute option (ndb_mgm)
-.\" -e option (ndb_mgm)
 \fB\-\-execute=\fR\fBcommand\fR,
 \fB\-e \fR\fBcommand\fR
 .TS

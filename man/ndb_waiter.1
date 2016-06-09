@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_waiter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_WAITER\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_WAITER\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_waiter
 .SH "NAME"
 ndb_waiter \- wait for MySQL Cluster to reach a given status
 .SH "SYNOPSIS"
@@ -142,85 +141,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.99.\ \& This table describes command-line options for the ndb_waiter program
+.B Table\ \&18.99.\ \& This table describes command\-line options for the ndb_waiter program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-.PP
---no-contact,
-.PP
--n
-T}:T{
-Wait for cluster to reach NO CONTACT state
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---not-started
-T}:T{
-Wait for cluster to reach NOT STARTED state
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---single-user
-T}:T{
-Wait for cluster to enter single user mode
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---timeout=#,
-.PP
--t
-T}:T{
-Wait this many seconds, then exit whether or not cluster has reached
-          desired state; default is 2 minutes (120 seconds)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---nowait-nodes=list
-T}:T{
-List of nodes not to be waited for.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---wait-nodes=list,
-.PP
--w
-T}:T{
-List of nodes to be waited for.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 Usage
@@ -244,8 +168,6 @@ Additional Options
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_waiter: no-contact option
-.\" no-contact option: ndb_waiter
 \fB\-\-no\-contact\fR,
 \fB\-n\fR
 .sp
@@ -266,8 +188,6 @@ status before exiting\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_waiter: not-started option
-.\" not-started option: ndb_waiter
 \fB\-\-not\-started\fR
 .sp
 Instead of waiting for the
@@ -287,8 +207,6 @@ status before exiting\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_waiter: timeout option
-.\" timeout option: ndb_waiter
 \fB\-\-timeout=\fR\fB\fIseconds\fR\fR,
 \fB\-t \fR\fB\fIseconds\fR\fR
 .sp
@@ -303,8 +221,6 @@ Time to wait\&. The program exits if the desired state is not achieved within th
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_waiter: single-user option
-.\" single-user option: ndb_waiter
 \fB\-\-single\-user\fR
 .sp
 The program waits for the cluster to enter single user mode\&.
@@ -318,8 +234,6 @@ The program waits for the cluster to enter single user mode\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_waiter: nowait-nodes option
-.\" nowait-nodes option: ndb_waiter
 \fB\-\-nowait\-nodes=\fR\fB\fIlist\fR\fR
 .sp
 When this option is used, ndb_waiter does not wait for the nodes whose IDs are listed\&. The list is comma\-delimited; ranges can be indicated by dashes, as shown here:
@@ -362,8 +276,6 @@ option\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_waiter: wait-nodes option
-.\" wait-nodes option: ndb_waiter
 \fB\-\-wait\-nodes=\fR\fB\fIlist\fR\fR,
 \fB\-w \fR\fB\fIlist\fR\fR
 .sp

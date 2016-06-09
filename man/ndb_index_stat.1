@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_index_stat\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_INDEX_STAT\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_INDEX_STAT\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_index_stat
 .SH "NAME"
 ndb_index_stat \- NDB index statistics utility
 .SH "SYNOPSIS"
@@ -67,8 +66,6 @@ mytable
 in the
 test
 database:
-.\" ndb_index_stat: interpreting output
-.\" ndb_index_stat: example
 .sp
 .if n \{\
 .RS 4
@@ -169,169 +166,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.91.\ \& This table describes command-line options for the ndb_index_stat program
+.B Table\ \&18.91.\ \& This table describes command\-line options for the ndb_index_stat program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-.PP
---database=name,
-.PP
--d
-T}:T{
-Name of the database containing the table.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---delete
-T}:T{
-Delete index statistics for the given table, stopping any auto-update
-          previously configured.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---update
-T}:T{
-Update index statistics for the given table, restarting any auto-update
-          previously configured.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---dump
-T}:T{
-Print the query cache.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---query=#
-T}:T{
-Perform a number of random range queries on first key attr (must be int
-          unsigned).
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-drop
-T}:T{
-Drop any statistics tables and events in NDB kernel (all statistics are
-          lost)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-create
-T}:T{
-Create all statistics tables and events in NDB kernel, if none of them
-          already exist
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-create-if-not-exist
-T}:T{
-Create any statistics tables and events in NDB kernel that do not
-          already exist.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-create-if-not-valid
-T}:T{
-Create any statistics tables or events that do not already exist in the
-          NDB kernel. after dropping any that are invalid.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-check
-T}:T{
-Verify that NDB system index statistics and event tables exist.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-skip-tables
-T}:T{
-Do not apply sys-* options to tables.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---sys-skip-events
-T}:T{
-Do not apply sys-* options to events.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---verbose,
-.PP
--v
-T}:T{
-Turn on verbose output
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---loops=#
-T}:T{
-Set the number of times to perform a given command. Default is 0.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 .PP
@@ -346,8 +184,6 @@ ndb_index_stat system options)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" database option (ndb_index_stat)
-.\" -d option (ndb_index_stat)
 \fB\-\-database=\fR\fB\fIname\fR\fR,
 \fB\-d \fR\fB\fIname\fR\fR
 .TS
@@ -395,7 +231,6 @@ The name of the database that contains the table being queried\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" delete option (ndb_index_stat)
 \fB\-\-delete\fR
 .TS
 allbox tab(:);
@@ -442,7 +277,6 @@ Delete the index statistics for the given table, stopping any auto\-update that 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" update option (ndb_index_stat)
 \fB\-\-update\fR
 .TS
 allbox tab(:);
@@ -489,7 +323,6 @@ Update the index statistics for the given table, and restart any auto\-update th
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" dump option (ndb_index_stat)
 \fB\-\-dump\fR
 .TS
 allbox tab(:);
@@ -536,7 +369,6 @@ Dump the contents of the query cache\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" query option (ndb_index_stat)
 \fB\-\-query=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
@@ -588,7 +420,6 @@ ndb_index_stat statistics options)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-drop option (ndb_index_stat)
 \fB\-\-sys\-drop\fR
 .TS
 allbox tab(:);
@@ -636,7 +467,6 @@ Drop all statistics tables and events in the NDB kernel\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-create option (ndb_index_stat)
 \fB\-\-sys\-create\fR
 .TS
 allbox tab(:);
@@ -683,7 +513,6 @@ Create all statistics tables and events in the NDB kernel\&. This works only if 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-create-if-not-exist option (ndb_index_stat)
 \fBsys\-create\-if\-not\-exist\fR
 .TS
 allbox tab(:);
@@ -730,7 +559,6 @@ Create any NDB system statistics tables or events (or both) that do not already 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-create-if-not-valid option (ndb_index_stat)
 \fB\-\-sys\-create\-if\-not\-valid\fR
 .TS
 allbox tab(:);
@@ -777,7 +605,6 @@ Create any NDB system statistics tables or events that do not already exist, aft
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-check option (ndb_index_stat)
 \fB\-\-sys\-check\fR
 .TS
 allbox tab(:);
@@ -824,7 +651,6 @@ Verify that all required system statistics tables and events exist in the NDB ke
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-skip-tables option (ndb_index_stat)
 \fB\-\-sys\-skip\-tables\fR
 .TS
 allbox tab(:);
@@ -873,7 +699,6 @@ options to any statistics tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" sys-skip-events option (ndb_index_stat)
 \fB\-\-sys\-skip\-events\fR
 .TS
 allbox tab(:);
@@ -922,7 +747,6 @@ options to any events\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" verbose option (ndb_index_stat)
 \fB\-\-verbose\fR
 .TS
 allbox tab(:);
@@ -969,7 +793,6 @@ Turn on verbose output\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" loops option (ndb_index_stat)
 \fB\-\-loops=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);

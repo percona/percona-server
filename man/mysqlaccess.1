@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysqlaccess\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLACCESS\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLACCESS\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysqlaccess
 .SH "NAME"
 mysqlaccess \- client for checking access privileges
 .SH "SYNOPSIS"
@@ -89,8 +88,6 @@ supports the following options\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: help option
-.\" help option: mysqlaccess
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -105,8 +102,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: brief option
-.\" brief option: mysqlaccess
 \fB\-\-brief\fR,
 \fB\-b\fR
 .sp
@@ -121,8 +116,6 @@ Generate reports in single\-line tabular format\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: commit option
-.\" commit option: mysqlaccess
 \fB\-\-commit\fR
 .sp
 Copy the new access privileges from the temporary tables to the original grant tables\&. The grant tables must be flushed for the new privileges to take effect\&. (For example, execute a
@@ -138,8 +131,6 @@ command\&.)
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: copy option
-.\" copy option: mysqlaccess
 \fB\-\-copy\fR
 .sp
 Reload the temporary grant tables from original ones\&.
@@ -153,8 +144,6 @@ Reload the temporary grant tables from original ones\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: db option
-.\" db option: mysqlaccess
 \fB\-\-db=\fR\fB\fIdb_name\fR\fR,
 \fB\-d \fR\fB\fIdb_name\fR\fR
 .sp
@@ -169,8 +158,6 @@ Specify the database name\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: debug option
-.\" debug option: mysqlaccess
 \fB\-\-debug=\fR\fB\fIN\fR\fR
 .sp
 Specify the debug level\&.
@@ -186,8 +173,6 @@ can be an integer from 0 to 3\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: host option
-.\" host option: mysqlaccess
 \fB\-\-host=\fR\fB\fIhost_name\fR\fR,
 \fB\-h \fR\fB\fIhost_name\fR\fR
 .sp
@@ -202,8 +187,6 @@ The host name to use in the access privileges\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: howto option
-.\" howto option: mysqlaccess
 \fB\-\-howto\fR
 .sp
 Display some examples that show how to use
@@ -218,8 +201,6 @@ Display some examples that show how to use
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: old_server option
-.\" old_server option: mysqlaccess
 \fB\-\-old_server\fR
 .sp
 Assume that the server is an old MySQL server (before MySQL 3\&.21) that does not yet know how to handle full
@@ -235,8 +216,6 @@ clauses\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: password option
-.\" password option: mysqlaccess
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-p[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
@@ -262,8 +241,6 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: plan option
-.\" plan option: mysqlaccess
 \fB\-\-plan\fR
 .sp
 Display suggestions and ideas for future releases\&.
@@ -277,8 +254,6 @@ Display suggestions and ideas for future releases\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: preview option
-.\" preview option: mysqlaccess
 \fB\-\-preview\fR
 .sp
 Show the privilege differences after making changes to the temporary grant tables\&.
@@ -292,8 +267,6 @@ Show the privilege differences after making changes to the temporary grant table
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: relnotes option
-.\" relnotes option: mysqlaccess
 \fB\-\-relnotes\fR
 .sp
 Display the release notes\&.
@@ -307,8 +280,6 @@ Display the release notes\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: rhost option
-.\" rhost option: mysqlaccess
 \fB\-\-rhost=\fR\fB\fIhost_name\fR\fR,
 \fB\-H \fR\fB\fIhost_name\fR\fR
 .sp
@@ -323,8 +294,6 @@ Connect to the MySQL server on the given host\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: rollback option
-.\" rollback option: mysqlaccess
 \fB\-\-rollback\fR
 .sp
 Undo the most recent changes to the temporary grant tables\&.
@@ -338,8 +307,6 @@ Undo the most recent changes to the temporary grant tables\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: spassword option
-.\" spassword option: mysqlaccess
 \fB\-\-spassword[=\fR\fB\fIpassword\fR\fR\fB]\fR,
 \fB\-P[\fR\fB\fIpassword\fR\fR\fB]\fR
 .sp
@@ -365,8 +332,6 @@ Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: superuser option
-.\" superuser option: mysqlaccess
 \fB\-\-superuser=\fR\fB\fIuser_name\fR\fR,
 \fB\-U \fR\fB\fIuser_name\fR\fR
 .sp
@@ -381,8 +346,6 @@ Specify the user name for connecting as the superuser\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: table option
-.\" table option: mysqlaccess
 \fB\-\-table\fR,
 \fB\-t\fR
 .sp
@@ -397,8 +360,6 @@ Generate reports in table format\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: user option
-.\" user option: mysqlaccess
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR,
 \fB\-u \fR\fB\fIuser_name\fR\fR
 .sp
@@ -413,8 +374,6 @@ The user name to use in the access privileges\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysqlaccess: version option
-.\" version option: mysqlaccess
 \fB\-\-version\fR,
 \fB\-v\fR
 .sp

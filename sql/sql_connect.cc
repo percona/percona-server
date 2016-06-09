@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,14 +137,14 @@ end:
 }
 
 extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
-                         my_bool not_used __attribute__((unused)))
+                         my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= user_stats->user_len;
   return (uchar*) user_stats->user;
 }
 
 extern "C" uchar *get_key_thread_stats(THREAD_STATS *thread_stats, size_t *length,
-                         my_bool not_used __attribute__((unused)))
+                         my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= sizeof(my_thread_id);
   return (uchar *) &(thread_stats->id);
@@ -305,7 +305,7 @@ void init_global_thread_stats(void)
 }
 
 extern "C" uchar *get_key_table_stats(TABLE_STATS *table_stats, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+                                     my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= table_stats->table_len;
   return (uchar*) table_stats->table;
@@ -327,7 +327,7 @@ void init_global_table_stats(void)
 }
 
 extern "C" uchar *get_key_index_stats(INDEX_STATS *index_stats, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+                                     my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= index_stats->index_len;
   return (uchar*) index_stats->index;
@@ -873,7 +873,7 @@ void release_user_connection(THD *thd)
 */
 
 extern "C" uchar *get_key_conn(user_conn *buff, size_t *length,
-            my_bool not_used __attribute__((unused)))
+            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= buff->len;
   return (uchar*) buff->user;

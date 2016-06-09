@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndb_config
 .SH "NAME"
 ndb_config \- extract MySQL Cluster configuration information
 .SH "SYNOPSIS"
@@ -69,187 +68,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.85.\ \& This table describes command-line options for the ndb_config program
+.B Table\ \&18.85.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-.PP
---nodes
-T}:T{
-Print node information ([ndbd] or [ndbd default] section of cluster
-          configuration file) only. Cannot be used with --system or
-          --connections.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---connections
-T}:T{
-Print connections information ([tcp], [tcp default], [sci], [sci
-          default], [shm], or [shm default] sections of cluster
-          configuration file) only. Cannot be used with --system or
-          --nodes.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---query=string,
-.PP
--q
-T}:T{
-One or more query options (attributes)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---host=name
-T}:T{
-Specify host
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---type=name
-T}:T{
-Specify node type
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---nodeid,
-.PP
---id
-T}:T{
-Get configuration of node with this ID
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---fields=string,
-.PP
--f
-T}:T{
-Field separator
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---rows=string,
-.PP
--r
-T}:T{
-Row separator
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---config-file=file_name
-T}:T{
-Set the path to config.ini file
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---mycnf
-T}:T{
-Read configuration data from my.cnf file
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
--c
-T}:T{
-Short form for --ndb-connectstring
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---configinfo
-T}:T{
-Dumps information about all NDB configuration parameters in text format
-          with default, maximum, and minimum values. Use with --xml to
-          obtain XML output.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---configinfo --xml
-T}:T{
-Use --xml with --configinfo to obtain a dump of all NDB configuration
-          parameters in XML format with default, maximum, and minimum
-          values.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---system
-T}:T{
-Print SYSTEM section information only (see ndb_config --configinfo
-          output). Cannot be used with --nodes or --connections.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---config_from_node=#
-T}:T{
-Obtain configuration data from the node having this ID (must be a data
-          node).
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
+.
 .TE
 .sp 1
 .sp
@@ -261,8 +83,6 @@ T}
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: usage option
-.\" usage option: ndb_config
 \fB\-\-usage\fR,
 \fB\-\-help\fR, or
 \fB\-?\fR
@@ -295,8 +115,6 @@ to print a list of available options, and then exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: config_from_node option
-.\" config_from_node option: ndb_config
 \fB\-\-config_from_node=#\fR
 .TS
 allbox tab(:);
@@ -349,8 +167,6 @@ fails with an error\&. (To obtain configuration data from the management node in
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: version option
-.\" version option: ndb_config
 \fB\-\-version\fR,
 \fB\-V\fR
 .TS
@@ -376,8 +192,6 @@ to print a version information string, and then exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: ndb-connectstring option
-.\" ndb-connectstring option: ndb_config
 \fB\-\-ndb\-connectstring=\fR\fB\fIconnection_string\fR\fR,
 \fB\-c \fR\fB\fIconnection_string\fR\fR
 .TS
@@ -423,8 +237,6 @@ localhost:1186\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: config-file option
-.\" config-file option: ndb_config
 \fB\-\-config\-file=\fR\fB\fIpath\-to\-file\fR\fR
 .TS
 allbox tab(:);
@@ -462,8 +274,6 @@ is invoked, then an absolute path must be used\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: mycnf option
-.\" mycnf option: ndb_config
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
@@ -502,8 +312,6 @@ file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: query option
-.\" query option: ndb_config
 \fB\-\-query=\fR\fB\fIquery\-options\fR\fR,
 \fB\-q\fR
 \fIquery\-options\fR
@@ -539,8 +347,6 @@ mysqld, or
 ndb_mgmd), and any configuration parameters whose values are to be obtained\&.
 .sp
 For example,
-.\" ndb_config: query option
-.\" query option: ndb_config
 \fB\-\-query=id,type,indexmemory,datamemory\fR
 returns the node ID, node type,
 DataMemory, and
@@ -571,8 +377,6 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: host option
-.\" host option: ndb_config
 \fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
@@ -638,12 +442,8 @@ in the same fashion\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: id option
-.\" id option: ndb_config
 \fB\-\-id=\fR\fB\fInode_id\fR\fR
 .sp
-.\" ndb_config: nodeid option
-.\" nodeid option: ndb_config
 \fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
@@ -682,8 +482,6 @@ is the preferred form\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: nodes option
-.\" nodes option: ndb_config
 \fB\-\-nodes\fR
 .TS
 allbox tab(:);
@@ -732,8 +530,6 @@ and
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: connections option
-.\" connections option: ndb_config
 \fB\-\-connections\fR
 .TS
 allbox tab(:);
@@ -789,8 +585,6 @@ and
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: system option
-.\" system option: ndb_config
 \fB\-\-system\fR
 .TS
 allbox tab(:);
@@ -839,8 +633,6 @@ and
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: type option
-.\" type option: ndb_config
 \fB\-\-type=\fR\fB\fInode_type\fR\fR
 .TS
 allbox tab(:);
@@ -895,8 +687,6 @@ ndb_mgmd) are returned\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: fields option
-.\" fields option: ndb_config
 \fB\-\-fields=\fR\fB\fIdelimiter\fR\fR,
 \fB\-f\fR
 \fIdelimiter\fR
@@ -957,8 +747,6 @@ for the linefeed character), then it must be quoted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: rows option
-.\" rows option: ndb_config
 \fB\-\-rows=\fR\fB\fIseparator\fR\fR,
 \fB\-r\fR
 \fIseparator\fR
@@ -1017,8 +805,6 @@ for the linefeed character), then it must be quoted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" ndb_config: configinfo option
-.\" configinfo option: ndb_config
 \fB\-\-configinfo\fR
 .sp
 The
@@ -1116,8 +902,6 @@ Default: 0 (Min: 0, Max: 4294967039)
 .RE
 .\}
 .sp
-.\" ndb_config: xml option
-.\" xml option: ndb_config
 \fB\-\-configinfo\fR
 \fB\-\-xml\fR
 .TS
@@ -1156,7 +940,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.29\-ndb\-7\&.3\&.13"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.30\-ndb\-7\&.3\&.14"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">

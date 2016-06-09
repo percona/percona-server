@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,10 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" myisampack
-.\" compressed tables
-.\" tables: compressed
-.\" MyISAM: compressed tables
 .SH "NAME"
 myisampack \- generate compressed, read\-only MyISAM tables
 .SH "SYNOPSIS"
@@ -132,8 +128,6 @@ Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: help option
-.\" help option: myisampack
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -148,8 +142,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: backup option
-.\" backup option: myisampack
 \fB\-\-backup\fR,
 \fB\-b\fR
 .sp
@@ -165,8 +157,6 @@ Make a backup of each table\*(Aqs data file using the name
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: character-sets-dir option
-.\" character-sets-dir option: myisampack
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
@@ -181,8 +171,6 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: debug option
-.\" debug option: myisampack
 \fB\-\-debug[=\fR\fB\fIdebug_options\fR\fR\fB]\fR,
 \fB\-# [\fR\fB\fIdebug_options\fR\fR\fB]\fR
 .sp
@@ -201,8 +189,6 @@ d:t:o\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: force option
-.\" force option: myisampack
 \fB\-\-force\fR,
 \fB\-f\fR
 .sp
@@ -232,8 +218,6 @@ packs the table anyway\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: join option
-.\" join option: myisampack
 \fB\-\-join=\fR\fB\fIbig_tbl_name\fR\fR,
 \fB\-j \fR\fB\fIbig_tbl_name\fR\fR
 .sp
@@ -256,8 +240,6 @@ must exist\&. The source tables are read for the join operation but not modified
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: silent option
-.\" silent option: myisampack
 \fB\-\-silent\fR,
 \fB\-s\fR
 .sp
@@ -272,8 +254,6 @@ Silent mode\&. Write output only when errors occur\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: test option
-.\" test option: myisampack
 \fB\-\-test\fR,
 \fB\-t\fR
 .sp
@@ -288,8 +268,6 @@ Do not actually pack the table, just test packing it\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: tmpdir option
-.\" tmpdir option: myisampack
 \fB\-\-tmpdir=\fR\fB\fIdir_name\fR\fR,
 \fB\-T \fR\fB\fIdir_name\fR\fR
 .sp
@@ -306,8 +284,6 @@ creates temporary files\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: verbose option
-.\" verbose option: myisampack
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -322,8 +298,6 @@ Verbose mode\&. Write information about the progress of the packing operation an
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: version option
-.\" version option: myisampack
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp
@@ -338,8 +312,6 @@ Display version information and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" myisampack: wait option
-.\" wait option: myisampack
 \fB\-\-wait\fR,
 \fB\-w\fR
 .sp
@@ -349,7 +321,6 @@ server was invoked with external locking disabled, it is not a good idea to invo
 \fBmyisampack\fR
 if the table might be updated by the server during the packing process\&.
 .RE
-.\" examples: compressed tables
 .PP
 The following sequence of commands illustrates a typical table compression session:
 .sp

@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,11 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" ndbd
-.\" MySQL Cluster: ndbd
-.\" MySQL Cluster: data nodes
-.\" data nodes (MySQL Cluster)
-.\" storage nodes - see data nodes, ndbd
 .SH "NAME"
 ndbd \- the MySQL Cluster data node daemon
 .SH "SYNOPSIS"
@@ -45,10 +40,6 @@ is the process that is used to handle all the data in tables using the NDB Clust
 In a MySQL Cluster, a set of
 \fBndbd\fR
 processes cooperate in handling data\&. These processes can execute on the same computer (host) or on different computers\&. The correspondences between data nodes and Cluster hosts is completely configurable\&.
-.\" MySQL Cluster: administration
-.\" MySQL Cluster: commands
-.\" command options (MySQL Cluster): ndbd
-.\" MySQL Cluster: ndbd process
 .PP
 The following table includes command options specific to the MySQL Cluster data node program
 \fBndbd\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
@@ -59,161 +50,10 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.80.\ \& This table describes command-line options for the ndbd program
+.B Table\ \&18.80.\ \& This table describes command\-line options for the ndbd program
 .TS
 allbox tab(:);
-lB lB lB.
-T{
-Format
-T}:T{
-Description
-T}:T{
-Added or Removed
-T}
-.T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
-T{
-.PP
---initial
-T}:T{
-Perform initial start of ndbd, including cleaning the file system.
-          Consult the documentation before using this option
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---nostart,
-.PP
--n
-T}:T{
-Don't start ndbd immediately; ndbd waits for command to start from
-          ndb_mgmd
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---daemon,
-.PP
--d
-T}:T{
-Start ndbd as daemon (default); override with --nodaemon
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---nodaemon
-T}:T{
-Do not start ndbd as daemon; provided for testing purposes
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---foreground
-T}:T{
-Run ndbd in foreground, provided for debugging purposes (implies
-          --nodaemon)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---nowait-nodes=list
-T}:T{
-Do not wait for these data nodes to start (takes comma-separated list of
-          node IDs). Also requires --ndb-nodeid to be used.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---initial-start
-T}:T{
-Perform partial initial start (requires --nowait-nodes)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---bind-address=name
-T}:T{
-Local bind address
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---install[=name]
-T}:T{
-Used to install the data node process as a Windows service. Does not
-          apply on non-Windows platforms.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---remove[=name]
-T}:T{
-Used to remove a data node process that was previously installed as a
-          Windows service. Does not apply on non-Windows platforms.
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---connect-retries=#
-T}:T{
-Set the number of times to retry a connection before giving up; 0 means
-          1 attempt only (and no retries)
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---connect-delay=#
-T}:T{
-Time to wait between attempts to contact a management server, in
-          seconds; 0 means do not wait between attempts
-T}:T{
-.PP
-All MySQL 5.6 based releases
-T}
-T{
-.PP
---connect-retry-delay=#
-T}:T{
-Time to wait between attempts to contact a management server, in
-          seconds; 0 means do not wait between attempts
-T}:T{
-.PP
-ADDED: NDB 7.4.9
-T}
+.
 .TE
 .sp 1
 .if n \{\
@@ -427,8 +267,6 @@ on Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" initial option (ndbd)
-.\" initial option (ndbmtd)
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
@@ -561,8 +399,6 @@ necessary to do so\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" initial-start option (ndbd)
-.\" initial-start option (ndbmtd)
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
@@ -636,8 +472,6 @@ option for
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" nowait-nodes option (ndbd)
-.\" nowait-nodes option (ndbmtd)
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
@@ -687,10 +521,6 @@ If you wanted to start up the same cluster as in the previous example without on
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" nostart option (ndbd)
-.\" -n option (ndbd)
-.\" nostart option (ndbmtd)
-.\" -n option (ndbmtd)
 \fB\-\-nostart\fR,
 \fB\-n\fR
 .TS
@@ -735,8 +565,6 @@ Section\ \&18.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" install option (ndbd)
-.\" install option (ndbmtd)
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -805,8 +633,6 @@ option has no effect on non\-Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" remove option (ndbd)
-.\" remove option (ndbmtd)
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -856,8 +682,6 @@ option has no effect on non\-Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" connect-retries option (ndbd)
-.\" connect-retries option (ndbmtd)
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
@@ -909,8 +733,6 @@ option in MySQL NDB 7\&.4\&.9 and later (previously, this was
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" connect-delay option (ndbd)
-.\" connect-delay option (ndbmtd)
 \fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
@@ -971,8 +793,6 @@ instead\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" connect-retry-delay option (ndbd)
-.\" connect-retry-delay option (ndbmtd)
 \fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
@@ -1024,8 +844,6 @@ This option was added in MySQL Cluster NDB 7\&.4\&.9, and is intended to take th
 \fB\-\-connect\-delay\fR
 option, which is now deprecated and subject to removal in a future release of MySQL Cluster\&.
 .RE
-.\" MySQL Cluster: log files
-.\" log files (MySQL Cluster)
 .PP
 \fBndbd\fR
 generates a set of log files which are placed in the directory specified by
@@ -1049,8 +867,6 @@ is the error log generated by the data node whose node ID is
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" MySQL Cluster: error logs
-.\" error logs (MySQL Cluster)
 ndb_\fInode_id\fR_error\&.log
 is a file containing records of all crashes which the referenced
 \fBndbd\fR
@@ -1109,8 +925,6 @@ file (see below)\&. Error log entries are thus overwritten in a cyclical and not
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" MySQL Cluster: trace files
-.\" trace files (MySQL Cluster)
 ndb_\fInode_id\fR_trace\&.log\&.\fItrace_id\fR
 is a trace file describing exactly what happened just before the error occurred\&. This information is useful for analysis by the MySQL Cluster development team\&.
 .sp

@@ -268,7 +268,7 @@ typedef struct st_user_stats {
 
 /* Lookup function for my_hash tables with USER_STATS entries */
 extern "C" uchar *get_key_user_stats(USER_STATS *user_stats, size_t *length,
-                                my_bool not_used __attribute__((unused)));
+                                my_bool not_used MY_ATTRIBUTE((unused)));
 
 /* Free all memory for a my_hash table with USER_STATS entries */
 extern void free_user_stats(USER_STATS* user_stats);
@@ -321,7 +321,7 @@ typedef struct st_thread_stats {
 
 /* Lookup function for my_hash tables with THREAD_STATS entries */
 extern "C" uchar *get_key_thread_stats(THREAD_STATS *thread_stats, size_t *length,
-                                my_bool not_used __attribute__((unused)));
+                                my_bool not_used MY_ATTRIBUTE((unused)));
 
 /* Free all memory for a my_hash table with THREAD_STATS entries */
 extern void free_thread_stats(THREAD_STATS* thread_stats);

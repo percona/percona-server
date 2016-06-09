@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_plugin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_PLUGIN\FR" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_PLUGIN\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_plugin
 .SH "NAME"
 mysql_plugin \- configure MySQL server plugins
 .SH "SYNOPSIS"
@@ -62,7 +61,7 @@ Section\ \&5.1.8.1, \(lqInstalling and Uninstalling Plugins\(rq\&.
 .PP
 Each invocation of
 \fBmysql_plugin\fR
-reads a configuration file to determine how to configure the plugins contained in a single plugin library object file\&. To invoke
+reads a configuration file to determine how to configure the plugins contained in a single plugin library file\&. To invoke
 \fBmysql_plugin\fR, use this syntax:
 .sp
 .if n \{\
@@ -120,7 +119,7 @@ plugin3
 .PP
 The first line in the
 myplugins\&.ini
-file is the name of the library object file, without any extension such as
+file is the name of the library file, without any extension such as
 \&.so
 or
 \&.dll\&. The remaining lines are the names of the components to be enabled or disabled\&. Each value in the file should be on a separate line\&. Lines on which the first character is
@@ -174,8 +173,6 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: help option
-.\" help option: mysql_plugin
 \fB\-\-help\fR,
 \fB\-?\fR
 .sp
@@ -190,8 +187,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: basedir option
-.\" basedir option: mysql_plugin
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR,
 \fB\-b \fR\fB\fIdir_name\fR\fR
 .sp
@@ -206,8 +201,6 @@ The server base directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: datadir option
-.\" datadir option: mysql_plugin
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR,
 \fB\-d \fR\fB\fIdir_name\fR\fR
 .sp
@@ -222,8 +215,6 @@ The server data directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: my-print-defaults option
-.\" my-print-defaults option: mysql_plugin
 \fB\-\-my\-print\-defaults=\fR\fB\fIfile_name\fR\fR,
 \fB\-b \fR\fB\fIfile_name\fR\fR
 .sp
@@ -240,8 +231,6 @@ program\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: mysqld option
-.\" mysqld option: mysql_plugin
 \fB\-\-mysqld=\fR\fB\fIfile_name\fR\fR,
 \fB\-b \fR\fB\fIfile_name\fR\fR
 .sp
@@ -258,8 +247,6 @@ server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: no-defaults option
-.\" no-defaults option: mysql_plugin
 \fB\-\-no\-defaults\fR,
 \fB\-p\fR
 .sp
@@ -278,8 +265,6 @@ With
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: plugin-dir option
-.\" plugin-dir option: mysql_plugin
 \fB\-\-plugin\-dir=\fR\fB\fIdir_name\fR\fR,
 \fB\-p \fR\fB\fIdir_name\fR\fR
 .sp
@@ -294,8 +279,6 @@ The server plugin directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: plugin-ini option
-.\" plugin-ini option: mysql_plugin
 \fB\-\-plugin\-ini=\fR\fB\fIfile_name\fR\fR,
 \fB\-i \fR\fB\fIfile_name\fR\fR
 .sp
@@ -318,8 +301,6 @@ argument on the command line\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: print-defaults option
-.\" print-defaults option: mysql_plugin
 \fB\-\-print\-defaults\fR,
 \fB\-P\fR
 .sp
@@ -344,8 +325,6 @@ With
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: verbose option
-.\" verbose option: mysql_plugin
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
@@ -360,8 +339,6 @@ Verbose mode\&. Print more information about what the program does\&. This optio
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_plugin: version option
-.\" version option: mysql_plugin
 \fB\-\-version\fR,
 \fB\-V\fR
 .sp

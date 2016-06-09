@@ -1,13 +1,13 @@
 '\" t
 .\"     Title: \fBmysql_install_db\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
-.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
-.\"      Date: 03/02/2016
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 05/16/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_INSTALL_DB\" "1" "03/02/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL_INSTALL_DB\" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -27,7 +27,6 @@
 .\" -----------------------------------------------------------------
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
-.\" mysql_install_db
 .SH "NAME"
 mysql_install_db \- initialize MySQL data directory
 .SH "SYNOPSIS"
@@ -192,8 +191,6 @@ Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: help option
-.\" help option: mysql_install_db
 \fB\-\-help\fR
 .sp
 Display a help message and exit\&.
@@ -207,8 +204,6 @@ Display a help message and exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: basedir option
-.\" basedir option: mysql_install_db
 \fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
@@ -222,8 +217,6 @@ The path to the MySQL installation directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: builddir option
-.\" builddir option: mysql_install_db
 \fB\-\-builddir=\fR\fB\fIdir_name\fR\fR
 .sp
 For use with
@@ -239,8 +232,6 @@ and out\-of\-source builds\&. Set this to the location of the directory where th
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: cross-bootstrap option
-.\" cross-bootstrap option: mysql_install_db
 \fB\-\-cross\-bootstrap\fR
 .sp
 For internal use\&. This option is used for building system tables on one host intended for another\&.
@@ -254,8 +245,6 @@ For internal use\&. This option is used for building system tables on one host i
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: datadir option
-.\" datadir option: mysql_install_db
 \fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&. Beginning with MySQL 5\&.6\&.8,
@@ -271,7 +260,6 @@ is more strict about the option value\&. Only the last component of the path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" defaults-extra-file option
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -287,7 +275,6 @@ is interpreted relative to the current directory if given as a relative path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" defaults-file option
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
@@ -303,8 +290,6 @@ is interpreted relative to the current directory if given as a relative path nam
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: force option
-.\" force option: mysql_install_db
 \fB\-\-force\fR
 .sp
 Cause
@@ -320,8 +305,6 @@ to run even if DNS does not work\&. Grant table entries normally created using h
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: keep-my-cnf option
-.\" keep-my-cnf option: mysql_install_db
 \fB\-\-keep\-my\-cnf\fR
 .sp
 Tell
@@ -341,8 +324,6 @@ file\&. This option was added in MySQL 5\&.6\&.20\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: ldata option
-.\" ldata option: mysql_install_db
 \fB\-\-ldata=\fR\fB\fIdir_name\fR\fR
 .sp
 A synonym for
@@ -357,7 +338,6 @@ A synonym for
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" no-defaults option
 \fB\-\-no\-defaults\fR
 .sp
 Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
@@ -373,8 +353,6 @@ can be used to prevent them from being read\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: random-passwords option
-.\" random-passwords option: mysql_install_db
 \fB\-\-random\-passwords\fR
 .sp
 On Unix platforms, this option provides for more secure MySQL installation\&. Invoking
@@ -406,7 +384,6 @@ flag for those accounts\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" .mysql_secret file
 The initial random
 root
 password is written to the
@@ -491,8 +468,6 @@ This option was added in MySQL 5\&.6\&.8\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: rpm option
-.\" rpm option: mysql_install_db
 \fB\-\-rpm\fR
 .sp
 For internal use\&. This option is used during the MySQL installation process for install operations performed using RPM packages\&.
@@ -506,8 +481,6 @@ For internal use\&. This option is used during the MySQL installation process fo
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: skip-name-resolve option
-.\" skip-name-resolve option: mysql_install_db
 \fB\-\-skip\-name\-resolve\fR
 .sp
 Use IP addresses rather than host names when creating grant table entries\&. This option can be useful if your DNS does not work\&.
@@ -521,8 +494,6 @@ Use IP addresses rather than host names when creating grant table entries\&. Thi
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: srcdir option
-.\" srcdir option: mysql_install_db
 \fB\-\-srcdir=\fR\fB\fIdir_name\fR\fR
 .sp
 For internal use\&. This option specifies the directory under which
@@ -538,8 +509,6 @@ looks for support files such as the error message file and the file for populati
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: user option
-.\" user option: mysql_install_db
 \fB\-\-user=\fR\fB\fIuser_name\fR\fR
 .sp
 The system (login) user name to use for running
@@ -560,8 +529,6 @@ runs using your current login name and files and directories that it creates wil
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: verbose option
-.\" verbose option: mysql_install_db
 \fB\-\-verbose\fR
 .sp
 Verbose mode\&. Print more information about what the program does\&.
@@ -575,8 +542,6 @@ Verbose mode\&. Print more information about what the program does\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-.\" mysql_install_db: windows option
-.\" windows option: mysql_install_db
 \fB\-\-windows\fR
 .sp
 For internal use\&. This option is used for creating Windows distributions\&.

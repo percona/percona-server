@@ -24,10 +24,12 @@ DEALLOCATE PREPARE stmt1;
 show variables like 'audit_log%';
 Variable_name	Value
 audit_log_buffer_size	1048576
+audit_log_exclude_accounts	
 audit_log_file	test_audit.log
 audit_log_flush	OFF
 audit_log_format	JSON
 audit_log_handler	FILE
+audit_log_include_accounts	
 audit_log_policy	ALL
 audit_log_rotate_on_size	0
 audit_log_rotations	0
@@ -54,10 +56,12 @@ drop table renamed_t1, t2;
 show variables like 'audit_log%';
 Variable_name	Value
 audit_log_buffer_size	1048576
+audit_log_exclude_accounts	
 audit_log_file	test_audit.log
 audit_log_flush	OFF
 audit_log_format	JSON
 audit_log_handler	FILE
+audit_log_include_accounts	
 audit_log_policy	ALL
 audit_log_rotate_on_size	0
 audit_log_rotations	0

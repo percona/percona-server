@@ -1309,12 +1309,15 @@ row_import::match_schema(
 	THD*		thd) UNIV_NOTHROW
 {
 	/* Do some simple checks. */
+	const unsigned relevant_flags = m_flags & ~DICT_TF_MASK_DATA_DIR;
+	const unsigned relevant_table_flags
+		= m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
-	if (m_flags != m_table->flags) {
+	if (relevant_flags != relevant_table_flags) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			 "Table flags don't match, server table has 0x%lx"
-			 " and the meta-data file has 0x%lx",
-			 (ulong) m_table->n_cols, (ulong) m_flags);
+			 "Table flags don't match, server table has 0x%x "
+			 "and the meta-data file has 0x%x",
+			 relevant_table_flags, relevant_flags);
 
 		return(DB_ERROR);
 	} else if (m_table->n_cols != m_n_cols) {

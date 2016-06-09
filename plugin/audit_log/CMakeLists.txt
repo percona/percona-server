@@ -14,5 +14,5 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 MYSQL_ADD_PLUGIN(audit_log audit_log.c file_logger.c buffer.c audit_file.c
- audit_syslog.c
+ audit_syslog.c filter.c
  MODULE_ONLY MODULE_OUTPUT_NAME "audit_log")

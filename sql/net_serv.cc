@@ -242,7 +242,7 @@ net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
 {
   my_bool retry;
 
-#if !defined(MYSQL_SERVER) && defined(THREAD_SAFE_CLIENT)
+#if !defined(MYSQL_SERVER)
   /*
     In the thread safe client library, interrupted I/O operations
     are always retried.  Otherwise, its either a timeout or a

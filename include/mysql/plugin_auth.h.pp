@@ -125,7 +125,7 @@ void thd_set_ha_data(void* thd, const struct handlerton *hton,
 int thd_command(const void* thd);
 long long thd_start_time(const void* thd);
 void thd_kill(unsigned long id);
-#include <mysql/plugin_auth_common.h>
+#include "plugin_auth_common.h"
 typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,

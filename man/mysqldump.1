@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -299,7 +299,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.1.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+Section\ \&11.1.5, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -343,7 +343,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&26.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&27.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .RE
 .PP
 \fBmysqldump\fR
@@ -369,7 +369,7 @@ option\&.
 .PP
 For additional information about
 \fBmysqldump\fR, see
-Section\ \&7.4, \(lqUsing mysqldump for Backups\(rq\&.
+Section\ \&8.4, \(lqUsing mysqldump for Backups\(rq\&.
 Invocation Syntax.PP
 There are in general three ways to use
 \fBmysqldump\fR\(emin order to dump a set of one or more tables, a set of one or more complete databases, or an entire MySQL server\(emas shown here:
@@ -404,7 +404,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 Connection Options.PP
 The
 \fBmysqldump\fR
@@ -448,7 +448,7 @@ Compress all information sent between the client and the server if both support 
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&7.3.8, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -464,7 +464,7 @@ Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.4.1.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&7.4.1.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE
@@ -528,7 +528,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&7.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -560,7 +560,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqldump\fR
 does not find it\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&7.3.8, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -588,7 +588,7 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+Section\ \&5.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
 .RS 4
@@ -618,7 +618,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them is removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
-Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&7.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -651,7 +651,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.11.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&7.3.11.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -665,7 +665,7 @@ Section\ \&6.3.11.5, \(lqCommand Options for Secure Connections\(rq\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.11.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+Section\ \&7.3.11.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE
@@ -1225,7 +1225,7 @@ command represents character data with national language settings\&.
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&11.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1241,7 +1241,7 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&11.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqldump\fR
 uses
 utf8\&.
@@ -1363,7 +1363,7 @@ respectively\&. These are the master server coordinates from which the slave sho
 .ps -1
 .br
 Inconsistencies in the sequence of transactions from the relay log which have been executed can cause the wrong position to be used\&. See
-Section\ \&17.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
+Section\ \&18.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
@@ -1609,7 +1609,7 @@ maxdb,
 no_key_options,
 no_table_options, or
 no_field_options\&. To use several values, separate them by commas\&. These values have the same meaning as the corresponding options for setting the server SQL mode\&. See
-Section\ \&5.1.7, \(lqServer SQL Modes\(rq\&.
+Section\ \&6.1.7, \(lqServer SQL Modes\(rq\&.
 .sp
 This option does not guarantee compatibility with other servers\&. It only enables those SQL mode values that are currently available for making dump output more compatible\&. For example,
 \fB\-\-compatible=oracle\fR
@@ -1668,7 +1668,7 @@ option and have the same meaning as the corresponding
 FIELDS
 clauses for
 LOAD DATA INFILE\&. See
-Section\ \&13.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
+Section\ \&14.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1708,7 +1708,7 @@ option and has the same meaning as the corresponding
 LINES
 clause for
 LOAD DATA INFILE\&. See
-Section\ \&13.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
+Section\ \&14.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2321,7 +2321,7 @@ LOCK TABLES
 and
 UNLOCK TABLES
 statements\&. This results in faster inserts when the dump file is reloaded\&. See
-Section\ \&8.2.2.1, \(lqSpeed of INSERT Statements\(rq\&.
+Section\ \&9.2.2.1, \(lqSpeed of INSERT Statements\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2688,7 +2688,7 @@ statement is issued, the MySQL server may get stalled until those statements fin
 For point\-in\-time recovery (also known as
 \(lqroll\-forward,\(rq
 when you need to restore an old backup and replay the changes that happened since that backup), it is often useful to rotate the binary log (see
-Section\ \&5.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordinates to which the dump corresponds:
+Section\ \&6.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordinates to which the dump corresponds:
 .sp
 .if n \{\
 .RS 4
@@ -2722,8 +2722,8 @@ InnoDB
 storage engine\&.
 .PP
 For more information on making backups, see
-Section\ \&7.2, \(lqDatabase Backup Methods\(rq, and
-Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&8.2, \(lqDatabase Backup Methods\(rq, and
+Section\ \&8.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -2786,7 +2786,7 @@ information database\&.
 It is not recommended to restore from a dump made using
 \fBmysqldump\fR
 to a MySQL 5\&.6\&.9 or earlier server that has GTIDs enabled\&. See
-Section\ \&17.1.3.4, \(lqRestrictions on Replication with GTIDs\(rq\&.
+Section\ \&18.1.3.4, \(lqRestrictions on Replication with GTIDs\(rq\&.
 .PP
 \fBmysqldump\fR
 includes statements to recreate the

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_plugin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_PLUGIN\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_PLUGIN\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,11 +78,11 @@ mysql\&.plugin
 automatically\&. For additional control over plugin activation, use
 \fB\-\-\fR\fB\fIplugin_name\fR\fR
 options named for specific plugins, as described in
-Section\ \&5.1.8.1, \(lqInstalling and Uninstalling Plugins\(rq\&.
+Section\ \&6.5.2, \(lqInstalling and Uninstalling Plugins\(rq\&.
 .PP
 Each invocation of
 \fBmysql_plugin\fR
-reads a configuration file to determine how to configure the plugins contained in a single plugin library object file\&. To invoke
+reads a configuration file to determine how to configure the plugins contained in a single plugin library file\&. To invoke
 \fBmysql_plugin\fR, use this syntax:
 .sp
 .if n \{\
@@ -140,7 +140,7 @@ plugin3
 .PP
 The first line in the
 myplugins\&.ini
-file is the name of the library object file, without any extension such as
+file is the name of the library file, without any extension such as
 \&.so
 or
 \&.dll\&. The remaining lines are the names of the components to be enabled or disabled\&. Each value in the file should be on a separate line\&. Lines on which the first character is
@@ -184,7 +184,7 @@ recognizes the
 \fB\-\-datadir\fR, and
 \fB\-\-plugin\-dir\fR
 options and ignores others\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\

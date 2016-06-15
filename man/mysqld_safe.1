@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -77,7 +77,7 @@ Many of the options to
 \fBmysqld_safe\fR
 are the same as the options to
 \fBmysqld\fR\&. See
-Section\ \&5.1.3, \(lqServer Command Options\(rq\&.
+Section\ \&6.1.3, \(lqServer Command Options\(rq\&.
 .PP
 Options unknown to
 \fBmysqld_safe\fR
@@ -86,7 +86,7 @@ are passed to
 if they are specified on the command line, but ignored if they are specified in the
 [mysqld_safe]
 group of an option file\&. See
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 .PP
 \fBmysqld_safe\fR
 reads all options from the
@@ -121,7 +121,7 @@ sections, but to be current you should rename such sections to
 .PP
 \fBmysqld_safe\fR
 accepts options on the command line and in option files, as described in the following table\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -230,7 +230,7 @@ cannot find the server, use this option to indicate the path name to the directo
 \fB\-\-log\-error=\fR\fB\fIfile_name\fR\fR
 .sp
 Write the error log to the given file\&. See
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&6.4.2, \(lqThe Error Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -333,7 +333,23 @@ malloc()
 library\&. Any library can be used by specifying its path name, but there is a shortcut form to enable use of the
 tcmalloc
 library that is shipped with binary MySQL distributions for Linux in MySQL 5\&.7\&. It is possible that the shortcut form will not work under certain configurations, in which case you should specify a path name instead\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+As of MySQL 5\&.7\&.13, MySQL distributions no longer include a
+tcmalloc
+library\&.
+.sp .5v
+.RE
 The
 \fB\-\-malloc\-lib\fR
 option works by modifying the
@@ -695,7 +711,7 @@ log_syslog
 system variable instead\&. To control the facility, use the server
 log_syslog_facility
 system variable\&. See
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&6.4.2, \(lqThe Error Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -727,7 +743,7 @@ Using this option to control
 logging is deprecated as of MySQL 5\&.7\&.5\&. Use the server
 log_syslog_tag
 system variable instead\&. See
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&6.4.2, \(lqThe Error Log\(rq\&.
 .RE
 .sp
 .RS 4
@@ -961,7 +977,7 @@ logging from
 is deprecated as of MySQL 5\&.7\&.5\&. Use the server\*(Aqs native
 syslog
 support instead\&. For more information, see
-Section\ \&5.4.2, \(lqThe Error Log\(rq\&.
+Section\ \&6.4.2, \(lqThe Error Log\(rq\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"

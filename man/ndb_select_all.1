@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_ALL\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SELECT_ALL\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -60,7 +60,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.92.\ \& This table describes command\-line options for the ndb_select_all program
+.B Table\ \&19.95.\ \& This table describes command\-line options for the ndb_select_all program
 .TS
 allbox tab(:);
 .
@@ -174,7 +174,7 @@ Orders the output according to the index named
 \fBNote\fR
 .ps -1
 .br
-This is the name of an index, not of a column, and that the index must have been explicitly named when created\&.
+This is the name of an index, not of a column; the index must have been explicitly named when created\&.
 .sp .5v
 .RE
 .RE
@@ -281,8 +281,8 @@ column providing information about the fragments in which rows are stored\&.
 Adds a
 GCI
 column to the output showing the global checkpoint at which each row was last updated\&. See
-Section\ \&18.1, \(lqMySQL Cluster Overview\(rq, and
-Section\ \&18.5.6.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
+Section\ \&19.1, \(lqMySQL Cluster Overview\(rq, and
+Section\ \&19.5.6.2, \(lqMySQL Cluster Log Events\(rq, for more information about checkpoints\&.
 .RE
 .sp
 .RS 4

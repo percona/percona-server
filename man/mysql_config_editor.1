@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDIT" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDIT" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -75,7 +75,7 @@ host = localhost
 When you invoke a client program to connect to the server, the client uses
 \&.mylogin\&.cnf
 in conjunction with other option files\&. Its precedence is higher than other option files, but less than options specified explicitly on the client command line\&. For information about the order in which option files are used, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 .PP
 To specify an alternate login path file name, set the
 MYSQL_TEST_LOGIN_FILE
@@ -144,7 +144,7 @@ groups from other option files, so it reads them from the login path file as wel
 .\}
 With a
 \fB\-\-login\-path\fR
-option, client programs additionally read the named login path from the login path ile\&. The option groups read from other option files remain the same\&. Consider this command:
+option, client programs additionally read the named login path from the login path file\&. The option groups read from other option files remain the same\&. Consider this command:
 .sp
 .if n \{\
 .RS 4

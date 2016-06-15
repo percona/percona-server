@@ -2301,6 +2301,7 @@ sub mysqlxtest_arguments(){
                              "$bindir/rapid/plugin/x/mysqlxtest",
                              "$bindir/rapid/plugin/x/Debug/mysqlxtest",
                              "$bindir/rapid/plugin/x/Release/mysqlxtest",
+                             "$bindir/rapid/plugin/x/RelWithDebInfo/mysqlxtest",
                              "$bindir/bin/mysqlxtest");
   return "" unless $exe;
 
@@ -2757,6 +2758,9 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
+
+  # Make sure LeakSanitizer exits if leaks are found
+  $ENV{'LSAN_OPTIONS'}= "exitcode=42";
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -5770,7 +5774,7 @@ sub mysqld_start ($$) {
   {
     ddd_arguments(\$args, \$exe, $mysqld->name());
   }
-  if ( $opt_dbx || $opt_manual_dbx ) {
+  elsif ( $opt_dbx || $opt_manual_dbx ) {
     dbx_arguments(\$args, \$exe, $mysqld->name());
   }
   elsif ( $opt_debugger )
@@ -7216,7 +7220,6 @@ Options for debugging the product
                         test(s)
   manual-dbx            Let user manually start mysqld in dbx, before running
                         test(s)
-  lldb                  Start mysqld(s) in lldb
   manual-lldb           Let user manually start mysqld in lldb, before running 
                         test(s)
   strace-client         Create strace output for mysqltest client, 

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ directory\&. This program reads the files created as a result of the backup and 
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&18.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&19.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .if n \{\
 .sp
 .\}
@@ -59,7 +59,7 @@ Section\ \&18.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a B
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&18.5.8, \(lqMySQL Cluster Single User Mode\(rq, for more information\&.
+Section\ \&19.5.8, \(lqMySQL Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
@@ -72,7 +72,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.91.\ \& This table describes command\-line options for the ndb_restore program
+.B Table\ \&19.94.\ \& This table describes command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 .
@@ -114,7 +114,7 @@ The
 option is used to specify a connection string which tells
 ndb_restore
 where to locate the cluster management server\&. (See
-Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
+Section\ \&19.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -132,7 +132,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&18.3.3.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
+Section\ \&19.3.3.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
 .PP
 You can verify that
 \fBndb_restore\fR
@@ -253,7 +253,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&17.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&18.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .PP
 Attribute promotion by
 \fBndb_restore\fR
@@ -354,7 +354,7 @@ This option is intended to complement the
 option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
-Section\ \&17.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+Section\ \&18.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
 .PP
 \fBndb_restore\fR
 reports any truncation of data that it performs during lossy conversions once per attribute and column\&.
@@ -406,7 +406,7 @@ The
 option is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&18.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&19.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -433,7 +433,7 @@ having
 in the
 id
 column is updated if it already exists; such a row is inserted if it does not already exist\&. (See
-Section\ \&18.6.9, \(lqMySQL Cluster Backups With MySQL Cluster Replication\(rq\&.)
+Section\ \&19.6.9, \(lqMySQL Cluster Backups With MySQL Cluster Replication\(rq\&.)
 .PP
 \fB\-\-restore_data\fR
 .PP
@@ -461,7 +461,7 @@ to restore the privilege tables\&.
 This works only if the privilege tables were converted to
 NDB
 before the backup was taken\&. For more information, see
-Section\ \&18.5.15, \(lqDistributed MySQL Privileges for MySQL Cluster\(rq\&.
+Section\ \&19.5.15, \(lqDistributed MySQL Privileges for MySQL Cluster\(rq\&.
 .PP
 \fB\-\-backup_path\fR
 .PP
@@ -488,7 +488,7 @@ and
 must be run twice\(emonce for each database node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&18.2.8, \(lqUpgrading and Downgrading MySQL Cluster\(rq, for more information\&.
+Section\ \&19.2.8, \(lqUpgrading and Downgrading MySQL Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -884,14 +884,19 @@ to their binary logs\&.
 This option stops
 \fBndb_restore\fR
 from restoring any MySQL Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&18.5.13, \(lqMySQL Cluster Disk Data Tables\(rq, for more information about these\&.
+Section\ \&19.5.13, \(lqMySQL Cluster Disk Data Tables\(rq, for more information about these\&.
 .PP
 \fB\-\-parallelism=#\fR,
 \fB\-p\fR
 .PP
-Determines the maximum number of parallel transactions that
+\fBndb_restore\fR
+uses single\-row transactions to apply many rows concurrently\&. This parameter determines the number of parallel transactions (concurrent rows) that an instance of
 \fBndb_restore\fR
 tries to use\&. By default, this is 128; the minimum is 1, and the maximum is 1024\&.
+.PP
+The work of performing the inserts is parallelized across the threads in the data nodes involved\&. This mechanism is employed for restoring bulk data from the
+\&.Data
+file\(emthat is, the fuzzy snapshot of the data; it is not used for building or rebuilding indexes\&. The change log is applied serially; index drops and builds are DDL operations and handled separately\&. There is no thread\-level parallelism on the client side of the restore\&.
 .PP
 \fB\-\-progress\-frequency=\fR\fB\fIN\fR\fR
 .PP
@@ -1391,12 +1396,17 @@ backup\&. The number of threads used for building ordered indexes by
 \fBndb_restore\fR
 with this option is controlled by the
 BuildIndexThreads
-data node configuration parameter\&.
+data node configuration parameter and the number of LDMs\&.
 .PP
 It is necessary to use this option only for the first run of
 \fBndb_restore\fR; this causes all ordered indexes to be rebuilt without using
 \fB\-\-rebuild\-indexes\fR
 again when restoring subsequent nodes\&. You should use this option prior to inserting new rows into the database; otherwise, it is possible for a row to be inserted that later causes a unique constraint violation when trying to rebuild the indexes\&.
+.PP
+Building of ordered indices is parallelized with the number of LDMs by default\&. Offline index builds performed during node and system restarts can be made faster using the
+BuildIndexThreads
+data node configuration parameter; this parameter has no effect on dropping and rebuilding of indexes by
+\fBndb_restore\fR, which is performed online\&.
 .PP
 Rebuilding of unique indexes uses disk write bandwidth for redo logging and local checkpointing\&. An insufficient amount of this bandwith can lead to redo buffer overload or log overload errors\&. In such cases you can run
 \fBndb_restore\fR
@@ -1406,7 +1416,9 @@ again; the process resumes at the point where the error occurred\&. You can also
 \fB\-\-rebuild\-indexes\fR
 indefinitely; you may be able to stop such errors by reducing the value of
 DiskCheckpointSpeed
-to provide additional disk bandwidth to redo logging\&.
+to provide additional disk bandwidth to redo logging, or reducing the
+\fB\-\-parallelism\fR\&. If the problem is insufficient space, you can increase the size of the redo log (FragmentLogFileSize
+node configuration parameter), or you can increase the speed at which LCPs are performed (DiskCheckpointSpeed), in order to free space more quickly\&.
 .PP
 \fB\-\-skip\-broken\-objects\fR
 .TS

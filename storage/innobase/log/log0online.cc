@@ -401,7 +401,7 @@ capacity.
 
 @return true if the missing interval can be tracked or if there's no missing
 data.  */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 static
 bool
 log_online_can_track_missing(
@@ -890,7 +890,7 @@ log_online_parse_redo_log(void)
 /*********************************************************************//**
 Check the log block checksum.
 @return true if the log block checksum is OK, false otherwise.  */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 static
 bool
 log_online_is_valid_log_seg(
@@ -984,7 +984,7 @@ log_online_parse_redo_log_block(
 
 /*********************************************************************//**
 Read and parse one redo log chunk and updates the modified page bitmap. */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 static
 bool
 log_online_follow_log_seg(
@@ -1052,7 +1052,7 @@ log_online_follow_log_seg(
 /*********************************************************************//**
 Read and parse the redo log in a given group in FOLLOW_SCAN_SIZE-sized
 chunks and updates the modified page bitmap. */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 static
 bool
 log_online_follow_log_group(

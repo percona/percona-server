@@ -45,7 +45,7 @@ block.
 bool
 log_block_checksum_is_ok(
 	const byte*	block)	/*!< in: pointer to a log block */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*******************************************************//**
 Calculates the new value for lsn when more data is added to the log. */
@@ -74,7 +74,7 @@ recv_read_checkpoint_info_for_backup(
 	lsn_t*		first_header_lsn)
 				/*!< out: lsn of of the start of the
 				first log file */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
@@ -249,7 +249,7 @@ recv_get_fil_addr_struct(
 /*=====================*/
 	ulint	space,	/*!< in: space id */
 	ulint	page_no)/*!< in: page number */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_HOTBACKUP
 /*******************************************************************//**

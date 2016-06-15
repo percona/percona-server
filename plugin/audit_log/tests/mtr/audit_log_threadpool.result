@@ -7,4 +7,4 @@ select '1more';
 1more
 1more
 set global audit_log_flush= ON;
-1 connects, 1 disconnects
+1 connects, 2 disconnects

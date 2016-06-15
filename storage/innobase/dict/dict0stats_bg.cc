@@ -397,7 +397,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(dict_stats_thread)(
 /*==============================*/
-	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
 	ut_a(!srv_read_only_mode);
@@ -434,14 +434,6 @@ DECLARE_THREAD(dict_stats_thread)(
 		if (dict_stats_start_shutdown) {
 			break;
 		}
-
-#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
-		if (srv_ibuf_disable_background_merge) {
-			usleep(100000);
-			os_event_reset(dict_stats_event);
-			continue;
-		}
-#endif
 
 		dict_stats_process_entry_from_recalc_pool();
 

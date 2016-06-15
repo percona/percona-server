@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,7 @@ buf_buddy_alloc(
 	ulint		size)		/*!< in: compressed page size
 					(between UNIV_ZIP_SIZE_MIN and
 					UNIV_PAGE_SIZE) */
-	__attribute__((malloc, nonnull));
+	MY_ATTRIBUTE((malloc, nonnull));
 
 /**********************************************************************//**
 Deallocate a block. */
@@ -63,7 +63,7 @@ buf_buddy_free(
 					be pointed to by the buffer pool */
 	ulint		size)		/*!< in: block size,
 					up to UNIV_PAGE_SIZE */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /** Try to reallocate a block.
 @param[in]	buf_pool	buffer pool instance

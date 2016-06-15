@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -50,7 +50,7 @@ extern ibool		buf_dblwr_being_created;
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page.
 @return true if successful, false if not. */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool
 buf_dblwr_create(void);
 /*==================*/
@@ -62,7 +62,7 @@ upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 buf_dblwr_init_or_load_pages(
 	os_file_t	file,
@@ -135,7 +135,7 @@ buf_dblwr_write_single_page(
 /** Return the doublewrite partition number for a given buffer page and flush
 type.
 @return the doublewrite partition number */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 UNIV_INLINE
 ulint
 buf_parallel_dblwr_partition(const buf_page_t* bpage, buf_flush_t flush_type);
@@ -143,7 +143,7 @@ buf_parallel_dblwr_partition(const buf_page_t* bpage, buf_flush_t flush_type);
 /** Return the doublewrite partition number for a given buffer pool and flush
 type.
 @return the doublewrite partition number */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 UNIV_INLINE
 ulint
 buf_parallel_dblwr_partition(const buf_pool_t* buf_pool,
@@ -152,7 +152,7 @@ buf_parallel_dblwr_partition(const buf_pool_t* buf_pool,
 /** Initialize parallel doublewrite subsystem: create its data structure and
 the disk file.
 @return DB_SUCCESS or error code */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 buf_parallel_dblwr_create(void);
 

@@ -236,7 +236,7 @@ row_sel_sec_rec_is_for_clust_rec(
 					row, v_col, clust_index,
 					&heap, NULL, NULL,
 					thr_get_trx(thr)->mysql_thd,
-					thr->prebuilt->m_mysql_table);
+					thr->prebuilt->m_mysql_table, NULL);
 
 			clust_len = vfield->len;
 			clust_field = static_cast<byte*>(vfield->data);
@@ -740,7 +740,7 @@ sel_enqueue_prefetched_row(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_sel_build_prev_vers(
 /*====================*/
@@ -875,7 +875,7 @@ row_sel_test_other_conds(
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_sel_get_clust_rec(
 /*==================*/
@@ -1567,7 +1567,7 @@ func_exit:
 /*********************************************************************//**
 Performs a select step.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_sel(
 /*====*/
@@ -3041,7 +3041,7 @@ row_sel_field_store_in_mysql_format_func(
 #endif /* UNIV_DEBUG */
 /**************************************************************//**
 Convert a field in the Innobase format to a field in the MySQL format. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_sel_store_mysql_field_func(
 /*===========================*/
@@ -3200,7 +3200,7 @@ Note that the template in prebuilt may advise us to copy only a few
 columns to mysql_rec, other columns are left blank. All columns may not
 be needed in the query.
 @return TRUE on success, FALSE if not all columns could be retrieved */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 row_sel_store_mysql_rec(
 /*====================*/
@@ -3286,7 +3286,7 @@ row_sel_store_mysql_rec(
 					&heap, prebuilt->blob_heap,
 					NULL,
 					thr_get_trx(thr)->mysql_thd,
-					prebuilt->m_mysql_table);
+					prebuilt->m_mysql_table, NULL);
 			}
 
 			if (dfield->len == UNIV_SQL_NULL) {
@@ -3355,7 +3355,7 @@ row_sel_store_mysql_rec(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_sel_build_prev_vers_for_mysql(
 /*==============================*/
@@ -3394,7 +3394,7 @@ Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_sel_get_clust_rec_for_mysql(
 /*============================*/

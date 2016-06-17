@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,6 +38,25 @@ mysqld_multi \- manage multiple MySQL servers
 is designed to manage several
 \fBmysqld\fR
 processes that listen for connections on different Unix socket files and TCP/IP ports\&. It can start or stop servers, or report their current status\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+For MySQL installation using an RPM distribution, server startup and shutdown is managed by systemd on several Linux platforms\&. On these platforms,
+\fBmysqld_multi\fR
+is no longer installed because it is unnecessary\&. For more information, see
+Section\ \&2.5.10, \(lqManaging MySQL Server with systemd\(rq\&.
+.sp .5v
+.RE
 .PP
 \fBmysqld_multi\fR
 searches for groups named
@@ -56,7 +75,7 @@ to specify which servers you want to start, stop, or obtain a status report for\
 group used for starting
 \fBmysqld\fR\&. (See, for example,
 Section\ \&2.10.5, \(lqStarting and Stopping MySQL Automatically\(rq\&.) However, when using multiple servers, it is necessary that each one use its own value for options such as the Unix socket file and TCP/IP port number\&. For more information on which options must be unique per server in a multiple\-server environment, see
-Section\ \&5.5, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
+Section\ \&6.6, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
 .PP
 To invoke
 \fBmysqld_multi\fR, use the following syntax:
@@ -433,7 +452,7 @@ servers with the same data directory\&. Use separate data directories, unless yo
 what you are doing\&. Starting multiple servers with the same data directory does
 \fInot\fR
 give you extra performance in a threaded system\&. See
-Section\ \&5.5, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
+Section\ \&6.6, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
 .RE
 .sp
 .RS 4
@@ -465,7 +484,7 @@ use the Unix
 account for this, unless you
 \fIknow\fR
 what you are doing\&. See
-Section\ \&6.1.5, \(lqHow to Run MySQL as a Normal User\(rq\&.
+Section\ \&7.1.5, \(lqHow to Run MySQL as a Normal User\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -502,7 +521,7 @@ mysql> \fBGRANT SHUTDOWN ON *\&.* TO \*(Aqmulti_admin\*(Aq@\*(Aqlocalhost\*(Aq;\
 .\}
 .sp
 See
-Section\ \&6.2, \(lqThe MySQL Access Privilege System\(rq\&. You have to do this for each
+Section\ \&7.2, \(lqThe MySQL Access Privilege System\(rq\&. You have to do this for each
 \fBmysqld\fR
 server\&. Change the connection parameters appropriately when connecting to each one\&. Note that the host name part of the account name must permit you to connect as
 multi_admin
@@ -653,7 +672,7 @@ user       = unix_user4
 .\}
 .PP
 See
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

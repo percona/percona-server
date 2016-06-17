@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/22/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "03/22/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "05/25/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -464,6 +464,10 @@ Run the
 server used for bootstrapping the database through the
 \fBgdb\fR
 debugger\&. This option is available from MySQL 5\&.5\&.17\&.
+.sp
+See also the
+\fB\-\-manual\-boot\-gdb\fR
+option\&.
 .RE
 .sp
 .RS 4
@@ -1151,6 +1155,21 @@ EXPLAIN FORMAT=JSON
 on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&. The
 json\-explain\-protocol
 option is available from MySQL 5\&.6\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-manual\-boot\-gdb\fR
+.sp
+This option is similar to
+\fB\-\-boot\-gdb\fR
+but attaches the debugger to the server during the bootstrapping process, permitting the use of a remote debugger\&. This option is available from MySQL 5\&.7\&.14\&.
 .RE
 .sp
 .RS 4

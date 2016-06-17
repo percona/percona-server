@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -167,7 +167,7 @@ buf_dblwr_init(
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page.
 @return true if successful, false if not. */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool
 buf_dblwr_create(void)
 /*==================*/
@@ -338,7 +338,7 @@ start_again:
 }
 
 /** Compute the path to the parallel doublewrite buffer, if not already done */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 static
 dberr_t
 buf_parallel_dblwr_make_path(void)
@@ -1479,7 +1479,7 @@ retry:
 /** Compute the size and path of the parallel doublewrite buffer, create it,
 and disable OS caching for it
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 buf_parallel_dblwr_file_create(void)
 {

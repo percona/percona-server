@@ -2,8 +2,6 @@
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
-# Disable this test under Valgrind until http://bugs.mysql.com/bug.php?id=78999 is fixed
---source include/not_valgrind.inc
 
 call mtr.add_suppression("Slave:*");
 

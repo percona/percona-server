@@ -25,7 +25,7 @@ Inline definitions for the doublewrite buffer
 
 /** Return the number of partitions in the parallel doublewrite buffer
 @return number of parallel doublewrite partitions */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 UNIV_INLINE
 ulint
 buf_parallel_dblwr_shard_num(void)
@@ -38,7 +38,7 @@ buf_parallel_dblwr_shard_num(void)
 /** Return the doublewrite partition number for a given buffer pool and flush
 type.
 @return the doublewrite partition number */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 UNIV_INLINE
 ulint
 buf_parallel_dblwr_partition(ulint instance_no, buf_flush_t flush_type)
@@ -53,7 +53,7 @@ buf_parallel_dblwr_partition(ulint instance_no, buf_flush_t flush_type)
 /** Return the doublewrite partition number for a given buffer page and flush
 type.
 @return the doublewrite partition number */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 UNIV_INLINE
 ulint
 buf_parallel_dblwr_partition(const buf_page_t* bpage, buf_flush_t flush_type)
@@ -65,7 +65,7 @@ buf_parallel_dblwr_partition(const buf_page_t* bpage, buf_flush_t flush_type)
 /** Return the doublewrite partition number for a given buffer pool and flush
 type.
 @return the doublewrite partition number */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 UNIV_INLINE
 ulint
 buf_parallel_dblwr_partition(const buf_pool_t* buf_pool,

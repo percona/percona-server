@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/28/2016
+.\"      Date: 05/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "03/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -41,8 +41,8 @@ that describe modifications to database contents\&. The server writes these file
 utility\&. You can also use
 \fBmysqlbinlog\fR
 to display the contents of relay log files written by a slave server in a replication setup because relay logs have the same format as binary logs\&. The binary log and relay log are discussed further in
-Section\ \&5.4.4, \(lqThe Binary Log\(rq, and
-Section\ \&17.2.4, \(lqReplication Relay and Status Logs\(rq\&.
+Section\ \&6.4.4, \(lqThe Binary Log\(rq, and
+Section\ \&18.2.4, \(lqReplication Relay and Status Logs\(rq\&.
 .PP
 Invoke
 \fBmysqlbinlog\fR
@@ -73,7 +73,7 @@ shell> \fBmysqlbinlog binlog\&.0000003\fR
 .PP
 The output includes events contained in
 binlog\&.000003\&. For statement\-based logging, event information includes the SQL statement, the ID of the server on which it was executed, the timestamp when the statement was executed, how much time it took, and so forth\&. For row\-based logging, the event indicates a row change rather than an SQL statement\&. See
-Section\ \&17.2.1, \(lqReplication Formats\(rq, for information about logging modes\&.
+Section\ \&18.2.1, \(lqReplication Formats\(rq, for information about logging modes\&.
 .PP
 Events are preceded by header comments that provide additional information\&. For example:
 .sp
@@ -127,7 +127,7 @@ The output from
 \fBmysqlbinlog\fR
 can be re\-executed (for example, by using it as input to
 \fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after a server crash\&. For other usage examples, see the discussion later in this section and in
-Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
+Section\ \&8.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
 .PP
 Normally, you use
 \fBmysqlbinlog\fR
@@ -157,7 +157,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -344,7 +344,7 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&11.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -583,7 +583,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&7.3.8, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -900,7 +900,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&7.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -918,7 +918,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlbinlog\fR
 does not find it\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&7.3.8, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -959,7 +959,7 @@ Print the program name and all options that it gets from option files\&.
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+Section\ \&5.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1174,7 +1174,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them is removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
-Section\ \&6.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&7.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -1321,7 +1321,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.3.11.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&7.3.11.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1356,7 +1356,7 @@ shell> \fBmysqlbinlog \-\-start\-datetime="2005\-12\-25 11:25:56" binlog\&.00000
 .\}
 .sp
 This option is useful for point\-in\-time recovery\&. See
-Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&8.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1374,7 +1374,7 @@ Start reading the binary log at the first event having a position equal to or gr
 \fIN\fR\&. This option applies to the first log file named on the command line\&.
 .sp
 This option is useful for point\-in\-time recovery\&. See
-Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&8.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1396,7 +1396,7 @@ option for information about the
 value\&.
 .sp
 This option is useful for point\-in\-time recovery\&. See
-Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&8.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1462,7 +1462,7 @@ Stop reading the binary log at the first event having a position equal to or gre
 \fIN\fR\&. This option applies to the last log file named on the command line\&.
 .sp
 This option is useful for point\-in\-time recovery\&. See
-Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
+Section\ \&8.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1476,7 +1476,7 @@ Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.3.11.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+Section\ \&7.3.11.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE
@@ -1585,7 +1585,7 @@ You can pipe the output of
 into the
 \fBmysql\fR
 client to execute the events contained in the binary log\&. This technique is used to recover from a crash when you have an old backup (see
-Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq)\&. For example:
+Section\ \&8.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq)\&. For example:
 .sp
 .if n \{\
 .RS 4
@@ -1721,7 +1721,7 @@ statements (that is, it adds
 LOCAL), both the client and the server that you use to process the statements must be configured with the
 LOCAL
 capability enabled\&. See
-Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq\&.
+Section\ \&7.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq\&.
 .if n \{\
 .sp
 .\}

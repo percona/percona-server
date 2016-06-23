@@ -810,14 +810,20 @@ retry:
 				<< ib::hex(space->flags) << ")!";
 		}
 
-		if (space->flags != flags) {
+		/* Validate the flags but do not compare the data directory
+		flag, in case this tablespace was relocated. */
+		const unsigned relevant_space_flags
+			= space->flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		const unsigned relevant_flags
+			= flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		if (UNIV_UNLIKELY(relevant_space_flags != relevant_flags)) {
 
 			ib::fatal()
 				<< "Table flags are "
-				<< ib::hex(space->flags) << " in the data"
-				" dictionary but the flags in file "
-				<< node->name << " are " << ib::hex(flags)
-				<< "!";
+				<< ib::hex(relevant_space_flags) << " in the "
+				"data dictionary but the flags in file "
+				<< node->name << " are "
+				<< ib::hex(relevant_flags) << "!";
 		}
 
 		{

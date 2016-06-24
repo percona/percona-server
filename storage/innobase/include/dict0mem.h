@@ -182,7 +182,7 @@ allows InnoDB to update_create_info() accordingly. */
 #define DICT_TF_HAS_ATOMIC_BLOBS(flags)			\
 		((flags & DICT_TF_MASK_ATOMIC_BLOBS)	\
 		>> DICT_TF_POS_ATOMIC_BLOBS)
-/** Return the value of the ATOMIC_BLOBS field */
+/** Return the value of the DATA_DIR field */
 #define DICT_TF_HAS_DATA_DIR(flags)			\
 		((flags & DICT_TF_MASK_DATA_DIR)	\
 		>> DICT_TF_POS_DATA_DIR)

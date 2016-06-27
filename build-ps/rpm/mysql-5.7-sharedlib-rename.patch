@@ -246,13 +246,19 @@ diff -rup old/libmysql/libmysql.map new/libmysql/libmysql.map
 diff -rup old/libmysql/libmysql.ver.in new/libmysql/libmysql.ver.in
 --- old/libmysql/libmysql.ver.in	2016-03-09 09:25:21.000000000 +0100
 +++ new/libmysql/libmysql.ver.in	2016-03-09 11:41:15.159325622 +0100
-@@ -14,5 +14,5 @@
+@@ -13,9 +13,8 @@
+    along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
  
- 
+-
 -libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.0
++libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
+ { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_0}; local: *; };
+
+-libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.3
+-{ ${CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_3}; } libperconaserverclient_@SHARED_LIB_MAJOR_VERSION@.0;
 +libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.@SHARED_LIB_MINOR_VERSION@
- { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; local: *; };
++{ ${CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_3}; } libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0;
 diff -rup old/plugin/percona-pam-for-mysql/CMakeLists.txt new/plugin/percona-pam-for-mysql/CMakeLists.txt
 --- old/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-03-09 09:25:25.000000000 +0100
 +++ new/plugin/percona-pam-for-mysql/CMakeLists.txt	2016-03-09 11:41:15.163325622 +0100

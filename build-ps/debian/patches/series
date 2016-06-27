@@ -20,4 +20,4 @@
 # http://dev.mysql.com/doc/mysql/en/server-system-variables.html
 
 #fix-man-page-links.patch
-fix-mtr-search-paths.patch
+#fix-mtr-search-paths.patch

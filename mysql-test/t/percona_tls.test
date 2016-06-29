@@ -1,0 +1,20 @@
+--echo #
+--echo # Percona tests for TLS
+--echo #
+
+--echo # Test that tls-version on server only works
+
+--let $restart_parameters= restart:--tls-version="TLSv1,TLSv1.1"
+--source include/restart_mysqld.inc
+
+--echo # Only TLSv1 and TLSv1.1 allowed
+--exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
+
+--let $restart_parameters= restart:--tls-version="TLSv1"
+--source include/restart_mysqld.inc
+
+--echo # Only TLSv1 allowed
+--exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_version'"
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

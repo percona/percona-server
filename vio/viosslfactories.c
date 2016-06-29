@@ -547,11 +547,26 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
     NOTE: SSL_CTX_set_cipher_list will return 0 if
     none of the provided ciphers could be selected
   */
+  DBUG_ASSERT(strlen(tls_cipher_blocked) + 1 <= sizeof(cipher_list));
   strcat(cipher_list, tls_cipher_blocked);
   if (cipher)
+  {
+    if (strlen(cipher_list) + strlen(cipher) + 1 > sizeof(cipher_list))
+    {
+      *error= SSL_INITERR_CIPHERS;
+      DBUG_PRINT("error", ("User specified cipher too long"));
+      SSL_CTX_free(ssl_fd->ssl_context);
+      my_free(ssl_fd);
+      DBUG_RETURN(0);
+    }
     strcat(cipher_list, cipher);
+  }
   else
+  {
+    DBUG_ASSERT(strlen(cipher_list) + strlen(tls_ciphers_list) + 1
+                <= sizeof(cipher_list));
     strcat(cipher_list, tls_ciphers_list);
+  }
 
   if (ret_set_cipherlist == SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher_list))
   {

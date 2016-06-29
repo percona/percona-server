@@ -310,6 +310,7 @@ extern ulint	srv_log_buffer_size;
 extern uint	srv_flush_log_at_timeout;
 
 enum { DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE = 8 * 1024L };
+enum { MAX_SRV_LOG_WRITE_AHEAD_SIZE = UNIV_PAGE_SIZE_DEF };
 
 extern ulong	srv_log_write_ahead_size;
 extern char	srv_use_global_flush_log_at_trx_commit;

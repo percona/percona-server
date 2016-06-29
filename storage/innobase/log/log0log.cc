@@ -262,9 +262,10 @@ log_buffer_extend(
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(log_sys->buf_size * 2 + srv_log_write_ahead_size));
+		ut_zalloc_nokey(log_sys->buf_size * 2
+				+ MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 	log_sys->buf = static_cast<byte*>(
-		ut_align(log_sys->buf_ptr, srv_log_write_ahead_size));
+		ut_align(log_sys->buf_ptr, MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	log_sys->first_in_use = true;
 
@@ -875,9 +876,10 @@ log_init(void)
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
 	log_sys->buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(log_sys->buf_size * 2 + srv_log_write_ahead_size));
+		ut_zalloc_nokey(log_sys->buf_size * 2
+				+ MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 	log_sys->buf = static_cast<byte*>(
-		ut_align(log_sys->buf_ptr, srv_log_write_ahead_size));
+		ut_align(log_sys->buf_ptr, MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	log_sys->first_in_use = true;
 
@@ -905,10 +907,12 @@ log_init(void)
 		SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(OS_FILE_LOG_BLOCK_SIZE + srv_log_write_ahead_size));
+		ut_zalloc_nokey(OS_FILE_LOG_BLOCK_SIZE
+				+ MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	log_sys->checkpoint_buf = static_cast<byte*>(
-		ut_align(log_sys->checkpoint_buf_ptr, srv_log_write_ahead_size));
+		ut_align(log_sys->checkpoint_buf_ptr,
+			 MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	/*----------------------------*/
 
@@ -959,18 +963,20 @@ log_group_init(
 	for (i = 0; i < n_files; i++) {
 		group->file_header_bufs_ptr[i] = static_cast<byte*>(
 			ut_zalloc_nokey(LOG_FILE_HDR_SIZE
-					+ srv_log_write_ahead_size));
+					+ MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 		group->file_header_bufs[i] = static_cast<byte*>(
 			ut_align(group->file_header_bufs_ptr[i],
-				 srv_log_write_ahead_size));
+				 MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 	}
 
 	group->checkpoint_buf_ptr = static_cast<byte*>(
-		ut_zalloc_nokey(OS_FILE_LOG_BLOCK_SIZE + srv_log_write_ahead_size));
+		ut_zalloc_nokey(OS_FILE_LOG_BLOCK_SIZE +
+				MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	group->checkpoint_buf = static_cast<byte*>(
-		ut_align(group->checkpoint_buf_ptr,srv_log_write_ahead_size));
+		ut_align(group->checkpoint_buf_ptr,
+			 MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	UT_LIST_ADD_LAST(log_sys->log_groups, group);
 
@@ -1247,13 +1253,13 @@ log_buffer_switch()
 						 OS_FILE_LOG_BLOCK_SIZE);
 
 	if (log_sys->first_in_use) {
-		ut_ad(log_sys->buf == ut_align(log_sys->buf_ptr,
-					       srv_log_write_ahead_size));
+		ut_ad((reinterpret_cast<uintptr_t>(log_sys->buf)
+		       % srv_log_write_ahead_size) == 0);
 		log_sys->buf += log_sys->buf_size;
 	} else {
 		log_sys->buf -= log_sys->buf_size;
-		ut_ad(log_sys->buf == ut_align(log_sys->buf_ptr,
-					       srv_log_write_ahead_size));
+		ut_ad((reinterpret_cast<uintptr_t>(log_sys->buf)
+		       % srv_log_write_ahead_size) == 0);
 	}
 
 	log_sys->first_in_use = !log_sys->first_in_use;

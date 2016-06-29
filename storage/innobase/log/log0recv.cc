@@ -934,10 +934,11 @@ recv_sys_init(
 	recv_sys->apply_batch_on = FALSE;
 
 	recv_sys->last_block_buf_start = static_cast<byte*>(
-		ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE + srv_log_write_ahead_size));
+		ut_malloc_nokey(OS_FILE_LOG_BLOCK_SIZE
+				+ MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	recv_sys->last_block = static_cast<byte*>(ut_align(
-		recv_sys->last_block_buf_start, srv_log_write_ahead_size));
+		recv_sys->last_block_buf_start, MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	recv_sys->found_corrupt_log = false;
 	recv_sys->found_corrupt_fs = false;
@@ -3989,9 +3990,11 @@ recv_recovery_from_checkpoint_start(
 	const page_id_t	page_id(max_cp_group->space_id, 0);
 
 	byte* log_hdr_buf_unalign = static_cast<byte*>(ut_malloc_nokey(
-				LOG_FILE_HDR_SIZE + srv_log_write_ahead_size));
+				LOG_FILE_HDR_SIZE
+				+ MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 	log_hdr_buf = static_cast<byte*>(ut_align(
-				log_hdr_buf_unalign, srv_log_write_ahead_size));
+				log_hdr_buf_unalign,
+				MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	fil_io(IORequestLogRead, true, page_id, univ_page_size, 0,
 	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);

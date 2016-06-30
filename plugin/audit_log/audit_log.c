@@ -22,6 +22,8 @@
 #include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
+#include <mysql/service_security_context.h>
+#include <mysqld_error.h>
 #include <typelib.h>
 #include <mysql_version.h>
 #include <mysql_com.h>
@@ -801,32 +803,50 @@ int is_event_class_allowed_by_policy(mysql_event_class_t class,
 
 
 static
-void audit_log_update_thd_local(audit_log_thd_local *local,
-                                unsigned int event_class,
-                                const void *event)
+my_bool audit_log_update_thd_local(MYSQL_THD thd,
+                                   audit_log_thd_local *local,
+                                   unsigned int event_class)
 {
   DBUG_ASSERT(audit_log_include_accounts == NULL ||
               audit_log_exclude_accounts == NULL);
 
   if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
   {
-    const struct mysql_event_connection *event_connection=
-      (const struct mysql_event_connection *) event;
+    LEX_STRING priv_user, priv_host;
+    MYSQL_SECURITY_CONTEXT ctx;
+
+    if (thd_get_security_context(thd, &ctx))
+    {
+      my_message(ER_AUDIT_API_ABORT, "Error: can not get security context",
+                 MYF(0));
+      return FALSE;
+    }
+
+    if (security_context_get_option(ctx, "priv_user", &priv_user))
+    {
+      my_message(ER_AUDIT_API_ABORT, "Error: can not get priv_user from "
+                 "security context", MYF(0));
+      return FALSE;
+    }
+
+    if (security_context_get_option(ctx, "priv_host", &priv_host))
+    {
+      my_message(ER_AUDIT_API_ABORT, "Error: can not get priv_host from "
+                 "security context", MYF(0));
+      return FALSE;
+    }
 
     local->skip_logging= FALSE;
     if (audit_log_include_accounts != NULL &&
-        !audit_log_check_account_included(event_connection->user.str,
-                                          event_connection->user.length,
-                                          event_connection->host.str,
-                                          event_connection->host.length))
+        !audit_log_check_account_included(priv_user.str, priv_user.length,
+                                          priv_host.str, priv_host.length))
       local->skip_logging= TRUE;
     if (audit_log_exclude_accounts != NULL &&
-        audit_log_check_account_excluded(event_connection->user.str,
-                                         event_connection->user.length,
-                                         event_connection->host.str,
-                                         event_connection->host.length))
+        audit_log_check_account_excluded(priv_user.str, priv_user.length,
+                                         priv_host.str, priv_host.length))
       local->skip_logging= TRUE;
   }
+  return TRUE;
 }
 
 
@@ -841,7 +861,8 @@ int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
   size_t len, buflen;
   audit_log_thd_local *local= get_thd_local(thd);
 
-  audit_log_update_thd_local(local, event_class, event);
+  if (!audit_log_update_thd_local(thd, local, event_class))
+    return 1;
 
   if (!is_event_class_allowed_by_policy(event_class, audit_log_policy))
     return 0;

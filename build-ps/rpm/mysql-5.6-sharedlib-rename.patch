@@ -101,7 +101,7 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
    # and link them together into shared library.
    MERGE_LIBRARIES(libmysql SHARED ${LIBS}
      EXPORTS ${CLIENT_API_FUNCTIONS}
-@@ -229,9 +229,9 @@ IF(NOT DISABLE_SHARED)
+@@ -229,9 +229,9 @@
        SET(OS_SHARED_LIB_VERSION
          "${SHARED_LIB_MAJOR_VERSION}.${SHARED_LIB_MINOR_VERSION}.0")
      ENDIF()
@@ -109,10 +109,10 @@ diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
 +    # Name of shared library is mysqlclient on Unix
      SET_TARGET_PROPERTIES(libmysql PROPERTIES 
 -      OUTPUT_NAME perconaserverclient 
-+      OUTPUT_NAME mysqlclient 
++      OUTPUT_NAME mysqlclient
        VERSION "${OS_SHARED_LIB_VERSION}" 
        SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+     IF(WITH_SYMVER16)
 @@ -254,13 +254,13 @@ IF(NOT DISABLE_SHARED)
          PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
      ENDIF() 

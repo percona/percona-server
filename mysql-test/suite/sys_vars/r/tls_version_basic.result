@@ -1,0 +1,3 @@
+SELECT @@tls_version;
+@@tls_version
+TLSv1.1,TLSv1.2

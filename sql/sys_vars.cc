@@ -2286,6 +2286,20 @@ static Sys_var_charptr Sys_ssl_key(
        READ_ONLY GLOBAL_VAR(opt_ssl_key), SSL_OPT(OPT_SSL_KEY),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_charptr Sys_tls_version(
+       "tls_version",
+       "TLS version, permitted values are TLSv1, TLSv1.1, and TLSv1.2, "
+       "depending on SSL library support",
+       READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
+       IN_FS_CHARSET,
+#ifdef SSL_OP_NO_TLSv1_2
+       "TLSv1.1,TLSv1.2");
+#elif defined(SSL_OP_NO_TLSv1_1)
+       "TLSv1.1");
+#else
+       "TLSv1");
+#endif
+
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[]= {"NO", "YES", 0};
 static Sys_var_enum Sys_updatable_views_with_limit(
@@ -3249,6 +3263,10 @@ static Sys_var_have Sys_have_symlink(
 static Sys_var_have Sys_have_flashcache(
        "have_flashcache", "have_flashcache",
        READ_ONLY GLOBAL_VAR(have_flashcache), NO_CMD_LINE);
+
+static Sys_var_have Sys_have_tlsv1_2(
+       "have_tlsv1_2", "have_tlsv1_2",
+       READ_ONLY GLOBAL_VAR(have_tlsv1_2), NO_CMD_LINE);
 
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type);
 static Sys_var_mybool Sys_general_log(

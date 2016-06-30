@@ -1,0 +1,10 @@
+#
+# Percona tests for TLS
+#
+# Test that tls-version on server only works
+# Only TLSv1 and TLSv1.1 allowed
+Variable_name	Value
+Ssl_version	TLSv1.1
+# Only TLSv1 allowed
+Variable_name	Value
+Ssl_version	TLSv1

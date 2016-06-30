@@ -1,0 +1,4 @@
+# A read-only, global-only variable
+--source include/have_tlsv1_2.inc
+
+SELECT @@tls_version;

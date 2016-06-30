@@ -324,6 +324,7 @@ extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_flashcache;
+extern SHOW_COMP_OPTION have_tlsv1_2;
 
 /*
   Prototypes for helper functions

@@ -20472,8 +20472,8 @@ static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
   "Redo log write ahead unit size to avoid read-on-write,"
   " it should match the OS cache block IO size",
   NULL, innodb_log_write_ahead_size_update,
-  DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE, OS_FILE_LOG_BLOCK_SIZE, UNIV_PAGE_SIZE_DEF,
-  OS_FILE_LOG_BLOCK_SIZE);
+  DEFAULT_SRV_LOG_WRITE_AHEAD_SIZE, OS_FILE_LOG_BLOCK_SIZE,
+  MAX_SRV_LOG_WRITE_AHEAD_SIZE, OS_FILE_LOG_BLOCK_SIZE);
 
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,

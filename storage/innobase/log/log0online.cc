@@ -623,10 +623,11 @@ log_online_read_init(void)
 	log_bmp_sys = static_cast<log_bitmap_struct *>
 		(ut_malloc(sizeof(*log_bmp_sys), mem_key_log_online_sys));
 	log_bmp_sys->read_buf_ptr = static_cast<byte *>
-		(ut_malloc(FOLLOW_SCAN_SIZE + srv_log_write_ahead_size,
+		(ut_malloc(FOLLOW_SCAN_SIZE + MAX_SRV_LOG_WRITE_AHEAD_SIZE,
 			   mem_key_log_online_read_buf));
 	log_bmp_sys->read_buf = static_cast<byte *>
-		(ut_align(log_bmp_sys->read_buf_ptr, srv_log_write_ahead_size));
+		(ut_align(log_bmp_sys->read_buf_ptr,
+			  MAX_SRV_LOG_WRITE_AHEAD_SIZE));
 
 	mutex_create(LATCH_ID_LOG_ONLINE, &log_bmp_sys->mutex);
 

@@ -10,7 +10,7 @@ This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
   * ``TRANSACTION`` section was moved to the end of the output, so that important information is not overlooked when the there is a large amount of it.
 
-  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information presented (bugfix for `#29123 <http://bugs.mysql.com/bug.php?id=29126>`_):
+  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information presented (bugfix for upstream bug :mysqlbug:`29126`):
 
     * :variable:`innodb_show_verbose_locks` - Whether to show records locked
 

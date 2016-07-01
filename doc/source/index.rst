@@ -101,6 +101,7 @@ Flexibility Improvements
    flexibility/mysqlbinlog_change_db
    flexibility/slowlog_rotation
    flexibility/csv_engine_mode
+   flexibility/extended_tls_support
 
 Reliability Improvements
 ========================

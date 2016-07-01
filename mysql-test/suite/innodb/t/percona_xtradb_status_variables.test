@@ -1,0 +1,60 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Test extra XtraDB status variables
+--echo #
+
+SET @saved_innodb_adaptive_hash_index = @@GLOBAL.innodb_adaptive_hash_index;
+
+DELIMITER |;
+CREATE FUNCTION test_memory_accounting(status_var VARCHAR(100), iht_name VARCHAR(100)) RETURNS BOOL
+BEGIN
+  DECLARE pfs_status_var, xiht_const_mem, xiht_var_mem, xiht_mem INT;
+  SELECT VARIABLE_VALUE INTO @pfs_status_var FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+         WHERE VARIABLE_NAME LIKE status_var;
+  SELECT CONSTANT_MEMORY, VARIABLE_MEMORY, TOTAL_MEMORY INTO @xiht_const_mem, @xiht_var_mem, @xiht_mem
+         FROM INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES
+         WHERE INTERNAL_HASH_TABLE_NAME LIKE iht_name;
+  RETURN (@xiht_const_mem > 0) AND (@xiht_var_mem > 0)
+         AND (@xiht_const_mem + @xiht_var_mem = @xiht_mem)
+         AND (@pfs_status_var = @xiht_mem);
+END|
+
+CREATE FUNCTION test_ahi_memory() RETURNS BOOL
+BEGIN
+  RETURN test_memory_accounting("innodb_mem_adaptive_hash", "Adaptive hash index");
+END|
+
+CREATE FUNCTION test_dd_memory() RETURNS BOOL
+BEGIN
+  RETURN test_memory_accounting("innodb_mem_dictionary", "Dictionary Cache");
+END|
+DELIMITER ;|
+
+SET GLOBAL innodb_adaptive_hash_index = ON;
+
+--let $assert_text= innodb_mem_adaptive_hash and I_S.XTRADB_INTERNAL_HASH_TABLES must be consistent
+--let $assert_cond= test_ahi_memory() = TRUE
+--source include/assert.inc
+
+--let $assert_text= innodb_mem_dictionary and I_S.XTRADB_INTERNAL_HASH_TABLES must be consistent
+--let $assert_cond= test_dd_memory() = TRUE
+--source include/assert.inc
+
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+
+--let $assert_text= innodb_mem_adaptive_hash and I_S.XTRADB_INTERNAL_HASH_TABLES must be consistent
+--let $assert_cond= test_ahi_memory() = TRUE
+--source include/assert.inc
+
+SET GLOBAL innodb_adaptive_hash_index = ON;
+
+--let $assert_text= innodb_mem_adaptive_hash and I_S.XTRADB_INTERNAL_HASH_TABLES must be consistent
+--let $assert_cond= test_ahi_memory() = TRUE
+--source include/assert.inc
+
+SET GLOBAL innodb_adaptive_hash_index = @saved_innodb_adaptive_hash_index;
+
+DROP FUNCTION test_ahi_memory;
+DROP FUNCTION test_dd_memory;
+DROP FUNCTION test_memory_accounting;

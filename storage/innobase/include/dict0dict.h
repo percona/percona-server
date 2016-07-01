@@ -289,7 +289,7 @@ ulint
 dict_col_get_index_pos(
 	const dict_col_t*	col,
 	const dict_index_t*	index)
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
@@ -1709,6 +1709,8 @@ struct dict_sys_t{
 					on name */
 	hash_table_t*	table_id_hash;	/*!< hash table of the tables, based
 					on id */
+	size_t		hash_size;	/*!< size of table_hash and
+					table_id_hash combined */
 	lint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
@@ -1849,7 +1851,8 @@ dict_set_corrupted(
 /*===============*/
 	dict_index_t*	index,	/*!< in/out: index */
 	trx_t*		trx,	/*!< in/out: transaction */
-	const char*	ctx);	/*!< in: context */
+	const char*	ctx)	/*!< in: context */
+	UNIV_COLD;
 
 /** Flags an index corrupted in the data dictionary cache only. This
 is used mostly to mark a corrupted index when index's own dictionary

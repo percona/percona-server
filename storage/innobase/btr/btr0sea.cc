@@ -79,6 +79,13 @@ byte		btr_sea_pad2[64];
 /** The adaptive hash index */
 btr_search_sys_t*	btr_search_sys;
 
+/** The size of the constantly allocated AHI hash tables. Written to under
+protection of all the AHI latches, read without latches. */
+ulint		btr_search_sys_constant_mem;
+/** The size of the memory heaps attached to the AHI hash tables. Accessed
+atomically. */
+ulint		btr_search_sys_variable_mem;
+
 /** If the number of records on the page divided by this parameter
 would have been successfully accessed using a hash index, the index
 is then built on the page, assuming the global limit has been reached */
@@ -99,6 +106,32 @@ btr_search_get_n_fields(
 	ulint	n_bytes)
 {
 	return(n_fields + (n_bytes > 0 ? 1 : 0));
+}
+
+/** Check that AHI memory size variables are maintained correctly */
+static
+void
+btr_search_mem_accounting_validate(void)
+{
+#ifdef UNIV_DEBUG
+	ulint	actual_constant_mem = 0;
+	ulint	actual_variable_mem = 0;
+
+	btr_search_s_lock_all();
+
+	for (ulint i = 0; i < btr_ahi_parts; ++i) {
+		actual_constant_mem
+			+= (hash_get_n_cells(btr_search_sys->hash_tables[i])
+			    * sizeof(*btr_search_sys->hash_tables[i]->array));
+		actual_variable_mem
+			+= mem_heap_get_size(btr_search_sys->hash_tables[i]
+					     ->heap);
+	}
+	ut_ad(actual_constant_mem == btr_search_sys_constant_mem);
+	ut_ad(actual_variable_mem == btr_search_sys_variable_mem);
+
+	btr_search_s_unlock_all();
+#endif
 }
 
 /** Determine the number of accessed key fields.
@@ -165,6 +198,8 @@ btr_search_check_free_space_in_heap(dict_index_t* index)
 		if (btr_search_enabled
 		    && heap->free_block == NULL) {
 			heap->free_block = block;
+			os_atomic_increment_ulint(&btr_search_sys_variable_mem,
+						  UNIV_PAGE_SIZE);
 		} else {
 			buf_block_free(block);
 		}
@@ -202,6 +237,9 @@ btr_search_sys_create(ulint hash_size)
 	btr_search_sys->hash_tables = reinterpret_cast<hash_table_t**>(
 		ut_malloc(sizeof(hash_table_t*) * btr_ahi_parts, mem_key_ahi));
 
+	btr_search_sys_variable_mem = 0;
+	btr_search_sys_constant_mem = 0;
+
 	for (ulint i = 0; i < btr_ahi_parts; ++i) {
 
 		btr_search_sys->hash_tables[i] =
@@ -212,7 +250,16 @@ btr_search_sys_create(ulint hash_size)
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 		btr_search_sys->hash_tables[i]->adaptive = TRUE;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
+		btr_search_sys_constant_mem
+			+= (hash_get_n_cells(btr_search_sys->hash_tables[i])
+			    * sizeof(*btr_search_sys->hash_tables[i]->array));
+		btr_search_sys_variable_mem
+			+= mem_heap_get_size(btr_search_sys->hash_tables[i]
+					     ->heap);
 	}
+
+	btr_search_mem_accounting_validate();
 }
 
 /** Resize hash index hash table.
@@ -234,6 +281,8 @@ btr_search_sys_resize(ulint hash_size)
 	}
 
 	/* Step-2: Recreate hash tables with new size. */
+	ulint new_btr_search_sys_variable_mem = 0;
+	ulint new_btr_search_sys_constant_mem = 0;
 	for (ulint i = 0; i < btr_ahi_parts; ++i) {
 
 		mem_heap_free(btr_search_sys->hash_tables[i]->heap);
@@ -247,10 +296,21 @@ btr_search_sys_resize(ulint hash_size)
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 		btr_search_sys->hash_tables[i]->adaptive = TRUE;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+
+		new_btr_search_sys_constant_mem
+			+= (hash_get_n_cells(btr_search_sys->hash_tables[i])
+			    * sizeof(*btr_search_sys->hash_tables[i]->array));
+		new_btr_search_sys_variable_mem
+			+= mem_heap_get_size(btr_search_sys->hash_tables[i]
+					     ->heap);
 	}
+	btr_search_sys_variable_mem = new_btr_search_sys_variable_mem;
+	btr_search_sys_constant_mem = new_btr_search_sys_constant_mem;
 
 	/* Step-3: Unlock all search latches from exclusive mode. */
 	btr_search_x_unlock_all();
+
+	btr_search_mem_accounting_validate();
 }
 
 /** Frees the adaptive search system at a database shutdown. */
@@ -266,6 +326,9 @@ btr_search_sys_free()
 		hash_table_free(btr_search_sys->hash_tables[i]);
 
 	}
+
+	btr_search_sys_variable_mem = 0;
+	btr_search_sys_constant_mem = 0;
 
 	ut_free(btr_search_sys->hash_tables);
 	ut_free(btr_search_sys);
@@ -351,12 +414,19 @@ btr_search_disable(
 	buf_pool_clear_hash_index();
 
 	/* Clear the adaptive hash index. */
+	ulint new_btr_search_sys_variable_mem = 0;
 	for (ulint i = 0; i < btr_ahi_parts; ++i) {
 		hash_table_clear(btr_search_sys->hash_tables[i]);
 		mem_heap_empty(btr_search_sys->hash_tables[i]->heap);
+		new_btr_search_sys_variable_mem
+			+= mem_heap_get_size(btr_search_sys->hash_tables[i]
+					     ->heap);
 	}
+	btr_search_sys_variable_mem = new_btr_search_sys_variable_mem;
 
 	btr_search_x_unlock_all();
+
+	btr_search_mem_accounting_validate();
 }
 
 /** Enable the adaptive hash search system. */
@@ -370,6 +440,8 @@ btr_search_enable()
 	btr_search_x_lock_all();
 	btr_search_enabled = true;
 	btr_search_x_unlock_all();
+
+	btr_search_mem_accounting_validate();
 }
 
 /** Creates and initializes a search info struct.
@@ -1161,6 +1233,8 @@ btr_search_drop_page_hash_index(buf_block_t* block)
 	ulint*			offsets;
 	rw_lock_t*		latch;
 	btr_search_t*		info;
+	ulint			old_ht_heap_size;
+	ulint			new_ht_heap_size;
 
 	if (!btr_search_enabled) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -1320,12 +1394,23 @@ next_rec:
 		goto retry;
 	}
 
+	old_ht_heap_size
+		= mem_heap_get_size(btr_search_sys->hash_tables[ahi_slot]
+				    ->heap);
+	ut_d(os_rmb);
+	ut_ad(btr_search_sys_variable_mem >= old_ht_heap_size);
 	for (i = 0; i < n_cached; i++) {
 
 		ha_remove_all_nodes_to_page(
 			btr_search_sys->hash_tables[ahi_slot],
 			folds[i], page);
 	}
+	new_ht_heap_size
+		= mem_heap_get_size(btr_search_sys->hash_tables[ahi_slot]
+				    ->heap);
+	ut_ad(new_ht_heap_size <= old_ht_heap_size);
+	os_atomic_decrement_ulint(&btr_search_sys_variable_mem,
+				  (old_ht_heap_size - new_ht_heap_size));
 
 	info = btr_search_get_info(block->index);
 	ut_a(info->ref_count > 0);
@@ -1720,7 +1805,17 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor)
 	if (block->index) {
 		ut_a(block->index == index);
 
+		ulint old_ht_heap_size = mem_heap_get_size(table->heap);
+		ut_d(os_rmb);
+		ut_ad(btr_search_sys_variable_mem >= old_ht_heap_size);
 		if (ha_search_and_delete_if_found(table, fold, rec)) {
+
+			ulint new_ht_heap_size
+				= mem_heap_get_size(table->heap);
+			ut_ad(new_ht_heap_size <= old_ht_heap_size);
+			os_atomic_decrement_ulint(&btr_search_sys_variable_mem,
+						  (old_ht_heap_size
+						   - new_ht_heap_size));
 			MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVED);
 		} else {
 			MONITOR_INC(
@@ -2163,6 +2258,8 @@ btr_search_validate()
 			return(false);
 		}
 	}
+
+	btr_search_mem_accounting_validate();
 
 	return(true);
 }

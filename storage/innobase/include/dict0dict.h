@@ -1724,6 +1724,8 @@ struct dict_sys_t{
 					on name */
 	hash_table_t*	table_id_hash;	/*!< hash table of the tables, based
 					on id */
+	size_t		hash_size;	/*!< size of table_hash and
+					table_id_hash combined */
 	lint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */

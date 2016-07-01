@@ -1180,6 +1180,10 @@ dict_init(void)
 		buf_pool_get_curr_size()
 		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
+	dict_sys->hash_size = (hash_get_n_cells(dict_sys->table_hash)
+			       + hash_get_n_cells(dict_sys->table_id_hash))
+		* sizeof(hash_cell_t);
+
 	rw_lock_create(dict_operation_lock_key,
 		       dict_operation_lock, SYNC_DICT_OPERATION);
 
@@ -6488,6 +6492,10 @@ dict_resize()
 	dict_sys->table_id_hash = hash_create(
 		buf_pool_get_curr_size()
 		/ (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
+
+	dict_sys->hash_size = (hash_get_n_cells(dict_sys->table_hash)
+			       + hash_get_n_cells(dict_sys->table_id_hash))
+		* sizeof(hash_cell_t);
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
 	     table = UT_LIST_GET_NEXT(table_LRU, table)) {

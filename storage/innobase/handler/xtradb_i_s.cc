@@ -283,8 +283,6 @@ static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, 
 {
 	Field**		fields;
 	TABLE*		table;
-	ulong		btr_search_sys_constant;
-	ulong		btr_search_sys_variable;
 
 	DBUG_ENTER("xtradb_internal_hash_tables_fill_table");
 
@@ -299,25 +297,11 @@ static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, 
 
 	/* Calculate AHI constant and variable memory allocations */
 
-	btr_search_sys_constant = 0;
-	btr_search_sys_variable = 0;
-
-	ut_ad(btr_search_sys->hash_tables);
-
-	for (ulint i = 0; i < btr_ahi_parts; i++) {
-		hash_table_t* ht = btr_search_sys->hash_tables[i];
-
-		ut_ad(ht);
-		ut_ad(ht->heap);
-
-		/* Multiple mutexes/heaps are currently never used for adaptive
-		hash index tables. */
-		ut_ad(!ht->n_sync_obj);
-		ut_ad(!ht->heaps);
-
-		btr_search_sys_variable += mem_heap_get_size(ht->heap);
-		btr_search_sys_constant += ht->n_cells * sizeof(hash_cell_t);
-	}
+	ulong btr_search_sys_constant = btr_search_sys_constant_mem;
+	os_rmb;
+	ulong btr_search_sys_variable = btr_search_sys_variable_mem;
+	size_t dict_sys_hash_size = dict_sys->hash_size;
+	ulong dict_sys_size = dict_sys->size;
 
 	OK(field_store_string(fields[INT_HASH_TABLES_NAME],
 			      "Adaptive hash index"));
@@ -341,23 +325,15 @@ static int xtradb_internal_hash_tables_fill_table(THD* thd, TABLE_LIST* tables, 
 
 	}
 
-	if (dict_sys)
-	{
-	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],
-				"Dictionary Cache"));
-	  OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
-			       ((dict_sys->table_hash->n_cells
-				 + dict_sys->table_id_hash->n_cells
-				 ) * sizeof(hash_cell_t)
-				+ dict_sys->size)));
-	  OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
-			       ((dict_sys->table_hash->n_cells
-				 + dict_sys->table_id_hash->n_cells
-				 ) * sizeof(hash_cell_t))));
-	  OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
-			       dict_sys->size));
-	  OK(schema_table_store_record(thd, table));
-	}
+	OK(field_store_string(fields[INT_HASH_TABLES_NAME],
+			      "Dictionary Cache"));
+	OK(field_store_ulint(fields[INT_HASH_TABLES_TOTAL],
+			     dict_sys_hash_size + dict_sys_size));
+	OK(field_store_ulint(fields[INT_HASH_TABLES_CONSTANT],
+			     dict_sys_hash_size));
+	OK(field_store_ulint(fields[INT_HASH_TABLES_VARIABLE],
+			     dict_sys_size));
+	OK(schema_table_store_record(thd, table));
 
 	{
 	  OK(field_store_string(fields[INT_HASH_TABLES_NAME],

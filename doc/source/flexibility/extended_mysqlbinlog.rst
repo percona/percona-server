@@ -22,8 +22,5 @@ Version Specific Information
   * :rn:`5.5.35-33.0`
     :command:`mysqlbinlog` option :option:`--compress` introduced
 
-  
   * :rn:`5.5.35-33.0`
     :command:`mysqlbinlog` now has all SSL connection options as the rest of the |MySQL| client programs.
-
-

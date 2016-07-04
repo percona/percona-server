@@ -8,7 +8,7 @@ This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for a bette
 
 This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
-  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information presented (bugfix for `#29123 <http://bugs.mysql.com/bug.php?id=29123>`_):
+  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information presented (bugfix for upstream bug :mysqlbug:`29126`):
 
     * :variable:`innodb_show_verbose_locks` - Whether to show records locked
 

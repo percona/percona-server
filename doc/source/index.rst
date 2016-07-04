@@ -97,6 +97,7 @@ Flexibility Improvements
    flexibility/online_gtid_deployment
    flexibility/proxy_protocol_support
    flexibility/per_session_server-id
+   flexibility/extended_tls_support
 
 Reliability Improvements
 ========================

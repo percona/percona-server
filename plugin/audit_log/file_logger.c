@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "logger.h"
+#include "audit_log.h"
 
 extern char *mysql_data_home;
 
@@ -330,8 +331,8 @@ int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...)
 void logger_init_mutexes()
 {
 #if defined(HAVE_PSI_INTERFACE) && !defined(FLOGGER_NO_PSI) && !defined(FLOGGER_NO_THREADSAFE)
-  if (PSI_server)
-    PSI_server->register_mutex("audit_logger", mutex_list, 1);
+  mysql_mutex_register(AUDIT_LOG_PSI_CATEGORY,
+                       mutex_list, array_elements(mutex_list));
 #endif /*HAVE_PSI_INTERFACE && !FLOGGER_NO_PSI*/
 }
 

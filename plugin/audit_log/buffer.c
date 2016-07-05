@@ -18,6 +18,7 @@
 
 #include <my_pthread.h>
 #include <my_sys.h>
+#include "audit_log.h"
 
 struct audit_log_buffer {
   char *buf;
@@ -121,13 +122,10 @@ audit_log_buffer_t *audit_log_buffer_init(size_t size, int drop_if_full,
                                  calloc(sizeof(audit_log_buffer_t) + size, 1);
 
 #ifdef HAVE_PSI_INTERFACE
-  if(PSI_server)
-  {
-    PSI_server->register_mutex("server_audit",
-                               mutex_key_list, array_elements(mutex_key_list));
-    PSI_server->register_cond("server_audit",
-                              cond_key_list, array_elements(cond_key_list));
-  }
+  mysql_mutex_register(AUDIT_LOG_PSI_CATEGORY,
+                       mutex_key_list, array_elements(mutex_key_list));
+  mysql_cond_register(AUDIT_LOG_PSI_CATEGORY,
+                      cond_key_list, array_elements(cond_key_list));
 #endif /* HAVE_PSI_INTERFACE */
 
   if (log != NULL)

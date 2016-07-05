@@ -20,6 +20,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
+#include <m_ctype.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <typelib.h>
@@ -410,11 +411,12 @@ static
 char *audit_log_general_record(char *buf, size_t buflen,
                                const char *name, time_t t, int status,
                                const struct mysql_event_general *event,
+                               const char *default_db,
                                size_t *outlen)
 {
   char id_str[MAX_RECORD_ID_SIZE];
   char timestamp[MAX_TIMESTAMP_SIZE];
-  char *query, *user, *host, *external_user, *ip;
+  char *query, *user, *host, *external_user, *ip, *db;
   char *endptr= buf, *endbuf= buf + buflen;
   size_t full_outlen= 0, buflen_estimated;
 
@@ -431,6 +433,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                      "  HOST=\"%s\"\n"
                      "  OS_USER=\"%s\"\n"
                      "  IP=\"%s\"\n"
+                     "  DB=\"%s\"\n"
                      "/>\n",
 
                      "<AUDIT_RECORD>\n"
@@ -445,6 +448,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                      "  <HOST>%s</HOST>\n"
                      "  <OS_USER>%s</OS_USER>\n"
                      "  <IP>%s</IP>\n"
+                     "  <DB>%s</DB>\n"
                      "</AUDIT_RECORD>\n",
 
                      "{\"audit_record\":"
@@ -458,10 +462,11 @@ char *audit_log_general_record(char *buf, size_t buflen,
                        "\"user\":\"%s\","
                        "\"host\":\"%s\","
                        "\"os_user\":\"%s\","
-                       "\"ip\":\"%s\"}}\n",
+                       "\"ip\":\"%s\","
+                       "\"db\":\"%s\"}}\n",
 
                      "\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
-                     "\"%s\",\"%s\",\"%s\"\n" };
+                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
 
   query= escape_string(event->general_query, event->general_query_length,
                        endptr, endbuf - endptr, &endptr, &full_outlen);
@@ -473,6 +478,8 @@ char *audit_log_general_record(char *buf, size_t buflen,
                                event->general_external_user.length,
                                endptr, endbuf - endptr, &endptr, &full_outlen);
   ip= escape_string(event->general_ip.str, event->general_ip.length,
+                    endptr, endbuf - endptr, &endptr, &full_outlen);
+  db= escape_string(default_db, strlen(default_db),
                     endptr, endbuf - endptr, &endptr, &full_outlen);
 
   buflen_estimated= full_outlen * 2 +
@@ -495,7 +502,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                     make_timestamp(timestamp, sizeof(timestamp), t),
                     event->general_sql_command.str,
                     event->general_thread_id,
-                    status, query, user, host, external_user, ip);
+                    status, query, user, host, external_user, ip, db);
 
   /* make sure that record is not truncated */
   DBUG_ASSERT(endptr + *outlen <= buf + buflen);
@@ -715,6 +722,10 @@ typedef struct
   size_t record_buffer_size;
   /* skip logging session */
   my_bool skip_logging;
+  /* default database */
+  char db[NAME_LEN + 1];
+  /* default database candidate */
+  char init_db_query[NAME_LEN + 1];
 } audit_log_thd_local;
 
 /*
@@ -785,6 +796,38 @@ int is_event_class_allowed_by_policy(unsigned int class,
   return (class_mask[policy] & (1 << class)) != 0;
 }
 
+static
+const char *next_word(const char *str, size_t *len,
+                      const struct charset_info_st *charset)
+{
+  while (*str && my_isspace(charset, *str))
+  {
+    if (*str == '/' && str[1] == '*' && str[2] == '!')
+      str+= 3;
+    else if (*str == '/' && str[1] == '*')
+    {
+      while (*str && !(*str == '*' && str[1] == '/'))
+        str++;
+    }
+    else
+      str++;
+  }
+
+  *len= 0;
+  while (str[*len] && my_isvar(charset, str[*len]))
+    (*len)++;
+
+  if (*len == 0 && *str == '`')
+  {
+    (*len)++;
+    while (str[*len] && str[*len] != '`')
+      (*len)++;
+    (*len)++;
+  }
+
+  return str;
+}
+
 
 static
 void audit_log_update_thd_local(audit_log_thd_local *local,
@@ -812,6 +855,62 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
                                          event_connection->host,
                                          event_connection->host_length))
       local->skip_logging= TRUE;
+
+    if (event_connection->status == 0)
+    {
+      /* track default DB change */
+      DBUG_ASSERT(event_connection->database_length <= sizeof(local->db));
+      memcpy(local->db, event_connection->database,
+             event_connection->database_length);
+      local->db[event_connection->database_length]= 0;
+    }
+  }
+  else if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
+  {
+    const struct mysql_event_general *event_general=
+      (const struct mysql_event_general *) event;
+
+    if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_LOG &&
+        event_general->general_command_length == 7 &&
+        strncmp(event_general->general_command, "Init DB", 7) == 0 &&
+        event_general->general_query != NULL &&
+        strpbrk("\n\r\t ", event_general->general_query) == NULL)
+    {
+      /* Database is about to be changed. Server doesn't provide database
+      name in STATUS event, so remember it now. */
+
+      DBUG_ASSERT(event_general->general_query_length <= sizeof(local->db));
+      memcpy(local->db, event_general->general_query, sizeof(local->db));
+      local->db[event_general->general_query_length]= 0;
+    }
+    if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS &&
+        event_general->general_sql_command.length == 9 &&
+        strncmp(event_general->general_sql_command.str, "change_db", 9) == 0 &&
+        event_general->general_command_length == 5 &&
+        strncmp(event_general->general_command, "Query", 5) == 0 &&
+        event_general->general_error_code == 0)
+    {
+      /* it's "use dbname" query */
+
+      size_t len;
+      const char *word;
+
+      word= next_word(event_general->general_query, &len,
+                      event_general->general_charset);
+      if (strncasecmp("use", word, len) == 0)
+      {
+        word= next_word(word + len, &len, event_general->general_charset);
+        if (*word == '`')
+        {
+          word++;
+          len-= 2;
+        }
+        len = len < sizeof(local->db) ? len : sizeof(local->db) - 1;
+
+        memcpy(local->db, word, len);
+        local->db[len]= 0;
+      }
+    }
   }
 }
 
@@ -863,7 +962,7 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
                                         event_general->general_command,
                                         event_general->general_time,
                                         event_general->general_error_code,
-                                        event_general,
+                                        event_general, local->db,
                                         &len);
       if (len > buflen)
       {
@@ -873,7 +972,7 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
                                           event_general->general_command,
                                           event_general->general_time,
                                           event_general->general_error_code,
-                                          event_general,
+                                          event_general, local->db,
                                           &len);
       }
       if (log_rec)

@@ -1,3 +1,5 @@
+SET GLOBAL audit_log_flush=ON;
+
 connect (test,127.0.0.1,user1,password1,,$MASTER_PORT,);
 connection test;
 SELECT 'user1';
@@ -31,3 +33,4 @@ disconnect test;
 --source include/wait_until_disconnected.inc
 
 connection default;
+SET GLOBAL audit_log_flush=ON;

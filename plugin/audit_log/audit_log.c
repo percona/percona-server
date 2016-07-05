@@ -22,6 +22,8 @@
 #include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
+#include <mysql/service_security_context.h>
+#include <mysqld_error.h>
 #include <typelib.h>
 #include <mysql_version.h>
 #include <mysql_com.h>
@@ -31,6 +33,7 @@
 #include "logger.h"
 #include "buffer.h"
 #include "audit_handler.h"
+#include "filter.h"
 
 #define PLUGIN_VERSION 0x0002
 
@@ -60,12 +63,15 @@ char *audit_log_syslog_ident;
 char default_audit_log_syslog_ident[] = "percona-audit";
 ulong audit_log_syslog_facility= 0;
 ulong audit_log_syslog_priority= 0;
+static char *audit_log_exclude_accounts= NULL;
+static char *audit_log_include_accounts= NULL;
 
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
 PSI_memory_key key_memory_audit_log_buffer;
 PSI_memory_key key_memory_audit_log_record_buffer;
 PSI_memory_key key_memory_audit_log_thd_local;
+PSI_memory_key key_memory_audit_log_accounts;
 
 static PSI_memory_info all_audit_log_memory[]=
 {
@@ -74,6 +80,7 @@ static PSI_memory_info all_audit_log_memory[]=
   {&key_memory_audit_log_buffer, "audit_log_buffer", 0},
   {&key_memory_audit_log_record_buffer, "audit_log_record_buffer", 0},
   {&key_memory_audit_log_thd_local, "audit_log_thd_local", 0},
+  {&key_memory_audit_log_accounts, "audit_log_accounts", 0},
 };
 
 static int audit_log_syslog_facility_codes[]=
@@ -716,6 +723,8 @@ typedef struct
 {
   /* size of allocated large buffer to for record formatting */
   size_t record_buffer_size;
+  /* skip logging session */
+  my_bool skip_logging;
 } audit_log_thd_local;
 
 /*
@@ -741,7 +750,7 @@ int audit_log_plugin_init(MYSQL_PLUGIN plugin_info)
   plugin_ptr= plugin_info;
 
   count= array_elements(all_audit_log_memory);
-  mysql_memory_register(PSI_CATEGORY, all_audit_log_memory, count);
+  mysql_memory_register(AUDIT_LOG_PSI_CATEGORY, all_audit_log_memory, count);
   logger_init_mutexes();
 
   if (init_new_log_file())
@@ -749,6 +758,8 @@ int audit_log_plugin_init(MYSQL_PLUGIN plugin_info)
 
   if (audit_log_audit_record(buf, sizeof(buf), "Audit", time(NULL), &len))
     audit_log_write(buf, len);
+
+  audit_log_filter_init();
 
   return(0);
 }
@@ -764,6 +775,11 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
     audit_log_write(buf, len);
 
   audit_handler_close(log_handler);
+
+  audit_log_filter_destroy();
+
+  my_free(audit_log_include_accounts);
+  my_free(audit_log_exclude_accounts);
 
   return(0);
 }
@@ -787,6 +803,54 @@ int is_event_class_allowed_by_policy(mysql_event_class_t class,
 
 
 static
+my_bool audit_log_update_thd_local(MYSQL_THD thd,
+                                   audit_log_thd_local *local,
+                                   unsigned int event_class)
+{
+  DBUG_ASSERT(audit_log_include_accounts == NULL ||
+              audit_log_exclude_accounts == NULL);
+
+  if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
+  {
+    LEX_STRING priv_user, priv_host;
+    MYSQL_SECURITY_CONTEXT ctx;
+
+    if (thd_get_security_context(thd, &ctx))
+    {
+      my_message(ER_AUDIT_API_ABORT, "Error: can not get security context",
+                 MYF(0));
+      return FALSE;
+    }
+
+    if (security_context_get_option(ctx, "priv_user", &priv_user))
+    {
+      my_message(ER_AUDIT_API_ABORT, "Error: can not get priv_user from "
+                 "security context", MYF(0));
+      return FALSE;
+    }
+
+    if (security_context_get_option(ctx, "priv_host", &priv_host))
+    {
+      my_message(ER_AUDIT_API_ABORT, "Error: can not get priv_host from "
+                 "security context", MYF(0));
+      return FALSE;
+    }
+
+    local->skip_logging= FALSE;
+    if (audit_log_include_accounts != NULL &&
+        !audit_log_check_account_included(priv_user.str, priv_user.length,
+                                          priv_host.str, priv_host.length))
+      local->skip_logging= TRUE;
+    if (audit_log_exclude_accounts != NULL &&
+        audit_log_check_account_excluded(priv_user.str, priv_user.length,
+                                         priv_host.str, priv_host.length))
+      local->skip_logging= TRUE;
+  }
+  return TRUE;
+}
+
+
+static
 int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
                      mysql_event_class_t event_class,
                      const void *event)
@@ -795,8 +859,15 @@ int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
   char *log_rec = NULL;
   char *allocated_buf= get_record_buffer(thd, 0);
   size_t len, buflen;
+  audit_log_thd_local *local= get_thd_local(thd);
+
+  if (!audit_log_update_thd_local(thd, local, event_class))
+    return 1;
 
   if (!is_event_class_allowed_by_policy(event_class, audit_log_policy))
+    return 0;
+
+  if (local->skip_logging)
     return 0;
 
   if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
@@ -806,15 +877,17 @@ int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_STATUS:
-      if (event_general->general_command.length == 4 &&
-          strncmp(event_general->general_command.str, "Quit", 4) == 0)
+      if ((event_general->general_command.length == 4 &&
+           strncmp(event_general->general_command.str, "Quit", 4) == 0) ||
+          (event_general->general_command.length == 11 &&
+           strncmp(event_general->general_command.str, "Change user", 11) == 0))
         break;
 
       /* use allocated buffer if available */
       if (allocated_buf != NULL)
       {
         log_rec= allocated_buf;
-        buflen= get_thd_local(thd)->record_buffer_size;
+        buflen= local->record_buffer_size;
       }
       else
       {
@@ -1039,6 +1112,115 @@ static MYSQL_THDVAR_STR(record_buffer,
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Buffer for query formatting.", NULL, NULL, "");
 
+static
+int
+audit_log_exclude_accounts_validate(
+          MYSQL_THD thd __attribute__((unused)),
+          struct st_mysql_sys_var *var __attribute__((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_include_accounts)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_exclude_accounts_update(
+          MYSQL_THD thd __attribute__((unused)),
+          struct st_mysql_sys_var *var __attribute__((unused)),
+          void *var_ptr __attribute__((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_include_accounts == NULL);
+
+  my_free(audit_log_exclude_accounts);
+  audit_log_exclude_accounts= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_exclude_accounts= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          new_val, MYF(MY_FAE));
+    audit_log_set_exclude_accounts(audit_log_exclude_accounts);
+  }
+  else
+  {
+    audit_log_set_exclude_accounts("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of accounts "
+       "for which events should not be logged.",
+       audit_log_exclude_accounts_validate,
+       audit_log_exclude_accounts_update, NULL);
+
+static
+int
+audit_log_include_accounts_validate(
+          MYSQL_THD thd __attribute__((unused)),
+          struct st_mysql_sys_var *var __attribute__((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_exclude_accounts)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_include_accounts_update(
+          MYSQL_THD thd __attribute__((unused)),
+          struct st_mysql_sys_var *var __attribute__((unused)),
+          void *var_ptr __attribute__((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_exclude_accounts == NULL);
+
+  my_free(audit_log_include_accounts);
+  audit_log_include_accounts= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_include_accounts= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          new_val, MYF(MY_FAE));
+    audit_log_set_include_accounts(audit_log_include_accounts);
+  }
+  else
+  {
+    audit_log_set_include_accounts("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(include_accounts, audit_log_include_accounts,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of accounts for which events should be logged.",
+       audit_log_include_accounts_validate,
+       audit_log_include_accounts_update, NULL);
+
 static MYSQL_THDVAR_STR(local,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
@@ -1059,6 +1241,8 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(syslog_priority),
   MYSQL_SYSVAR(syslog_facility),
   MYSQL_SYSVAR(record_buffer),
+  MYSQL_SYSVAR(exclude_accounts),
+  MYSQL_SYSVAR(include_accounts),
   MYSQL_SYSVAR(local),
   NULL
 };

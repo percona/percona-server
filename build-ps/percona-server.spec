@@ -650,6 +650,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysqlx.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -667,6 +668,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysqlx.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -708,6 +710,7 @@ fi
 %attr(644, root, root) %{_datadir}/percona-server/uninstall_rewriter.sql
 %attr(644, root, root) %{_datadir}/percona-server/magic
 %if 0%{?systemd}
+%attr(644, root, root) %{_unitdir}/mysqld@.service
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %else
@@ -842,6 +845,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
@@ -871,6 +875,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*

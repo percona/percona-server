@@ -6580,7 +6580,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                       This happens if the thread didn't update any rows
                       We must in this case commit the work to keep the row locks
                     */
-                    DBUG_PRINT("trans", ("commiting non-updating transaction"));
+                    DBUG_PRINT("trans", ("committing non-updating transaction"));
                     reset_stmt_progress(&trx->stmt_progress);
                     commit_txn(trx->stmt, 0);
                     trx->stmt = NULL;

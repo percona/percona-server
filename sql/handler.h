@@ -842,6 +842,17 @@ struct handlerton
    my_bool (*flush_changed_page_bitmaps)(void);
    my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
    my_bool (*is_fake_change)(handlerton *hton, THD *thd);
+   /**
+      Get the list of foreign keys referencing a specified table
+
+      @param thd        The thread handle
+      @param path       Path to the table
+      @param f_key_list[out]    The list of foreign keys
+
+      @return error code or zero for success
+    */
+   int (*get_parent_fk_list)(THD *thd, const char *path,
+                             List<FOREIGN_KEY_INFO>* f_key_list);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler

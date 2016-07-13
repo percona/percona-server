@@ -77,6 +77,14 @@ Known issues
 
 Default mysql stack size is not enough to handle ``pam_ecryptfs`` module. Workaround is to increase the |MySQL| stack size by setting the `thread-stack <https://dev.mysql.com/doc/refman/5.5/en/server-system-variables.html#sysvar_thread_stack>`_ variable to at least ``512KB`` or by increasing the old value by ``256KB``.
 
+PAM authentication can fail with ``mysqld: pam_unix(mysqld:account): Fork failed: Cannot allocate memory`` error in the :file:`/var/log/secure` even when there is enough memory available. Current workaround is to set `vm.overcommit_memory <https://www.kernel.org/doc/Documentation/vm/overcommit-accounting>`_ to ``1``:
+
+.. code-block:: bash
+
+  echo 1 > /proc/sys/vm/overcommit_memory
+
+and by adding the ``vm.overcommit_memory = 1`` to :file:`/etc/sysctl.conf` to make the change permanent after reboot. Authentication of internal (i.e. non PAM) accounts continues to work fine when ``mysqld`` reaches this memory utilization level. *NOTE:* Setting the ``vm.overcommit_memory`` to ``1`` will cause kernel to perform no memory overcommit handling which could increase the potential for memory overload and invoking of OOM killer. 
+
 Version Specific Information
 ============================
 

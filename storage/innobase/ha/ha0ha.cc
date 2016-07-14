@@ -253,6 +253,10 @@ ha_insert_for_fold_func(
 
 	/* We have to allocate a new chain node */
 
+	ulint old_ht_heap_size = mem_heap_get_size(hash_get_heap(table, fold));
+	ut_d(os_rmb);
+	ut_ad(btr_search_sys_variable_mem >= old_ht_heap_size);
+
 	node = static_cast<ha_node_t*>(
 		mem_heap_alloc(hash_get_heap(table, fold), sizeof(ha_node_t)));
 
@@ -264,6 +268,11 @@ ha_insert_for_fold_func(
 
 		return(FALSE);
 	}
+
+	ulint new_ht_heap_size = mem_heap_get_size(hash_get_heap(table, fold));
+	ut_ad(new_ht_heap_size >= old_ht_heap_size);
+	os_atomic_increment_ulint(&btr_search_sys_variable_mem,
+				  (new_ht_heap_size - old_ht_heap_size));
 
 	ha_node_set_data(node, block, data);
 

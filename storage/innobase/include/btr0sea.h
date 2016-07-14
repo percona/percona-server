@@ -328,6 +328,9 @@ extern rw_lock_t**		btr_search_latches;
 /** The adaptive hash index */
 extern btr_search_sys_t*	btr_search_sys;
 
+extern ulint	btr_search_sys_constant_mem;
+extern ulint	btr_search_sys_variable_mem;
+
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */
 extern ulint	btr_search_n_succ;

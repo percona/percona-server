@@ -1,0 +1,30 @@
+#
+# Test extra XtraDB status variables
+#
+SET @saved_innodb_adaptive_hash_index = @@GLOBAL.innodb_adaptive_hash_index;
+CREATE FUNCTION test_memory_accounting(status_var VARCHAR(100)) RETURNS BOOL
+BEGIN
+DECLARE pfs_status_var INT;
+SELECT VARIABLE_VALUE INTO @pfs_status_var FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME LIKE status_var;
+RETURN (@pfs_status_var > 0);
+END|
+CREATE FUNCTION test_ahi_memory() RETURNS BOOL
+BEGIN
+RETURN test_memory_accounting("innodb_mem_adaptive_hash");
+END|
+CREATE FUNCTION test_dd_memory() RETURNS BOOL
+BEGIN
+RETURN test_memory_accounting("innodb_mem_dictionary");
+END|
+SET GLOBAL innodb_adaptive_hash_index = ON;
+include/assert.inc [innodb_mem_adaptive_hash must be greater than zero]
+include/assert.inc [innodb_mem_dictionary must be greater than zero]
+SET GLOBAL innodb_adaptive_hash_index = OFF;
+include/assert.inc [innodb_mem_adaptive_hash must be greater than zero]
+SET GLOBAL innodb_adaptive_hash_index = ON;
+include/assert.inc [innodb_mem_adaptive_hash must be greater than zero]
+SET GLOBAL innodb_adaptive_hash_index = @saved_innodb_adaptive_hash_index;
+DROP FUNCTION test_ahi_memory;
+DROP FUNCTION test_dd_memory;
+DROP FUNCTION test_memory_accounting;

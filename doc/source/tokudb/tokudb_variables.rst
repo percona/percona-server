@@ -34,7 +34,11 @@ To disable synchronous flushing of the transaction log, disable the :variable:`t
 
    SET tokudb_commit_sync=OFF;
 
-Disabling this variable may make the system run faster. However, transactions committed since the last checkpoint are not guaranteed to survive a crash.
+Disabling this variable may make the system run faster. However, transactions committed since the last checkpoint are not guaranteed to survive a crash. 
+
+.. warning:: 
+
+  By disabling this variable and/or setting the :variable:`tokudb_fsync_log_period` to non-zero value you have effectively downgraded the durability of the storage engine. If you were to have a crash in this same window, you would lose data. The same issue would also appear if you were using some kind of volume snapshot for backups.
 
 .. variable:: tokudb_pk_insert_mode
 

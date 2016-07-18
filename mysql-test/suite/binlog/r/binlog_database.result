@@ -76,10 +76,9 @@ DROP DATABASE db1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 SHOW TABLES FROM db1;
 Tables_in_db1
+t1
 t2
 include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
 set binlog_format=mixed;
@@ -159,10 +158,9 @@ DROP DATABASE db1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 SHOW TABLES FROM db1;
 Tables_in_db1
+t1
 t2
 include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
 set binlog_format=row;
@@ -244,10 +242,9 @@ DROP DATABASE db1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 SHOW TABLES FROM db1;
 Tables_in_db1
+t1
 t2
 include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE IF EXISTS `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
 show databases;

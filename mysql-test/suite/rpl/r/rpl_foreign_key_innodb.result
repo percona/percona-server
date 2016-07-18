@@ -55,4 +55,47 @@ select count(*) from t1 /* must be zero */;
 count(*)
 0
 drop table t2,t1;
+#
+# Bug 79610: Failed DROP DATABASE due FK constraint on master breaks slave
+#
+SET foreign_key_checks=1;
+CREATE DATABASE `db2`;
+USE `db2`;
+create table a1(f1 int);
+CREATE TABLE `table0` (`ID` bigint(20) primary key) ENGINE=INNODB;
+CREATE TABLE `table1` (`ID` bigint(20) primary key) ENGINE=INNODB;
+create database db1;
+use db1;
+CREATE TABLE `table2` ( `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+`DIVISION_ID` bigint(20) DEFAULT NULL,
+PRIMARY KEY (`ID`), KEY `FK_TABLE1_DIVISION_1` (`DIVISION_ID`),
+CONSTRAINT `FK_TABLE1_DIVISION_1` FOREIGN KEY (`DIVISION_ID`)
+REFERENCES `db2`.`table1` (`ID`) ON DELETE NO ACTION ) ENGINE=INNODB;
+include/sync_slave_sql_with_master.inc
+use db2;
+CREATE TABLE `table2` ( `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+`DIVISION_ID` bigint(20) DEFAULT NULL,
+PRIMARY KEY (`ID`), KEY `FK_TABLE1_DIVISION_1` (`DIVISION_ID`),
+CONSTRAINT `FK_TABLE1_DIVISION_1` FOREIGN KEY (`DIVISION_ID`)
+REFERENCES `db2`.`table0` (`ID`) ON DELETE NO ACTION ) ENGINE=INNODB;
+DROP DATABASE db2;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+# DROP DATABASE should not have deleted any tables
+# master:
+SHOW TABLES IN db2;
+Tables_in_db2
+a1
+table0
+table1
+# slave:
+SHOW TABLES IN db2;
+Tables_in_db2
+a1
+table0
+table1
+table2
+SET foreign_key_checks=0;
+DROP DATABASE db2;
+DROP DATABASE db1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

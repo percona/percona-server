@@ -2230,6 +2230,84 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   DBUG_RETURN(FALSE);
 }
 
+/**
+   Check if DROP DATABASE would not fail due to foreign key constraints
+
+   @param thd           thread handle
+   @param tables        list of the tables in the database to be dropped
+   @param drop_view     whether VIEW .frm files are to be delete too
+
+   @retval true         a FK constraint would prevent DROP DATABASE from fully
+   completing
+   @retval false        no FK constraints would prevent DROP DATABASE from
+   fully completing or some error has happened
+ */
+static
+bool check_drop_database_foreign_keys(THD *thd, TABLE_LIST *tables,
+                                      bool drop_view)
+{
+  DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_DROP_DB);
+
+  for (TABLE_LIST *table= tables; table; table= table->next_local)
+  {
+    const char *db=table->db;
+    const char *alias= (lower_case_table_names == 2)
+      ? table->alias : table->table_name;
+
+    char path[FN_REFLEN + 1];
+    const uint path_length= build_table_filename(path, sizeof(path) - 1, db,
+                                                 alias, reg_ext,
+                                                 table->internal_tmp_table ?
+                                                 FN_IS_TMP : 0);
+
+    // Here and below in case of any failure skip FK check for this table and
+    // let the caller fail later
+    if ((access(path, F_OK) &&
+         ha_create_table_from_engine(thd, db, alias)))
+      continue;
+
+    enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
+    enum frm_type_enum frm_type= dd_frm_type(thd, path, &frm_db_type);
+    if (!drop_view && frm_type != FRMTYPE_TABLE)
+      continue;
+
+    handlerton *table_hton= ha_resolve_by_legacy_type(thd, frm_db_type);
+    if (table_hton == NULL || table_hton->get_parent_fk_list == NULL)
+      continue;
+
+    char *end;
+    *(end= path + path_length - reg_ext_length)= '\0';
+
+    List<FOREIGN_KEY_INFO> fk_list;
+    if (table_hton->get_parent_fk_list(thd, path, &fk_list))
+      continue;
+
+    List_iterator_fast<FOREIGN_KEY_INFO> it;
+    it.init(fk_list);
+
+    FOREIGN_KEY_INFO *fk_info;
+    while ((fk_info= it++))
+    {
+      DBUG_ASSERT(!my_strcasecmp(system_charset_info,
+                                 fk_info->referenced_db->str,
+                                 table->db));
+
+      DBUG_ASSERT(!my_strcasecmp(system_charset_info,
+                                 fk_info->referenced_table->str,
+                                 table->table_name));
+
+      /* Allow FK constraints to any table in the database being dropped */
+      if (my_strcasecmp(system_charset_info, fk_info->foreign_db->str,
+                        table->db))
+      {
+        my_message(ER_ROW_IS_REFERENCED, ER(ER_ROW_IS_REFERENCED), MYF(0));
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 /**
   Execute the drop of a normal or temporary table.
@@ -2282,6 +2360,15 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_trans_tmp_query, built_non_trans_tmp_query;
   String nonexistent_tmp_tables;
   DBUG_ENTER("mysql_rm_table_no_locks");
+
+  if (thd_sql_command(thd) == SQLCOM_DROP_DB
+      && !drop_temporary
+      && !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
+  {
+    error= check_drop_database_foreign_keys(thd, tables, drop_view);
+    if (error)
+      DBUG_RETURN(error);
+  }
 
   /*
     Prepares the drop statements that will be written into the binary

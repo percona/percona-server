@@ -907,6 +907,17 @@ struct handlerton
                              const char* to_filename);
    my_bool (*is_fake_change)(handlerton *hton, THD *thd);
 
+   /**
+      Get the list of foreign keys referencing a specified table
+
+      @param thd        The thread handle
+      @param path       Path to the table
+      @param f_key_list[out]    The list of foreign keys
+
+      @return error code or zero for success
+    */
+   int (*get_parent_fk_list)(THD *thd, const char *path,
+                             List<FOREIGN_KEY_INFO>* f_key_list);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler

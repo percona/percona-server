@@ -90,9 +90,9 @@ RESET MASTER;
 
 --error ER_ROW_IS_REFERENCED
 DROP DATABASE db1;                      # Fails because of the fk
-SHOW TABLES FROM db1;                   # t1 was dropped, t2 remains
+SHOW TABLES FROM db1;                   # t1 and t2 remain
 --let $mask_binlog_commit_events= 1
---source include/show_binlog_events.inc # Check that the binlog drops t1
+--source include/show_binlog_events.inc # Check that the binlog does not drop t1 and t2
 --let $mask_binlog_commit_events= 0
 
 # Cleanup

@@ -59,4 +59,54 @@ select count(*) from t1 /* must be zero */;
 connection master;
 drop table t2,t1;
 
+--echo #
+--echo # Bug 79610: Failed DROP DATABASE due FK constraint on master breaks slave
+--echo #
+
+SET foreign_key_checks=1;
+CREATE DATABASE `db2`;
+
+USE `db2`;
+
+create table a1(f1 int);
+
+eval CREATE TABLE `table0` (`ID` bigint(20) primary key) ENGINE=$engine_type;
+eval CREATE TABLE `table1` (`ID` bigint(20) primary key) ENGINE=$engine_type;
+
+create database db1;
+use db1;
+
+eval CREATE TABLE `table2` ( `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+                             `DIVISION_ID` bigint(20) DEFAULT NULL,
+                             PRIMARY KEY (`ID`), KEY `FK_TABLE1_DIVISION_1` (`DIVISION_ID`),
+                             CONSTRAINT `FK_TABLE1_DIVISION_1` FOREIGN KEY (`DIVISION_ID`)
+                             REFERENCES `db2`.`table1` (`ID`) ON DELETE NO ACTION ) ENGINE=$engine_type;
+
+--source include/sync_slave_sql_with_master.inc
+use db2;
+eval CREATE TABLE `table2` ( `ID` bigint(20) NOT NULL AUTO_INCREMENT,
+                             `DIVISION_ID` bigint(20) DEFAULT NULL,
+                             PRIMARY KEY (`ID`), KEY `FK_TABLE1_DIVISION_1` (`DIVISION_ID`),
+                             CONSTRAINT `FK_TABLE1_DIVISION_1` FOREIGN KEY (`DIVISION_ID`)
+                             REFERENCES `db2`.`table0` (`ID`) ON DELETE NO ACTION ) ENGINE=$engine_type;
+
+--connection master
+--error ER_ROW_IS_REFERENCED
+DROP DATABASE db2;
+
+--echo # DROP DATABASE should not have deleted any tables
+--echo # master:
+SHOW TABLES IN db2;
+
+--connection slave
+--echo # slave:
+SHOW TABLES IN db2;
+
+--connection master
+SET foreign_key_checks=0;
+DROP DATABASE db2;
+DROP DATABASE db1;
+
+--source include/sync_slave_sql_with_master.inc
+
 --source include/rpl_end.inc

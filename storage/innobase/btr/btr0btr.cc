@@ -551,7 +551,7 @@ btr_get_size(
 	SRV_CORRUPT_TABLE_CHECK(root,
 	{
 		mtr_commit(mtr);
-		return(0);
+		return(ULINT_UNDEFINED);
 	});
 
 	if (flag == BTR_N_LEAF_PAGES) {

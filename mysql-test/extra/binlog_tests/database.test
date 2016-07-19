@@ -86,8 +86,8 @@ RESET MASTER;
 
 --error ER_ROW_IS_REFERENCED
 DROP DATABASE db1;                      # Fails because of the fk
-SHOW TABLES FROM db1;                   # t1 was dropped, t2 remains
---source include/show_binlog_events.inc # Check that the binlog drops t1
+SHOW TABLES FROM db1;                   # t1 and t2 remain
+--source include/show_binlog_events.inc # Check that the binlog drops nothing
 
 # Cleanup
 DROP TABLE t3;

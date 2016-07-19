@@ -701,6 +701,19 @@ innobase_is_fake_change(
 	THD*		thd);	/*!< in: MySQL thread handle of the user for
 				  whom the transaction is being committed */
 
+/** Get the list of foreign keys referencing a specified table
+table.
+@param thd		The thread handle
+@param path		Path to the table
+@param f_key_list[out]	The list of foreign keys
+
+@return error code or zero for success */
+static
+int
+innobase_get_parent_fk_list(
+	THD*			thd,
+	const char*		path,
+	List<FOREIGN_KEY_INFO>*	f_key_list);
 
 /******************************************************************//**
 Maps a MySQL trx isolation level code to the InnoDB isolation level code
@@ -3405,6 +3418,7 @@ innobase_init(
 	innobase_hton->purge_changed_page_bitmaps
 		= innobase_purge_changed_page_bitmaps;
 	innobase_hton->is_fake_change = innobase_is_fake_change;
+	innobase_hton->get_parent_fk_list = innobase_get_parent_fk_list;
 
 	innobase_hton->kill_connection = innobase_kill_connection;
 
@@ -12807,6 +12821,75 @@ get_foreign_key_info(
 	return(pf_key_info);
 }
 
+/** Get the list of foreign keys referencing a specified table
+table.
+@param thd		The thread handle
+@param path		Path to the table
+@param f_key_list[out]	The list of foreign keys */
+static
+void
+fill_foreign_key_list(THD* thd,
+		      const dict_table_t* table,
+		      List<FOREIGN_KEY_INFO>* f_key_list)
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	for (dict_foreign_set::iterator it = table->referenced_set.begin();
+	     it != table->referenced_set.end(); ++it) {
+
+		dict_foreign_t* foreign = *it;
+
+		FOREIGN_KEY_INFO* pf_key_info
+			= get_foreign_key_info(thd, foreign);
+		if (pf_key_info) {
+			f_key_list->push_back(pf_key_info);
+		}
+	}
+}
+
+/** Get the list of foreign keys referencing a specified table
+table.
+@param thd		The thread handle
+@param path		Path to the table
+@param f_key_list[out]	The list of foreign keys
+
+@return error code or zero for success */
+static
+int
+innobase_get_parent_fk_list(
+	THD*			thd,
+	const char*		path,
+	List<FOREIGN_KEY_INFO>*	f_key_list)
+{
+	ut_a(strlen(path) <= FN_REFLEN);
+	char	norm_name[FN_REFLEN + 1];
+	normalize_table_name(norm_name, path);
+
+	trx_t*	parent_trx = check_trx_exists(thd);
+	parent_trx->op_info = "getting list of referencing foreign keys";
+	trx_search_latch_release_if_reserved(parent_trx);
+
+	mutex_enter(&dict_sys->mutex);
+
+	dict_table_t*	table
+		= dict_table_open_on_name(norm_name, TRUE, FALSE,
+					  static_cast<dict_err_ignore_t>(
+						  DICT_ERR_IGNORE_INDEX_ROOT
+						  | DICT_ERR_IGNORE_CORRUPT));
+	if (!table) {
+		mutex_exit(&dict_sys->mutex);
+		return(HA_ERR_NO_SUCH_TABLE);
+	}
+
+	fill_foreign_key_list(thd, table, f_key_list);
+
+	dict_table_close(table, TRUE, FALSE);
+
+	mutex_exit(&dict_sys->mutex);
+	parent_trx->op_info = "";
+	return(0);
+}
+
 /*******************************************************************//**
 Gets the list of foreign keys in this table.
 @return always 0, that is, always succeeds */
@@ -12859,9 +12942,6 @@ ha_innobase::get_parent_foreign_key_list(
 	THD*			thd,		/*!< in: user thread handle */
 	List<FOREIGN_KEY_INFO>*	f_key_list)	/*!< out: foreign key list */
 {
-	FOREIGN_KEY_INFO*	pf_key_info;
-	dict_foreign_t*		foreign;
-
 	ut_a(prebuilt != NULL);
 	update_thd(ha_thd());
 
@@ -12870,20 +12950,7 @@ ha_innobase::get_parent_foreign_key_list(
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
 	mutex_enter(&(dict_sys->mutex));
-
-	for (dict_foreign_set::iterator it
-		= prebuilt->table->referenced_set.begin();
-	     it != prebuilt->table->referenced_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		pf_key_info = get_foreign_key_info(thd, foreign);
-		if (pf_key_info) {
-			f_key_list->push_back(pf_key_info);
-		}
-	}
-
+	fill_foreign_key_list(thd, prebuilt->table, f_key_list);
 	mutex_exit(&(dict_sys->mutex));
 
 	prebuilt->trx->op_info = "";

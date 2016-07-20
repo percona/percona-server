@@ -582,7 +582,7 @@ my_bool do_test(uint no_parts, uint l_max_ind, my_bool l_fix_used)
   tot_no_parts= no_parts;
   tot_no_loops= 1024;
   perform_insert(&queue);
-  if ((result= perform_ins_del(&queue, max_ind)))
+  result= perform_ins_del(&queue, max_ind);
   delete_queue(&queue);
   if (result)
   {
@@ -664,6 +664,7 @@ static void benchmark_test()
     queue_remove(queue, (uint) 0);
   queue_remove_all(queue);
   stop_measurement();
+  delete_queue(queue);
 }
 
 int main()

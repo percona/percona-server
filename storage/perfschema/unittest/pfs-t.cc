@@ -183,6 +183,22 @@ PSI * load_perfschema()
   return (PSI*) psi;
 }
 
+static
+void close_perfschema()
+{
+  // A lot of PFS cleanup is disabled due to bug 56666 in
+  // shutdown_performance_schema. This bug does not apply
+  // for a single-threaded unit test, thus cleanup manually here.
+  cleanup_table_share();
+  cleanup_instruments();
+  cleanup_socket_class();
+  cleanup_file_class();
+  cleanup_sync_class();
+  cleanup_thread_class();
+  cleanup_events_waits_history_long();
+  shutdown_performance_schema();
+}
+
 void test_bad_registration()
 {
   PSI *psi;
@@ -582,7 +598,7 @@ void test_bad_registration()
   ok(dummy_socket_key == 2, "assigned key");
 
 
-  shutdown_performance_schema();
+  close_perfschema();
 }
 
 void test_init_disabled()
@@ -1016,7 +1032,7 @@ void test_init_disabled()
   socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
   
-  shutdown_performance_schema();
+  close_perfschema();
 }
 
 void test_locker_disabled()
@@ -1350,7 +1366,7 @@ void test_locker_disabled()
   socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
   ok(socket_locker == NULL, "no locker");
 
-  shutdown_performance_schema();
+  close_perfschema();
 }
 
 void test_file_instrumentation_leak()
@@ -1437,7 +1453,7 @@ void test_file_instrumentation_leak()
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_WRITE);
   ok(file_locker == NULL, "no locker, no leak");
 
-  shutdown_performance_schema();
+  close_perfschema();
 }
 
 void test_enabled()
@@ -1473,7 +1489,7 @@ void test_enabled()
     { & cond_key_B, "C-B", 0}
   };
 
-  shutdown_performance_schema();
+  close_perfschema();
 #endif
 }
 

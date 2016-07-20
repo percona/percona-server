@@ -7,7 +7,7 @@ This file is part of TokuDB
 
 Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
-    TokuDBis is free software: you can redistribute it and/or modify
+    TokuDB is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2,
     as published by the Free Software Foundation.
 
@@ -66,6 +66,7 @@ private:
     ulonglong       _throttle;
 
     // for recount rows status reporting
+    char            _status[256];
     int             _result;
     ulonglong       _recount_start; // in microseconds
     ulonglong       _total_elapsed_time; // in microseconds
@@ -80,7 +81,7 @@ private:
         uint64_t deleted,
         void* extra);
     int analyze_recount_rows_progress(uint64_t count, uint64_t deleted);
-    void get_analyze_status(char*);
+    void set_proc_info();
 };
 
 void* recount_rows_t::operator new(size_t sz) {
@@ -120,6 +121,9 @@ recount_rows_t::recount_rows_t(
 recount_rows_t::~recount_rows_t() {
 }
 void recount_rows_t::on_run() {
+    const char* orig_proc_info = NULL;
+    if (_thd)
+        orig_proc_info = tokudb_thd_get_proc_info(_thd);
     _recount_start = tokudb::time::microsec();
     _total_elapsed_time = 0;
 
@@ -173,6 +177,8 @@ void recount_rows_t::on_run() {
         _result,
         _share->row_count());
 error:
+    if(_thd)
+        thd_proc_info(_thd, orig_proc_info);
     return;
 }
 void recount_rows_t::on_destroy() {
@@ -192,7 +198,6 @@ void recount_rows_t::status(
     strcpy(table, _share->table_name());
     strcpy(type, "TOKUDB_ANALYZE_MODE_RECOUNT_ROWS");
     sprintf(params, "TOKUDB_ANALYZE_THROTTLE=%llu;", _throttle);
-    get_analyze_status(status);
 }
 int recount_rows_t::analyze_recount_rows_progress(
     uint64_t count,
@@ -220,11 +225,7 @@ int recount_rows_t::analyze_recount_rows_progress(
         }
 
         // report
-        if (_thd) {
-            char status[256];
-            get_analyze_status(status);
-            thd_proc_info(_thd, status);
-        }
+        set_proc_info();
 
         // throttle
         // given the throttle value, lets calculate the maximum number of rows
@@ -240,18 +241,23 @@ int recount_rows_t::analyze_recount_rows_progress(
     }
     return 0;
 }
-void recount_rows_t::get_analyze_status(char* msg) {
-    sprintf(
-        msg,
-        "recount_rows %s.%s counted %llu rows and %llu deleted in %llu "
-        "seconds.",
-        _share->database_name(),
-        _share->table_name(),
-        _rows,
-        _deleted_rows,
-        _total_elapsed_time / tokudb::time::MICROSECONDS);
+void recount_rows_t::set_proc_info() {
+    if (_thd) {
+        // just a little dance around to prevent processlist from
+        // showing the status as we are printing into it
+        static const char* tmp = "";
+        thd_proc_info(_thd, tmp);
+        sprintf(_status,
+                "recount_rows %s.%s counted %llu rows and %llu deleted "
+                "in %llu seconds.",
+                _share->database_name(),
+                _share->table_name(),
+                _rows,
+                _deleted_rows,
+                _total_elapsed_time / tokudb::time::MICROSECONDS);
+        thd_proc_info(_thd, _status);
+    }
 }
-
 
 class standard_t : public tokudb::background::job_manager_t::job_t {
 public:
@@ -286,6 +292,7 @@ private:
     double          _delete_fraction;
 
     // for analyze status reporting, may also use other state
+    char            _status[256];
     int             _result;
     ulonglong       _analyze_start; // in microseconds
     ulonglong       _total_elapsed_time; // in microseconds
@@ -307,7 +314,7 @@ private:
         uint64_t deleted_rows);
     bool analyze_standard_cursor_callback(uint64_t deleted_rows);
 
-    void get_analyze_status(char*);
+    void set_proc_info();
     int analyze_key_progress();
     int analyze_key(uint64_t* rec_per_key_part);
 };
@@ -360,6 +367,10 @@ void standard_t::on_run() {
     DB_BTREE_STAT64 stat64;
     uint64_t rec_per_key_part[_share->_max_key_parts];
     uint64_t total_key_parts = 0;
+    const char* orig_proc_info = NULL;
+    if (_thd)
+        orig_proc_info = tokudb_thd_get_proc_info(_thd);
+
     _analyze_start = tokudb::time::microsec();
     _half_time = _time_limit > 0 ? _time_limit/2 : 0;
 
@@ -463,8 +474,9 @@ cleanup:
     }
 
 error:
+    if (_thd)
+        thd_proc_info(_thd, orig_proc_info);
     return;
-
 }
 void standard_t::on_destroy() {
     _share->lock();
@@ -492,7 +504,6 @@ void standard_t::status(
         _delete_fraction,
         _time_limit / tokudb::time::MICROSECONDS,
         _throttle);
-    get_analyze_status(status);
 }
 bool standard_t::analyze_standard_cursor_callback(
     void* extra,
@@ -505,40 +516,52 @@ bool standard_t::analyze_standard_cursor_callback(uint64_t deleted_rows) {
     _ticks += deleted_rows;
     return analyze_key_progress() != 0;
 }
-void standard_t::get_analyze_status(char* msg) {
-    static const char* scan_direction_str[] = {
-        "not scanning",
-        "scanning forward",
-        "scanning backward",
-        "scan unknown"
-    };
+void standard_t::set_proc_info() {
+    static const char* scan_direction_str[] = {"not scanning",
+                                               "scanning forward",
+                                               "scanning backward",
+                                               "scan unknown"};
 
-    const char* scan_direction = NULL;
-    switch (_scan_direction) {
-        case 0: scan_direction = scan_direction_str[0]; break;
-        case DB_NEXT: scan_direction = scan_direction_str[1]; break;
-        case DB_PREV: scan_direction = scan_direction_str[2]; break;
-        default: scan_direction = scan_direction_str[3]; break;
+    if (_thd) {
+        const char* scan_direction = NULL;
+        // just a little dance around to prevent processlist from
+        // showing the status as we are printing into it
+        static const char* tmp = "";
+        thd_proc_info(_thd, tmp);
+        switch (_scan_direction) {
+            case 0:
+                scan_direction = scan_direction_str[0];
+                break;
+            case DB_NEXT:
+                scan_direction = scan_direction_str[1];
+                break;
+            case DB_PREV:
+                scan_direction = scan_direction_str[2];
+                break;
+            default:
+                scan_direction = scan_direction_str[3];
+                break;
+        }
+
+        float progress_rows = 0.0;
+        if (_share->row_count() > 0)
+            progress_rows = (float)_rows / (float)_share->row_count();
+        float progress_time = 0.0;
+        if (_time_limit > 0)
+            progress_time = (float)_key_elapsed_time / (float)_time_limit;
+        sprintf(_status,
+                "analyze table standard %s.%s.%s %llu of %u %.lf%% rows %.lf%% "
+                "time, %s",
+                _share->database_name(),
+                _share->table_name(),
+                _share->_key_descriptors[_current_key]._name,
+                _current_key,
+                _share->_keys,
+                progress_rows * 100.0,
+                progress_time * 100.0,
+                scan_direction);
+        thd_proc_info(_thd, _status);
     }
-
-    float progress_rows = 0.0;
-    if (_share->row_count() > 0)
-        progress_rows = (float) _rows / (float) _share->row_count();
-    float progress_time = 0.0;
-    if (_time_limit > 0)
-        progress_time = (float) _key_elapsed_time / (float) _time_limit;
-    sprintf(
-        msg,
-        "analyze table standard %s.%s.%s %llu of %u %.lf%% rows %.lf%% time, "
-        "%s",
-        _share->database_name(),
-        _share->table_name(),
-        _share->_key_descriptors[_current_key]._name,
-        _current_key,
-        _share->_keys,
-        progress_rows * 100.0,
-        progress_time * 100.0,
-        scan_direction);
 }
 int standard_t::analyze_key_progress(void) {
     if (_ticks > 1000) {
@@ -556,11 +579,7 @@ int standard_t::analyze_key_progress(void) {
         }
 
         // report
-        if (_thd) {
-            char status[256];
-            get_analyze_status(status);
-            thd_proc_info(_thd, status);
-        }
+        set_proc_info();
 
         // throttle
         // given the throttle value, lets calculate the maximum number of rows
@@ -736,7 +755,6 @@ int TOKUDB_SHARE::analyze_recount_rows(THD* thd,DB_TXN* txn) {
 
     assert_always(thd != NULL);
 
-    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     int result = HA_ADMIN_OK;
 
     tokudb::analyze::recount_rows_t* job
@@ -755,8 +773,6 @@ int TOKUDB_SHARE::analyze_recount_rows(THD* thd,DB_TXN* txn) {
         delete job;
         result = HA_ADMIN_FAILED;
     }
-
-    thd_proc_info(thd, orig_proc_info);
 
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }
@@ -780,8 +796,6 @@ int TOKUDB_SHARE::analyze_standard(THD* thd, DB_TXN* txn) {
         thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
         TOKUDB_HANDLER_DBUG_RETURN(result);
     }
-
-    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
 
     tokudb::analyze::standard_t* job
         = new tokudb::analyze::standard_t(txn == NULL ? false : true, thd,
@@ -810,8 +824,6 @@ int TOKUDB_SHARE::analyze_standard(THD* thd, DB_TXN* txn) {
     }
 
     lock();
-
-    thd_proc_info(thd, orig_proc_info);
 
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }

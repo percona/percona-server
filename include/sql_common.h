@@ -29,6 +29,20 @@ extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
 extern const char	*not_error_sqlstate;
 
+
+/*
+  Free all memory allocated in MYSQL handle except the
+  current options.
+*/
+void mysql_close_free(MYSQL *mysql);
+
+/*
+  Clear connection options stored in MYSQL handle and
+  free memory used by them.
+*/
+void mysql_close_free_options(MYSQL *mysql);
+
+
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;

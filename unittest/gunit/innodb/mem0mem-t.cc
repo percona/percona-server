@@ -43,6 +43,15 @@ protected:
 			innodb_inited = true;
 		}
 	}
+
+	virtual void
+	TearDown()
+	{
+		if (innodb_inited) {
+			sync_check_close();
+			innodb_inited = false;
+		}
+	}
 };
 
 /* test mem_heap_is_top() */

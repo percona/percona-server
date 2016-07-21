@@ -304,6 +304,9 @@ void test_oom()
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread wait)");
   cleanup_instruments();
+  cleanup_file_class();
+  cleanup_sync_class();
+  cleanup_thread_class();
 
   /* Thread waits history sizing. */
   memset(&param, 0, sizeof(param));
@@ -314,6 +317,7 @@ void test_oom()
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread waits history sizing)");
   cleanup_instruments();
+  cleanup_thread_class();
 
   /* Per thread stages. */
   memset(&param, 0, sizeof(param));
@@ -324,6 +328,7 @@ void test_oom()
   ok(thread == NULL, "oom (per thread stages)");
   cleanup_instruments();
   cleanup_stage_class();
+  cleanup_thread_class();
 
   /* Thread stages history sizing. */
   memset(&param, 0, sizeof(param));
@@ -333,6 +338,7 @@ void test_oom()
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread stages history sizing)");
   cleanup_instruments();
+  cleanup_thread_class();
 
   /* Per thread statements. */
   memset(&param, 0, sizeof(param));
@@ -344,6 +350,8 @@ void test_oom()
   ok(thread == NULL, "oom (per thread statements)");
   cleanup_instruments();
   cleanup_statement_class();
+  cleanup_stage_class();
+  cleanup_thread_class();
 
   /* Thread statements history sizing. */
   memset(&param, 0, sizeof(param));
@@ -353,6 +361,7 @@ void test_oom()
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread statements history sizing)");
   cleanup_instruments();
+  cleanup_thread_class();
 
   /* Per thread transactions. */
   memset(&param, 0, sizeof(param));
@@ -363,6 +372,7 @@ void test_oom()
   ok(thread == NULL, "oom (per thread transactions)");
   transaction_class_max= 0;
   cleanup_instruments();
+  cleanup_thread_class();
 
   /* Thread transactions history sizing. */
   memset(&param, 0, sizeof(param));

@@ -194,8 +194,10 @@ TEST(ut0new, edgecases)
 #ifdef UNIV_PFS_MEMORY
 	ret = alloc2.allocate(16);
 	ASSERT_TRUE(ret != NULL);
-	ret = alloc2.reallocate(ret, too_many_elements, __FILE__);
-	EXPECT_EQ(NULL, ret);
+	void* ret2 = alloc2.reallocate(static_cast<void *>(ret),
+				       too_many_elements, __FILE__);
+	EXPECT_EQ(NULL, ret2);
+	alloc2.deallocate(static_cast<big_t *>(ret));
 #endif /* UNIV_PFS_MEMORY */
 
 	bool	threw = false;

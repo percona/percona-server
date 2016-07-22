@@ -56,6 +56,7 @@ NULL	NULL
 SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_include_accounts= '';
+SET GLOBAL audit_log_flush=ON;
 SELECT 'user1';
 user1
 user1
@@ -74,7 +75,9 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
+SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname';
+SET GLOBAL audit_log_flush=ON;
 SELECT 'user1';
 user1
 user1
@@ -93,7 +96,9 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
+SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_include_accounts= NULL;
+SET GLOBAL audit_log_flush=ON;
 SELECT 'user1';
 user1
 user1
@@ -112,7 +117,9 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
+SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%';
+SET GLOBAL audit_log_flush=ON;
 SELECT 'user1';
 user1
 user1
@@ -131,54 +138,63 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
+SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_exclude_accounts= NULL;
 set global audit_log_flush= ON;
 ===================================================================
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 *************************************************************
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= ''","root[root] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= ''","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 *************************************************************
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname'","root[root] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname'","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'admin'","admin[admin] @ localhost [127.0.0.1]","localhost","","127.0.0.1"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'admin'","admin[admin] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 *************************************************************
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= NULL","root[root] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_accounts= NULL","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user1'","user1[user1] @ localhost [127.0.0.1]","localhost","","127.0.0.1"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user1'","user1[user1] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"22user","22user","","","localhost","","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","","","test"
 "Change user","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","",""
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'admin'","admin[admin] @ localhost [127.0.0.1]","localhost","","127.0.0.1"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'admin'","admin[admin] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"admin","admin","","","localhost","127.0.0.1","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'us,er1'","us,er1[us,er1] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'us,er1'","us,er1[us,er1] @ localhost []","localhost","","","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 *************************************************************
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%'","root[root] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%'","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user1'","user1[user1] @ localhost [127.0.0.1]","localhost","","127.0.0.1"
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user1'","user1[user1] @ localhost [127.0.0.1]","localhost","","127.0.0.1","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","127.0.0.1","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","","test"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"22user","22user","","","localhost","","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT '22user'","22user[22user] @ localhost []","localhost","","","test"
 "Change user","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'user22'","user22[user22] @ localhost []","localhost","","",""
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user22","user22","","","localhost","",""
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
-"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'us,er1'","us,er1[us,er1] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT 'us,er1'","us,er1[us,er1] @ localhost []","localhost","","","test"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"us,er1","us,er1","","","localhost","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
 *************************************************************
-"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_accounts= NULL","root[root] @ localhost []","localhost","",""
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_accounts= NULL","root[root] @ localhost []","localhost","","","test"
 ===================================================================
 DROP USER 'user1'@'127.0.0.1';
 DROP USER 'user22'@'%';

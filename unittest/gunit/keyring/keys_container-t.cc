@@ -668,7 +668,13 @@ namespace keyring__keys_container_unittest
         std::string invalid_key_type("ZZZ");
         (*key)->set_key_type(&invalid_key_type);
       }
-      return operator_in(key);
+      my_bool result= operator_in(key);
+      if (!result)
+      {
+        delete *key;
+        *key= NULL;
+      }
+      return result;
     }
 
     int load_key_from_buffer_on_call_number;

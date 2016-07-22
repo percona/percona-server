@@ -113,6 +113,7 @@ namespace keyring_buffered_file_io_unittest
     buffered_io_2->close();
 
     delete buffered_io_2;
+    delete empty_key;
     remove(file_name.c_str());
   }
 
@@ -153,6 +154,7 @@ namespace keyring_buffered_file_io_unittest
     EXPECT_EQ(empty_key_1_data_size, sample_key_data1.length()+1);
     retVal= memcmp(empty_key_1_data, sample_key_data1.c_str(), empty_key_1_data_size);
     EXPECT_EQ(retVal, 0);
+    delete empty_key_1;
 
     IKey *empty_key_2= NULL;
     retVal= *buffered_io_2 >> &empty_key_2;
@@ -166,6 +168,7 @@ namespace keyring_buffered_file_io_unittest
     EXPECT_EQ(empty_key_2_data_size, sample_key_data2.length()+1);
     retVal= memcmp(empty_key_2_data, sample_key_data2.c_str(), empty_key_2_data_size);
     EXPECT_EQ(retVal, 0);
+    delete empty_key_2;
 
     buffered_io_2->close();
 

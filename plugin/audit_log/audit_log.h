@@ -18,11 +18,22 @@
 #define AUDIT_LOG_H_INCLUDED
 
 #include <mysql/plugin.h>
+#include <m_ctype.h>
 
 extern PSI_memory_key key_memory_audit_log_logger_handle;
 extern PSI_memory_key key_memory_audit_log_handler;
 extern PSI_memory_key key_memory_audit_log_buffer;
 extern PSI_memory_key key_memory_audit_log_accounts;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+
+#ifdef __cplusplus
+}
+#endif
 
 #define AUDIT_LOG_PSI_CATEGORY "audit_log"
 

@@ -29,6 +29,7 @@
 #include <my_pthread.h>
 #include <syslog.h>
 
+#include "audit_log.h"
 #include "logger.h"
 #include "buffer.h"
 #include "audit_handler.h"
@@ -246,6 +247,36 @@ void csv_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
   escape_buf(in, inlen, out, outlen, rules);
 }
 
+static const escape_buf_func_t format_escape_func[]=
+  { xml_escape, xml_escape, json_escape, csv_escape };
+
+/*
+  Calculate the size of the otput bufer needed to escape the string.
+
+  @param[in]  in           Input string
+  @param[in]  len          Length of the input string
+
+  @return
+    size of the otput bufer including trailing zero
+*/
+static
+size_t calculate_escape_string_buf_len(const char *in, size_t len)
+{
+  char tmp[128];
+  size_t full_outlen= 0;
+
+  while (len > 0)
+  {
+    size_t tmp_size= sizeof(tmp);
+    size_t inlen= len;
+    format_escape_func[audit_log_format](in, &inlen, tmp, &tmp_size);
+    in+= inlen;
+    len-= inlen;
+    full_outlen+= tmp_size;
+  }
+  return full_outlen + 1;
+}
+
 /*
   Escape string according to audit_log_format.
 
@@ -268,37 +299,26 @@ char *escape_string(const char *in, size_t inlen,
                     char *out, size_t outlen,
                     char **endptr, size_t *full_outlen)
 {
-  const escape_buf_func_t format_escape_func[]=
-        { xml_escape, xml_escape, json_escape, csv_escape };
-  size_t inlen_orig= inlen;
-
   if (outlen == 0)
   {
     if (endptr)
       *endptr= out;
+    if (full_outlen)
+      *full_outlen+= calculate_escape_string_buf_len(in + inlen, inlen);
   }
   else if (in != NULL)
   {
+    size_t inlen_res= inlen;
     --outlen;
-    format_escape_func[audit_log_format](in, &inlen, out, &outlen);
+    format_escape_func[audit_log_format](in, &inlen_res, out, &outlen);
     out[outlen]= 0;
     if (endptr)
       *endptr= out + outlen + 1;
     if (full_outlen)
     {
-      char tmp[20];
-      in+= inlen;
       *full_outlen+= outlen;
-      inlen_orig-= inlen;
-      while (inlen_orig > 0)
-      {
-        size_t tmp_size= sizeof(tmp);
-        inlen= inlen_orig;
-        format_escape_func[audit_log_format](in, &inlen, tmp, &tmp_size);
-        in+= inlen;
-        inlen_orig-= inlen;
-        *full_outlen+= tmp_size;
-      }
+      *full_outlen+= calculate_escape_string_buf_len(in + inlen,
+                                                     inlen - inlen_res);
     }
   }
   else
@@ -419,6 +439,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
   char *query, *user, *host, *external_user, *ip, *db;
   char *endptr= buf, *endbuf= buf + buflen;
   size_t full_outlen= 0, buflen_estimated;
+  size_t query_length;
 
   const char *format_string[] = {
                      "<AUDIT_RECORD\n"
@@ -468,8 +489,34 @@ char *audit_log_general_record(char *buf, size_t buflen,
                      "\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
                      "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
 
-  query= escape_string(event->general_query, event->general_query_length,
-                       endptr, endbuf - endptr, &endptr, &full_outlen);
+  query_length= my_charset_utf8mb4_general_ci.mbmaxlen *
+                event->general_query_length;
+
+  if (query_length < (size_t) (endbuf - endptr))
+  {
+    uint errors;
+    query_length= my_convert(endptr, query_length,
+                             &my_charset_utf8mb4_general_ci,
+                             event->general_query,
+                             event->general_query_length,
+                             event->general_charset, &errors);
+    DBUG_ASSERT(errors == 0);
+    query= endptr;
+    endptr+= query_length;
+
+    full_outlen+= query_length;
+
+    query= escape_string(query, query_length, endptr, endbuf - endptr,
+                         &endptr, &full_outlen);
+  }
+  else
+  {
+    endptr= endbuf;
+    query= escape_string(event->general_query, event->general_query_length,
+                         endptr, endbuf - endptr, &endptr, &full_outlen);
+    full_outlen+= full_outlen * my_charset_utf8mb4_general_ci.mbmaxlen;
+  }
+
   user= escape_string(event->general_user, event->general_user_length,
                       endptr, endbuf - endptr, &endptr, &full_outlen);
   host= escape_string(event->general_host.str, event->general_host.length,
@@ -620,6 +667,8 @@ size_t audit_log_header(MY_STAT *stat, char *buf, size_t buflen)
                      "<AUDIT>\n",
                      "",
                      "" };
+
+  DBUG_ASSERT(strcmp(system_charset_info->csname, "utf8") == 0);
 
   log_file_time= stat->st_mtime;
 
@@ -899,15 +948,16 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
                       event_general->general_charset);
       if (strncasecmp("use", word, len) == 0)
       {
+        uint errors;
+
         word= next_word(word + len, &len, event_general->general_charset);
         if (*word == '`')
         {
           word++;
           len-= 2;
         }
-        len = len < sizeof(local->db) ? len : sizeof(local->db) - 1;
-
-        memcpy(local->db, word, len);
+        len= my_convert(local->db, sizeof(local->db) - 1, system_charset_info,
+                        word, len, event_general->general_charset, &errors);
         local->db[len]= 0;
       }
     }

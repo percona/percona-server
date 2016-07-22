@@ -17,6 +17,18 @@
 #ifndef AUDIT_LOG_H_INCLUDED
 #define AUDIT_LOG_H_INCLUDED
 
+#include <m_ctype.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+
+#ifdef __cplusplus
+}
+#endif
+
 #define AUDIT_LOG_PSI_CATEGORY "audit_log"
 
 #endif /* AUDIT_LOG_H_INCLUDED */

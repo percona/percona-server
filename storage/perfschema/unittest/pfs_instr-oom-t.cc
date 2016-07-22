@@ -354,6 +354,7 @@ void test_oom()
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread wait)");
+  cleanup_instruments();
 
   param.m_enabled= true;
   param.m_mutex_class_sizing= 0;

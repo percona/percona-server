@@ -81,7 +81,7 @@ This session variable controls the number of seconds an analyze operation will s
 
   .. code-block:: mysql
 
-    SELECT INDEXES FROM table_name;
+    SHOW INDEXES FROM table_name;
 
 If an analyze is never performed on a table then the cardinality is ``1`` for primary key indexes and unique secondary indexes, and ``NULL`` (unknown) for all other indexes. Proper cardinality can lead to improved performance of complex SQL statements.
 

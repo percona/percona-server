@@ -68,7 +68,8 @@ void job_manager_t::destroy() {
     while (_background_jobs.size()) {
         _mutex.lock();
         job_t* job = _background_jobs.front();
-        cancel(job);
+        if (!job->cancelled())
+            cancel(job);
         _background_jobs.pop_front();
         delete job;
         _mutex.unlock();
@@ -148,11 +149,8 @@ bool job_manager_t::cancel_job(const char* key) {
          it != _background_jobs.end(); it++) {
         job_t* job = *it;
 
-        if (!job->cancelled() &&
-            strcmp(job->key(), key) == 0) {
-
+        if (!job->cancelled() && strcmp(job->key(), key) == 0) {
             cancel(job);
-
             ret = true;
         }
     }
@@ -233,6 +231,7 @@ void job_manager_t::run(job_t* job) {
 }
 void job_manager_t::cancel(job_t* job) {
     assert_debug(_mutex.is_owned_by_me());
+    assert_always(!job->cancelled());
     job->cancel();
 }
 job_manager_t* _job_manager = NULL;

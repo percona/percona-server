@@ -84,17 +84,7 @@
    Memcheck:Leak
    fun:calloc
    fun:allocate_dtv
-   fun:_dl_allocate_tls_storage
-   fun:__GI__dl_allocate_tls
-   fun:pthread_create
-}
-
-{
-   pthread allocate_dtv memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls
+   ...
    fun:pthread_create*
 }
 
@@ -876,6 +866,39 @@
    fun:buf_buddy_free_low
    fun:buf_buddy_free
 }
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:*
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+}
+
+{
+   OpenSSL still reachable 2
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:FIPS_mode_set
+   fun:OPENSSL_init_library
+}
+
+{
+   OpenSSL libstdc++ version 5 / three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+}
+
 {
    zlib longest_match false positive
    Memcheck:Cond

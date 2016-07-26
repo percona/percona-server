@@ -8,7 +8,7 @@ This file is part of TokuDB
 
 Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
-    TokuDBis is free software: you can redistribute it and/or modify
+    TokuDB is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2,
     as published by the Free Software Foundation.
 
@@ -162,8 +162,6 @@ bool job_manager_t::cancel_job(const char* key) {
 }
 void job_manager_t::iterate_jobs(pfn_iterate_t callback, void* extra) const {
 
-    char database[256], table[256], type[256], params[256], status[256];
-
     _mutex.lock();
 
     for (jobs_t::const_iterator it = _background_jobs.begin();
@@ -171,19 +169,7 @@ void job_manager_t::iterate_jobs(pfn_iterate_t callback, void* extra) const {
          it++) {
         job_t* job = *it;
         if (!job->cancelled()) {
-            database[0] = table[0] = type[0] = params[0] = status[0] = '\0';
-            job->status(database, table, type, params, status);
-            callback(
-                job->id(),
-                database,
-                table,
-                type,
-                params,
-                status,
-                job->user_scheduled(),
-                job->scheduled_time(),
-                job->started_time(),
-                extra);
+            callback(job, extra);
         }
     }
 

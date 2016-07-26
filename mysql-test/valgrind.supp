@@ -84,17 +84,7 @@
    Memcheck:Leak
    fun:calloc
    fun:allocate_dtv
-   fun:_dl_allocate_tls_storage
-   fun:__GI__dl_allocate_tls
-   fun:pthread_create
-}
-
-{
-   pthread allocate_dtv memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:allocate_dtv
-   fun:_dl_allocate_tls
+   ...
    fun:pthread_create*
 }
 
@@ -809,6 +799,17 @@
    fun:malloc
    fun:CRYPTO_malloc
    fun:ENGINE_new
+}
+
+{
+   OpenSSL libstdc++ version 5 / three
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
 }
 
 {

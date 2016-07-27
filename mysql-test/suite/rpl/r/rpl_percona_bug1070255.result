@@ -31,8 +31,10 @@ SELECT * FROM t3;
 a	b
 SELECT * FROM t4;
 a	b
+include/stop_slave.inc
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 set global DEBUG='';
+include/start_slave.inc
 include/rpl_end.inc

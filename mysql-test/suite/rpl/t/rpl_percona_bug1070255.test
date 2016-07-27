@@ -40,12 +40,19 @@ SELECT * FROM t2;
 SELECT * FROM t3;
 SELECT * FROM t4;
 
+--source include/stop_slave.inc
+
 connection master;
 
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 
+# Needs to happen with slave stopped, see Oracle bug 58754
 set global DEBUG='';
+
+connection slave;
+
+--source include/start_slave.inc
 
 --source include/rpl_end.inc

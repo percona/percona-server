@@ -1584,6 +1584,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
 			       "ER_NET_READ_INTERRUPTED");
 		    });
     if (mysql_real_query(mysql, query, strlen(query))) {
+      if (check_io_slave_killed(mi->io_thd, mi, NULL))
+        goto slave_killed_err;
+
       if (is_network_error(mysql_errno(mysql)))
       {
         mi->report(WARNING_LEVEL, mysql_errno(mysql),
@@ -1592,7 +1595,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
         mysql_free_result(mysql_store_result(mysql));
         goto network_err;
       }
-      else if (!check_io_slave_killed(mi->io_thd, mi, NULL)) {
+      else
+      {
+        /* Fatal error */
         errmsg= "The slave I/O thread stops because SET @master_heartbeat_period "
           "on master failed.";
         err_code= ER_SLAVE_FATAL_ERROR;

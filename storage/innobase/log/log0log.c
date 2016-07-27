@@ -3499,7 +3499,7 @@ loop:
 		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 		/* Wake the log tracking thread which will then immediatelly
 		quit because of srv_shutdown_state value */
-		if (srv_track_changed_pages) {
+		if (srv_redo_log_thread_started) {
 			os_event_set(srv_checkpoint_completed_event);
 			os_event_wait(srv_redo_log_thread_finished_event);
 		}
@@ -3576,7 +3576,7 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Signal the log following thread to quit */
-	if (srv_track_changed_pages) {
+	if (srv_redo_log_thread_started) {
 		os_event_set(srv_checkpoint_completed_event);
 	}
 
@@ -3600,7 +3600,7 @@ loop:
 
 	fil_flush_file_spaces(FIL_TABLESPACE);
 
-	if (srv_track_changed_pages) {
+	if (srv_redo_log_thread_started) {
 		os_event_wait(srv_redo_log_thread_finished_event);
 	}
 

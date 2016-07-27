@@ -12539,7 +12539,6 @@ innodb_track_changed_pages_validate(
 						for update function */
 	struct st_mysql_value*		value)	/*!< in: incoming bool */
 {
-	static bool     enabled_on_startup = false;
 	long long	intbuf = 0;
 
 	if (value->val_int(value, &intbuf)) {
@@ -12547,8 +12546,7 @@ innodb_track_changed_pages_validate(
 		return 1;
 	}
 
-	if (srv_track_changed_pages || enabled_on_startup) {
-		enabled_on_startup = true;
+	if (srv_redo_log_thread_started) {
 		*reinterpret_cast<ulong*>(save)
 			= static_cast<ulong>(intbuf);
 		return 0;

@@ -179,6 +179,9 @@ UNIV_INTERN char*	srv_doublewrite_file = NULL;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
+/** Whether the redo log tracking is currently enabled. Note that it is
+possible for the log tracker thread to be running and the tracking to be
+disabled */
 UNIV_INTERN my_bool	srv_track_changed_pages = FALSE;
 
 UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
@@ -808,6 +811,11 @@ UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 UNIV_INTERN os_event_t	srv_checkpoint_completed_event;
 
 UNIV_INTERN os_event_t	srv_redo_log_thread_finished_event;
+
+/** Whether the redo log tracker thread has been started. Does not take into
+account whether the tracking is currently enabled (see srv_track_changed_pages
+for that) */
+UNIV_INTERN my_bool	srv_redo_log_thread_started = FALSE;
 
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
@@ -3179,18 +3187,15 @@ srv_redo_log_follow_thread(
 #endif
 
 	my_thread_init();
+	srv_redo_log_thread_started = TRUE;
 
 	do {
 		os_event_wait(srv_checkpoint_completed_event);
 		os_event_reset(srv_checkpoint_completed_event);
 
-#ifdef UNIV_DEBUG
-		if (!srv_track_changed_pages) {
-			continue;
-		}
-#endif
+		if (srv_track_changed_pages
+		    && srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 
-		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
 			if (!log_online_follow_redo_log()) {
 				/* TODO: sync with I_S log tracking status? */
 				fprintf(stderr,
@@ -3206,6 +3211,7 @@ srv_redo_log_follow_thread(
 	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_thread_finished_event);
+	srv_redo_log_thread_started = FALSE; /* Defensive, not required */
 
 	my_thread_end();
 	os_thread_exit(NULL);

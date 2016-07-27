@@ -45,13 +45,11 @@ public:
     virtual ~recount_rows_t();
 
     virtual const char* key();
-
-    virtual void status(
-        char* database,
-        char* table,
-        char* type,
-        char* params,
-        char* status);
+    virtual const char* database();
+    virtual const char* table();
+    virtual const char* type();
+    virtual const char* parameters();
+    virtual const char* status();
 
 protected:
     virtual void on_run();
@@ -66,7 +64,8 @@ private:
     ulonglong       _throttle;
 
     // for recount rows status reporting
-    char            _status[256];
+    char            _parameters[256];
+    char            _status[1024];
     int             _result;
     ulonglong       _recount_start; // in microseconds
     ulonglong       _total_elapsed_time; // in microseconds
@@ -81,7 +80,6 @@ private:
         uint64_t deleted,
         void* extra);
     int analyze_recount_rows_progress(uint64_t count, uint64_t deleted);
-    void set_proc_info();
 };
 
 void* recount_rows_t::operator new(size_t sz) {
@@ -117,6 +115,12 @@ recount_rows_t::recount_rows_t(
     }
 
     _throttle = tokudb::sysvars::analyze_throttle(thd);
+
+    snprintf(_parameters,
+             sizeof(_parameters),
+             "TOKUDB_ANALYZE_THROTTLE=%llu;",
+             _throttle);
+    _status[0] = '\0';
 }
 recount_rows_t::~recount_rows_t() {
 }
@@ -178,7 +182,7 @@ void recount_rows_t::on_run() {
         _share->row_count());
 error:
     if(_thd)
-        thd_proc_info(_thd, orig_proc_info);
+        tokudb_thd_set_proc_info(_thd, orig_proc_info);
     return;
 }
 void recount_rows_t::on_destroy() {
@@ -187,17 +191,21 @@ void recount_rows_t::on_destroy() {
 const char* recount_rows_t::key() {
     return _share->full_table_name();
 }
-void recount_rows_t::status(
-    char* database,
-    char* table,
-    char* type,
-    char* params,
-    char* status) {
-
-    strcpy(database, _share->database_name());
-    strcpy(table, _share->table_name());
-    strcpy(type, "TOKUDB_ANALYZE_MODE_RECOUNT_ROWS");
-    sprintf(params, "TOKUDB_ANALYZE_THROTTLE=%llu;", _throttle);
+const char* recount_rows_t::database() {
+    return _share->database_name();
+}
+const char* recount_rows_t::table() {
+    return _share->table_name();
+}
+const char* recount_rows_t::type() {
+    static const char* type = "TOKUDB_ANALYZE_MODE_RECOUNT_ROWS";
+    return type;
+}
+const char* recount_rows_t::parameters() {
+    return _parameters;
+}
+const char* recount_rows_t::status() {
+    return _status;
 }
 int recount_rows_t::analyze_recount_rows_progress(
     uint64_t count,
@@ -224,8 +232,32 @@ int recount_rows_t::analyze_recount_rows_progress(
             return ER_ABORTING_CONNECTION;
         }
 
+        // rebuild status
+        // There is a slight race condition here,
+        // _status is used here for tokudb_thd_set_proc_info and it is also used
+        // for the status column in i_s.background_job_status.
+        // If someone happens to be querying/building the i_s table
+        // at the exact same time that the status is being rebuilt here,
+        // the i_s table could get some garbage status.
+        // This solution is a little heavy handed but it works, it prevents us
+        // from changing the status while someone might be immediately observing
+        // us and it prevents someone from observing us while we change the
+        // status
+        tokudb::background::_job_manager->lock();
+        snprintf(_status,
+                 sizeof(_status),
+                 "recount_rows %s.%s counted %llu rows and %llu deleted "
+                 "in %llu seconds.",
+                 _share->database_name(),
+                 _share->table_name(),
+                 _rows,
+                 _deleted_rows,
+                 _total_elapsed_time / tokudb::time::MICROSECONDS);
+        tokudb::background::_job_manager->unlock();
+
         // report
-        set_proc_info();
+        if (_thd)
+            tokudb_thd_set_proc_info(_thd, _status);
 
         // throttle
         // given the throttle value, lets calculate the maximum number of rows
@@ -241,23 +273,6 @@ int recount_rows_t::analyze_recount_rows_progress(
     }
     return 0;
 }
-void recount_rows_t::set_proc_info() {
-    if (_thd) {
-        // just a little dance around to prevent processlist from
-        // showing the status as we are printing into it
-        static const char* tmp = "";
-        thd_proc_info(_thd, tmp);
-        sprintf(_status,
-                "recount_rows %s.%s counted %llu rows and %llu deleted "
-                "in %llu seconds.",
-                _share->database_name(),
-                _share->table_name(),
-                _rows,
-                _deleted_rows,
-                _total_elapsed_time / tokudb::time::MICROSECONDS);
-        thd_proc_info(_thd, _status);
-    }
-}
 
 class standard_t : public tokudb::background::job_manager_t::job_t {
 public:
@@ -269,13 +284,11 @@ public:
     virtual ~standard_t();
 
     virtual const char* key(void);
-
-    virtual void status(
-        char* database,
-        char* table,
-        char* type,
-        char* params,
-        char* status);
+    virtual const char* database();
+    virtual const char* table();
+    virtual const char* type();
+    virtual const char* parameters();
+    virtual const char* status();
 
 protected:
     virtual void on_run();
@@ -292,7 +305,8 @@ private:
     double          _delete_fraction;
 
     // for analyze status reporting, may also use other state
-    char            _status[256];
+    char            _parameters[256];
+    char            _status[1024];
     int             _result;
     ulonglong       _analyze_start; // in microseconds
     ulonglong       _total_elapsed_time; // in microseconds
@@ -314,7 +328,6 @@ private:
         uint64_t deleted_rows);
     bool analyze_standard_cursor_callback(uint64_t deleted_rows);
 
-    void set_proc_info();
     int analyze_key_progress();
     int analyze_key(uint64_t* rec_per_key_part);
 };
@@ -360,6 +373,16 @@ standard_t::standard_t(
     _time_limit =
         tokudb::sysvars::analyze_time(thd) * tokudb::time::MICROSECONDS;
     _delete_fraction = tokudb::sysvars::analyze_delete_fraction(thd);
+
+    snprintf(_parameters,
+             sizeof(_parameters),
+             "TOKUDB_ANALYZE_DELETE_FRACTION=%f; "
+             "TOKUDB_ANALYZE_TIME=%llu; TOKUDB_ANALYZE_THROTTLE=%llu;",
+             _delete_fraction,
+             _time_limit / tokudb::time::MICROSECONDS,
+             _throttle);
+
+    _status[0] = '\0';
 }
 standard_t::~standard_t() {
 }
@@ -408,7 +431,7 @@ void standard_t::on_run() {
             _result = HA_ADMIN_FAILED;
         }
         if (_thd && (_result == HA_ADMIN_FAILED ||
-            (double)_deleted_rows >
+            static_cast<double>(_deleted_rows) >
                 _delete_fraction * (_rows + _deleted_rows))) {
 
             char name[256]; int namelen;
@@ -475,7 +498,7 @@ cleanup:
 
 error:
     if (_thd)
-        thd_proc_info(_thd, orig_proc_info);
+        tokudb_thd_set_proc_info(_thd, orig_proc_info);
     return;
 }
 void standard_t::on_destroy() {
@@ -487,23 +510,21 @@ void standard_t::on_destroy() {
 const char* standard_t::key() {
     return _share->full_table_name();
 }
-void standard_t::status(
-    char* database,
-    char* table,
-    char* type,
-    char* params,
-    char* status) {
-
-    strcpy(database, _share->database_name());
-    strcpy(table, _share->table_name());
-    strcpy(type, "TOKUDB_ANALYZE_MODE_STANDARD");
-    sprintf(
-        params,
-        "TOKUDB_ANALYZE_DELETE_FRACTION=%f; "
-        "TOKUDB_ANALYZE_TIME=%llu; TOKUDB_ANALYZE_THROTTLE=%llu;",
-        _delete_fraction,
-        _time_limit / tokudb::time::MICROSECONDS,
-        _throttle);
+const char* standard_t::database() {
+    return _share->database_name();
+}
+const char* standard_t::table() {
+    return _share->table_name();
+}
+const char* standard_t::type() {
+    static const char* type = "TOKUDB_ANALYZE_MODE_STANDARD";
+    return type;
+}
+const char* standard_t::parameters() {
+    return _parameters;
+}
+const char* standard_t::status() {
+    return _status;
 }
 bool standard_t::analyze_standard_cursor_callback(
     void* extra,
@@ -516,18 +537,38 @@ bool standard_t::analyze_standard_cursor_callback(uint64_t deleted_rows) {
     _ticks += deleted_rows;
     return analyze_key_progress() != 0;
 }
-void standard_t::set_proc_info() {
-    static const char* scan_direction_str[] = {"not scanning",
-                                               "scanning forward",
-                                               "scanning backward",
-                                               "scan unknown"};
+int standard_t::analyze_key_progress(void) {
+    if (_ticks > 1000) {
+        _ticks = 0;
+        uint64_t now = tokudb::time::microsec();
+        _total_elapsed_time = now - _analyze_start;
+        _key_elapsed_time = now - _analyze_key_start;
+        if ((_thd && thd_killed(_thd)) || cancelled()) {
+            // client killed
+            return ER_ABORTING_CONNECTION;
+        } else if (_time_limit > 0 &&
+                   static_cast<uint64_t>(_key_elapsed_time) > _time_limit) {
+            // time limit reached
+            return ETIME;
+        }
 
-    if (_thd) {
+        // rebuild status
+        // There is a slight race condition here,
+        // _status is used here for tokudb_thd_set_proc_info and it is also used
+        // for the status column in i_s.background_job_status.
+        // If someone happens to be querying/building the i_s table
+        // at the exact same time that the status is being rebuilt here,
+        // the i_s table could get some garbage status.
+        // This solution is a little heavy handed but it works, it prevents us
+        // from changing the status while someone might be immediately observing
+        // us and it prevents someone from observing us while we change the
+        // status.
+        static const char* scan_direction_str[] = {"not scanning",
+                                                   "scanning forward",
+                                                   "scanning backward",
+                                                   "scan unknown"};
+
         const char* scan_direction = NULL;
-        // just a little dance around to prevent processlist from
-        // showing the status as we are printing into it
-        static const char* tmp = "";
-        thd_proc_info(_thd, tmp);
         switch (_scan_direction) {
             case 0:
                 scan_direction = scan_direction_str[0];
@@ -545,41 +586,31 @@ void standard_t::set_proc_info() {
 
         float progress_rows = 0.0;
         if (_share->row_count() > 0)
-            progress_rows = (float)_rows / (float)_share->row_count();
+            progress_rows = static_cast<float>(_rows) /
+                            static_cast<float>(_share->row_count());
         float progress_time = 0.0;
         if (_time_limit > 0)
-            progress_time = (float)_key_elapsed_time / (float)_time_limit;
-        sprintf(_status,
-                "analyze table standard %s.%s.%s %llu of %u %.lf%% rows %.lf%% "
-                "time, %s",
-                _share->database_name(),
-                _share->table_name(),
-                _share->_key_descriptors[_current_key]._name,
-                _current_key,
-                _share->_keys,
-                progress_rows * 100.0,
-                progress_time * 100.0,
-                scan_direction);
-        thd_proc_info(_thd, _status);
-    }
-}
-int standard_t::analyze_key_progress(void) {
-    if (_ticks > 1000) {
-        _ticks = 0;
-        uint64_t now = tokudb::time::microsec();
-        _total_elapsed_time = now - _analyze_start;
-        _key_elapsed_time = now - _analyze_key_start;
-        if ((_thd && thd_killed(_thd)) || cancelled()) {
-            // client killed
-            return ER_ABORTING_CONNECTION;
-        } else if(_time_limit > 0 &&
-                  (uint64_t)_key_elapsed_time > _time_limit) {
-            // time limit reached
-            return ETIME;
-        }
+            progress_time = static_cast<float>(_key_elapsed_time) /
+                            static_cast<float>(_time_limit);
+        tokudb::background::_job_manager->lock();
+        snprintf(
+            _status,
+            sizeof(_status),
+            "analyze table standard %s.%s.%s %llu of %u %.lf%% rows %.lf%% "
+            "time, %s",
+            _share->database_name(),
+            _share->table_name(),
+            _share->_key_descriptors[_current_key]._name,
+            _current_key,
+            _share->_keys,
+            progress_rows * 100.0,
+            progress_time * 100.0,
+            scan_direction);
+        tokudb::background::_job_manager->unlock();
 
         // report
-        set_proc_info();
+        if (_thd)
+            tokudb_thd_set_proc_info(_thd, _status);
 
         // throttle
         // given the throttle value, lets calculate the maximum number of rows

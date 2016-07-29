@@ -7504,7 +7504,17 @@ void handle_error(struct st_command *command,
   }
 
   if (command->abort_on_error)
+  {
+    if (err_errno == ER_NO_SUCH_THREAD)
+    {
+      /* No such thread id, let's dump the available ones */
+      fprintf(stderr, "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+              "dumping processlist\n", command->query);
+      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+    }
+
     die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
+  }
 
   DBUG_PRINT("info", ("expected_errors.count: %d",
                       command->expected_errors.count));
@@ -7550,9 +7560,18 @@ void handle_error(struct st_command *command,
   if (command->expected_errors.count > 0)
   {
     if (command->expected_errors.err[0].type == ERR_ERRNO)
+    {
+      if (err_errno == ER_NO_SUCH_THREAD)
+      {
+        /* No such thread id, let's dump the available ones */
+        fprintf(stderr, "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+                "dumping processlist\n", command->query);
+        show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+      }
       die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
           command->query, err_errno, err_error,
           command->expected_errors.err[0].code.errnum);
+    }
     else
       die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
           command->query, err_sqlstate, err_error,

@@ -17,6 +17,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_user.h>
+#include <m_ctype.h>
 #include <mysql_com.h>
 #include <hash.h>
 #include <string.h>
@@ -32,18 +33,30 @@ typedef struct
   size_t length;
 } account;
 
+typedef struct
+{
+  char name[NAME_LEN + 1];
+  size_t length;
+} database;
+
 static HASH include_accounts;
 static HASH exclude_accounts;
+
+static HASH include_databases;
+static HASH exclude_databases;
 
 #if defined(HAVE_PSI_INTERFACE)
 
 static PSI_rwlock_key key_LOCK_account_list;
+static PSI_rwlock_key key_LOCK_database_list;
 static PSI_rwlock_info all_rwlock_list[]=
-{{ &key_LOCK_account_list, "audit_log_filter::account_list", PSI_FLAG_GLOBAL}};
+{{ &key_LOCK_account_list, "audit_log_filter::account_list", PSI_FLAG_GLOBAL},
+ { &key_LOCK_database_list, "audit_log_filter::database_list", PSI_FLAG_GLOBAL}};
 
 #endif
 
 mysql_rwlock_t LOCK_account_list;
+mysql_rwlock_t LOCK_database_list;
 
 /*
   Initialize account
@@ -81,10 +94,48 @@ account *account_create(const char *user, size_t user_length,
   Get account key
 */
 uchar *account_get_key(const account *acc, size_t *length,
-                       my_bool not_used __attribute__((unused)))
+                       my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= acc->length;
   return (uchar*) acc->name;
+}
+
+/*
+  Initialize database
+*/
+static
+void database_init(database *db, const char *name, size_t length)
+{
+  DBUG_ASSERT(length + 1 <= sizeof(db->name));
+
+  memcpy(db->name, name, length);
+  db->name[length]= 0;
+  db->length= length;
+}
+
+/*
+  Allocate memory and initialize new database
+*/
+
+static
+database *database_create(const char *name, size_t length)
+{
+  database *db= (database *) my_malloc(key_memory_audit_log_databases,
+                                       sizeof(database), MYF(MY_FAE));
+
+  database_init(db, name, length);
+
+  return db;
+}
+
+/*
+  Get database key
+*/
+uchar *database_get_key(const database *db, size_t *length,
+                        my_bool not_used MY_ATTRIBUTE((unused)))
+{
+  *length= db->length;
+  return (uchar*) db->name;
 }
 
 /*
@@ -138,6 +189,7 @@ void account_list_from_string(HASH *hash, const char *string)
     parse_user(entry, entry_length, user, &user_length, host, &host_length);
     unquote_string(user, &user_length);
     unquote_string(host, &host_length);
+    my_casedn_str(system_charset_info, host);
 
     my_hash_insert(hash,
         (uchar*) account_create(user, user_length, host, host_length));
@@ -146,6 +198,51 @@ void account_list_from_string(HASH *hash, const char *string)
   }
 
   my_free(string_copy);
+}
+
+static
+void database_list_from_string(HASH *hash, const char *string)
+{
+  const char *entry= string;
+
+  my_hash_reset(hash);
+
+  while (*entry)
+  {
+    size_t entry_length= 0;
+    my_bool quote= FALSE;
+    char name[NAME_LEN + 1];
+    size_t name_length= 0;
+
+    while (*entry == ' ')
+      entry++;
+
+    while (((entry[entry_length] != ' ' && entry[entry_length] != ',') || quote)
+           && entry[entry_length] != 0)
+    {
+      if (quote && entry[entry_length] == '`' && entry[entry_length + 1] == '`')
+      {
+        name[name_length++]= '`';
+        entry_length+= 1;
+      }
+      else if (entry[entry_length] == '`')
+        quote= !quote;
+      else if (name_length < sizeof(name))
+        name[name_length++]= entry[entry_length];
+      entry_length++;
+    }
+
+    if (name_length > 0)
+    {
+      name[name_length]= 0;
+      my_hash_insert(hash, (uchar*) database_create(name, name_length));
+    }
+
+    entry+= entry_length;
+
+    if (*entry == ',')
+      entry++;
+  }
 }
 
 /* public interface */
@@ -157,23 +254,37 @@ void audit_log_filter_init()
                         array_elements(all_rwlock_list));
 #endif /* HAVE_PSI_INTERFACE */
   mysql_rwlock_init(key_LOCK_account_list, &LOCK_account_list);
+  mysql_rwlock_init(key_LOCK_database_list, &LOCK_database_list);
 
-  my_hash_init(&include_accounts, &my_charset_utf8_general_ci,
+  my_hash_init(&include_accounts, &my_charset_bin,
                20, 0, 0,
                (my_hash_get_key) account_get_key,
                my_free, HASH_UNIQUE, key_memory_audit_log_accounts);
 
-  my_hash_init(&exclude_accounts, &my_charset_utf8_general_ci,
+  my_hash_init(&exclude_accounts, &my_charset_bin,
                20, 0, 0,
                (my_hash_get_key) account_get_key,
                my_free, HASH_UNIQUE, key_memory_audit_log_accounts);
+
+  my_hash_init(&include_databases, &my_charset_bin,
+               20, 0, 0,
+               (my_hash_get_key) database_get_key,
+               my_free, HASH_UNIQUE, key_memory_audit_log_databases);
+
+  my_hash_init(&exclude_databases, &my_charset_bin,
+               20, 0, 0,
+               (my_hash_get_key) database_get_key,
+               my_free, HASH_UNIQUE, key_memory_audit_log_databases);
 }
 
 void audit_log_filter_destroy()
 {
   my_hash_free(&include_accounts);
   my_hash_free(&exclude_accounts);
+  my_hash_free(&include_databases);
+  my_hash_free(&exclude_databases);
   mysql_rwlock_destroy(&LOCK_account_list);
+  mysql_rwlock_destroy(&LOCK_database_list);
 }
 
 /*
@@ -232,5 +343,62 @@ my_bool audit_log_check_account_excluded(const char *user, size_t user_length,
   res= my_hash_search(&exclude_accounts,
                       (const uchar*) acc.name, acc.length) != NULL;
   mysql_rwlock_unlock(&LOCK_account_list);
+  return res;
+}
+
+/*
+  Parse and store the list of included databases.
+*/
+void audit_log_set_include_databases(const char *val)
+{
+  mysql_rwlock_wrlock(&LOCK_database_list);
+  database_list_from_string(&include_databases, val);
+  mysql_rwlock_unlock(&LOCK_database_list);
+}
+
+/*
+  Parse and store the list of excluded databases.
+*/
+void audit_log_set_exclude_databases(const char *val)
+{
+  mysql_rwlock_wrlock(&LOCK_database_list);
+  database_list_from_string(&exclude_databases, val);
+  mysql_rwlock_unlock(&LOCK_database_list);
+}
+
+/*
+  Check if database has to be included.
+*/
+my_bool audit_log_check_database_included(const char *name, size_t length)
+{
+  database db;
+  my_bool res;
+
+  database_init(&db, name, length);
+
+  mysql_rwlock_rdlock(&LOCK_database_list);
+
+  res= my_hash_search(&include_databases,
+                      (const uchar*) db.name, db.length) != NULL;
+
+  mysql_rwlock_unlock(&LOCK_database_list);
+  return res;
+}
+
+/*
+  Check if database has to be excluded.
+*/
+my_bool audit_log_check_database_excluded(const char *name, size_t length)
+{
+  database db;
+  my_bool res;
+
+  database_init(&db, name, length);
+
+  mysql_rwlock_rdlock(&LOCK_database_list);
+
+  res= my_hash_search(&exclude_databases,
+                      (const uchar*) db.name, db.length) != NULL;
+  mysql_rwlock_unlock(&LOCK_database_list);
   return res;
 }

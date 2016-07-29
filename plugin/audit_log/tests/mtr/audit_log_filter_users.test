@@ -4,7 +4,7 @@
 
 CREATE USER 'user1'@'127.0.0.1' IDENTIFIED BY 'password1';
 CREATE USER 'user22'@'%' IDENTIFIED BY 'password1';
-CREATE USER '22user'@'localhost' IDENTIFIED BY 'password1';
+CREATE USER '22user'@'LOCALHOST' IDENTIFIED BY 'password1';
 CREATE USER 'admin'@'%' IDENTIFIED BY 'password1';
 CREATE USER 'us,er1'@'localhost' IDENTIFIED BY 'password1';
 
@@ -70,6 +70,13 @@ SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin
 --source audit_log_filter_events.inc
 
 SET GLOBAL audit_log_exclude_accounts= NULL;
+
+# testing case sensitivity
+SET GLOBAL audit_log_include_accounts= '22user@LocalHost,User22@%';
+
+--source audit_log_filter_events.inc
+
+SET GLOBAL audit_log_include_accounts= NULL;
 
 --source audit_log_echo.inc
 

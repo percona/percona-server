@@ -29,6 +29,12 @@ my_bool audit_log_check_account_included(const char *user, size_t user_length,
                                          const char *host, size_t host_length);
 my_bool audit_log_check_account_excluded(const char *user, size_t user_length,
                                          const char *host, size_t host_length);
+
+void audit_log_set_include_databases(const char *val);
+void audit_log_set_exclude_databases(const char *val);
+my_bool audit_log_check_database_included(const char *name, size_t length);
+my_bool audit_log_check_database_excluded(const char *name, size_t length);
+
 void audit_log_filter_init();
 void audit_log_filter_destroy();
 

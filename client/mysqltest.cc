@@ -3154,7 +3154,23 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   }
 #endif /* _WIN32 */
 
-  return popen(ds_cmd->str, mode);
+  errno= 0;
+  FILE *file= popen(ds_cmd->str, mode);
+  if (file == NULL)
+  {
+    if (errno != 0)
+    {
+      fprintf(stderr, "mysqltest: popen failed with errno %d (%s)\n", errno,
+              strerror(errno));
+    }
+    else
+    {
+      fprintf(stderr,
+              "mysqltest: popen returned NULL without setting errno "
+              "(out-of-memory?)\n");
+    }
+  }
+  return file;
 }
 
 
@@ -5047,6 +5063,25 @@ int query_get_string(MYSQL* mysql, const char* query,
 
 
 /**
+  A wrapper around kill call that prints diagnostics if the call failed with
+  any other error than ESRCH.
+
+  @param pid    Process id
+  @param sig    Signal to send to process
+  @return The return value of kill call
+*/
+static int my_kill(int pid, int sig)
+{
+  const int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
+}
+
+/**
   Check if process is active.
 
   @param pid  Process id.
@@ -5071,7 +5106,7 @@ static bool is_process_active(int pid)
 
   return true;
 #else
-  return (kill(pid, 0) == 0);
+  return (my_kill(pid, 0) == 0);
 #endif
 }
 
@@ -5096,7 +5131,7 @@ static bool kill_process(int pid)
 
   CloseHandle(proc);
 #else
-  killed= (kill(pid, SIGKILL) == 0);
+  killed= (my_kill(pid, SIGKILL) == 0);
 #endif
   return killed;
 }
@@ -5165,7 +5200,9 @@ static void abort_process(int pid, const char *path)
     verbose_msg("OpenProcess failed: %d\n", err);
   }
 #else
-  kill(pid, SIGABRT);
+  log_msg("shutdown_server timeout exceeded, SIGABRT set to the server PID %d",
+          pid);
+  my_kill(pid, SIGABRT);
 #endif
 }
 
@@ -8116,7 +8153,17 @@ void handle_error(struct st_command *command,
   }
 
   if (command->abort_on_error)
+  {
+    if (err_errno == ER_NO_SUCH_THREAD)
+    {
+      /* No such thread id, let's dump the available ones */
+      fprintf(stderr, "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+              "dumping processlist\n", command->query);
+      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+    }
+
     die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
+  }
 
   DBUG_PRINT("info", ("expected_errors.count: %d",
                       command->expected_errors.count));
@@ -8162,9 +8209,18 @@ void handle_error(struct st_command *command,
   if (command->expected_errors.count > 0)
   {
     if (command->expected_errors.err[0].type == ERR_ERRNO)
+    {
+      if (err_errno == ER_NO_SUCH_THREAD)
+      {
+        /* No such thread id, let's dump the available ones */
+        fprintf(stderr, "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+                "dumping processlist\n", command->query);
+        show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+      }
       die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
           command->query, err_errno, err_error,
           command->expected_errors.err[0].code.errnum);
+    }
     else
       die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
           command->query, err_sqlstate, err_error,

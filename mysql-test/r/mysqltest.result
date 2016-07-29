@@ -969,4 +969,65 @@ con1
 con2
 con2
 -closed_connection-
+#
+# Test that a query failed with ER_NO_SUCH_THREAD causes mysqltest to dump the processlist before dying
+#
+mysqltest: query 'KILL QUERY 276447231 returned ER_NO_SUCH_THREAD, dumping processlist
+=== SHOW PROCESSLIST ===
+---- 1. ----
+Id MASKED
+User	root
+Host	localhost
+db	test
+Command	Sleep
+Time MASKED
+State	
+Info	
+Rows_sent	0
+Rows_examined	0
+---- 2. ----
+Id MASKED
+User	root
+Host	localhost
+db	test
+Command	Query
+Time MASKED
+State	init
+Info	SHOW PROCESSLIST
+Rows_sent	0
+Rows_examined	0
+========================
+
+mysqltest: At line 1: query 'KILL QUERY 276447231' failed: 1094: 
+# PROCESSLIST should not be dumped if error was expected
+KILL QUERY 276447231;
+ERROR HY000: Unknown thread id: 276447231
+# PROCESSLIST should be dumped if a different error was expected
+mysqltest: query 'KILL QUERY 276447231 returned ER_NO_SUCH_THREAD, dumping processlist
+=== SHOW PROCESSLIST ===
+---- 1. ----
+Id MASKED
+User	root
+Host	localhost
+db	test
+Command	Sleep
+Time MASKED
+State	
+Info	
+Rows_sent	0
+Rows_examined	0
+---- 2. ----
+Id MASKED
+User	root
+Host	localhost
+db	test
+Command	Query
+Time MASKED
+State	init
+Info	SHOW PROCESSLIST
+Rows_sent	0
+Rows_examined	0
+========================
+
+mysqltest: At line 1: query 'KILL QUERY 276447231' failed with wrong errno 1094: '', instead of 1064...
 End of tests

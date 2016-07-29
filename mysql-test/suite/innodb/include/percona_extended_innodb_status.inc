@@ -48,16 +48,27 @@ perl;
   use strict;
   use warnings;
 
+  my $expected_locks = $ENV{'expected_locks'};
   my $output = $ENV{'STATUS'};
   if ($output =~ /^Record lock, heap no \d+ PHYSICAL RECORD: n_fields \d+; compact format; info bits \d+$/m)
   {
     print "\"Record lock\" found\n";
     my $records = () = $output =~ /^\s*\d+: len \d+; hex [[:xdigit:]]+; asc .*;;$/gm;
     print "n = $records\n";
+    if ($expected_locks != $records)
+    {
+       print "Expected $expected_locks, found $records. Dumping status\n";
+       print $output;
+    }
   }
   else
   {
     print "\"Record lock\" not found\n";
+    if ($expected_locks != 0)
+    {
+       print "Expected $expected_locks, found 0. Dumping status\n";
+       print $output;
+    }
   }
   if($output =~ /^TOO MANY LOCKS PRINTED FOR THIS TRX: SUPPRESSING FURTHER PRINTS$/m)
   {

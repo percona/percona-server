@@ -539,6 +539,7 @@ sub main {
       $tinfo->{result}= 'MTR_RES_PASSED';
     }
     mtr_report_test($tinfo);
+    mtr_report_test_subunit($tinfo);
     push @$completed, $tinfo;
   }
 
@@ -6522,6 +6523,7 @@ sub run_ctest() {
   mark_time_used('test');
   mtr_report_test($tinfo);
   chdir($olddir);
+  mtr_report_test_subunit($tinfo);
   return $tinfo;
 }
 

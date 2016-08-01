@@ -260,27 +260,24 @@ call mtr.add_suppression("New log files created");
 call mtr.add_suppression("Creating foreign key constraint system tables");
 call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
 call mtr.add_suppression("Info table is not ready to be used");
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
---mkdir $MYSQLTEST_VARDIR/tmpdatadir
+--let $tmpdatadir=$MYSQLTEST_VARDIR/tmpdatadir
+--mkdir $tmpdatadir
 --enable_reconnect
 --echo 13th restart
---exec echo "restart:--innodb-data-home-dir=$MYSQLTEST_VARDIR/tmpdatadir" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--innodb-data-home-dir=$tmpdatadir" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
-file_exists $MYSQLTEST_VARDIR/tmpdatadir/ib_modified_log_1_0.xdb;
+file_exists $tmpdatadir/ib_modified_log_1_0.xdb;
 --replace_regex /_[[:digit:]]+\.xdb$//
-list_files $MYSQLTEST_VARDIR/tmpdatadir ib_modified_log*;
+list_files $tmpdatadir ib_modified_log*;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
 --remove_files_wildcard $MYSQLD_DATADIR ibdata*
 --remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
---enable_reconnect
---echo 14th restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
+
+--remove_files_wildcard $tmpdatadir *
+--rmdir $tmpdatadir

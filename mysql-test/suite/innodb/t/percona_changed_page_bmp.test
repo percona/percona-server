@@ -265,22 +265,23 @@ call mtr.add_suppression("Gtid table is not ready to be used");
 call mtr.add_suppression("Failed to open optimizer cost constant tables");
 call mtr.add_suppression("Can't open and lock time zone table");
 call mtr.add_suppression("Can't open and lock privilege tables");
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
---mkdir $MYSQLTEST_VARDIR/tmpdatadir
---enable_reconnect
---echo 13th restart
---exec echo "restart:--innodb-data-home-dir=$MYSQLTEST_VARDIR/tmpdatadir" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $tmpdatadir=$MYSQLTEST_VARDIR/tmpdatadir
+--mkdir $tmpdatadir
+--let $restart_parameters=restart:--innodb-data-home-dir=$tmpdatadir
+--replace_result $tmpdatadir tmpdatadir
+--source include/start_mysqld.inc
 
-file_exists $MYSQLTEST_VARDIR/tmpdatadir/ib_modified_log_1_0.xdb;
+file_exists $tmpdatadir/ib_modified_log_1_0.xdb;
 --replace_regex /_[[:digit:]]+\.xdb$//
-list_files $MYSQLTEST_VARDIR/tmpdatadir ib_modified_log*;
+list_files $tmpdatadir ib_modified_log*;
 
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
---source include/restart_mysqld.inc
+--let $restart_parameters=
+--source include/start_mysqld.inc
 
---remove_files_wildcard $MYSQLTEST_VARDIR tmpdatadir
+--remove_files_wildcard $tmpdatadir *
+--rmdir $tmpdatadir

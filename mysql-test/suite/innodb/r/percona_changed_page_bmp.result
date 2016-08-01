@@ -70,4 +70,3 @@ call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data
 call mtr.add_suppression("Info table is not ready to be used");
 13th restart
 ib_modified_log_1
-14th restart

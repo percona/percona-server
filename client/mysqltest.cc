@@ -4847,6 +4847,7 @@ void do_shutdown_server(struct st_command *command)
     die("mysql_shutdown failed");
 
   /* Check that server dies */
+  long orig_timeout= timeout;
   while(timeout--){
     if (my_kill(pid, 0) < 0){
       DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
@@ -4858,6 +4859,11 @@ void do_shutdown_server(struct st_command *command)
 
   /* Kill the server */
   DBUG_PRINT("info", ("Killing server, pid: %d", pid));
+  if (orig_timeout != 0)
+  {
+    log_msg("shutdown_server timeout %ld exceeded, SIGKILL sent to the server",
+            orig_timeout);
+  }
   (void)my_kill(pid, 9);
 
   DBUG_VOID_RETURN;

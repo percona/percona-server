@@ -60,4 +60,4 @@ INSERT INTO t3 VALUES (REPEAT('a', 12582912));
 DROP TABLE t3;
 11th restart
 ib_modified_log_1
-12th restart
+# restart

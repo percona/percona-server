@@ -6116,7 +6116,7 @@ sub run_ctest() {
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
-  my $ctest_out= `ctest $ctest_vs 2>&1`;
+  my $ctest_out= `ctest $ctest_vs --output-on-failure 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;

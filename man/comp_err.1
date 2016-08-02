@@ -2,12 +2,12 @@
 .\"     Title: \fBcomp_err\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/16/2016
+.\"      Date: 07/08/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBCOMP_ERR\FR" "1" "05/16/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBCOMP_ERR\FR" "1" "07/08/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -44,7 +44,7 @@ to determine the error messages to display for different error codes\&.
 normally is run automatically when MySQL is built\&. It compiles the
 errmsg\&.sys
 file from the text file located at
-sql/share/errmsg\&.txt
+sql/share/errmsg\-utf8\&.txt
 in MySQL source distributions\&.
 .PP
 \fBcomp_err\fR
@@ -162,7 +162,7 @@ mysqld_error\&.h\&.
 \fB\-F \fR\fB\fIfile_name\fR\fR
 .sp
 The name of the input file\&. The default is
-\&.\&./sql/share/errmsg\&.txt\&.
+\&.\&./sql/share/errmsg\-utf8\&.txt\&.
 .RE
 .sp
 .RS 4

@@ -97,7 +97,7 @@ struct my_option_constraint
 
 static uchar *getopt_constraint_get_name(
                 const struct my_option_constraint *moc,
-                size_t *length, my_bool first __attribute__((unused)))
+                size_t *length, my_bool first MY_ATTRIBUTE((unused)))
 {
   *length= moc->length;
   return (uchar *) moc->name;

@@ -5030,7 +5030,7 @@ ulong STDCALL symver16_mysql_get_server_version(MYSQL *mysql)
 SYM_16(mysql_get_server_version);
 
 
-const char * STDCALL symver16_mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
+const char * STDCALL symver16_mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   return mysql_get_ssl_cipher(mysql);
 }
@@ -5093,7 +5093,7 @@ int STDCALL symver16_mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 SYM_16(mysql_set_character_set);
 
 
-my_bool STDCALL symver16_mysql_ssl_set(MYSQL *mysql __attribute__((unused)), const char *key __attribute__((unused)), const char *cert __attribute__((unused)), const char *ca __attribute__((unused)), const char *capath __attribute__((unused)), const char *cipher __attribute__((unused)))
+my_bool STDCALL symver16_mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)), const char *key MY_ATTRIBUTE((unused)), const char *cert MY_ATTRIBUTE((unused)), const char *ca MY_ATTRIBUTE((unused)), const char *capath MY_ATTRIBUTE((unused)), const char *cipher MY_ATTRIBUTE((unused)))
 {
   return mysql_ssl_set(mysql, key, cert, ca, capath, cipher);
 }

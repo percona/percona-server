@@ -4978,7 +4978,7 @@ void STDCALL symver16_mysql_data_seek(MYSQL_RES *result, my_ulonglong row)
 SYM_16(mysql_data_seek);
 
 
-void STDCALL symver16_mysql_debug(const char *debug __attribute__((unused)))
+void STDCALL symver16_mysql_debug(const char *debug MY_ATTRIBUTE((unused)))
 {
   return mysql_debug(debug);
 }
@@ -5236,7 +5236,7 @@ void STDCALL symver16_mysql_server_end()
 SYM_16(mysql_server_end);
 
 
-int STDCALL symver16_mysql_server_init(int argc __attribute__((unused)), char **argv __attribute__((unused)), char **groups __attribute__((unused)))
+int STDCALL symver16_mysql_server_init(int argc MY_ATTRIBUTE((unused)), char **argv MY_ATTRIBUTE((unused)), char **groups MY_ATTRIBUTE((unused)))
 {
   return mysql_server_init(argc, argv, groups);
 }

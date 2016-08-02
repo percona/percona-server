@@ -46,10 +46,13 @@ if ($rpl_debug)
 # it until it's told to
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
 
-# Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
-
+# Send shutdown to the connected server
+--let $shutdown_server_timeout= 60
+if ($VALGRIND_TEST)
+{
+  let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
+}
+shutdown_server $shutdown_server_timeout;
 --source include/wait_until_disconnected.inc
 
 

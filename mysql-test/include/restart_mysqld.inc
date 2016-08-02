@@ -19,8 +19,9 @@ if (!$restart_parameters)
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
+shutdown_server;
+
+--source include/wait_until_disconnected.inc
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "$restart_parameters" > $_expect_file_name

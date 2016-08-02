@@ -18,9 +18,10 @@ if (!$restart_parameters)
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 --exec echo "wait" > $_expect_file_name
 
-# Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
+# Send shutdown to the connected server.
+shutdown_server;
+
+--source include/wait_until_disconnected.inc
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "$restart_parameters" > $_expect_file_name

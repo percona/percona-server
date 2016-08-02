@@ -1,6 +1,7 @@
---source include/master-slave.inc
+--source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
 
 call mtr.add_suppression("Slave SQL: Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
 
@@ -17,16 +18,14 @@ call mtr.add_suppression("Slave SQL: Request to stop slave SQL Thread received w
 
 connection master;
 --echo [master]
---disable_warnings
-DROP TABLE IF EXISTS t;
---enable_warnings
 CREATE TABLE t(id INT);
 sync_slave_with_master;
 
-connection slave;
 --echo [slave]
+--source include/stop_slave.inc
 SET DEBUG_SYNC='RESET';
 SET GLOBAL DEBUG="+d,after_mysql_insert,after_show_slave_status";
+--source include/start_slave.inc
 
 connection master;
 --echo [master]
@@ -65,27 +64,19 @@ connection slave;
 --echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NONBLOCKING' - just NONBLOCKING version should works fine
 --source include/percona_show_slave_status_nolock.inc
 
+SET DEBUG_SYNC='RESET';
 
 connection slave_stop;
 --echo [slave_stop]
 reap;
 --source include/wait_for_slave_to_stop.inc
-START SLAVE;
---source include/wait_for_slave_to_start.inc
-
-connection master;
---echo [master]
-SET DEBUG_SYNC='RESET';
-
-connection slave;
---echo [slave]
 SET GLOBAL DEBUG='';
-SET DEBUG_SYNC='RESET';
+--source include/start_slave.inc
 
 connection master;
 --echo [master]
+SET DEBUG_SYNC='RESET';
 DROP TABLE t;
-sync_slave_with_master;
 
 # 'SHOW SLAVE STATUS NOLOCK' should be treated identically to 'SHOW SLAVE STATUS NONBLOCKING'
 # and should not produce any deprecation warnings

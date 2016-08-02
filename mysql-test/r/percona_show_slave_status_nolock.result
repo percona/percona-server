@@ -7,11 +7,12 @@ call mtr.add_suppression("Slave SQL: Request to stop slave SQL Thread received w
 include/rpl_connect.inc [creating slave_lock]
 include/rpl_connect.inc [creating slave_nolock]
 [master]
-DROP TABLE IF EXISTS t;
 CREATE TABLE t(id INT);
 [slave]
+include/stop_slave.inc
 SET DEBUG_SYNC='RESET';
 SET GLOBAL DEBUG="+d,after_mysql_insert,after_show_slave_status";
+include/start_slave.inc
 [master]
 INSERT INTO t VALUES(0);
 [slave]
@@ -58,16 +59,13 @@ SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.empty';
 
+SET DEBUG_SYNC='RESET';
 [slave_stop]
 include/wait_for_slave_to_stop.inc
-START SLAVE;
-include/wait_for_slave_to_start.inc
-[master]
-SET DEBUG_SYNC='RESET';
-[slave]
 SET GLOBAL DEBUG='';
-SET DEBUG_SYNC='RESET';
+include/start_slave.inc
 [master]
+SET DEBUG_SYNC='RESET';
 DROP TABLE t;
 SHOW SLAVE STATUS NOLOCK;
 SHOW WARNINGS;

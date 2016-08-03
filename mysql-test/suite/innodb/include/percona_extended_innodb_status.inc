@@ -49,6 +49,13 @@ perl;
   use warnings;
 
   my $output = $ENV{'STATUS'};
+  # Only consider the part after "TRANSACTIONS", or we could end up counting
+  # "LAST FOREIGN KEY ERROR" record locks too
+  my @output = split "\n", $output;
+  my $index = 0;
+  $index++ until @output[$index] eq 'TRANSACTIONS';
+  splice @output, 0, $index;
+  $output = join("\n", @output);
   if ($output =~ /^Record lock, heap no \d+ PHYSICAL RECORD: n_fields \d+; compact format; info bits \d+$/m)
   {
     print "\"Record lock\" found\n";

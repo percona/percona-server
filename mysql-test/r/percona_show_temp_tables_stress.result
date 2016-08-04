@@ -1,12 +1,17 @@
-CREATE PROCEDURE query_temp_tables ()
+CREATE USER event_runner@localhost;
+SET @saved_event_scheduler = @@GLOBAL.event_scheduler;
+SET GLOBAL event_scheduler = ON;
+CREATE DEFINER=event_runner@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+DO
 WHILE TRUE DO
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
 END WHILE|
-CALL query_temp_tables();
 # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
 COUNT(*)
 1200
 # Dropping the temp tables
-KILL QUERY $con1_id
-DROP PROCEDURE query_temp_tables;
+KILL QUERY $ev_thread_id
+SET GLOBAL event_scheduler = @saved_event_scheduler;
+DROP EVENT query_temp_tables;
+DROP USER event_runner@localhost;

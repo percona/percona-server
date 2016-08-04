@@ -47,7 +47,11 @@ extern "C" void *test_lf_pinbox(void *arg)
   int m= *(int *)arg;
   LF_PINS *pins;
 
-  if (with_my_thread_init)
+  // Save a local copy of with_my_thread_init to avoid a race with the main
+  // thread changing it
+  int do_my_thread_init= with_my_thread_init;
+
+  if (do_my_thread_init)
     my_thread_init();
 
   pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
@@ -62,7 +66,7 @@ extern "C" void *test_lf_pinbox(void *arg)
   if (!--running_threads) mysql_cond_signal(&cond);
   mysql_mutex_unlock(&mutex);
 
-  if (with_my_thread_init)
+  if (do_my_thread_init)
     my_thread_end();
 
   return 0;
@@ -83,7 +87,11 @@ extern "C" void *test_lf_alloc(void *arg)
   int32 x,y= 0;
   LF_PINS *pins;
 
-  if (with_my_thread_init)
+  // Save a local copy of with_my_thread_init to avoid a race with the main
+  // thread changing it
+  int do_my_thread_init= with_my_thread_init;
+
+  if (do_my_thread_init)
     my_thread_init();
 
   pins= lf_pinbox_get_pins(&lf_allocator.pinbox);
@@ -116,7 +124,7 @@ extern "C" void *test_lf_alloc(void *arg)
   if (!--running_threads) mysql_cond_signal(&cond);
   mysql_mutex_unlock(&mutex);
 
-  if (with_my_thread_init)
+  if (do_my_thread_init)
     my_thread_end();
   return 0;
 }
@@ -128,7 +136,11 @@ extern "C" void *test_lf_hash(void *arg)
   int32 x,y,z,sum= 0, ins= 0;
   LF_PINS *pins;
 
-  if (with_my_thread_init)
+  // Save a local copy of with_my_thread_init to avoid a race with the main
+  // thread changing it
+  int do_my_thread_init= with_my_thread_init;
+
+  if (do_my_thread_init)
     my_thread_init();
 
   pins= lf_hash_get_pins(&lf_hash);
@@ -166,7 +178,8 @@ extern "C" void *test_lf_hash(void *arg)
   }
   if (!--running_threads) mysql_cond_signal(&cond);
   mysql_mutex_unlock(&mutex);
-  if (with_my_thread_init)
+
+  if (do_my_thread_init)
     my_thread_end();
   return 0;
 }

@@ -1,0 +1,50 @@
+--source include/have_innodb.inc
+
+CREATE USER event_runner@localhost;
+
+SET @saved_event_scheduler = @@GLOBAL.event_scheduler;
+SET GLOBAL event_scheduler = ON;
+
+delimiter |;
+CREATE DEFINER=event_runner@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+DO
+  WHILE TRUE DO
+    SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+  END WHILE|
+delimiter ;|
+
+--let $i=400
+--echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
+--disable_query_log
+while ($i)
+{
+  --eval CREATE TEMPORARY TABLE tmp_myisam_$i (a VARCHAR(256)) ENGINE=MyISAM
+  --eval CREATE TEMPORARY TABLE tmp_innodb_$i (a VARCHAR(256)) ENGINE=InnoDB
+  --eval CREATE TEMPORARY TABLE tmp_memory_$i (a VARCHAR(256)) ENGINE=MEMORY
+  --dec $i
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+
+--let $i=400
+--echo # Dropping the temp tables
+--disable_query_log
+while ($i)
+{
+  --eval DROP TEMPORARY TABLE tmp_myisam_$i
+  --eval DROP TEMPORARY TABLE tmp_innodb_$i
+  --eval DROP TEMPORARY TABLE tmp_memory_$i
+  --dec $i
+}
+--enable_query_log
+
+--let $ev_thread_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner'`
+--echo KILL QUERY \$ev_thread_id
+--disable_query_log
+eval KILL QUERY $ev_thread_id;
+--enable_query_log
+
+SET GLOBAL event_scheduler = @saved_event_scheduler;
+
+DROP USER event_runner@localhost;

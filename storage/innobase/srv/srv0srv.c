@@ -4194,6 +4194,9 @@ srv_purge_thread(
 
 		srv_sync_log_buffer_in_background();
 
+		if (srv_shutdown_state != SRV_SHUTDOWN_NONE)
+			continue;
+
 		cur_time = ut_time_ms();
 		if (next_itr_time > cur_time) {
 			os_thread_sleep(ut_min(1000000,

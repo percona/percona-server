@@ -744,6 +744,11 @@ int standard_t::analyze_key(uint64_t* rec_per_key_part) {
     assert_always(close_error == 0);
 
 done:
+    // in case we timed out (bunch of deleted records) without hitting a
+    // single row
+    if (_rows == 0)
+        _rows = 1;
+
     // return cardinality
     for (uint64_t i = 0; i < num_key_parts; i++) {
         rec_per_key_part[i] = _rows / unique_rows[i];

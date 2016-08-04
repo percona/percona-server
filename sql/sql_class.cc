@@ -1024,7 +1024,7 @@ THD::THD(bool enable_plugins)
    owned_gtid_set(global_sid_map),
    main_da(0, false),
    m_stmt_da(&main_da),
-   duplicate_slave_uuid(false)
+   duplicate_slave_id(false)
 {
   ulong tmp;
 

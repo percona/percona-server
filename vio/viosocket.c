@@ -743,17 +743,17 @@ static my_bool vio_process_proxy_header(int socket_fd, struct sockaddr *addr,
           uint32_t dst_addr;
           uint16_t src_port;
           uint16_t dst_port;
-        } __attribute__((packed)) ip4;
+        } MY_ATTRIBUTE((packed)) ip4;
 #ifdef HAVE_IPV6
         struct {  /* for TCP/UDP over IPv6, len = 36 */
           uint8_t  src_addr[16];
           uint8_t  dst_addr[16];
           uint16_t src_port;
           uint16_t dst_port;
-        } __attribute__((packed)) ip6;
+        } MY_ATTRIBUTE((packed)) ip6;
 #endif
       } addr;
-    } __attribute__((packed)) v2;
+    } MY_ATTRIBUTE((packed)) v2;
   } hdr;
 
   int size;

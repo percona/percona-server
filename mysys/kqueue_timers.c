@@ -32,7 +32,7 @@ static pthread_t thread;
 */
 
 static void *
-timer_notify_thread(void *arg __attribute__((unused)))
+timer_notify_thread(void *arg MY_ATTRIBUTE((unused)))
 {
   my_timer_t *timer;
   struct kevent kev;

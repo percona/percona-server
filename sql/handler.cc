@@ -1493,7 +1493,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     */
     if (ignore_global_read_lock)
       enforce_ro= false;
-    if (rw_trans &&
+    if (rw_trans && stmt_has_updated_trans_table(ha_info) &&
         opt_readonly &&
         enforce_ro &&
         !thd->slave_thread)

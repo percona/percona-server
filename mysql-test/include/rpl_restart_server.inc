@@ -27,7 +27,15 @@
 --let $_rpl_restart_server_args= [server_number=$rpl_server_number]
 if ($rpl_server_parameters)
 {
-  --let $_rpl_restart_server_args= [server_number=$rpl_server_number parameters: $rpl_server_parameters]
+  if (!$restart_hide_args)
+  {
+    --let $_rpl_restart_server_args= [server_number=$rpl_server_number parameters: $rpl_server_parameters]
+  }
+  if ($restart_hide_args)
+  {
+    --let $_rpl_restart_server_args= [server_number=$rpl_server_number parameters: <hidden args>]
+    let $restart_hide_args=;
+  }
 }
 --let $include_filename= rpl_restart_server.inc $_rpl_restart_server_args
 --source include/begin_include_file.inc

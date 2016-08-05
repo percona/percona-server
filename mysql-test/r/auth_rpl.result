@@ -17,7 +17,7 @@ user	plugin	authentication_string
 plug_user	test_plugin_server	plug_user
 # Cleanup (on slave).
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_USER='root';
+CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='';
 DROP USER 'plug_user';
 # Cleanup (on master).
 DROP USER 'plug_user';

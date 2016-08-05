@@ -1,3 +1,5 @@
+SET @saved_slow_query_log_timestamp_always= @@slow_query_log_timestamp_always;
+SET GLOBAL slow_query_log_timestamp_always= TRUE;
 [log_start.inc] percona_slow_extended_query_log_1
 SET GLOBAL long_query_time=10000;
 SELECT 1;
@@ -11,3 +13,4 @@ SELECT 1;
 [log_grep.inc] file: percona_slow_extended_query_log_1 pattern: ^# Time: \d{6} (\d| )\d:\d\d:\d\d$
 [log_grep.inc] lines:   1
 SET GLOBAL long_query_time=default;
+SET GLOBAL slow_query_log_timestamp_always= @saved_slow_query_log_timestamp_always;

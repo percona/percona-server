@@ -916,7 +916,8 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
       name in STATUS event, so remember it now. */
 
       DBUG_ASSERT(event_general->general_query.length <= sizeof(local->db));
-      memcpy(local->db, event_general->general_query.str, sizeof(local->db));
+      memcpy(local->db, event_general->general_query.str,
+             event_general->general_query.length);
       local->db[event_general->general_query.length]= 0;
     }
     if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS &&

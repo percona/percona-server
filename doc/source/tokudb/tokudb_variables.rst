@@ -42,17 +42,19 @@ Disabling this variable may make the system run faster. However, transactions co
 
 .. variable:: tokudb_pk_insert_mode
 
+   :version 5.7.12-5: variable has been deprecated 
+
+**NOTE:** The :variable:`tokudb_pk_insert_mode` session variable has been deprecated in |Percona Server| :rn:`5.7.12-5` and the behavior is now that of the former :variable:`tokudb_pk_insert_mode` set to ``1``. The optimization will be used where safe and not used where not safe.
+
 This session variable controls the behavior of primary key insertions with the command ``REPLACE INTO`` and ``INSERT IGNORE`` on tables with no secondary indexes and on tables whose secondary keys whose every column is also a column of the primary key.
 
 For instance, the table ``(column_a INT, column_b INT, column_c INT, PRIMARY KEY (column_a,column_b), KEY (column_b))`` is affected, because the only column in the key of ``column_b`` is present in the primary key. |TokuDB| can make these insertions really fast on these tables. However, triggers may not work and row based replication definitely will not work in this mode. This variable takes the following values, to control this behavior. This only applies to tables described above, using the command ``REPLACE INTO`` or ``INSERT IGNORE``. All other scenarios are unaffected.
 
   * ``0``: Insertions are fast, regardless of whether triggers are defined on the table. ``REPLACE INTO`` and ``INSERT IGNORE`` statements fail if row based replication is enabled.
 
-  * ``1`` (default): Insertions are fast, if there are no triggers defined on the table. Insertions may be slow if triggers are defined on the table. ``REPLACE INTO`` and ``INSERT IGNORE`` statements fail if row based replication is enabled.
+  * ``1`` (default): Insertions are fast, if there are no triggers defined on the table. |TokuDB| storage engine with :variable:`tokudb_pk_insert_mode` set to ``1`` is safe to use in all conditions. On ``INSERT IGNORE`` or ``REPLACE INTO``, it tests to see if triggers exist on the table, or replication is active with ``!BINLOG_FORMAT_STMT`` before it allows the optimization. If either of these conditions are met, then it falls back to the "safe" operation of looking up the target row first.
 
   * ``2``: Insertions are slow, all triggers on the table work, and row based replication works on ``REPLACE INTO`` and ``INSERT IGNORE`` statements.
-
-**NOTE:** The :variable:`tokudb_pk_insert_mode` session variable has been deprecated in |Percona Server| :rn:`5.7.12-5` and the behavior is now that of the former :variable:`tokudb_pk_insert_mode` set to ``1``. The optimization will be used where safe and not used where not safe.
 
 .. variable:: tokudb_load_save_space
 

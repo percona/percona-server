@@ -130,12 +130,8 @@ DROP USER mysqltest_1@localhost;
 #
 # Test FLUSH and PURGE requests with log tracking disabled
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_track_changed_pages=FALSE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_track_changed_pages=FALSE
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_track_changed_pages;
 
@@ -170,16 +166,13 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 
 # Generate some bitmap data again
 call mtr.add_suppression("last tracked LSN");
+--let $restart_parameters=
 --source include/restart_mysqld.inc
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 --source include/restart_mysqld.inc
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_track_changed_pages=FALSE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_track_changed_pages=FALSE
+--source include/restart_mysqld.inc
 
 --echo Before the RESET while tracking disabled:
 --replace_regex /_[[:digit:]]+\.xdb$//

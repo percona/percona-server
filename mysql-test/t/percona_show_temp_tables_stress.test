@@ -1,5 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_myisam.inc
+--source include/has_tokudb.inc
 
 CREATE USER event_runner@localhost;
 
@@ -15,18 +16,35 @@ DO
 delimiter ;|
 
 --let $i=400
---echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
+--echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY, and possibly TokuDB
 --disable_query_log
 while ($i)
 {
   --eval CREATE TEMPORARY TABLE tmp_myisam_$i (a VARCHAR(256)) ENGINE=MyISAM
   --eval CREATE TEMPORARY TABLE tmp_innodb_$i (a VARCHAR(256)) ENGINE=InnoDB
   --eval CREATE TEMPORARY TABLE tmp_memory_$i (a VARCHAR(256)) ENGINE=MEMORY
+  if ($HAS_TOKUDB)
+  {
+    --eval CREATE TEMPORARY TABLE tmp_tokudb_$i (a VARCHAR(256)) ENGINE=TokuDB
+  }
   --dec $i
 }
 --enable_query_log
-
-SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
+--let $table_count=`SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES`
+if ($HAS_TOKUDB == 0)
+{
+  if ($table_count != 1200)
+  {
+    --die ERROR IN TEST: Expected count of I_S.GLOBAL_TEMPORARY_TABLES to be 1200.
+  }
+}
+if ($HAS_TOKUDB == 1)
+{
+  if ($table_count != 1600)
+  {
+    --die ERROR IN TEST: Expected count of I_S.GLOBAL_TEMPORARY_TABLES to be 1600.
+  }
+}
 
 --let $i=400
 --echo # Dropping the temp tables
@@ -36,6 +54,10 @@ while ($i)
   --eval DROP TEMPORARY TABLE tmp_myisam_$i
   --eval DROP TEMPORARY TABLE tmp_innodb_$i
   --eval DROP TEMPORARY TABLE tmp_memory_$i
+  if ($HAS_TOKUDB)
+  {
+    --eval DROP TEMPORARY TABLE tmp_tokudb_$i
+  }
   --dec $i
 }
 --enable_query_log

@@ -6,10 +6,7 @@ DO
 WHILE TRUE DO
 SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
 END WHILE|
-# Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
-SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
-COUNT(*)
-1200
+# Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY, and possibly TokuDB
 # Dropping the temp tables
 KILL QUERY $ev_thread_id
 SET GLOBAL event_scheduler = @saved_event_scheduler;

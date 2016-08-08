@@ -17,6 +17,7 @@ ib_modified_log_2
 ib_modified_log_3
 call mtr.add_suppression("last tracked LSN in");
 3rd restart
+# restart
 INSERT INTO t1 SELECT x FROM t1;
 INSERT INTO t1 SELECT x FROM t1;
 INSERT INTO t1 SELECT x FROM t1;
@@ -36,19 +37,23 @@ CREATE TABLE t2 (x INT) ENGINE=InnoDB;
 INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 ib_modified_log_2
-call mtr.add_suppression("the age of last tracked LSN exceeds log capacity");
+call mtr.add_suppression("The age of last tracked LSN exceeds log capacity");
 4th restart
+# restart
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 ib_modified_log_2
 5th restart
+# restart
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 6th restart
+# restart
 call mtr.add_suppression("truncated block detected.*");
 ib_modified_log_1
 ib_modified_log_2
 7th restart
+# restart
 ib_modified_log_1
 ib_modified_log_2
 ib_modified_log_3
@@ -56,18 +61,21 @@ DROP TABLE t1, t2;
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
 8th restart
+# restart:--innodb-force-recovery=6
 RESET CHANGED_PAGE_BITMAPS;
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
+9th restart
 # restart
 SET GLOBAL innodb_fast_shutdown=0;
-11th restart
+10th restart
+# restart:--innodb-read-only
 SELECT @@innodb_read_only;
 @@innodb_read_only
 1
 SELECT @@innodb_track_changed_pages;
 @@innodb_track_changed_pages
 0
-12th restart
+11th restart
 # restart
 call mtr.add_suppression("New log files created");
 call mtr.add_suppression("Creating foreign key constraint system tables");
@@ -78,6 +86,8 @@ call mtr.add_suppression("Gtid table is not ready to be used");
 call mtr.add_suppression("Failed to open optimizer cost constant tables");
 call mtr.add_suppression("Can't open and lock time zone table");
 call mtr.add_suppression("Can't open and lock privilege tables");
+12th restart
 # restart:--innodb-data-home-dir=tmpdatadir
 ib_modified_log_1
+13th restart
 # restart

@@ -6,6 +6,7 @@ call mtr.add_suppression("last tracked LSN in");
 RESET CHANGED_PAGE_BITMAPS;
 CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 2nd restart
+# restart:-#d,bitmap_page_write_error
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -47,6 +48,7 @@ SET DEBUG_SYNC="RESET";
 DROP TABLE t2;
 RESET CHANGED_PAGE_BITMAPS;
 4th restart
+# restart:-#d,bitmap_page_2_write_error
 SET DEBUG_SYNC="i_s_innodb_changed_pages_range_ready SIGNAL ready WAIT_FOR finish";
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 SET DEBUG_SYNC="now WAIT_FOR ready";

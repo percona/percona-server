@@ -69,7 +69,7 @@ set global audit_log_flush= ON;
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",1044,"user2","user2","","","localhost","",""
-"Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user2","","","","localhost","",""
+"Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user2","user2","","","localhost","",""
 "Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user3","","","","localhost","",""
 "Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user2","user2","","","localhost","","db2"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"set names utf8","user2[user2] @ localhost []","localhost","","","db2"

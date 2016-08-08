@@ -250,7 +250,6 @@ int threadpool_process_request(THD *thd)
   {
     Vio *vio;
     thd_set_net_read_write(thd, 0);
-    mysql_audit_release(thd);
 
     if ((retval= do_command(thd)) != 0)
       goto end;

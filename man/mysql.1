@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/25/2016
+.\"      Date: 07/11/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "07/11/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -58,7 +58,7 @@ mysql_store_result()\&.
 .ps -1
 .br
 .PP
-Alternatively, MySQL Shell offers access to the DevAPI\&. For details, see
+Alternatively, MySQL Shell offers access to the X DevAPI\&. For details, see
 Section\ \&3.8, \(lqMySQL Shell User Guide\(rq\&.
 .sp .5v
 .RE
@@ -445,16 +445,13 @@ Use
 \fIcharset_name\fR
 as the default character set for the client and connection\&.
 .sp
-A common issue that can occur when the operating system uses
-utf8
-or another multibyte character set is that output from the
+This option can be useful if the operating system uses one character set and the
 \fBmysql\fR
-client is formatted incorrectly, due to the fact that the MySQL client uses the
-latin1
-character set by default\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
+client by default uses another\&. In this case, output may be formatted incorrectly\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
-See
-Section\ \&11.5, \(lqCharacter Set Configuration\(rq, for more information\&.
+For more information, see
+Section\ \&11.1.5, \(lqConnection Character Sets and Collations\(rq, and
+Section\ \&11.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -561,7 +558,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&7.4.1.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&7.5.1.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -1177,7 +1174,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them is removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
-Section\ \&7.4.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&7.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -1201,7 +1198,7 @@ The server sends the public key to the client as needed, so it is not necessary 
 For additional discussion regarding use of the
 sha256_password
 plugin, including how to get the RSA public key, see
-Section\ \&7.4.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
+Section\ \&7.5.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
 .sp
 This option is available only if MySQL was built using OpenSSL\&.
 .RE
@@ -1327,7 +1324,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&7.3.11.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&7.4.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1413,7 +1410,7 @@ the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&7.3.11.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+Section\ \&7.4.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE

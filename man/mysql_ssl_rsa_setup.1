@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_ssl_rsa_setup\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/25/2016
+.\"      Date: 07/11/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SSL_RSA_SET" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SSL_RSA_SET" "1" "07/11/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -56,7 +56,7 @@ uses the
 command, so its use is contingent on having OpenSSL installed on your machine\&.
 .PP
 Another way to generate SSL and RSA files, for MySQL distributions compiled using OpenSSL, is to have the server generated them automatically\&. See
-Section\ \&7.3.12.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&7.4.6.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -187,7 +187,7 @@ client\-key\&.pem       Client private key
 .\}
 .sp
 These files enable secure client connections using SSL; see
-Section\ \&7.3.11.4, \(lqConfiguring MySQL to Use Secure Connections\(rq\&.
+Section\ \&7.4.4, \(lqConfiguring MySQL to Use Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -228,12 +228,12 @@ creates no RSA files\&. Otherwise, it invokes
 to create them\&. These files enable secure password exchange using RSA over unencrypted connections for accounts authenticated by the
 sha256_password
 plugin; see
-Section\ \&7.4.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
+Section\ \&7.5.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
 .RE
 .PP
 For information about the characteristics of files created by
 \fBmysql_ssl_rsa_setup\fR, see
-Section\ \&7.3.12.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&7.4.6.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .PP
 At startup, the MySQL server automatically uses the SSL files created by
 \fBmysql_ssl_rsa_setup\fR

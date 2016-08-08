@@ -101,3 +101,4 @@ Warnings:
 Warning	1868	file slave-bin.000001 was not purged because it is the active log file.
 End of 5.0 tests
 include/stop_slave.inc
+RESET SLAVE;

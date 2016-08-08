@@ -16,6 +16,7 @@
 --source include/have_log_bin.inc
 --source include/have_binlog_format_mixed.inc
 
+RESET MASTER;
 CREATE TABLE t1(id INT);
 let $datadir = `SELECT @@DATADIR`;
 let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
@@ -29,6 +30,7 @@ DROP TABLE t1;
 RESET MASTER;
 # Replay binlog
 --exec $MYSQL_BINLOG $datadir/master-bin.saved | $MYSQL test
+--remove_file $datadir/master-bin.saved
 SHOW TABLES;
 
 # Clean up

@@ -2,56 +2,32 @@
 
 --source include/have_innodb.inc
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_adaptive_flushing_method=native" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_adaptive_flushing_method=native
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_adaptive_flushing_method;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_adaptive_flushing_method=estimate" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_adaptive_flushing_method=estimate
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_adaptive_flushing_method;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_adaptive_flushing_method=keep_average" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_adaptive_flushing_method=keep_average
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_adaptive_flushing_method;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_adaptive_flushing_method=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_adaptive_flushing_method=0
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_adaptive_flushing_method;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_adaptive_flushing_method=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_adaptive_flushing_method=1
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_adaptive_flushing_method;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb_adaptive_flushing_method=2" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb_adaptive_flushing_method=2
+--source include/restart_mysqld.inc
 
 SELECT @@GLOBAL.innodb_adaptive_flushing_method;

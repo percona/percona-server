@@ -13,6 +13,7 @@ ib_modified_log_1
 ib_modified_log_2
 ib_modified_log_3
 3rd restart
+# restart
 INSERT INTO t1 SELECT x FROM t1;
 INSERT INTO t1 SELECT x FROM t1;
 INSERT INTO t1 SELECT x FROM t1;
@@ -33,17 +34,21 @@ INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 ib_modified_log_2
 4th restart
+# restart
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 ib_modified_log_2
 5th restart
+# restart
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 ib_modified_log_1
 6th restart
+# restart
 call mtr.add_suppression("InnoDB: Warning: truncated block detected.*");
 ib_modified_log_1
 ib_modified_log_2
 7th restart
+# restart
 ib_modified_log_1
 ib_modified_log_2
 ib_modified_log_3
@@ -60,4 +65,5 @@ INSERT INTO t3 VALUES (REPEAT('a', 12582912));
 DROP TABLE t3;
 11th restart
 ib_modified_log_1
+12th restart
 # restart

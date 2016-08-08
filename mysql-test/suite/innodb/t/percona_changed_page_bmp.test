@@ -65,16 +65,12 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # possible to re-read the entire missing range.
 #
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
 write_file $BITMAP_FILE;
 EOF
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --echo 3rd restart
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 #
 # Test tracking more log data than the log capacity and the second tablespace id
@@ -109,16 +105,12 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # Test that an empty existing bitmap file is handled properly when it's impossible to re-read the full missing range.
 #
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
 write_file $BITMAP_FILE;
 EOF
---enable_reconnect
 --echo 4th restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 
@@ -130,32 +122,24 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # Test that the bitmap file is read in block size multiples with junk at the end discarded
 #
 
-# 1st restart: remove all the bitmap files
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+# 5th restart: remove all the bitmap files
+--source include/shutdown_mysqld.inc
 remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;
---enable_reconnect
 --echo 5th restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
 
-# 2nd restart: there should be only one bitmap file, append junk to it
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+# 6th restart: there should be only one bitmap file, append junk to it
+--source include/shutdown_mysqld.inc
 append_file $BITMAP_FILE;
 junk junk junk junk
 EOF
---enable_reconnect
 --echo 6th restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 call mtr.add_suppression("InnoDB: Warning: truncated block detected.*");
 
 # TODO: check the tracked LSN range continuity once this info is exposed through
@@ -169,9 +153,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # Test that last tracked LSN is determined correctly when the last bitmap file is fully
 # corrupted
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Create and source a file with the following contents:
 # --remove_file 2nd_bmp_file
@@ -193,10 +175,8 @@ EOF
 END_OF_FILE
 source $MYSQLD_DATADIR/corrupt_bmp_2.inc;
 remove_file $MYSQLD_DATADIR/corrupt_bmp_2.inc;
---enable_reconnect
 --echo 7th restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
 
 # TODO: check the tracked LSN range continuity once this info is exposed through
 # INFORMATION_SCHEMA.
@@ -211,19 +191,16 @@ DROP TABLE t1, t2;
 # Test for log tracking compatibility with innodb_force_recovery (bug 1083596).
 #
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
 --echo 8th restart
---exec echo "restart:--innodb-force-recovery=6" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-force-recovery=6
+--source include/restart_mysqld.inc
 
 # innodb_force_recovery desyncs bitmap data and logs
 RESET CHANGED_PAGE_BITMAPS;
 
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 --echo 9th restart
+--let $restart_parameters=
 --source include/restart_mysqld.inc
 
 #
@@ -253,6 +230,7 @@ DROP TABLE t3;
 --echo 11th restart
 --exec echo "restart:--innodb-data-home-dir=$tmpdatadir" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
+--disable_reconnect
 
 file_exists $tmpdatadir/ib_modified_log_1_0.xdb;
 --replace_regex /_[[:digit:]]+\.xdb$//
@@ -262,6 +240,7 @@ list_files $tmpdatadir ib_modified_log*;
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
 --remove_files_wildcard $MYSQLD_DATADIR ibdata*
 --remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
+--echo 12th restart
 --source include/start_mysqld.inc
 
 --remove_files_wildcard $tmpdatadir *

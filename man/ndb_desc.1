@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 05/25/2016
+.\"      Date: 07/11/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "05/25/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "07/11/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -440,6 +440,8 @@ Specify the table in which to look for an index\&.
 .sp
 Use unqualified table names\&.
 .RE
+.PP
+In MySQL Cluster NDB 7\&.5\&.3 and later, table indexes listed in the output are ordered by ID\&. Previously, this was not deterministic and could vary between platforms\&. (Bug #81763, Bug #23547742)
 .SH "COPYRIGHT"
 .br
 .PP

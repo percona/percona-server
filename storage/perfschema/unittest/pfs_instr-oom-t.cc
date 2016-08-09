@@ -232,12 +232,14 @@ void test_oom()
   ok(cond_2 == NULL, "oom (create cond)");
 
   /* Create file. */
-  stub_alloc_always_fails = false;
   PFS_thread fake_thread;
+  rc = init_instruments(&param);
   fake_thread.m_filename_hash_pins= NULL;
   init_file_hash(&param);
-  rc = init_instruments(&param);
-  ok(rc == 0, "instances init");
+
+  stub_alloc_always_fails = true;
+  file_2 = find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
+  ok(file_2 == NULL, "oom (create file)");
 
   stub_alloc_always_fails= false;
   file_1= find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
@@ -245,13 +247,6 @@ void test_oom()
   release_file(file_1);
   cleanup_file_hash();
   cleanup_instruments();
-
-  stub_alloc_always_fails= true;
-  fake_thread.m_filename_hash_pins = NULL;
-  init_file_hash(&param);
-  file_2= find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_2 == NULL, "oom (create file)");
-  cleanup_file_hash();
 
   /* Create socket. */
   stub_alloc_always_fails = false;
@@ -436,7 +431,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(33);
+  plan(32);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
   return 0;

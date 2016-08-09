@@ -7368,6 +7368,7 @@ void init_win_path_patterns()
                           "$MYSQLTEST_VARDIR",
                           "$MASTER_MYSOCK",
                           "$MYSQL_SHAREDIR",
+                          "$MYSQL_CHARSETSDIR",
                           "$MYSQL_LIBDIR",
                           "./test/",
                           ".ibd",

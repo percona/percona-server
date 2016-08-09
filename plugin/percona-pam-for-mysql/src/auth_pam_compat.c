@@ -57,6 +57,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <my_sys.h>
 #include <stdlib.h>
 
+MYSQL_PLUGIN auth_pam_plugin_info;
+
 int auth_pam_client_talk_init(void **talk_data)
 {
   int *num_talks= my_malloc(PSI_NOT_INSTRUMENTED, sizeof(int), MY_ZEROFILL);
@@ -111,9 +113,10 @@ int auth_pam_talk_perform(const struct pam_message *msg,
 }
 
 static
-int auth_pam_compat_init(MYSQL_PLUGIN plugin_info __attribute__((unused)))
+int auth_pam_compat_init(MYSQL_PLUGIN plugin_info)
 {
   auth_pam_common_init("auth_pam_compat");
+  auth_pam_plugin_info= plugin_info;
   return 0;
 }
 

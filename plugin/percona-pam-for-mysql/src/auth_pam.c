@@ -60,6 +60,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include <my_sys.h>
 #include <stdlib.h>
 
+MYSQL_PLUGIN auth_pam_plugin_info;
+
 /** The maximum length of buffered PAM messages, i.e. any messages up to the
     next PAM reply-requiring message. 10K should be more than enough by order
     of magnitude. */
@@ -160,12 +162,13 @@ int auth_pam_talk_perform(const struct pam_message *msg,
 }
 
 static
-int auth_pam_init(MYSQL_PLUGIN plugin_info __attribute__((unused)))
+int auth_pam_init(MYSQL_PLUGIN plugin_info)
 {
   int count;
   auth_pam_common_init("auth_pam");
   count= array_elements(pam_auth_memory);
   mysql_memory_register("auth_pam", pam_auth_memory, count);
+  auth_pam_plugin_info= plugin_info;
   return 0;
 }
 

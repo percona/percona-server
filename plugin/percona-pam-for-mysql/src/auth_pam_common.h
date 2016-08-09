@@ -51,6 +51,8 @@ struct pam_conv_data {
     MYSQL_SERVER_AUTH_INFO *info;
 };
 
+extern MYSQL_PLUGIN auth_pam_plugin_info;
+
 extern PSI_memory_key key_memory_pam_mapping_iter;
 extern PSI_memory_key key_memory_pam_group_iter;
 

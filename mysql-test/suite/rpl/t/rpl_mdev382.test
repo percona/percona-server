@@ -204,16 +204,8 @@ SELECT * FROM `db1``; select 'oops!'`.`t``1` ORDER BY 1;
 # Restart the master mysqld.
 # This will cause an implicit truncation of the memory-based table, which will
 # cause logging of an explicit DELETE FROM to binlog.
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-wait-rpl_mdev382.test
-EOF
-
---shutdown_server 30
-
---remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart-rpl_mdev382.test
-EOF
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 connection default;
 --enable_reconnect

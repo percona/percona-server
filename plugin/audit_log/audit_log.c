@@ -880,7 +880,8 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
       name in STATUS event, so remember it now. */
 
       DBUG_ASSERT(event_general->general_query_length <= sizeof(local->db));
-      memcpy(local->db, event_general->general_query, sizeof(local->db));
+      memcpy(local->db, event_general->general_query,
+             event_general->general_query_length);
       local->db[event_general->general_query_length]= 0;
     }
     if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS &&

@@ -1,5 +1,3 @@
-SET @old_max_connections = @@max_connections;
-SET @old_log_warnings = @@log_warnings;
 SET GLOBAL max_connections=1;
 CREATE USER nonprivuser@localhost;
 SET GLOBAL LOG_WARNINGS = 0;
@@ -23,10 +21,6 @@ ERROR HY000: Too many connections
 SET GLOBAL LOG_WARNINGS = 1;
 connect(localhost,nonprivuser,,test,port,socket);
 ERROR 08004: Too many connections
-[log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
-[log_grep.inc] lines:   2
-SET GLOBAL max_connections = @old_max_connections;
-SET GLOBAL log_warnings = @old_log_warnings;
 [log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
 [log_grep.inc] lines:   2
 DROP USER nonprivuser@localhost;

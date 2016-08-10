@@ -10,14 +10,19 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
---disable_query_log
---disable_result_log
 
 
 SET @old_userstat= @@global.userstat;
 SET @old_thread_statistics= @@global.thread_statistics;
 SET GLOBAL userstat= ON;
 SET GLOBAL thread_statistics= ON;
+
+FLUSH USER_STATISTICS;
+FLUSH CLIENT_STATISTICS;
+FLUSH THREAD_STATISTICS;
+
+--disable_query_log
+--disable_result_log
 
 --let $sessions_count=3
 

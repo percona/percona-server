@@ -3,3 +3,4 @@ select count(*) > 1 from information_schema.innodb_changed_pages;
 count(*) > 1
 1
 2nd restart
+# restart

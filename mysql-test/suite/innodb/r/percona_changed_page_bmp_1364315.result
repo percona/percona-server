@@ -7,8 +7,8 @@ call mtr.add_suppression("Gtid table is not ready to be used");
 call mtr.add_suppression("Failed to open optimizer cost constant tables");
 call mtr.add_suppression("Can't open and lock time zone table");
 call mtr.add_suppression("Can't open and lock privilege tables");
-1st restart
+# restart:--innodb-data-home-dir=TMPDATADIR --innodb_log_group_home_dir=TMPDATADIR --innodb_track_changed_pages=1
 select count(*) > 1 from information_schema.innodb_changed_pages;
 count(*) > 1
 1
-2nd restart
+# restart

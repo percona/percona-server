@@ -20,9 +20,7 @@ LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --echo # Stop server
--- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
--- source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.
 #--copy_file $MYSQLTEST_VARDIR/../mysql-test/suite/innodb/t/portability_wl5980_linux.zip $MYSQL_TMP_DIR/portability_wl5980_linux.zip

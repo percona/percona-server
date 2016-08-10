@@ -1,2 +1,0 @@
---log-error=$MYSQLTEST_VARDIR/percona_log_connection_error.err
-

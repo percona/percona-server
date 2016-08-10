@@ -1,5 +1,4 @@
-SET @old_max_connections = @@max_connections;
-SET @old_log_error_verbosity = @@log_error_verbosity;
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/percona_log_connection_error.err
 SET GLOBAL max_connections=1;
 CREATE USER nonprivuser@localhost;
 SET GLOBAL LOG_ERROR_VERBOSITY = 1;
@@ -23,10 +22,7 @@ ERROR HY000: Too many connections
 SET GLOBAL LOG_ERROR_VERBOSITY = 2;
 connect(localhost,nonprivuser,,test,port,socket);
 ERROR 08004: Too many connections
-[log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
-[log_grep.inc] lines:   2
-SET GLOBAL max_connections = @old_max_connections;
-SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
+# restart
 [log_grep.inc] file: percona_log_connection_error.err pattern: Too many connections
 [log_grep.inc] lines:   2
 DROP USER nonprivuser@localhost;

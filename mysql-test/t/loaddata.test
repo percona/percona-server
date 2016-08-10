@@ -633,6 +633,7 @@ create table t1(a point);
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 --eval LOAD DATA INFILE '$file' INTO TABLE t1
 drop table t1;
+--remove_file $file
 
 --echo End of 5.1 tests
 

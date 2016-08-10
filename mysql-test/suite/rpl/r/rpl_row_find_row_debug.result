@@ -1,6 +1,6 @@
 include/master-slave.inc
 [connection master]
-include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2 parameters: <hidden args>]
 SET GLOBAL log_warnings = 2;
 SET GLOBAL debug="d,inject_long_find_row_note";
 include/start_slave.inc
@@ -12,7 +12,6 @@ DROP TABLE t1;
 # Check if any note related to long DELETE_ROWS and UPDATE_ROWS appears in the error log
 Occurrences: update=1, delete=1
 include/stop_slave.inc
-SET GLOBAL debug = '';
-SET GLOBAL log_warnings = 1;
+include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
 include/rpl_end.inc

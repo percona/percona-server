@@ -133,6 +133,7 @@ RESET MASTER;
 SET GLOBAL debug="+d,error_unique_log_filename";
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval LOAD DATA INFILE '$load_file2' INTO TABLE t2
+--remove_file $load_file2
 
 # show table 
 -- echo # assert: must show one entry
@@ -217,6 +218,7 @@ SELECT count(*) FROM t2;
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- error ER_NO_UNIQUE_LOGFILE
 -- eval LOAD DATA INFILE '$load_file' INTO TABLE t2
+--remove_file $load_file
 -- error ER_NO_UNIQUE_LOGFILE
 INSERT INTO t2 VALUES ('aaa'), ('bbb'), ('ccc');
 

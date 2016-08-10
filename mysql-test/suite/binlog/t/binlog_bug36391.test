@@ -16,6 +16,7 @@
 --source include/have_log_bin.inc
 --source include/have_binlog_format_mixed.inc
 
+RESET MASTER;
 CREATE TABLE t1(id INT);
 let $binlog= query_get_value(SHOW MASTER STATUS, File, 1);
 let $binlog_path= `SELECT CONCAT(@@DATADIR, '$binlog')`;

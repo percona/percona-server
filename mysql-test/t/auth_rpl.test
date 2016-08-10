@@ -55,7 +55,7 @@ SELECT user, plugin, authentication_string FROM mysql.user WHERE user LIKE 'plug
 #
 --echo # Cleanup (on slave).
 --source include/stop_slave.inc
-eval CHANGE MASTER TO MASTER_USER='$master_user';
+eval CHANGE MASTER TO MASTER_USER='$master_user', MASTER_PASSWORD='';
 DROP USER 'plug_user';
 
 --echo # Cleanup (on master).

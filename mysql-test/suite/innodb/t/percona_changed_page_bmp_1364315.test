@@ -10,9 +10,7 @@ call mtr.add_suppression("New log files created");
 call mtr.add_suppression("Creating foreign key constraint system tables");
 call mtr.add_suppression("Cannot open table mysql/[a-z_]+ from the internal data dictionary");
 call mtr.add_suppression("Info table is not ready to be used");
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --mkdir $TMPDATADIR
 --enable_reconnect
 --echo 1st restart
@@ -21,14 +19,8 @@ call mtr.add_suppression("Info table is not ready to be used");
 
 select count(*) > 1 from information_schema.innodb_changed_pages;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
-
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $TMPDATADIR *
 --rmdir $TMPDATADIR
-
---enable_reconnect
 --echo 2nd restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc

@@ -21,12 +21,8 @@ CREATE TABLE t1 (a INT, b BLOB) ENGINE=InnoDB;
 #
 # Test innodb_flush_method=fdatasync (the default)
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb-track-changed-pages=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-track-changed-pages=1
+--source include/restart_mysqld.inc
 
 INSERT INTO t1 VALUES (1, REPEAT("a", 20000));
 
@@ -34,16 +30,13 @@ INSERT INTO t1 VALUES (1, REPEAT("a", 20000));
 # Test innodb_flush_method=O_DSYNC
 # Check that the previous test produced bitmap data while the server is down.
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 file_exists $BITMAP_FILE;
 # Here and below remove the LSNs from the file names on listing them
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
---enable_reconnect
---exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DSYNC" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DSYNC
+--source include/start_mysqld.inc
 
 INSERT INTO t1 VALUES (2, REPEAT("b", 20000));
 
@@ -51,15 +44,12 @@ INSERT INTO t1 VALUES (2, REPEAT("b", 20000));
 # Test innodb_flush_method=O_DIRECT
 # Check that the previous test produced bitmap data while the server is down.
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
---enable_reconnect
---exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT
+--source include/start_mysqld.inc
 
 INSERT INTO t1 VALUES (3, REPEAT("c", 20000));
 
@@ -69,17 +59,14 @@ INSERT INTO t1 VALUES (3, REPEAT("c", 20000));
 call mtr.add_suppression("InnoDB: Warning: innodb_log_block_size has been changed from default value");
 call mtr.add_suppression("New log files created");
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
---enable_reconnect
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
 --remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
---exec echo "restart:--innodb-track-changed-pages=1 --innodb-log-block-size=4096 --innodb-flush-method=ALL_O_DIRECT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-track-changed-pages=1 --innodb-log-block-size=4096 --innodb-flush-method=ALL_O_DIRECT
+--source include/start_mysqld.inc
 
 INSERT INTO t1 VALUES (4, REPEAT("d", 20000));
 
@@ -87,32 +74,26 @@ INSERT INTO t1 VALUES (4, REPEAT("d", 20000));
 # Test innodb_flush_method=O_DIRECT_NO_FSYNC
 # Check that the previous test produced bitmap data while the server is down.
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
---enable_reconnect
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
 --remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
---exec echo "restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT_NO_FSYNC" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-track-changed-pages=1 --innodb-flush-method=O_DIRECT_NO_FSYNC
+--source include/start_mysqld.inc
 
 INSERT INTO t1 VALUES (4, REPEAT("e", 20000));
 
 #
 # Restart the server with default options
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters=
+--source include/start_mysqld.inc
 
 RESET CHANGED_PAGE_BITMAPS;
 DROP TABLE t1;

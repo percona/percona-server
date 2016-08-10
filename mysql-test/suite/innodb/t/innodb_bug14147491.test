@@ -36,10 +36,7 @@ let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
 --echo # start it until it's told to
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---echo # We give 30 seconds to do a clean shutdown because we do not want
---echo # to redo apply the pages of t1.ibd at the time of recovery.
---echo # We want SQL to initiate the first access to t1.ibd.
-shutdown_server 30;
+shutdown_server;
 
 --echo # Wait until disconnected.
 --source include/wait_until_disconnected.inc

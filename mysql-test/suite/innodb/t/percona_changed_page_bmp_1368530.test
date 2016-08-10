@@ -9,14 +9,9 @@ SET @@GLOBAL.innodb_track_changed_pages=TRUE;
 # purge causes crash described in lp:1368530
 PURGE CHANGED_PAGE_BITMAPS BEFORE 0;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
-
---enable_reconnect
+--let $restart_parameters= restart: --innodb_track_changed_pages=1
 --echo 1st restart
---exec echo "restart: --innodb_track_changed_pages=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--source include/restart_mysqld.inc
 
 SET @@GLOBAL.innodb_track_changed_pages=FALSE;
 SELECT @@GLOBAL.innodb_track_changed_pages;
@@ -24,6 +19,7 @@ SELECT @@GLOBAL.innodb_track_changed_pages;
 SET @@GLOBAL.innodb_track_changed_pages=TRUE;
 SELECT @@GLOBAL.innodb_track_changed_pages;
 
+--let $restart_parameters=
 --echo 2nd restart
 --source include/restart_mysqld.inc
 

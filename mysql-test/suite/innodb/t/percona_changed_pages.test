@@ -342,13 +342,9 @@ CREATE TABLE ICP_COPY (
 INSERT INTO ICP_COPY SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
        WHERE END_LSN <= @max_end_lsn;
 
-# Restart with log tracking disabled       
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--innodb-track-changed-pages=FALSE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+# Restart with log tracking disabled
+--let $restart_parameters= restart:--innodb-track-changed-pages=FALSE
+--source include/restart_mysqld.inc
 
 SELECT @@global.innodb_track_changed_pages;
 
@@ -370,6 +366,7 @@ eval SELECT "$icp_1_checksum" LIKE "$icp_2_checksum" AS should_be_1;
 --enable_query_log
 
 call mtr.add_suppression("but the last checkpoint LSN is");
+--let $restart_parameters=
 --source include/restart_mysqld.inc
 
 SELECT @@global.innodb_track_changed_pages;

@@ -23,7 +23,7 @@ let MYSQL_BASEDIR= `select @@basedir`;
 
 --echo # Stop server
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 30
+-- shutdown_server 
 -- source include/wait_until_disconnected.inc
 
 --echo # Copy the remote tablespace & DB zip files from suite location to working location.

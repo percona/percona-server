@@ -59,12 +59,8 @@ SET @@GLOBAL.INNODB_READ_AHEAD_THRESHOLD=32;
 #
 # restart the server with some options modifiers and limits
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--auto-increment-increment=7 --minimum-auto-increment-increment=5 --maximum-auto-increment-increment=10 --readonly-auto-increment-offset=TRUE --hidden-autocommit=TRUE --innodb-io-capacity=150 --minimum-innodb-io-capacity=150 --maximum-innodb-io-capacity=200 --readonly-innodb-spin-wait-delay=TRUE --hidden-innodb-read-ahead-threshold=TRUE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--auto-increment-increment=7 --minimum-auto-increment-increment=5 --maximum-auto-increment-increment=10 --readonly-auto-increment-offset=TRUE --hidden-autocommit=TRUE --innodb-io-capacity=150 --minimum-innodb-io-capacity=150 --maximum-innodb-io-capacity=200 --readonly-innodb-spin-wait-delay=TRUE --hidden-innodb-read-ahead-threshold=TRUE
+--source include/restart_mysqld.inc
 
 #
 # test the limits set by the above options modifiers
@@ -135,12 +131,8 @@ SET @@GLOBAL.INNODB_READ_AHEAD_THRESHOLD=32;
 #
 # Now test allowed modifier combinations
 #
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:--readonly-loose-auto-increment-offset=TRUE --hidden-loose-autocommit=TRUE --readonly-loose-innodb-spin-wait-delay=TRUE --hidden-loose-innodb-read-ahead-threshold=TRUE" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--readonly-loose-auto-increment-offset=TRUE --hidden-loose-autocommit=TRUE --readonly-loose-innodb-spin-wait-delay=TRUE --hidden-loose-innodb-read-ahead-threshold=TRUE
+--source include/restart_mysqld.inc
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@GLOBAL.AUTO_INCREMENT_OFFSET=5;

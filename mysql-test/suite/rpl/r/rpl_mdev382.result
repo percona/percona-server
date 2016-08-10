@@ -311,6 +311,7 @@ a`
 1
 2
 5
+include/rpl_restart_server.inc [server_number=1]
 set timestamp=1000000000;
 # The table should be empty on the master.
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;

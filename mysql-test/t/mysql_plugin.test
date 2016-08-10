@@ -117,7 +117,7 @@ SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 --echo #
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 #
@@ -155,7 +155,7 @@ eval INSERT INTO mysql.plugin VALUES ('wonky', '$DAEMONEXAMPLE');
 SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 #
@@ -182,7 +182,7 @@ SELECT * FROM mysql.plugin WHERE dl like 'libdaemon%' ORDER BY name;
 SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 # To test the case where the same plugin is reloaded with a different soname,
@@ -213,7 +213,7 @@ SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 --echo #
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 #
@@ -243,7 +243,7 @@ SELECT * FROM mysql.plugin WHERE dl like '%libdaemon%' ORDER BY name;
 #
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 
 --echo #

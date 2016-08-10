@@ -25,7 +25,7 @@ let $args = --loose-console > $SEARCH_FILE 2>&1;
 use test;
 #
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 #
 --mkdir $MYSQL_DATA_DIR/tmpdata

@@ -62,13 +62,10 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # Test crash right before writing of new bitmap data
 #
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart:-#d,crash_before_bitmap_write" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:-#d,crash_before_bitmap_write
 --echo 2nd restart
+--source include/restart_mysqld.inc
+
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 INSERT INTO t1 SELECT x FROM t1;

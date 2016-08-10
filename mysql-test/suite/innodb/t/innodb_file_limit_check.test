@@ -10,7 +10,7 @@ let $innodb_file_limit= `SELECT @@open_files_limit`;
 inc $innodb_file_limit;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server 
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 

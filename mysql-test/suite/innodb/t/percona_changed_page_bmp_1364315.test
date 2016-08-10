@@ -15,25 +15,16 @@ call mtr.add_suppression("Gtid table is not ready to be used");
 call mtr.add_suppression("Failed to open optimizer cost constant tables");
 call mtr.add_suppression("Can't open and lock time zone table");
 call mtr.add_suppression("Can't open and lock privilege tables");
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 --mkdir $TMPDATADIR
---enable_reconnect
---echo 1st restart
---exec echo "restart:--innodb-data-home-dir=$TMPDATADIR --innodb_log_group_home_dir=$TMPDATADIR --innodb_track_changed_pages=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:--innodb-data-home-dir=$TMPDATADIR --innodb_log_group_home_dir=$TMPDATADIR --innodb_track_changed_pages=1
+--replace_result $TMPDATADIR TMPDATADIR
+--source include/start_mysqld.inc
 
 select count(*) > 1 from information_schema.innodb_changed_pages;
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
-
+--source include/shutdown_mysqld.inc
 --remove_files_wildcard $TMPDATADIR *
 --rmdir $TMPDATADIR
-
---enable_reconnect
---echo 2nd restart
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
+--let $restart_parameters=
+--source include/start_mysqld.inc

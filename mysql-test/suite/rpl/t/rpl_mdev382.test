@@ -202,6 +202,9 @@ CREATE TABLE `db1``; select 'oops!'`.`t``1` (`a``` INT PRIMARY KEY) ENGINE=heap;
 INSERT INTO `db1``; select 'oops!'`.`t``1` VALUES (1), (2), (5);
 SELECT * FROM `db1``; select 'oops!'`.`t``1` ORDER BY 1;
 
+# Restart the master mysqld.
+# This will cause an implicit truncation of the memory-based table, which will
+# cause logging of an explicit DELETE FROM to binlog.
 --let $rpl_server_number=1
 --source include/rpl_restart_server.inc
 set timestamp=1000000000;

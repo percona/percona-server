@@ -12,6 +12,11 @@ start slave;
 include/wait_for_slave_param.inc [Last_IO_Errno]
 Last_IO_Errno = '1236'
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'binlog truncated in the middle of event; consider out of disk space on master; the first event '' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
+include/wait_for_slave_io_to_stop.inc
+Slave_IO_Running = 'No'
+Slave_SQL_Running = 'Yes'
+Last_SQL_Errno = '0'
+Last_SQL_Error = ''
 reset master;
 stop slave;
 reset slave;

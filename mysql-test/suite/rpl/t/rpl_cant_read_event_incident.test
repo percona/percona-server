@@ -50,6 +50,11 @@ start slave;
 --let $status_items= Last_IO_Errno, Last_IO_Error
 --source include/show_slave_status.inc
 
+--source include/wait_for_slave_io_to_stop.inc
+
+--let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_SQL_Errno, Last_SQL_Error
+--source include/show_slave_status.inc
+
 #
 # Cleanup
 #

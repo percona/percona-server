@@ -528,8 +528,6 @@ log_close(void)
 	ulint		first_rec_group;
 	lsn_t		oldest_lsn;
 	lsn_t		lsn;
-	lsn_t		tracked_lsn;
-	lsn_t		tracked_lsn_age;
 	log_t*		log	= log_sys;
 	lsn_t		checkpoint_age;
 
@@ -560,8 +558,9 @@ log_close(void)
 
 	if (srv_track_changed_pages) {
 
-		tracked_lsn = log_get_tracked_lsn();
-		tracked_lsn_age = lsn - tracked_lsn;
+		lsn_t tracked_lsn = log_get_tracked_lsn();
+		ut_ad(tracked_lsn > 0);
+		lsn_t tracked_lsn_age = lsn - tracked_lsn;
 
 		if (tracked_lsn_age >= log->log_group_capacity) {
 

@@ -35,6 +35,11 @@ void audit_log_set_exclude_databases(const char *val);
 my_bool audit_log_check_database_included(const char *name, size_t length);
 my_bool audit_log_check_database_excluded(const char *name, size_t length);
 
+void audit_log_set_include_commands(const char *val);
+void audit_log_set_exclude_commands(const char *val);
+my_bool audit_log_check_command_included(const char *command, size_t length);
+my_bool audit_log_check_command_excluded(const char *command, size_t length);
+
 void audit_log_filter_init();
 void audit_log_filter_destroy();
 

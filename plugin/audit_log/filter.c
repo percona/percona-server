@@ -39,24 +39,37 @@ typedef struct
   size_t length;
 } database;
 
+typedef struct
+{
+  /* has to be enought to hold one of the com_status_vars names */
+  char name[100];
+  size_t length;
+} command;
+
 static HASH include_accounts;
 static HASH exclude_accounts;
 
 static HASH include_databases;
 static HASH exclude_databases;
 
+static HASH include_commands;
+static HASH exclude_commands;
+
 #if defined(HAVE_PSI_INTERFACE)
 
 static PSI_rwlock_key key_LOCK_account_list;
 static PSI_rwlock_key key_LOCK_database_list;
+static PSI_rwlock_key key_LOCK_command_list;
 static PSI_rwlock_info all_rwlock_list[]=
 {{ &key_LOCK_account_list, "audit_log_filter::account_list", PSI_FLAG_GLOBAL},
- { &key_LOCK_database_list, "audit_log_filter::database_list", PSI_FLAG_GLOBAL}};
+ { &key_LOCK_database_list, "audit_log_filter::database_list", PSI_FLAG_GLOBAL},
+ { &key_LOCK_account_list, "audit_log_filter::command_list", PSI_FLAG_GLOBAL}};
 
 #endif
 
 mysql_rwlock_t LOCK_account_list;
 mysql_rwlock_t LOCK_database_list;
+mysql_rwlock_t LOCK_command_list;
 
 /*
   Initialize account
@@ -136,6 +149,44 @@ uchar *database_get_key(const database *db, size_t *length,
 {
   *length= db->length;
   return (uchar*) db->name;
+}
+
+/*
+  Initialize command
+*/
+static
+void command_init(command *cmd, const char *name, size_t length)
+{
+  DBUG_ASSERT(length + 1 <= sizeof(cmd->name));
+
+  memcpy(cmd->name, name, length);
+  cmd->name[length]= 0;
+  cmd->length= length;
+}
+
+/*
+  Allocate memory and initialize new command
+*/
+
+static
+command *command_create(const char *name, size_t length)
+{
+  command *cmd= (command *) my_malloc(key_memory_audit_log_commands,
+                                      sizeof(command), MYF(MY_FAE));
+
+  command_init(cmd, name, length);
+
+  return cmd;
+}
+
+/*
+  Get command key
+*/
+uchar *command_get_key(const command *acc, size_t *length,
+                       my_bool not_used MY_ATTRIBUTE((unused)))
+{
+  *length= acc->length;
+  return (uchar*) acc->name;
 }
 
 /*
@@ -245,6 +296,37 @@ void database_list_from_string(HASH *hash, const char *string)
   }
 }
 
+/*
+  Parse comma-separated list of command and add it into command hash.
+*/
+static
+void command_list_from_string(HASH *hash, const char *string)
+{
+  const char *entry= string;
+
+  my_hash_reset(hash);
+
+  while (*entry)
+  {
+    size_t len= 0;
+
+    while (*entry == ' ' || *entry == ',')
+      entry++;
+
+    while (entry[len] != ' ' && entry[len] != ',' && entry[len] != 0)
+      len++;
+
+    if (len > 0)
+    {
+      command *cmd= command_create(entry, len);
+      my_casedn_str(&my_charset_utf8_general_ci, cmd->name);
+      my_hash_insert(hash, (uchar*) cmd);
+    }
+
+    entry+= len;
+  }
+}
+
 /* public interface */
 
 void audit_log_filter_init()
@@ -255,6 +337,7 @@ void audit_log_filter_init()
 #endif /* HAVE_PSI_INTERFACE */
   mysql_rwlock_init(key_LOCK_account_list, &LOCK_account_list);
   mysql_rwlock_init(key_LOCK_database_list, &LOCK_database_list);
+  mysql_rwlock_init(key_LOCK_command_list, &LOCK_command_list);
 
   my_hash_init(&include_accounts, &my_charset_bin,
                20, 0, 0,
@@ -275,6 +358,16 @@ void audit_log_filter_init()
                20, 0, 0,
                (my_hash_get_key) database_get_key,
                my_free, HASH_UNIQUE, key_memory_audit_log_databases);
+
+  my_hash_init(&include_commands, &my_charset_bin,
+               20, 0, 0,
+               (my_hash_get_key) command_get_key,
+               my_free, HASH_UNIQUE, key_memory_audit_log_commands);
+
+  my_hash_init(&exclude_commands, &my_charset_bin,
+               20, 0, 0,
+               (my_hash_get_key) command_get_key,
+               my_free, HASH_UNIQUE, key_memory_audit_log_commands);
 }
 
 void audit_log_filter_destroy()
@@ -283,8 +376,12 @@ void audit_log_filter_destroy()
   my_hash_free(&exclude_accounts);
   my_hash_free(&include_databases);
   my_hash_free(&exclude_databases);
+  my_hash_free(&include_commands);
+  my_hash_free(&exclude_commands);
   mysql_rwlock_destroy(&LOCK_account_list);
   mysql_rwlock_destroy(&LOCK_database_list);
+  mysql_rwlock_destroy(&LOCK_account_list);
+  mysql_rwlock_destroy(&LOCK_command_list);
 }
 
 /*
@@ -400,5 +497,63 @@ my_bool audit_log_check_database_excluded(const char *name, size_t length)
   res= my_hash_search(&exclude_databases,
                       (const uchar*) db.name, db.length) != NULL;
   mysql_rwlock_unlock(&LOCK_database_list);
+  return res;
+}
+
+
+/*
+  Parse and store the list of included commands.
+*/
+void audit_log_set_include_commands(const char *val)
+{
+  mysql_rwlock_wrlock(&LOCK_command_list);
+  command_list_from_string(&include_commands, val);
+  mysql_rwlock_unlock(&LOCK_command_list);
+}
+
+/*
+  Parse and store the list of excluded commands.
+*/
+void audit_log_set_exclude_commands(const char *val)
+{
+  mysql_rwlock_wrlock(&LOCK_command_list);
+  command_list_from_string(&exclude_commands, val);
+  mysql_rwlock_unlock(&LOCK_command_list);
+}
+
+/*
+  Check if command has to be included.
+*/
+my_bool audit_log_check_command_included(const char *name, size_t length)
+{
+  command cmd;
+  my_bool res;
+
+  command_init(&cmd, name, length);
+
+  mysql_rwlock_rdlock(&LOCK_command_list);
+
+  res= my_hash_search(&include_commands,
+                      (const uchar*) cmd.name, cmd.length) != NULL;
+
+  mysql_rwlock_unlock(&LOCK_command_list);
+  return res;
+}
+
+/*
+  Check if command has to be excluded.
+*/
+my_bool audit_log_check_command_excluded(const char *name, size_t length)
+{
+  command cmd;
+  my_bool res;
+
+  command_init(&cmd, name, length);
+
+  mysql_rwlock_rdlock(&LOCK_command_list);
+
+  res= my_hash_search(&exclude_commands,
+                      (const uchar*) cmd.name, cmd.length) != NULL;
+  mysql_rwlock_unlock(&LOCK_command_list);
   return res;
 }

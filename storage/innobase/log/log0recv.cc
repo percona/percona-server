@@ -3959,6 +3959,8 @@ recv_recovery_from_checkpoint_start(
 		ib::info() << "The user has set SRV_FORCE_NO_LOG_REDO on,"
 			" skipping log redo";
 
+		srv_init_log_online();
+
 		return(DB_SUCCESS);
 	}
 
@@ -4210,6 +4212,12 @@ recv_recovery_from_checkpoint_start(
 	log_sys->write_lsn = log_sys->lsn;
 
 	log_sys->last_checkpoint_lsn = checkpoint_lsn;
+
+	log_mutex_exit();
+
+	srv_init_log_online();
+
+	log_mutex_enter();
 
 	if (!srv_read_only_mode) {
 		/* Write a MLOG_CHECKPOINT marker as the first thing,

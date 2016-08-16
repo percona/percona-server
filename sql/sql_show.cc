@@ -1942,7 +1942,10 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     else
       protocol->store(command_name[thd_info->command].str, system_charset_info);
     if (thd_info->start_time)
-      protocol->store_long ((longlong) (now - thd_info->start_time));
+    {
+      protocol->store_long ((thd_info->start_time > now) ? 0
+        : (longlong) (now - thd_info->start_time));
+    }
     else
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);

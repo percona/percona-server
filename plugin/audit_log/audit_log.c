@@ -66,13 +66,17 @@ ulong audit_log_syslog_facility= 0;
 ulong audit_log_syslog_priority= 0;
 static char *audit_log_exclude_accounts= NULL;
 static char *audit_log_include_accounts= NULL;
+static char *audit_log_exclude_databases= NULL;
+static char *audit_log_include_databases= NULL;
 
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
 PSI_memory_key key_memory_audit_log_buffer;
 PSI_memory_key key_memory_audit_log_record_buffer;
+PSI_memory_key key_memory_audit_log_query_stack;
 PSI_memory_key key_memory_audit_log_thd_local;
 PSI_memory_key key_memory_audit_log_accounts;
+PSI_memory_key key_memory_audit_log_databases;
 
 static PSI_memory_info all_audit_log_memory[]=
 {
@@ -80,8 +84,10 @@ static PSI_memory_info all_audit_log_memory[]=
   {&key_memory_audit_log_handler, "audit_log_handler", 0},
   {&key_memory_audit_log_buffer, "audit_log_buffer", 0},
   {&key_memory_audit_log_record_buffer, "audit_log_record_buffer", 0},
+  {&key_memory_audit_log_query_stack, "audit_log_query_stack", 0},
   {&key_memory_audit_log_thd_local, "audit_log_thd_local", 0},
   {&key_memory_audit_log_accounts, "audit_log_accounts", 0},
+  {&key_memory_audit_log_databases, "audit_log_databases", 0},
 };
 
 static int audit_log_syslog_facility_codes[]=
@@ -771,6 +777,25 @@ int reopen_log_file()
   return(0);
 }
 
+typedef struct
+{
+  /* number of included databases */
+  int databases_included;
+  /* number of excluded databases */
+  int databases_excluded;
+  /* number of accessed databases */
+  int databases_accessed;
+  /* query */
+  const char *query;
+} query_stack_frame;
+
+typedef struct
+{
+  size_t size;
+  size_t top;
+  query_stack_frame *frames;
+} query_stack;
+
 /*
  Struct to store various THD specific data
  */
@@ -778,12 +803,16 @@ typedef struct
 {
   /* size of allocated large buffer to for record formatting */
   size_t record_buffer_size;
-  /* skip logging session */
-  my_bool skip_logging;
+  /* skip session logging */
+  my_bool skip_session;
+  /* skip logging for the next query */
+  my_bool skip_query;
   /* default database */
   char db[NAME_LEN + 1];
   /* default database candidate */
   char init_db_query[NAME_LEN + 1];
+  /* call stack */
+  query_stack stack;
 } audit_log_thd_local;
 
 /*
@@ -797,6 +826,12 @@ audit_log_thd_local *get_thd_local(MYSQL_THD thd);
  */
 static
 char *get_record_buffer(MYSQL_THD thd, size_t size);
+
+/*
+ Allocate and return given number of stack frames.
+ */
+static
+query_stack_frame *realloc_stack_frames(MYSQL_THD thd, size_t size);
 
 
 static
@@ -825,7 +860,7 @@ int audit_log_plugin_init(MYSQL_PLUGIN plugin_info)
 
 
 static
-int audit_log_plugin_deinit(void *arg __attribute__((unused)))
+int audit_log_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   char buf[1024];
   size_t len;
@@ -839,6 +874,9 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
 
   my_free(audit_log_include_accounts);
   my_free(audit_log_exclude_accounts);
+
+  my_free(audit_log_include_databases);
+  my_free(audit_log_exclude_databases);
 
   return(0);
 }
@@ -884,8 +922,14 @@ const char *next_word(const char *str, size_t *len,
   if (*len == 0 && *str == '`')
   {
     (*len)++;
-    while (str[*len] && str[*len] != '`')
+    while (str[*len])
+    {
+      if (str[*len] == '`' && str[*len + 1] == '`')
+        (*len)++;
+      else if (str[*len] == '`')
+        break;
       (*len)++;
+    }
     (*len)++;
   }
 
@@ -901,6 +945,8 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
 {
   DBUG_ASSERT(audit_log_include_accounts == NULL ||
               audit_log_exclude_accounts == NULL);
+  DBUG_ASSERT(audit_log_include_databases == NULL ||
+              audit_log_exclude_databases == NULL);
 
   if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
   {
@@ -930,15 +976,15 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
       return FALSE;
     }
 
-    local->skip_logging= FALSE;
+    local->skip_session= FALSE;
     if (audit_log_include_accounts != NULL &&
         !audit_log_check_account_included(priv_user.str, priv_user.length,
                                           priv_host.str, priv_host.length))
-      local->skip_logging= TRUE;
+      local->skip_session= TRUE;
     if (audit_log_exclude_accounts != NULL &&
         audit_log_check_account_excluded(priv_user.str, priv_user.length,
                                          priv_host.str, priv_host.length))
-      local->skip_logging= TRUE;
+      local->skip_session= TRUE;
 
     if (event_connection->status == 0)
     {
@@ -953,6 +999,38 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
   {
     const struct mysql_event_general *event_general=
       (const struct mysql_event_general *) event;
+
+    if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS)
+    {
+      DBUG_ASSERT(local->stack.frames[local->stack.top].query == NULL
+                  || local->stack.frames[local->stack.top].query
+                      == event_general->general_query.str);
+
+      local->skip_query= audit_log_include_databases
+              && local->stack.frames[local->stack.top].databases_accessed > 0
+              && local->stack.frames[local->stack.top].databases_included == 0;
+
+      local->skip_query|= audit_log_exclude_databases
+              && local->stack.frames[local->stack.top].databases_accessed > 0
+              && local->stack.frames[local->stack.top].databases_excluded
+                 == local->stack.frames[local->stack.top].databases_accessed;
+
+      local->stack.frames[local->stack.top].databases_included= 0;
+      local->stack.frames[local->stack.top].databases_accessed= 0;
+      local->stack.frames[local->stack.top].databases_excluded= 0;
+      local->stack.frames[local->stack.top].query= NULL;
+
+      if (local->stack.top > 0)
+        --local->stack.top;
+
+      if (!local->skip_query &&
+          ((event_general->general_command.length == 4 &&
+            strncmp(event_general->general_command.str, "Quit", 4) == 0) ||
+           (event_general->general_command.length == 11 &&
+            strncmp(event_general->general_command.str,
+                    "Change user", 11) == 0)))
+        local->skip_query= TRUE;
+    }
 
     if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_LOG &&
         event_general->general_command.length == 7 &&
@@ -998,12 +1076,37 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
       }
     }
   }
+  else if (event_class == MYSQL_AUDIT_TABLE_ACCESS_CLASS)
+  {
+    const struct mysql_event_table_access *event_table=
+      (const struct mysql_event_table_access *) event;
+
+    if (local->stack.frames[local->stack.top].query != event_table->query.str
+        && local->stack.frames[local->stack.top].query != NULL)
+    {
+      if (++local->stack.top >= local->stack.size)
+        realloc_stack_frames(thd, local->stack.size * 2);
+    }
+    local->stack.frames[local->stack.top].query= event_table->query.str;
+
+    ++local->stack.frames[local->stack.top].databases_accessed;
+
+    if (audit_log_include_databases != NULL &&
+        audit_log_check_database_included(event_table->table_database.str,
+                                          event_table->table_database.length))
+      ++local->stack.frames[local->stack.top].databases_included;
+
+    if (audit_log_exclude_databases != NULL &&
+        audit_log_check_database_excluded(event_table->table_database.str,
+                                          event_table->table_database.length))
+      ++local->stack.frames[local->stack.top].databases_excluded;
+  }
   return TRUE;
 }
 
 
 static
-int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
+int audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                      mysql_event_class_t event_class,
                      const void *event)
 {
@@ -1019,7 +1122,7 @@ int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
   if (!is_event_class_allowed_by_policy(event_class, audit_log_policy))
     return 0;
 
-  if (local->skip_logging)
+  if (local->skip_session)
     return 0;
 
   if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
@@ -1029,10 +1132,7 @@ int audit_log_notify(MYSQL_THD thd __attribute__((unused)),
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_STATUS:
-      if ((event_general->general_command.length == 4 &&
-           strncmp(event_general->general_command.str, "Quit", 4) == 0) ||
-          (event_general->general_command.length == 11 &&
-           strncmp(event_general->general_command.str, "Change user", 11) == 0))
+      if (local->skip_query)
         break;
 
       /* use allocated buffer if available */
@@ -1170,9 +1270,9 @@ static MYSQL_SYSVAR_ULONGLONG(buffer_size, audit_log_buffer_size,
 
 static
 void audit_log_rotate_on_size_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   ulonglong new_val= *(ulonglong *)(save);
@@ -1189,9 +1289,9 @@ static MYSQL_SYSVAR_ULONGLONG(rotate_on_size, audit_log_rotate_on_size,
 
 static
 void audit_log_rotations_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   ulonglong new_val= *(ulonglong *)(save);
@@ -1208,9 +1308,9 @@ static MYSQL_SYSVAR_ULONGLONG(rotations, audit_log_rotations,
 
 static
 void audit_log_flush_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   char new_val= *(const char *)(save);
@@ -1264,11 +1364,16 @@ static MYSQL_THDVAR_STR(record_buffer,
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
                         "Buffer for query formatting.", NULL, NULL, "");
 
+static MYSQL_THDVAR_STR(query_stack,
+                        PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
+                        PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
+                        "Query stack.", NULL, NULL, "");
+
 static
 int
 audit_log_exclude_accounts_validate(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
@@ -1288,9 +1393,9 @@ audit_log_exclude_accounts_validate(
 
 static
 void audit_log_exclude_accounts_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   const char *new_val= *(const char **)(save);
@@ -1322,8 +1427,8 @@ static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
 static
 int
 audit_log_include_accounts_validate(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
@@ -1343,9 +1448,9 @@ audit_log_include_accounts_validate(
 
 static
 void audit_log_include_accounts_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   const char *new_val= *(const char **)(save);
@@ -1373,6 +1478,115 @@ static MYSQL_SYSVAR_STR(include_accounts, audit_log_include_accounts,
        audit_log_include_accounts_validate,
        audit_log_include_accounts_update, NULL);
 
+static
+int
+audit_log_exclude_databases_validate(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_include_databases)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_exclude_databases_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_include_databases == NULL);
+
+  my_free(audit_log_exclude_databases);
+  audit_log_exclude_databases= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_exclude_databases= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          new_val, MYF(MY_FAE));
+    audit_log_set_exclude_databases(audit_log_exclude_databases);
+  }
+  else
+  {
+    audit_log_set_exclude_databases("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(exclude_databases, audit_log_exclude_databases,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of databases "
+       "for which events should not be logged.",
+       audit_log_exclude_databases_validate,
+       audit_log_exclude_databases_update, NULL);
+
+static
+int
+audit_log_include_databases_validate(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_exclude_databases)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_include_databases_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_exclude_databases == NULL);
+
+  my_free(audit_log_include_databases);
+  audit_log_include_databases= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_include_databases= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          new_val, MYF(MY_FAE));
+    audit_log_set_include_databases(audit_log_include_databases);
+  }
+  else
+  {
+    audit_log_set_include_databases("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(include_databases, audit_log_include_databases,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of databases for which events should be logged.",
+       audit_log_include_databases_validate,
+       audit_log_include_databases_update, NULL);
+
 static MYSQL_THDVAR_STR(local,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
@@ -1393,8 +1607,11 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(syslog_priority),
   MYSQL_SYSVAR(syslog_facility),
   MYSQL_SYSVAR(record_buffer),
+  MYSQL_SYSVAR(query_stack),
   MYSQL_SYSVAR(exclude_accounts),
   MYSQL_SYSVAR(include_accounts),
+  MYSQL_SYSVAR(exclude_databases),
+  MYSQL_SYSVAR(include_databases),
   MYSQL_SYSVAR(local),
   NULL
 };
@@ -1414,6 +1631,8 @@ audit_log_thd_local *get_thd_local(MYSQL_THD thd)
                       sizeof(audit_log_thd_local),
                       MYF(MY_FAE | MY_ZEROFILL));
     THDVAR(thd, local)= (char *) local;
+
+    realloc_stack_frames(thd, 4);
   }
   return local;
 }
@@ -1431,12 +1650,38 @@ char *get_record_buffer(MYSQL_THD thd, size_t size)
   if (local->record_buffer_size < size)
   {
     local->record_buffer_size= size;
-    buf= (char *) my_realloc(key_memory_audit_log_thd_local, buf, size,
+    buf= (char *) my_realloc(key_memory_audit_log_record_buffer, buf, size,
                              MYF(MY_FAE | MY_ALLOW_ZERO_PTR));
     THDVAR(thd, record_buffer)= (char *) buf;
   }
 
   return buf;
+}
+
+
+/*
+ Allocate and return given number of stack frames.
+ */
+static
+query_stack_frame *realloc_stack_frames(MYSQL_THD thd, size_t size)
+{
+  audit_log_thd_local *local= get_thd_local(thd);
+  query_stack_frame *stack= (query_stack_frame *) THDVAR(thd, query_stack);
+
+  if (local->stack.size < size)
+  {
+    local->stack.size= size;
+    stack= (query_stack_frame *) my_realloc(key_memory_audit_log_query_stack,
+                                            stack,
+                                            size * sizeof(query_stack_frame),
+                                            MYF(MY_FAE
+                                                | MY_ALLOW_ZERO_PTR
+                                                | MY_ZEROFILL));
+    local->stack.frames= stack;
+    THDVAR(thd, query_stack)= (char *) stack;
+  }
+
+  return stack;
 }
 
 
@@ -1450,7 +1695,9 @@ static struct st_mysql_audit audit_log_descriptor=
   audit_log_notify,                             /* notify function      */
   { MYSQL_AUDIT_GENERAL_ALL,
     MYSQL_AUDIT_CONNECTION_ALL,
-    0, 0, 0, 0, 0, 0, 0, 0 }                    /* class mask           */
+    0, 0,
+    MYSQL_AUDIT_TABLE_ACCESS_ALL,
+    0, 0, 0, 0, 0 }                             /* class mask           */
 };
 
 /*

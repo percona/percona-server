@@ -65,6 +65,8 @@ ulong audit_log_syslog_facility= 0;
 ulong audit_log_syslog_priority= 0;
 static char *audit_log_exclude_accounts= NULL;
 static char *audit_log_include_accounts= NULL;
+static char *audit_log_exclude_commands= NULL;
+static char *audit_log_include_commands= NULL;
 
 static int audit_log_syslog_facility_codes[]=
   { LOG_USER,   LOG_AUTHPRIV, LOG_CRON,   LOG_DAEMON, LOG_FTP,
@@ -770,7 +772,9 @@ typedef struct
   /* size of allocated large buffer to for record formatting */
   size_t record_buffer_size;
   /* skip logging session */
-  my_bool skip_logging;
+  my_bool skip_session;
+  /* skip logging for the next query */
+  my_bool skip_query;
   /* default database */
   char db[NAME_LEN + 1];
   /* default database candidate */
@@ -791,7 +795,7 @@ char *get_record_buffer(MYSQL_THD thd, size_t size);
 
 
 static
-int audit_log_plugin_init(void *arg __attribute__((unused)))
+int audit_log_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 {
   char buf[1024];
   size_t len;
@@ -811,7 +815,7 @@ int audit_log_plugin_init(void *arg __attribute__((unused)))
 
 
 static
-int audit_log_plugin_deinit(void *arg __attribute__((unused)))
+int audit_log_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   char buf[1024];
   size_t len;
@@ -825,6 +829,9 @@ int audit_log_plugin_deinit(void *arg __attribute__((unused)))
 
   my_free(audit_log_include_accounts);
   my_free(audit_log_exclude_accounts);
+
+  my_free(audit_log_include_commands);
+  my_free(audit_log_exclude_commands);
 
   return(0);
 }
@@ -869,8 +876,14 @@ const char *next_word(const char *str, size_t *len,
   if (*len == 0 && *str == '`')
   {
     (*len)++;
-    while (str[*len] && str[*len] != '`')
+    while (str[*len])
+    {
+      if (str[*len] == '`' && str[*len + 1] == '`')
+        (*len)++;
+      else if (str[*len] == '`')
+        break;
       (*len)++;
+    }
     (*len)++;
   }
 
@@ -885,25 +898,27 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
 {
   DBUG_ASSERT(audit_log_include_accounts == NULL ||
               audit_log_exclude_accounts == NULL);
+  DBUG_ASSERT(audit_log_include_commands == NULL ||
+              audit_log_exclude_commands == NULL);
 
   if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
   {
     const struct mysql_event_connection *event_connection=
       (const struct mysql_event_connection *) event;
 
-    local->skip_logging= FALSE;
+    local->skip_session= FALSE;
     if (audit_log_include_accounts != NULL &&
         !audit_log_check_account_included(event_connection->user,
                                           event_connection->user_length,
                                           event_connection->host,
                                           event_connection->host_length))
-      local->skip_logging= TRUE;
+      local->skip_session= TRUE;
     if (audit_log_exclude_accounts != NULL &&
         audit_log_check_account_excluded(event_connection->user,
                                          event_connection->user_length,
                                          event_connection->host,
                                          event_connection->host_length))
-      local->skip_logging= TRUE;
+      local->skip_session= TRUE;
 
     if (event_connection->status == 0)
     {
@@ -918,6 +933,27 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
   {
     const struct mysql_event_general *event_general=
       (const struct mysql_event_general *) event;
+
+    if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS)
+    {
+      local->skip_query= audit_log_include_commands
+            && !audit_log_check_command_included(
+                     event_general->general_sql_command.str,
+                     event_general->general_sql_command.length);
+
+      local->skip_query|= audit_log_exclude_commands
+            && audit_log_check_command_excluded(
+                     event_general->general_sql_command.str,
+                     event_general->general_sql_command.length);
+
+      if (!local->skip_query &&
+          ((event_general->general_command_length == 4 &&
+            strncmp(event_general->general_command, "Quit", 4) == 0) ||
+           (event_general->general_command_length == 11 &&
+            strncmp(event_general->general_command,
+                    "Change user", 11) == 0)))
+        local->skip_query= TRUE;
+    }
 
     if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_LOG &&
         event_general->general_command_length == 7 &&
@@ -967,7 +1003,7 @@ void audit_log_update_thd_local(audit_log_thd_local *local,
 
 
 static
-void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
+void audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                       unsigned int event_class,
                       const void *event)
 {
@@ -982,7 +1018,7 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
   if (!is_event_class_allowed_by_policy(event_class, audit_log_policy))
     return;
 
-  if (local->skip_logging)
+  if (local->skip_session)
     return;
 
   if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
@@ -992,10 +1028,7 @@ void audit_log_notify(MYSQL_THD thd __attribute__((unused)),
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_STATUS:
-      if ((event_general->general_command_length == 4 &&
-           strncmp(event_general->general_command, "Quit", 4) == 0) ||
-          (event_general->general_command_length == 11 &&
-           strncmp(event_general->general_command, "Change user", 11) == 0))
+      if (local->skip_query)
         break;
 
       /* use allocated buffer if available */
@@ -1128,9 +1161,9 @@ static MYSQL_SYSVAR_ULONGLONG(buffer_size, audit_log_buffer_size,
 
 static
 void audit_log_rotate_on_size_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   ulonglong new_val= *(ulonglong *)(save);
@@ -1147,9 +1180,9 @@ static MYSQL_SYSVAR_ULONGLONG(rotate_on_size, audit_log_rotate_on_size,
 
 static
 void audit_log_rotations_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   ulonglong new_val= *(ulonglong *)(save);
@@ -1166,9 +1199,9 @@ static MYSQL_SYSVAR_ULONGLONG(rotations, audit_log_rotations,
 
 static
 void audit_log_flush_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   char new_val= *(const char *)(save);
@@ -1225,8 +1258,8 @@ static MYSQL_THDVAR_STR(record_buffer,
 static
 int
 audit_log_exclude_accounts_validate(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
@@ -1246,9 +1279,9 @@ audit_log_exclude_accounts_validate(
 
 static
 void audit_log_exclude_accounts_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   const char *new_val= *(const char **)(save);
@@ -1279,8 +1312,8 @@ static MYSQL_SYSVAR_STR(exclude_accounts, audit_log_exclude_accounts,
 static
 int
 audit_log_include_accounts_validate(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
           void *save,
           struct st_mysql_value *value)
 {
@@ -1300,9 +1333,9 @@ audit_log_include_accounts_validate(
 
 static
 void audit_log_include_accounts_update(
-          MYSQL_THD thd __attribute__((unused)),
-          struct st_mysql_sys_var *var __attribute__((unused)),
-          void *var_ptr __attribute__((unused)),
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
           const void *save)
 {
   const char *new_val= *(const char **)(save);
@@ -1329,6 +1362,113 @@ static MYSQL_SYSVAR_STR(include_accounts, audit_log_include_accounts,
        audit_log_include_accounts_validate,
        audit_log_include_accounts_update, NULL);
 
+static
+int
+audit_log_exclude_commands_validate(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_include_commands)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_exclude_commands_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_include_commands == NULL);
+
+  my_free(audit_log_exclude_commands);
+  audit_log_exclude_commands= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_exclude_commands= my_strdup(new_val, MYF(MY_FAE));
+    audit_log_set_exclude_commands(audit_log_exclude_commands);
+  }
+  else
+  {
+    audit_log_set_exclude_commands("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of commands "
+       "for which events should not be logged.",
+       audit_log_exclude_commands_validate,
+       audit_log_exclude_commands_update, NULL);
+
+static
+int
+audit_log_include_commands_validate(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_exclude_commands)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_include_commands_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_exclude_commands == NULL);
+
+  my_free(audit_log_include_commands);
+  audit_log_include_commands= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_include_commands= my_strdup(new_val, MYF(MY_FAE));
+    audit_log_set_include_commands(audit_log_include_commands);
+  }
+  else
+  {
+    audit_log_set_include_commands("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(include_commands, audit_log_include_commands,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of commands for which events should be logged.",
+       audit_log_include_commands_validate,
+       audit_log_include_commands_update, NULL);
+
 static MYSQL_THDVAR_STR(local,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
@@ -1351,6 +1491,8 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(record_buffer),
   MYSQL_SYSVAR(exclude_accounts),
   MYSQL_SYSVAR(include_accounts),
+  MYSQL_SYSVAR(exclude_commands),
+  MYSQL_SYSVAR(include_commands),
   MYSQL_SYSVAR(local),
   NULL
 };

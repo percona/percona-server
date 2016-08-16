@@ -29,6 +29,12 @@ my_bool audit_log_check_account_included(const char *user, size_t user_length,
                                          const char *host, size_t host_length);
 my_bool audit_log_check_account_excluded(const char *user, size_t user_length,
                                          const char *host, size_t host_length);
+
+void audit_log_set_include_commands(const char *val);
+void audit_log_set_exclude_commands(const char *val);
+my_bool audit_log_check_command_included(const char *command, size_t length);
+my_bool audit_log_check_command_excluded(const char *command, size_t length);
+
 void audit_log_filter_init();
 void audit_log_filter_destroy();
 

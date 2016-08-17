@@ -53,6 +53,9 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
+
+UNIV_INTERN my_bool  srv_numa_interleave = FALSE;
+
 #ifdef HAVE_LIBNUMA
 #include <numa.h>
 #include <numaif.h>

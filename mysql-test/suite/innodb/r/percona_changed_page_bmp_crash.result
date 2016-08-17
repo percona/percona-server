@@ -25,6 +25,7 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 1st restart
 ib_modified_log_1
 ib_modified_log_2
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 2nd restart
 INSERT INTO t1 SELECT x FROM t1;
 ERROR HY000: Lost connection to MySQL server during query

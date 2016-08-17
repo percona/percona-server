@@ -60,6 +60,7 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 # Test crash right before writing of new bitmap data
 #
 
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc

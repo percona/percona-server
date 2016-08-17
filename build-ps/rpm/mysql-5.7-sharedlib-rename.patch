@@ -93,18 +93,6 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
    ADD_COMPILE_FLAGS(
      auth_utils.cc mysql_install_db.cc
      COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
-diff -rup old/client/dump/CMakeLists.txt new/client/dump/CMakeLists.txt
---- old/client/dump/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
-+++ new/client/dump/CMakeLists.txt	2016-03-09 11:46:03.091333332 +0100
-@@ -16,7 +16,7 @@
- 
- # Exclude mysqlpump tool from being compiled by SunStudio compiler. It has bug
- # that forbids usage of pure virtual interfaces (and other classes with no
--# fields) without dummy workarounds. In fact, only libperconaserver must be build with
-+# fields) without dummy workarounds. In fact, only libmysqlclient must be build with
- # this toolset, so it is acceptable to exclude mysqlpump here.
- 
- INCLUDE_DIRECTORIES(
 diff -rup old/cmake/libutils.cmake new/cmake/libutils.cmake
 --- old/cmake/libutils.cmake	2016-03-09 09:25:21.000000000 +0100
 +++ new/cmake/libutils.cmake	2016-03-09 11:41:15.159325622 +0100

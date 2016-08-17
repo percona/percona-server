@@ -25,12 +25,14 @@ show variables like 'audit_log%';
 Variable_name	Value
 audit_log_buffer_size	4096
 audit_log_exclude_accounts	
+audit_log_exclude_commands	
 audit_log_exclude_databases	
 audit_log_file	test_audit.log
 audit_log_flush	OFF
 audit_log_format	OLD
 audit_log_handler	FILE
 audit_log_include_accounts	
+audit_log_include_commands	
 audit_log_include_databases	
 audit_log_policy	ALL
 audit_log_rotate_on_size	0
@@ -59,12 +61,14 @@ show variables like 'audit_log%';
 Variable_name	Value
 audit_log_buffer_size	4096
 audit_log_exclude_accounts	
+audit_log_exclude_commands	
 audit_log_exclude_databases	
 audit_log_file	test_audit.log
 audit_log_flush	OFF
 audit_log_format	OLD
 audit_log_handler	FILE
 audit_log_include_accounts	
+audit_log_include_commands	
 audit_log_include_databases	
 audit_log_policy	ALL
 audit_log_rotate_on_size	0

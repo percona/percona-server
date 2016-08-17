@@ -68,6 +68,8 @@ static char *audit_log_exclude_accounts= NULL;
 static char *audit_log_include_accounts= NULL;
 static char *audit_log_exclude_databases= NULL;
 static char *audit_log_include_databases= NULL;
+static char *audit_log_exclude_commands= NULL;
+static char *audit_log_include_commands= NULL;
 
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
@@ -77,6 +79,7 @@ PSI_memory_key key_memory_audit_log_query_stack;
 PSI_memory_key key_memory_audit_log_thd_local;
 PSI_memory_key key_memory_audit_log_accounts;
 PSI_memory_key key_memory_audit_log_databases;
+PSI_memory_key key_memory_audit_log_commands;
 
 static PSI_memory_info all_audit_log_memory[]=
 {
@@ -88,6 +91,7 @@ static PSI_memory_info all_audit_log_memory[]=
   {&key_memory_audit_log_thd_local, "audit_log_thd_local", 0},
   {&key_memory_audit_log_accounts, "audit_log_accounts", 0},
   {&key_memory_audit_log_databases, "audit_log_databases", 0},
+  {&key_memory_audit_log_commands, "audit_log_commands", 0},
 };
 
 static int audit_log_syslog_facility_codes[]=
@@ -878,6 +882,9 @@ int audit_log_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
   my_free(audit_log_include_databases);
   my_free(audit_log_exclude_databases);
 
+  my_free(audit_log_include_commands);
+  my_free(audit_log_exclude_commands);
+
   return(0);
 }
 
@@ -945,8 +952,12 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
 {
   DBUG_ASSERT(audit_log_include_accounts == NULL ||
               audit_log_exclude_accounts == NULL);
+
   DBUG_ASSERT(audit_log_include_databases == NULL ||
               audit_log_exclude_databases == NULL);
+
+  DBUG_ASSERT(audit_log_include_commands == NULL ||
+              audit_log_exclude_commands == NULL);
 
   if (event_class == MYSQL_AUDIT_CONNECTION_CLASS)
   {
@@ -1014,6 +1025,16 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
               && local->stack.frames[local->stack.top].databases_accessed > 0
               && local->stack.frames[local->stack.top].databases_excluded
                  == local->stack.frames[local->stack.top].databases_accessed;
+
+      local->skip_query|= audit_log_include_commands
+            && !audit_log_check_command_included(
+                     event_general->general_sql_command.str,
+                     event_general->general_sql_command.length);
+
+      local->skip_query|= audit_log_exclude_commands
+            && audit_log_check_command_excluded(
+                     event_general->general_sql_command.str,
+                     event_general->general_sql_command.length);
 
       local->stack.frames[local->stack.top].databases_included= 0;
       local->stack.frames[local->stack.top].databases_accessed= 0;
@@ -1587,6 +1608,115 @@ static MYSQL_SYSVAR_STR(include_databases, audit_log_include_databases,
        audit_log_include_databases_validate,
        audit_log_include_databases_update, NULL);
 
+static
+int
+audit_log_exclude_commands_validate(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_include_commands)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_exclude_commands_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_include_commands == NULL);
+
+  my_free(audit_log_exclude_commands);
+  audit_log_exclude_commands= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_exclude_commands= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          new_val, MYF(MY_FAE));
+    audit_log_set_exclude_commands(audit_log_exclude_commands);
+  }
+  else
+  {
+    audit_log_set_exclude_commands("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(exclude_commands, audit_log_exclude_commands,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of commands "
+       "for which events should not be logged.",
+       audit_log_exclude_commands_validate,
+       audit_log_exclude_commands_update, NULL);
+
+static
+int
+audit_log_include_commands_validate(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *save,
+          struct st_mysql_value *value)
+{
+  const char *new_val;
+  char buf[80];
+  int len= sizeof(buf);
+
+  if (audit_log_exclude_commands)
+    return 1;
+
+  new_val = value->val_str(value, buf, &len);
+
+  *(const char **)(save) = new_val;
+
+  return 0;
+}
+
+static
+void audit_log_include_commands_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  const char *new_val= *(const char **)(save);
+
+  DBUG_ASSERT(audit_log_exclude_commands == NULL);
+
+  my_free(audit_log_include_commands);
+  audit_log_include_commands= NULL;
+
+  if (new_val != NULL)
+  {
+    audit_log_include_commands= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          new_val, MYF(MY_FAE));
+    audit_log_set_include_commands(audit_log_include_commands);
+  }
+  else
+  {
+    audit_log_set_include_commands("");
+  }
+}
+
+static MYSQL_SYSVAR_STR(include_commands, audit_log_include_commands,
+       PLUGIN_VAR_RQCMDARG,
+       "Comma separated list of commands for which events should be logged.",
+       audit_log_include_commands_validate,
+       audit_log_include_commands_update, NULL);
+
 static MYSQL_THDVAR_STR(local,
                         PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
                         PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
@@ -1612,6 +1742,8 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(include_accounts),
   MYSQL_SYSVAR(exclude_databases),
   MYSQL_SYSVAR(include_databases),
+  MYSQL_SYSVAR(exclude_commands),
+  MYSQL_SYSVAR(include_commands),
   MYSQL_SYSVAR(local),
   NULL
 };

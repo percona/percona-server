@@ -4525,7 +4525,7 @@ sub run_testcase ($) {
       {
         $tinfo->{comment}.=
 	   "== $log_file_name == \n".
-	     mtr_lastlinesfromfile($log_file_name, 20)."\n";
+	     mtr_lastlinesfromfile($log_file_name, 500)."\n";
       }
       $tinfo->{'timeout'}= testcase_timeout($tinfo); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
@@ -5084,7 +5084,7 @@ sub report_failure_and_restart ($) {
 	    $tinfo->{comment}.=
 	      "The result from queries just before the failure was:".
 	      "\n< snip >\n".
-	      mtr_lastlinesfromfile($log_file_name, 20)."\n";
+	      mtr_lastlinesfromfile($log_file_name, 500)."\n";
 	  }
 	}
       }
@@ -6022,7 +6022,7 @@ sub start_mysqltest ($) {
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
   # Number of lines of resut to include in failure report
-  mtr_add_arg($args, "--tail-lines=20");
+  mtr_add_arg($args, "--tail-lines=500");
 
   if ( defined $tinfo->{'result_file'} ) {
     mtr_add_arg($args, "--result-file=%s", $tinfo->{'result_file'});

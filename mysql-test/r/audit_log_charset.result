@@ -32,6 +32,9 @@ use ฐานข้อมูล;
 DROP DATABASE ฐานข้อมูล;
 DROP DATABASE `???`;
 use test;
+SET @@character_set_client=cp1256;
+CREATE t \217\355ݏ\355ݏ\355\335(\217\260\241\217\260\241\217\260\241 char) DEFAULT CHARSET=ujis engine=TokuDB;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't \217\355ف?\355ف?\355\335(\217\260\241\217\260\241\217\260\241 char) DEFAULT ' at line 1
 set global audit_log_flush= ON;
 ===================================================================
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_flush=ON","root[root] @ localhost []","localhost","","","test"
@@ -62,4 +65,6 @@ set global audit_log_flush= ON;
 "Query","<ID>","<DATETIME>","drop_db","<CONN_ID>",0,"DROP DATABASE ฐานข้อมูล","root[root] @ localhost []","localhost","","","ฐานข้อมูล"
 "Query","<ID>","<DATETIME>","drop_db","<CONN_ID>",0,"DROP DATABASE `???`","root[root] @ localhost []","localhost","","","ฐานข้อมูล"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"use test","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET @@character_set_client=cp1256","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","error","<CONN_ID>",1064,"CREATE t \217\355ف?\355ف?\355\335(\217\260\241\217\260\241\217\260\241 char) DEFAULT CHARSET=ujis engine=TokuDB","root[root] @ localhost []","localhost","","","test"
 ===================================================================

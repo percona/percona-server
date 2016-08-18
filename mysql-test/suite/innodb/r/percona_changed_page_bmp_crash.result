@@ -27,6 +27,7 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 ib_modified_log_1
 ib_modified_log_2
 INSERT INTO t2 VALUES (1);
+CALL mtr.add_suppression("Database page corruption or a failed");
 2nd restart
 # restart:-#d,crash_before_bitmap_write
 INSERT INTO t1 SELECT x FROM t1;

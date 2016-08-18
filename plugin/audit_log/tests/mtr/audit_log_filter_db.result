@@ -136,7 +136,10 @@ CREATE TRIGGER tr16 BEFORE INSERT ON a16 FOR EACH ROW INSERT INTO a15 VALUES (ne
 CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a);
 CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a);
 CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a);
+CREATE TABLE b0 (a INT);
+CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END//
 INSERT INTO a19 VALUES (1);
+INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
 2	2	two	NULL
@@ -230,6 +233,7 @@ DROP TABLE db1.a16;
 DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
+DROP TABLE db1.b0;
 SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_include_databases= 'db2,```db3"`';
 SET GLOBAL event_scheduler = ON;
@@ -301,7 +305,10 @@ CREATE TRIGGER tr16 BEFORE INSERT ON a16 FOR EACH ROW INSERT INTO a15 VALUES (ne
 CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a);
 CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a);
 CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a);
+CREATE TABLE b0 (a INT);
+CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END//
 INSERT INTO a19 VALUES (1);
+INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
 2	2	two	NULL
@@ -395,6 +402,7 @@ DROP TABLE db1.a16;
 DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
+DROP TABLE db1.b0;
 SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_include_databases= NULL;
 SET GLOBAL event_scheduler = ON;
@@ -466,7 +474,10 @@ CREATE TRIGGER tr16 BEFORE INSERT ON a16 FOR EACH ROW INSERT INTO a15 VALUES (ne
 CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a);
 CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a);
 CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a);
+CREATE TABLE b0 (a INT);
+CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END//
 INSERT INTO a19 VALUES (1);
+INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
 2	2	two	NULL
@@ -560,6 +571,7 @@ DROP TABLE db1.a16;
 DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
+DROP TABLE db1.b0;
 SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_exclude_databases= 'db1,`some_very_long,database_na\'me``some_very_long_database_n"ame____q`';
 SET GLOBAL event_scheduler = ON;
@@ -631,7 +643,10 @@ CREATE TRIGGER tr16 BEFORE INSERT ON a16 FOR EACH ROW INSERT INTO a15 VALUES (ne
 CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a);
 CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a);
 CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a);
+CREATE TABLE b0 (a INT);
+CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END//
 INSERT INTO a19 VALUES (1);
+INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
 2	2	two	NULL
@@ -725,6 +740,7 @@ DROP TABLE db1.a16;
 DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
+DROP TABLE db1.b0;
 SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_exclude_databases= 'db1,db2';
 SET GLOBAL event_scheduler = ON;
@@ -796,7 +812,10 @@ CREATE TRIGGER tr16 BEFORE INSERT ON a16 FOR EACH ROW INSERT INTO a15 VALUES (ne
 CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a);
 CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a);
 CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a);
+CREATE TABLE b0 (a INT);
+CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END//
 INSERT INTO a19 VALUES (1);
+INSERT INTO b0 VALUES (1);
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 a	id	word	a
 2	2	two	NULL
@@ -890,6 +909,7 @@ DROP TABLE db1.a16;
 DROP TABLE db1.a17;
 DROP TABLE db1.a18;
 DROP TABLE db1.a19;
+DROP TABLE db1.b0;
 SET GLOBAL event_scheduler = OFF;
 SET GLOBAL audit_log_exclude_databases= NULL;
 set global audit_log_flush= ON;
@@ -966,6 +986,8 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE b0 (a INT)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a0 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a1 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a2 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
@@ -986,6 +1008,9 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a19 VALUES (1)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @tmp=1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @abc='cba'","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO b0 VALUES (1)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","delete_multi","<CONN_ID>",0,"DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","delete_multi","<CONN_ID>",0,"DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2","root[root] @ localhost []","localhost","","","db1"
@@ -1037,6 +1062,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a17","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_databases= 'db2,```db3""`'","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
@@ -1111,6 +1137,10 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE b0 (a INT)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @tmp=1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @abc='cba'","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","delete_multi","<CONN_ID>",0,"DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE db2","root[root] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t VALUES (1), (2), (3), (6)","root[root] @ localhost []","localhost","","","db2"
@@ -1161,6 +1191,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a17","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_include_databases= NULL","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
@@ -1238,6 +1269,8 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE b0 (a INT)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a0 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a1 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a2 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
@@ -1258,6 +1291,9 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO a19 VALUES (1)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @tmp=1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @abc='cba'","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO b0 VALUES (1)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","delete_multi","<CONN_ID>",0,"DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","delete_multi","<CONN_ID>",0,"DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2","root[root] @ localhost []","localhost","","","db1"
@@ -1314,6 +1350,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a17","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_databases= 'db1,`some_very_long,database_na\'me``some_very_long_database_n""ame____q`'","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
@@ -1388,6 +1425,10 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE b0 (a INT)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @tmp=1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @abc='cba'","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","delete_multi","<CONN_ID>",0,"DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE db2","root[root] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t VALUES (1), (2), (3), (6)","root[root] @ localhost []","localhost","","","db2"
@@ -1438,6 +1479,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a17","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_databases= 'db1,db2'","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = ON","root[root] @ localhost []","localhost","","","test"
@@ -1506,6 +1548,10 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr17 BEFORE INSERT ON a17 FOR EACH ROW INSERT INTO a16 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr18 BEFORE INSERT ON a18 FOR EACH ROW INSERT INTO a17 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr19 BEFORE INSERT ON a19 FOR EACH ROW INSERT INTO a18 VALUES (new.a)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_table","<CONN_ID>",0,"CREATE TABLE b0 (a INT)","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @tmp=1","root[root] @ localhost []","localhost","","","db1"
+"Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"SET @abc='cba'","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE db2","root[root] @ localhost []","localhost","","","db2"
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"USE ```db3""`","root[root] @ localhost []","localhost","","","``db3"""
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t VALUES (1), (2), (3)","root[root] @ localhost []","localhost","","","``db3"""
@@ -1546,6 +1592,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a17","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a18","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.a19","root[root] @ localhost []","localhost","","","test"
+"Query","<ID>","<DATETIME>","drop_table","<CONN_ID>",0,"DROP TABLE db1.b0","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL event_scheduler = OFF","root[root] @ localhost []","localhost","","","test"
 "Query","<ID>","<DATETIME>","set_option","<CONN_ID>",0,"SET GLOBAL audit_log_exclude_databases= NULL","root[root] @ localhost []","localhost","","","test"
 ===================================================================

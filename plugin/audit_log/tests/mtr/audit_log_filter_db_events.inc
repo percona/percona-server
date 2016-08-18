@@ -57,7 +57,14 @@ inc $i;
 inc $j;
 }
 
+CREATE TABLE b0 (a INT);
+DELIMITER //;
+CREATE TRIGGER tr_b_0 BEFORE INSERT ON b0 FOR EACH ROW BEGIN SET @tmp=1; SET @abc='cba'; END//
+DELIMITER ;//
+
 INSERT INTO a19 VALUES (1);
+
+INSERT INTO b0 VALUES (1);
 
 SELECT * FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
@@ -109,5 +116,6 @@ while ($i < 20)
 eval DROP TABLE db1.a$i;
 inc $i;
 }
+DROP TABLE db1.b0;
 
 SET GLOBAL event_scheduler = OFF;

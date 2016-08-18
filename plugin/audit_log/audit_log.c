@@ -1013,18 +1013,28 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
 
     if (event_general->event_subclass == MYSQL_AUDIT_GENERAL_STATUS)
     {
-      DBUG_ASSERT(local->stack.frames[local->stack.top].query == NULL
-                  || local->stack.frames[local->stack.top].query
-                      == event_general->general_query.str);
+      local->skip_query= FALSE;
 
-      local->skip_query= audit_log_include_databases
+      if (local->stack.frames[local->stack.top].query
+          == event_general->general_query.str)
+      {
+        local->skip_query|= audit_log_include_databases
               && local->stack.frames[local->stack.top].databases_accessed > 0
               && local->stack.frames[local->stack.top].databases_included == 0;
 
-      local->skip_query|= audit_log_exclude_databases
+        local->skip_query|= audit_log_exclude_databases
               && local->stack.frames[local->stack.top].databases_accessed > 0
               && local->stack.frames[local->stack.top].databases_excluded
                  == local->stack.frames[local->stack.top].databases_accessed;
+
+        local->stack.frames[local->stack.top].databases_included= 0;
+        local->stack.frames[local->stack.top].databases_accessed= 0;
+        local->stack.frames[local->stack.top].databases_excluded= 0;
+        local->stack.frames[local->stack.top].query= NULL;
+
+        if (local->stack.top > 0)
+          --local->stack.top;
+       }
 
       local->skip_query|= audit_log_include_commands
             && !audit_log_check_command_included(
@@ -1035,14 +1045,6 @@ my_bool audit_log_update_thd_local(MYSQL_THD thd,
             && audit_log_check_command_excluded(
                      event_general->general_sql_command.str,
                      event_general->general_sql_command.length);
-
-      local->stack.frames[local->stack.top].databases_included= 0;
-      local->stack.frames[local->stack.top].databases_accessed= 0;
-      local->stack.frames[local->stack.top].databases_excluded= 0;
-      local->stack.frames[local->stack.top].query= NULL;
-
-      if (local->stack.top > 0)
-        --local->stack.top;
 
       if (!local->skip_query &&
           ((event_general->general_command.length == 4 &&

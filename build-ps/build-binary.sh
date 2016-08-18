@@ -19,6 +19,7 @@ QUIET='VERBOSE=1'
 CMAKE_BUILD_TYPE='RelWithDebInfo'
 DEBUG_COMMENT=''
 WITH_JEMALLOC=''
+DEBUG_EXTRA=''
 WITH_SSL='/usr'
 WITH_SSL_TYPE='system'
 OPENSSL_INCLUDE=''
@@ -169,6 +170,15 @@ COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
 
+# If gcc >= 4.8 we can use ASAN in debug build but not if valgrind build also
+if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
+  GCC_VERSION=$(${CC} -dumpversion)
+  GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
+  if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
+    DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
+  fi
+fi
+
 #
 if [ -n "$(which rpm)" ]; then
   export COMMON_FLAGS=$(rpm --eval %optflags | sed -e "s|march=i386|march=i686|g")
@@ -214,6 +224,7 @@ fi
  
     cmake . ${CMAKE_OPTS:-} -DBUILD_CONFIG=mysql_release \
         -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+        $DEBUG_EXTRA \
         -DWITH_EMBEDDED_SERVER=OFF \
         -DENABLE_DTRACE=OFF \
         -DFEATURE_SET=community \

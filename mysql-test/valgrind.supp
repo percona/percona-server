@@ -912,3 +912,10 @@
    fun:_Z11mysqld_mainiPPc
    fun:main
 }
+
+{
+   Spurious dlerror_run errors on main.udf
+   Memcheck:Leak
+   ...
+   fun:dlerror_run
+}

@@ -928,3 +928,10 @@
    fun:my_b_flush_io_cache
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPy
 }
+
+{
+   Spurious dlerror_run errors on main.udf
+   Memcheck:Leak
+   ...
+   fun:dlerror_run
+}

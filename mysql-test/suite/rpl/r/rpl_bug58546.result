@@ -40,8 +40,9 @@ SET DEBUG_SYNC= 'RESET';
 [connection slave]
 include/wait_for_slave_to_stop.inc
 [connection slave1]
-include/start_slave.inc
 [connection master]
-DROP TABLE t1, t2;
 SET GLOBAL debug= $debug_save;
+DROP TABLE t1, t2;
+[connection slave1]
+include/start_slave.inc
 include/rpl_end.inc

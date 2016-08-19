@@ -1,15 +1,13 @@
-SET @old_slow_query_log_file=@@global.slow_query_log_file;
-SET GLOBAL slow_query_log=ON;
 SET LOCAL long_query_time=0;
-SET GLOBAL slow_query_log_file='MYSQLTEST_VARDIR/percona_bug830286_slow.log';;
+[log_start.inc] percona_bug830286_slow
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (1), (2), (3), (4);
 SELECT * FROM t1 LIMIT 1;
 a
 1
+[log_stop.inc] percona_bug830286_slow
 Rows_read: 0
 Rows_read: 0
 Rows_read: 0
 Rows_read: 1
-SET GLOBAL slow_query_log_file=@old_slow_query_log_file;
 DROP TABLE t1;

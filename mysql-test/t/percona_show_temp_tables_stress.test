@@ -1,21 +1,31 @@
 --source include/have_innodb.inc
+--source include/not_embedded.inc
 
---source include/count_sessions.inc
+CREATE USER event_runner1@localhost;
+GRANT ALL ON *.* TO event_runner1@localhost;
+
+CREATE USER event_runner2@localhost;
+GRANT ALL ON *.* TO event_runner2@localhost;
+
+SET @saved_event_scheduler = @@GLOBAL.event_scheduler;
+SET GLOBAL event_scheduler = ON;
 
 delimiter |;
-
-CREATE PROCEDURE query_temp_tables ()
+CREATE DEFINER=event_runner1@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
   WHILE TRUE DO
     SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
   END WHILE|
 
+CREATE DEFINER=event_runner2@localhost EVENT query_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
+  WHILE TRUE DO
+    SELECT * FROM INFORMATION_SCHEMA.TABLES;
+  END WHILE|
+
 delimiter ;|
-
-connect (con1,localhost,root,,);
---let $con1_id= `SELECT connection_id()`
-send CALL query_temp_tables();
-
-connection default;
 
 --let $i=400
 --echo # Creating 400 temp tables with each of MyISAM, InnoDB, MEMORY
@@ -43,20 +53,24 @@ while ($i)
 }
 --enable_query_log
 
---echo KILL QUERY \$con1_id
+--let $ev_thread1_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner1'`
+--echo KILL CONNECTION \$ev_thread1_id
 --disable_query_log
-eval KILL QUERY $con1_id;
+eval KILL CONNECTION $ev_thread1_id;
 --enable_query_log
 
-connection con1;
---disable_result_log
---error ER_QUERY_INTERRUPTED
-reap;
---enable_result_log
-disconnect con1;
+--let $ev_thread2_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner2'`
+--echo KILL CONNECTION \$ev_thread2_id
+--disable_query_log
+eval KILL CONNECTION $ev_thread2_id;
+--enable_query_log
 
-connection default;
+--source include/no_running_events.inc
 
-DROP PROCEDURE query_temp_tables;
+SET GLOBAL event_scheduler = @saved_event_scheduler;
 
---source include/wait_until_count_sessions.inc
+DROP EVENT query_temp_tables;
+DROP EVENT query_tables;
+
+DROP USER event_runner1@localhost;
+DROP USER event_runner2@localhost;

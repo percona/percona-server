@@ -3962,6 +3962,17 @@ static int fill_global_temporary_tables(THD *thd, TABLE_LIST *tables, COND *cond
  
   while ((thd_item=it++)) {
     mysql_mutex_lock(&thd_item->LOCK_temporary_tables);
+
+#ifndef DBUG_OFF
+    const char* tmp_proc_info= thd_item->proc_info;
+    if (tmp_proc_info &&
+        !strncmp(tmp_proc_info,
+                 STRING_WITH_LEN("debug sync point: before_open_in_get_all_tables"))) {
+      DEBUG_SYNC(thd,
+                 "fill_global_temporary_tables_thd_item_at_tables_debug_sync");
+    }
+#endif
+
     for (tmp=thd_item->temporary_tables; tmp; tmp=tmp->next) {
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

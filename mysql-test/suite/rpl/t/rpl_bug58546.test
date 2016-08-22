@@ -64,8 +64,8 @@ source include/wait_for_slave_to_stop.inc;
 reap;
 
 --source include/rpl_connection_master.inc
-DROP TABLE t1, t2;
 SET GLOBAL debug= $debug_save;
+DROP TABLE t1, t2;
 
 --source include/rpl_connection_slave1.inc
 source include/start_slave.inc;

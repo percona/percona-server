@@ -316,7 +316,7 @@ char *escape_string(const char *in, size_t inlen,
     if (endptr)
       *endptr= out;
     if (full_outlen)
-      *full_outlen+= calculate_escape_string_buf_len(in + inlen, inlen);
+      *full_outlen+= calculate_escape_string_buf_len(in, inlen);
   }
   else if (in != NULL)
   {
@@ -329,7 +329,7 @@ char *escape_string(const char *in, size_t inlen,
     if (full_outlen)
     {
       *full_outlen+= outlen;
-      *full_outlen+= calculate_escape_string_buf_len(in + inlen,
+      *full_outlen+= calculate_escape_string_buf_len(in + inlen_res,
                                                      inlen - inlen_res);
     }
   }

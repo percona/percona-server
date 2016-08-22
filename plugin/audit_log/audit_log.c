@@ -519,7 +519,6 @@ char *audit_log_general_record(char *buf, size_t buflen,
                              event->general_query.str,
                              event->general_query.length,
                              event->general_charset, &errors);
-    DBUG_ASSERT(errors == 0);
     query= endptr;
     endptr+= query_length;
 

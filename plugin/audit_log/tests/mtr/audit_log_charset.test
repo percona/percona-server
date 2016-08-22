@@ -59,4 +59,8 @@ DROP DATABASE `???`;
 
 use test;
 
+SET @@character_set_client=cp1256;
+--error ER_PARSE_ERROR
+CREATE t \217\355ݏ\355ݏ\355\335(\217\260\241\217\260\241\217\260\241 char) DEFAULT CHARSET=ujis engine=TokuDB;
+
 --source audit_log_echo.inc

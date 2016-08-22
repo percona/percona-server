@@ -141,17 +141,232 @@ To stream the audit log to syslog you'll need to set :variable:`audit_log_handle
 
    Variables: :variable:`audit_log_strategy`, :variable:`audit_log_buffer_size`, :variable:`audit_log_rotate_on_size`, :variable:`audit_log_rotations` have effect only with ``FILE`` handler. 
 
+.. _filtering_by_user:
+
+Filtering by user
+=================
+
+In :rn:`5.7.14-7` |Percona Server| has implemented filtering by user. This
+was implemented by adding two new global variables:
+:variable:`audit_log_include_accounts` and
+:variable:`audit_log_exclude_accounts` to specify which user accounts should be
+included or excluded from audit logging. 
+
+.. warning:: 
+
+  Only one of these variables can contain a list of users to be either
+  included or excluded, while the other needs to be ``NULL``. If one of the
+  variables is set to be not ``NULL`` (contains a list of users), the attempt
+  to set another one will fail. Empty string means an empty list.
+
+.. note::
+
+  Changes of :variable:`audit_log_include_accounts` and
+  :variable:`audit_log_exclude_accounts` do not apply to existing server
+  connections.
+
+Example
+-------
+
+Following example shows adding users who will be monitored: 
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_include_accounts = 'user1@localhost,root@localhost';
+  Query OK, 0 rows affected (0.00 sec)
+
+If you you try to add users to both include and exclude lists server will show
+you the following error:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_exclude_accounts = 'user1@localhost,root@localhost';
+  ERROR 1231 (42000): Variable 'audit_log_exclude_accounts' can't be set to the value of 'user1@localhost,root@localhost'
+
+To switch from filtering by included user list to the excluded one or back,
+first set the currently active filtering variable to ``NULL``:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_include_accounts = NULL;
+  Query OK, 0 rows affected (0.00 sec)
+
+  mysql> SET GLOBAL audit_log_exclude_accounts = 'user1@localhost,root@localhost';
+  Query OK, 0 rows affected (0.00 sec)
+
+  mysql> SET GLOBAL audit_log_exclude_accounts = "'user'@'host'";
+  Query OK, 0 rows affected (0.00 sec)
+
+  mysql> SET GLOBAL audit_log_exclude_accounts = '''user''@''host''';
+  Query OK, 0 rows affected (0.00 sec)
+  
+  mysql> SET GLOBAL audit_log_exclude_accounts = '\'user\'@\'host\'';
+  Query OK, 0 rows affected (0.00 sec)
+
+To see what users are currently in the on the list you can run:
+
+.. code-block:: mysql
+
+  mysql> SELECT @@audit_log_exclude_accounts;
+  +------------------------------+
+  | @@audit_log_exclude_accounts |
+  +------------------------------+
+  | 'user'@'host'                |
+  +------------------------------+
+  1 row in set (0.00 sec)
+
+Account names from :table:`mysql.user` table are the one that are logged in the
+audit log. For example when you create a user:
+
+.. code-block:: mysql
+
+  mysql> CREATE USER 'user1'@'%' IDENTIFIED BY '111';
+  Query OK, 0 rows affected (0.00 sec)
+
+This is what you'll see when ``user1`` connected from ``localhost``:
+
+.. code-block:: none
+
+  <AUDIT_RECORD
+    NAME="Connect"
+    RECORD="4971917_2016-08-22T09:09:10"
+    TIMESTAMP="2016-08-22T09:12:21 UTC"
+    CONNECTION_ID="6"
+    STATUS="0"
+    USER="user1" ;; this is a 'user' part of account in 5.7
+    PRIV_USER="user1"
+    OS_LOGIN=""
+    PROXY_USER=""
+    HOST="localhost" ;; this is a 'host' part of account in 5.7
+    IP=""
+    DB=""
+  />
+
+To exclude ``user1`` from logging in |Percona Server| 5.7 you must set:
+
+.. code-block:: mysql
+
+  SET GLOBAL audit_log_exclude_accounts = 'user1@%';
+
+The value can be ``NULL`` or comma separated list of accounts in form
+``user@host`` or ``'user'@'host'`` (if user or host contains comma).
+
+.. _filtering_by_sql_command_type:
+
+Filtering by SQL command type
+=============================
+
+In :rn:`5.7.14-7` |Percona Server| has implemented filtering by SQL command
+type. This was implemented by adding two new global variables:
+:variable:`audit_log_include_commands` and
+:variable:`audit_log_exclude_commands` to specify which command types should be
+included or excluded from audit logging.
+
+.. warning:: 
+
+  Only one of these variables can contain a list of command types to be
+  either included or excluded, while the other needs to be ``NULL``. If one of
+  the variables is set to be not ``NULL`` (contains a list of command types),
+  the attempt to set another one will fail. Empty string means an empty list.
+
+.. note:: 
+
+  If both :variable:`audit_log_exclude_commands` and
+  :variable:`audit_log_include_commands` are ``NULL`` all commands will be
+  logged.
+
+Example
+-------
+
+The available command types can be listed by running:
+
+.. code-block:: mysql
+
+  mysql> SELECT name FROM performance_schema.setup_instruments WHERE name LIKE "statement/sql/%" ORDER BY name;
+  +------------------------------------------+
+  | name                                     |
+  +------------------------------------------+
+  | statement/sql/alter_db                   |
+  | statement/sql/alter_db_upgrade           |
+  | statement/sql/alter_event                |
+  | statement/sql/alter_function             |
+  | statement/sql/alter_procedure            |
+  | statement/sql/alter_server               |
+  | statement/sql/alter_table                |
+  | statement/sql/alter_tablespace           |
+  | statement/sql/alter_user                 |
+  | statement/sql/analyze                    |
+  | statement/sql/assign_to_keycache         |
+  | statement/sql/begin                      |
+  | statement/sql/binlog                     |
+  | statement/sql/call_procedure             |
+  | statement/sql/change_db                  |
+  | statement/sql/change_master              |
+  ...
+  | statement/sql/xa_rollback                |
+  | statement/sql/xa_start                   |
+  +------------------------------------------+
+  145 rows in set (0.00 sec)
+
+You can add commands to the include filter by running:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_include_commands= 'set_option,create_db';
+
+If you now create a database:
+
+.. code-block:: mysql
+
+  mysql> CREATE DATABASE world;
+
+You'll see it the audit log:
+
+.. code-block:: none
+
+  <AUDIT_RECORD
+    NAME="Query"
+    RECORD="10724_2016-08-18T12:34:22"
+    TIMESTAMP="2016-08-18T15:10:47 UTC"
+    COMMAND_CLASS="create_db"
+    CONNECTION_ID="61"
+    STATUS="0"
+    SQLTEXT="create database world"
+    USER="root[root] @ localhost []"
+    HOST="localhost"
+    OS_USER=""
+    IP=""
+    DB=""
+  />
+
+To switch command type filtering type from included type list to excluded one
+or back, first reset the currently-active list to ``NULL``:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_include_commands = NULL;
+  Query OK, 0 rows affected (0.00 sec)
+
+  mysql> SET GLOBAL audit_log_exclude_commands= 'set_option,create_db';
+  Query OK, 0 rows affected (0.00 sec)
+
+.. note::
+
+  Invocation of stored procedures have command type ``call_procedure``, and all
+  the statements executed within the procedure have the same type
+  ``call_procedure`` as well.
+
 System Variables
 ================
 
 .. variable:: audit_log_strategy
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No
-     :vartype: String
-     :default: ASYNCHRONOUS
-     :allowed values: ``ASYNCHRONOUS``, ``PERFORMANCE``, ``SEMISYNCHRONOUS``, ``SYNCHRONOUS``
+    :cli: Yes
+    :scope: Global
+    :dyn: No
+    :vartype: String
+    :default: ASYNCHRONOUS
+    :allowed values: ``ASYNCHRONOUS``, ``PERFORMANCE``, ``SEMISYNCHRONOUS``, ``SYNCHRONOUS``
 
 This variable is used to specify the audit log strategy, possible values are:
 
@@ -164,53 +379,105 @@ This variable has effect only when :variable:`audit_log_handler` is set to ``FIL
 
 .. variable:: audit_log_file
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No
-     :vartype: String
-     :default: audit.log
+    :cli: Yes
+    :scope: Global
+    :dyn: No
+    :vartype: String
+    :default: audit.log
 
 This variable is used to specify the filename that's going to store the audit log. It can contain the path relative to the datadir or absolute path.
 
 .. variable:: audit_log_flush
 
-     :cli: Yes
-     :scope: Global
-     :dyn: Yes
-     :vartype: String
-     :default: OFF
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+    :default: OFF
 
 When this variable is set to ``ON`` log file will be closed and reopened. This can be used for manual log rotation.
 
 .. variable:: audit_log_buffer_size
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No
-     :vartype: Numeric
-     :default: 4096
+    :cli: Yes
+    :scope: Global
+    :dyn: No
+    :vartype: Numeric
+    :default: 4096
 
 This variable can be used to specify the size of memory buffer used for logging, used when :variable:`audit_log_strategy` variable is set to ``ASYNCHRONOUS`` or ``PERFORMANCE`` values. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
+.. variable:: audit_log_exclude_accounts
+
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+
+This variable is used to specify the list of users for which
+:ref:`filtering_by_user` is applied. The value can be ``NULL`` or comma
+separated list of accounts in form ``user@host`` or ``'user'@'host'`` (if user
+or host contains comma). If this variable is set, then
+:variable:`audit_log_include_accounts` must be unset, and vice versa.
+
+.. variable:: audit_log_exclude_commands
+
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+
+This variable is used to specify the list of commands for which
+:ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
+comma separated list of commands. If this variable is set, then
+:variable:`audit_log_include_commands` must be unset, and vice versa.
+
 .. variable:: audit_log_format
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No 
-     :vartype: String
-     :default: OLD
-     :allowed values: ``OLD``, ``NEW``, ``CSV``, ``JSON``
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: String
+    :default: OLD
+    :allowed values: ``OLD``, ``NEW``, ``CSV``, ``JSON``
 
 This variable is used to specify the audit log format. The audit log plugin supports four log formats: ``OLD``, ``NEW``, ``JSON``, and ``CSV``. ``OLD`` and ``NEW`` formats are based on XML, where the former outputs log record properties as XML attributes and the latter as XML tags. Information logged is the same in all four formats.
 
+.. variable:: audit_log_include_accounts
+
+    :version 5.6.38-78.0: Implemented
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+
+This variable is used to specify the list of users for which
+:ref:`filtering_by_user` is applied. The value can be ``NULL`` or comma
+separated list of accounts in form ``user@host`` or ``'user'@'host'`` (if user
+or host contains comma). If this variable is set, then
+:variable:`audit_log_exclude_accounts` must be unset, and vice versa.
+
+.. variable:: audit_log_include_commands
+
+    :version 5.6.38-78.0: Implemented
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+
+This variable is used to specify the list of commands for which
+:ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
+comma separated list of commands. If this variable is set, then
+:variable:`audit_log_exclude_commands` must be unset, and vice versa.
+
 .. variable:: audit_log_policy
 
-     :cli: Yes
-     :scope: Global
-     :dyn: Yes 
-     :vartype: String
-     :default: ALL
-     :allowed values: ``ALL``, ``LOGINS``, ``QUERIES``, ``NONE``
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes 
+    :vartype: String
+    :default: ALL
+    :allowed values: ``ALL``, ``LOGINS``, ``QUERIES``, ``NONE``
 
 This variable is used to specify which events should be logged. Possible values are: 
 
@@ -221,62 +488,62 @@ This variable is used to specify which events should be logged. Possible values 
 
 .. variable:: audit_log_rotate_on_size
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No 
-     :vartype: Numeric
-     :default: 0 (don't rotate the log file)
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: Numeric
+    :default: 0 (don't rotate the log file)
 
 This variable is used to specify the maximum audit log file size. Upon reaching this size the log will be rotated. The rotated log files will be present in the same same directory as the current log file. A sequence number will be appended to the log file name upon rotation. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
  
 .. variable:: audit_log_rotations
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No 
-     :vartype: Numeric
-     :default: 0 
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: Numeric
+    :default: 0 
 
 This variable is used to specify how many log files should be kept when :variable:`audit_log_rotate_on_size` variable is set to non-zero value. This variable has effect only when :variable:`audit_log_handler` is set to ``FILE``.
 
 .. variable:: audit_log_handler
 
-     :cli: Yes
-     :scope: Global
-     :dyn: No 
-     :vartype: String
-     :default: FILE
-     :allowed values: ``FILE``, ``SYSLOG``
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: String
+    :default: FILE
+    :allowed values: ``FILE``, ``SYSLOG``
 
 This variable is used to configure where the audit log will be written. If it is set to ``FILE``, the log will be written into a file specified by :variable:`audit_log_file` variable. If it is set to ``SYSLOG``, the audit log will be written to syslog.
 
 .. variable:: audit_log_syslog_ident
 
-   :cli: Yes
-   :scope: Global
-   :dyn: No 
-   :vartype: String
-   :default: percona-audit
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: String
+    :default: percona-audit
 
 This variable is used to specify the ``ident`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
 .. variable:: audit_log_syslog_facility
    
-   :cli: Yes
-   :scope: Global
-   :dyn: No 
-   :vartype: String
-   :default: LOG_USER
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: String
+    :default: LOG_USER
 
 This variable is used to specify the ``facility`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
 .. variable:: audit_log_syslog_priority
 
-   :cli: Yes
-   :scope: Global
-   :dyn: No 
-   :vartype: String
-   :default: LOG_INFO
+    :cli: Yes
+    :scope: Global
+    :dyn: No 
+    :vartype: String
+    :default: LOG_INFO
 
 This variable is used to specify the ``priority`` value for syslog. This variable has the same meaning as the appropriate parameter described in the `syslog(3) manual <http://linux.die.net/man/3/syslog>`_.
 
@@ -286,4 +553,7 @@ Version Specific Information
   * :rn:`5.7.10-1`
     Feature ported from |Percona Server| 5.6
 
- 
+  * :rn:`5.6.14-7` 
+    |Percona Server| :ref:`audit_log_plugin` now supports filtering by
+    :ref:`user <filtering_by_user>` and
+    :ref:`sql_command <filtering_by_sql_command_type>`.

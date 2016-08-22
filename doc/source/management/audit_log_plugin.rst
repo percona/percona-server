@@ -356,6 +356,70 @@ or back, first reset the currently-active list to ``NULL``:
   the statements executed within the procedure have the same type
   ``call_procedure`` as well.
 
+.. _filtering_by_database:
+
+Filtering by database
+=====================
+
+In :rn:`5.7.14-7` |Percona Server| has implemented filtering by SQL database.
+This was implemented by adding two new global variables:
+:variable:`audit_log_include_databases` and
+:variable:`audit_log_exclude_databases` to specify which databases should be
+included or excluded from audit logging.
+
+
+.. warning:: 
+
+  Only one of these variables can contain a list of databases to be either
+  included or excluded, while the other needs to be ``NULL``. If one of
+  the variables is set to be not ``NULL`` (contains a list of databases),
+  the attempt to set another one will fail. Empty string means an empty list.
+
+
+If query is accessing any of databases listed in
+:variable:`audit_log_include_databases`, the query will be logged.
+If query is accessing only databases listed in
+:variable:`audit_log_exclude_databases`, the query will not be logged.
+``CREATE TABLE`` statements are logged unconditionally.
+
+.. note:: 
+
+  Changes of :variable:`audit_log_include_databases` and
+  :variable:`audit_log_exclude_databases` do not apply to existing server
+  connections.
+
+Example
+-------
+
+To add databases to be monitored you should run:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_include_databases = 'test,mysql,db1';
+  Query OK, 0 rows affected (0.00 sec)
+
+  mysql> SET GLOBAL audit_log_include_databases= 'db1,```db3"`';
+  Query OK, 0 rows affected (0.00 sec)
+
+If you you try to add databases to both include and exclude lists server will
+show you the following error:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_exclude_databases = 'test,mysql,db1';
+  ERROR 1231 (42000): Variable 'audit_log_exclude_databases can't be set to the value of 'test,mysql,db1'
+
+To switch from filtering by included database list to the excluded one or back,
+first set the currently active filtering variable to ``NULL``:
+
+.. code-block:: mysql
+
+  mysql> SET GLOBAL audit_log_include_databases = NULL;
+  Query OK, 0 rows affected (0.00 sec)
+
+  mysql> SET GLOBAL audit_log_exclude_databases = 'test,mysql,db1';
+  Query OK, 0 rows affected (0.00 sec)
+
 System Variables
 ================
 
@@ -409,6 +473,7 @@ This variable can be used to specify the size of memory buffer used for logging,
 
 .. variable:: audit_log_exclude_accounts
 
+    :version 5.7.14-7: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -422,6 +487,7 @@ or host contains comma). If this variable is set, then
 
 .. variable:: audit_log_exclude_commands
 
+    :version 5.7.14-7: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -431,6 +497,20 @@ This variable is used to specify the list of commands for which
 :ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
 comma separated list of commands. If this variable is set, then
 :variable:`audit_log_include_commands` must be unset, and vice versa.
+
+.. variable:: audit_log_exclude_databases
+
+    :version 5.7.14-7: Implemented
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+
+This variable is used to specify the list of commands for which
+:ref:`filtering_by_database` is applied. The value can be ``NULL`` or
+comma separated list of commands. If this variable is set, then
+:variable:`audit_log_include_databases` must be unset, and vice versa.
+
 
 .. variable:: audit_log_format
 
@@ -445,7 +525,7 @@ This variable is used to specify the audit log format. The audit log plugin supp
 
 .. variable:: audit_log_include_accounts
 
-    :version 5.6.38-78.0: Implemented
+    :version 5.7.14-7: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -459,7 +539,7 @@ or host contains comma). If this variable is set, then
 
 .. variable:: audit_log_include_commands
 
-    :version 5.6.38-78.0: Implemented
+    :version 5.7.14-7: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -469,6 +549,19 @@ This variable is used to specify the list of commands for which
 :ref:`filtering_by_sql_command_type` is applied. The value can be ``NULL`` or
 comma separated list of commands. If this variable is set, then
 :variable:`audit_log_exclude_commands` must be unset, and vice versa.
+
+.. variable:: audit_log_include_databases
+
+    :version 5.7.14-7: Implemented
+    :cli: Yes
+    :scope: Global
+    :dyn: Yes
+    :vartype: String
+
+This variable is used to specify the list of commands for which
+:ref:`filtering_by_database` is applied. The value can be ``NULL`` or
+comma separated list of commands. If this variable is set, then
+:variable:`audit_log_exclude_databases` must be unset, and vice versa.
 
 .. variable:: audit_log_policy
 
@@ -553,7 +646,8 @@ Version Specific Information
   * :rn:`5.7.10-1`
     Feature ported from |Percona Server| 5.6
 
-  * :rn:`5.6.14-7` 
+  * :rn:`5.7.14-7` 
     |Percona Server| :ref:`audit_log_plugin` now supports filtering by
-    :ref:`user <filtering_by_user>` and
-    :ref:`sql_command <filtering_by_sql_command_type>`.
+    :ref:`user <filtering_by_user>`,  
+    :ref:`sql_command <filtering_by_sql_command_type>`, and
+    :ref:`databases <filtering_by_database>`.

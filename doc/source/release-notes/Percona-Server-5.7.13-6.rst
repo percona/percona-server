@@ -59,7 +59,7 @@ Bugs Fixed
  Fixed a memory leak in ``mysqldump``. Bug fixed :bug:`1588845` (upstream
  :mysqlbug:`81714`).
 
- Transparent Huge Pages check will now only happen if 
+ Transparent Huge Pages check will now only happen if
  :variable:`tokudb_check_jemalloc` option is set. Bugs fixed :tokubug:`939` and
  :ftbug:`713`.
 

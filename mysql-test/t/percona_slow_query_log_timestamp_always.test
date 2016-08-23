@@ -7,7 +7,8 @@ SET SESSION min_examined_row_limit=0;
 SET SESSION long_query_time=0;
 SET GLOBAL slow_query_log_timestamp_always=TRUE;
 
---let log_file=percona_slow_extended_query_log_1
+--let log_expected_matches=3
+--let log_file=percona_slow_query_log_timestamp_always
 --source include/log_start.inc
 SELECT 1;
 SELECT 2;

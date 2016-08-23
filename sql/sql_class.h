@@ -1710,10 +1710,6 @@ public:
     XXX Why are internal temporary tables added to this list?
   */
   TABLE *temporary_tables;
-  /**
-     Protects temporary_tables.
-  */
-  mysql_mutex_t LOCK_temporary_tables;
 
   TABLE *derived_tables;
   /*
@@ -2308,6 +2304,11 @@ public:
     Is locked when THD is deleted.
   */
   mysql_mutex_t LOCK_thd_data;
+
+  /**
+     Protects temporary_tables.
+  */
+  mysql_mutex_t LOCK_temporary_tables;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;

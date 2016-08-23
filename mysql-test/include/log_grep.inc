@@ -1,4 +1,9 @@
---echo [log_grep.inc] file: $log_file pattern: $grep_pattern
+if ($log_expected_matches) {
+  --echo [log_grep.inc] file: $log_file pattern: $grep_pattern expected_matches: $log_expected_matches
+}
+if (!$log_expected_matches) {
+  --echo [log_grep.inc] file: $log_file pattern: $grep_pattern
+}
 perl;
   $log_file=           $ENV{'log_file'};
   $log_file_full_path= $ENV{'log_file_full_path'};
@@ -35,7 +40,23 @@ perl;
     while(<FILE>) {
       $lines++ if (/$grep_pattern/);
     }
-    print "[log_grep.inc] lines:   $lines\n";
+    $log_expected_matches= $ENV{'log_expected_matches'};
+    if ($log_expected_matches) {
+      if ($log_expected_matches != $lines) {
+        print "[log_grep.inc] ERROR: expected matches: $log_expected_matches, actual matches: $lines\n";
+        print "[log_grep.inc] log file at $log_file_full_path\n";
+        close(FILE);
+        open(FILE, "$log_file_full_path")
+          or die("Cannot open file $log_file_full_path: $!\n");
+        while (<FILE>) {
+          print ;
+        }
+      } else {
+        print "[log_grep.inc] found expected match count: $log_expected_matches\n";
+      }
+    } else {
+      print "[log_grep.inc] lines:   $lines\n";
+    }
   }
   close(FILE);
 EOF

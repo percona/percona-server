@@ -179,11 +179,12 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
+Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix} 
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56
+
 %if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd
@@ -274,7 +275,7 @@ Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
-Obsoletes:      mariadb-libs
+Provides:       mariadb-libs
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 %endif
@@ -422,8 +423,13 @@ make DESTDIR=%{buildroot} install
 
 # Install logrotate and autostart
 install -D -m 0644 $MBD/release/support-files/mysql-log-rotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
+install -d %{buildroot}%{_sysconfdir}/percona-server.conf.d
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/percona-server.cnf
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
+ 
 %if 0%{?rhel} > 6
-install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
 %endif
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
@@ -502,10 +508,22 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
-# We need this because we don't provide my.cnf on centos 6
-# and the default system one doesn't have info needed
-%if 0%{?rhel} < 7
-if [ $1 -eq 1 ]; then
+MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
+if [ $MYCNF_PACKAGE = 'mariadb-libs' ]
+then
+  rm -f /etc/my.cnf
+fi
+if [ ! -f /etc/my.cnf ]
+then
+  update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+else
+  echo " -------------"
+  echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
+  echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+  echo "   *  Once it is done please execute the following commands:"
+  echo " rm -rf /etc/my.cnf"
+  echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
+  echo " -------------"
   cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
   if [ $cnflog = 0 -a -f /etc/my.cnf ]; then
     sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
@@ -515,8 +533,6 @@ if [ $1 -eq 1 ]; then
     sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
   fi
 fi
-%endif
-
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
 echo "Run the following commands to create these functions:"
 echo "mysql -e \"CREATE FUNCTION fnv1a_64 RETURNS INTEGER SONAME 'libfnv1a_udf.so'\""
@@ -581,7 +597,6 @@ fi
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
-%doc release/support-files/my-default.cnf
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*
 %attr(644, root, root) %{_mandir}/man1/myisam_ftdump.1*
@@ -607,10 +622,15 @@ fi
 %attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
 %attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 
+%dir %{_sysconfdir}/my.cnf.d
+%dir %{_sysconfdir}/percona-server.conf.d
+%config(noreplace) %{_sysconfdir}/percona-server.cnf
+%config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
+%config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
 %if 0%{?rhel} > 6
 %config(noreplace) %{_sysconfdir}/my.cnf
-%dir %{_sysconfdir}/my.cnf.d
 %endif
+
 
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -708,7 +728,6 @@ fi
 %attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/percona-server/my-*.cnf
 %attr(644, root, root) %{_datadir}/percona-server/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/percona-server/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/percona-server/dictionary.txt
@@ -908,6 +927,9 @@ fi
 %changelog
 * Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com> 
 - fix license field
+
+* Thu Aug 25 2016 Evgeniy Patlan <evgeniy.patlan@percona.com>
+- Provide my.cnf for all systems 
 
 * Wed Mar 09 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.11-4
 - Include mysql-keyring directory

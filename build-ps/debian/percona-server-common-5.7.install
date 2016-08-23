@@ -4,3 +4,6 @@ usr/share/mysql/errmsg-utf8.txt
 # charsets
 usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README
+# config files
+debian/extra/percona-server.cnf etc/mysql/
+debian/extra/percona-server.conf.d etc/mysql/

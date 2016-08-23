@@ -1,17 +1,31 @@
 --source include/have_innodb.inc
 --source include/have_myisam.inc
+--source include/not_embedded.inc
 
-CREATE USER event_runner@localhost;
+CREATE USER event_runner1@localhost;
+GRANT ALL ON *.* TO event_runner1@localhost;
+
+CREATE USER event_runner2@localhost;
+GRANT ALL ON *.* TO event_runner2@localhost;
 
 SET @saved_event_scheduler = @@GLOBAL.event_scheduler;
 SET GLOBAL event_scheduler = ON;
 
 delimiter |;
-CREATE DEFINER=event_runner@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+CREATE DEFINER=event_runner1@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
 DO
   WHILE TRUE DO
     SELECT * FROM INFORMATION_SCHEMA.GLOBAL_TEMPORARY_TABLES;
   END WHILE|
+
+CREATE DEFINER=event_runner2@localhost EVENT query_tables ON SCHEDULE AT CURRENT_TIMESTAMP
+ON COMPLETION PRESERVE
+DO
+  WHILE TRUE DO
+    SELECT * FROM INFORMATION_SCHEMA.TABLES;
+  END WHILE|
+
 delimiter ;|
 
 --let $i=400
@@ -40,13 +54,24 @@ while ($i)
 }
 --enable_query_log
 
---let $ev_thread_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner'`
---echo KILL QUERY \$ev_thread_id
+--let $ev_thread1_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner1'`
+--echo KILL CONNECTION \$ev_thread1_id
 --disable_query_log
-eval KILL QUERY $ev_thread_id;
+eval KILL CONNECTION $ev_thread1_id;
 --enable_query_log
+
+--let $ev_thread2_id= `SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE USER='event_runner2'`
+--echo KILL CONNECTION \$ev_thread2_id
+--disable_query_log
+eval KILL CONNECTION $ev_thread2_id;
+--enable_query_log
+
+--source include/no_running_events.inc
 
 SET GLOBAL event_scheduler = @saved_event_scheduler;
 
 DROP EVENT query_temp_tables;
-DROP USER event_runner@localhost;
+DROP EVENT query_tables;
+
+DROP USER event_runner1@localhost;
+DROP USER event_runner2@localhost;

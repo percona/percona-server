@@ -113,6 +113,7 @@ int main(int argc, char *argv[])
   keyinfo[2].seg[0].length=8;
   keyinfo[2].seg[0].null_bit=0;
   keyinfo[2].seg[0].charset=cs;
+  keyinfo[2].seg[0].flag=0;
   keyinfo[3].seg=keyseg+4;
   keyinfo[3].keysegs=1;
   keyinfo[3].flag=HA_NOSAME;
@@ -624,6 +625,7 @@ end:
   heap_clear(file2);
   if (heap_close(file) || (file2 && heap_close(file2)))
     goto err;
+  hp_free(tmp_share);
   heap_delete_table(filename2);
   hp_panic(HA_PANIC_CLOSE);
   my_end(MY_GIVE_INFO);

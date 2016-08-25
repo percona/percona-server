@@ -1,4 +1,6 @@
 CALL mtr.add_suppression(".* Forcing preallocation by faulting in pages.");
+CALL mtr.add_suppression("Failed to set NUMA memory policy to .+ \\(error: Function not implemented\\)");
+CALL mtr.add_suppression("Failed to set NUMA memory policy of buffer pool page frames to MPOL_INTERLEAVE \\(error: Function not implemented\\)");
 SELECT @@GLOBAL.innodb_buffer_pool_populate;
 @@GLOBAL.innodb_buffer_pool_populate
 1

@@ -60,12 +60,7 @@ SELECT * FROM performance_schema.setup_instruments
 WHERE name like "%wait/io/table/sql/handler%";
 NAME	ENABLED	TIMED
 wait/io/table/sql/handler	YES	YES
-#
-# Stop server
-# Restart server with wait/io/table/sql/handler disabled
-# Enable reconnect
-# Wait until connected again
-# Disable reconnect
+# restart:--loose-performance-schema-instrument='%wait/io/table/sql/%=off'
 #
 # Verify that wait/io/table is disabled
 #

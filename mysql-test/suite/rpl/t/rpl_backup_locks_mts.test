@@ -22,6 +22,10 @@ SET @save.slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
 SET @@GLOBAL.slave_parallel_workers= 2;
 
 --source include/start_slave.inc
+# Process the injected relay log Format_description_log_event before binlog is locked
+--connection master
+INSERT INTO db_1.test_1 VALUES(2);
+--source include/sync_slave_sql_with_master.inc
 
 LOCK BINLOG FOR BACKUP;
 

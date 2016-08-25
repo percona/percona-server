@@ -12,6 +12,8 @@ include/stop_slave.inc
 SET @save.slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
 SET @@GLOBAL.slave_parallel_workers= 2;
 include/start_slave.inc
+INSERT INTO db_1.test_1 VALUES(2);
+include/sync_slave_sql_with_master.inc
 LOCK BINLOG FOR BACKUP;
 INSERT INTO db_1.test_1 VALUES(1);
 INSERT INTO db_2.test_1 VALUES(1);

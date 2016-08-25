@@ -3491,12 +3491,14 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
 	count = 0;
 	while (buf_page_cleaner_is_active) {
-		++count;
-		os_thread_sleep(100000);
-		if (srv_print_verbose_log && count > 600) {
+		if (srv_print_verbose_log && count == 0) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Waiting for page_cleaner to "
 				"finish flushing of buffer pool");
+		}
+		++count;
+		os_thread_sleep(100000);
+		if (count > 600) {
 			count = 0;
 		}
 	}

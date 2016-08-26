@@ -8,6 +8,12 @@
 
 --disable_query_log
 
+# Check that the testcase has closed (and the server has finished cleaning up)
+# all the connection it opened. Exclude binlog dump threads as these may
+# linger around indefinitely.
+--replace_column 1 <Id> 6 <Time> 7 <State> 9 <Time_ms> 10 X 11 X 12 <Tid>
+SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND != 'Binlog Dump';
+
 # We want to ensure all slave configuration is restored.  But SHOW
 # SLAVE STATUS returns nothing for servers not configured as slaves,
 # and (after BUG#28796 was fixed) there is no way to de-configure a

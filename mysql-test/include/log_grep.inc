@@ -4,7 +4,11 @@ if ($log_expected_matches) {
 if (!$log_expected_matches) {
   --echo [log_grep.inc] file: $log_file pattern: $grep_pattern
 }
+--let LOG_GREP_PERL_RESULT=$MYSQL_TMP_DIR/log_grep_perl_result.test
 perl;
+
+  open my $command_file, ">", "$ENV{'LOG_GREP_PERL_RESULT'}" or die "Cannot create file";
+
   $log_file=           $ENV{'log_file'};
   $log_file_full_path= $ENV{'log_file_full_path'};
   $log_slow_rate_test= $ENV{'log_slow_rate_test'};
@@ -51,6 +55,7 @@ perl;
         while (<FILE>) {
           print ;
         }
+        print $command_file "--let \$log_grep_failed= 1;\n";
       } else {
         print "[log_grep.inc] found expected match count: $log_expected_matches\n";
       }
@@ -59,4 +64,22 @@ perl;
     }
   }
   close(FILE);
+  close($command_file);
 EOF
+--source $LOG_GREP_PERL_RESULT
+--remove_file $LOG_GREP_PERL_RESULT
+if ($log_grep_failed)
+{
+  SHOW SESSION STATUS LIKE 'Slow_queries';
+  SHOW GLOBAL VARIABLES LIKE 'log%';
+  SHOW GLOBAL VARIABLES LIKE 'long_query_time';
+  SHOW GLOBAL VARIABLES LIKE 'min_examined_row_limit';
+  SHOW GLOBAL VARIABLES LIKE 'query_cache%';
+  SHOW GLOBAL VARIABLES LIKE 'slow_query%';
+  SHOW SESSION VARIABLES LIKE 'log%';
+  SHOW SESSION VARIABLES LIKE 'long_query_time';
+  SHOW SESSION VARIABLES LIKE 'min_examined_row_limit';
+  SHOW SESSION VARIABLES LIKE 'query_cache%';
+  SHOW SESSION VARIABLES LIKE 'slow_query%';
+  --die Testcase failed!
+}

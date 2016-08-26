@@ -4178,6 +4178,13 @@ sub run_testcase ($) {
 	  goto SRVDIED;
 	}
 
+        foreach my $mysqld (mysqlds())
+        {
+          $tinfo->{comment}.=
+            "\nServer " . $mysqld->{proc} . " log: ".
+            get_log_from_proc($mysqld->{proc}, $tinfo->{name});
+        }
+
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
       }

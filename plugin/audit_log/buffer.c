@@ -163,21 +163,32 @@ void audit_log_buffer_shutdown(audit_log_buffer_t *log)
 }
 
 
+void audit_log_buffer_pause(audit_log_buffer_t *log)
+{
+  mysql_mutex_lock(&log->mutex);
+  while (log->state == LOG_RECORD_INCOMPLETE)
+  {
+    mysql_cond_wait(&log->flushed_cond, &log->mutex);
+  }
+}
+
+
+void audit_log_buffer_resume(audit_log_buffer_t *log)
+{
+  mysql_mutex_unlock(&log->mutex);
+}
+
+
 int audit_log_buffer_write(audit_log_buffer_t *log, const char *buf, size_t len)
 {
   if (len > log->size)
   {
     if (!log->drop_if_full)
     {
-      mysql_mutex_lock(&log->mutex);
-      while (log->state == LOG_RECORD_INCOMPLETE)
-      {
-        mysql_cond_wait(&log->flushed_cond, &log->mutex);
-      }
-      /* do not release log->mutex to not allow flush thread to make one more
-      incomplete record */
+      /* pause flushing thread and write out one record bypassing the buffer */
+      audit_log_buffer_pause(log);
       log->write_func(log->write_func_data, buf, len, LOG_RECORD_COMPLETE);
-      mysql_mutex_unlock(&log->mutex);
+      audit_log_buffer_resume(log);
     }
     return(0);
   }

@@ -35,6 +35,8 @@ audit_log_buffer_t *audit_log_buffer_init(size_t size, int drop_if_full,
 void audit_log_buffer_shutdown(audit_log_buffer_t *log);
 int audit_log_buffer_write(audit_log_buffer_t *log,
                            const char *buf, size_t len);
+void audit_log_buffer_pause(audit_log_buffer_t *log);
+void audit_log_buffer_resume(audit_log_buffer_t *log);
 
 #ifdef __cplusplus
 }

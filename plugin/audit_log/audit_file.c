@@ -155,12 +155,21 @@ int audit_handler_file_flush(audit_handler_t *handler)
 {
   audit_handler_file_data_t *data= (audit_handler_file_data_t*) handler->data;
   LOGGER_HANDLE* logger;
+  int res;
 
   DBUG_ASSERT(data->struct_size == sizeof(audit_handler_file_data_t));
 
   logger= data->logger;
 
-  return logger_reopen(logger, data->header, data->footer);
+  if (data->use_buffer)
+    audit_log_buffer_pause(data->buffer);
+
+  res= logger_reopen(logger, data->header, data->footer);
+
+  if (data->use_buffer)
+    audit_log_buffer_resume(data->buffer);
+
+  return res;
 }
 
 static

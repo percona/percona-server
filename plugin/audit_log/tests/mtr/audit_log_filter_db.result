@@ -78,7 +78,7 @@ USE db1;
 CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t;
 CREATE VIEW vup AS SELECT * FROM db2.t;
 CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a;
-CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7);
+CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO BEGIN INSERT INTO t VALUES (77); INSERT INTO t VALUES (7); END//
 CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100);
 INSERT INTO t VALUES (1), (2), (3);
 CREATE PROCEDURE p1()
@@ -145,6 +145,7 @@ a	id	word	a
 2	2	two	NULL
 3	3	three	NULL
 1	NULL	NULL	2
+77	NULL	NULL	NULL
 7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
@@ -247,7 +248,7 @@ USE db1;
 CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t;
 CREATE VIEW vup AS SELECT * FROM db2.t;
 CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a;
-CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7);
+CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO BEGIN INSERT INTO t VALUES (77); INSERT INTO t VALUES (7); END//
 CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100);
 INSERT INTO t VALUES (1), (2), (3);
 CREATE PROCEDURE p1()
@@ -314,6 +315,7 @@ a	id	word	a
 2	2	two	NULL
 3	3	three	NULL
 1	NULL	NULL	2
+77	NULL	NULL	NULL
 7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
@@ -416,7 +418,7 @@ USE db1;
 CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t;
 CREATE VIEW vup AS SELECT * FROM db2.t;
 CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a;
-CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7);
+CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO BEGIN INSERT INTO t VALUES (77); INSERT INTO t VALUES (7); END//
 CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100);
 INSERT INTO t VALUES (1), (2), (3);
 CREATE PROCEDURE p1()
@@ -483,6 +485,7 @@ a	id	word	a
 2	2	two	NULL
 3	3	three	NULL
 1	NULL	NULL	2
+77	NULL	NULL	NULL
 7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
@@ -585,7 +588,7 @@ USE db1;
 CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t;
 CREATE VIEW vup AS SELECT * FROM db2.t;
 CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a;
-CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7);
+CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO BEGIN INSERT INTO t VALUES (77); INSERT INTO t VALUES (7); END//
 CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100);
 INSERT INTO t VALUES (1), (2), (3);
 CREATE PROCEDURE p1()
@@ -652,6 +655,7 @@ a	id	word	a
 2	2	two	NULL
 3	3	three	NULL
 1	NULL	NULL	2
+77	NULL	NULL	NULL
 7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
@@ -754,7 +758,7 @@ USE db1;
 CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t;
 CREATE VIEW vup AS SELECT * FROM db2.t;
 CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a;
-CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7);
+CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO BEGIN INSERT INTO t VALUES (77); INSERT INTO t VALUES (7); END//
 CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100);
 INSERT INTO t VALUES (1), (2), (3);
 CREATE PROCEDURE p1()
@@ -821,6 +825,7 @@ a	id	word	a
 2	2	two	NULL
 3	3	three	NULL
 1	NULL	NULL	2
+77	NULL	NULL	NULL
 7	NULL	NULL	NULL
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN t q ON t.a = q.a / 2 WHERE t.a > 2;
 DELETE t, q, words FROM t LEFT JOIN words ON t.a = words.id LEFT JOIN db2.t q ON t.a = q.a / 2 WHERE t.a > 2;
@@ -927,8 +932,7 @@ set global audit_log_flush= ON;
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vup AS SELECT * FROM db2.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_event","<CONN_ID>",0,"CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7)","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"INSERT INTO t VALUES (7)","root[root] @ localhost [localhost]","localhost","","localhost",""
+"Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"INSERT INTO t VALUES (77)","root[root] @ localhost [localhost]","localhost","","localhost",""
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t VALUES (1), (2), (3)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
@@ -1076,7 +1080,6 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vup AS SELECT * FROM db2.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_event","<CONN_ID>",0,"CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
 BEGIN
@@ -1205,8 +1208,7 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vup AS SELECT * FROM db2.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_event","<CONN_ID>",0,"CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7)","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"INSERT INTO t VALUES (7)","root[root] @ localhost [localhost]","localhost","","localhost",""
+"Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"INSERT INTO t VALUES (77)","root[root] @ localhost [localhost]","localhost","","localhost",""
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","insert","<CONN_ID>",0,"INSERT INTO t VALUES (1), (2), (3)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
@@ -1364,7 +1366,6 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vup AS SELECT * FROM db2.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_event","<CONN_ID>",0,"CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
 BEGIN
@@ -1493,7 +1494,6 @@ END","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vmat AS SELECT SUM(a) AS s FROM db1.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vup AS SELECT * FROM db2.t","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_view","<CONN_ID>",0,"CREATE VIEW vjoin AS SELECT * FROM vmat JOIN vup ON vmat.s=vup.a","root[root] @ localhost []","localhost","","","db1"
-"Query","<ID>","<DATETIME>","create_event","<CONN_ID>",0,"CREATE EVENT ev1 ON SCHEDULE AT CURRENT_TIMESTAMP DO INSERT INTO t VALUES (7)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_trigger","<CONN_ID>",0,"CREATE TRIGGER ins_tring BEFORE INSERT ON db1.trig FOR EACH ROW INSERT INTO db2.t VALUES (new.a + 100)","root[root] @ localhost []","localhost","","","db1"
 "Query","<ID>","<DATETIME>","create_procedure","<CONN_ID>",0,"CREATE PROCEDURE p1()
 BEGIN

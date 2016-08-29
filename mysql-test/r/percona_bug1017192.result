@@ -8,3 +8,4 @@ SET DEBUG_SYNC='now WAIT_FOR run_show_innodb_status';
 SHOW ENGINE INNODB STATUS;
 SET DEBUG_SYNC='now SIGNAL show_innodb_status_done';
 DROP TABLE t1;
+SET DEBUG_SYNC='reset';

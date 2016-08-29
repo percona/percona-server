@@ -42,9 +42,7 @@ struct auto_ptrcontainer {
   const_reference back() const { cnt.back(); }
   void swap(auto_ptrcontainer& x) { cnt.swap(x.cnt); }
   ~auto_ptrcontainer() {
-    for (iterator i = begin(); i != end(); ++i) {
-      delete *i;
-    }
+    clear();
   }
   template <typename Tap> void push_back_ptr(Tap& ap) {
     cnt.push_back(ap.get());
@@ -56,7 +54,12 @@ struct auto_ptrcontainer {
   }
   reference operator [](size_type n) { return cnt[n]; }
   const_reference operator [](size_type n) const { return cnt[n]; }
-  void clear() { cnt.clear(); }
+  void clear() {
+    for (iterator i = begin(); i != end(); i++) {
+      delete *i;
+    }
+    cnt.clear();
+  }
  private:
   Tcnt cnt;
 };

@@ -34,6 +34,7 @@ EXPLAIN SELECT * FROM t1;
 SELECT * FROM t1;
 --source include/log_stop.inc
 --let grep_pattern = ^# Filesort: No  Filesort_on_disk: No  Merge_passes: 0\$
+--let log_expected_matches= 2
 --source include/log_grep.inc
 
 #
@@ -45,6 +46,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY b;
 SELECT * FROM t1 ORDER BY b;
 --source include/log_stop.inc
 --let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 #
@@ -56,6 +58,7 @@ SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort_on_d
 SELECT * FROM t1 ORDER BY b;
 --source include/log_stop.inc
 --let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 SET SESSION log_slow_filter=default;
 
@@ -88,6 +91,7 @@ SELECT * FROM t2 ORDER BY a;
 --enable_result_log
 --source include/log_stop.inc
 --let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
@@ -103,6 +107,7 @@ SELECT * FROM t2 ORDER BY a;
 --enable_result_log
 --source include/log_stop.inc
 --let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
@@ -126,6 +131,7 @@ SELECT * FROM t2 ORDER BY a;
 --enable_result_log
 --source include/log_stop.inc
 --let grep_pattern = ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
@@ -141,6 +147,7 @@ SHOW SESSION STATUS LIKE 'Select_scan';
 SELECT * FROM t1 WHERE a=1;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Full_scan: No.*\$
+--let log_expected_matches= 2
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Select_scan';
@@ -153,6 +160,7 @@ SHOW SESSION STATUS LIKE 'Select_scan';
 SELECT COUNT(*) FROM t1 GROUP BY a;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Full_scan: Yes.*\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Select_scan';
@@ -166,6 +174,7 @@ SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort,file
 SELECT COUNT(*) FROM t1;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Full_scan: Yes.*\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Select_scan';
@@ -186,6 +195,7 @@ SHOW SESSION STATUS LIKE 'Select_full_join';
 SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Full_join: No.*\$
+--let log_expected_matches= 2
 --source include/log_grep.inc
 SHOW SESSION STATUS LIKE 'Select_full_join';
 
@@ -197,6 +207,7 @@ SHOW SESSION STATUS LIKE 'Select_full_join';
 SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Full_join: Yes.*\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Select_full_join';
@@ -210,6 +221,7 @@ SET SESSION log_slow_filter='tmp_table,tmp_table_on_disk,filesort,filesort_on_di
 SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Full_join: Yes.*\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Select_full_join';
@@ -227,8 +239,10 @@ EXPLAIN SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0\$
+--let log_expected_matches= 2
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Tmp_table: No  Tmp_table_on_disk: No\$
+--let log_expected_matches= 2
 --source include/log_grep.inc
 
 #
@@ -243,8 +257,10 @@ EXPLAIN SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
 SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: No\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
@@ -260,8 +276,10 @@ SET SESSION log_slow_filter='full_join,tmp_table_on_disk,filesort_on_disk';
 SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a GROUP BY t3.a;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: No\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
@@ -283,8 +301,10 @@ EXPLAIN SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.a;
 SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes\$
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
@@ -300,8 +320,10 @@ SET SESSION log_slow_filter='full_join,filesort_on_disk';
 SELECT COUNT(*) FROM t1, t4 WHERE t1.a = t4.a GROUP BY t4.b;
 --source include/log_stop.inc
 --let grep_pattern = ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes\$
+--let log_expected_matches= 0
 --source include/log_grep.inc
 
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';

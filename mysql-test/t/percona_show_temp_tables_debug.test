@@ -45,6 +45,8 @@ connection default;
 
 reap;
 
+SET DEBUG_SYNC="reset";
+
 disconnect con2;
 
 --source include/wait_until_count_sessions.inc

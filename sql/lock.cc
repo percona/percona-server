@@ -1163,35 +1163,19 @@ void Global_backup_lock::release(THD *thd)
 
 void Global_backup_lock::set_explicit_locks_duration(THD *thd)
 {
-  bool should_own;
-
   DBUG_ENTER("Global_backup_lock::set_explicit_lock_duration");
 
   if (m_lock)
-  {
-    should_own= true;
     thd->mdl_context.set_lock_duration(m_lock, MDL_EXPLICIT);
-  }
-  else
-  {
-    should_own= false;
-  }
 
-  DBUG_ASSERT(should_own ==
+  DBUG_ASSERT((m_lock != NULL) ==
               thd->mdl_context.is_lock_owner(m_namespace, "", "",
                                              MDL_SHARED));
 
   if (m_prot_lock)
-  {
-    should_own= true;
     thd->mdl_context.set_lock_duration(m_prot_lock, MDL_EXPLICIT);
-  }
-  else
-  {
-    should_own= false;
-  }
 
-  DBUG_ASSERT(should_own ==
+  DBUG_ASSERT((m_prot_lock != NULL) ==
               thd->mdl_context.is_lock_owner(m_namespace, "", "",
                                              MDL_INTENTION_EXCLUSIVE));
 

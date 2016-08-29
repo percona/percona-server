@@ -278,6 +278,8 @@ if [ $ENABLE = 1 -o $DISABLE = 1 ]; then
     printf "INFO: TokuDB engine plugin is installed.\n\n"
   else
     printf "ERROR: TokuDB engine plugin is partially installed. Please cleanup manually.\n\n"
+    printf "For TokuDB requirements and manual steps for installation please visit this webpage:\n"
+    printf "http://www.percona.com/doc/percona-server/5.6/tokudb/tokudb_installation.html\n\n"
     exit 1
   fi
 fi

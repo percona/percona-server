@@ -4308,12 +4308,16 @@ void do_send_quit(struct st_command *command)
 void do_change_user(struct st_command *command)
 {
   MYSQL *mysql = &cur_con->mysql;
-  static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
+  static DYNAMIC_STRING ds_user, ds_passwd, ds_db, ds_reconnect;
+  bool reconnect = true;
   const struct command_arg change_user_args[] = {
     { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
     { "password", ARG_STRING, FALSE, &ds_passwd, "Password used when connecting" },
     { "database", ARG_STRING, FALSE, &ds_db, "Database to select after connect" },
+    { "reconnect", ARG_STRING, FALSE, &ds_reconnect, "Reconnect on fail" },
   };
+  const char *reconnect_on_fail = "reconnect_on_fail";
+  const char *do_not_reconnect_on_fail = "do_not_reconnect_on_fail";
 
   DBUG_ENTER("do_change_user");
 
@@ -4339,15 +4343,32 @@ void do_change_user(struct st_command *command)
       dynstr_set(&ds_db, mysql->db);
   }
 
-  DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' database: '%s'",
-                      cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
+  if (ds_reconnect.length != 0)
+  {
+    if (strcmp(ds_reconnect.str, do_not_reconnect_on_fail) == 0)
+      reconnect= false;
+    else if (strcmp(ds_reconnect.str, reconnect_on_fail) == 0)
+      reconnect= true;
+    else
+      die("Wrong value specified for 'reconnect' parameter. "
+          "Allowed value are '%s' and '%s'",
+          do_not_reconnect_on_fail, reconnect_on_fail);
+  }
+
+  DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' "
+                     "database: '%s' reconnect: '%s'",
+                     cur_con->name, ds_user.str, ds_passwd.str, ds_db.str,
+                     reconnect ? "true" : "false"));
 
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str))
   {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-    mysql->reconnect= 1;
-    mysql_reconnect(&cur_con->mysql);
+    if (reconnect)
+    {
+      mysql->reconnect= 1;
+      mysql_reconnect(&cur_con->mysql);
+    }
   }
   else
     handle_no_error(command);

@@ -71,4 +71,5 @@ id	info	rows_sent	rows_examined
 ###	UPDATE t2 SET a = 15 WHERE a = 20	0	5
 ###	UPDATE t2 SET a = 15 WHERE a = 10	0	5
 SET DEBUG_SYNC= 'now SIGNAL threads_dumped';
+SET DEBUG_SYNC= 'reset';
 DROP TABLES t1, t2;

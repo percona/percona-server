@@ -16,3 +16,4 @@ SET DEBUG_SYNC="now SIGNAL finish";
 # connection default
 TABLE_SCHEMA	TABLE_NAME	ENGINE	TABLE_ROWS
 test	t1	MyISAM	0
+SET DEBUG_SYNC="reset";

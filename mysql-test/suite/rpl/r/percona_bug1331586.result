@@ -135,5 +135,7 @@ id
 41
 42
 43
+set debug_sync="RESET";
+set debug_sync="RESET";
 drop table a;
 include/rpl_end.inc

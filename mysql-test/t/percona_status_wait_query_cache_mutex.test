@@ -5,6 +5,8 @@ SET GLOBAL query_cache_size=1355776;
 --source include/percona_query_cache_with_comments_clear.inc
 --let try_lock_mutex_query=SELECT "try_lock_mutex_query" as action
 
+--source include/count_sessions.inc
+
 --connect (mutex_locked_conn, localhost, root,,)
 --connect (try_mutex_lock_conn, localhost, root,,)
 
@@ -29,7 +31,11 @@ reap;
 --connection try_mutex_lock_conn
 reap;
 
---connection default
 --disconnect mutex_locked_conn
 --disconnect try_mutex_lock_conn
+
+--connection default
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL query_cache_size=default;
+
+--source include/wait_until_count_sessions.inc

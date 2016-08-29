@@ -24,6 +24,14 @@ perl;
       # skip checking for event shot
       next;
     }
+    if ($line =~ /INSERT INTO t VALUES \(7\)/) {
+      # don't show the last statement of the event
+      next;
+    }
+    if ($line =~ /SELECT 600 \* 10/) {
+      # skip checking for event shot
+      next;
+    }
     $line =~ s/"([a-zA-Z_ ]*)","([0-9]+)_[0-9_ :T-]*","[0-9_ :A-Z-]*"/"$1","<ID>","<DATETIME>"/;
     $line =~ s/"(Connect|Quit|Change user)","<ID>","<DATETIME>","[0-9]+"/"$1","<ID>","<DATETIME>","<CONN_ID>"/;
     $line =~ s/"([A-Za-z ]+)","<ID>","<DATETIME>","([a-z_]+)","[0-9]+"/"$1","<ID>","<DATETIME>","$2","<CONN_ID>"/;

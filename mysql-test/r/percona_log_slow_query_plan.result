@@ -16,8 +16,8 @@ a	b
 1	10
 2	5
 [log_stop.inc] percona_slow_query_log.query_plan_0
-[log_grep.inc] file: percona_slow_query_log.query_plan_0 pattern: ^# Filesort: No  Filesort_on_disk: No  Merge_passes: 0$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona_slow_query_log.query_plan_0 pattern: ^# Filesort: No  Filesort_on_disk: No  Merge_passes: 0$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 EXPLAIN SELECT * FROM t1 ORDER BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using filesort
@@ -27,8 +27,8 @@ a	b
 2	5
 1	10
 [log_stop.inc] percona_slow_query_log.query_plan_1
-[log_grep.inc] file: percona_slow_query_log.query_plan_1 pattern: ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_1 pattern: ^# Filesort: Yes  Filesort_on_disk: No  Merge_passes: 0$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SET SESSION log_slow_filter='full_join,tmp_table,tmp_table_on_disk,filesort_on_disk';
 [log_start.inc] percona_slow_query_log.query_plan_1a
 SELECT * FROM t1 ORDER BY b;
@@ -60,8 +60,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 [log_start.inc] percona_slow_query_log.query_plan_2
 SELECT * FROM t2 ORDER BY a;
 [log_stop.inc] percona_slow_query_log.query_plan_2
-[log_grep.inc] file: percona_slow_query_log.query_plan_2 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_2 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 1$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
 Variable_name	Value
 Sort_merge_passes	1
@@ -82,8 +82,8 @@ INSERT INTO t2 SELECT * FROM t2;
 [log_start.inc] percona_slow_query_log.query_plan_3
 SELECT * FROM t2 ORDER BY a;
 [log_stop.inc] percona_slow_query_log.query_plan_3
-[log_grep.inc] file: percona_slow_query_log.query_plan_3 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_3 pattern: ^# Filesort: Yes  Filesort_on_disk: Yes  Merge_passes: 4$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Sort_merge_passes';
 Variable_name	Value
 Sort_merge_passes	6
@@ -96,8 +96,8 @@ SELECT * FROM t1 WHERE a=1;
 a	b
 1	10
 [log_stop.inc] percona_slow_query_log.query_plan_4
-[log_grep.inc] file: percona_slow_query_log.query_plan_4 pattern: ^#.*Full_scan: No.*$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona_slow_query_log.query_plan_4 pattern: ^#.*Full_scan: No.*$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
 Select_scan	40
@@ -106,8 +106,8 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
 [log_stop.inc] percona_slow_query_log.query_plan_5
-[log_grep.inc] file: percona_slow_query_log.query_plan_5 pattern: ^#.*Full_scan: Yes.*$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_5 pattern: ^#.*Full_scan: Yes.*$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Select_scan';
 Variable_name	Value
 Select_scan	44
@@ -133,8 +133,8 @@ SELECT COUNT(*) FROM t1, t3 WHERE t1.a = t3.a;
 COUNT(*)
 2
 [log_stop.inc] percona_slow_query_log.query_plan_6
-[log_grep.inc] file: percona_slow_query_log.query_plan_6 pattern: ^#.*Full_join: No.*$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona_slow_query_log.query_plan_6 pattern: ^#.*Full_join: No.*$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 SHOW SESSION STATUS LIKE 'Select_full_join';
 Variable_name	Value
 Select_full_join	0
@@ -143,8 +143,8 @@ SELECT COUNT(*) FROM t1, t2 WHERE t1.b = t2.a;
 COUNT(*)
 8192
 [log_stop.inc] percona_slow_query_log.query_plan_7
-[log_grep.inc] file: percona_slow_query_log.query_plan_7 pattern: ^#.*Full_join: Yes.*$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_7 pattern: ^#.*Full_join: Yes.*$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Select_full_join';
 Variable_name	Value
 Select_full_join	1
@@ -174,10 +174,10 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 2
 [log_stop.inc] percona_slow_query_log.query_plan_8
-[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_table: No  Tmp_table_on_disk: No$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_tables: 0  Tmp_disk_tables: 0  Tmp_table_sizes: 0$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona_slow_query_log.query_plan_8 pattern: ^#.*Tmp_table: No  Tmp_table_on_disk: No$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
 Created_tmp_tables	52
@@ -194,10 +194,10 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_9
-[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$
-[log_grep.inc] lines:   1
-[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 0  Tmp_table_sizes: [1-9][0-9]*$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
+[log_grep.inc] file: percona_slow_query_log.query_plan_9 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: No$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
 Created_tmp_tables	56
@@ -234,10 +234,10 @@ COUNT(*)
 1
 1
 [log_stop.inc] percona_slow_query_log.query_plan_10
-[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$
-[log_grep.inc] lines:   1
-[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes$
-[log_grep.inc] lines:   1
+[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_tables: 1  Tmp_disk_tables: 1  Tmp_table_sizes: [1-9][0-9]*$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
+[log_grep.inc] file: percona_slow_query_log.query_plan_10 pattern: ^#.*Tmp_table: Yes  Tmp_table_on_disk: Yes$ expected_matches: 1
+[log_grep.inc] found expected match count: 1
 SHOW SESSION STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
 Created_tmp_tables	64

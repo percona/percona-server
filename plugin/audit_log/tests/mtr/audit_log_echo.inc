@@ -8,6 +8,10 @@ perl;
   print "===================================================================\n";
   open my $file, $ENV{'log_file'} . '.copy' or die "Can not open log: $!";
   while ($line = <$file>) {
+    if ($line =~ /skip this/) {
+      # skip this
+      next;
+    }
     if ($line =~ /SET NAMES/) {
       # change_user does automatic reconnect and messing up 'SET NAMES' around
       next;

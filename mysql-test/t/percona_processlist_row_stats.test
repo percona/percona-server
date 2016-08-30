@@ -74,6 +74,8 @@ reap;
 reap;
 
 --connection default
+SET DEBUG_SYNC= 'reset';
+
 disconnect conn1;
 disconnect conn2;
 DROP TABLES t1, t2;

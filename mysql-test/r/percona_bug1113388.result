@@ -11,3 +11,4 @@ test.t1	optimize	status	OK
 COUNT(*)
 1
 DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

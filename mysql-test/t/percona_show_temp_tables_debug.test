@@ -88,5 +88,6 @@ disconnect con2;
 
 connection default;
 --echo # connection default
+SET DEBUG_SYNC="reset";
 
 --source include/wait_until_count_sessions.inc

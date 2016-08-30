@@ -30,6 +30,9 @@ BEGIN
     WHERE variable_name NOT IN ('timestamp', 'innodb_file_format_max')
       ORDER BY VARIABLE_NAME;
 
+  SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+    WHERE variable_name = 'debug_sync';
+
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
   SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;

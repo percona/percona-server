@@ -132,10 +132,12 @@ select * from a;
 sync_slave_with_master;
 echo # slave: ;
 select * from a;
+set debug_sync="RESET";
 
 # cleanup
 
 connection master;
+set debug_sync="RESET";
 drop table a;
 
 sync_slave_with_master;

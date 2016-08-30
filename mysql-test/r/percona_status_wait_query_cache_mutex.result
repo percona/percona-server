@@ -17,4 +17,5 @@ action
 mutex_locked_query
 action
 try_lock_mutex_query
+SET DEBUG_SYNC= "RESET";
 SET GLOBAL query_cache_size=default;

@@ -13,3 +13,4 @@ COUNT(*)
 1
 SET SESSION old_alter_table=default;
 DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

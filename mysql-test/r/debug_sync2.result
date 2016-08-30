@@ -11,3 +11,4 @@ REPLACE INTO t1 ( pk ) VALUES ( 1 );
 Warnings:
 Warning	1639	debug sync point wait timed out
 DROP TABLE t1;
+SET SESSION DEBUG_SYNC= 'RESET';

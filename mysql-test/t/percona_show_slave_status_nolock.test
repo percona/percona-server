@@ -72,6 +72,7 @@ reap;
 --source include/wait_for_slave_to_stop.inc
 SET GLOBAL DEBUG='';
 --source include/start_slave.inc
+SET DEBUG_SYNC='RESET';
 
 connection master;
 --echo [master]

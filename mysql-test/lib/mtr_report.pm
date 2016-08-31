@@ -277,17 +277,21 @@ sub mtr_report_test_subunit ($) {
   }
   elsif ($result eq 'MTR_RES_PASSED')
   {
-    # Show any problems check-testcase found
-    if ( defined $tinfo->{'check'} )
-    {
-      mtr_report($tinfo->{'check'});
-    }
     # report info to subunit for Jenkins reporting
-    # TODO:  catch 'check-testcase' output??
     Subunit::report_time(time() - $tinfo->{timer}/1000);
     Subunit::subunit_start_test($subunit_testname);
     Subunit::report_time(time());
     Subunit::subunit_pass_test($subunit_testname);
+    if (defined $tinfo->{'check'})
+    {
+      my $check_testname= "testcase-check-" . $subunit_testname;
+      Subunit::subunit_start_test($check_testname);
+      Subunit::subunit_fail_test($check_testname, $tinfo->{'check'});
+    }
+  }
+  else
+  {
+    die "mtr_report_test_subunit: unhandled testcase result " . $result . "\n";
   }
 }
 

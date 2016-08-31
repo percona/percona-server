@@ -4750,7 +4750,7 @@ static int my_kill(int pid, int sig)
 
 void do_shutdown_server(struct st_command *command)
 {
-  long timeout=60;
+  long timeout=90;
   int pid;
   DYNAMIC_STRING ds_pidfile_name;
   MYSQL* mysql = &cur_con->mysql;

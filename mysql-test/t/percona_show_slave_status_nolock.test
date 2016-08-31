@@ -64,13 +64,13 @@ connection slave;
 --echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NONBLOCKING' - just NONBLOCKING version should works fine
 --source include/percona_show_slave_status_nolock.inc
 
-SET DEBUG_SYNC='RESET';
-
 connection slave_stop;
 --echo [slave_stop]
 reap;
 --source include/wait_for_slave_to_stop.inc
 SET GLOBAL DEBUG='';
+SET DEBUG_SYNC='RESET';
+
 --source include/start_slave.inc
 SET DEBUG_SYNC='RESET';
 

@@ -59,10 +59,10 @@ SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.empty';
 
-SET DEBUG_SYNC='RESET';
 [slave_stop]
 include/wait_for_slave_to_stop.inc
 SET GLOBAL DEBUG='';
+SET DEBUG_SYNC='RESET';
 include/start_slave.inc
 SET DEBUG_SYNC='RESET';
 [master]

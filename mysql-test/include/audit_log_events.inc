@@ -18,6 +18,7 @@ SHOW STATUS LIKE 'audit_log%';
 DEALLOCATE PREPARE stmt1;
 
 show variables like 'audit_log%';
+--source include/count_sessions.inc
 connect (con1,localhost,root,,mysql);
 connection default;
 disconnect con1;
@@ -55,3 +56,4 @@ create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
 drop user 'jeffrey'@'localhost';
 select '&;&&&""""<><<>>>>';
 disconnect con1;
+--source include/wait_until_count_sessions.inc

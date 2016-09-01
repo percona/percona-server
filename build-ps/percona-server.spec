@@ -240,7 +240,7 @@ Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
 Distribution:   %{distro_description}
-License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
+License:        Copyright (c) 2000, 2010, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms. Under the GNU General Public License (http://www.gnu.org/licenses/).
 Source:         http://www.percona.com/downloads/Percona-Server-5.5/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
@@ -1344,8 +1344,10 @@ done
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
-* Wed Mar 02 2016 Tomislav Plavcic <tomislav.plavcic@percona.com>
+* Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com> 
+- fix license field
 
+* Wed Mar 02 2016 Tomislav Plavcic <tomislav.plavcic@percona.com>
 - Fixed systemctl start mysqld fails with timeout if
   custom path for socket specified (#1534825)
 

@@ -120,7 +120,7 @@ Summary:        Percona-Server: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        %{mysql_version}
 Release:        %{release}
-License:        Copyright (c) 2000, 2015, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
+License:        Copyright (c) 2000, 2015, %{mysql_vendor}. All rights reserved. Under the GNU General Public License (http://www.gnu.org/licenses/).
 Source0:        http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-%{mysql_version}-%{percona_server_version}/source/%{src_dir}.tar.gz
 URL:            http://www.percona.com/
 Packager:       Percona MySQL Development Team <mysqldev@percona.com>
@@ -899,6 +899,9 @@ fi
 %endif
 
 %changelog
+* Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com> 
+- fix license field
+
 * Wed Mar 09 2016 Tomislav Plavcic <tomislav.plavcic@percona.com> - 5.7.11-4
 - Include mysql-keyring directory
 - Provide keyring_file.so plugin

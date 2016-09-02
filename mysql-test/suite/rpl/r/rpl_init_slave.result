@@ -1,6 +1,7 @@
 include/master-slave.inc
 [connection master]
 set global max_connections=151;
+create table t1(a int);
 include/stop_slave.inc
 include/start_slave.inc
 show variables like 'init_slave';
@@ -21,6 +22,7 @@ set global init_connect="set @c=1";
 show variables like 'init_connect';
 Variable_name	Value
 init_connect	set @c=1
+drop table t1;
 set global init_connect= @my_global_init_connect;
 set global max_connections= default;
 include/rpl_end.inc

@@ -8,12 +8,23 @@
 
 --disable_query_log
 
-# Check that the testcase has closed (and the server has finished cleaning up)
-# all the connection it opened. Exclude binlog dump threads as these may
+# Wait for any connections opened by a previous testcase (or the testcase
+# warning checker) to finish closing. Exclude binlog dump threads as these may
 # linger around indefinitely.
---replace_column 1 <Id> 6 <Time> 7 <State> 9 <Time_ms> 10 X 11 X 12 <Tid>
-SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
-  WHERE COMMAND != 'Binlog Dump' AND COMMAND != 'Binlog Dump GTID';
+--disable_result_log
+SET @expected_thread_count= 1;
+--let $event_scheduler_running= `SELECT @@event_scheduler = 'ON'`
+if ($event_scheduler_running == 1)
+{
+  SET @expected_thread_count= @expected_thread_count + 1;
+}
+--enable_result_log
+--let $wait_condition=SELECT COUNT(*)=@expected_thread_count FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND != 'Binlog Dump' AND COMMAND != 'Binlog Dump GTID';
+--source include/wait_condition.inc
+if (!$success)
+{
+  SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
+}
 
 # We want to ensure all slave configuration is restored.  But SHOW
 # SLAVE STATUS returns nothing for servers not configured as slaves,

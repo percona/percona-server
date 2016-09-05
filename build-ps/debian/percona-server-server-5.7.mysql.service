@@ -3,7 +3,7 @@
 #
 
 [Unit]
-Description=MySQL Community Server
+Description=Percona Server
 After=network.target
 
 [Install]

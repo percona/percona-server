@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS t1;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
+call mtr.add_suppression("simulating bitmap write error in log_online_write_bitmap_page");
 call mtr.add_suppression("log tracking bitmap write failed, stopping log tracking thread!");
 call mtr.add_suppression("last tracked LSN in");
 

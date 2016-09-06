@@ -41,8 +41,21 @@ struct mutex : private noncopyable {
       fatal_abort("pthread_mutex_unlock");
     }
   }
+  pthread_mutex_t* get() const {
+    return &mtx;
+  }
  private:
   mutable pthread_mutex_t mtx;
+};
+
+struct lock_guard : noncopyable {
+  lock_guard(mutex& mtx) : mtx(mtx) {
+    mtx.lock();
+  }
+  ~lock_guard() {
+    mtx.unlock();
+  }
+  mutex& mtx;
 };
 
 };

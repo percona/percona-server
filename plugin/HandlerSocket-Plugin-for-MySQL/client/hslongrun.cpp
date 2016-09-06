@@ -370,16 +370,6 @@ struct hs_longrun_thread_hs : public hs_longrun_thread_base {
   socket_args sockargs;
 };
 
-struct lock_guard : noncopyable {
-  lock_guard(mutex& mtx) : mtx(mtx) {
-    mtx.lock();
-  }
-  ~lock_guard() {
-    mtx.unlock();
-  }
-  mutex& mtx;
-};
-
 string_ref
 to_string_ref(const std::string& s)
 {

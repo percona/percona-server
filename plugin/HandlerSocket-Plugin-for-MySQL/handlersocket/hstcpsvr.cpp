@@ -125,6 +125,15 @@ hstcpsvr::start_listen()
   for (size_t i = 0; i < threads.size(); ++i) {
     threads[i]->start();
   }
+  {
+    lock_guard crit_sec(const_cast<mutex &>(vshared.v_mutex));
+    while (vshared.threads_started < cshared.num_threads) {
+      pthread_cond_wait(
+        const_cast<pthread_cond_t *>(&vshared.threads_started_cond),
+        (const_cast<mutex &>(vshared.v_mutex)).get());
+    }
+  }
+
   DENA_VERBOSE(20, fprintf(stderr, "threads started\n"));
   return std::string();
 }

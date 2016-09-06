@@ -323,7 +323,19 @@ hstcpsvr_worker::run()
 {
   thr_init initobj(dbctx, vshared.shutdown);
 
-  #ifdef __linux__
+  {
+    lock_guard crit_sec(const_cast<mutex &>(vshared.v_mutex));
+    ++vshared.threads_started;
+    if (vshared.threads_started == cshared.num_threads)
+    {
+      pthread_cond_signal(
+        const_cast<pthread_cond_t *>(&vshared.threads_started_cond));
+    }
+  }
+
+  dbctx->wait_for_server_to_start();
+
+#ifdef __linux__
   if (cshared.sockargs.use_epoll) {
     while (!vshared.shutdown && dbctx->check_alive()) {
       run_one_ep();

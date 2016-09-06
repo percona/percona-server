@@ -132,6 +132,7 @@ struct dbcontext : public dbcontext_i, private noncopyable {
   virtual ~dbcontext();
   virtual void init_thread(const void *stack_botton,
     volatile int& shutdown_flag);
+  virtual void wait_for_server_to_start();
   virtual void term_thread();
   virtual bool check_alive();
   virtual void lock_tables_if();
@@ -231,44 +232,6 @@ dbcontext::~dbcontext()
 {
 }
 
-namespace {
-
-int
-wait_server_to_start(THD *thd, volatile int& shutdown_flag)
-{
-  int r = 0;
-  DBG_SHUT(fprintf(stderr, "HNDSOCK wsts\n"));
-  pthread_mutex_lock(&LOCK_server_started);
-  while (!mysqld_server_started) {
-    timespec abstime;
-    memset(&abstime, 0, sizeof(abstime));
-    set_timespec(abstime, 1);
-    pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
-      &abstime);
-    pthread_mutex_unlock(&LOCK_server_started);
-    pthread_mutex_lock(&thd->mysys_var->mutex);
-    int killed = thd_killed(thd);
-    pthread_mutex_unlock(&thd->mysys_var->mutex);
-    DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d\n", killed));
-    pthread_mutex_lock(&LOCK_server_started);
-    if (killed) {
-      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst %d break\n", killed));
-      r = -1;
-      break;
-    }
-    if (shutdown_flag) {
-      DBG_SHUT(fprintf(stderr, "HNDSOCK wsts kst shut break\n"));
-      r = -1;
-      break;
-    }
-  }
-  pthread_mutex_unlock(&LOCK_server_started);
-  DBG_SHUT(fprintf(stderr, "HNDSOCK wsts done\n"));
-  return r;
-}
-
-}; // namespace
-
 #define DENA_THR_OFFSETOF(fld) ((char *)(&thd->fld) - (char *)thd)
 
 void
@@ -320,8 +283,6 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
     pthread_mutex_unlock(&LOCK_thread_count);
   }
 
-  DBG_THR(fprintf(stderr, "HNDSOCK %p init thread wsts\n", thd));
-  wait_server_to_start(thd, shutdown_flag);
   DBG_THR(fprintf(stderr, "HNDSOCK %p init thread done\n", thd));
 
   thd_proc_info(thd, &info_message_buf[0]);
@@ -331,6 +292,15 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
   lex_start(thd);
 
   user_lock.reset(new expr_user_lock(thd, user_level_lock_timeout));
+}
+
+void
+dbcontext::wait_for_server_to_start()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
 }
 
 int

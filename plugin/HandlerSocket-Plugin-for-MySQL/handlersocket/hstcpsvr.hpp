@@ -38,9 +38,19 @@ struct hstcpsvr_shared_c {
     thread_num_conns(0) { }
 };
 
-struct hstcpsvr_shared_v : public mutex {
+struct hstcpsvr_shared_v : private noncopyable {
   int shutdown;
-  hstcpsvr_shared_v() : shutdown(0) { }
+  long threads_started;
+  pthread_cond_t threads_started_cond;
+  mutex v_mutex;
+  hstcpsvr_shared_v() : shutdown(0), threads_started(0)
+  {
+    pthread_cond_init(&threads_started_cond, NULL);
+  }
+  ~hstcpsvr_shared_v()
+  {
+    pthread_cond_destroy(&threads_started_cond);
+  }
 };
 
 struct hstcpsvr_i;

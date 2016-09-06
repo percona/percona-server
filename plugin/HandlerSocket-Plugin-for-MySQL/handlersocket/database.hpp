@@ -114,6 +114,7 @@ struct dbcontext_i {
   virtual ~dbcontext_i() { }
   virtual void init_thread(const void *stack_bottom,
     volatile int& shutdown_flag) = 0;
+  virtual void wait_for_server_to_start() = 0;
   virtual void term_thread() = 0;
   virtual bool check_alive() = 0;
   virtual void lock_tables_if() = 0;

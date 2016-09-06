@@ -440,6 +440,7 @@ log_online_track_missing_on_startup(
 					current server startup */
 {
 	ut_ad(last_tracked_lsn != tracking_start_lsn);
+	ut_ad(srv_track_changed_pages);
 
 	ib::warn() << "Last tracked LSN in \'" << log_bmp_sys->out.name
 		   << "\' is " << last_tracked_lsn
@@ -619,6 +620,8 @@ log_online_read_init(void)
 	aligned. */
 	compile_time_assert(MODIFIED_PAGE_BLOCK_BITMAP % 8 == 0);
 	compile_time_assert(MODIFIED_PAGE_BLOCK_BITMAP_LEN % 8 == 0);
+
+	ut_ad(srv_track_changed_pages);
 
 	log_bmp_sys = static_cast<log_bitmap_struct *>
 		(ut_malloc(sizeof(*log_bmp_sys), mem_key_log_online_sys));
@@ -1107,10 +1110,14 @@ log_online_write_bitmap_page(
 {
 	bool	success;
 
+	ut_ad(srv_track_changed_pages);
 	ut_ad(mutex_own(&log_bmp_sys->mutex));
 
 	/* Simulate a write error */
-	DBUG_EXECUTE_IF("bitmap_page_write_error", return false;);
+	DBUG_EXECUTE_IF("bitmap_page_write_error",
+			ib::error() << "simulating bitmap write error in "
+				       "log_online_write_bitmap_page";
+			return false;);
 
 	IORequest io_request(IORequest::WRITE | IORequest::NO_COMPRESSION);
 	success = os_file_write(io_request, log_bmp_sys->out.name,
@@ -1223,14 +1230,10 @@ log_online_follow_redo_log(void)
 	log_group_t*	group;
 	bool		result;
 
-	mutex_enter(&log_bmp_sys->mutex);
-
-	if (!srv_track_changed_pages) {
-		mutex_exit(&log_bmp_sys->mutex);
-		return false;
-	}
-
+	ut_ad(srv_track_changed_pages);
 	ut_ad(!srv_read_only_mode);
+
+	mutex_enter(&log_bmp_sys->mutex);
 
 	/* Grab the LSN of the last checkpoint, we will parse up to it */
 	log_mutex_enter();

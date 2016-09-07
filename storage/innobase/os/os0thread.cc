@@ -214,9 +214,30 @@ os_thread_create_func(
 	}
 }
 
-/** Exits the current thread. */
+/**
+Waits until the specified thread completes and joins it. Its return value is
+ignored.
+
+@param	thread	thread to join */
 void
-os_thread_exit()
+os_thread_join(
+	os_thread_id_t	thread)
+{
+	int ret	MY_ATTRIBUTE((unused)) = pthread_join(thread, NULL);
+
+	/* Waiting on already-quit threads is allowed */
+	ut_ad(ret == 0 || ret == ESRCH);
+}
+
+
+/**
+Exits the current thread.
+
+@param	detach	if true, the thread will be detached right before exiting. If
+false, another thread is responsible for joining this thread */
+void
+os_thread_exit(
+	bool	detach)
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Thread exits, id "
@@ -241,7 +262,8 @@ os_thread_exit()
 
 	ExitThread(0);
 #else
-	pthread_detach(pthread_self());
+	if (detach)
+		pthread_detach(pthread_self());
 	pthread_exit(NULL);
 #endif
 }

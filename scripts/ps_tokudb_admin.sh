@@ -283,6 +283,8 @@ if [ $FULL_SYSTEMD_MODE = 0  ]; then
   if [ -z $MYCNF_LOCATION ]; then
     if [ -f /etc/mysql/percona-server.conf.d/mysqld_safe.cnf ]; then
       MYCNF_LOCATION=/etc/mysql/percona-server.conf.d/mysqld_safe.cnf
+    elif [ -f /etc/percona-server.conf.d/mysqld_safe.cnf ]; then
+      MYCNF_LOCATION=/etc/percona-server.conf.d/mysqld_safe.cnf
     elif [ -f /etc/my.cnf ]; then
       MYCNF_LOCATION=/etc/my.cnf
     elif [ -f /etc/mysql/my.cnf ]; then

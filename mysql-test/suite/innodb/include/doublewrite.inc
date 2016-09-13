@@ -13,7 +13,6 @@ call mtr.add_suppression("InnoDB: Database page [0-9]+:1 contained only zeroes."
 call mtr.add_suppression("Header page consists of zero bytes");
 call mtr.add_suppression("Checksum mismatch in datafile");
 call mtr.add_suppression("but the innodb_page_size start-up parameter is");
-call mtr.add_suppression("Database page corruption");
 --enable_query_log
 
 let INNODB_PAGE_SIZE=`select @@innodb_page_size`;

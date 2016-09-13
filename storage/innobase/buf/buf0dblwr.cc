@@ -827,7 +827,7 @@ buf_dblwr_process(void)
 				true, read_buf, page_size,
 				fsp_is_checksum_disabled(space_id))) {
 
-				ib::warn() << "Database page corruption or"
+				ib::info() << "Database page corruption or"
 					<< " a failed file read of page "
 					<< page_id
 					<< ". Trying to recover it from the"

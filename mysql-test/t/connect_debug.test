@@ -55,10 +55,8 @@ SET DEBUG_SYNC='RESET';
 
 --echo
 --echo # -- Waiting for connection to close...
-let $wait_condition =
-  SELECT COUNT(*) = 2
-  FROM information_schema.processlist;
---source include/wait_condition.inc
+let $count_sessions= 2;
+--source include/wait_until_count_sessions.inc
 
 --connect (con_3, localhost, root)
 
@@ -81,4 +79,5 @@ SET GLOBAL max_connections= @saved_max_connections;
 --echo
 
 # Wait till all disconnects are completed
+let $count_sessions= 1;
 --source include/wait_until_count_sessions.inc

@@ -18,9 +18,15 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 UNINSTALL PLUGIN audit_log;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
+SELECT 'skip this';
+skip this
+skip this
 SELECT * FROM t;
 a
 db2
+SELECT 'skip this';
+skip this
+skip this
 INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 SELECT * FROM t;
 a
@@ -63,10 +69,6 @@ set global audit_log_flush= ON;
 "Query","<ID>","<DATETIME>","select","<CONN_ID>",0,"SELECT * FROM t","user1[user1] @ localhost []","localhost","","",""
 "Query","<ID>","<DATETIME>","change_db","<CONN_ID>",0,"use 	`db1`","user1[user1] @ localhost []","localhost","","","db1"
 "Change user","<ID>","<DATETIME>","<CONN_ID>",1044,"user2","user2","","","localhost","",""
-"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
-"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
-"Connect","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
-"Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
 "Quit","<ID>","<DATETIME>","<CONN_ID>",0,"user1","user1","","","localhost","","db1"
 "Connect","<ID>","<DATETIME>","<CONN_ID>",1044,"user2","user2","","","localhost","",""
 "Connect","<ID>","<DATETIME>","<CONN_ID>",1045,"user2","user2","","","localhost","",""

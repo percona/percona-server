@@ -31,11 +31,13 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 
 # truncate audit log
 UNINSTALL PLUGIN audit_log;
+SELECT 'skip this';
 --remove_file $log_file
 
 connect (test,localhost,user1,111,db2,);
 connection test;
 SELECT * FROM t;
+SELECT 'skip this';
 
 connect (root,localhost,root,,,);
 connection root;
@@ -47,7 +49,7 @@ connection test;
 SELECT * FROM t;
 use 	`db1`;
 --error ER_DBACCESS_DENIED_ERROR
-change_user user2,111,db1;
+change_user user2,111,db1,do_not_reconnect_on_fail;
 disconnect test;
 --source include/wait_until_disconnected.inc
 --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK

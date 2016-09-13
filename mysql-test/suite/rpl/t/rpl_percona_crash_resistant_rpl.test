@@ -96,6 +96,8 @@ START SLAVE;
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc
 --source include/start_slave.inc
+connection master;
+sync_slave_with_master;
 SELECT COUNT(*) FROM t1;
 
 #

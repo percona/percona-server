@@ -59,7 +59,6 @@ INSERT INTO t2 VALUES (1);
 # Test crash right before writing of new bitmap data
 #
 
-CALL mtr.add_suppression("Database page corruption or a failed");
 --echo 2nd restart
 --let $restart_parameters=restart:-#d,crash_before_bitmap_write
 --source include/restart_mysqld.inc

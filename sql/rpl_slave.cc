@@ -6057,10 +6057,6 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   int i;
   THD *thd= rli->info_thd;
-  if (!*mts_inited)
-    return;
-  else if (rli->slave_parallel_workers == 0)
-    goto end;
 
   /*
     If request for stop slave is received notify worker
@@ -6119,6 +6115,11 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     }
     mysql_mutex_unlock(&w->jobs_lock);
   }
+
+  if (!*mts_inited)
+    return;
+  else if (rli->slave_parallel_workers == 0)
+    goto end;
 
   if (thd->killed == THD::NOT_KILLED)
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function

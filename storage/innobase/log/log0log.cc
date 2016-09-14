@@ -900,6 +900,7 @@ log_init(void)
 	/*----------------------------*/
 
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
+	log_sys->next_checkpoint_lsn = log_sys->lsn;
 
 	rw_lock_create(
 		checkpoint_lock_key, &log_sys->checkpoint_lock,
@@ -1600,6 +1601,7 @@ log_complete_checkpoint(void)
 
 	log_sys->next_checkpoint_no++;
 
+	ut_ad(log_sys->next_checkpoint_lsn >= log_sys->last_checkpoint_lsn);
 	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn;
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
@@ -1652,6 +1654,7 @@ log_group_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(log_mutex_own());
+	ut_ad(srv_shutdown_state != SRV_SHUTDOWN_LAST_PHASE);
 #if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
 # error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
 #endif
@@ -1665,6 +1668,11 @@ log_group_checkpoint(
 	buf = group->checkpoint_buf;
 	memset(buf, 0, OS_FILE_LOG_BLOCK_SIZE);
 
+#ifdef UNIV_DEBUG
+	lsn_t		old_next_checkpoint_lsn
+		= mach_read_from_8(buf + LOG_CHECKPOINT_LSN);
+	ut_ad(old_next_checkpoint_lsn <= log_sys->next_checkpoint_lsn);
+#endif /* UNIV_DEBUG */
 	mach_write_to_8(buf + LOG_CHECKPOINT_NO, log_sys->next_checkpoint_no);
 	mach_write_to_8(buf + LOG_CHECKPOINT_LSN, log_sys->next_checkpoint_lsn);
 
@@ -1940,6 +1948,7 @@ log_checkpoint(
 		return(false);
 	}
 
+	ut_ad(oldest_lsn >= log_sys->next_checkpoint_lsn);
 	log_sys->next_checkpoint_lsn = oldest_lsn;
 	log_write_checkpoint_info(sync);
 	ut_ad(!log_mutex_own());
@@ -2423,6 +2432,7 @@ loop:
 	ut_a(freed);
 
 	ut_a(lsn == log_sys->lsn);
+	ut_ad(lsn == log_sys->last_checkpoint_lsn);
 
 	if (lsn < srv_start_lsn) {
 		ib::error() << "Log sequence number at shutdown " << lsn

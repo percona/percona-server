@@ -18,7 +18,6 @@ call mtr.add_suppression("InnoDB: Database page .* contained only zeroes.");
 call mtr.add_suppression("Header page consists of zero bytes");
 call mtr.add_suppression("Checksum mismatch in tablespace");
 call mtr.add_suppression("but the innodb_page_size start-up parameter is");
-call mtr.add_suppression("Database page corruption");
 call mtr.add_suppression("innodb-page-size mismatch in tablespace");
 --enable_query_log
 

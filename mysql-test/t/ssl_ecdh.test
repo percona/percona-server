@@ -1,0 +1,25 @@
+--source include/have_ssl_communication.inc
+--source include/have_not_yassl.inc
+
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug 82935: Cipher ECDHE-RSA-AES128-GCM-SHA256 listed in man/Ssl_cipher_list, not supported
+--echo #
+
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT REPLACE(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+
+GRANT SELECT ON test.* TO ecdh@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
+FLUSH PRIVILEGES;
+
+connect (con1,localhost,ecdh,,,,,SSL);
+SHOW STATUS LIKE 'Ssl_cipher';
+disconnect con1;
+connection default;
+
+DROP USER ecdh@localhost;
+
+SET sql_mode= @orig_sql_mode;
+
+--source include/wait_until_count_sessions.inc

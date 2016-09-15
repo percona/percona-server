@@ -4173,6 +4173,10 @@ static Sys_var_have Sys_have_tlsv1_2(
        "have_tlsv1_2", "have_tlsv1_2",
        READ_ONLY GLOBAL_VAR(have_tlsv1_2), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_elliptic_curve_crypto(
+       "have_elliptic_curve_crypto", "have_elliptic_curve_crypto",
+       READ_ONLY GLOBAL_VAR(have_elliptic_curve_crypto), NO_CMD_LINE);
+
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type);
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "

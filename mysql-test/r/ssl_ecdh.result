@@ -1,0 +1,9 @@
+#
+# Bug 82935: Cipher ECDHE-RSA-AES128-GCM-SHA256 listed in man/Ssl_cipher_list, not supported
+#
+GRANT SELECT ON test.* TO ecdh@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
+FLUSH PRIVILEGES;
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+DROP USER ecdh@localhost;

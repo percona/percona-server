@@ -20,7 +20,10 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 let $MYSQL_SOCKET= `SELECT @@socket`;
 let $MYSQL_PORT= `SELECT @@port`;
 
-let $cipher_default= DHE-RSA-AES128-GCM-SHA256;
+let $cipher_default= ECDHE-RSA-AES128-GCM-SHA256;
+if (!`SELECT COUNT(*) FROM information_schema.global_variables WHERE variable_name='have_elliptic_curve_crypto' and variable_value='YES'`) {
+  let $cipher_default= DHE-RSA-AES128-GCM-SHA256;
+}
 let $tls_default= TLSv1.2;
 
 --echo #T1: Default TLS connection

@@ -81,6 +81,10 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -540,6 +544,16 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1014,6 +1028,22 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1484,6 +1514,18 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1950,6 +1992,22 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2429,6 +2487,22 @@ SUBPARTITION BY KEY (f_int1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2910,6 +2984,22 @@ SUBPARTITION BY HASH (f_int1 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3377,6 +3467,24 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3838,6 +3946,10 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4297,6 +4409,16 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4771,6 +4893,22 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5241,6 +5379,18 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5707,6 +5857,22 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6184,6 +6350,22 @@ SUBPARTITION BY KEY (f_int2)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6661,6 +6843,22 @@ SUBPARTITION BY HASH (f_int2 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7128,6 +7326,24 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7595,6 +7811,12 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8091,6 +8313,21 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_key_uidx1_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_key_uidx1_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_key_uidx1_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8602,6 +8839,30 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_key_uidx1_id.tokudb
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_key_uidx1_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_key_uidx1_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_key_uidx1_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_key_uidx1_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_key_uidx1_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_key_uidx1_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_key_uidx1_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9109,6 +9370,24 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_key_uidx1_id.tokudb
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_key_uidx1_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_key_uidx1_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_key_uidx1_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_key_uidx1_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_key_uidx1_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9612,6 +9891,30 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10128,6 +10431,30 @@ SUBPARTITION BY KEY (f_int1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10646,6 +10973,30 @@ SUBPARTITION BY HASH (f_int1 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_key_uidx1_id.tokudb
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_key_uidx1_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_key_uidx1_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_key_uidx1_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_key_uidx1_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_key_uidx1_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_key_uidx1_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_key_uidx1_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11150,6 +11501,33 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11647,6 +12025,12 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12143,6 +12527,21 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_key_uidx1_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_key_uidx1_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_key_uidx1_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12654,6 +13053,30 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_key_uidx1_id.tokudb
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_key_uidx1_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_key_uidx1_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_key_uidx1_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_key_uidx1_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_key_uidx1_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_key_uidx1_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_key_uidx1_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13161,6 +13584,24 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_key_uidx1_id.tokudb
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_key_uidx1_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_key_uidx1_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_key_uidx1_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_key_uidx1_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_key_uidx1_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13664,6 +14105,30 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14180,6 +14645,30 @@ SUBPARTITION BY KEY (f_int1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14698,6 +15187,30 @@ SUBPARTITION BY HASH (f_int1 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_key_uidx1_id.tokudb
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_key_uidx1_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_key_uidx1_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_key_uidx1_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_key_uidx1_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_key_uidx1_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_key_uidx1_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_key_uidx1_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15202,6 +15715,33 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15699,6 +16239,14 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_key_uidx2_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_key_uidx2_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16211,6 +16759,26 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_key_uidx2_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_key_uidx2_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_key_uidx1_id.tokudb
+t1_P_p2_key_uidx2_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_key_uidx1_id.tokudb
+t1_P_p3_key_uidx2_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_key_uidx1_id.tokudb
+t1_P_p4_key_uidx2_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16738,6 +17306,38 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_key_uidx1_id.tokudb
+t1_P_part0_key_uidx2_id.tokudb
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_key_uidx1_id.tokudb
+t1_P_part1_key_uidx2_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_key_uidx1_id.tokudb
+t1_P_part2_key_uidx2_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_key_uidx1_id.tokudb
+t1_P_part3_key_uidx2_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_key_uidx1_id.tokudb
+t1_P_part_1_key_uidx2_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_key_uidx1_id.tokudb
+t1_P_part_2_key_uidx2_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_key_uidx1_id.tokudb
+t1_P_part_3_key_uidx2_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_key_uidx1_id.tokudb
+t1_P_part_N_key_uidx2_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17261,6 +17861,30 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_key_uidx1_id.tokudb
+t1_P_parta_key_uidx2_id.tokudb
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_key_uidx1_id.tokudb
+t1_P_partb_key_uidx2_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_key_uidx1_id.tokudb
+t1_P_partc_key_uidx2_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_key_uidx1_id.tokudb
+t1_P_partd_key_uidx2_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_key_uidx1_id.tokudb
+t1_P_parte_key_uidx2_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_key_uidx1_id.tokudb
+t1_P_partf_key_uidx2_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17780,6 +18404,38 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp0_key_uidx2_id.tokudb
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx2_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx2_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx2_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx2_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx2_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx2_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx2_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18312,6 +18968,38 @@ SUBPARTITION BY KEY (f_int1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart11_key_uidx2_id.tokudb
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx2_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx2_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx2_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx2_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx2_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx2_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx2_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18846,6 +19534,38 @@ SUBPARTITION BY HASH (f_int1 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_key_uidx1_id.tokudb
+t1_P_part1_SP_sp11_key_uidx2_id.tokudb
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_key_uidx1_id.tokudb
+t1_P_part1_SP_sp12_key_uidx2_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_key_uidx1_id.tokudb
+t1_P_part2_SP_sp21_key_uidx2_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_key_uidx1_id.tokudb
+t1_P_part2_SP_sp22_key_uidx2_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_key_uidx1_id.tokudb
+t1_P_part3_SP_sp31_key_uidx2_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_key_uidx1_id.tokudb
+t1_P_part3_SP_sp32_key_uidx2_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_key_uidx1_id.tokudb
+t1_P_part4_SP_sp41_key_uidx2_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_key_uidx1_id.tokudb
+t1_P_part4_SP_sp42_key_uidx2_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19366,6 +20086,42 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp0_key_uidx2_id.tokudb
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx2_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx2_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx2_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx2_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx2_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx2_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx2_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx2_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19884,6 +20640,12 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20380,6 +21142,21 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_key_uidx1_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_key_uidx1_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_key_uidx1_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20891,6 +21668,30 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_key_uidx1_id.tokudb
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_key_uidx1_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_key_uidx1_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_key_uidx1_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_key_uidx1_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_key_uidx1_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_key_uidx1_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_key_uidx1_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21398,6 +22199,24 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_key_uidx1_id.tokudb
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_key_uidx1_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_key_uidx1_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_key_uidx1_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_key_uidx1_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_key_uidx1_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21901,6 +22720,30 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22415,6 +23258,30 @@ SUBPARTITION BY KEY (f_int2)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22929,6 +23796,30 @@ SUBPARTITION BY HASH (f_int2 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_key_uidx1_id.tokudb
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_key_uidx1_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_key_uidx1_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_key_uidx1_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_key_uidx1_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_key_uidx1_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_key_uidx1_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_key_uidx1_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23433,6 +24324,33 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23930,6 +24848,12 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24426,6 +25350,21 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_key_uidx1_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_key_uidx1_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_key_uidx1_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24937,6 +25876,30 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_key_uidx1_id.tokudb
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_key_uidx1_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_key_uidx1_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_key_uidx1_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_key_uidx1_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_key_uidx1_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_key_uidx1_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_key_uidx1_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25444,6 +26407,24 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_key_uidx1_id.tokudb
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_key_uidx1_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_key_uidx1_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_key_uidx1_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_key_uidx1_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_key_uidx1_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -25947,6 +26928,30 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26461,6 +27466,30 @@ SUBPARTITION BY KEY (f_int2)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -26975,6 +28004,30 @@ SUBPARTITION BY HASH (f_int2 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_key_uidx1_id.tokudb
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_key_uidx1_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_key_uidx1_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_key_uidx1_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_key_uidx1_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_key_uidx1_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_key_uidx1_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_key_uidx1_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -27479,6 +28532,33 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -27976,6 +29056,14 @@ PARTITIONS 2 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_key_uidx2_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_key_uidx2_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -28488,6 +29576,26 @@ PARTITIONS 5 */
 unified filelist
 t1.frm
 t1.par
+t1_P_p0_key_uidx1_id.tokudb
+t1_P_p0_key_uidx2_id.tokudb
+t1_P_p0_main_id.tokudb
+t1_P_p0_status_id.tokudb
+t1_P_p1_key_uidx1_id.tokudb
+t1_P_p1_key_uidx2_id.tokudb
+t1_P_p1_main_id.tokudb
+t1_P_p1_status_id.tokudb
+t1_P_p2_key_uidx1_id.tokudb
+t1_P_p2_key_uidx2_id.tokudb
+t1_P_p2_main_id.tokudb
+t1_P_p2_status_id.tokudb
+t1_P_p3_key_uidx1_id.tokudb
+t1_P_p3_key_uidx2_id.tokudb
+t1_P_p3_main_id.tokudb
+t1_P_p3_status_id.tokudb
+t1_P_p4_key_uidx1_id.tokudb
+t1_P_p4_key_uidx2_id.tokudb
+t1_P_p4_main_id.tokudb
+t1_P_p4_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -29015,6 +30123,38 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_part0_key_uidx1_id.tokudb
+t1_P_part0_key_uidx2_id.tokudb
+t1_P_part0_main_id.tokudb
+t1_P_part0_status_id.tokudb
+t1_P_part1_key_uidx1_id.tokudb
+t1_P_part1_key_uidx2_id.tokudb
+t1_P_part1_main_id.tokudb
+t1_P_part1_status_id.tokudb
+t1_P_part2_key_uidx1_id.tokudb
+t1_P_part2_key_uidx2_id.tokudb
+t1_P_part2_main_id.tokudb
+t1_P_part2_status_id.tokudb
+t1_P_part3_key_uidx1_id.tokudb
+t1_P_part3_key_uidx2_id.tokudb
+t1_P_part3_main_id.tokudb
+t1_P_part3_status_id.tokudb
+t1_P_part_1_key_uidx1_id.tokudb
+t1_P_part_1_key_uidx2_id.tokudb
+t1_P_part_1_main_id.tokudb
+t1_P_part_1_status_id.tokudb
+t1_P_part_2_key_uidx1_id.tokudb
+t1_P_part_2_key_uidx2_id.tokudb
+t1_P_part_2_main_id.tokudb
+t1_P_part_2_status_id.tokudb
+t1_P_part_3_key_uidx1_id.tokudb
+t1_P_part_3_key_uidx2_id.tokudb
+t1_P_part_3_main_id.tokudb
+t1_P_part_3_status_id.tokudb
+t1_P_part_N_key_uidx1_id.tokudb
+t1_P_part_N_key_uidx2_id.tokudb
+t1_P_part_N_main_id.tokudb
+t1_P_part_N_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -29538,6 +30678,30 @@ t1	CREATE TABLE `t1` (
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_key_uidx1_id.tokudb
+t1_P_parta_key_uidx2_id.tokudb
+t1_P_parta_main_id.tokudb
+t1_P_parta_status_id.tokudb
+t1_P_partb_key_uidx1_id.tokudb
+t1_P_partb_key_uidx2_id.tokudb
+t1_P_partb_main_id.tokudb
+t1_P_partb_status_id.tokudb
+t1_P_partc_key_uidx1_id.tokudb
+t1_P_partc_key_uidx2_id.tokudb
+t1_P_partc_main_id.tokudb
+t1_P_partc_status_id.tokudb
+t1_P_partd_key_uidx1_id.tokudb
+t1_P_partd_key_uidx2_id.tokudb
+t1_P_partd_main_id.tokudb
+t1_P_partd_status_id.tokudb
+t1_P_parte_key_uidx1_id.tokudb
+t1_P_parte_key_uidx2_id.tokudb
+t1_P_parte_main_id.tokudb
+t1_P_parte_status_id.tokudb
+t1_P_partf_key_uidx1_id.tokudb
+t1_P_partf_key_uidx2_id.tokudb
+t1_P_partf_main_id.tokudb
+t1_P_partf_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -30057,6 +31221,38 @@ SUBPARTITIONS 2
 unified filelist
 t1.frm
 t1.par
+t1_P_parta_SP_partasp0_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp0_key_uidx2_id.tokudb
+t1_P_parta_SP_partasp0_main_id.tokudb
+t1_P_parta_SP_partasp0_status_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx1_id.tokudb
+t1_P_parta_SP_partasp1_key_uidx2_id.tokudb
+t1_P_parta_SP_partasp1_main_id.tokudb
+t1_P_parta_SP_partasp1_status_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp0_key_uidx2_id.tokudb
+t1_P_partb_SP_partbsp0_main_id.tokudb
+t1_P_partb_SP_partbsp0_status_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx1_id.tokudb
+t1_P_partb_SP_partbsp1_key_uidx2_id.tokudb
+t1_P_partb_SP_partbsp1_main_id.tokudb
+t1_P_partb_SP_partbsp1_status_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp0_key_uidx2_id.tokudb
+t1_P_partc_SP_partcsp0_main_id.tokudb
+t1_P_partc_SP_partcsp0_status_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx1_id.tokudb
+t1_P_partc_SP_partcsp1_key_uidx2_id.tokudb
+t1_P_partc_SP_partcsp1_main_id.tokudb
+t1_P_partc_SP_partcsp1_status_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp0_key_uidx2_id.tokudb
+t1_P_partd_SP_partdsp0_main_id.tokudb
+t1_P_partd_SP_partdsp0_status_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx1_id.tokudb
+t1_P_partd_SP_partdsp1_key_uidx2_id.tokudb
+t1_P_partd_SP_partdsp1_main_id.tokudb
+t1_P_partd_SP_partdsp1_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -30587,6 +31783,38 @@ SUBPARTITION BY KEY (f_int2)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_subpart11_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart11_key_uidx2_id.tokudb
+t1_P_part1_SP_subpart11_main_id.tokudb
+t1_P_part1_SP_subpart11_status_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx1_id.tokudb
+t1_P_part1_SP_subpart12_key_uidx2_id.tokudb
+t1_P_part1_SP_subpart12_main_id.tokudb
+t1_P_part1_SP_subpart12_status_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart21_key_uidx2_id.tokudb
+t1_P_part2_SP_subpart21_main_id.tokudb
+t1_P_part2_SP_subpart21_status_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx1_id.tokudb
+t1_P_part2_SP_subpart22_key_uidx2_id.tokudb
+t1_P_part2_SP_subpart22_main_id.tokudb
+t1_P_part2_SP_subpart22_status_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart31_key_uidx2_id.tokudb
+t1_P_part3_SP_subpart31_main_id.tokudb
+t1_P_part3_SP_subpart31_status_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx1_id.tokudb
+t1_P_part3_SP_subpart32_key_uidx2_id.tokudb
+t1_P_part3_SP_subpart32_main_id.tokudb
+t1_P_part3_SP_subpart32_status_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart41_key_uidx2_id.tokudb
+t1_P_part4_SP_subpart41_main_id.tokudb
+t1_P_part4_SP_subpart41_status_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx1_id.tokudb
+t1_P_part4_SP_subpart42_key_uidx2_id.tokudb
+t1_P_part4_SP_subpart42_main_id.tokudb
+t1_P_part4_SP_subpart42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -31117,6 +32345,38 @@ SUBPARTITION BY HASH (f_int2 + 1)
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_sp11_key_uidx1_id.tokudb
+t1_P_part1_SP_sp11_key_uidx2_id.tokudb
+t1_P_part1_SP_sp11_main_id.tokudb
+t1_P_part1_SP_sp11_status_id.tokudb
+t1_P_part1_SP_sp12_key_uidx1_id.tokudb
+t1_P_part1_SP_sp12_key_uidx2_id.tokudb
+t1_P_part1_SP_sp12_main_id.tokudb
+t1_P_part1_SP_sp12_status_id.tokudb
+t1_P_part2_SP_sp21_key_uidx1_id.tokudb
+t1_P_part2_SP_sp21_key_uidx2_id.tokudb
+t1_P_part2_SP_sp21_main_id.tokudb
+t1_P_part2_SP_sp21_status_id.tokudb
+t1_P_part2_SP_sp22_key_uidx1_id.tokudb
+t1_P_part2_SP_sp22_key_uidx2_id.tokudb
+t1_P_part2_SP_sp22_main_id.tokudb
+t1_P_part2_SP_sp22_status_id.tokudb
+t1_P_part3_SP_sp31_key_uidx1_id.tokudb
+t1_P_part3_SP_sp31_key_uidx2_id.tokudb
+t1_P_part3_SP_sp31_main_id.tokudb
+t1_P_part3_SP_sp31_status_id.tokudb
+t1_P_part3_SP_sp32_key_uidx1_id.tokudb
+t1_P_part3_SP_sp32_key_uidx2_id.tokudb
+t1_P_part3_SP_sp32_main_id.tokudb
+t1_P_part3_SP_sp32_status_id.tokudb
+t1_P_part4_SP_sp41_key_uidx1_id.tokudb
+t1_P_part4_SP_sp41_key_uidx2_id.tokudb
+t1_P_part4_SP_sp41_main_id.tokudb
+t1_P_part4_SP_sp41_status_id.tokudb
+t1_P_part4_SP_sp42_key_uidx1_id.tokudb
+t1_P_part4_SP_sp42_key_uidx2_id.tokudb
+t1_P_part4_SP_sp42_main_id.tokudb
+t1_P_part4_SP_sp42_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -31637,6 +32897,42 @@ SUBPARTITIONS 3
 unified filelist
 t1.frm
 t1.par
+t1_P_part1_SP_part1sp0_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp0_key_uidx2_id.tokudb
+t1_P_part1_SP_part1sp0_main_id.tokudb
+t1_P_part1_SP_part1sp0_status_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp1_key_uidx2_id.tokudb
+t1_P_part1_SP_part1sp1_main_id.tokudb
+t1_P_part1_SP_part1sp1_status_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx1_id.tokudb
+t1_P_part1_SP_part1sp2_key_uidx2_id.tokudb
+t1_P_part1_SP_part1sp2_main_id.tokudb
+t1_P_part1_SP_part1sp2_status_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp0_key_uidx2_id.tokudb
+t1_P_part2_SP_part2sp0_main_id.tokudb
+t1_P_part2_SP_part2sp0_status_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp1_key_uidx2_id.tokudb
+t1_P_part2_SP_part2sp1_main_id.tokudb
+t1_P_part2_SP_part2sp1_status_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx1_id.tokudb
+t1_P_part2_SP_part2sp2_key_uidx2_id.tokudb
+t1_P_part2_SP_part2sp2_main_id.tokudb
+t1_P_part2_SP_part2sp2_status_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp0_key_uidx2_id.tokudb
+t1_P_part3_SP_part3sp0_main_id.tokudb
+t1_P_part3_SP_part3sp0_status_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp1_key_uidx2_id.tokudb
+t1_P_part3_SP_part3sp1_main_id.tokudb
+t1_P_part3_SP_part3sp1_status_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx1_id.tokudb
+t1_P_part3_SP_part3sp2_key_uidx2_id.tokudb
+t1_P_part3_SP_part3sp2_main_id.tokudb
+t1_P_part3_SP_part3sp2_status_id.tokudb
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1

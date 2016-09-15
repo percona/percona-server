@@ -427,16 +427,24 @@ inline bool too_many_busy_threads(thread_group_t *thread_group)
 /*
    Checks if a given connection is eligible to enter the high priority queue
    based on its current thread_pool_high_prio_mode value, available high
-   priority tickets and transactional state.
+   priority tickets and transactional state and whether any locks are held.
 */
 
-inline bool connection_is_high_prio(connection_t *c)
+inline bool connection_is_high_prio(const connection_t *c)
 {
   const ulong mode= c->thd->variables.threadpool_high_prio_mode;
 
   return (mode == TP_HIGH_PRIO_MODE_STATEMENTS) ||
-    (mode == TP_HIGH_PRIO_MODE_TRANSACTIONS &&
-     c->tickets > 0 && thd_is_transaction_active(c->thd));
+    (mode == TP_HIGH_PRIO_MODE_TRANSACTIONS && c->tickets > 0 &&
+     (thd_is_transaction_active(c->thd) ||
+      c->thd->variables.option_bits & OPTION_TABLE_LOCK ||
+      c->thd->locked_tables_mode != LTM_NONE ||
+      c->thd->mdl_context.has_locks() ||
+      c->thd->global_read_lock.is_acquired() ||
+      c->thd->backup_tables_lock.is_acquired() ||
+      c->thd->backup_binlog_lock.is_acquired() ||
+      c->thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
+      c->thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE)));
 }
 
 } // namespace

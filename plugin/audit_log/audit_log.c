@@ -116,6 +116,8 @@ ulonglong next_record_id()
 #define MAX_RECORD_ID_SIZE  50
 #define MAX_TIMESTAMP_SIZE  25
 
+void plugin_thdvar_safe_update(MYSQL_THD thd, struct st_mysql_sys_var *var,
+                               char **dest, const char *value);
 
 static
 void fprintf_timestamp(FILE *file)
@@ -1446,6 +1448,14 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   NULL
 };
 
+char thd_local_init_buf[sizeof(audit_log_thd_local)];
+
+void MY_ATTRIBUTE((constructor)) audit_log_so_init()
+{
+  memset(thd_local_init_buf, 1, sizeof(thd_local_init_buf) - 1);
+  thd_local_init_buf[sizeof(thd_local_init_buf) - 1]= 0;
+}
+
 /*
  Return pointer to THD specific data.
  */
@@ -1456,9 +1466,9 @@ audit_log_thd_local *get_thd_local(MYSQL_THD thd)
 
   if (unlikely(local == NULL))
   {
-    local= (audit_log_thd_local *)
-            my_malloc(sizeof(audit_log_thd_local), MYF(MY_FAE | MY_ZEROFILL));
-    THDVAR(thd, local)= (char *) local;
+    THDVAR_SET(thd, local, thd_local_init_buf);
+    local= (audit_log_thd_local *) THDVAR(thd, local);
+    memset(local, 0, sizeof(audit_log_thd_local));
   }
   return local;
 }
@@ -1476,8 +1486,16 @@ char *get_record_buffer(MYSQL_THD thd, size_t size)
   if (local->record_buffer_size < size)
   {
     local->record_buffer_size= size;
-    buf= (char *) my_realloc(buf, size, MYF(MY_FAE | MY_ALLOW_ZERO_PTR));
-    THDVAR(thd, record_buffer)= (char *) buf;
+
+    buf = (char *) my_malloc(size, MYF(MY_FAE));
+    memset(buf, 1, size - 1);
+    buf[size - 1]= 0;
+
+    THDVAR_SET(thd, record_buffer, buf);
+
+    my_free(buf);
+
+    buf = (char *) THDVAR(thd, record_buffer);
   }
 
   return buf;

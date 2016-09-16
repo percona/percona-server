@@ -160,6 +160,8 @@ extern bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name);
 extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd);
+extern "C" void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var,
+                                          char **dest, const char *value);
 extern SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type);
 extern bool check_valid_path(const char *path, size_t length);
 

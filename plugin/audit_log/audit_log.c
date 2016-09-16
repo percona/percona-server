@@ -74,9 +74,6 @@ static char *audit_log_include_commands= NULL;
 PSI_memory_key key_memory_audit_log_logger_handle;
 PSI_memory_key key_memory_audit_log_handler;
 PSI_memory_key key_memory_audit_log_buffer;
-PSI_memory_key key_memory_audit_log_record_buffer;
-PSI_memory_key key_memory_audit_log_query_stack;
-PSI_memory_key key_memory_audit_log_thd_local;
 PSI_memory_key key_memory_audit_log_accounts;
 PSI_memory_key key_memory_audit_log_databases;
 PSI_memory_key key_memory_audit_log_commands;
@@ -86,9 +83,6 @@ static PSI_memory_info all_audit_log_memory[]=
   {&key_memory_audit_log_logger_handle, "audit_log_logger_handle", 0},
   {&key_memory_audit_log_handler, "audit_log_handler", 0},
   {&key_memory_audit_log_buffer, "audit_log_buffer", 0},
-  {&key_memory_audit_log_record_buffer, "audit_log_record_buffer", 0},
-  {&key_memory_audit_log_query_stack, "audit_log_query_stack", 0},
-  {&key_memory_audit_log_thd_local, "audit_log_thd_local", 0},
   {&key_memory_audit_log_accounts, "audit_log_accounts", 0},
   {&key_memory_audit_log_databases, "audit_log_databases", 0},
   {&key_memory_audit_log_commands, "audit_log_commands", 0},
@@ -144,6 +138,8 @@ ulonglong next_record_id()
 #define MAX_RECORD_ID_SIZE  50
 #define MAX_TIMESTAMP_SIZE  25
 
+void plugin_thdvar_safe_update(MYSQL_THD thd, struct st_mysql_sys_var *var,
+                               char **dest, const char *value);
 
 static
 char *make_timestamp(char *buf, size_t buf_len, time_t t)
@@ -1749,6 +1745,14 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   NULL
 };
 
+char thd_local_init_buf[sizeof(audit_log_thd_local)];
+
+void MY_ATTRIBUTE((constructor)) audit_log_so_init()
+{
+  memset(thd_local_init_buf, 1, sizeof(thd_local_init_buf) - 1);
+  thd_local_init_buf[sizeof(thd_local_init_buf) - 1]= 0;
+}
+
 /*
  Return pointer to THD specific data.
  */
@@ -1759,11 +1763,9 @@ audit_log_thd_local *get_thd_local(MYSQL_THD thd)
 
   if (unlikely(local == NULL))
   {
-    local= (audit_log_thd_local *)
-            my_malloc(key_memory_audit_log_thd_local,
-                      sizeof(audit_log_thd_local),
-                      MYF(MY_FAE | MY_ZEROFILL));
-    THDVAR(thd, local)= (char *) local;
+    THDVAR_SET(thd, local, thd_local_init_buf);
+    local= (audit_log_thd_local *) THDVAR(thd, local);
+    memset(local, 0, sizeof(audit_log_thd_local));
 
     realloc_stack_frames(thd, 4);
   }
@@ -1783,9 +1785,16 @@ char *get_record_buffer(MYSQL_THD thd, size_t size)
   if (local->record_buffer_size < size)
   {
     local->record_buffer_size= size;
-    buf= (char *) my_realloc(key_memory_audit_log_record_buffer, buf, size,
-                             MYF(MY_FAE | MY_ALLOW_ZERO_PTR));
-    THDVAR(thd, record_buffer)= (char *) buf;
+
+    buf = (char *) my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(MY_FAE));
+    memset(buf, 1, size - 1);
+    buf[size - 1]= 0;
+
+    THDVAR_SET(thd, record_buffer, buf);
+
+    my_free(buf);
+
+    buf = (char *) THDVAR(thd, record_buffer);
   }
 
   return buf;
@@ -1803,15 +1812,24 @@ query_stack_frame *realloc_stack_frames(MYSQL_THD thd, size_t size)
 
   if (local->stack.size < size)
   {
-    local->stack.size= size;
-    stack= (query_stack_frame *) my_realloc(key_memory_audit_log_query_stack,
-                                            stack,
-                                            size * sizeof(query_stack_frame),
-                                            MYF(MY_FAE
-                                                | MY_ALLOW_ZERO_PTR
-                                                | MY_ZEROFILL));
+    char *buf= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                  (local->stack.size + size) *
+                                  sizeof(query_stack_frame),
+                                  MYF(MY_FAE));
+    memset(buf + local->stack.size * sizeof(query_stack_frame), 1,
+           size * sizeof(query_stack_frame) - 1);
+    buf[(local->stack.size + size) * sizeof(query_stack_frame) - 1]= 0;
+    if (local->stack.size > 0)
+      memcpy(buf, stack, local->stack.size * sizeof(query_stack_frame));
+    THDVAR_SET(thd, query_stack,
+               buf + local->stack.size * sizeof(query_stack_frame));
+    stack= (query_stack_frame *) THDVAR(thd, query_stack);
+    memset(stack, 0, size * sizeof(query_stack_frame));
+    if (local->stack.size > 0)
+      memcpy(stack, buf, local->stack.size * sizeof(query_stack_frame));
     local->stack.frames= stack;
-    THDVAR(thd, query_stack)= (char *) stack;
+    local->stack.size= size;
+    my_free(buf);
   }
 
   return stack;

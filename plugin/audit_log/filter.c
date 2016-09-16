@@ -222,6 +222,7 @@ void account_list_from_string(HASH *hash, const char *string)
   {
     size_t entry_length= 0;
     my_bool quote= FALSE;
+    account *acc;
 
     while (*entry == ' ')
       entry++;
@@ -242,8 +243,9 @@ void account_list_from_string(HASH *hash, const char *string)
     unquote_string(host, &host_length);
     my_casedn_str(system_charset_info, host);
 
-    my_hash_insert(hash,
-        (uchar*) account_create(user, user_length, host, host_length));
+    acc= account_create(user, user_length, host, host_length);
+    if (my_hash_insert(hash, (uchar*) acc))
+      my_free(acc);
 
     entry+= entry_length + 1;
   }
@@ -285,8 +287,11 @@ void database_list_from_string(HASH *hash, const char *string)
 
     if (name_length > 0)
     {
+      database *db;
       name[name_length]= 0;
-      my_hash_insert(hash, (uchar*) database_create(name, name_length));
+      db= database_create(name, name_length);
+      if (my_hash_insert(hash, (uchar*) db))
+        my_free(db);
     }
 
     entry+= entry_length;
@@ -320,7 +325,8 @@ void command_list_from_string(HASH *hash, const char *string)
     {
       command *cmd= command_create(entry, len);
       my_casedn_str(&my_charset_utf8_general_ci, cmd->name);
-      my_hash_insert(hash, (uchar*) cmd);
+      if (my_hash_insert(hash, (uchar*) cmd))
+        my_free(cmd);
     }
 
     entry+= len;

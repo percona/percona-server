@@ -38,9 +38,11 @@ Variable_name	Value
 example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, really
 show variables like 'example%';
 Variable_name	Value
+example_create_count_thdvar	1
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	Last creation './test/t1'
 example_ulong_var	500
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN EXAMPLE;
@@ -232,3 +234,26 @@ DROP PROCEDURE p_install;
 SET DEBUG_SYNC='RESET';
 disconnect con1;
 disconnect con2;
+#
+# Bug #19917521: MEMORY LEAK WITH STRING THREAD VARIABLE 
+#                THAT SET MEMALLOC FLAG
+#
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET SESSION example_create_count_thdvar = 0;
+SET SESSION example_last_create_thdvar = '';
+CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+@@SESSION.example_create_count_thdvar
+1
+SELECT @@SESSION.example_last_create_thdvar;
+@@SESSION.example_last_create_thdvar
+Last creation './test/t10'
+CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+@@SESSION.example_create_count_thdvar
+2
+SELECT @@SESSION.example_last_create_thdvar;
+@@SESSION.example_last_create_thdvar
+Last creation './test/t20'
+DROP TABLE t10, t20;
+UNINSTALL PLUGIN example;

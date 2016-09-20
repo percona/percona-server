@@ -1,0 +1,30 @@
+SELECT COUNT(@@GLOBAL.have_elliptic_curve_crypto);
+COUNT(@@GLOBAL.have_elliptic_curve_crypto)
+1
+SET @@GLOBAL.have_elliptic_curve_crypto=1;
+ERROR HY000: Variable 'have_elliptic_curve_crypto' is a read only variable
+SELECT @@GLOBAL.have_elliptic_curve_crypto = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_elliptic_curve_crypto';
+@@GLOBAL.have_elliptic_curve_crypto = VARIABLE_VALUE
+1
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_elliptic_curve_crypto';
+COUNT(VARIABLE_VALUE)
+1
+SELECT @@have_elliptic_curve_crypto = @@GLOBAL.have_elliptic_curve_crypto;
+@@have_elliptic_curve_crypto = @@GLOBAL.have_elliptic_curve_crypto
+1
+SELECT COUNT(@@have_elliptic_curve_crypto);
+COUNT(@@have_elliptic_curve_crypto)
+1
+SELECT COUNT(@@local.have_elliptic_curve_crypto);
+ERROR HY000: Variable 'have_elliptic_curve_crypto' is a GLOBAL variable
+SELECT COUNT(@@SESSION.have_elliptic_curve_crypto);
+ERROR HY000: Variable 'have_elliptic_curve_crypto' is a GLOBAL variable
+SELECT COUNT(@@GLOBAL.have_elliptic_curve_crypto);
+COUNT(@@GLOBAL.have_elliptic_curve_crypto)
+1
+SELECT have_elliptic_curve_crypto = @@SESSION.have_elliptic_curve_crypto;
+ERROR 42S22: Unknown column 'have_elliptic_curve_crypto' in 'field list'

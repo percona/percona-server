@@ -348,6 +348,7 @@ extern SHOW_COMP_OPTION have_backup_locks;
 extern SHOW_COMP_OPTION have_backup_safe_binlog_info;
 extern SHOW_COMP_OPTION have_snapshot_cloning;
 extern SHOW_COMP_OPTION have_tlsv1_2;
+extern SHOW_COMP_OPTION have_elliptic_curve_crypto;
 
 /*
   Prototypes for helper functions

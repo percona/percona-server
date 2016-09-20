@@ -730,6 +730,7 @@ SHOW_COMP_OPTION have_backup_locks;
 SHOW_COMP_OPTION have_backup_safe_binlog_info;
 SHOW_COMP_OPTION have_snapshot_cloning;
 SHOW_COMP_OPTION have_tlsv1_2;
+SHOW_COMP_OPTION have_elliptic_curve_crypto;
 
 ulonglong opt_log_warnings_suppress= 0;
 
@@ -8776,6 +8777,12 @@ static int mysql_init_variables(void)
   have_tlsv1_2= SHOW_OPTION_YES;
 #else
   have_tlsv1_2= SHOW_OPTION_NO;
+#endif
+
+#ifdef OPENSSL_EC_NAMED_CURVE
+  have_elliptic_curve_crypto= SHOW_OPTION_YES;
+#else
+  have_elliptic_curve_crypto= SHOW_OPTION_NO;
 #endif
 
 #ifdef HAVE_BROKEN_REALPATH

@@ -1,0 +1,27 @@
+SELECT COUNT(@@GLOBAL.have_elliptic_curve_crypto);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.have_elliptic_curve_crypto=1;
+
+SELECT @@GLOBAL.have_elliptic_curve_crypto = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_elliptic_curve_crypto';
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='have_elliptic_curve_crypto';
+
+SELECT @@have_elliptic_curve_crypto = @@GLOBAL.have_elliptic_curve_crypto;
+
+SELECT COUNT(@@have_elliptic_curve_crypto);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.have_elliptic_curve_crypto);
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.have_elliptic_curve_crypto);
+
+SELECT COUNT(@@GLOBAL.have_elliptic_curve_crypto);
+
+--Error ER_BAD_FIELD_ERROR
+SELECT have_elliptic_curve_crypto = @@SESSION.have_elliptic_curve_crypto;

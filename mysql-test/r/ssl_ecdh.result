@@ -1,0 +1,18 @@
+#
+# Bug 82935: Cipher ECDHE-RSA-AES128-GCM-SHA256 listed in man/Ssl_cipher_list, not supported
+#
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode= (SELECT REPLACE(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+GRANT SELECT ON test.* TO ecdh@localhost REQUIRE CIPHER "ECDHE-RSA-AES128-GCM-SHA256";
+Warnings:
+Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+FLUSH PRIVILEGES;
+SHOW STATUS LIKE 'Ssl_cipher';
+Variable_name	Value
+Ssl_cipher	ECDHE-RSA-AES128-GCM-SHA256
+DROP USER ecdh@localhost;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

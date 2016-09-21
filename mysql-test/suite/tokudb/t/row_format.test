@@ -1,0 +1,57 @@
+source include/have_tokudb.inc;
+#
+# Test of row_format grammar
+#
+SET DEFAULT_STORAGE_ENGINE='tokudb';
+
+CREATE TABLE tokudb_row_format_test1 (i INT);
+CREATE TABLE tokudb_row_format_test2 (i INT) ROW_FORMAT=TOKUDB_DEFAULT;
+CREATE TABLE tokudb_row_format_test3 (i INT) ROW_FORMAT=TOKUDB_UNCOMPRESSED;
+CREATE TABLE tokudb_row_format_test4 (i INT) ROW_FORMAT=TOKUDB_ZLIB;
+CREATE TABLE tokudb_row_format_test5 (i INT) ROW_FORMAT=TOKUDB_QUICKLZ;
+CREATE TABLE tokudb_row_format_test6 (i INT) ROW_FORMAT=TOKUDB_LZMA;
+CREATE TABLE tokudb_row_format_test7 (i INT) ROW_FORMAT=TOKUDB_SNAPPY;
+CREATE TABLE tokudb_row_format_test8 (i INT) ROW_FORMAT=TOKUDB_FAST;
+CREATE TABLE tokudb_row_format_test9 (i INT) ROW_FORMAT=TOKUDB_SMALL;
+--error 1064
+CREATE TABLE tokudb_row_format_test_bad (i INT) ROW_FORMAT=TOKUDB_NONSENSE;
+
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'tokudb_row_format_test%' ORDER BY TABLE_NAME;
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_DEFAULT;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_UNCOMPRESSED;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_ZLIB;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_QUICKLZ;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_LZMA;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_SNAPPY;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_FAST;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_SMALL;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+--error 1064
+ALTER TABLE tokudb_row_format_test1 ROW_FORMAT=TOKUDB_NONSENSE;
+SELECT TABLE_NAME, ROW_FORMAT FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'tokudb_row_format_test1';
+
+DROP TABLE tokudb_row_format_test1;
+DROP TABLE tokudb_row_format_test2;
+DROP TABLE tokudb_row_format_test3;
+DROP TABLE tokudb_row_format_test4;
+DROP TABLE tokudb_row_format_test5;
+DROP TABLE tokudb_row_format_test6;
+DROP TABLE tokudb_row_format_test7;
+DROP TABLE tokudb_row_format_test8;
+DROP TABLE tokudb_row_format_test9;

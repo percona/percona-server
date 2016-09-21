@@ -36,8 +36,8 @@ Created 11/5/1995 Heikki Tuuri
 /** Flag indicating if the page_cleaner is in active state. */
 extern bool buf_page_cleaner_is_active;
 
-/** Flag indicating if the lru_manager is in active state. */
-extern bool buf_lru_manager_is_active;
+/** The number of running LRU manager threads. 0 if LRU manager is inactive. */
+extern ulint buf_lru_manager_running_threads;
 
 #ifdef UNIV_DEBUG
 

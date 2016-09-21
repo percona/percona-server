@@ -1883,11 +1883,13 @@ innobase_start_or_create_for_mysql(void)
 				 NULL);
 	}
 
-	buf_lru_manager_is_active = true;
-
 	/* Make sure page cleaner is active. */
-	while (!buf_page_cleaner_is_active) {
+	os_rmb;
+	while (!buf_page_cleaner_is_active
+	       || buf_lru_manager_running_threads < srv_buf_pool_instances) {
+
 		os_thread_sleep(10000);
+		os_rmb;
 	}
 
 	srv_start_state_set(SRV_START_STATE_IO);

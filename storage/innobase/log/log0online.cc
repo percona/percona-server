@@ -1209,7 +1209,9 @@ log_online_write_bitmap(void)
 			rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
 
 		DBUG_EXECUTE_IF("bitmap_page_2_write_error",
-				DBUG_SET("+d,bitmap_page_write_error"););
+				ut_ad(bmp_tree_node); /* 2nd page must exist */
+				DBUG_SET("+d,bitmap_page_write_error");
+				DBUG_SET("-d,bitmap_page_2_write_error"););
 	}
 
 	rbt_reset(log_bmp_sys->modified_pages);
@@ -1575,8 +1577,10 @@ log_online_diagnose_bitmap_eof(
 			/* It's a "Warning" here because it's not a fatal error
 			for the whole server */
 			ib::warn() << "Changed page bitmap file \'"
-				   << bitmap_file->name << "\' does not "
-				"contain a complete run at the end.";
+				   << bitmap_file->name << "\', size "
+				   << bitmap_file->size << " bytes, does not "
+				"contain a complete run at the next read "
+				"offset " << bitmap_file->offset;
 			return false;
 		}
 	}

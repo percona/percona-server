@@ -76,8 +76,8 @@ need to protect it by a mutex. It is only ever read by the thread
 doing the shutdown */
 bool buf_page_cleaner_is_active = false;
 
-/** Flag indicating if the lru_manager is in active state. */
-bool buf_lru_manager_is_active = false;
+/** The number of running LRU manager threads. 0 if LRU manager is inactive. */
+ulint buf_lru_manager_running_threads = 0;
 
 /** Factor for scan length to determine n_pages for intended oldest LSN
 progress */
@@ -3540,6 +3540,11 @@ void
 buf_lru_manager_sleep_if_needed(
 	ulint	next_loop_time)
 {
+	/* If this is the server shutdown buffer pool flushing phase, skip the
+	sleep to quit this thread faster */
+	if (srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE)
+		return;
+
 	ulint	cur_time	= ut_time_ms();
 
 	if (next_loop_time > cur_time) {
@@ -3626,6 +3631,8 @@ DECLARE_THREAD(buf_lru_manager)(
 
 	buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
+	os_atomic_increment_ulint(&buf_lru_manager_running_threads, 1);
+
 	ulint	lru_sleep_time	= 1000;
 	ulint	next_loop_time	= ut_time_ms() + lru_sleep_time;
 	ulint	lru_n_flushed	= 1;
@@ -3656,6 +3663,9 @@ DECLARE_THREAD(buf_lru_manager)(
 				lru_n_flushed);
 		}
 	}
+
+	os_atomic_decrement_ulint(&buf_lru_manager_running_threads, 1);
+
 	my_thread_end();
 
 	os_thread_exit();

@@ -1403,10 +1403,14 @@ loop:
 
 	freed = false;
 
+	os_rmb;
 	if (srv_empty_free_list_algorithm == SRV_EMPTY_FREE_LIST_BACKOFF
-	    && buf_lru_manager_is_active
+	    && buf_lru_manager_running_threads > 0
 	    && (srv_shutdown_state == SRV_SHUTDOWN_NONE
 		|| srv_shutdown_state == SRV_SHUTDOWN_CLEANUP)) {
+
+		ut_ad(buf_lru_manager_running_threads
+		      == srv_buf_pool_instances);
 
 		/* Backoff to minimize the free list mutex contention while the
 		free list is empty */
@@ -1452,7 +1456,7 @@ loop:
 		was requested, will perform a single page flush  */
 		ut_ad((srv_empty_free_list_algorithm
 		       == SRV_EMPTY_FREE_LIST_LEGACY)
-		      || !buf_lru_manager_is_active
+		      || buf_lru_manager_running_threads == 0
 		      || (srv_shutdown_state != SRV_SHUTDOWN_NONE
 			  && srv_shutdown_state != SRV_SHUTDOWN_CLEANUP));
 	}

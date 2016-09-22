@@ -1,5 +1,3 @@
-SET @innodb_stats_auto_recalc_save = @@innodb_stats_auto_recalc;
-SET GLOBAL innodb_stats_auto_recalc = OFF;
 FLUSH STATUS;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(
@@ -283,4 +281,3 @@ SET SESSION long_query_time=default;
 SET SESSION min_examined_row_limit=default;
 SET SESSION log_slow_verbosity=default;
 DROP TABLE t1, t2, t3, t4;
-SET GLOBAL innodb_stats_auto_recalc = @innodb_stats_auto_recalc_save;

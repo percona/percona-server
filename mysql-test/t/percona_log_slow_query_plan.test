@@ -3,11 +3,6 @@
 #
 --source include/have_innodb.inc
 
-# turning off background stats recalculation in order to make "Merge_passes: xxx"
-# output in the slow query log more deterministic
-SET @innodb_stats_auto_recalc_save = @@innodb_stats_auto_recalc;
-SET GLOBAL innodb_stats_auto_recalc = OFF;
-
 FLUSH STATUS;
 
 --disable_warnings
@@ -314,7 +309,5 @@ SET SESSION min_examined_row_limit=default;
 SET SESSION log_slow_verbosity=default;
 
 DROP TABLE t1, t2, t3, t4;
-
-SET GLOBAL innodb_stats_auto_recalc = @innodb_stats_auto_recalc_save;
 
 --source include/log_cleanup.inc

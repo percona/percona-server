@@ -10092,6 +10092,24 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
   }
   return FALSE;
 }
+#ifndef DBUG_OFF
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode)
+{
+   switch (locked_tables_mode)
+   {
+   case LTM_NONE:
+     return "LTM_NONE";
+   case LTM_LOCK_TABLES:
+     return "LTM_LOCK_TABLES";
+   case LTM_PRELOCKED:
+     return "LTM_PRELOCKED";
+   case LTM_PRELOCKED_UNDER_LOCK_TABLES:
+     return "LTM_PRELOCKED_UNDER_LOCK_TABLES";
+   default:
+     return "Unknown table lock mode";
+   }
+}
+#endif
 
 /**
   Decide on logging format to use for the statement and issue errors
@@ -10295,16 +10313,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     bool warned_gtid_executed_table= false;
 #ifndef DBUG_OFF
-    {
-      static const char *prelocked_mode_name[] = {
-        "LTM_NONE",
-        "LTM_LOCK_TABLES",
-        "LTM_PRELOCKED",
-        "LTM_PRELOCKED_UNDER_LOCK_TABLES"
-      };
-      DBUG_PRINT("debug", ("prelocked_mode: %s",
-                           prelocked_mode_name[locked_tables_mode]));
-    }
+    DBUG_PRINT("debug", ("prelocked_mode: %s",
+                          get_locked_tables_mode_name(locked_tables_mode)));
 #endif
 
     if (variables.binlog_format != BINLOG_FORMAT_ROW && tables)

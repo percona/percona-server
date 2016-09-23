@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/08/2016
+.\"      Date: 08/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "07/08/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "08/25/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -166,13 +166,21 @@ testa
 with anything in between\&. In the latter case, the pattern match is not anchored to the beginning of the test name, so it also matches names such as
 xmainytesta\&.
 .PP
-From MySQL 5\&.7 it is possible to put a list of test names in a file and have
+As of MySQL 5\&.7, it is possible to put a list of test names in a file and have
 \fBmysql\-test\-run\&.pl\fR
 run those tests, using the option
 \fB\-\-do\-test\-list=\fR\fB\fIfile\fR\fR\&. The tests should be listed one per line in the file, using the fully qualified name
 \fIsuite\fR\&.\fItest\fR\&. A space may be used in place of the period\&. A line beginning with
 #
 indicates a comment and is ignored\&.
+.PP
+As of MySQL 8\&.0,
+\fBmysql\-test\-run\&.pl\fR
+supports a
+\fB\-\-do\-suite\fR
+option, which is similar to
+\fB\-\-do\-test\fR
+but permits specifying entire suites of tests to run\&.
 .PP
 To perform setup prior to running tests,
 \fBmysql\-test\-run\&.pl\fR
@@ -253,7 +261,13 @@ l l
 l l
 l l
 l l
+l l
 l l.
+T{
+MTR_BUILD_THREAD
+T}:T{
+If set, defines which port number range is used for the server
+T}
 T{
 MTR_MEM
 T}:T{
@@ -262,20 +276,10 @@ If set to anything, will run tests with files in "memory" using tmpfs or
                 \fB\-\-mem\fR option
 T}
 T{
-MTR_PARALLEL
+MTR_MAX_PARALLEL
 T}:T{
-If set, defines number of parallel threads executing tests\&. Same as
-                \fB\-\-parallel\fR option
-T}
-T{
-MTR_BUILD_THREAD
-T}:T{
-If set, defines which port number range is used for the server
-T}
-T{
-MTR_PORT_BASE
-T}:T{
-If set, defines which port number range is used for the server
+If set, defines maximum number of parallel threads if
+                \fB\-\-parallel=auto\fR is given
 T}
 T{
 MTR_\fINAME\fR_TIMEOUT
@@ -292,6 +296,17 @@ Setting of a timeout in minutes or seconds, corresponding to command
                 MySQL 5\&.8\&.0\&.
 T}
 T{
+MTR_PARALLEL
+T}:T{
+If set, defines number of parallel threads executing tests\&. Same as
+                \fB\-\-parallel\fR option
+T}
+T{
+MTR_PORT_BASE
+T}:T{
+If set, defines which port number range is used for the server
+T}
+T{
 MYSQL_CONFIG_EDITOR
 T}:T{
 Path name to \fBmysql_config_editor\fR binary\&. Supported as
@@ -303,6 +318,12 @@ T}:T{
 Path name to \fBmysqltest\fR binary
 T}
 T{
+MYSQL_TEST_DIR
+T}:T{
+Full path to the mysql\-test directory where tests
+                are being run from
+T}
+T{
 MYSQL_TEST_LOGIN_FILE
 T}:T{
 Path name to login file used by \fBmysql_config_editor\fR\&.
@@ -310,6 +331,17 @@ Path name to login file used by \fBmysql_config_editor\fR\&.
                 $HOME/\&.mylogin\&.cnf, or
                 %APPDATA%\eMySQL\e\&.mylogin\&.cnf on
                 Windows\&. Supported as of MySQL 5\&.6\&.6\&.
+T}
+T{
+MYSQL_TMP_DIR
+T}:T{
+Path to temp directory used for temporary files during tests
+T}
+T{
+MYSQLD
+T}:T{
+Full path to server executable used in tests\&. Supported as of MySQL
+                5\&.5\&.17\&.
 T}
 T{
 MYSQLD_BOOTSTRAP
@@ -322,12 +354,6 @@ T}:T{
 Full command line used for initial database setup for this test batch
 T}
 T{
-MYSQLD
-T}:T{
-Full path to server executable used in tests\&. Supported as of MySQL
-                5\&.5\&.17\&.
-T}
-T{
 MYSQLD_CMD
 T}:T{
 Command line for starting server as used in tests, with the minimum set
@@ -338,17 +364,6 @@ MYSQLTEST_VARDIR
 T}:T{
 Path name to the var directory that is used for
                 logs, temporary files, and so forth
-T}
-T{
-MYSQL_TEST_DIR
-T}:T{
-Full path to the mysql\-test directory where tests
-                are being run from
-T}
-T{
-MYSQL_TMP_DIR
-T}:T{
-Path to temp directory used for temporary files during tests
 T}
 .TE
 .sp 1
@@ -885,15 +900,42 @@ Add setting from the named file to all generated configs\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-do\-test=\fR\fB\fIprefix\fR\fR
+\fB\-\-do\-suite=\fR\fB\fIprefix or regex\fR\fR
+.sp
+Run all test cases from suites having a name that begins with the given
+\fIprefix\fR
+value or matches the regular expression\&. If the argument matches no existing suites,
+\fBmysql\-test\-run\&.pl\fR
+aborts\&.
+.sp
+The argument for the
+\fB\-\-do\-suite\fR
+option allows more flexible specification of which tests to perform\&. See the description of the
+\fB\-\-do\-test\fR
+option for details\&.
+.sp
+The
+\fB\-\-do\-suite\fR
+option was added in MySQL 8\&.0\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-do\-test=\fR\fB\fIprefix or regex\fR\fR
 .sp
 Run all test cases having a name that begins with the given
 \fIprefix\fR
-value\&. This option provides a convenient way to run a family of similarly named tests\&.
+value or matches the regular expression\&. This option provides a convenient way to run a family of similarly named tests\&.
 .sp
 The argument for the
 \fB\-\-do\-test\fR
-option also allows more flexible specification of which tests to perform\&. If the argument contains a pattern metacharacter other than a lone period, it is interpreted as a Perl regular expression and applies to test names that match the pattern\&. If the argument contains a lone period or does not contain any pattern metacharacters, it is interpreted the same way as previously and matches test names that begin with the argument value\&. For example,
+option allows more flexible specification of which tests to perform\&. If the argument contains a pattern metacharacter other than a lone period, it is interpreted as a Perl regular expression and applies to test names that match the pattern\&. If the argument contains a lone period or does not contain any pattern metacharacters, it is interpreted the same way as previously and matches test names that begin with the argument value\&. For example,
 \fB\-\-do\-test=testa\fR
 matches tests that begin with
 testa,
@@ -1507,8 +1549,26 @@ Run tests using
 \fIN\fR
 parallel threads\&. By default, 1 thread is used\&. Use
 \fB\-\-parallel=auto\fR
-for auto\-setting of
-\fIN\fR\&.
+to set
+\fIN\fR
+automatically\&.
+.sp
+Setting the
+MTR_PARALLEL
+environment variable to
+\fIN\fR
+has the same effect as specifying
+\fB\-\-parallel=\fR\fB\fIN\fR\fR\&.
+.sp
+The
+MTR_MAX_PARALLEL
+environment variable, if set, specifies the maximum number of parallel workers that can be spawned when the
+\fB\-\-parallel=auto\fR
+option is specified\&. If
+\fB\-\-parallel=auto\fR
+is not specified,
+MTR_MAX_PARALLEL
+variable has no effect\&.
 .RE
 .sp
 .RS 4

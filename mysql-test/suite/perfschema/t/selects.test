@@ -52,6 +52,8 @@ JOIN performance_schema.events_waits_history_long USING (EVENT_ID)
 ORDER BY EVENT_ID
 LIMIT 1;
 
+SHOW STATUS LIKE 'perf%';
+
 # Self JOIN
 
 --replace_column 1 [THREAD_ID] 2 [EVENT_ID] 3 [EVENT_NAME] 4 [TIMER_WAIT]

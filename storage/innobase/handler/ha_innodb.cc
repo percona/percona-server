@@ -14343,6 +14343,14 @@ ha_innobase::info_low(
 			if (dict_stats_is_persistent_enabled(ib_table)) {
 
 				if (is_analyze) {
+
+					/* If this table is already queued for
+					background analyze, remove it from the
+					queue as we are about to do the same */
+					dict_mutex_enter_for_mysql();
+					dict_stats_recalc_pool_del(ib_table);
+					dict_mutex_exit_for_mysql();
+
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {
 					/* This is e.g. 'SHOW INDEXES', fetch

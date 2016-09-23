@@ -73,8 +73,6 @@ enum QUERY_TYPE
   WRITE=  2
 };
 
-extern ST_SCHEMA_TABLE query_response_time_table;
-
 typedef class Item COND;
 
 extern void query_response_time_init   ();
@@ -89,6 +87,5 @@ extern int  query_response_time_fill_rw(THD* thd, TABLE_LIST *tables,
                                         COND *cond);
 
 extern ulong   opt_query_response_time_range_base;
-extern my_bool opt_query_response_time_stats;
 
 #endif // QUERY_RESPONSE_TIME_H

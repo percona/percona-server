@@ -633,6 +633,7 @@ static const SYMBOL symbols[] = {
   { SYM("TOKUDB_SNAPPY",            TOKU_SNAPPY_SYM)},
   { SYM("TOKUDB_UNCOMPRESSED",      TOKU_UNCOMPRESSED_SYM)},
   { SYM("TOKUDB_ZLIB",              TOKU_ZLIB_SYM)},
+  { SYM("TOKUDB_DEFAULT",           TOKU_DEFAULT_SYM)},
   { SYM("TRAILING",                 TRAILING)},
   { SYM("TRANSACTION",              TRANSACTION_SYM)},
   { SYM("TRIGGER",                  TRIGGER_SYM)},

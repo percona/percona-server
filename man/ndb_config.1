@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/11/2016
+.\"      Date: 08/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "07/11/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "08/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.86.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&19.88.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 .
@@ -940,7 +940,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.13\-ndb\-7\&.5\&.4" 
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.14\-ndb\-7\&.5\&.4" 
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5" 
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1047,8 +1047,7 @@ attribute, as shown here:
 .RS 4
 .\}
 .nf
-<param name="NoOfDiskPagesToDiskAfterRestartACC" comment="DiskCheckpointSpeed" 
-       type="unsigned" default="20" min="1" max="4294967039" \fIdeprecated="true"\fR/>
+<param name="ExecuteOnComputer" comment="HostName" type="string" \fIdeprecated="true"\fR/>
 .fi
 .if n \{\
 .RE
@@ -1063,10 +1062,27 @@ attribute is indicated only when the parameter is deprecated, with
 deprecated="true", and does not appear at all for parameters which are not deprecated\&. (Bug #21127135)
 .sp
 Beginning with MySQL Cluster NDB 7\&.5\&.0, parameters that are required are indicated with
-mandatory="true"\&. As with
+mandatory="true", as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+<param name="NodeId" 
+          comment="Number identifying application node (mysqld(API))" 
+          type="unsigned" \fImandatory="true"\fR min="1" max="255"/>
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+In much the same way that the
 initial
-and
-deprecated, this attribute is included only if the parameter is actually required\&.
+or
+deprecated
+attribute is displayed only for a parameter that requires an intial restart or that is deprecated, the
+mandatory
+attribute is included only if the given parameter is actually required\&.
 .if n \{\
 .sp
 .\}

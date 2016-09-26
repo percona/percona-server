@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/11/2016
+.\"      Date: 08/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "07/11/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "08/25/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -72,14 +72,12 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.94.\ \& This table describes command\-line options for the ndb_restore program
+.B Table\ \&19.96.\ \& This table describes command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 .
 .TE
 .sp 1
-.PP
-Typical options for this utility are shown here:
 .PP
 Normally, when restoring from a MySQL Cluster backup,
 \fBndb_restore\fR
@@ -97,6 +95,8 @@ is used to restore any tables containing unique indexes, you must include
 \fB\-\-disable\-indexes\fR
 or
 \fB\-\-rebuild\-indexes\fR\&. (Bug #57782, Bug #11764893)
+.PP
+Typical options for this utility are shown here:
 .sp
 .if n \{\
 .RS 4
@@ -855,6 +855,19 @@ makes no attempt to restore data or metadata to a MySQL Cluster\&.
 .sp .5v
 .RE
 .PP
+\fB\-\-print\-sql\-log\fR
+.PP
+Causes
+\fBndb_restore\fR
+to log SQL statements to
+stdout\&. Use the option to enable; normally disabled\&. This option checks before attempting to log whether all the tables being restored have explicitly defined primary keys; queries on a table having only the hidden primary key implemented by
+NDB
+cannot be converted to valid SQL\&.
+.PP
+The
+\fB\-\-print\-sql\-log\fR
+option was added in MySQL Cluster NDB 7\&.5\&.4\&. (Bug #13511949)
+.PP
 \fB\-\-dont_ignore_systab_0\fR
 .PP
 Normally, when restoring table data and metadata,
@@ -1411,14 +1424,13 @@ data node configuration parameter; this parameter has no effect on dropping and 
 Rebuilding of unique indexes uses disk write bandwidth for redo logging and local checkpointing\&. An insufficient amount of this bandwith can lead to redo buffer overload or log overload errors\&. In such cases you can run
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
-again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporarary errors\&. You can repeat execution of
+again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporary errors\&. You can repeat execution of
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
 indefinitely; you may be able to stop such errors by reducing the value of
-DiskCheckpointSpeed
-to provide additional disk bandwidth to redo logging, or reducing the
 \fB\-\-parallelism\fR\&. If the problem is insufficient space, you can increase the size of the redo log (FragmentLogFileSize
-node configuration parameter), or you can increase the speed at which LCPs are performed (DiskCheckpointSpeed), in order to free space more quickly\&.
+node configuration parameter), or you can increase the speed at which LCPs are performed (MaxDiskWriteSpeed
+and related parameters), in order to free space more quickly\&.
 .PP
 \fB\-\-skip\-broken\-objects\fR
 .TS

@@ -105,7 +105,19 @@ static int query_response_time_info_init(void *p)
 {
   ST_SCHEMA_TABLE *i_s_query_response_time= (ST_SCHEMA_TABLE *) p;
   i_s_query_response_time->fields_info= query_response_time_fields_info;
-  i_s_query_response_time->fill_table= query_response_time_fill;
+  if (!my_strcasecmp(system_charset_info, i_s_query_response_time->table_name,
+                     "QUERY_RESPONSE_TIME"))
+    i_s_query_response_time->fill_table= query_response_time_fill;
+  else if (!my_strcasecmp(system_charset_info,
+                          i_s_query_response_time->table_name,
+                          "QUERY_RESPONSE_TIME_READ"))
+    i_s_query_response_time->fill_table= query_response_time_fill_ro;
+  else if (!my_strcasecmp(system_charset_info,
+                          i_s_query_response_time->table_name,
+                          "QUERY_RESPONSE_TIME_WRITE"))
+    i_s_query_response_time->fill_table= query_response_time_fill_rw;
+  else
+    DBUG_ASSERT(0);
   query_response_time_init();
   return 0;
 }

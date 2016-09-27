@@ -81,7 +81,12 @@ extern void query_response_time_init   ();
 extern void query_response_time_free   ();
 extern void query_response_time_flush  ();
 extern void query_response_time_collect(QUERY_TYPE type, ulonglong query_time);
-extern int  query_response_time_fill   (THD* thd, TABLE_LIST *tables, COND *cond);
+extern int  query_response_time_fill   (THD* thd, TABLE_LIST *tables,
+                                        COND *cond);
+extern int  query_response_time_fill_ro(THD* thd, TABLE_LIST *tables,
+                                        COND *cond);
+extern int  query_response_time_fill_rw(THD* thd, TABLE_LIST *tables,
+                                        COND *cond);
 
 extern ulong   opt_query_response_time_range_base;
 extern my_bool opt_query_response_time_stats;

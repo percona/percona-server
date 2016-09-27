@@ -304,14 +304,15 @@ void query_response_time_collect(QUERY_TYPE type,
 
 int query_response_time_fill(THD* thd, TABLE_LIST *tables, COND *cond)
 {
-  QUERY_TYPE query_type= ANY;
-  if (!strncmp(tables->table->alias,
-              "QUERY_RESPONSE_TIME_READ",
-              sizeof("QUERY_RESPONSE_TIME_READ") - 1))
-    query_type= READ;
-  else if (!strncmp(tables->table->alias,
-                   "QUERY_RESPONSE_TIME_WRITE",
-                   sizeof("QUERY_RESPONSE_TIME_WRITE") - 1))
-    query_type= WRITE;
-  return query_response_time::g_collector.fill(query_type, thd, tables, cond);
+  return query_response_time::g_collector.fill(ANY, thd, tables, cond);
+}
+
+int query_response_time_fill_ro(THD* thd, TABLE_LIST *tables, COND *cond)
+{
+  return query_response_time::g_collector.fill(READ, thd, tables, cond);
+}
+
+int query_response_time_fill_rw(THD* thd, TABLE_LIST *tables, COND *cond)
+{
+  return query_response_time::g_collector.fill(WRITE, thd, tables, cond);
 }

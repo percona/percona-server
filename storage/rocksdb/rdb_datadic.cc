@@ -301,11 +301,11 @@ void Rdb_key_def::setup(const TABLE *tbl, const Rdb_tbl_def *tbl_def) {
     set of queries for which we would check the checksum twice.
 */
 
-uint Rdb_key_def::get_primary_key_tuple(
-    TABLE *table, const std::shared_ptr<const Rdb_key_def> &pk_descr,
-    const rocksdb::Slice *key, uchar *pk_buffer) const {
+uint Rdb_key_def::get_primary_key_tuple(TABLE *table,
+                                        const Rdb_key_def &pk_descr,
+                                        const rocksdb::Slice *key,
+                                        uchar *pk_buffer) const {
   DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(pk_descr != nullptr);
   DBUG_ASSERT(key != nullptr);
   DBUG_ASSERT(pk_buffer);
 
@@ -314,7 +314,7 @@ uint Rdb_key_def::get_primary_key_tuple(
   DBUG_ASSERT(m_pk_key_parts);
 
   /* Put the PK number */
-  rdb_netbuf_store_index(buf, pk_descr->m_index_number);
+  rdb_netbuf_store_index(buf, pk_descr.m_index_number);
   buf += INDEX_NUMBER_SIZE;
   size += INDEX_NUMBER_SIZE;
 
@@ -2547,12 +2547,12 @@ bool Rdb_tbl_def::put_dict(Rdb_dict_manager *dict, rocksdb::WriteBatch *batch,
   rdb_netstr_append_uint16(&indexes, Rdb_key_def::DDL_ENTRY_INDEX_VERSION);
 
   for (uint i = 0; i < m_key_count; i++) {
-    const std::shared_ptr<const Rdb_key_def> &kd = m_key_descr_arr[i];
+    const Rdb_key_def &kd = *m_key_descr_arr[i];
 
-    uchar flags = (kd->m_is_reverse_cf ? Rdb_key_def::REVERSE_CF_FLAG : 0) |
-                  (kd->m_is_auto_cf ? Rdb_key_def::AUTO_CF_FLAG : 0);
+    uchar flags = (kd.m_is_reverse_cf ? Rdb_key_def::REVERSE_CF_FLAG : 0) |
+                  (kd.m_is_auto_cf ? Rdb_key_def::AUTO_CF_FLAG : 0);
 
-    uint cf_id = kd->get_cf()->GetID();
+    uint cf_id = kd.get_cf()->GetID();
     /*
       If cf_id already exists, cf_flags must be the same.
       To prevent race condition, reading/modifying/committing CF flags
@@ -2575,10 +2575,10 @@ bool Rdb_tbl_def::put_dict(Rdb_dict_manager *dict, rocksdb::WriteBatch *batch,
     }
 
     rdb_netstr_append_uint32(&indexes, cf_id);
-    rdb_netstr_append_uint32(&indexes, kd->m_index_number);
-    dict->add_or_update_index_cf_mapping(batch, kd->m_index_type,
-                                         kd->m_kv_format_version,
-                                         kd->m_index_number, cf_id);
+    rdb_netstr_append_uint32(&indexes, kd.m_index_number);
+    dict->add_or_update_index_cf_mapping(batch, kd.m_index_type,
+                                         kd.m_kv_format_version,
+                                         kd.m_index_number, cf_id);
   }
 
   rocksdb::Slice skey((char *)key, keylen);
@@ -3011,9 +3011,9 @@ Rdb_tbl_def *Rdb_ddl_manager::find(const std::string &table_name, bool lock) {
 // lock on m_rwlock to make sure the Rdb_key_def is not discarded while we
 // are finding it.  Copying it into 'ret' increments the count making sure
 // that the object will not be discarded until we are finished with it.
-std::shared_ptr<Rdb_key_def>
+std::shared_ptr<const Rdb_key_def>
 Rdb_ddl_manager::safe_find(GL_INDEX_ID gl_index_id) {
-  std::shared_ptr<Rdb_key_def> ret(nullptr);
+  std::shared_ptr<const Rdb_key_def> ret(nullptr);
 
   mysql_rwlock_rdlock(&m_rwlock);
 
@@ -3055,7 +3055,7 @@ void Rdb_ddl_manager::set_stats(
     const std::unordered_map<GL_INDEX_ID, Rdb_index_stats> &stats) {
   mysql_rwlock_wrlock(&m_rwlock);
   for (auto src : stats) {
-    auto keydef = find(src.second.m_gl_index_id);
+    const auto &keydef = find(src.second.m_gl_index_id);
     if (keydef) {
       keydef->m_stats = src.second;
     }
@@ -3070,7 +3070,7 @@ void Rdb_ddl_manager::adjust_stats(
   int i = 0;
   for (const auto &data : {new_data, deleted_data}) {
     for (const auto &src : data) {
-      auto keydef = find(src.m_gl_index_id);
+      const auto &keydef = find(src.m_gl_index_id);
       if (keydef) {
         keydef->m_stats.merge(src, i == 0, keydef->max_storage_fmt_length());
         m_stats2store[keydef->m_stats.m_gl_index_id] = keydef->m_stats;
@@ -3148,7 +3148,7 @@ int Rdb_ddl_manager::put(Rdb_tbl_def *tbl, bool lock) {
 
   // We have to do this find because 'tbl' is not yet in the list.  We need
   // to find the one we are replacing ('rec')
-  rec = reinterpret_cast<Rdb_tbl_def *>(find(dbname_tablename, false));
+  rec = find(dbname_tablename, false);
   if (rec) {
     // this will free the old record.
     my_hash_delete(&m_ddl_hash, reinterpret_cast<uchar *>(rec));

@@ -114,7 +114,7 @@ private:
 
 private:
   uint32_t m_cf_id;
-  std::shared_ptr<Rdb_key_def> m_keydef;
+  std::shared_ptr<const Rdb_key_def> m_keydef;
   Rdb_ddl_manager *m_ddl_manager;
   std::vector<Rdb_index_stats> m_stats;
   Rdb_index_stats *m_last_stats;

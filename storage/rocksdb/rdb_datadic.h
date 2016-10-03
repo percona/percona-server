@@ -240,8 +240,7 @@ public:
   }
 
   /* Must only be called for secondary keys: */
-  uint get_primary_key_tuple(TABLE *tbl,
-                             const std::shared_ptr<const Rdb_key_def> &pk_descr,
+  uint get_primary_key_tuple(TABLE *tbl, const Rdb_key_def &pk_descr,
                              const rocksdb::Slice *key, uchar *pk_buffer) const;
 
   /* Return max length of mem-comparable form */
@@ -714,6 +713,8 @@ class Rdb_ddl_manager {
   // and consumed by the rocksdb background thread
   std::map<GL_INDEX_ID, Rdb_index_stats> m_stats2store;
 
+  const std::shared_ptr<Rdb_key_def> &find(GL_INDEX_ID gl_index_id);
+
 public:
   /* Load the data dictionary from on-disk storage */
   bool init(Rdb_dict_manager *dict_arg, Rdb_cf_manager *cf_manager,
@@ -722,8 +723,7 @@ public:
   void cleanup();
 
   Rdb_tbl_def *find(const std::string &table_name, bool lock = true);
-  const std::shared_ptr<Rdb_key_def> &find(GL_INDEX_ID gl_index_id);
-  std::shared_ptr<Rdb_key_def> safe_find(GL_INDEX_ID gl_index_id);
+  std::shared_ptr<const Rdb_key_def> safe_find(GL_INDEX_ID gl_index_id);
   void set_stats(const std::unordered_map<GL_INDEX_ID, Rdb_index_stats> &stats);
   void adjust_stats(const std::vector<Rdb_index_stats> &new_data,
                     const std::vector<Rdb_index_stats> &deleted_data =

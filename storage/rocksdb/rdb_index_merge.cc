@@ -58,13 +58,15 @@ int Rdb_index_merge::init() {
     to disk. They will be written to disk sorted. A sorted tree is used to
     keep track of the offset of each record within the unsorted buffer.
   */
-  m_rec_buf_unsorted = std::make_shared<merge_buf_info>(m_merge_buf_size);
+  m_rec_buf_unsorted =
+      std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
 
   /*
     Allocate output buffer that will contain sorted block that is written to
     disk.
   */
-  m_output_buf = std::make_shared<merge_buf_info>(m_merge_buf_size);
+  m_output_buf =
+      std::shared_ptr<merge_buf_info>(new merge_buf_info(m_merge_buf_size));
 
   return 0;
 }
@@ -105,6 +107,17 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
                       RDB_MERGE_KEY_DELIMITER + RDB_MERGE_VAL_DELIMITER +
                       key.size() + val.size();
   if (total_offset >= m_rec_buf_unsorted->total_size) {
+    /*
+      If the offset tree is empty here, that means that the proposed key to
+      add is too large for the buffer.
+    */
+    if (m_offset_tree.empty()) {
+      // NO_LINT_DEBUG
+      sql_print_error("Sort buffer size is too small to process merge. "
+                      "Please set merge buffer size to a higher value.");
+      return HA_ERR_INTERNAL_ERROR;
+    }
+
     if (merge_buf_write()) {
       // NO_LINT_DEBUG
       sql_print_error("Error writing sort buffer to disk.");

@@ -8983,7 +8983,7 @@ bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
 }
 
 /* For modules that need access to the global data structures */
-rocksdb::DB *rdb_get_rocksdb_db() { return rdb; }
+rocksdb::TransactionDB *rdb_get_rocksdb_db() { return rdb; }
 
 Rdb_cf_manager &rdb_get_cf_manager() { return cf_manager; }
 
@@ -9232,5 +9232,5 @@ mysql_declare_plugin(rocksdb_se){
     myrocks::rdb_i_s_cfstats, myrocks::rdb_i_s_dbstats,
     myrocks::rdb_i_s_perf_context, myrocks::rdb_i_s_perf_context_global,
     myrocks::rdb_i_s_cfoptions, myrocks::rdb_i_s_global_info,
-    myrocks::rdb_i_s_ddl,
-    myrocks::rdb_i_s_index_file_map mysql_declare_plugin_end;
+    myrocks::rdb_i_s_ddl, myrocks::rdb_i_s_index_file_map,
+    myrocks::rdb_i_s_lock_info mysql_declare_plugin_end;

@@ -1514,6 +1514,14 @@ buf_parallel_dblwr_file_create(void)
 			ib::error() << "A parallel doublewrite file "
 				    << parallel_dblwr_buf.path
 				    << " found on startup.";
+			if (srv_force_recovery == SRV_FORCE_NO_LOG_REDO) {
+				ib::error() << "Since --innodb-force-recovery "
+					"is set to 6, which skips doublewrite "
+					"buffer recovery, please move away "
+					"the file above and restore it before "
+					"attempting a lower forced recovery "
+					"setting";
+			}
 		}
 		return(DB_ERROR);
 	}

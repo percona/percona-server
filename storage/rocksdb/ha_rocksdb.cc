@@ -8159,17 +8159,6 @@ int ha_rocksdb::index_end()
   return 0;
 }
 
-
-int ha_rocksdb::delete_all_rows(ha_rows* nrows)
-{
-  DBUG_ENTER("ha_rocksdb::delete_all_rows");
-  /*
-    We will have to delete records one-by-one anyway. Let the SQL layer do
-    it.
-  */
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-}
-
 int ha_rocksdb::truncate()
 {
   m_tbl_def->m_auto_incr_val= 1;

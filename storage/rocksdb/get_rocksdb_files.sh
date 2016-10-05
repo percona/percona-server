@@ -7,7 +7,7 @@ all:
 	@echo \$(LIB_SOURCES)" > $MKFILE
 for f in `make --makefile $MKFILE`
 do
-  echo ../../rocksdb/$f
+  echo ./rocksdb/$f
 done
 rm $MKFILE
 

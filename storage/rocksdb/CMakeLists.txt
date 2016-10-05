@@ -1,27 +1,46 @@
 # TODO: Copyrights
 
-IF (NOT EXISTS "${CMAKE_SOURCE_DIR}/rocksdb/Makefile")
+IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
+ENDIF()
+
+IF (NOT WITH_ROCKSDB)
+  MESSAGE(STATUS "Not building with MyRocks storage engine, you must specify -DWITH_ROCKSDB=1 to cmake in order to build with MyRocks.")
+  RETURN()
+ELSE ()
+  MESSAGE(STATUS "Building with MyRocks storage engine")
+ENDIF ()
+
+## adds a compiler flag if the compiler supports it
+INCLUDE(CheckCCompilerFlag)
+INCLUDE(CheckCXXCompilerFlag)
+
+# pick language dialect
+check_cxx_compiler_flag(-std=c++11 HAVE_STDCXX11)
+IF (HAVE_STDCXX11)
+  SET(CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+ELSE ()
+  MESSAGE(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does.")
 ENDIF()
 
 # get a list of rocksdb library source files
 # run with env -i to avoid passing variables
 EXECUTE_PROCESS(
-  COMMAND env -i ${CMAKE_SOURCE_DIR}/storage/rocksdb/get_rocksdb_files.sh
+  COMMAND env -i ${CMAKE_CURRENT_SOURCE_DIR}/get_rocksdb_files.sh
   OUTPUT_VARIABLE SCRIPT_OUTPUT
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 # split the list into lines
 STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/rocksdb
-  ${CMAKE_SOURCE_DIR}/rocksdb/include
-  ${CMAKE_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
 )
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
-  -DZLIB)
+  -DZLIB -DPERCONA_SERVER)
 
 SET(ROCKSDB_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
@@ -82,7 +101,7 @@ ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt")
 
-MYSQL_ADD_PLUGIN(rocksdb_se ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY
+MYSQL_ADD_PLUGIN(rocksdb ${ROCKSDB_SOURCES} STORAGE_ENGINE DEFAULT MODULE_ONLY
   LINK_LIBRARIES ${rocksdb_static_libs}
 )
 
@@ -98,11 +117,11 @@ IF (WITH_ROCKSDB_SE_STORAGE_ENGINE)
     ${CMAKE_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
   )
   MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(sst_dump rocksdb_se)
+  TARGET_LINK_LIBRARIES(sst_dump rocksdb)
 
   MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(ldb rocksdb_se)
+  TARGET_LINK_LIBRARIES(ldb rocksdb)
 
   MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_SOURCE_DIR}/storage/rocksdb/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(mysql_ldb rocksdb_se)
+  TARGET_LINK_LIBRARIES(mysql_ldb rocksdb)
 ENDIF()

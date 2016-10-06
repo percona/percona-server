@@ -179,11 +179,12 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
+Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix} 
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56
+
 %if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd
@@ -274,7 +275,7 @@ Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
-Obsoletes:      mariadb-libs
+Provides:       mariadb-libs
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 %endif
@@ -500,6 +501,11 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %else
 /sbin/chkconfig --add mysql
 %endif
+MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
+if [ $MYCNF_PACKAGE = 'mariadb-libs' ]
+then
+  rm -f /etc/my.cnf
+fi
 if [ ! -f /etc/my.cnf ]
 then
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200

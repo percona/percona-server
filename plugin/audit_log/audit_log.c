@@ -770,8 +770,10 @@ int reopen_log_file()
  */
 typedef struct
 {
-  /* size of allocated large buffer to for record formatting */
+  /* size of allocated large buffer for record formatting */
   size_t record_buffer_size;
+  /* large buffer for record formatting */
+  char *record_buffer;
   /* skip logging session */
   my_bool skip_session;
   /* skip logging for the next query */
@@ -1471,9 +1473,13 @@ static MYSQL_SYSVAR_STR(include_commands, audit_log_include_commands,
        audit_log_include_commands_update, NULL);
 
 static MYSQL_THDVAR_STR(local,
-                        PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
-                        PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
-                        "Local store.", NULL, NULL, "");
+       PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC | \
+       PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
+       "Local store.", NULL, NULL, "");
+
+static MYSQL_THDVAR_ULONG(local_ptr,
+       PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT,
+       "Local store ptr.", NULL, NULL, 0, 0, ULONG_MAX, 0);
 
 static struct st_mysql_sys_var* audit_log_system_variables[] =
 {
@@ -1495,6 +1501,7 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(exclude_commands),
   MYSQL_SYSVAR(include_commands),
   MYSQL_SYSVAR(local),
+  MYSQL_SYSVAR(local_ptr),
   NULL
 };
 
@@ -1512,13 +1519,16 @@ void MY_ATTRIBUTE((constructor)) audit_log_so_init()
 static
 audit_log_thd_local *get_thd_local(MYSQL_THD thd)
 {
-  audit_log_thd_local *local= (audit_log_thd_local *) THDVAR(thd, local);
+  audit_log_thd_local *local= (audit_log_thd_local *) THDVAR(thd, local_ptr);
+
+  compile_time_assert(sizeof(THDVAR(thd, local_ptr)) >= sizeof(void *));
 
   if (unlikely(local == NULL))
   {
     THDVAR_SET(thd, local, thd_local_init_buf);
     local= (audit_log_thd_local *) THDVAR(thd, local);
     memset(local, 0, sizeof(audit_log_thd_local));
+    THDVAR(thd, local_ptr)= (ulong) local;
   }
   return local;
 }
@@ -1531,7 +1541,7 @@ static
 char *get_record_buffer(MYSQL_THD thd, size_t size)
 {
   audit_log_thd_local *local= get_thd_local(thd);
-  char *buf= THDVAR(thd, record_buffer);
+  char *buf= local->record_buffer;
 
   if (local->record_buffer_size < size)
   {
@@ -1546,6 +1556,7 @@ char *get_record_buffer(MYSQL_THD thd, size_t size)
     my_free(buf);
 
     buf = (char *) THDVAR(thd, record_buffer);
+    local->record_buffer = buf;
   }
 
   return buf;

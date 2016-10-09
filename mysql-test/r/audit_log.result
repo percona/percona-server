@@ -1,0 +1,5 @@
+SET STATEMENT sql_mode='' FOR SELECT 1;
+1
+1
+SET STATEMENT sql_mode='' FOR SELECT *;
+ERROR HY000: No tables used

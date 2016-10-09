@@ -1,0 +1,8 @@
+
+####################################################################
+#   lp:1626519 test audit_log +  SET STATEMENT                     #
+####################################################################
+
+SET STATEMENT sql_mode='' FOR SELECT 1;
+--error ER_NO_TABLES_USED
+SET STATEMENT sql_mode='' FOR SELECT *;

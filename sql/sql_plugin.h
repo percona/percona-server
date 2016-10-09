@@ -196,7 +196,6 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin);
 */
 extern
 struct system_variables *
-copy_system_variables(const struct system_variables *src,
-                      bool enable_plugins);
+copy_system_variables(THD *thd, bool enable_plugins);
 extern void free_system_variables(struct system_variables *v, bool enable_plugins);
 #endif

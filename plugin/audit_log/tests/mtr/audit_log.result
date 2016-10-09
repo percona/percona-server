@@ -1,0 +1,7 @@
+SET STATEMENT sql_mode='' FOR SELECT 1;
+1
+1
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET STATEMENT sql_mode='' FOR SELECT *;
+ERROR HY000: No tables used

@@ -14,7 +14,7 @@ case "$1" in
 #      echo "Notice: configure-symlinks trigger could not be called."
 #      echo "Please manually make /etc/mysql/my.cnf a symlink that points to percona-server.cnf."
 #    fi
-    if [ ! -f /etc/mysql/my.cnf ]
+    if [ ! -f /etc/mysql/my.cnf -o -L /etc/mysql/my.cnf ]
     then
       update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
     else

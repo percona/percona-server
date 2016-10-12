@@ -1,0 +1,420 @@
+--source include/have_innodb.inc
+
+# check if "IF [NOT] EXISTS" option works as expected for
+# "CREATE/DROP COMPRESSION_DICTIONARY ..."
+
+# creating a dictionary with a non-taken name must not be
+# affected by "IF NOT EXISTS" option
+CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
+# creating a dictionary with the same name and content
+# must generate a warning
+CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
+# creating a dictionary with the same name but different content
+# must generate a warning and leave content intact
+CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('bar');
+# dropping an existing dictionary must not be affected by
+# "IF EXISTS" option
+DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
+# dropping a non-existing dictionary must generate a warning
+DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
+
+# check if dictionary data supplied to "CREATE COMPRESSION_DICTIONARY ..."
+# statements is the same as in the information_schema (NUL characters
+# must not be ignored and must not be treated as string terminators)
+
+CREATE COMPRESSION_DICTIONARY d1('');
+CREATE COMPRESSION_DICTIONARY d2(_ucs2'');
+CREATE COMPRESSION_DICTIONARY d3('aaaaaaaabbbbbbbbccccccccdddddddd');
+CREATE COMPRESSION_DICTIONARY d4(_ucs2'aaaaaaaabbbbbbbbccccccccdddddddd');
+
+CREATE COMPRESSION_DICTIONARY d5(' ');
+CREATE COMPRESSION_DICTIONARY d6('\0');
+CREATE COMPRESSION_DICTIONARY d7('\0aaaaaaaabbbbbbbbccccccccdddddddd');
+
+# check if it is possible to create a compression dictionary with
+# string data passed via variable
+SET @dict_data8 = 'aaaaaaaabbbbbbbbccccccccdddddddd';
+CREATE COMPRESSION_DICTIONARY d8(@dict_data8);
+
+# variable containing empty string
+SET @dict_data9 = '';
+CREATE COMPRESSION_DICTIONARY d9(@dict_data9);
+
+# numeric variable
+SET @dict_data10 = 123;
+CREATE COMPRESSION_DICTIONARY d10(@dict_data10);
+
+# variable of DATETIME type
+SET @dict_data11 = STR_TO_DATE('02/29/2016', '%m/%d/%Y');
+CREATE COMPRESSION_DICTIONARY d11(@dict_data11);
+
+# NULL variable
+SET @dict_data12 = NULL;
+CREATE COMPRESSION_DICTIONARY d12(@dict_data12);
+
+# "CREATE COMPRESSION_DICTIONARY <dict>(@<var> := <expr>)" must
+# generate a syntax error
+--error ER_PARSE_ERROR
+CREATE COMPRESSION_DICTIONARY d12(@dict_data12 := 'blah');
+
+# max dictionary name length is 64 characters - check if an
+# error is reported if this number is exceeded
+SET @long_dictionary_name = REPEAT('d', 64);
+--let $long_dictionary_name=`SELECT @long_dictionary_name`
+--eval CREATE COMPRESSION_DICTIONARY $long_dictionary_name('abcd')
+
+--error ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG
+--eval CREATE COMPRESSION_DICTIONARY d$long_dictionary_name('abcd')
+
+# max dictionary data size is 32506 bytes - check if an error
+# is reported if this number is exceeded
+SET @long_dictionary_data = REPEAT('ab', 32506 / 2);
+CREATE COMPRESSION_DICTIONARY d13(@long_dictionary_data);
+
+SET @longer_dictionary_data = CONCAT(@long_dictionary_data, 'a');
+--error ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
+CREATE COMPRESSION_DICTIONARY d14(@longer_dictionary_data);
+
+# we use MD5() function here to get rid of NUL characters in the output
+SELECT id, name, MD5(zip_dict), LENGTH(zip_dict)
+  FROM information_schema.xtradb_zip_dict
+  ORDER BY id;
+
+# check if dictionary data stored in SYS_ZIP_DICT can be extracted
+# without corruption
+SELECT zip_dict = 'abcd' AS short_zip_dict_data_must_match
+  FROM information_schema.xtradb_zip_dict
+  WHERE name = @long_dictionary_name;
+SELECT zip_dict = @long_dictionary_data AS long_zip_dict_data_must_match
+  FROM information_schema.xtradb_zip_dict
+  WHERE name = 'd13';
+
+# creating a compression dictionary with a name already taken is an error
+--error ER_COMPRESSION_DICTIONARY_EXISTS
+CREATE COMPRESSION_DICTIONARY d1('data');
+
+--let $dict_name=d1
+--let $table_name=t1
+
+# getting compression dictionary id for $dict_name
+eval SELECT id INTO @dict_id FROM information_schema.xtradb_zip_dict
+  WHERE name = '$dict_name';
+
+# creating a new table which references a non-existing compression dictionary
+# must generate an error
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+eval CREATE TABLE $table_name(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY d100
+) ENGINE=InnoDB;
+
+# creating a new table $table_name with 2 compressed columns (with and without dictionary)
+eval CREATE TABLE $table_name(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $dict_name
+) ENGINE=InnoDB;
+
+# check if compression dictionary references are reflected in SHOW CREATE TABLE output
+eval SHOW CREATE TABLE $table_name;
+
+# getting table id for $table_name
+eval SELECT table_id INTO @table_id FROM information_schema.innodb_sys_tables
+  WHERE name=CONCAT(DATABASE(), '/', '$table_name');
+
+# the number of column<->dict_id links for $table_name must be exactly one
+SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.xtradb_zip_dict_cols
+  WHERE table_id = @table_id;
+
+SELECT dict_id = @dict_id AS dict_ids_must_match FROM information_schema.xtradb_zip_dict_cols
+  WHERE table_id = @table_id AND column_pos = 2;
+
+# check if it is OK to refer to an empty dictionary
+SET @long_string_value = REPEAT('a', 128);
+eval INSERT INTO $table_name VALUES(1, @long_string_value, @long_string_value);
+eval SELECT a = @long_string_value AS a_match, b = @long_string_value AS b_match FROM $table_name
+  WHERE id = 1;
+
+# dropping non-existing compression dictionary must generate an error
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+DROP COMPRESSION_DICTIONARY d100;
+
+# dropping a dictionary in use must generate an error
+--error ER_COMPRESSION_DICTIONARY_IS_REFERENCED
+--eval DROP COMPRESSION_DICTIONARY $dict_name
+
+# dropping existing compression dictionary must be reflected in "xtradb_zip_dict"
+DROP COMPRESSION_DICTIONARY d13;
+
+SELECT COUNT(*) = 0 AS dict_must_be_deleted
+  FROM information_schema.xtradb_zip_dict
+  WHERE name = 'd13';
+
+# droppping all created compression dictionaries except d1
+DROP COMPRESSION_DICTIONARY d2;
+DROP COMPRESSION_DICTIONARY d3;
+DROP COMPRESSION_DICTIONARY d4;
+DROP COMPRESSION_DICTIONARY d5;
+DROP COMPRESSION_DICTIONARY d6;
+DROP COMPRESSION_DICTIONARY d7;
+DROP COMPRESSION_DICTIONARY d8;
+DROP COMPRESSION_DICTIONARY d9;
+DROP COMPRESSION_DICTIONARY d10;
+DROP COMPRESSION_DICTIONARY d11;
+DROP COMPRESSION_DICTIONARY d12;
+--eval DROP COMPRESSION_DICTIONARY $long_dictionary_name
+
+# check if the changes are reflected properly in "xtradb_zip_dict"
+SELECT id, name, zip_dict, LENGTH(zip_dict)
+  FROM information_schema.xtradb_zip_dict;
+
+# dropping table with references to compression dictionaries must also clean
+# SYS_ZIP_DICT_COLS InnoDB system table
+--eval DROP TABLE $table_name
+
+SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.xtradb_zip_dict
+  WHERE id = @dict_id;
+SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.xtradb_zip_dict_cols
+  WHERE table_id = @table_id;
+
+# check if tables deleted implicitly via "DROP DATABASE" aslo perform
+# SYS_ZIP_DICT_COLS cleanup
+--let $aux_database_name = db1
+
+eval CREATE DATABASE $aux_database_name;
+eval CREATE TABLE $aux_database_name.$table_name(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY $dict_name
+) ENGINE=InnoDB;
+
+# getting table id for $aux_database_name.$table_name
+eval SELECT table_id INTO @table_id FROM information_schema.innodb_sys_tables
+  WHERE name=CONCAT('$aux_database_name', '/', '$table_name');
+
+# the number of column<->dict_id links for $aux_database_name.$table_name must be exactly one
+SELECT COUNT(*) = 1 AS only_one_dictionary_reference FROM information_schema.xtradb_zip_dict_cols
+  WHERE table_id = @table_id;
+
+SELECT dict_id = @dict_id AS dict_ids_must_match FROM information_schema.xtradb_zip_dict_cols
+  WHERE table_id = @table_id AND column_pos = 2;
+
+--eval DROP DATABASE $aux_database_name
+
+SELECT COUNT(*) = 1 AS compression_dictionary_exists FROM information_schema.xtradb_zip_dict
+  WHERE id = @dict_id;
+SELECT COUNT(*) = 0 AS references_cleared FROM information_schema.xtradb_zip_dict_cols
+  WHERE table_id = @table_id;
+
+# saving current @default_storage_engine
+SET @saved_default_storage_engine = @@default_storage_engine;
+
+--echo # check if "CREATE TABLE ... LIKE ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute
+--let $original_table_name  = t1
+--let $original_column_name = a
+--let $original_column_type = BLOB
+--let $original_dict_name = *
+--let $modified_table_name  = t2
+--let $modified_column_name = $original_column_name
+--let $modified_column_type = $original_column_type
+--let $modified_dict_name = $original_dict_name
+--let $alter_table_algorithm = DEFAULT
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+eval CREATE TABLE $modified_table_name LIKE $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute (implicit SE)
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = InnoDB;
+eval CREATE TABLE $modified_table_name AS SELECT * FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute (explicit SE)
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = MyISAM;
+eval CREATE TABLE $modified_table_name ENGINE=InnoDB AS SELECT * FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute (implicitly changing SE)
+--let $modified_table_name = $original_table_name
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = MyISAM;
+--echo error is expected
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval CREATE TABLE should_not_be_created AS SELECT * FROM $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose "COLUMN_FORMAT COMPRESSED" attribute (explicitly changing SE)
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = InnoDB;
+--echo error is expected
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval CREATE TABLE should_not_be_created ENGINE=MyISAM AS SELECT * FROM $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (no dictionary, implicit SE)
+--let $modified_table_name = t2
+--let $storage_engine_changed = 1
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = MyISAM;
+eval CREATE TABLE $modified_table_name AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--let $storage_engine_changed =
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (no dictionary, explicit SE)
+--let $storage_engine_changed = 1
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = InnoDB;
+eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--let $storage_engine_changed =
+
+
+--echo # check if "CREATE TABLE ... LIKE ..." does not lose compression dictionary references
+--let $original_table_name = t1
+--let $modified_table_name = t2
+--let $original_dict_name = $dict_name
+--let $modified_dict_name = $original_dict_name
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+eval CREATE TABLE $modified_table_name LIKE $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose compression dictionary references (implicit SE)
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = InnoDB;
+eval CREATE TABLE $modified_table_name AS SELECT * FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose compression dictionary references (explicit SE)
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = MyISAM;
+eval CREATE TABLE $modified_table_name ENGINE=InnoDB AS SELECT * FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose compression dictionary references (implicitly changing SE)
+--let $modified_table_name = $original_table_name
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = MyISAM;
+--echo error is expected
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval CREATE TABLE should_not_be_created AS SELECT * FROM $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." does not lose compression dictionary references (explicitly changing SE)
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = InnoDB;
+--echo error is expected
+--error ER_ILLEGAL_HA_CREATE_OPTION
+eval CREATE TABLE should_not_be_created ENGINE=MyISAM AS SELECT * FROM $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (with a dictionary, implicit SE)
+--let $modified_table_name = t2
+--let $storage_engine_changed = 1
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = MyISAM;
+eval CREATE TABLE $modified_table_name AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--let $storage_engine_changed =
+
+--echo # check if "CREATE TABLE ... AS SELECT * FROM ..." with dummy expression does not trigger ER_ILLEGAL_HA_CREATE_OPTION (with a dictionary, explicit SE)
+--let $storage_engine_changed = 1
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+SET default_storage_engine = InnoDB;
+eval CREATE TABLE $modified_table_name ENGINE=MyISAM AS SELECT id, dummy, CONCAT($original_column_name, '') AS $original_column_name, last FROM $original_table_name;
+eval DROP TABLE $original_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+--let $storage_engine_changed =
+
+# restoring @default_storage_engine
+SET default_storage_engine = @saved_default_storage_engine;
+
+--echo # check if "TRUNCATE TABLE ..." updates compression dictionary references in SYS_ZIP_DICT_COLS
+--let $temporary_table_name = tmp
+--let $original_table_name = t1
+--let $modified_table_name = $original_table_name
+--let $original_dict_name = $dict_name
+--let $modified_dict_name = $original_dict_name
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_pre.inc
+eval CREATE TEMPORARY TABLE $temporary_table_name AS SELECT * FROM $original_table_name;
+eval TRUNCATE TABLE $original_table_name;
+eval INSERT INTO $original_table_name SELECT * FROM $temporary_table_name;
+eval DROP TEMPORARY TABLE $temporary_table_name;
+--source suite/innodb/include/xtradb_compressed_columns_alter_table_post.inc
+
+# remove remaining compression dictionary
+--eval DROP COMPRESSION_DICTIONARY $dict_name
+SELECT COUNT(*) = 0 AS compression_dictionary_removed FROM information_schema.xtradb_zip_dict
+  WHERE id = @dict_id;
+
+# check if dropping a table without compressed dictionary references does not crash
+--eval CREATE TABLE $table_name(id INT, a BLOB) ENGINE=InnoDB
+--eval DROP TABLE $table_name
+
+#
+# Check if tablespace datafile is removed properly on unsuccessful attempt to create
+# a table referencing non-existing compression dictionary
+#
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+CREATE TABLE t1(c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown);
+CREATE TABLE t1(c1 TEXT COLUMN_FORMAT COMPRESSED);
+DROP TABLE t1;
+
+CREATE COMPRESSION_DICTIONARY existing_dict('aaaa');
+SELECT id INTO @existing_dict_id FROM information_schema.xtradb_zip_dict
+  WHERE name = 'existing_dict';
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+CREATE TABLE t1(
+ c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict,
+ c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown
+);
+SELECT COUNT(*) = 0 AS no_dict_references_created FROM information_schema.xtradb_zip_dict_cols
+  WHERE dict_id = @existing_dict_id;
+DROP COMPRESSION_DICTIONARY existing_dict;
+
+
+#
+# Bug lp:1630500 "handle_fatal_signal (sig=6) in row_log_abort_sec"
+#
+CREATE TABLE t1(
+  c1 TEXT COLUMN_FORMAT COMPRESSED,
+  c2 VARCHAR(1) COLUMN_FORMAT COMPRESSED
+);
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+ALTER TABLE t1 ADD COLUMN b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1;
+DROP TABLE t1;
+
+CREATE COMPRESSION_DICTIONARY existing_dict('aaaa');
+SELECT id INTO @existing_dict_id FROM information_schema.xtradb_zip_dict
+  WHERE name = 'existing_dict';
+CREATE TABLE t1(
+ c1 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict
+);
+SELECT COUNT(*) = 1 AS one_dict_reference_created FROM information_schema.xtradb_zip_dict_cols
+  WHERE dict_id = @existing_dict_id;
+
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+ALTER TABLE t1 ADD COLUMN c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown;
+SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_one_column FROM information_schema.xtradb_zip_dict_cols
+  WHERE dict_id = @existing_dict_id;
+
+--error ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+ALTER TABLE t1
+  ADD COLUMN c2 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY existing_dict,
+  ADD COLUMN c3 TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown
+;
+SELECT COUNT(*) = 1 AS one_dict_reference_after_adding_two_columns FROM information_schema.xtradb_zip_dict_cols
+  WHERE dict_id = @existing_dict_id;
+
+DROP TABLE t1;
+DROP COMPRESSION_DICTIONARY existing_dict;

@@ -11,6 +11,8 @@ SYS_DATAFILES	0
 SYS_FOREIGN	0
 SYS_FOREIGN_COLS	0
 SYS_TABLESPACES	0
+SYS_ZIP_DICT	0
+SYS_ZIP_DICT_COLS	0
 mysql/innodb_index_stats	1
 mysql/innodb_table_stats	1
 mysql/slave_master_info	1

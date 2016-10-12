@@ -455,6 +455,12 @@ def	information_schema	XTRADB_RSEG	page_no	4	0	NO	bigint	NULL	NULL	20	0	NULL	NUL
 def	information_schema	XTRADB_RSEG	rseg_id	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	XTRADB_RSEG	space_id	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	XTRADB_RSEG	zip_size	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
+def	information_schema	XTRADB_ZIP_DICT	id	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
+def	information_schema	XTRADB_ZIP_DICT	name	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+def	information_schema	XTRADB_ZIP_DICT	zip_dict	3	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select	
+def	information_schema	XTRADB_ZIP_DICT_COLS	column_pos	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
+def	information_schema	XTRADB_ZIP_DICT_COLS	dict_id	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
+def	information_schema	XTRADB_ZIP_DICT_COLS	table_id	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -469,6 +475,7 @@ AND table_name <> 'profiling' AND table_name not like 'innodb_%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
+1.0000	blob	NULL	NULL
 1.0000	longtext	utf8	utf8_general_ci
 SELECT DISTINCT
 CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH AS COL_CML,
@@ -966,3 +973,9 @@ NULL	information_schema	XTRADB_RSEG	zip_size	bigint	NULL	NULL	NULL	NULL	bigint(2
 NULL	information_schema	XTRADB_RSEG	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	XTRADB_RSEG	max_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	XTRADB_RSEG	curr_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_ZIP_DICT	id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	XTRADB_ZIP_DICT	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+1.0000	information_schema	XTRADB_ZIP_DICT	zip_dict	blob	65535	65535	NULL	NULL	blob
+NULL	information_schema	XTRADB_ZIP_DICT_COLS	table_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_ZIP_DICT_COLS	column_pos	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	XTRADB_ZIP_DICT_COLS	dict_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned

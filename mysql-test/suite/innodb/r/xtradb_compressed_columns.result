@@ -1,0 +1,278 @@
+CREATE TABLE t1 (a INT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+ERROR HY000: Can not define column 'a' in compressed format
+CREATE TABLE t2 (a VARCHAR(100) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(100) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t3 (a BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t4 (a TEXT COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` text /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t5 (a TEXT BINARY COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` text CHARACTER SET latin1 COLLATE latin1_bin /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t6(a TEXT CHARACTER SET gbk COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` text CHARACTER SET gbk /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t7(a TEXT BINARY CHARACTER SET gbk COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a` text CHARACTER SET gbk COLLATE gbk_bin /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t8 (a VARBINARY(1000) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `a` varbinary(1000) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t9 (a VARCHAR(1000) COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `a` varchar(1000) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED, KEY(a(10)));
+ERROR HY000: Compressed column 'a' is not allowed in the key list
+CREATE TABLE t1(a BLOB COLUMN_FORMAT COMPRESSED);
+ALTER TABLE t3 ADD KEY(a(10));
+ERROR HY000: Compressed column 'a' is not allowed in the key list
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
+ALTER TABLE t1 ADD KEY(a(10));
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (REPEAT('abc',5));
+INSERT INTO t1 VALUES (REPEAT('abc',100));
+SELECT * FROM t1;
+a
+abcabcabcabcabc
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+SELECT * FROM t1;
+a
+abcabcabcabcabc
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	1570560110
+ALTER TABLE t1 MODIFY COLUMN a VARCHAR(10000) COLUMN_FORMAT COMPRESSED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(10000) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t1 MODIFY COLUMN a VARCHAR(10000);
+ALTER TABLE t1 MODIFY COLUMN a BLOB COLUMN_FORMAT COMPRESSED;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	1570560110
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL);
+ALTER TABLE t1 ADD COLUMN b TEXT COLUMN_FORMAT COMPRESSED;
+INSERT INTO t1 (a) VALUES (NULL);
+ALTER TABLE t1 ADD COLUMN c VARCHAR(1000) COLUMN_FORMAT COMPRESSED;
+INSERT INTO t1 (a,b,c) VALUES (NULL, "hello!", "world!");
+ALTER TABLE t1 ADD COLUMN d VARCHAR(10000) COLUMN_FORMAT COMPRESSED DEFAULT "hello, world! see you!";
+INSERT INTO t1 (a,b,c) VALUES (NULL, "hello", "world!");
+SELECT * FROM t1;
+a	b	c	d
+1	NULL	NULL	hello, world! see you!
+2	NULL	NULL	hello, world! see you!
+3	hello!	world!	hello, world! see you!
+4	hello	world!	hello, world! see you!
+SHOW VARIABLES LIKE 'innodb_compressed_columns_zip_level';
+Variable_name	Value
+innodb_compressed_columns_zip_level	6
+SET @old_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+DROP TABLE t1;
+CREATE TABLE t1 (a BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SET GLOBAL innodb_compressed_columns_zip_level = -1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_le value: '-1'
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+0
+INSERT INTO t1 VALUES(REPEAT('abcd', 200));
+SET GLOBAL innodb_compressed_columns_zip_level = 5;
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+5
+INSERT INTO t1 VALUES(REPEAT('abcd', 200));
+SET GLOBAL innodb_compressed_columns_zip_level = 9;
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+9
+INSERT INTO t1 VALUES(REPEAT('abcd', 200));
+SET GLOBAL innodb_compressed_columns_zip_level = 10;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_zip_le value: '10'
+SELECT @@global.innodb_compressed_columns_zip_level;
+@@global.innodb_compressed_columns_zip_level
+9
+SELECT MAX(LENGTH(a)) FROM t1;
+MAX(LENGTH(a))
+800
+SHOW VARIABLES LIKE 'innodb_compressed_columns_threshold';
+Variable_name	Value
+innodb_compressed_columns_threshold	96
+SET @old_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
+TRUNCATE TABLE t1;
+SET GLOBAL innodb_compressed_columns_threshold = 0;
+Warnings:
+Warning	1292	Truncated incorrect innodb_compressed_columns_thresh value: '0'
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+1
+INSERT INTO t1 VALUES (REPEAT('abc',10));
+SET GLOBAL innodb_compressed_columns_threshold = 96;
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+96
+INSERT INTO t1 VALUES (REPEAT('abc',40));
+SET GLOBAL innodb_compressed_columns_threshold = 1000;
+SELECT @@global.innodb_compressed_columns_threshold;
+@@global.innodb_compressed_columns_threshold
+1000
+INSERT INTO t1 VALUES (REPEAT('abc',1000));
+SELECT MAX(LENGTH(a)) from t1;
+MAX(LENGTH(a))
+3000
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d BLOB COLUMN_FORMAT COMPRESSED) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100);
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1 a, t1 b;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1 a, t1 b;
+INSERT INTO t1 SELECT NULL, 100, 100, REPEAT('abc',100) FROM t1 a, t1 b;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1806
+SELECT a,b,c FROM t1 LIMIT 10;
+a	b	c
+1	100	100
+2	100	100
+3	100	100
+4	100	100
+5	100	100
+6	100	100
+10	100	100
+11	100	100
+12	100	100
+13	100	100
+SELECT MAX(LENGTH(d)) FROM t1;
+MAX(LENGTH(d))
+300
+DROP TABLE t2;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ALTER TABLE t2 MODIFY COLUMN d BLOB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` blob,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=1837 DEFAULT CHARSET=latin1
+CHECKSUM TABLE t1, t2;
+Table	Checksum
+test.t1	2260691284
+test.t2	2260691284
+SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_compressed_columns_threshold = @old_innodb_compressed_columns_threshold;
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9;
+SET @saved_innodb_compressed_columns_threshold = @@global.innodb_compressed_columns_threshold;
+CREATE TABLE t1(
+a VARCHAR(1) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(REPEAT('abc',40));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT * FROM t1;
+a
+a
+DROP TABLE t1;
+CREATE TABLE t1(
+a VARCHAR(95) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(REPEAT('abc',40));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT * FROM t1;
+a
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcab
+DROP TABLE t1;
+CREATE TABLE t1(
+a VARCHAR(96) COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(REPEAT('abc',40));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT * FROM t1;
+a
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
+SET GLOBAL innodb_compressed_columns_threshold = 1;
+INSERT INTO t1 VALUES(REPEAT('abc',40));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SELECT * FROM t1;
+a
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
+abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc
+DROP TABLE t1;
+SET GLOBAL innodb_compressed_columns_threshold = @saved_innodb_compressed_columns_threshold;
+CREATE TABLE t1(
+id INT
+);
+ALTER TABLE t1 ADD COLUMN c VARCHAR(1000) COLUMN_FORMAT COMPRESSED;
+DROP TABLE t1;
+SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+CREATE TABLE t1 (
+a VARCHAR(254) COLUMN_FORMAT COMPRESSED,
+b DATE DEFAULT NULL
+) ENGINE = InnoDB;
+SET @inserted_value = REPEAT('z', 254);
+INSERT INTO t1 SET a = @inserted_value;
+SELECT COUNT(*) AS number_of_rows_before_alteration FROM t1 WHERE a = @inserted_value;
+number_of_rows_before_alteration
+1
+ALTER TABLE t1 DROP COLUMN b;
+SELECT COUNT(*) AS number_of_rows_after_alteration FROM t1 WHERE a = @inserted_value;
+number_of_rows_after_alteration
+1
+DROP TABLE t1;
+SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;

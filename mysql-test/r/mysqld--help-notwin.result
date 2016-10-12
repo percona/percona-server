@@ -1154,6 +1154,14 @@ The following options may be given as the first argument:
  --xtradb-rseg[=name] 
  Enable or disable XTRADB_RSEG plugin. Possible values are
  ON, OFF, FORCE (don't start if the plugin fails to load).
+ --xtradb-zip-dict[=name] 
+ Enable or disable XTRADB_ZIP_DICT plugin. Possible values
+ are ON, OFF, FORCE (don't start if the plugin fails to
+ load).
+ --xtradb-zip-dict-cols[=name] 
+ Enable or disable XTRADB_ZIP_DICT_COLS plugin. Possible
+ values are ON, OFF, FORCE (don't start if the plugin
+ fails to load).
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -1370,7 +1378,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 179
+performance-schema-max-statement-classes 181
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1479,6 +1487,8 @@ wait-timeout 28800
 xtradb-internal-hash-tables ON
 xtradb-read-view ON
 xtradb-rseg ON
+xtradb-zip-dict ON
+xtradb-zip-dict-cols ON
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

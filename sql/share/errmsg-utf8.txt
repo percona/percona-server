@@ -7117,6 +7117,27 @@ ER_CANT_EXECUTE_WITH_BACKUP_LOCK
 	eng "Can't execute the query because you have a conflicting backup lock"
 	rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"
 
+ER_COMPRESSED_COLUMN_USED_AS_KEY
+  eng "Compressed column '%-.192s' is not allowed in the key list"
+
+ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+  eng "Can not define column '%-.192s' in compressed format"
+
+ER_COMPRESSION_DICTIONARY_EXISTS
+  eng "Compression dictionary '%-.192s' already exists"
+
+ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+  eng "Compression dictionary '%-.192s' does not exist"
+
+ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG
+  eng "Compression dictionary name '%-.192s' is too long (max length = %lu)"
+
+ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
+  eng "Data for compression dictionary '%-.192s' is too long (max length = %lu)"
+
+ER_COMPRESSION_DICTIONARY_IS_REFERENCED
+  eng "Compression dictionary '%-.192s' is in use"
+
 #
 #  End of 5.6 error messages.
 #

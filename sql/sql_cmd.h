@@ -100,6 +100,8 @@ enum enum_sql_command {
 
   SQLCOM_PURGE_ARCHIVE,
   SQLCOM_PURGE_ARCHIVE_BEFORE,
+
+  SQLCOM_CREATE_COMPRESSION_DICTIONARY, SQLCOM_DROP_COMPRESSION_DICTIONARY,
   /*
     When a command is added here, be sure it's also added in mysqld.cc
     in "struct show_var_st status_vars[]= {" ...

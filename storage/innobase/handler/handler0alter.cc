@@ -2812,7 +2812,7 @@ innobase_build_default_mysql_point(
 	ulint   len = get_wkb_of_default_point(SPDIMS, wkb, DATA_POINT_LEN);
 	ut_ad(len == DATA_POINT_LEN);
 
-	row_mysql_store_blob_ref(buf, length, wkb, len);
+	row_mysql_store_blob_ref(buf, length, wkb, len, false, 0, 0, 0);
 
 	return(buf);
 }
@@ -2830,7 +2830,8 @@ innobase_build_col_map_add(
 	mem_heap_t*	heap,
 	dfield_t*	dfield,
 	const Field*	field,
-	ulint		comp)
+	ulint		comp,
+	row_prebuilt_t*	prebuilt)
 {
 	if (field->is_real_null()) {
 		dfield_set_null(dfield);
@@ -2854,7 +2855,10 @@ innobase_build_col_map_add(
 	}
 
 	row_mysql_store_col_in_innobase_format(
-		dfield, buf, true, mysql_data, size, comp);
+		dfield, buf, true, mysql_data, size, comp,
+		field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED,
+		reinterpret_cast<const byte*>(field->zip_dict_data.str),
+		field->zip_dict_data.length, prebuilt);
 }
 
 /** Construct the translation table for reordering, dropping or
@@ -2879,7 +2883,8 @@ innobase_build_col_map(
 	const dict_table_t*	new_table,
 	const dict_table_t*	old_table,
 	dtuple_t*		add_cols,
-	mem_heap_t*		heap)
+	mem_heap_t*		heap,
+	row_prebuilt_t*		prebuilt)
 {
 	DBUG_ENTER("innobase_build_col_map");
 	DBUG_ASSERT(altered_table != table);
@@ -2947,7 +2952,7 @@ innobase_build_col_map(
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
 			altered_table->field[i + num_v],
-			dict_table_is_comp(new_table));
+			dict_table_is_comp(new_table), prebuilt);
 found_col:
 		if (is_v) {
 			num_v++;
@@ -4197,7 +4202,8 @@ prepare_inplace_alter_table_dict(
 	ulint			flags2,
 	ulint			fts_doc_id_col,
 	bool			add_fts_doc_id,
-	bool			add_fts_doc_id_idx)
+	bool			add_fts_doc_id_idx,
+	row_prebuilt_t* 	prebuilt)
 {
 	bool			dict_locked	= false;
 	ulint*			add_key_nums;	/* MySQL key numbers */
@@ -4210,6 +4216,7 @@ prepare_inplace_alter_table_dict(
 	ulint			num_fts_index;
 	dict_add_v_col_t*	add_v = NULL;
 	ha_innobase_inplace_ctx*ctx;
+	zip_dict_id_container_t	zip_dict_ids;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
 
@@ -4391,6 +4398,14 @@ prepare_inplace_alter_table_dict(
 		dtuple_t*	add_cols;
 		ulint		space_id = 0;
 		ulint		z = 0;
+		const char*	err_zip_dict_name = 0;
+
+		if (!innobase_check_zip_dicts(altered_table, zip_dict_ids,
+			ctx->trx, &err_zip_dict_name)) {
+			my_error(ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST,
+				MYF(0), err_zip_dict_name);
+			goto new_clustered_failed;
+		}
 
 		if (innobase_check_foreigns(
 			    ha_alter_info, altered_table, old_table,
@@ -4519,7 +4534,11 @@ prepare_inplace_alter_table_dict(
 				if (length_bytes == 2) {
 					field_type |= DATA_LONG_TRUE_VARCHAR;
 				}
+			}
 
+			if (field->column_format() ==
+				COLUMN_FORMAT_TYPE_COMPRESSED) {
+				field_type |= DATA_COMPRESSED;
 			}
 
 			if (col_type == DATA_POINT) {
@@ -4703,7 +4722,7 @@ new_clustered_failed:
 		ctx->col_map = innobase_build_col_map(
 			ha_alter_info, altered_table, old_table,
 			ctx->new_table, user_table,
-			add_cols, ctx->heap);
+			add_cols, ctx->heap, prebuilt);
 		ctx->add_cols = add_cols;
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
@@ -4929,6 +4948,15 @@ op_ok:
 	}
 
 	DBUG_ASSERT(error == DB_SUCCESS);
+
+	/*
+	Adding compression dictionary <-> compressed table column links
+	to the SYS_ZIP_DICT_COLS table.
+	*/
+	if (!zip_dict_ids.empty()) {
+		innobase_create_zip_dict_references(altered_table,
+			ctx->trx->table_id, zip_dict_ids, ctx->trx);
+	}
 
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
@@ -6109,7 +6137,7 @@ found_col:
 			    table_share->table_name.str,
 			    info.flags(), info.flags2(),
 			    fts_doc_col_no, add_fts_doc_id,
-			    add_fts_doc_id_idx));
+			    add_fts_doc_id_idx, m_prebuilt));
 }
 
 /** Check that the column is part of a virtual index(index contains
@@ -6336,7 +6364,7 @@ ok_exit:
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
-		ctx->m_stage, add_v, eval_table);
+		ctx->m_stage, add_v, eval_table, m_prebuilt);
 
 #ifndef DBUG_OFF
 oom:

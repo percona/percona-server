@@ -236,6 +236,17 @@ not of the right form.
 dberr_t
 dict_create_or_check_sys_virtual();
 
+#define ZIP_DICT_MAX_NAME_LENGTH 64
+/* Max window size (2^15) minus 262 */
+#define ZIP_DICT_MAX_DATA_LENGTH 32506
+
+/** Creates the zip_dict system table inside InnoDB
+at server bootstrap or server start if it is not found or is
+not of the right form.
+@return	DB_SUCCESS or error code */
+dberr_t
+dict_create_or_check_sys_zip_dict(void);
+
 /** Put a tablespace definition into the data dictionary,
 replacing what was there previously.
 @param[in]	space	Tablespace id
@@ -263,6 +274,77 @@ dberr_t
 dict_delete_tablespace_and_datafiles(
 	ulint		space,
 	trx_t*		trx);
+
+
+/** Add a single compression dictionary definition to the SYS_ZIP_DICT
+InnoDB system table.
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_add_zip_dict(
+	const char*	name,		/*!< in: dict name */
+	ulint		name_len,	/*!< in: dict name length */
+	const char*	data,		/*!< in: dict data */
+	ulint		data_len,	/*!< in: dict data length */
+	trx_t*		trx);		/*!< in/out: transaction */
+
+/** Add a single compression dictionary reference to the SYS_ZIP_DICT_COLS
+InnoDB system table.
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_add_zip_dict_reference(
+	ulint		table_id,	/*!< in: table id */
+	ulint		column_pos,	/*!< in: column position */
+	ulint		dict_id,	/*!< in: dict id */
+	trx_t*		trx);		/*!< in/out: transaction */
+
+/** Get a single compression dictionary id for the given
+(table id, column pos) pair.
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_get_zip_dict_id_by_reference(
+	ulint	table_id,	/*!< in: table id */
+	ulint	column_pos,	/*!< in: column position */
+	ulint*	dict_id,	/*!< out: dict id */
+	trx_t*	trx);		/*!< in/out: transaction */
+
+/** Get compression dictionary id for the given name.
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_get_zip_dict_id_by_name(
+	const char*	dict_name,	/*!< in: dict name */
+	ulint		dict_name_len,	/*!< in: dict name length */
+	ulint*		dict_id,	/*!< out: dict id */
+	trx_t*		trx);		/*!< in/out: transaction */
+
+/** Get compression dictionary info (name and data) for the given id.
+Allocates memory for name and data on success.
+Must be freed with my_free().
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_get_zip_dict_info_by_id(
+	ulint	dict_id,	/*!< in: dict id */
+	char**	name,		/*!< out: dict name */
+	ulint*	name_len,	/*!< out: dict name length */
+	char**	data,		/*!< out: dict data */
+	ulint*	data_len,	/*!< out: dict data length */
+	trx_t*	trx);		/*!< in/out: transaction */
+
+/** Remove a single compression dictionary from the data dictionary
+tables in the database.
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_remove_zip_dict(
+	const char*	name,		/*!< in: dict name */
+	ulint		name_len,	/*!< in: dict name length */
+	trx_t*		trx);		/*!< in/out: transaction */
+
+/** Remove all compression dictionary references for the given table ID from
+the data dictionary tables in the database.
+@return	error code or DB_SUCCESS */
+dberr_t
+dict_create_remove_zip_dict_references_for_table(
+	ulint	table_id,	/*!< in: table id */
+	trx_t*	trx);		/*!< in/out: transaction */
 
 /********************************************************************//**
 Add a foreign key definition to the data dictionary tables.

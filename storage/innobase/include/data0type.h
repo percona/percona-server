@@ -196,6 +196,9 @@ be less than 256 */
 				for shorter VARCHARs MySQL uses only 1 byte */
 #define	DATA_VIRTUAL	8192	/* Virtual column */
 
+#define	DATA_COMPRESSED	16384	/* this is ORed to the precise data
+				type when the column has COLUMN_FORMAT =
+				COMPRESSED attribute*/
 /*-------------------------------------------*/
 
 /* This many bytes we need to store the type information affecting the
@@ -244,10 +247,12 @@ the underling datatype of GEOMETRY(not DATA_POINT) data. */
 				 || (mtype) == DATA_GEOMETRY)
 
 /* For checking if data type is big length data type. */
-#define DATA_BIG_LEN_MTYPE(len, mtype) ((len) > 255 || DATA_LARGE_MTYPE(mtype))
+#define DATA_BIG_LEN_MTYPE(len, mtype, extra) ((len) > 255 - (extra) || \
+	DATA_LARGE_MTYPE(mtype))
 
 /* For checking if the column is a big length column. */
-#define DATA_BIG_COL(col) DATA_BIG_LEN_MTYPE((col)->len, (col)->mtype)
+#define DATA_BIG_COL(col) DATA_BIG_LEN_MTYPE((col)->len, (col)->mtype, \
+	prtype_get_compression_extra((col)->prtype))
 
 /* For checking if data type is large binary data type. */
 #define DATA_LARGE_BINARY(mtype,prtype) ((mtype) == DATA_GEOMETRY || \
@@ -542,6 +547,17 @@ void
 dtype_print(
 /*========*/
 	const dtype_t*	type);	/*!< in: type */
+
+/**
+Calculates the number of extra bytes needed for compression header
+depending on precise column type.
+@reval 0 if prtype does not include DATA_COMPRESSED flag
+@reval ZIP_COLUMN_HEADER_LENGTH if prtype includes DATA_COMPRESSED flag
+*/
+UNIV_INLINE
+ulint
+prtype_get_compression_extra(
+	ulint		prtype);	/*!< in: precise type */
 
 /* Structure for an SQL data type.
 If you add fields to this structure, be sure to initialize them everywhere.

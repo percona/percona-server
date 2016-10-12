@@ -2888,6 +2888,7 @@ DECLARE_THREAD(srv_worker_thread)(
 		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
+	thd_free_innodb_session(thd);
 	destroy_thd(thd);
         my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
@@ -3217,6 +3218,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
+	thd_free_innodb_session(thd);
 	destroy_thd(thd);
 	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created

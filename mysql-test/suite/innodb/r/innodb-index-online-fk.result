@@ -124,6 +124,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -332,6 +334,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -374,6 +378,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -427,6 +433,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -480,6 +488,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category

@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0thread.h"
 #include "que0que.h"
 #include "read0read.h"
+#include "row0mysql.h"
 #include "row0purge.h"
 #include "row0upd.h"
 #include "srv0mon.h"
@@ -198,8 +199,12 @@ trx_purge_graph_build(
 
 	for (i = 0; i < n_purge_threads; ++i) {
 		que_thr_t*	thr;
+		row_prebuilt_t*	prebuilt;
 
-		thr = que_thr_create(fork, heap, NULL);
+		prebuilt = static_cast<row_prebuilt_t*>(
+			mem_heap_zalloc(heap, sizeof(*prebuilt)));
+
+		thr = que_thr_create(fork, heap, prebuilt);
 
 		thr->child = row_purge_node_create(thr, heap);
 	}
@@ -273,6 +278,15 @@ void
 trx_purge_sys_close(void)
 /*======================*/
 {
+	for (que_thr_t* thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+		thr != NULL;
+		thr = UT_LIST_GET_NEXT(thrs, thr)) {
+		if (thr->prebuilt != 0 &&
+			thr->prebuilt->compress_heap != 0) {
+			row_mysql_prebuilt_free_compress_heap(thr->prebuilt);
+		}
+	}
+
 	que_graph_free(purge_sys->query);
 
 	ut_a(purge_sys->trx->id == 0);

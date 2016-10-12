@@ -219,7 +219,8 @@ row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id);	/*!< in: index identifier */
+	index_id_t	index_id)	/*!< in: index identifier */
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Rename an index in the dictionary that is to be dropped. The data
 dictionary must have been locked exclusively by the caller, because
@@ -230,7 +231,8 @@ row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id);	/*!< in: index identifier */
+	index_id_t	index_id)	/*!< in: index identifier */
+	MY_ATTRIBUTE((warn_unused_result));
 /** Create the index and load in to the dictionary.
 @param[in,out]	trx		trx (sets error_state)
 @param[in,out]	table		the index is on this table
@@ -291,6 +293,7 @@ this function and it will be passed to other functions for further accounting.
 @param[in]	add_v		new virtual columns added along with indexes
 @param[in]	eval_table	mysql table used to evaluate virtual column
 				value, see innobase_get_computed_value().
+@param[in]	prebuilt	compress_heap must be taken from here
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -309,7 +312,8 @@ row_merge_build_indexes(
 	bool			skip_pk_sort,
 	ut_stage_alter_t*	stage,
 	const dict_add_v_col_t*	add_v,
-	struct TABLE*		eval_table)
+	struct TABLE*		eval_table,
+	row_prebuilt_t*		prebuilt)
 MY_ATTRIBUTE((warn_unused_result));
 
 /********************************************************************//**

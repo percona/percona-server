@@ -783,8 +783,8 @@ rec_get_nth_field_offs_old(
 
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
-@return total size */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result, nonnull(1,2)))
+@return	total size */
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_get_converted_size_comp_prefix_low(
 /*===================================*/
@@ -864,7 +864,12 @@ rec_get_converted_size_comp_prefix_low(
 		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype)
                       || (DATA_POINT_MTYPE(col->mtype)
 			  && len == DATA_MBR_LEN)
-		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
+		      || ((col->mtype == DATA_VARCHAR
+			  || col->mtype == DATA_BINARY
+			  || col->mtype == DATA_VARMYSQL)
+			 && (col->len == 0
+			     || len <= col->len +
+			        prtype_get_compression_extra(col->prtype))));
 
 		fixed_len = field->fixed_len;
 		if (temp && fixed_len
@@ -1343,13 +1348,16 @@ rec_convert_dtuple_to_rec_comp(
 		} else {
 			/* DATA_POINT would have a fixed_len */
 			ut_ad(dtype_get_mtype(type) != DATA_POINT);
-			ut_ad(len <= dtype_get_len(type)
+			ut_ad(len <= dtype_get_len(type) +
+			      prtype_get_compression_extra(
+			        dtype_get_prtype(type))
 			      || DATA_LARGE_MTYPE(dtype_get_mtype(type))
 			      || !strcmp(index->name,
 					 FTS_INDEX_TABLE_IND_NAME));
 			if (len < 128 || !DATA_BIG_LEN_MTYPE(
-				dtype_get_len(type), dtype_get_mtype(type))) {
-
+				dtype_get_len(type), dtype_get_mtype(type),
+				prtype_get_compression_extra(
+					dtype_get_prtype(type)))) {
 				*lens-- = (byte) len;
 			} else {
 				ut_ad(len < 16384);

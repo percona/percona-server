@@ -19,6 +19,11 @@
 
 #include "my_global.h"
 
+/**
+  First mysql version supporting compressed columns.
+*/
+#define FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION 50633
+
 C_MODE_START
 
 extern const char *my_defaults_extra_file;

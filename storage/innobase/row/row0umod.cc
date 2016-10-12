@@ -495,7 +495,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	old_has = row_vers_old_has_index_entry(FALSE,
 					       btr_pcur_get_rec(&(node->pcur)),
 					       &mtr_vers, index, entry,
-					       0, 0);
+					       0, 0, thr->prebuilt);
 	if (old_has) {
 		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						   btr_cur, TRUE, thr, &mtr);

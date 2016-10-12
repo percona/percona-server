@@ -7768,6 +7768,27 @@ ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
 WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
 
+ER_COMPRESSED_COLUMN_USED_AS_KEY
+  eng "Compressed column '%-.192s' is not allowed in the key list"
+
+ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+  eng "Can not define column '%-.192s' in compressed format"
+
+ER_COMPRESSION_DICTIONARY_EXISTS
+  eng "Compression dictionary '%-.192s' already exists"
+
+ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+  eng "Compression dictionary '%-.192s' does not exist"
+
+ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG
+  eng "Compression dictionary name '%-.192s' is too long (max length = %lu)"
+
+ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
+  eng "Data for compression dictionary '%-.192s' is too long (max length = %lu)"
+
+ER_COMPRESSION_DICTIONARY_IS_REFERENCED
+  eng "Compression dictionary '%-.192s' is in use"
+
 #
 #  End of 5.7 error messages.
 #

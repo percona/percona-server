@@ -114,6 +114,12 @@ BEGIN
   -- Dump all views, only those in the sys schema should exist
   SELECT * FROM INFORMATION_SCHEMA.VIEWS;
 
+  -- Dump all created compression dictionaries if InnoDB is enabled
+  IF ((SELECT COUNT(*) FROM information_schema.engines
+       WHERE engine = 'InnoDB' AND support IN ('YES', 'DEFAULT')) = 1) THEN
+    SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
+  END IF;
+
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 
   -- Checksum system tables to make sure they have been properly

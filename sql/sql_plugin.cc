@@ -172,6 +172,8 @@ static bool initialized= 0;
 static MEM_ROOT plugin_mem_root;
 static uint global_variables_dynamic_size= 0;
 static HASH bookmark_hash;
+/** Hash for system variables of string type with MEMALLOC flag. */
+static HASH malloced_string_type_sysvars_bookmark_hash;
 
 
 /*
@@ -1299,6 +1301,9 @@ int plugin_init(int *argc, char **argv, int flags)
                    get_bookmark_hash_key, NULL, HASH_UNIQUE))
       goto err;
 
+  if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
+                   16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE))
+      goto err;
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
@@ -1828,6 +1833,7 @@ void plugin_shutdown(void)
   delete_dynamic(&plugin_dl_array);
 
   my_hash_free(&bookmark_hash);
+  my_hash_free(&malloced_string_type_sysvars_bookmark_hash);
   free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size= 0;
@@ -2695,6 +2701,19 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     if (my_hash_insert(&bookmark_hash, (uchar*) result))
     {
       fprintf(stderr, "failed to add placeholder to hash");
+      DBUG_ASSERT(0);
+    }
+
+    /*
+      Hashing vars of string type with MEMALLOC flag.
+    */
+    if (((flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
+        (flags & PLUGIN_VAR_MEMALLOC) &&
+        (my_hash_insert(&malloced_string_type_sysvars_bookmark_hash,
+                        (uchar *)result)))
+    {
+      fprintf(stderr, "failed to add placeholder to"
+                      " hash of malloced string type sysvars");
       DBUG_ASSERT(0);
     }
   }
@@ -4028,45 +4047,69 @@ int unlock_plugin_data()
   Create deep copy of system_variables instance.
 */
 struct system_variables *
-copy_system_variables(const struct system_variables *src,
-                      bool enable_plugins)
+copy_system_variables(THD *thd, bool enable_plugins)
 {
   struct system_variables *dst;
+  ulong idx;
 
-  DBUG_ASSERT(src);
+  DBUG_ASSERT(thd);
 
   dst= (struct system_variables *)
     my_malloc(sizeof(struct system_variables), MYF(MY_WME | MY_FAE));
-  *dst = *src;
+  *dst = thd->variables;
 
   if (dst->dynamic_variables_ptr)
   {
     dst->dynamic_variables_ptr=
       (char *)my_malloc(dst->dynamic_variables_size, MYF(MY_WME | MY_FAE));
     memcpy(dst->dynamic_variables_ptr,
-           src->dynamic_variables_ptr,
-           src->dynamic_variables_size);
+           thd->variables.dynamic_variables_ptr,
+           thd->variables.dynamic_variables_size);
   }
 
-  dst->dynamic_variables_allocs= 0;
+  dst->dynamic_variables_allocs= thd->variables.dynamic_variables_allocs;
+  thd->variables.dynamic_variables_allocs= NULL;
 
-  for (LIST *i= src->dynamic_variables_allocs; i; i= i->next)
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+
+  /*
+    Iterate through newly copied vars of string type with MEMALLOC
+    flag and strdup value.
+  */
+  for (idx= 0; idx < malloced_string_type_sysvars_bookmark_hash.records; idx++)
   {
-    const char *src_value= (const char *)(i + 1);
-    size_t src_length= strlen(src_value) + 1;
-    LIST *dst_el= (LIST *) my_malloc(sizeof(LIST) + src_length, MYF(MY_WME | MY_FAE));
-    memcpy(dst_el + 1, src_value, src_length);
-    dst->dynamic_variables_allocs= list_add(dst->dynamic_variables_allocs,
-                                             dst_el);
+    char **var;
+    st_bookmark *v=
+      (st_bookmark*)my_hash_element(&malloced_string_type_sysvars_bookmark_hash,
+                                    idx);
+
+    if (thd->variables.dynamic_variables_ptr == NULL ||
+        (uint) v->offset > thd->variables.dynamic_variables_head)
+      continue;
+
+    var= (char **) (thd->variables.dynamic_variables_ptr + v->offset);
+
+    if (*var)
+    {
+      size_t length= strlen(*var) + 1;
+      LIST *element;
+      element= (LIST *) my_malloc(sizeof(LIST) + length, MYF(MY_FAE));
+      memcpy(element + 1, *var, length);
+      *var= (char *) (element + 1);
+      thd->variables.dynamic_variables_allocs=
+        list_add(thd->variables.dynamic_variables_allocs, element);
+    }
   }
+
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (enable_plugins)
   {
     mysql_mutex_lock(&LOCK_plugin);
     dst->table_plugin=
-      my_intern_plugin_lock(NULL, src->table_plugin);
+      my_intern_plugin_lock(NULL, thd->variables.table_plugin);
     dst->temp_table_plugin=
-      my_intern_plugin_lock(NULL, src->temp_table_plugin);
+      my_intern_plugin_lock(NULL, thd->variables.temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
 

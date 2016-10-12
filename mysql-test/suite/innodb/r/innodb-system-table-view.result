@@ -3,6 +3,8 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
 12	SYS_FOREIGN_COLS	0	7	0	Antelope	Redundant	0
 13	SYS_TABLESPACES	0	6	0	Antelope	Redundant	0
 14	SYS_DATAFILES	0	5	0	Antelope	Redundant	0
+15	SYS_ZIP_DICT	0	6	0	Antelope	Redundant	0
+16	SYS_ZIP_DICT_COLS	0	6	0	Antelope	Redundant	0
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME
@@ -17,6 +19,12 @@ table_id	pos	mtype	prtype	len	name
 13	2	6	0	4	FLAGS
 14	0	6	0	4	SPACE
 14	1	1	524292	0	PATH
+15	0	6	768	4	ID
+15	1	1	524548	64	NAME
+15	2	5	4130048	0	DATA
+16	0	6	768	4	TABLE_ID
+16	1	6	768	4	COLUMN_POS
+16	2	6	768	4	DICT_ID
 index_id	table_id	type	n_fields	space	name
 11	11	3	1	0	ID_IND
 12	11	0	1	0	FOR_IND
@@ -24,6 +32,9 @@ index_id	table_id	type	n_fields	space	name
 14	12	3	2	0	ID_IND
 15	13	3	1	0	SYS_TABLESPACES_SPACE
 16	14	3	1	0	SYS_DATAFILES_SPACE
+17	15	3	1	0	SYS_ZIP_DICT_ID
+18	15	2	1	0	SYS_ZIP_DICT_NAME
+19	16	3	2	0	SYS_ZIP_DICT_COLS_COMPOSITE
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
 WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port')
 ORDER BY index_id, pos;
@@ -33,6 +44,9 @@ index_id	pos	name
 14	1	POS
 15	0	SPACE
 16	0	SPACE
+18	0	NAME
+19	0	TABLE_ID
+19	1	COLUMN_POS
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -75,7 +89,7 @@ MYSQLD_DATADIR/test/t_redundant.ibd
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)
-9
+11
 CREATE TABLE parent (id INT NOT NULL,
 PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE child (id INT, parent_id INT,
@@ -101,6 +115,8 @@ SYS_DATAFILES	0	5
 SYS_FOREIGN	0	7
 SYS_FOREIGN_COLS	0	7
 SYS_TABLESPACES	0	6
+SYS_ZIP_DICT	0	6
+SYS_ZIP_DICT_COLS	0	6
 mysql/innodb_index_stats	1	11
 mysql/innodb_table_stats	1	9
 mysql/slave_master_info	1	26

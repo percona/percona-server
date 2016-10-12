@@ -412,7 +412,8 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 enum column_format_type {
   COLUMN_FORMAT_TYPE_DEFAULT=   0, /* Not specified (use engine default) */
   COLUMN_FORMAT_TYPE_FIXED=     1, /* FIXED format */
-  COLUMN_FORMAT_TYPE_DYNAMIC=   2  /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_DYNAMIC=   2, /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_COMPRESSED= 3  /* COMPRESSED format*/
 };
 
 enum enum_binlog_func {
@@ -800,6 +801,31 @@ struct handler_iterator {
   void *buffer;
 };
 
+/** Create compression dictionary result type. */
+enum handler_create_zip_dict_result
+{
+  HA_CREATE_ZIP_DICT_OK,             /*!< zip_dict successfully created */
+  HA_CREATE_ZIP_DICT_ALREADY_EXISTS, /*!< zip dict with such name already
+                                          exists */
+  HA_CREATE_ZIP_DICT_NAME_TOO_LONG,  /*!< zip dict name is too long */
+  HA_CREATE_ZIP_DICT_DATA_TOO_LONG,  /*!< zip dict data is too long */
+  HA_CREATE_ZIP_DICT_READ_ONLY,      /*!< cannot create in read-only mode */
+  HA_CREATE_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
+                                          creation */
+};
+
+/** Drop compression dictionary result type. */
+enum handler_drop_zip_dict_result
+{
+  HA_DROP_ZIP_DICT_OK,             /*!< zip_dict successfully dropped */
+  HA_DROP_ZIP_DICT_DOES_NOT_EXIST, /*!< zip dict with such name does not
+                                        exist */
+  HA_DROP_ZIP_DICT_IS_REFERENCED,  /*!< zip dict is in use */
+  HA_DROP_ZIP_DICT_READ_ONLY,      /*!< cannot drop in read-only mode */
+  HA_DROP_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
+                                        removal */
+};
+
 class handler;
 /*
   handlerton is a singleton structure - one instance per storage engine -
@@ -993,6 +1019,38 @@ struct handlerton
   bool (*is_supported_system_table)(const char *db,
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
+
+  /**
+    Creates a new compression dictionary with the specified data for this SE.
+
+    @param hton                       handletron object.
+    @param thd                        thread descriptor.
+    @param name                       compression dictionary name
+    @param name_len                   compression dictionary name length
+    @param data                       compression dictionary data
+    @param data_len                   compression dictionary data length
+
+    @return a valid #handler_create_zip_dict_result value.
+
+    This interface is optional, so not every SE needs to implement it.
+  */
+  handler_create_zip_dict_result (*create_zip_dict)(handlerton *hton,
+    THD* thd, const char* name, ulong* name_len, const char* data,
+    ulong* data_len);
+  /**
+    Deletes a compression dictionary for this SE.
+
+    @param hton                       handletron object.
+    @param thd                        thread descriptor.
+    @param name                       compression dictionary name
+    @param name_len                   compression dictionary name length
+
+    @return a valid #handler_drop_zip_dict_result value.
+
+    This interface is optional, so not every SE needs to implement it.
+  */
+  handler_drop_zip_dict_result (*drop_zip_dict)(handlerton *hton, THD* thd,
+    const char* name, ulong* name_len);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -3344,6 +3402,13 @@ public:
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+  /**
+    This method is supposed to fill field definition objects with
+    compression dictionary info (name and data).
+    If the handler does not support compression dictionaries
+    this method should be left empty (not overloaded).
+  */
+  virtual void update_field_defs_with_zip_dict_info() { }
 
 public:
   /* Read-free replication interface */
@@ -3518,10 +3583,13 @@ void ha_close_connection(THD* thd);
 void ha_kill_connection(THD *thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
+
+class Create_field;
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		                bool update_create_info,
+                    const List<Create_field> *create_fields,
+                    bool update_create_info,
                     bool is_temp_table= false);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,

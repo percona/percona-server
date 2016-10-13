@@ -3553,7 +3553,7 @@ end_with_restore_list:
       and thus classify as slow administrative statements just like
       ALTER TABLE.
     */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->set_slow_log_for_admin_command();
 
     memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;

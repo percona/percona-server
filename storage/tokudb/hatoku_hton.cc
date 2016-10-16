@@ -273,6 +273,14 @@ static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("%p", p);
     int r;
 
+    // tokudb row status variable init
+    memset(&toku_row_status, 0, sizeof(toku_row_status));
+    toku_row_status.last_monitor_time = time(NULL);
+    toku_row_status.inserted = create_partitioned_counter();
+    toku_row_status.deleted = create_partitioned_counter();
+    toku_row_status.updated = create_partitioned_counter();
+    toku_row_status.read = create_partitioned_counter();
+
     // 3938: lock the handlerton's initialized status flag for writing
     tokudb_hton_initialized_lock.lock_write();
 
@@ -697,6 +705,15 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
         destroy_partitioned_counter(tokudb_primary_key_bytes_inserted);
         tokudb_primary_key_bytes_inserted = NULL;
     }
+
+    if (toku_row_status.inserted)
+        destroy_partitioned_counter(toku_row_status.inserted);
+    if (toku_row_status.deleted)
+        destroy_partitioned_counter(toku_row_status.deleted);
+    if (toku_row_status.updated)
+        destroy_partitioned_counter(toku_row_status.updated);
+    if (toku_row_status.read)
+        destroy_partitioned_counter(toku_row_status.read);
 
 #if TOKU_THDVAR_MEMALLOC_BUG
     delete_tree(&tokudb_map);
@@ -1260,6 +1277,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     const int bufsiz = 1024;
     char buf[bufsiz];
 
+    double time_elapsed;
+    time_t current_time;
+
 #if MYSQL_VERSION_ID < 50500
     {
         sys_var* version = intern_find_sys_var("version", 0, false);
@@ -1373,6 +1393,46 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
             tokudb_primary_key_bytes_inserted);
         snprintf(buf, bufsiz, "%" PRIu64, bytes_inserted);
         STATPRINT("handlerton: primary key bytes inserted", buf);
+        
+        /* tokudb row status */
+        uint64_t inserted = toku_row_status.inserted_old;
+        uint64_t updated = toku_row_status.updated_old;
+        uint64_t deleted = toku_row_status.deleted_old;
+        uint64_t read = toku_row_status.read_old;
+
+        current_time = time(NULL);
+        time_elapsed = difftime(current_time, toku_row_status.last_monitor_time);
+        if (time_elapsed >= 1.00) {
+            inserted = read_partitioned_counter(toku_row_status.inserted);
+            toku_row_status.inserts = ((inserted - toku_row_status.inserted_old) / time_elapsed);
+            toku_row_status.inserted_old = inserted;
+
+            updated = read_partitioned_counter(toku_row_status.updated);
+            toku_row_status.updates = ((updated - toku_row_status.updated_old) / time_elapsed);
+            toku_row_status.updated_old = updated;
+
+            deleted = read_partitioned_counter(toku_row_status.deleted);
+            toku_row_status.deletes = ((deleted - toku_row_status.deleted_old) / time_elapsed);
+            toku_row_status.deleted_old = deleted;
+
+            read = read_partitioned_counter(toku_row_status.read);
+            toku_row_status.reads = ((read - toku_row_status.read_old) / time_elapsed);
+            toku_row_status.read_old = read;
+
+            toku_row_status.last_monitor_time = time(NULL);
+        }
+
+        snprintf(buf, bufsiz, "Number of rows inserted %" PRIu64 ", updated %" PRIu64 ", deleted %" PRIu64 ", read %" PRIu64 "\n"
+                "%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s",
+                inserted,
+                updated,
+                deleted,
+                read,
+                toku_row_status.inserts,
+                toku_row_status.updates,
+                toku_row_status.deletes,
+                toku_row_status.reads);
+        STATPRINT("row: operation status", buf);
     }  
     if (error) { set_my_errno(error); }
     TOKUDB_DBUG_RETURN(error);

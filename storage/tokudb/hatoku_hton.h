@@ -199,4 +199,27 @@ void tokudb_pretty_left_key(const DB* db, const DBT* key, String* out);
 void tokudb_pretty_right_key(const DB* db, const DBT* key, String* out);
 const char *tokudb_get_index_name(DB* db);
 
+/* row status */
+struct tokudb_row_status {
+    PARTITIONED_COUNTER inserted;
+    uint64_t inserted_old;
+    double inserts;
+
+    PARTITIONED_COUNTER updated;
+    uint64_t updated_old;
+    double updates;
+
+    PARTITIONED_COUNTER deleted;
+    uint64_t deleted_old;
+    double deletes;
+
+    PARTITIONED_COUNTER read;
+    uint64_t read_old;
+    double reads;
+
+    time_t last_monitor_time;
+};
+
+static tokudb_row_status toku_row_status;
+
 #endif //#ifdef _HATOKU_HTON

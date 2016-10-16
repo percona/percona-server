@@ -1,0 +1,19 @@
+CREATE TABLE t1 (a int) ENGINE=TOKUDB;
+INSERT t1 VALUES(10);
+INSERT INTo t1 SELECT * from t1;
+INSERT INTo t1 SELECT * from t1;
+UPDATE t1 SET a=13;
+SELECT * from t1;
+DELETE FROM t1;
+
+--let $tmp= query_get_value(SHOW ENGINE TokuDB STATUS, Status, 323)
+--let $tmp= `SELECT '$tmp' like 'Number of rows inserted%'`
+--echo $tmp
+
+#test 2s refresh
+SELECT SLEEP(2);
+--let $tmp= query_get_value(SHOW ENGINE TokuDB STATUS, Status, 323)
+--let $tmp= `SELECT '$tmp' like 'Number of rows inserted%'`
+--echo $tmp
+
+DROP TABLE t1;

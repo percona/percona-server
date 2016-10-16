@@ -204,6 +204,7 @@ INCLUDE(protobuf)
 INCLUDE(mysql_version)
 INCLUDE(libutils)
 INCLUDE(dtrace)
+INCLUDE(jemalloc)
 INCLUDE(plugin)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
@@ -493,6 +494,7 @@ MYSQL_CHECK_LZ4()
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
 ENDIF()
+CHECK_JEMALLOC()
 
 # Check for SYS_thread_selfid system call
 CHECK_C_SOURCE_COMPILES("

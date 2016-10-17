@@ -453,3 +453,23 @@ When this variable is enabled it allows the evictor to compress unused internal 
    :default: OFF
   
 When this variable is set to ``ON`` during the startup server will check all the status files and remove the embedded :file:`.frm` metadata. This variable can be used to assist in |TokuDB| data recovery. **WARNING:** Use this variable only if you know what you're doing otherwise it could lead to data loss.
+
+.. variable:: tokudb_dir_per_db
+
+   :version 5.6.33-79.0: Implemented
+   :cli: Yes
+   :conf: Yes
+   :scope: Global
+   :dyn: Yes
+   :vartype: Boolean
+   :range: ON/OFF
+   :default: OFF
+
+When this variable is set to `ON` all new tables and indices will be placed
+within their corresponding database directory within the
+:variable:`tokudb_data_dir` or system :term:`datadir`. Existing table files
+will not be automatically relocated to their corresponding database directory.
+If you rename a table, while this variable is enabled, the mapping in the
+|Percona FT| directory file will be updated and the files will be renamed on
+disk to reflect the new table name.
+

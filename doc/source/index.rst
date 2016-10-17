@@ -98,6 +98,7 @@ Flexibility Improvements
    flexibility/proxy_protocol_support
    flexibility/per_session_server-id
    flexibility/extended_tls_support
+   flexibility/compressed_columns
 
 Reliability Improvements
 ========================
@@ -166,6 +167,8 @@ TokuDB
    tokudb/tokudb_intro
    tokudb/tokudb_installation
    tokudb/using_tokudb
+   tokudb/tokudb_files_and_file_types
+   tokudb/tokudb_file_management
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
    tokudb/tokudb_troubleshooting

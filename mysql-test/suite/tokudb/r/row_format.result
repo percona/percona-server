@@ -8,7 +8,7 @@ CREATE TABLE tokudb_row_format_test_7 (a INT) ENGINE=TokuDB ROW_FORMAT=TOKUDB_QU
 CREATE TABLE tokudb_row_format_test_8 (a INT) ENGINE=TokuDB ROW_FORMAT=TOKUDB_SNAPPY;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name like 'tokudb_row_format_test%' ORDER BY table_name;
 table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_zlib	TokuDB
+tokudb_row_format_test_1	tokudb_zstd	TokuDB
 tokudb_row_format_test_2	tokudb_quicklz	TokuDB
 tokudb_row_format_test_3	tokudb_lzma	TokuDB
 tokudb_row_format_test_4	tokudb_uncompressed	TokuDB
@@ -47,5 +47,5 @@ tokudb_row_format_test_1	tokudb_lzma	TokuDB
 ALTER TABLE tokudb_row_format_test_1 ENGINE=TokuDB ROW_FORMAT=TOKUDB_DEFAULT;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name = 'tokudb_row_format_test_1';
 table_name	row_format	engine
-tokudb_row_format_test_1	tokudb_zlib	TokuDB
+tokudb_row_format_test_1	tokudb_zstd	TokuDB
 DROP TABLE tokudb_row_format_test_1, tokudb_row_format_test_2, tokudb_row_format_test_3, tokudb_row_format_test_4, tokudb_row_format_test_5, tokudb_row_format_test_6, tokudb_row_format_test_7, tokudb_row_format_test_8;

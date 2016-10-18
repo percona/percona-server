@@ -419,7 +419,7 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
                 /** Unused. Reserved for future versions. */
                 ROW_TYPE_PAGE,
                 ROW_TYPE_TOKU_UNCOMPRESSED, ROW_TYPE_TOKU_ZLIB,
-                ROW_TYPE_TOKU_SNAPPY, ROW_TYPE_TOKU_QUICKLZ,
+                ROW_TYPE_TOKU_SNAPPY, ROW_TYPE_TOKU_ZSTD, ROW_TYPE_TOKU_QUICKLZ,
                 ROW_TYPE_TOKU_LZMA, ROW_TYPE_TOKU_FAST, ROW_TYPE_TOKU_SMALL,
                 ROW_TYPE_TOKU_DEFAULT };
 

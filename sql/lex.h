@@ -631,6 +631,7 @@ static const SYMBOL symbols[] = {
   { SYM("TOKUDB_QUICKLZ",           TOKU_QUICKLZ_SYM)},
   { SYM("TOKUDB_SMALL",             TOKU_SMALL_SYM)},
   { SYM("TOKUDB_SNAPPY",            TOKU_SNAPPY_SYM)},
+  { SYM("TOKUDB_ZSTD",              TOKU_ZSTD_SYM)},
   { SYM("TOKUDB_UNCOMPRESSED",      TOKU_UNCOMPRESSED_SYM)},
   { SYM("TOKUDB_ZLIB",              TOKU_ZLIB_SYM)},
   { SYM("TOKUDB_DEFAULT",           TOKU_DEFAULT_SYM)},

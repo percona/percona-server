@@ -6914,7 +6914,7 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
         // show create table asks us to update this create_info, this makes it
         // so we'll always show what compression type we're using
         create_info->row_type = get_row_type();
-        if (create_info->row_type == ROW_TYPE_TOKU_ZLIB &&
+        if (create_info->row_type == ROW_TYPE_TOKU_ZSTD &&
             tokudb::sysvars::hide_default_row_format(ha_thd()) != 0) {
             create_info->row_type = ROW_TYPE_DEFAULT;
         }

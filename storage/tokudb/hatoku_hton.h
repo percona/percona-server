@@ -50,6 +50,8 @@ inline tokudb::sysvars::row_format_t toku_compression_method_to_row_format(
         return tokudb::sysvars::SRV_ROW_FORMAT_ZLIB;
     case TOKU_SNAPPY_METHOD:
         return tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY;
+    case TOKU_ZSTD_METHOD:
+        return tokudb::sysvars::SRV_ROW_FORMAT_ZSTD;
     case TOKU_QUICKLZ_METHOD:
         return tokudb::sysvars::SRV_ROW_FORMAT_QUICKLZ;
     case TOKU_LZMA_METHOD:
@@ -76,8 +78,10 @@ inline toku_compression_method row_format_to_toku_compression_method(
         return TOKU_QUICKLZ_METHOD;
     case tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY:
         return TOKU_SNAPPY_METHOD;
-    case tokudb::sysvars::SRV_ROW_FORMAT_ZLIB:
+    case tokudb::sysvars::SRV_ROW_FORMAT_ZSTD:
     case tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT:
+        return TOKU_ZSTD_METHOD;
+    case tokudb::sysvars::SRV_ROW_FORMAT_ZLIB:
         return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
     case tokudb::sysvars::SRV_ROW_FORMAT_LZMA:
     case tokudb::sysvars::SRV_ROW_FORMAT_SMALL:
@@ -97,6 +101,8 @@ inline enum row_type row_format_to_row_type(
         return ROW_TYPE_TOKU_ZLIB;
     case tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY:
         return ROW_TYPE_TOKU_SNAPPY;
+    case tokudb::sysvars::SRV_ROW_FORMAT_ZSTD:
+        return ROW_TYPE_TOKU_ZSTD;
     case tokudb::sysvars::SRV_ROW_FORMAT_QUICKLZ:
         return ROW_TYPE_TOKU_QUICKLZ;
     case tokudb::sysvars::SRV_ROW_FORMAT_LZMA:
@@ -122,6 +128,8 @@ inline tokudb::sysvars::row_format_t row_type_to_row_format(
         return tokudb::sysvars::SRV_ROW_FORMAT_ZLIB;
     case ROW_TYPE_TOKU_SNAPPY:
         return tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY;
+    case ROW_TYPE_TOKU_ZSTD:
+        return tokudb::sysvars::SRV_ROW_FORMAT_ZSTD;
     case ROW_TYPE_TOKU_QUICKLZ:
         return tokudb::sysvars::SRV_ROW_FORMAT_QUICKLZ;
     case ROW_TYPE_TOKU_LZMA:

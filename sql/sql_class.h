@@ -2092,6 +2092,10 @@ public:
   uint       last_errno;
   /*** The variables above used in slow_extended.patch ***/
 
+  inline void set_slow_log_for_admin_command() {
+	  enable_slow_log= opt_log_slow_admin_statements
+		  && (sp_runtime_ctx ? opt_log_slow_sp_statements : true);
+  }
   /*** Following methods used in slow_extended.patch ***/
   void clear_slow_extended();
 private:

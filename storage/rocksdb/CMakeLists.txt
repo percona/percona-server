@@ -54,7 +54,9 @@ IF (NOT "$ENV{WITH_SNAPPY}" STREQUAL "")
   $ENV{WITH_SNAPPY}/lib/libsnappy${PIC_EXT}.a)
   ADD_DEFINITIONS(-DSNAPPY)
 ELSE()
-  SET(rocksdb_static_libs ${rocksdb_static_libs} snappy)
+# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
+# SET(rocksdb_static_libs ${rocksdb_static_libs} snappy)
+# MYR-28
 ENDIF()
 
 IF (NOT "$ENV{WITH_LZ4}" STREQUAL "")
@@ -62,7 +64,9 @@ IF (NOT "$ENV{WITH_LZ4}" STREQUAL "")
   $ENV{WITH_LZ4}/lib/liblz4${PIC_EXT}.a)
   ADD_DEFINITIONS(-DLZ4)
 ELSE()
-  SET(rocksdb_static_libs ${rocksdb_static_libs} lz4)
+# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
+#  SET(rocksdb_static_libs ${rocksdb_static_libs} lz4)
+# MYR-28
 ENDIF()
 
 IF (NOT "$ENV{WITH_BZ2}" STREQUAL "")
@@ -70,7 +74,9 @@ IF (NOT "$ENV{WITH_BZ2}" STREQUAL "")
   $ENV{WITH_BZ2}/lib/libbz2${PIC_EXT}.a)
   ADD_DEFINITIONS(-DBZIP2)
 ELSE()
-  SET(rocksdb_static_libs ${rocksdb_static_libs} bz2)
+# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
+#  SET(rocksdb_static_libs ${rocksdb_static_libs} bz2)
+# MYR-28
 ENDIF()
 
 # link ZSTD only if instructed

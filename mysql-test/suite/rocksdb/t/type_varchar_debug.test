@@ -1,7 +1,7 @@
 #
 # VARCHAR encoding tests that require debug support
 #
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 --source include/have_debug.inc
 
 --disable_warnings

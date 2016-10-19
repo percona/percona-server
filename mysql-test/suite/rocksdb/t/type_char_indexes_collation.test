@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 --source include/have_debug.inc
 
 # Test to see if index-only scan fails gracefully if unpack info is not

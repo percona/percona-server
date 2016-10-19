@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 # Important:
 # The test needs to be run with --mysqld=--query-cache-type=1

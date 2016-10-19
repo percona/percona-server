@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 # Make sure that the InnoDb information schema tables are disabled when InnoDB
 # is turned off and attempting to access them doesn't crash.

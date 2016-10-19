@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 let $ddir = $MYSQL_TMP_DIR/.rocksdb_datadir.test.install.db;
 let $rdb_ddir = $MYSQL_TMP_DIR/.rocksdb_datadir.test;

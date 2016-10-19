@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 # Hermitage is an attempt to test transaction isolation levels.
 # https://github.com/ept/hermitage

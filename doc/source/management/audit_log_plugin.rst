@@ -413,7 +413,7 @@ This variable can be used to specify the size of memory buffer used for logging,
 
 .. variable:: audit_log_exclude_accounts
 
-    :version 5.6.38-78.0: Implemented
+    :version 5.6.32-78.0: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -427,7 +427,7 @@ or host contains comma). If this variable is set, then
 
 .. variable:: audit_log_exclude_commands
 
-    :version 5.6.38-78.0: Implemented
+    :version 5.6.32-78.0: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -453,7 +453,7 @@ This variable is used to specify the audit log format. The audit log plugin supp
 
 .. variable:: audit_log_include_accounts
 
-    :version 5.6.38-78.0: Implemented
+    :version 5.6.32-78.0: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes
@@ -467,7 +467,7 @@ or host contains comma). If this variable is set, then
 
 .. variable:: audit_log_include_commands
 
-    :version 5.6.38-78.0: Implemented
+    :version 5.6.32-78.0: Implemented
     :cli: Yes
     :scope: Global
     :dyn: Yes

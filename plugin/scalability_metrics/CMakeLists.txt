@@ -13,5 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+IF (NOT WITH_SCALABILITY_METRICS)
+  SET(SCALABILITY_METRICS_DISABLED 1)
+ENDIF()
 MYSQL_ADD_PLUGIN(scalability_metrics scalability_metrics.c
  MODULE_ONLY MODULE_OUTPUT_NAME "scalability_metrics")

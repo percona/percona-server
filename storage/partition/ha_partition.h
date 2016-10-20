@@ -345,11 +345,12 @@ public:
   }
   int update_row(const uchar *old_data, uchar *new_data)
   {
-    return Partition_helper::ph_update_row(old_data, new_data);
+    return Partition_helper::ph_update_row(old_data, new_data,
+                                           rpl_lookup_rows());
   }
   int delete_row(const uchar *buf)
   {
-    return Partition_helper::ph_delete_row(buf);
+    return Partition_helper::ph_delete_row(buf, rpl_lookup_rows());
   }
   virtual int delete_all_rows(void);
   virtual int truncate();
@@ -1133,6 +1134,15 @@ public:
     -------------------------------------------------------------------------
     virtual void append_create_info(String *packet)
   */
+
+  /* For TokuDB Read Free Replication */
+    void rpl_before_write_rows();
+    void rpl_after_write_rows();
+    void rpl_before_delete_rows();
+    void rpl_after_delete_rows();
+    void rpl_before_update_rows();
+    void rpl_after_update_rows();
+    bool rpl_lookup_rows();
 
   /*
     -------------------------------------------------------------------------

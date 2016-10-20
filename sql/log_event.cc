@@ -9460,8 +9460,11 @@ Rows_log_event::decide_row_lookup_algorithm_and_key()
                                       get_flags(COMPLETE_ROWS_F) &&
                                       !m_table->file->rpl_lookup_rows())))
   {
+    /**
+       Only TokuDB engine can satisfy delete/update row lookup optimization,
+       so we don't need to check engine type here.
+    */
     if (delete_update_lookup_condition &&
-        table->file->ht->db_type == DB_TYPE_TOKUDB &&
         table->s->primary_key == MAX_KEY)
     {
         if (!table->s->rfr_lookup_warning)

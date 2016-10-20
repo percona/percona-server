@@ -6144,6 +6144,91 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
   DBUG_RETURN(error);
 }
 
+/*
+  We don't know which partition table will be updated before executing
+  Write_rows_log_event, so update all partitions.
+*/
+void ha_partition::rpl_before_write_rows()
+{
+  uint i;
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->rpl_before_write_rows();
+  }
+}
+
+/*
+  Clear flag of all partitions after executing Write_rows_log_event.
+*/
+void ha_partition::rpl_after_write_rows()
+{
+  uint i;
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->rpl_after_write_rows();
+  }
+}
+
+/*
+  We don't know which partition table will be updated before executing
+  Delete_rows_log_event, so update all partitions.
+*/
+void ha_partition::rpl_before_delete_rows()
+{
+
+  uint i;
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->rpl_before_delete_rows();
+  }
+}
+
+/*
+  Clear flag of all partitions after executing Delete_rows_log_event.
+*/
+void ha_partition::rpl_after_delete_rows()
+{
+  uint i;
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->rpl_after_delete_rows();
+  }
+}
+
+/*
+  We don't know which partition table will be updated before executing
+  Update_rows_log_event, so update all partitions.
+*/
+void ha_partition::rpl_before_update_rows()
+{
+  uint i;
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->rpl_before_update_rows();
+  }
+}
+
+/*
+  Clear flag of all partitions after executing Update_rows_log_event.
+*/
+void ha_partition::rpl_after_update_rows()
+{
+  uint i;
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    m_file[i]->rpl_after_update_rows();
+  }
+}
+
+/*
+  Check whether we need to perform row lookup when executing
+  Update_rows_log_event or Delete_rows_log_event. Use the 1st
+  partition is enough, see @c ha_tokudb::rpl_lookup_rows().
+*/
+bool ha_partition::rpl_lookup_rows()
+{
+  return m_file[0]->rpl_lookup_rows();
+}
 
 struct st_mysql_storage_engine partition_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };

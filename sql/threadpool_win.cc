@@ -411,7 +411,7 @@ int login(connection_t *connection, PTP_CALLBACK_INSTANCE instance)
 void set_wait_timeout(connection_t *connection, ulonglong old_timeout)
 {
   ulonglong new_timeout = now() + 
-    10000000LL*connection->thd->variables.net_wait_timeout;
+    10000000LL*connection->thd->get_wait_timeout();
 
   if (new_timeout < old_timeout)
   {

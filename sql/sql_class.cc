@@ -68,6 +68,8 @@ using std::max;
 
 #include "sql_timer.h"                          // thd_timer_end
 
+ulong kill_idle_transaction_timeout= 0;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name

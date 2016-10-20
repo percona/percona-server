@@ -938,7 +938,7 @@ bool do_command(THD *thd)
     number of seconds has passed.
   */
   if(!thd->skip_wait_timeout)
-    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+    my_net_set_read_timeout(net, thd->get_wait_timeout());
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 

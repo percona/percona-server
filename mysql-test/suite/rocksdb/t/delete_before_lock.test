@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 --source include/have_debug_sync.inc
 
 # This is a test case to reproduce https://github.com/facebook/mysql-5.6/issues/162

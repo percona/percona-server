@@ -2,7 +2,7 @@
 -- source include/master-slave.inc
 -- source include/not_valgrind.inc
 -- source include/have_gtid.inc
--- source include/have_rocksdb.inc
+-- source include/have_rocksdb_as_default.inc
 
 connection master;
 call mtr.add_suppression(".*");

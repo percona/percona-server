@@ -3,7 +3,7 @@
 # Don't test this under valgrind, memory leaks will occur
 --disable_warnings
 --source include/not_valgrind.inc
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 --source include/master-slave.inc
 DROP TABLE IF EXISTS t1;
 --enable_warnings

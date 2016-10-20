@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 create table t1 (id int primary key, value int, value2 varchar(100), index(value)) engine=rocksdb;
 

@@ -3,7 +3,7 @@
 # Tests concurrent inserts for tables with no primary key.
 #
 
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 --disable_warnings
 drop table if exists t1;

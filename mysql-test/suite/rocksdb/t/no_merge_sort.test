@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 # For Issue#117 MyRocks does merge sort with small data sets
 

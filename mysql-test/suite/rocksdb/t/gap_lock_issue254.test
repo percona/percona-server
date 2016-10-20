@@ -1,5 +1,5 @@
 -- source include/have_binlog_format_row.inc
--- source include/have_rocksdb.inc
+-- source include/have_rocksdb_as_default.inc
 
 # For issue#254
 create table t (id int primary key, value int);

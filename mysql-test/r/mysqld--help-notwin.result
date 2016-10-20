@@ -401,6 +401,9 @@ The following options may be given as the first argument:
  --keyring-migration-destination.
  --keyring-migration-user=name 
  User to login to server.
+ --kill-idle-transaction=# 
+ If non-zero, number of seconds to wait before killing
+ idle connections that have open transactions
  -L, --language=name Client error messages in given language. May be given as
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
@@ -1466,6 +1469,7 @@ keyring-migration-port 0
 keyring-migration-socket (No default value)
 keyring-migration-source (No default value)
 keyring-migration-user (No default value)
+kill-idle-transaction 0
 language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US

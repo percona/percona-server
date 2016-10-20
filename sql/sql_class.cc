@@ -64,6 +64,8 @@
 using std::min;
 using std::max;
 
+ulong kill_idle_transaction_timeout= 0;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name

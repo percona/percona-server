@@ -2686,7 +2686,7 @@ static int rocksdb_recover(handlerton* hton, XID* xid_list, uint len,
   return count;
 }
 
-static int rocksdb_commit(handlerton* hton, THD* thd, bool commit_tx, bool)
+static int rocksdb_commit(handlerton* hton, THD* thd, bool commit_tx)
 {
   DBUG_ENTER("rocksdb_commit");
 

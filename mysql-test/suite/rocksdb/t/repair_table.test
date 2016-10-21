@@ -1,0 +1,8 @@
+--source include/have_rocksdb_as_default.inc
+
+# 
+# REPAIR TABLE statements
+#
+
+--source repair_table.inc
+

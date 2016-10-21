@@ -19,7 +19,7 @@ shortcomings the :ref:`renaming of data files
 <improved_table_renaming_functionality>` on table/index rename, and the ability
 to :ref:`group data files together <improved_directory_layout_functionality>`
 within a directory that represents a single database. This feature is enabled
-by default. 
+by default.
 
 Moving TokuDB data files to a location outside of the default MySQL datadir
 ---------------------------------------------------------------------------
@@ -135,7 +135,7 @@ actual files on disk, requiring you to use the
 :table:`INFORMATION_SCHEMA.TOKUDB_FILE_MAP` table to cross reference.
 
 Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
-introduced called :variable:`tokudb_dir_per_db` to address this issue. 
+introduced called :variable:`tokudb_dir_per_db` to address this issue.
 
 When :variable:`tokudb_dir_per_db` is enabled (``ON`` by default), this is no
 longer the case. When you rename a table, the mapping in the |Percona FT|
@@ -151,7 +151,7 @@ Many users have had issues with managing the huge volume of individual files
 that |TokuDB| and |Percona FT| use.
 
 Beginning with |Percona Server| :rn:`5.7.15-9` a new server option was
-introduced called :variable:`tokudb_dir_per_db` to address this issue. 
+introduced called :variable:`tokudb_dir_per_db` to address this issue.
 
 When :variable:`tokudb_dir_per_db` variable is enabled (``ON`` by default),
 all new tables and indices will be placed within their corresponding database
@@ -174,7 +174,7 @@ directory with a few steps:
   mysql> RENAME TABLE <table> TO <tmp_table>;
   mysql> RENAME TABLE <tmp_table> TO <table>;
 
-.. note:: 
+.. note::
 
   Two renames are needed because |MySQL| doesn't allow you to rename a table to
   itself. The first rename, renames the table to the temporary name and moves
@@ -183,8 +183,8 @@ directory with a few steps:
   databases and will be placed correctly into the corresponding database
   directory.
 
-.. warning:: 
-  
+.. warning::
+
   You must be careful with renaming tables in case you have used any tricks to
   create symlinks of the database directories on different storage volumes, the
   move is not a simple directory move on the same volume but a physical copy

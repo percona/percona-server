@@ -1,0 +1,8 @@
+--source include/have_rocksdb_as_default.inc
+
+#
+# Fixed point types
+#
+
+--source type_fixed.inc
+

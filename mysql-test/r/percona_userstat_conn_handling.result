@@ -1,0 +1,23 @@
+SET @userstat_old= @@userstat;
+SET GLOBAL userstat=ON;
+CREATE USER mysqltest_1@localhost;
+CREATE USER mysqltest_2@localhost;
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: single connection]
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: two connections]
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: handle disconnects]
+SELECT 1;
+1
+1
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: connections from other users]
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: no connections - zero concurrency]
+ERROR 28000: Access denied for user 'mysqltest_unknownuser'@'localhost' (using password: NO)
+include/assert.inc [I_S.USER_STATISTICS CONCURRENT_CONNECTIONS: unknown user connection]
+DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
+SET GLOBAL userstat= @userstat_old;

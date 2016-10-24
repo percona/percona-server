@@ -16,6 +16,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
+/* C++ standard header files */
+#include <atomic>
+
 /* MySQL includes */
 #include "./my_global.h"
 #include <mysql/psi/mysql_table.h>

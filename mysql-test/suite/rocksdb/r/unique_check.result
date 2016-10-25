@@ -53,9 +53,9 @@ set debug_sync='now WAIT_FOR parked1';
 set debug_sync='now WAIT_FOR parked2';
 set session rocksdb_lock_wait_timeout=1;
 insert into t1 values (1,2);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction: Timeout on index: test.t1.PRIMARY
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 insert into t2 values (2,1,2);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction: Timeout on index: test.t2.id2
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 set debug_sync='now SIGNAL go1';
 set debug_sync='now SIGNAL go2';
 insert into t1 values (1,2);

@@ -268,4 +268,14 @@ bool rdb_database_exists(const std::string &db_name) {
   return true;
 }
 
+void warn_about_bad_patterns(const Regex &regex, const char *name)
+{
+  // There was some invalid regular expression data in the patterns supplied
+
+  // NO_LINT_DEBUG
+  sql_print_warning("RocksDB: Invalid pattern in %s: %s",
+                    name,
+                    regex.pattern().c_str());
+}
+
 } // namespace myrocks

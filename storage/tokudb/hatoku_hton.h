@@ -228,6 +228,4 @@ struct tokudb_row_status {
     time_t last_monitor_time;
 };
 
-static tokudb_row_status toku_row_status;
-
 #endif //#ifdef _HATOKU_HTON

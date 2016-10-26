@@ -40,6 +40,8 @@ static const char* ha_tokudb_exts[] = {
     NullS
 };
 
+// row status
+tokudb_row_status toku_row_status;
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //

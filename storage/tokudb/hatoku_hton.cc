@@ -765,8 +765,16 @@ bool tokudb_flush_logs(handlerton * hton, bool binlog_group_commit) {
         }
     }
     else {
-        error = db_env->log_flush(db_env, NULL);
-        assert_always(error == 0);
+        /* If !binlog_group_commit, we got invoked by FLUSH LOGS or similar.
+           Else, we got invoked by binlog group commit during flush stage. */
+        if (binlog_group_commit && (tokudb::sysvars::fsync_log_period > 0)) {
+            /* if fsync_log_period>0
+               Do not flush the redo log during binlog group commit. */
+            goto exit;
+        } else {
+            error = db_env->log_flush(db_env, NULL);
+            assert_always(error == 0);
+        }
     }
 
     result = 0;

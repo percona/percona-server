@@ -2936,6 +2936,12 @@ int handler::ha_rnd_next(uchar *buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
     { result= rnd_next(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(MAX_KEY);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -2962,6 +2968,12 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
     { result= rnd_pos(buf, pos); })
+
+  if (likely(!result))
+  {
+    update_index_stats(MAX_KEY);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3001,6 +3013,12 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3015,6 +3033,12 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last_map(buf, key, keypart_map); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3036,6 +3060,11 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
+
+  if (likely(!result))
+  {
+    update_index_stats(index);
+  }
   return result;
 }
 
@@ -3061,6 +3090,12 @@ int handler::ha_index_next(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3086,6 +3121,12 @@ int handler::ha_index_prev(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_prev(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3110,6 +3151,12 @@ int handler::ha_index_first(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_first(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3134,6 +3181,12 @@ int handler::ha_index_last(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_last(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3160,6 +3213,12 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next_same(buf, key, keylen); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3188,6 +3247,12 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read(buf, key, key_len, find_flag); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3214,6 +3279,12 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last(buf, key, key_len); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -7753,6 +7824,9 @@ int handler::ha_write_row(uchar *buf)
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
 
+  if (likely(!is_fake_change_enabled(ha_thd())))
+    rows_changed++;
+
   DEBUG_SYNC_C("ha_write_row_end");
   DBUG_RETURN(0);
 }
@@ -7783,6 +7857,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
     return error;
   if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
+
+  if (likely(!is_fake_change_enabled(ha_thd())))
+    rows_changed++;
+
   return 0;
 }
 
@@ -7811,6 +7889,10 @@ int handler::ha_delete_row(const uchar *buf)
     return error;
   if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
+
+  if (likely(!is_fake_change_enabled(ha_thd())))
+    rows_changed++;
+
   return 0;
 }
 

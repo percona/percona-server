@@ -2720,6 +2720,12 @@ public:
 
   void update_global_table_stats();
   void update_global_index_stats();
+  void update_index_stats(uint current_index)
+  {
+    rows_read++;
+    if (current_index < MAX_KEY)
+      index_rows_read[current_index]++;
+  }
 
   /**
      Return true when innodb_fake_changes was set for the current transaction

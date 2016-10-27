@@ -1461,7 +1461,6 @@ public:
   const char* m_mysql_log_file_name;
   my_off_t m_mysql_log_offset;
   const char* m_mysql_gtid;
-  String m_detailed_error;
   int64_t m_snapshot_timestamp= 0;
   bool m_ddl_transaction;
 
@@ -1501,9 +1500,6 @@ public:
         rollback before returning HA_ERR_LOCK_WAIT_TIMEOUT:
         */
       my_core::thd_mark_transaction_to_rollback(thd, false /*just statement*/);
-      m_detailed_error.copy(timeout_message("index",
-                                            tbl_def->full_tablename().c_str(),
-                                            kd->get_name().c_str()));
 
       return HA_ERR_LOCK_WAIT_TIMEOUT;
     }
@@ -4836,9 +4832,6 @@ bool ha_rocksdb::get_error_message(const int error, String *buf)
   DBUG_ASSERT(error <= HA_ERR_ROCKSDB_LAST);
   DBUG_ASSERT(buf != nullptr);
 
-  Rdb_transaction* tx = get_tx_from_thd(ha_thd());
-  bool temp_error = false;
-
   switch (error) {
     case HA_ERR_ROCKSDB_PK_REQUIRED:
       buf->append("Table must have a PRIMARY KEY.");
@@ -4849,18 +4842,13 @@ bool ha_rocksdb::get_error_message(const int error, String *buf)
     case HA_ERR_ROCKSDB_TOO_MANY_LOCKS:
       buf->append("Number of locks held reached @@rocksdb_max_row_locks.");
       break;
-    case HA_ERR_LOCK_WAIT_TIMEOUT:
-      DBUG_ASSERT(tx != nullptr);
-      buf->append(tx->m_detailed_error);
-      temp_error = true;
-      break;
     default:
       // We can be called with the values which are < HA_ERR_FIRST because most
       // MySQL internal functions will just return 1 in case of an error.
       break;
   }
 
-  return temp_error;
+  return false;
 }
 
 /* MyRocks supports only the following collations for indexed columns */

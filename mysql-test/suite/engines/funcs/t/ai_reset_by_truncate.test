@@ -1,4 +1,4 @@
-if (`SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME="storage_engine" AND VARIABLE_VALUE="tokudb"`)
+if (`SELECT @@GLOBAL.default_storage_engine='tokudb'`)
 {
   --skip Disabled for TokuDB: https://tokutek.atlassian.net/browse/DB-640
 }

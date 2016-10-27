@@ -3188,6 +3188,14 @@ public:
 
   void update_global_table_stats();
   void update_global_index_stats();
+  void update_index_stats(uint current_index)
+  {
+    rows_read++;
+    if (current_index < MAX_KEY)
+      index_rows_read[current_index]++;
+    else
+      index_rows_read[0]++;
+  }
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1

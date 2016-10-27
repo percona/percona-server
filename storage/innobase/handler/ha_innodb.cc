@@ -7924,10 +7924,6 @@ no_commit:
 
 	DEBUG_SYNC(m_user_thd, "ib_after_row_insert");
 
-	if (UNIV_LIKELY(error == DB_SUCCESS)) {
-		rows_changed++;
-	}
-
 	/* Step-6: Handling of errors related to auto-increment. */
 	if (auto_inc_used) {
 		ulonglong	auto_inc;
@@ -8620,10 +8616,6 @@ ha_innobase::update_row(
 		}
 	}
 
-	if (UNIV_LIKELY(error == DB_SUCCESS)) {
-	    rows_changed++;
-	}
-
 	innobase_srv_conc_exit_innodb(m_prebuilt);
 
 func_exit:
@@ -8707,10 +8699,6 @@ ha_innobase::delete_row(
 	innobase_srv_conc_enter_innodb(m_prebuilt);
 
 	error = row_update_for_mysql((byte*) record, m_prebuilt);
-
-	if (UNIV_LIKELY(error == DB_SUCCESS)) {
-		rows_changed++;
-	}
 
 	innobase_srv_conc_exit_innodb(m_prebuilt);
 
@@ -9131,9 +9119,6 @@ ha_innobase::index_read(
 		table->status = 0;
 		srv_stats.n_rows_read.add(
 			thd_get_thread_id(m_prebuilt->trx->mysql_thd), 1);
-		rows_read++;
-		if (active_index < MAX_KEY)
-			index_rows_read[active_index]++;
 		break;
 
 	case DB_RECORD_NOT_FOUND:
@@ -9444,9 +9429,6 @@ ha_innobase::general_fetch(
 		error = 0;
 		table->status = 0;
 		srv_stats.n_rows_read.add(thd_get_thread_id(trx->mysql_thd), 1);
-		rows_read++;
-		if (active_index < MAX_KEY)
-			index_rows_read[active_index]++;
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;

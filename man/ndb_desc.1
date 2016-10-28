@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/25/2016
+.\"      Date: 09/28/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "08/25/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -115,15 +115,15 @@ id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
 length_mm Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 weight_gm Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
-\-\- Indexes \-\- 
+\-\- Indexes \-\-
 PRIMARY KEY(id) \- UniqueHashIndex
 PRIMARY(id) \- OrderedIndex
 uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
-\-\- Per partition info \-\- 
+\-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   0               0                 
-1               4               4               32768                   32768                   0               0                 
+0               2               2               32768                   32768                   0               0               
+1               4               4               32768                   32768                   0               0               
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -179,7 +179,7 @@ Table options:
 \-\- Attributes \-\-
 name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
 NDB$TNODE Unsigned [64] PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-\-\- Indexes \-\- 
+\-\- Indexes \-\-
 PRIMARY KEY(NDB$TNODE) \- UniqueHashIndex
 NDBT_ProgramExit: 0 \- OK
 .fi
@@ -263,7 +263,7 @@ Create Table: CREATE TABLE `fish` (
   `weight_gm` int(11) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk` (`name`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1 
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 COMMENT=\*(AqNDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1\*(Aq
 1 row in set (0\&.01 sec)
 .fi
@@ -312,12 +312,12 @@ id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY DYNAMIC
 length_mm Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 weight_gm Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
-\-\- Indexes \-\- 
+\-\- Indexes \-\-
 PRIMARY KEY(id) \- UniqueHashIndex
 PRIMARY(id) \- OrderedIndex
 uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
-\-\- Per partition info \-\- 
+\-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
 NDBT_ProgramExit: 0 \- OK
 .fi
@@ -386,7 +386,7 @@ CREATE TABLE fish (
     weight_gm INT(11) NOT NULL,
     PRIMARY KEY pk (id),
     UNIQUE KEY uk (name)
-) TABLESPACE ts_1 STORAGE DISK 
+) TABLESPACE ts_1 STORAGE DISK
 ENGINE=NDB;
 INSERT INTO fish VALUES
     (NULL, \*(Aqguppy\*(Aq, 35, 2), (NULL, \*(Aqtuna\*(Aq, 2500, 150000),
@@ -434,15 +434,15 @@ id Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 name Varchar(20;latin1_swedish_ci) NOT NULL AT=SHORT_VAR ST=MEMORY
 length_mm Int NOT NULL AT=FIXED ST=DISK
 weight_gm Int NOT NULL AT=FIXED ST=DISK
-\-\- Indexes \-\- 
+\-\- Indexes \-\-
 PRIMARY KEY(id) \- UniqueHashIndex
 PRIMARY(id) \- OrderedIndex
 uk(name) \- OrderedIndex
 uk$unique(name) \- UniqueHashIndex
-\-\- Per partition info \-\- 
+\-\- Per partition info \-\-
 Partition       Row count       Commit count    Frag fixed memory       Frag varsized memory    Extent_space    Free extent_space
-0               2               2               32768                   32768                   1048576         1044440          
-1               4               4               32768                   32768                   1048576         1044400          
+0               2               2               32768                   32768                   1048576         1044440        
+1               4               4               32768                   32768                   1048576         1044400        
 NDBT_ProgramExit: 0 \- OK
 .fi
 .if n \{\
@@ -457,6 +457,19 @@ table only; for this reason, it is not visible when selecting from the
 INFORMATION_SCHEMA\&.FILES
 table\&.
 .PP
+For fully replicated tables,
+\fBndb_desc\fR
+shows only the nodes holding primary partition fragment replicas; nodes with copy fragment replicas (only) are ignored\&. Beginning with MySQL Cluster NDB 7\&.5\&.4, you can obtain such information, using the
+\fBmysql\fR
+client, from the
+table_distribution_status,
+table_fragments,
+table_info, and
+table_replicas
+tables in the
+ndbinfo
+database\&.
+.PP
 The following table includes options that are specific to
 \fBndb_desc\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
 \fBndb_desc\fR), see
@@ -466,7 +479,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.90.\ \& This table describes command\-line options for the ndb_desc program
+.B Table\ \&19.92.\ \& This table describes command\-line options for the ndb_desc program
 .TS
 allbox tab(:);
 .

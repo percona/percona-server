@@ -72,6 +72,9 @@ namespace myrocks {
 
   Use the power of SHIP_ASSERT() wisely.
 */
+#ifndef abort_with_stack_traces
+#define abort_with_stack_traces abort
+#endif
 
 #ifndef SHIP_ASSERT
 #define SHIP_ASSERT(expr)                                               \

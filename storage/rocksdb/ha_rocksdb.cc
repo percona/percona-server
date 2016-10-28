@@ -10517,8 +10517,8 @@ void rdb_set_collation_exception_list(const char *exception_list)
 
   if (!rdb_collation_exceptions->set_patterns(exception_list))
   {
-    my_core::warn_about_bad_patterns(rdb_collation_exceptions,
-                                     "strict_collation_exceptions");
+    warn_about_bad_patterns(rdb_collation_exceptions,
+                            "strict_collation_exceptions");
   }
 }
 

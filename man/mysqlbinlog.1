@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/25/2016
+.\"      Date: 09/29/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "08/25/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "09/29/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -610,6 +610,10 @@ is interpreted relative to the current directory if given as a relative path nam
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+Exception: Even with
+\fB\-\-defaults\-file\fR, client programs read
+\&.mylogin\&.cnf\&.
 .RE
 .sp
 .RS 4
@@ -1413,7 +1417,7 @@ The MySQL user name to use when connecting to a remote server\&.
 \fB\-\-verbose\fR,
 \fB\-v\fR
 .sp
-Reconstruct row events and display them as commented SQL statements\&. If this option is given twice, the output includes comments to indicate column data types and some metadata\&.
+Reconstruct row events and display them as commented SQL statements\&. If this option is given twice (by passing in either "\-vv" or "\-\-verbose \-\-verbose"), the output includes comments to indicate column data types and some metadata, and row query log events if so configured\&.
 .sp
 For examples that show the effect of
 \fB\-\-base64\-output\fR

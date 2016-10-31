@@ -2801,7 +2801,11 @@ static Sys_var_charptr Sys_secure_file_priv(
        "within specified directory. "
        "If no argument is specified disable loading files.",
        READ_ONLY GLOBAL_VAR(opt_secure_file_priv),
-       CMD_LINE(OPT_ARG, OPT_SECURE_FILE_PRIV), IN_FS_CHARSET, DEFAULT(0));
+#ifndef EMBEDDED_LIBRARY
+       CMD_LINE(OPT_ARG, OPT_SECURE_FILE_PRIV), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_DIR));
+#else
+       CMD_LINE(OPT_ARG, OPT_SECURE_FILE_PRIV), IN_FS_CHARSET, DEFAULT(DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR));
+#endif
 
 static bool fix_server_id(sys_var *self, THD *thd, enum_var_type type)
 {

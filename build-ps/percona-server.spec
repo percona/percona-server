@@ -428,9 +428,9 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
  
-#%if 0%{?rhel} > 6
-#install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
-#%endif
+%if 0%{?rhel} > 6
+install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
+%endif
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
@@ -621,6 +621,9 @@ fi
 %config(noreplace) %{_sysconfdir}/percona-server.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
+%if 0%{?rhel} > 6
+%config(noreplace) %{_sysconfdir}/my.cnf
+%endif
 
 
 %attr(755, root, root) %{_bindir}/innochecksum

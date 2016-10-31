@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/25/2016
+.\"      Date: 09/28/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "08/25/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -482,6 +482,10 @@ is interpreted relative to the current directory if given as a relative path nam
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+Exception: Even with
+\fB\-\-defaults\-file\fR, client programs read
+\&.mylogin\&.cnf\&.
 .RE
 .sp
 .RS 4
@@ -653,7 +657,7 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&6.1.7, \(lqServer SQL Modes\(rq)\&.
+Section\ \&6.1.8, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -3097,7 +3101,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&6.1.9, \(lqServer-Side Help\(rq)\&.
+Section\ \&6.1.10, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3537,7 +3541,7 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .\}
 .PP
 See
-Section\ \&6.1.4, \(lqServer System Variables\(rq\&.
+Section\ \&6.1.5, \(lqServer System Variables\(rq\&.
 .PP
 The
 SET

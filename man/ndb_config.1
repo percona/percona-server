@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 08/25/2016
+.\"      Date: 09/28/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "08/25/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.88.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&19.90.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 .
@@ -940,27 +940,27 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.14\-ndb\-7\&.5\&.4" 
-                    ndbversion="460032" ndbversionmajor="7" ndbversionminor="5" 
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.15\-ndb\-7\&.5\&.4"
+                    ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
-    <param name="Name" comment="Name of system (NDB Cluster)" type="string" 
+    <param name="Name" comment="Name of system (NDB Cluster)" type="string"
               mandatory="true"/>
-    <param name="PrimaryMGMNode" comment="Node id of Primary ndb_mgmd(MGM) node" 
+    <param name="PrimaryMGMNode" comment="Node id of Primary ndb_mgmd(MGM) node"
               type="unsigned" default="0" min="0" max="4294967039"/>
-    <param name="ConfigGenerationNumber" comment="Configuration generation number" 
+    <param name="ConfigGenerationNumber" comment="Configuration generation number"
               type="unsigned" default="0" min="0" max="4294967039"/>
   </section>
   <section name="MYSQLD" primarykeys="NodeId">
-    <param name="wan" comment="Use WAN TCP setting as default" type="bool" 
+    <param name="wan" comment="Use WAN TCP setting as default" type="bool"
               default="false"/>
-    <param name="HostName" comment="Name of computer for this node" 
+    <param name="HostName" comment="Name of computer for this node"
               type="string" default=""/>
-    <param name="Id" comment="NodeId" type="unsigned" mandatory="true" 
+    <param name="Id" comment="NodeId" type="unsigned" mandatory="true"
               min="1" max="255" deprecated="true"/>
-    <param name="NodeId" comment="Number identifying application node (mysqld(API))" 
+    <param name="NodeId" comment="Number identifying application node (mysqld(API))"
               type="unsigned" mandatory="true" min="1" max="255"/>
-    <param name="ExecuteOnComputer" comment="HostName" type="string" 
+    <param name="ExecuteOnComputer" comment="HostName" type="string"
               deprecated="true"/>
     \&...
   </section>
@@ -1014,7 +1014,7 @@ attributes highlighted for visibility):
 .RS 4
 .\}
 .nf
-<param name="Diskless" comment="Run wo/ disk" type="bool" default="false" 
+<param name="Diskless" comment="Run wo/ disk" type="bool" default="false"
           \fIrestart="system" initial="true"\fR/>
 .fi
 .if n \{\
@@ -1068,8 +1068,8 @@ mandatory="true", as shown here:
 .RS 4
 .\}
 .nf
-<param name="NodeId" 
-          comment="Number identifying application node (mysqld(API))" 
+<param name="NodeId"
+          comment="Number identifying application node (mysqld(API))"
           type="unsigned" \fImandatory="true"\fR min="1" max="255"/>
 .fi
 .if n \{\
@@ -1195,7 +1195,7 @@ To produce a connection string that can be used by data, SQL, and API nodes to c
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e 
+shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e
 \-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
 192\&.168\&.0\&.179:1186
 .fi

@@ -2,6 +2,9 @@ compression_zstd : https://jira.percona.com/browse/MYR-28
 cons_snapshot_serializable : Consistent read does not work on serializable
 level_read_uncommitted : Not supported
 level_serializable: Not supported
+mysqlbinlog_gtid_skip_empty_trans_rocksdb : https://jira.percona.com/browse/MYR-25
+read_only_tx : https://jira.percona.com/browse/MYR-16
+slow_query_log : https://jira.percona.com/browse/MYR-26
 
 col_opt_null : https://jira.percona.com/browse/MYR-15
 col_opt_not_null : https://jira.percona.com/browse/MYR-15

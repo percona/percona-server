@@ -158,27 +158,30 @@ Example: ::
 
 .. table:: INFORMATION_SCHEMA.THREAD_STATISTICS
 
-  :column THREAD_ID: int(21)
-  :column TOTAL_CONNECTIONS: int(21)
-  :column CONCURRENT_CONNECTIONS: int(21)
-  :column CONNECTED_TIME: int(21)
-  :column BUSY_TIME: int(21)
-  :column CPU_TIME: int(21)
-  :column BYTES_RECEIVED: int(21)
-  :column BYTES_SENT: int(21)
-  :column BINLOG_BYTES_WRITTEN: int(21)
-  :column ROWS_FETCHED: int(21)
-  :column ROWS_UPDATED: int(21)
-  :column TABLE_ROWS_READ: int(21)
-  :column SELECT_COMMANDS: int(21)
-  :column UPDATE_COMMANDS: int(21)
-  :column OTHER_COMMANDS: int(21)
-  :column COMMIT_TRANSACTIONS: int(21)
-  :column ROLLBACK_TRANSACTIONS: int(21)
-  :column DENIED_CONNECTIONS: int(21)
-  :column LOST_CONNECTIONS: int(21)
-  :column ACCESS_DENIED: int(21)
-  :column EMPTY_QUERIES: int(21)
+  :column THREAD_ID: Thread ID
+  :column TOTAL_CONNECTIONS: The number of connections created from this thread.
+  :column CONCURRENT_CONNECTIONS: Always zero, will be removed in a future version.
+  :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this thread.
+  :column BUSY_TIME: The cumulative number of seconds there was activity from this thread.
+  :column CPU_TIME: The cumulative CPU time elapsed while servicing this thread.
+  :column BYTES_RECEIVED: The number of bytes received from this thread.
+  :column BYTES_SENT: The number of bytes sent to this thread.
+  :column BINLOG_BYTES_WRITTEN: The number of bytes written to the binary log from this thread.
+  :column ROWS_FETCHED: The number of rows fetched by this thread.
+  :column ROWS_UPDATED: The number of rows updated by this thread.
+  :column TABLE_ROWS_READ: The number of rows read from tables by this tread. 
+  :column SELECT_COMMANDS: The number of ``SELECT`` commands executed from this thread.
+  :column UPDATE_COMMANDS: The number of ``UPDATE`` commands executed from this thread.
+  :column OTHER_COMMANDS: The number of other commands executed from this thread.
+  :column COMMIT_TRANSACTIONS: The number of ``COMMIT`` commands issued by this thread.
+  :column ROLLBACK_TRANSACTIONS: The number of ``ROLLBACK`` commands issued by this thread.
+  :column DENIED_CONNECTIONS: The number of connections denied to this thread.
+  :column LOST_CONNECTIONS: The number of thread connections that were terminated uncleanly.
+  :column ACCESS_DENIED: The number of times this thread issued commands that were denied.
+  :column EMPTY_QUERIES: The number of times this thread sent empty queries to the server.
+  :column TOTAL_SSL_CONNECTIONS:  The number of thread connections that used SSL.
+
+In order for this table to be populated with statistics, additional variable :variable:`thread_statistics` should be set to ``ON``.
 
 .. table:: INFORMATION_SCHEMA.USER_STATISTICS
 

@@ -1,15 +1,15 @@
 # TODO: Copyrights
 
-IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
-  MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
-ENDIF()
-
 IF (NOT WITH_ROCKSDB)
   MESSAGE(STATUS "Not building with MyRocks storage engine, you must specify -DWITH_ROCKSDB=1 to cmake in order to build with MyRocks.")
   RETURN()
 ELSE ()
   MESSAGE(STATUS "Building with MyRocks storage engine")
 ENDIF ()
+
+IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
+  MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
+ENDIF()
 
 ## adds a compiler flag if the compiler supports it
 INCLUDE(CheckCCompilerFlag)

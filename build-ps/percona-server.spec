@@ -511,6 +511,7 @@ mkdir debug
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITHOUT_ROCKSDB=1 \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_ON}
 
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -532,6 +533,7 @@ mkdir release
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITHOUT_ROCKSDB=1 \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
   
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG

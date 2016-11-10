@@ -2635,7 +2635,7 @@ public:
 
 
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
-  bool has_transactions()
+  bool has_transactions() const
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
 
@@ -2848,6 +2848,20 @@ protected:
     uint key_len= calculate_key_len(table, active_index, keypart_map);
     return index_read_last(buf, key, key_len);
   }
+public:
+  /**
+    Query storage engine to see if it supports gap locks on this table.
+  */
+  virtual bool has_gap_locks() const { return false; }
+
+protected:
+  static bool is_using_full_key(key_part_map keypart_map, uint actual_key_parts);
+  bool is_using_full_unique_key(uint active_index,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag) const;
+  bool is_using_prohibited_gap_locks(TABLE* table,
+                                     bool using_full_primary_key) const;
+
 public:
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,

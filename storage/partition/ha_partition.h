@@ -570,6 +570,7 @@ public:
   {
     return Partition_helper::ph_read_range_next();
   }
+  bool has_gap_locks() const;
 public:
   /*
     -------------------------------------------------------------------------

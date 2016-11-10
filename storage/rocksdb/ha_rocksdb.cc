@@ -8538,7 +8538,9 @@ THR_LOCK_DATA **ha_rocksdb::store_lock(THD *thd,
       uint sql_command = my_core::thd_sql_command(thd);
       if ((lock_type == TL_READ && in_lock_tables) ||
           (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables) ||
-          can_hold_read_locks_on_select(thd, lock_type))
+          lock_type == TL_READ_WITH_SHARED_LOCKS ||
+          lock_type == TL_READ_NO_INSERT ||
+          (lock_type != TL_IGNORE && sql_command != SQLCOM_SELECT))
       {
         ulong tx_isolation = my_core::thd_tx_isolation(thd);
         if (sql_command != SQLCOM_CHECKSUM &&

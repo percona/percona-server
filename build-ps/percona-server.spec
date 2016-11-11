@@ -357,6 +357,7 @@ mkdir debug
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
+           -DWITH_ROCKSDB=0 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            %{?ssl_option} \
@@ -391,6 +392,7 @@ mkdir release
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
+           -DWITH_ROCKSDB=0 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            %{?ssl_option} \
@@ -698,8 +700,8 @@ fi
 # Percona plugins
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_pam_compat.so

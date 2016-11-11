@@ -79,8 +79,8 @@ usr/lib/mysql/plugin/debug/keyring_udf.so
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/debug/audit_log.so
-usr/lib/mysql/plugin/scalability_metrics.so
-usr/lib/mysql/plugin/debug/scalability_metrics.so
+#usr/lib/mysql/plugin/scalability_metrics.so
+#usr/lib/mysql/plugin/debug/scalability_metrics.so
 usr/lib/mysql/plugin/auth_pam.so
 usr/lib/mysql/plugin/debug/auth_pam.so
 usr/lib/mysql/plugin/auth_pam_compat.so

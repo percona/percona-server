@@ -15,6 +15,7 @@
 
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security -Wvla")
+#SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security -Wvla -Wno-error=deprecated-declarations -Wno-error=nonnull-compare -Wno-error=shift-negative-value -Wno-error=misleading-indentation -Wno-error=literal-suffix -Wno-error=virtual-move-assign ")
 
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
@@ -27,7 +28,7 @@ SET(MY_CXX_WARNING_FLAGS
 # Extra warning flags for Clang++
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_CXX_WARNING_FLAGS
-      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
+      "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field -Wno-error=c++11-compat")
 ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.

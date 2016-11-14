@@ -89,14 +89,14 @@ drop table t0,t1,t2,t3;
 --echo # First, some preparations
 --echo #
 create procedure save_read_stats()
-  select ROWS_READ, ROWS_REQUESTED, ROWS_INDEX_FIRST, ROWS_INDEX_NEXT 
-  into @rr, @rq, @rif, @rin
+  select ROWS_READ 
+  into @rr
   from information_schema.table_statistics 
   where table_name='t4' and table_schema=database();
 
 create procedure get_read_stats()
   select 
-    ROWS_READ-@rr, ROWS_REQUESTED-@rq, ROWS_INDEX_FIRST-@rif, ROWS_INDEX_NEXT-@rin
+    ROWS_READ-@rr
   from information_schema.table_statistics 
   where table_name='t4' and table_schema=database();
 

@@ -436,7 +436,7 @@ page_zip_parse_compress(
 	byte*		end_ptr,/*!< in: buffer end */
 	page_t*		page,	/*!< out: uncompressed page */
 	page_zip_des_t*	page_zip)/*!< out: compressed page */
-	__attribute__((nonnull(1,2)));
+	__attribute__((warn_unused_result));
 
 /**********************************************************************//**
 Calculate the compressed page checksum.

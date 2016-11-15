@@ -6054,8 +6054,6 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *buf)
   DBUG_ASSERT(buf != nullptr);
   DBUG_ASSERT(table != nullptr);
 
-  stats.rows_requested++;
-
   /* Use STATUS_NOT_FOUND when record not found or some error occurred */
   table->status= STATUS_NOT_FOUND;
 
@@ -6092,8 +6090,6 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *buf)
       if (!rc)
       {
         table->status= 0;
-        stats.rows_read++;
-        stats.rows_index_next++;
         update_row_stats(ROWS_READ);
       }
       return rc;
@@ -6199,7 +6195,6 @@ int ha_rocksdb::index_read_map_impl(uchar *buf, const uchar *key,
 
   /* By default, we don't need the retrieved records to match the prefix */
   m_sk_match_prefix= nullptr;
-  stats.rows_requested++;
 
   if (active_index == table->s->primary_key &&
       find_flag == HA_READ_KEY_EXACT && using_full_key)
@@ -6213,8 +6208,6 @@ int ha_rocksdb::index_read_map_impl(uchar *buf, const uchar *key,
     rc= get_row_by_rowid(buf, m_pk_packed_tuple, size);
     if (!rc)
     {
-      stats.rows_read++;
-      stats.rows_index_first++;
       update_row_stats(ROWS_READ);
     }
     DBUG_RETURN(rc);
@@ -6340,8 +6333,6 @@ int ha_rocksdb::index_read_map_impl(uchar *buf, const uchar *key,
   else
   {
     table->status= 0;
-    stats.rows_read++;
-    stats.rows_index_first++;
     update_row_stats(ROWS_READ);
   }
   DBUG_RETURN(rc);
@@ -6903,15 +6894,6 @@ int ha_rocksdb::index_first_intern(uchar *buf)
     release_scan_iterator();
   }
 
-  if (!rc)
-  {
-    /*
-      index_next is always incremented on success, so decrement if it is
-      index_first instead
-     */
-    stats.rows_index_first++;
-    stats.rows_index_next--;
-  }
   DBUG_RETURN(rc);
 }
 
@@ -7035,15 +7017,6 @@ int ha_rocksdb::index_last_intern(uchar *buf)
     release_scan_iterator();
   }
 
-  if (!rc)
-  {
-    /*
-      index_next is always incremented on success, so decrement if it is
-      index_first instead
-     */
-    stats.rows_index_first++;
-    stats.rows_index_next--;
-  }
   DBUG_RETURN(rc);
 }
 
@@ -7212,7 +7185,6 @@ int ha_rocksdb::write_row(uchar *buf)
 
   if (rv == 0)
   {
-    stats.rows_inserted++;
     update_row_stats(ROWS_INSERTED);
   }
   DBUG_RETURN(rv);
@@ -7994,7 +7966,6 @@ int ha_rocksdb::rnd_next_with_direction(uchar *buf, bool move_forward)
   DBUG_ENTER("ha_rocksdb::rnd_next");
 
   table->status= STATUS_NOT_FOUND;
-  stats.rows_requested++;
 
   if (!m_scan_it || !m_scan_it->Valid())
   {
@@ -8070,8 +8041,6 @@ int ha_rocksdb::rnd_next_with_direction(uchar *buf, bool move_forward)
     rc= HA_ERR_END_OF_FILE;
 
   if (!rc) {
-    stats.rows_read++;
-    stats.rows_index_next++;
     update_row_stats(ROWS_READ);
   }
 
@@ -8176,7 +8145,6 @@ int ha_rocksdb::delete_row(const uchar *buf)
   {
     DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
   }
-  stats.rows_deleted++;
   update_row_stats(ROWS_DELETED);
 
   DBUG_RETURN(0);
@@ -8367,7 +8335,6 @@ int ha_rocksdb::rnd_pos(uchar *buf, uchar *pos)
   DBUG_ENTER("ha_rocksdb::rnd_pos");
 
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  stats.rows_requested++;
   len= m_pk_descr->key_length(table, rocksdb::Slice((const char*)pos,
                                                   ref_length));
   if (len == size_t(-1))
@@ -8379,7 +8346,6 @@ int ha_rocksdb::rnd_pos(uchar *buf, uchar *pos)
 
   if (!rc)
   {
-    stats.rows_read++;
     update_row_stats(ROWS_READ);
   }
 
@@ -8443,7 +8409,6 @@ int ha_rocksdb::update_row(const uchar *old_data, uchar *new_data)
 
   if (rv == 0)
   {
-    stats.rows_updated++;
     update_row_stats(ROWS_UPDATED);
   }
   DBUG_RETURN(rv);

@@ -540,10 +540,10 @@ public:
     Controls whether writes include checksums. This is updated from the session
     variable at the start of each query.
   */
-  bool m_store_checksums;
+  bool m_store_row_debug_checksums;
 
   /* Same as above but for verifying checksums when reading */
-  bool m_verify_checksums;
+  bool m_verify_row_debug_checksums;
   int m_checksums_pct;
 
   ha_rocksdb(my_core::handlerton *hton, my_core::TABLE_SHARE *table_arg);
@@ -612,8 +612,8 @@ public:
 
   bool primary_key_is_clustered() { return true; }
 
-  bool should_store_checksums() const {
-    return m_store_checksums && (rand() % 100 < m_checksums_pct);
+  bool should_store_row_debug_checksums() const {
+    return m_store_row_debug_checksums && (rand() % 100 < m_checksums_pct);
   }
 
   int rename_table(const char *from, const char *to)

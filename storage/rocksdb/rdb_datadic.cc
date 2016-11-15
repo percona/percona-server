@@ -478,7 +478,7 @@ int Rdb_key_def::successor(uchar *packed_tuple, uint len) {
 uint Rdb_key_def::pack_record(const TABLE *tbl, uchar *pack_buffer,
                               const uchar *record, uchar *packed_tuple,
                               Rdb_string_writer *unpack_info,
-                              bool should_store_checksums,
+                              bool should_store_row_debug_checksums,
                               longlong hidden_pk_id, uint n_key_parts,
                               uint *n_null_fields) const {
   DBUG_ASSERT(tbl != nullptr);
@@ -487,7 +487,7 @@ uint Rdb_key_def::pack_record(const TABLE *tbl, uchar *pack_buffer,
   DBUG_ASSERT(packed_tuple != nullptr);
   // Checksums for PKs are made when record is packed.
   // We should never attempt to make checksum just from PK values
-  DBUG_ASSERT_IMP(should_store_checksums,
+  DBUG_ASSERT_IMP(should_store_row_debug_checksums,
                   (m_index_type == INDEX_TYPE_SECONDARY));
 
   uchar *tuple = packed_tuple;
@@ -597,7 +597,7 @@ uint Rdb_key_def::pack_record(const TABLE *tbl, uchar *pack_buffer,
     // so the checksums are computed and stored by
     // ha_rocksdb::convert_record_to_storage_format
     //
-    if (should_store_checksums) {
+    if (should_store_row_debug_checksums) {
       uint32_t key_crc32 = crc32(0, packed_tuple, tuple - packed_tuple);
       uint32_t val_crc32 =
           crc32(0, unpack_info->ptr(), unpack_info->get_current_pos());
@@ -775,7 +775,7 @@ size_t Rdb_key_def::key_length(TABLE *table, const rocksdb::Slice &key) const {
 int Rdb_key_def::unpack_record(TABLE *table, uchar *buf,
                                const rocksdb::Slice *packed_key,
                                const rocksdb::Slice *unpack_info,
-                               bool verify_checksums) const {
+                               bool verify_row_debug_checksums) const {
   Rdb_string_reader reader(packed_key);
   Rdb_string_reader unp_reader("");
   const bool is_hidden_pk = (m_index_type == INDEX_TYPE_HIDDEN_PRIMARY);
@@ -784,7 +784,7 @@ int Rdb_key_def::unpack_record(TABLE *table, uchar *buf,
   // There is no checksuming data after unpack_info for primary keys, because
   // the layout there is different. The checksum is verified in
   // ha_rocksdb::convert_record_from_storage_format instead.
-  DBUG_ASSERT_IMP(!secondary_key, !verify_checksums);
+  DBUG_ASSERT_IMP(!secondary_key, !verify_row_debug_checksums);
 
   if (unpack_info) {
     unp_reader = Rdb_string_reader(unpack_info);
@@ -885,7 +885,7 @@ int Rdb_key_def::unpack_record(TABLE *table, uchar *buf,
   */
   const char *ptr;
   if ((ptr = unp_reader.read(1)) && *ptr == RDB_CHECKSUM_DATA_TAG) {
-    if (verify_checksums) {
+    if (verify_row_debug_checksums) {
       uint32_t stored_key_chksum = rdb_netbuf_to_uint32(
           (const uchar *)unp_reader.read(RDB_CHECKSUM_SIZE));
       uint32_t stored_val_chksum = rdb_netbuf_to_uint32(

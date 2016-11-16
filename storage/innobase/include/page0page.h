@@ -235,8 +235,7 @@ ulint
 page_header_get_offs(
 /*=================*/
 	const page_t*	page,	/*!< in: page */
-	ulint		field)	/*!< in: PAGE_FREE, ... */
-	MY_ATTRIBUTE((nonnull, pure));
+	ulint		field);	/*!< in: PAGE_FREE, ... */
 
 /*************************************************************//**
 Returns the pointer stored in the given header field, or NULL. */
@@ -528,7 +527,7 @@ bool
 page_is_leaf(
 /*=========*/
 	const page_t*	page)	/*!< in: page */
-	MY_ATTRIBUTE((nonnull, pure));
+	MY_ATTRIBUTE((warn_unused_result));
 /************************************************************//**
 Determine whether the page is empty.
 @return	true if the page is empty (PAGE_N_RECS = 0) */
@@ -952,8 +951,7 @@ page_dir_split_slot(
 	page_t*		page,	/*!< in: index page */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
 				uncompressed part will be written, or NULL */
-	ulint		slot_no)/*!< in: the directory slot */
-	MY_ATTRIBUTE((nonnull(1)));
+	ulint		slot_no);/*!< in: the directory slot */
 /*************************************************************//**
 Tries to balance the given directory slot with too few records
 with the upper neighbor, so that there are at least the minimum number
@@ -965,8 +963,7 @@ page_dir_balance_slot(
 /*==================*/
 	page_t*		page,	/*!< in/out: index page */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
-	ulint		slot_no)/*!< in: the directory slot */
-	MY_ATTRIBUTE((nonnull(1)));
+	ulint		slot_no);/*!< in: the directory slot */
 /**********************************************************//**
 Parses a log record of a record list end or start deletion.
 @return	end of log record or NULL */

@@ -1471,7 +1471,7 @@ static void set_wait_timeout(connection_t *c)
 
   c->abs_wait_timeout= pool_timer.current_microtime +
     1000LL*pool_timer.tick_interval +
-    1000000LL*c->thd->variables.net_wait_timeout;
+    1000000LL*c->thd->get_wait_timeout();
 
   set_next_timeout_check(c->abs_wait_timeout);
   DBUG_VOID_RETURN;

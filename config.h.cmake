@@ -116,7 +116,6 @@
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_SETFD 1

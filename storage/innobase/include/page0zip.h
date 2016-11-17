@@ -169,8 +169,9 @@ page_zip_compress(
 						/*!< in: used for applying
 						TRUNCATE log
 						record during recovery */
-	mtr_t*			mtr);		/*!< in/out: mini-transaction,
+	mtr_t*			mtr)		/*!< in/out: mini-transaction,
 						or NULL */
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**********************************************************************//**
 Write the index information for the compressed page.
@@ -487,7 +488,8 @@ page_zip_parse_compress(
 	byte*		ptr,		/*!< in: buffer */
 	byte*		end_ptr,	/*!< in: buffer end */
 	page_t*		page,		/*!< out: uncompressed page */
-	page_zip_des_t*	page_zip);	/*!< out: compressed page */
+	page_zip_des_t*	page_zip)	/*!< out: compressed page */
+	MY_ATTRIBUTE((warn_unused_result));
 
 #endif /* !UNIV_INNOCHECKSUM */
 

@@ -464,7 +464,7 @@ row_mysql_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
 	const char*	op_info)	/*!< in: string for trx->op_info */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Truncates a table for MySQL.

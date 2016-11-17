@@ -40,7 +40,7 @@ buf_buddy_alloc_low(
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
 	ulint		i)		/*!< in: index of buf_pool->zip_free[],
 					or BUF_BUDDY_SIZES */
-	MY_ATTRIBUTE((malloc, nonnull, warn_unused_result));
+	MY_ATTRIBUTE((malloc, warn_unused_result));
 
 /**********************************************************************//**
 Deallocate a block. */

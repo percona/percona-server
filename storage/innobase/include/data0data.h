@@ -49,7 +49,7 @@ dtype_t*
 dfield_get_type(
 /*============*/
 	const dfield_t*	field)	/*!< in: SQL data field */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Gets pointer to the data in a field.
 @return pointer to data */
@@ -58,7 +58,7 @@ void*
 dfield_get_data(
 /*============*/
 	const dfield_t* field)	/*!< in: field */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #else /* UNIV_DEBUG */
 # define dfield_get_type(field) (&(field)->type)
 # define dfield_get_data(field) ((field)->data)
@@ -80,7 +80,7 @@ ulint
 dfield_get_len(
 /*===========*/
 	const dfield_t* field)	/*!< in: field */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Sets length in a field. */
 UNIV_INLINE
@@ -88,8 +88,7 @@ void
 dfield_set_len(
 /*===========*/
 	dfield_t*	field,	/*!< in: field */
-	ulint		len)	/*!< in: length or UNIV_SQL_NULL */
-	MY_ATTRIBUTE((nonnull));
+	ulint		len);	/*!< in: length or UNIV_SQL_NULL */
 /*********************************************************************//**
 Determines if a field is SQL NULL
 @return nonzero if SQL null data */
@@ -98,7 +97,7 @@ ulint
 dfield_is_null(
 /*===========*/
 	const dfield_t* field)	/*!< in: field */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Determines if a field is externally stored
 @return nonzero if externally stored */
@@ -107,15 +106,14 @@ ulint
 dfield_is_ext(
 /*==========*/
 	const dfield_t* field)	/*!< in: field */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Sets the "external storage" flag */
 UNIV_INLINE
 void
 dfield_set_ext(
 /*===========*/
-	dfield_t*	field)	/*!< in/out: field */
-	MY_ATTRIBUTE((nonnull));
+	dfield_t*	field);	/*!< in/out: field */
 
 /** Gets spatial status for "external storage"
 @param[in,out]	field		field */
@@ -141,8 +139,7 @@ dfield_set_data(
 /*============*/
 	dfield_t*	field,	/*!< in: field */
 	const void*	data,	/*!< in: data */
-	ulint		len)	/*!< in: length or UNIV_SQL_NULL */
-	MY_ATTRIBUTE((nonnull(1)));
+	ulint		len);	/*!< in: length or UNIV_SQL_NULL */
 /*********************************************************************//**
 Sets pointer to the data and length in a field. */
 UNIV_INLINE
@@ -150,8 +147,7 @@ void
 dfield_write_mbr(
 /*=============*/
 	dfield_t*	field,	/*!< in: field */
-	const double*	mbr)	/*!< in: data */
-	MY_ATTRIBUTE((nonnull(1)));
+	const double*	mbr);	/*!< in: data */
 /*********************************************************************//**
 Sets a data field to SQL NULL. */
 UNIV_INLINE
@@ -231,7 +227,7 @@ ulint
 dtuple_get_n_fields(
 /*================*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /** Gets number of virtual fields in a data tuple.
 @param[in]	tuple	dtuple to check
 @return number of fields */
@@ -271,7 +267,7 @@ ulint
 dtuple_get_info_bits(
 /*=================*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Sets info bits in a data tuple. */
 UNIV_INLINE
@@ -279,8 +275,7 @@ void
 dtuple_set_info_bits(
 /*=================*/
 	dtuple_t*	tuple,		/*!< in: tuple */
-	ulint		info_bits)	/*!< in: info bits */
-	MY_ATTRIBUTE((nonnull));
+	ulint		info_bits);	/*!< in: info bits */
 /*********************************************************************//**
 Gets number of fields used in record comparisons.
 @return number of fields used in comparisons in rem0cmp.* */
@@ -289,7 +284,7 @@ ulint
 dtuple_get_n_fields_cmp(
 /*====================*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Gets number of fields used in record comparisons. */
 UNIV_INLINE
@@ -297,9 +292,8 @@ void
 dtuple_set_n_fields_cmp(
 /*====================*/
 	dtuple_t*	tuple,		/*!< in: tuple */
-	ulint		n_fields_cmp)	/*!< in: number of fields used in
+	ulint		n_fields_cmp);	/*!< in: number of fields used in
 					comparisons in rem0cmp.* */
-	MY_ATTRIBUTE((nonnull));
 
 /* Estimate the number of bytes that are going to be allocated when
 creating a new dtuple_t object */
@@ -322,7 +316,7 @@ dtuple_create_from_mem(
 	ulint	buf_size,
 	ulint	n_fields,
 	ulint	n_v_fields)
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
@@ -374,8 +368,7 @@ void
 dtuple_set_n_fields(
 /*================*/
 	dtuple_t*	tuple,		/*!< in: tuple */
-	ulint		n_fields)	/*!< in: number of fields */
-	MY_ATTRIBUTE((nonnull));
+	ulint		n_fields);	/*!< in: number of fields */
 /** Copies a data tuple's virtaul fields to another. This is a shallow copy;
 @param[in,out]	d_tuple		destination tuple
 @param[in]	s_tuple		source tuple */
@@ -406,7 +399,7 @@ dtuple_get_data_size(
 /*=================*/
 	const dtuple_t*	tuple,	/*!< in: typed data tuple */
 	ulint		comp)	/*!< in: nonzero=ROW_FORMAT=COMPACT  */
-	MY_ATTRIBUTE((nonnull));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Computes the number of externally stored fields in a data tuple.
 @return number of fields */
@@ -415,7 +408,7 @@ ulint
 dtuple_get_n_ext(
 /*=============*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	MY_ATTRIBUTE((nonnull));
+	MY_ATTRIBUTE((warn_unused_result));
 /** Compare two data tuples.
 @param[in] tuple1 first data tuple
 @param[in] tuple2 second data tuple

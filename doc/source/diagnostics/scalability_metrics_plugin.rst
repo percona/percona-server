@@ -4,7 +4,13 @@
  Metrics for scalability measurement
 =====================================
 
-|Percona Server| has implemented extra scalability metrics. These metrics allow using Little's Law, queueing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
+.. note::
+
+  This feature has been removed in |Percona Server| :rn:`5.7.16-10`. It can
+  still be built from source by passing ``-DWITH_SCALABILITY_METRICS=ON``
+  option to CMake.
+
+|Percona Server| has implemented extra scalability metrics. These metrics allow using Little's Law, queuing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
 
 Installation
 ============
@@ -85,6 +91,9 @@ Version Specific Information
 
   * :rn:`5.7.10-1`
     Feature ported from |Percona Server| 5.6
+
+  * :rn:`5.7.16-10`
+    Feature has been removed.
 
 Other Reading
 =============

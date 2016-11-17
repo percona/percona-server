@@ -369,6 +369,9 @@ The following options may be given as the first argument:
  The default size of key cache blocks
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
+ --kill-idle-transaction=# 
+ If non-zero, number of seconds to wait before killing
+ idle connections that have open transactions
  -L, --language=name Client error messages in given language. May be given as
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
@@ -1413,6 +1416,7 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
+kill-idle-transaction 0
 language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US

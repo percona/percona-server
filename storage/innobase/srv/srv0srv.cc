@@ -74,11 +74,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "ut0crc32.h"
 #include "ut0mem.h"
 
-/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
-bool		innobase_thd_is_idle(const void* thd);
-ib_uint64_t	innobase_thd_get_start_time(const void* thd);
-void		innobase_thd_kill(ulong thd_id);
-ulong		innobase_thd_get_thread_id(const void* thd);
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -1955,36 +1950,6 @@ loop:
 		fatal_cnt = 0;
 		old_waiter = waiter;
 		old_sema = sema;
-	}
-
-	if (srv_kill_idle_transaction && trx_sys) {
-		trx_t*	trx;
-		time_t	now;
-rescan_idle:
-		now = time(NULL);
-		mutex_enter(&trx_sys->mutex);
-		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
-		while (trx) {
-			if (trx->state == TRX_STATE_ACTIVE
-			    && trx->mysql_thd
-			    && innobase_thd_is_idle(trx->mysql_thd)) {
-				ib_uint64_t	start_time = innobase_thd_get_start_time(trx->mysql_thd);
-				ulong		thd_id = innobase_thd_get_thread_id(trx->mysql_thd);
-
-				if (trx->last_stmt_start != start_time) {
-					trx->idle_start = now;
-					trx->last_stmt_start = start_time;
-				} else if (difftime(now, trx->idle_start)
-					   > srv_kill_idle_transaction) {
-					/* kill the session */
-					mutex_exit(&trx_sys->mutex);
-					innobase_thd_kill(thd_id);
-					goto rescan_idle;
-				}
-			}
-			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
-		}
-		mutex_exit(&trx_sys->mutex);
 	}
 
 	/* Flush stderr so that a database user gets the output

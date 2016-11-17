@@ -2146,6 +2146,25 @@ static Sys_var_ulong Sys_net_write_timeout(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_net_write_timeout));
 
+// Sync kill_idle_transaction and innodb_kill_idle_transaction values
+extern long srv_kill_idle_transaction;
+
+static bool fix_kill_idle_transaction(sys_var *self, THD *thd,
+                                      enum_var_type type)
+{
+  srv_kill_idle_transaction= kill_idle_transaction_timeout;
+  return false;
+}
+
+static Sys_var_ulong Sys_kill_idle_transaction(
+       "kill_idle_transaction",
+       "If non-zero, number of seconds to wait before killing idle "
+       "connections that have open transactions",
+       GLOBAL_VAR(kill_idle_transaction_timeout), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(fix_kill_idle_transaction));
+
 static bool fix_net_retry_count(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)

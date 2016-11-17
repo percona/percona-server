@@ -53,6 +53,8 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+extern ulong kill_idle_transaction_timeout;
+
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters.
@@ -2485,6 +2487,15 @@ public:
 
   /* Do not set socket timeouts for wait_timeout (used with threadpool) */
   bool skip_wait_timeout;
+
+  inline ulong get_wait_timeout(void) const
+  {
+    if (in_active_multi_stmt_transaction()
+        && kill_idle_transaction_timeout > 0
+        && kill_idle_transaction_timeout < variables.net_wait_timeout)
+      return kill_idle_transaction_timeout;
+    return variables.net_wait_timeout;
+  }
 
   /** 
     Used by fill_status() to avoid acquiring LOCK_status mutex twice

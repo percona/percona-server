@@ -1432,6 +1432,23 @@ static bool innobase_purge_archive_logs(
 	return (err != DB_SUCCESS);
 }
 
+/** Sync innodb_kill_idle_transaction and kill_idle_transaction values.
+
+@param[in,out]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_kill_idle_transaction_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	ulong	in_val = *static_cast<const long*>(save);
+	kill_idle_transaction_timeout= in_val;
+	srv_kill_idle_transaction= in_val;
+}
+
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return	0 for valid innodb_commit_concurrency */
@@ -3896,11 +3913,6 @@ innobase_change_buffering_inited_ok:
 	srv_latin1_ordering = my_charset_latin1.sort_order;
 
 	innobase_commit_concurrency_init_default();
-
-#ifndef EXTENDED_FOR_KILLIDLE
-	srv_kill_idle_transaction = 0;
-#endif
-
 
 	/* Do not enable backoff algorithm for small buffer pool. */
 	if (!innodb_empty_free_list_algorithm_backoff_allowed(
@@ -17113,32 +17125,6 @@ innobase_fts_retrieve_ranking(
 }
 
 /***********************************************************************
-functions for kill session of idle transaction */
-ibool
-innobase_thd_is_idle(
-/*=================*/
-	const void*	thd)	/*!< in: thread handle (THD*) */
-{
-#ifdef EXTENDED_FOR_KILLIDLE
-	return(thd_command((const THD*) thd) == COM_SLEEP);
-#else
-	return(FALSE);
-#endif
-}
-
-ib_int64_t
-innobase_thd_get_start_time(
-/*========================*/
-	const void*	thd)	/*!< in: thread handle (THD*) */
-{
-#ifdef EXTENDED_FOR_KILLIDLE
-	return((ib_int64_t)thd_start_time((const THD*) thd));
-#else
-	return(0); /*dummy value*/
-#endif
-}
-
-/***********************************************************************
 Free the memory for the FTS handler */
 UNIV_INTERN
 void
@@ -17155,19 +17141,6 @@ innobase_fts_close_ranking(
 	my_free((uchar*) fts_hdl);
 
 	return;
-}
-
-UNIV_INTERN
-void
-innobase_thd_kill(
-/*==============*/
-	ulong	thd_id)
-{
-#ifdef EXTENDED_FOR_KILLIDLE
-	thd_kill(thd_id);
-#else
-	return;
-#endif
 }
 
 /***********************************************************************
@@ -17365,16 +17338,6 @@ innobase_fts_retrieve_docid(
 
 	return(ft_prebuilt->fts_doc_id);
 }
-
-
-ulong
-innobase_thd_get_thread_id(
-/*=======================*/
-	const void*	thd)
-{
-	return(thd_get_thread_id((const THD*) thd));
-}
-
 
 
 /***********************************************************************
@@ -18195,12 +18158,8 @@ static MYSQL_SYSVAR_ULONG(concurrency_tickets, srv_n_free_tickets_to_enter,
 
 static MYSQL_SYSVAR_LONG(kill_idle_transaction, srv_kill_idle_transaction,
   PLUGIN_VAR_RQCMDARG,
-#ifdef EXTENDED_FOR_KILLIDLE
-  "If non-zero value, the idle session with transaction which is idle over the value in seconds is killed by InnoDB.",
-#else
-  "No effect for this build.",
-#endif
-  NULL, NULL, 0, 0, LONG_MAX, 0);
+  "A deprecated alias of kill_idle_transaction server variable.",
+  NULL, innodb_kill_idle_transaction_update, 0, 0, LONG_TIMEOUT, 0);
 
 static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR,

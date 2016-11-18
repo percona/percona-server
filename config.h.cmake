@@ -233,7 +233,6 @@
 #cmakedefine HAVE_PUTENV 1
 #cmakedefine HAVE_RE_COMP 1
 #cmakedefine HAVE_REGCOMP 1
-#cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
 #cmakedefine HAVE_RENAME 1

@@ -557,6 +557,8 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 install -d $RBR%{_libdir}/mysql/plugin
+install -d -m 0750 $RBR/var/lib/mysql-files
+
 
 # SElinux
 pushd ${MBD}/policy
@@ -1215,8 +1217,8 @@ echo "====="                                     >> $STATUS_HISTORY
 # Audit Log and Scalability Metrics files
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
+#%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1232,6 +1234,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %endif
 
 %attr(755, root, root) %{_datadir}/percona-server/
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-client%{product_suffix}

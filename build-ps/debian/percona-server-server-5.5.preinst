@@ -15,6 +15,7 @@ ${DEBIAN_SCRIPT_TRACE:+ echo "#42#DEBUG# RUNNING $0 $*" 1>&2 }
 export PATH=$PATH:/sbin:/usr/sbin:/bin:/usr/bin
 MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
 DATADIR=/var/lib/mysql
+MYSQLFILES=/var/lib/mysql-files
 LOGDIR=/var/log/mysql
 UPGRADEDIR=/var/lib/mysql-upgrade
 
@@ -142,6 +143,13 @@ done
 # creating mysql home directory
 if [ ! -d $DATADIR -a ! -L $DATADIR ]; then
  	mkdir $DATADIR
+fi
+
+if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
+then
+    mkdir ${MYSQLFILES}
+    chown mysql:mysql ${MYSQLFILES}
+    chmod 770 ${MYSQLFILES}
 fi
 
 # checking disc space

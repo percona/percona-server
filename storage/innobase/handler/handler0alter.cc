@@ -5013,7 +5013,7 @@ err_exit:
 /* Check whether an index is needed for the foreign key constraint.
 If so, if it is dropped, is there an equivalent index can play its role.
 @return true if the index is needed and can't be dropped */
-static MY_ATTRIBUTE((nonnull(1,2,3,5), warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 innobase_check_foreign_key_index(
 /*=============================*/
@@ -6876,7 +6876,7 @@ rename_foreign:
 @param table_name Table name in MySQL
 @retval true Failure
 @retval false Success */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 innobase_rename_columns_try(
 /*========================*/
@@ -7238,7 +7238,7 @@ but do not touch the data dictionary cache.
 @retval true Failure
 @retval false Success
 */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 innobase_update_foreign_try(
 /*========================*/

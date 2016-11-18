@@ -188,7 +188,7 @@ trx_undo_rec_get_partial_row(
 				only in the assertion. */
 	mem_heap_t*	heap)	/*!< in: memory heap from which the memory
 				needed is allocated */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************************//**
 Writes information to an undo log about an insert, update, or a delete marking
 of a clustered index record. This information is used in a rollback of the

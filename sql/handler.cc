@@ -3046,6 +3046,11 @@ int handler::ha_rnd_init(bool scan)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE || (inited == RND && scan));
+  if (scan && is_using_prohibited_gap_locks(table, false))
+  {
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+  }
+
   inited= (result= rnd_init(scan)) ? NONE : RND;
   end_range= NULL;
   DBUG_RETURN(result);
@@ -3177,6 +3182,12 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  if (is_using_prohibited_gap_locks(table, is_using_full_unique_key(
+                                    active_index, keypart_map, find_flag)))
+  {
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+  }
+
   // Set status for the need to update generated fields
   m_update_generated_read_fields= table->has_gcol();
 
@@ -3199,6 +3210,11 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(table, false))
+  {
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields= table->has_gcol();
@@ -3228,6 +3244,12 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(table, is_using_full_unique_key(
+                                    index, keypart_map, find_flag)))
+  {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields= table->has_gcol();
@@ -3276,6 +3298,24 @@ int handler::ha_index_next(uchar * buf)
   DBUG_RETURN(result);
 }
 
+bool handler::is_using_full_key(key_part_map keypart_map,
+                                uint actual_key_parts)
+{
+  return (keypart_map == HA_WHOLE_KEY) ||
+         (keypart_map == ((key_part_map(1) << actual_key_parts)
+                        - 1));
+}
+
+bool handler::is_using_full_unique_key(uint index,
+                                       key_part_map keypart_map,
+                                       enum ha_rkey_function find_flag) const
+{
+  return (is_using_full_key(keypart_map,
+                            table->key_info[index].actual_key_parts)
+          && find_flag == HA_READ_KEY_EXACT
+          && (index == table->s->primary_key
+              || (table->key_info[index].flags & HA_NOSAME)));
+}
 
 /**
   Reads the previous row via index.
@@ -3331,6 +3371,11 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  if (is_using_prohibited_gap_locks(table, false))
+  {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
+
   // Set status for the need to update generated fields
   m_update_generated_read_fields= table->has_gcol();
 
@@ -3364,6 +3409,11 @@ int handler::ha_index_last(uchar * buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
+
+  if (is_using_prohibited_gap_locks(table, false))
+  {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
 
   // Set status for the need to update generated fields
   m_update_generated_read_fields= table->has_gcol();
@@ -8505,6 +8555,35 @@ static void copy_blob_data(const TABLE *table,
       DBUG_ASSERT(num <= MAX_FIELDS);
     }
   }
+}
+
+bool handler::is_using_prohibited_gap_locks(TABLE* table,
+                                            bool using_full_primary_key) const
+{
+  THD* thd = table->in_use;
+  thr_lock_type lock_type = table->reginfo.lock_type;
+
+  if (!using_full_primary_key
+      && has_transactions()
+      && !has_gap_locks()
+      && !thd->rli_slave
+      && (thd->lex->table_count >= 2 || thd->in_multi_stmt_transaction_mode())
+      && (lock_type >= TL_WRITE_ALLOW_WRITE ||
+          lock_type == TL_READ_WITH_SHARED_LOCKS ||
+          lock_type == TL_READ_NO_INSERT ||
+          (lock_type != TL_IGNORE && thd->lex->sql_command != SQLCOM_SELECT)))
+  {
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "Using Gap Lock without full unique key in multi-table "
+                    "or multi-statement transactions is not "
+                    "allowed. You need to either rewrite queries to use "
+                    "all unique key columns in WHERE equal conditions, or "
+                    "rewrite to single-table, single-statement "
+                    "transaction.  Query: %s",
+                    MYF(0), thd->query().str);
+    return true;
+  }
+  return false;
 }
 
 

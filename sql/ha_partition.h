@@ -619,6 +619,8 @@ public:
 			       bool eq_range, bool sorted);
   virtual int read_range_next();
 
+  virtual bool has_gap_locks() const;
+
 private:
   bool init_record_priority_queue();
   void destroy_record_priority_queue();

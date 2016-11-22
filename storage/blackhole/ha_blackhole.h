@@ -94,6 +94,7 @@ public:
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
+  bool has_gap_locks() const { return true; }
 private:
   virtual int write_row(uchar *buf);
   virtual int update_row(const uchar *old_data, uchar *new_data);

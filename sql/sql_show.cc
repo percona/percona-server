@@ -57,6 +57,7 @@
 #include "event_data_objects.h"             // Event_timed
 #include "event_parse_data.h"               // Event_parse_data
 #endif
+#include "my_default.h"
 
 #include "partition_info.h"                 // partition_info
 #include "partitioning/partition_handler.h" // Partition_handler
@@ -1451,6 +1452,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                        MODE_MYSQL40)) != 0;
   my_bitmap_map *old_map;
   int error= 0;
+  bool omit_compressed_columns_extensions= false;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
@@ -1597,6 +1599,23 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       break;
     case COLUMN_FORMAT_TYPE_DYNAMIC:
       packet->append(STRING_WITH_LEN(" /*!50606 COLUMN_FORMAT DYNAMIC */"));
+      break;
+    case COLUMN_FORMAT_TYPE_COMPRESSED:
+      DBUG_EXECUTE_IF("omit_compressed_columns_show_extensions",
+                      omit_compressed_columns_extensions= true; );
+      if (!omit_compressed_columns_extensions)
+      {
+        packet->append(STRING_WITH_LEN(" /*!"
+          STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
+          " COLUMN_FORMAT COMPRESSED"));
+        if (field->has_associated_compression_dictionary())
+        {
+          packet->append(STRING_WITH_LEN(" WITH COMPRESSION_DICTIONARY "));
+          append_identifier(thd, packet, field->zip_dict_name.str,
+                            field->zip_dict_name.length);
+        }
+        packet->append(STRING_WITH_LEN(" */"));
+      }
       break;
     default:
       DBUG_ASSERT(0);

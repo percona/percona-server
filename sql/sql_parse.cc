@@ -65,6 +65,7 @@
 #include "sql_binlog.h"       // mysql_client_binlog_statement
 #include "sql_do.h"           // mysql_do
 #include "sql_help.h"         // mysqld_help
+#include "sql_zip_dict.h"     // mysqld_create_zip_dict, mysqld_drop_zip_dict
 #include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
 #include "log_event.h"
 #include "rpl_slave.h"
@@ -333,6 +334,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY]= CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
@@ -574,6 +579,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY]|=
+                                               CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY]|=
+                                               CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]|=          CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|= CF_DISALLOW_IN_RO_TRANS;
@@ -1070,7 +1079,12 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
     (lex->sql_command == SQLCOM_CREATE_DB) ||
     (lex->sql_command == SQLCOM_DROP_DB);
 
-  if (update_real_tables || create_or_drop_databases)
+  const bool create_or_drop_compression_dictionary=
+    (lex->sql_command == SQLCOM_CREATE_COMPRESSION_DICTIONARY) ||
+    (lex->sql_command == SQLCOM_DROP_COMPRESSION_DICTIONARY);
+
+  if (update_real_tables || create_or_drop_databases ||
+      create_or_drop_compression_dictionary)
   {
       /*
         An attempt was made to modify one or more non-temporary tables.
@@ -3954,6 +3968,31 @@ end_with_restore_list:
       my_ok(thd);
 
     break;
+  case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
+  {
+    if (lex->default_value->fixed == 0)
+      lex->default_value->fix_fields(thd, 0);
+    String dict_data;
+    String* dict_data_ptr= lex->default_value->val_str_ascii(&dict_data);
+    if (dict_data_ptr == 0 || dict_data_ptr->ptr() == 0)
+    {
+      dict_data.set("", 0, &my_charset_bin);
+      dict_data_ptr= &dict_data;
+    }
+
+    if ((res= mysql_create_zip_dict(thd, lex->ident.str, lex->ident.length,
+          dict_data_ptr->ptr(), dict_data_ptr->length(),
+         (lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS) != 0)) == 0)
+      my_ok(thd);
+    break;
+  }
+  case SQLCOM_DROP_COMPRESSION_DICTIONARY:
+  {
+    if ((res= mysql_drop_zip_dict(thd, lex->ident.str, lex->ident.length,
+                                  lex->drop_if_exists)) == 0)
+      my_ok(thd);
+    break;
+  }
   case SQLCOM_CREATE_DB:
   {
     /*
@@ -6004,6 +6043,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *change,
                        List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type,
+                       const LEX_CSTRING *zip_dict,
                        Generated_column *gcol_info)
 {
   Create_field *new_field;
@@ -6093,7 +6133,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type, gcol_info))
+                      interval_list, cs, uint_geom_type, zip_dict, gcol_info))
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);

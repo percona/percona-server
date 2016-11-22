@@ -5445,6 +5445,7 @@ void handler::update_global_index_stats()
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
+                    const List<Create_field> *create_fields,
                     bool update_create_info,
                     bool is_temp_table)
 {
@@ -5480,6 +5481,15 @@ int ha_create_table(THD *thd, const char *path,
 
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
+
+  /*
+  Updating field definitions in 'table' with zip_dict_name values
+  from 'create_fields'
+  */
+  if (create_fields != 0)
+  {
+    table.update_compressed_columns_info(*create_fields);
+  }
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 

@@ -5687,6 +5687,19 @@ int ha_partition::read_range_next()
   DBUG_RETURN(handle_unordered_next(table->record[0], eq_range));
 }
 
+bool ha_partition::has_gap_locks() const
+{
+  handler **file;
+  DBUG_ENTER("ha_partition::has_gap_locks");
+
+  file= m_file;
+  do
+  {
+    if (!(*file)->has_gap_locks())
+      DBUG_RETURN(FALSE);
+  } while (*(++file));
+  DBUG_RETURN(TRUE);
+}
 
 /*
   Common routine to set up index scans

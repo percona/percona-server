@@ -458,8 +458,7 @@ page_zip_reorganize(
 				out: data, n_blobs,
 				m_start, m_end, m_nonempty */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
-	MY_ATTRIBUTE((nonnull));
+	mtr_t*		mtr);	/*!< in: mini-transaction */
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Copy the records of a page byte for byte.  Do not copy the page header

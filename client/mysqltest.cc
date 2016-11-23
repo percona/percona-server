@@ -5113,6 +5113,8 @@ static void abort_process(int pid, const char *path)
     verbose_msg("OpenProcess failed: %d\n", err);
   }
 #else
+  log_msg("shutdown_server timeout exceeded, SIGABRT set to the server PID %d",
+          pid);
   kill(pid, SIGABRT);
 #endif
 }

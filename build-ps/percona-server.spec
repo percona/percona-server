@@ -494,6 +494,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DWITH_PAM=ON \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_READLINE=ON
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
@@ -515,6 +516,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DWITH_PAM=ON \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_READLINE=ON
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
@@ -1217,8 +1219,8 @@ echo "====="                                     >> $STATUS_HISTORY
 # Audit Log and Scalability Metrics files
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
-#%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/scalability_metrics.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/scalability_metrics.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}

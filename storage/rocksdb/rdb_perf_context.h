@@ -17,6 +17,7 @@
 #pragma once
 
 /* C++ standard header files */
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <string>
@@ -24,6 +25,81 @@
 /* MySQL header files */
 #include "./handler.h"
 #include <my_global.h>
+#include "./atomic_stat.h"
+
+/* my_io_perf_* functionality snatched from upstream FacebookSQL server core */
+
+/* Struct used for IO performance counters within a single thread */
+struct my_io_perf_struct {
+  ulonglong bytes;
+  ulonglong requests;
+  ulonglong svc_time; /*!< time to do read or write operation */
+  ulonglong svc_time_max;
+  ulonglong wait_time; /*!< total time in the request array */
+  ulonglong wait_time_max;
+  ulonglong slow_ios; /*!< requests that take too long */
+
+  /* Initialize an my_io_perf_t struct. */
+  inline void init() {
+    memset(this, 0, sizeof(*this));
+  }
+
+  /* Accumulates io perf values */
+  inline void sum(const my_io_perf_struct& perf) {
+    bytes += perf.bytes;
+    requests += perf.requests;
+    svc_time += perf.svc_time;
+    svc_time_max = std::max(svc_time_max, perf.svc_time_max);
+    wait_time += perf.wait_time;
+    wait_time_max = std::max(wait_time_max, perf.wait_time_max);
+    slow_ios += perf.slow_ios;
+  }
+};
+typedef struct my_io_perf_struct my_io_perf_t;
+
+/* Struct used for IO performance counters, shared among multiple threads */
+struct my_io_perf_atomic_struct {
+  atomic_stat<ulonglong> bytes;
+  atomic_stat<ulonglong> requests;
+  atomic_stat<ulonglong> svc_time; /*!< time to do read or write operation */
+  atomic_stat<ulonglong> svc_time_max;
+  atomic_stat<ulonglong> wait_time; /*!< total time in the request array */
+  atomic_stat<ulonglong> wait_time_max;
+  atomic_stat<ulonglong> slow_ios; /*!< requests that take too long */
+
+  /* Initialize an my_io_perf_atomic_t struct. */
+  inline void init() {
+    bytes.clear();
+    requests.clear();
+    svc_time.clear();
+    svc_time_max.clear();
+    wait_time.clear();
+    wait_time_max.clear();
+    slow_ios.clear();
+  }
+
+  /* Accumulates io perf values using atomic operations */
+  inline void sum(const my_io_perf_t& perf) {
+    bytes.inc(perf.bytes);
+    requests.inc(perf.requests);
+
+    svc_time.inc(perf.svc_time);
+    wait_time.inc(perf.wait_time);
+
+    /*
+       In the unlikely case that two threads attempt to update the max
+       value at the same time, only the first will succeed.  It's possible
+       that the second thread would have set a larger max value, but we
+       would rather error on the side of simplicity and avoid looping the
+       compare-and-swap.
+    */
+    svc_time_max.set_max_maybe(perf.svc_time);
+    wait_time_max.set_max_maybe(perf.wait_time);
+
+    slow_ios.inc(perf.slow_ios);
+  }
+};
+typedef struct my_io_perf_atomic_struct my_io_perf_atomic_t;
 
 namespace myrocks {
 

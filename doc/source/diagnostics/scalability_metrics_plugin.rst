@@ -4,6 +4,12 @@
  Metrics for scalability measurement
 =====================================
 
+.. note::
+
+  This feature has been deprecated in |Percona Server| :rn:`5.6.34-79.1`. Users
+  who have installed this plugin but are not using its capability are advised
+  to uninstall the plugin due to known crashing bugs.
+
 |Percona Server| has implemented extra scalability metrics in :rn:`5.6.17-65.0`. These metrics allow using Little's Law, queueing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
 
 Installation
@@ -91,6 +97,9 @@ Version Specific Information
 
   * :rn:`5.6.17-65.0`
     Scalability Metrics plugin has been implemented in |Percona Server|.
+
+  * :rn:`5.6.34-79.1`
+    Feature has been deprecated.
 
 Other Reading
 =============

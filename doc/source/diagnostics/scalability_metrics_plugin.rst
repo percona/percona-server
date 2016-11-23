@@ -6,11 +6,11 @@
 
 .. note::
 
-  This feature has been removed in |Percona Server| :rn:`5.5.53-38.4`. It can
-  still be built from source by passing ``-DWITH_SCALABILITY_METRICS=ON``
-  option to CMake.
+  This feature has been deprecated in |Percona Server| :rn:`5.5.53-38.5`. Users
+  who have installed this plugin but are not using its capability are advised
+  to uninstall the plugin due to known crashing bugs.
 
-|Percona Server| has implemented extra scalability metrics in :rn:`5.5.37-35.0`. These metrics allow using Little's Law, queuing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
+|Percona Server| has implemented extra scalability metrics in :rn:`5.5.37-35.0`. These metrics allow using Little's Law, queueing theory, and Universal Scalability Law to gain insights into server performance. This feature is implemented as a plugin.
 
 Installation
 ============
@@ -100,6 +100,9 @@ Version Specific Information
 
   * :rn:`5.5.53-38.4`
     Feature has been removed.
+
+  * :rn:`5.5.53-38.5`
+    Feature has been added back but deprecated.
 
 Other Reading
 =============

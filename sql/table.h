@@ -1301,6 +1301,20 @@ public:
   {
     created= false;
   }
+
+private:
+  bool should_binlog_drop_if_temp_flag;
+
+public:
+  void set_binlog_drop_if_temp(bool should_binlog)
+  {
+    should_binlog_drop_if_temp_flag= should_binlog;
+  }
+
+  bool should_binlog_drop_if_temp(void) const
+  {
+    return should_binlog_drop_if_temp_flag;
+  }
 };
 
 

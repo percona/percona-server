@@ -1,7 +1,7 @@
 CREATE COMPRESSION_DICTIONARY dict1('foo');
 CREATE COMPRESSION_DICTIONARY dict2('bar');
 # from 'BLOB' to 'xxx'
-*** "a BLOB" -> "a BLOB", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "a BLOB", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -17,7 +17,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -33,7 +33,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -51,7 +51,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -69,7 +69,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB COLUMN_FORMAT COMPRESSED' to 'xxx'
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -85,7 +85,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -101,7 +101,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -119,7 +119,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -137,7 +137,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY <dict>' to 'xxx'
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -157,7 +157,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -177,7 +177,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -197,7 +197,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -218,7 +218,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict2", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict2", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -241,7 +241,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary at the first position
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -259,7 +259,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary between existing columns
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -277,7 +277,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary at the last position
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -295,7 +295,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for removing a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "b BLOB", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "b BLOB", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -315,7 +315,7 @@ modified_dictionary_references_cleaned
 1
 
 # add a new column to an existing table so that a column with associated compression dictionary would get shifted
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -335,7 +335,7 @@ modified_dictionary_references_cleaned
 1
 
 # remove a column from an existing table so that a column with associated compression dictionary would get shifted
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -355,7 +355,7 @@ modified_dictionary_references_cleaned
 1
 
 # explicitly move a column with associated compression dictionary to a new position (forward)
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -375,7 +375,7 @@ modified_dictionary_references_cleaned
 1
 
 # explicitly move a column with associated compression dictionary to a new position (backward)
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -395,7 +395,7 @@ modified_dictionary_references_cleaned
 1
 
 # rename a table which has a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -415,7 +415,7 @@ modified_dictionary_references_cleaned
 1
 
 # change storage engine for a table without compressed columns
-*** "a BLOB" -> "a BLOB", ALGOTIRHM=DEFAULT
+*** "a BLOB" -> "a BLOB", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -427,7 +427,7 @@ original_dictionary_references_cleaned
 1
 
 # change storage engine for a table which has a compressed column
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -445,7 +445,7 @@ modified_dictionary_references_cleaned
 1
 
 # change storage engine for a table which has a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -467,7 +467,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB' to 'xxx'
-*** "a BLOB" -> "a BLOB", ALGOTIRHM=COPY
+*** "a BLOB" -> "a BLOB", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -483,7 +483,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=COPY
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -499,7 +499,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -517,7 +517,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=COPY
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -535,7 +535,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB COLUMN_FORMAT COMPRESSED' to 'xxx'
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -551,7 +551,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -567,7 +567,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -585,7 +585,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -603,7 +603,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY <dict>' to 'xxx'
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -623,7 +623,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -643,7 +643,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -663,7 +663,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -684,7 +684,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict2", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict2", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -707,7 +707,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary at the first position
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -725,7 +725,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary between existing columns
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -743,7 +743,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary at the last position
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -761,7 +761,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for removing a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "b BLOB", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "b BLOB", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -781,7 +781,7 @@ modified_dictionary_references_cleaned
 1
 
 # add a new column to an existing table so that a column with associated compression dictionary would get shifted
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -801,7 +801,7 @@ modified_dictionary_references_cleaned
 1
 
 # remove a column from an existing table so that a column with associated compression dictionary would get shifted
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -821,7 +821,7 @@ modified_dictionary_references_cleaned
 1
 
 # explicitly move a column with associated compression dictionary to a new position (forward)
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -841,7 +841,7 @@ modified_dictionary_references_cleaned
 1
 
 # explicitly move a column with associated compression dictionary to a new position (backward)
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -861,7 +861,7 @@ modified_dictionary_references_cleaned
 1
 
 # rename a table which has a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -881,7 +881,7 @@ modified_dictionary_references_cleaned
 1
 
 # change storage engine for a table without compressed columns
-*** "a BLOB" -> "a BLOB", ALGOTIRHM=COPY
+*** "a BLOB" -> "a BLOB", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -893,7 +893,7 @@ original_dictionary_references_cleaned
 1
 
 # change storage engine for a table which has a compressed column
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=COPY
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -911,7 +911,7 @@ modified_dictionary_references_cleaned
 1
 
 # change storage engine for a table which has a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=COPY
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=COPY
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -933,7 +933,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB' to 'xxx'
-*** "a BLOB" -> "a BLOB", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "a BLOB", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -949,7 +949,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -966,7 +966,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -983,7 +983,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -1001,7 +1001,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB COLUMN_FORMAT COMPRESSED' to 'xxx'
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -1018,7 +1018,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 successful execution is expected
@@ -1034,7 +1034,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -1051,7 +1051,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 error is expected
@@ -1069,7 +1069,7 @@ modified_dictionary_references_cleaned
 1
 
 # from 'BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY <dict>' to 'xxx'
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1090,7 +1090,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1111,7 +1111,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1131,7 +1131,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY unknown", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1152,7 +1152,7 @@ original_dictionary_references_cleaned
 modified_dictionary_references_cleaned
 1
 
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict2", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict2", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1174,7 +1174,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary at the first position
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -1192,7 +1192,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary between existing columns
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -1210,7 +1210,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for adding a column with associated compression dictionary at the last position
-*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -1228,7 +1228,7 @@ modified_dictionary_references_cleaned
 1
 
 # check for removing a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "b BLOB", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "b BLOB", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1248,7 +1248,7 @@ modified_dictionary_references_cleaned
 1
 
 # add a new column to an existing table so that a column with associated compression dictionary would get shifted
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1268,7 +1268,7 @@ modified_dictionary_references_cleaned
 1
 
 # remove a column from an existing table so that a column with associated compression dictionary would get shifted
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1288,7 +1288,7 @@ modified_dictionary_references_cleaned
 1
 
 # explicitly move a column with associated compression dictionary to a new position (forward)
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1308,7 +1308,7 @@ modified_dictionary_references_cleaned
 1
 
 # explicitly move a column with associated compression dictionary to a new position (backward)
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1328,7 +1328,7 @@ modified_dictionary_references_cleaned
 1
 
 # rename a table which has a column with associated compression dictionary
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=INPLACE
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=INPLACE
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches
@@ -1348,7 +1348,7 @@ modified_dictionary_references_cleaned
 1
 
 # test if 'ALTER TABLE ... DISCARD/IMPORT TABLESPACE' works for tables without compressed columns
-*** "a BLOB" -> "a BLOB", ALGOTIRHM=INPLACE
+*** "a BLOB" -> "a BLOB", ALGORITHM=INPLACE
 original_dictionary_reference_does_not_exist
 1
 *** after table alteration
@@ -1364,7 +1364,7 @@ modified_dictionary_references_cleaned
 1
 
 # test if 'ALTER TABLE ... DISCARD/IMPORT TABLESPACE' returns an error for tables that have compressed columns
-*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED" -> "a BLOB COLUMN_FORMAT COMPRESSED", ALGORITHM=DEFAULT
 original_dictionary_reference_does_not_exist
 1
 ERROR HY000: Table storage engine for 't1' doesn't have this option
@@ -1381,7 +1381,7 @@ modified_dictionary_references_cleaned
 1
 
 # test if 'ALTER TABLE ... DISCARD/IMPORT TABLESPACE' returns an error for tables that have columns with associated compression dictionaries
-*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGOTIRHM=DEFAULT
+*** "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1" -> "a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY dict1", ALGORITHM=DEFAULT
 original_dictionary_reference_exists
 1
 original_dictionary_reference_matches

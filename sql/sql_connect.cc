@@ -423,6 +423,7 @@ static int increment_count_by_name(const char *name, const char *role_name,
       return 1; // Out of memory
     }
   }
+  user_stats->concurrent_connections++;
   user_stats->total_connections++;
   if (thd->net.vio &&  thd->net.vio->type == VIO_TYPE_SSL)
     user_stats->total_ssl_connections++;
@@ -544,6 +545,11 @@ static void update_global_user_stats_with_user(THD* thd,
   user_stats->lost_connections+=     thd->diff_lost_connections;
   user_stats->access_denied_errors+= thd->diff_access_denied_errors;
   user_stats->empty_queries+=        thd->diff_empty_queries;
+
+  if (thd->diff_disconnects && thd->diff_denied_connections == 0) {
+    DBUG_ASSERT(user_stats->concurrent_connections > 0);
+    user_stats->concurrent_connections-=  thd->diff_disconnects;
+  }
 }
 
 static void update_global_thread_stats_with_thread(THD* thd,
@@ -1325,6 +1331,12 @@ void end_connection(THD *thd)
     of someone else.
   */
   release_user_connection(thd);
+
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(false);
+    thd->diff_disconnects= 1;
+    update_global_user_stats(thd, false, time(NULL));
+  }
 
   if (thd->killed || (net->error && net->vio != 0))
   {

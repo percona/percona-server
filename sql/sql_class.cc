@@ -1563,6 +1563,7 @@ void THD::reset_diff_stats(void)
   diff_lost_connections=           0;
   diff_access_denied_errors=       0;
   diff_empty_queries=              0;
+  diff_disconnects=                0;
 }
 
 // Updates 'diff' stats of a THD.

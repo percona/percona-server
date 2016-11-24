@@ -3121,6 +3121,7 @@ public:
   ulonglong diff_access_denied_errors;
   // Number of queries that return 0 rows
   ulonglong diff_empty_queries;
+  ulonglong diff_disconnects;
 
   // Per account query delay in miliseconds. When not 0, sleep this number of
   // milliseconds before every SQL command.

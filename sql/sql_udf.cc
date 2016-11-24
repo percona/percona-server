@@ -470,10 +470,20 @@ int mysql_create_function(THD *thd,udf_func *udf)
   if (!(dl = find_udf_dl(udf->dl)))
   {
     char dlpath[FN_REFLEN];
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", udf->dl, NullS);
-    (void) unpack_filename(dlpath, dlpath);
+    char curr_plugin_dir[FN_REFLEN];
+    const char *next_plugin_dir= opt_plugin_dir_ptr;
 
-    if (!(dl = dlopen(dlpath, RTLD_NOW)))
+    while (!dl &&
+           (next_plugin_dir= get_next_plugin_dir(next_plugin_dir,
+                                                 curr_plugin_dir,
+                                                 FN_REFLEN)))
+    {
+      strxnmov(dlpath, sizeof(dlpath) - 1, curr_plugin_dir, "/", udf->dl, NullS);
+      (void) unpack_filename(dlpath, dlpath);
+      dl = dlopen(dlpath, RTLD_NOW);
+    }
+
+    if (!dl)
     {
       const char *errmsg;
       int error_number= dlopen_errno;

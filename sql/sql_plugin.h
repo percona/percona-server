@@ -136,8 +136,10 @@ typedef struct st_plugin_int **plugin_ref;
 typedef int (*plugin_type_init)(struct st_plugin_int *);
 
 extern I_List<i_string> *opt_plugin_load_list_ptr;
+#define OPT_PLUGIN_DIR_MAX_LEN  5*FN_REFLEN
+#define OPT_PLUGIN_DIR_DELIMITER ':'
 extern char *opt_plugin_dir_ptr;
-extern char opt_plugin_dir[FN_REFLEN];
+extern char opt_plugin_dir[OPT_PLUGIN_DIR_MAX_LEN];
 extern const LEX_STRING plugin_type_names[];
 
 extern int plugin_init(int *argc, char **argv, int init_flags);
@@ -185,4 +187,9 @@ struct system_variables *
 copy_system_variables(const struct system_variables *src,
                       bool enable_plugins);
 extern void free_system_variables(struct system_variables *v, bool enable_plugins);
+
+
+const char *get_next_plugin_dir(const char *curr_plugin_dir_ptr,
+                                char *out,
+                                size_t out_size);
 #endif

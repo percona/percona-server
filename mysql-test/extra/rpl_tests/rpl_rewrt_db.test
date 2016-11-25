@@ -86,6 +86,10 @@ set sql_log_bin= 1;
 
 # End of 4.1 tests
 
+# Test only STATEMENT as for MIX/ROW no DROPS will be logged
+if (`SELECT @@SESSION.binlog_format = 'STATEMENT'`)
+{
+
 --echo
 --echo ****
 --echo **** Bug #46861 Auto-closing of temporary tables broken by replicate-rewrite-db
@@ -248,6 +252,8 @@ DROP DATABASE database_slave_temp_01;
 DROP DATABASE database_slave_temp_02;
 DROP DATABASE database_slave_temp_03;
 SET sql_log_bin= 1;
+
+} # if (`SELECT @@SESSION.binlog_format = 'STATEMENT')
 
 connection master;
 --source include/sync_slave_sql_with_master.inc

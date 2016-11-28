@@ -1403,6 +1403,12 @@ row_truncate_update_table_id(
 	pars_info_add_ull_literal(info, "old_id", old_table_id);
 	pars_info_add_ull_literal(info, "new_id", new_table_id);
 
+	/* As micro-SQL does not support int4 == int8 comparisons,
+	old and new IDs are added again under different names as
+	int4 values */
+	pars_info_add_int4_literal(info, "old_id_narrow", old_table_id);
+	pars_info_add_int4_literal(info, "new_id_narrow", new_table_id);
+
 	err = que_eval_sql(
 		info,
 		"PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
@@ -1418,6 +1424,9 @@ row_truncate_update_table_id(
 		"UPDATE SYS_VIRTUAL"
 		" SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
+		"UPDATE SYS_ZIP_DICT_COLS\n"
+		" SET TABLE_ID = :new_id_narrow\n"
+		" WHERE TABLE_ID = :old_id_narrow;\n"
 		"END;\n", reserve_dict_mutex, trx);
 
 	return(err);

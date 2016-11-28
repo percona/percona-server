@@ -88,7 +88,8 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *thd, const char *db_name,
                          const char *table_name,
-                         HA_CREATE_INFO *create_info);
+                         HA_CREATE_INFO *create_info,
+                         const Alter_info *alter_info);
 
 static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
@@ -3346,7 +3347,7 @@ bool fill_field_definition(THD *thd,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
-                      lex->uint_geom_type, NULL))
+                      lex->uint_geom_type, &null_lex_cstr, NULL))
   {
     return true;
   }
@@ -3591,6 +3592,34 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
     const CHARSET_INFO *save_cs;
+
+    /*
+      Check if the column is compressible.
+      VIRTUAL generated columns cannot have COMPRESSED attribute.
+    */
+    if ((sql_field->sql_type == MYSQL_TYPE_TINY_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_MEDIUM_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_LONG_BLOB ||
+         sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
+         sql_field->sql_type == MYSQL_TYPE_JSON) &&
+        (sql_field->gcol_info == 0 ||
+         sql_field->gcol_info->get_field_stored()))
+    {
+      DBUG_EXECUTE_IF("enforce_all_compressed_columns",
+        if (create_info->db_type->create_zip_dict != 0)
+          sql_field->set_column_format(COLUMN_FORMAT_TYPE_COMPRESSED);
+      );
+    }
+    else
+    {
+      if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+      {
+        my_error(ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE, MYF(0),
+                 sql_field->field_name);
+        DBUG_RETURN(TRUE);
+      }
+    }
 
     /*
       Initialize length from its original value (number of characters),
@@ -4282,6 +4311,17 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  DBUG_RETURN(TRUE);
 	}
       }
+
+      /* compressed column is not allowed to be defined as a key part */
+      DBUG_EXECUTE_IF("remove_compressed_attributes_for_keys",
+        sql_field->set_column_format(COLUMN_FORMAT_TYPE_DEFAULT););
+      if (sql_field->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+      {
+        my_error(ER_COMPRESSED_COLUMN_USED_AS_KEY, MYF(0),
+          column->field_name.str);
+        DBUG_RETURN(TRUE);
+      }
+
       cols2.rewind();
       if (key->type == KEYTYPE_FULLTEXT)
       {
@@ -5013,7 +5053,7 @@ bool create_table_impl(THD *thd,
     DBUG_RETURN(true);
   }
 
-  if (check_engine(thd, db, table_name, create_info))
+  if (check_engine(thd, db, table_name, create_info, alter_info))
     DBUG_RETURN(TRUE);
 
   set_table_default_charset(thd, create_info, (char*) db);
@@ -6199,7 +6239,14 @@ int mysql_discard_or_import_tablespace(THD *thd,
     DBUG_RETURN(-1);
   }
 
-  error= table_list->table->file->ha_discard_or_import_tablespace(discard);
+  /*
+    ALTER TABLE ... DISCARD/IMPORT TABLESPACE is not supported for tables
+    with compressed columns.
+  */
+  if (table_list->table->has_compressed_columns())
+    error= HA_ERR_WRONG_COMMAND;
+  else
+    error= table_list->table->file->ha_discard_or_import_tablespace(discard);
 
   THD_STAGE_INFO(thd, stage_end);
 
@@ -7894,7 +7941,7 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, 0, NULL))
+                             NULL, 0, &def->zip_dict_name, NULL))
       DBUG_RETURN(true);
 
     temporal_field->field= def->field;
@@ -9471,7 +9518,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       create_info->db_type= table->s->db_type();
   }
 
-  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info))
+  if (check_engine(thd, alter_ctx.new_db, alter_ctx.new_name, create_info,
+                   alter_info))
     DBUG_RETURN(true);
 
   if (create_info->db_type != table->s->db_type() &&
@@ -9848,6 +9896,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     update_altered_table(ha_alter_info, altered_table);
 
     /*
+    Updating field definitions in 'altered_table' with zip_dict_name values
+    from 'ha_alter_info.alter_info->create_list'
+    */
+    if (ha_alter_info.alter_info != 0 && altered_table != 0)
+    {
+      altered_table->update_compressed_columns_info(
+        ha_alter_info.alter_info->create_list);
+    }
+
+    /*
       Mark all columns in 'altered_table' as used to allow usage
       of its record[0] buffer and Field objects during in-place
       ALTER TABLE.
@@ -10007,7 +10065,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   {
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
-                        create_info, false))
+                        create_info, &alter_info->create_list, false))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -10903,7 +10961,8 @@ err:
   @retval false Engine available/supported.
 */
 static bool check_engine(THD *thd, const char *db_name,
-                         const char *table_name, HA_CREATE_INFO *create_info)
+                         const char *table_name, HA_CREATE_INFO *create_info,
+                         const Alter_info *alter_info)
 {
   DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
@@ -10973,6 +11032,25 @@ static bool check_engine(THD *thd, const char *db_name,
     my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
     *new_engine= NULL;
+    DBUG_RETURN(true);
+  }
+  /*
+    Check if the given table has compressed columns, and if the storage engine
+    does support it.
+  */
+  List_iterator<Create_field> it(
+    const_cast<List<Create_field>&>(alter_info->create_list));
+  Create_field* sql_field= it++;
+  while (sql_field != 0 &&
+         sql_field->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    sql_field= it++;
+  if (sql_field != 0 &&
+    ((*new_engine)->create_zip_dict == 0 ||
+     (*new_engine)->drop_zip_dict == 0))
+  {
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+      ha_resolve_storage_engine_name(*new_engine), "COMPRESSED COLUMNS");
+    *new_engine= 0;
     DBUG_RETURN(true);
   }
 

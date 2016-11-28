@@ -1591,6 +1591,7 @@ union YYSTYPE {
   ulonglong ulonglong_number;
   longlong longlong_number;
   LEX_STRING lex_str;
+  LEX_CSTRING lex_cstr;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
   Table_ident *table;
@@ -1788,6 +1789,8 @@ struct st_sp_chistics
 
 extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
+extern const LEX_CSTRING null_lex_cstr;
+extern const LEX_CSTRING empty_lex_cstr;
 
 struct st_trg_chistics
 {
@@ -3272,6 +3275,17 @@ public:
   bool is_set_password_sql;
   bool contains_plaintext_password;
   enum_keep_diagnostics keep_diagnostics;
+
+  /*
+    Compression dictionary name (in column definition)
+    CREATE TABLE t1(
+      ...
+      <column_name> BLOB COLUMN_FORMAT COMPRESSED
+        WITH COMPRESSION_DICTIONARY <dict>
+      ...
+    );
+  */
+  LEX_CSTRING zip_dict_name;
 
 private:
   bool m_broken; ///< see mark_broken()

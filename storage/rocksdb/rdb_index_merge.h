@@ -141,6 +141,7 @@ public:
   };
 
 private:
+  const char *m_tmpfile_path;
   const ulonglong m_merge_buf_size;
   const ulonglong m_merge_combine_read_size;
   const rocksdb::Comparator *m_comparator;
@@ -181,7 +182,7 @@ private:
       __attribute__((__nonnull__));
 
 public:
-  Rdb_index_merge(const ulonglong merge_buf_size,
+  Rdb_index_merge(const char *tmpfile_path, const ulonglong merge_buf_size,
                   const ulonglong merge_combine_read_size,
                   const rocksdb::Comparator *comparator);
   ~Rdb_index_merge();

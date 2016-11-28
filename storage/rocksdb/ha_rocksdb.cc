@@ -443,16 +443,6 @@ static MYSQL_THDVAR_BOOL(
     "update and delete",
     nullptr, nullptr, FALSE);
 
-static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "Directory for temporary files during DDL operations.",
-                        nullptr, nullptr, "");
-
-static MYSQL_THDVAR_BOOL(
-    commit_in_the_middle, PLUGIN_VAR_RQCMDARG,
-    "Commit rows implicitly every rocksdb_bulk_load_size, on bulk load/insert, "
-    "update and delete",
-    nullptr, nullptr, FALSE);
-
 static MYSQL_THDVAR_STR(
     read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Regex that describes set of tables that will use read-free replication "
@@ -1105,6 +1095,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(bulk_load_size),
     MYSQL_SYSVAR(merge_buf_size),
     MYSQL_SYSVAR(enable_bulk_load_api),
+    MYSQL_SYSVAR(tmpdir),
     MYSQL_SYSVAR(merge_combine_read_size),
     MYSQL_SYSVAR(skip_bloom_filter_on_read),
 
@@ -2521,20 +2512,42 @@ static std::string format_string(const char *format, ...) {
   std::string res;
   va_list args;
   va_list args_copy;
+  char static_buff[256];
 
   va_start(args, format);
   va_copy(args_copy, args);
 
-  size_t len = vsnprintf(nullptr, 0, format, args) + 1;
+  // Calculate how much space we will need
+  int len = vsnprintf(nullptr, 0, format, args);
   va_end(args);
 
-  if (len == 0) {
+  if (len < 0) {
+    res = std::string("<format error>");
+  } else if (len == 0) {
+    // Shortcut for an empty string
     res = std::string("");
   } else {
-    char buff[len];
+    // For short enough output use a static buffer
+    char *buff = static_buff;
+    std::unique_ptr<char[]> dynamic_buff = nullptr;
+
+    len++; // Add one for null terminator
+
+    // for longer output use an allocated buffer
+    if (static_cast<uint>(len) > sizeof(static_buff)) {
+      dynamic_buff.reset(new char[len]);
+      buff = dynamic_buff.get();
+    }
+
+    // Now re-do the vsnprintf with the buffer which is now large enough
     (void)vsnprintf(buff, len, format, args_copy);
 
-    res = std::string(buff);
+    // Convert to a std::string.  Note we could have created a std::string
+    // large enough and then converted the buffer to a 'char*' and created
+    // the output in place.  This would probably work but feels like a hack.
+    // Since this isn't code that needs to be super-performant we are going
+    // with this 'safer' method.
+     res = std::string(buff);
   }
 
   va_end(args_copy);
@@ -7534,6 +7547,20 @@ void ha_rocksdb::read_thd_vars(THD *thd) {
   m_checksums_pct = THDVAR(thd, checksums_pct);
 }
 
+const char *ha_rocksdb::thd_rocksdb_tmpdir() {
+  const char *tmp_dir = THDVAR(ha_thd(), tmpdir);
+
+  /*
+    We want to treat an empty string as nullptr, in these cases DDL operations
+    will use the default --tmpdir passed to mysql instead.
+  */
+  if (tmp_dir != nullptr && *tmp_dir == '\0') {
+    tmp_dir = nullptr;
+  }
+
+  return (tmp_dir);
+}
+
 int ha_rocksdb::external_lock(THD *thd, int lock_type) {
   int res = 0;
   DBUG_ENTER("ha_rocksdb::external_lock");
@@ -8615,8 +8642,8 @@ int ha_rocksdb::inplace_populate_sk(
 
   for (auto &index : indexes) {
     const rocksdb::Comparator *index_comp = index->get_cf()->GetComparator();
-    Rdb_index_merge rdb_merge(rdb_merge_buf_size, rdb_merge_combine_read_size,
-                              index_comp);
+    Rdb_index_merge rdb_merge(thd_rocksdb_tmpdir(), rdb_merge_buf_size,
+                              rdb_merge_combine_read_size, index_comp);
 
     if ((res = rdb_merge.init())) {
       DBUG_RETURN(res);

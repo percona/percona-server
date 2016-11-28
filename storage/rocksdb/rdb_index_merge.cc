@@ -86,7 +86,29 @@ int Rdb_index_merge::merge_file_create()
 {
   DBUG_ASSERT(m_merge_file.fd == -1);
 
-  int fd = mysql_tmpfile_path(m_tmpfile_path, "myrocks");
+  int fd;
+  /* If no path set for tmpfile, use mysql_tmpdir by default */
+  if (m_tmpfile_path == nullptr)
+  {
+    fd = mysql_tmpfile("myrocks");
+  }
+  else
+  {
+    char filename[FN_REFLEN];
+    fd = create_temp_file(filename, m_tmpfile_path, "myrocks",
+                          O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
+                          MYF(MY_WME));
+    if (fd >= 0) {
+#ifndef __WIN__
+      /*
+        This can be removed once the following bug is fixed:
+        Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
+                    (file not removed) (Unix)
+      */
+      unlink(filename);
+#endif /* !__WIN__ */
+    }
+  }
 
   if (fd < 0)
   {

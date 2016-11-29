@@ -1072,15 +1072,6 @@ innobase_col_to_mysql(
 		field->reset();
 
 		if (field->type() == MYSQL_TYPE_VARCHAR) {
-			if (field->column_format() ==
-				COLUMN_FORMAT_TYPE_COMPRESSED) {
-				/* Skip compressed varchar column when
-				reporting an erroneous row
-				during index creation or table rebuild. */
-				field->set_null();
-				break;
-			}
-
 			/* This is a >= 5.0.3 type true VARCHAR. Store the
 			length of the data to the first byte or the first
 			two bytes of dest. */

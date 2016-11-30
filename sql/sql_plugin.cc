@@ -85,7 +85,7 @@ I_List<i_string> *opt_plugin_load_list_ptr= &opt_plugin_load_list;
 static I_List<i_string> opt_early_plugin_load_list;
 I_List<i_string> *opt_early_plugin_load_list_ptr= &opt_early_plugin_load_list;
 char *opt_plugin_dir_ptr;
-char opt_plugin_dir[FN_REFLEN];
+char opt_plugin_dir[OPT_PLUGIN_DIR_MAX_LEN];
 /*
   When you ad a new plugin type, add both a string and make sure that the
   init and deinit array are correctly updated.
@@ -348,6 +348,14 @@ static void report_error(int where_to, uint error, ...)
   }
 }
 
+static void error_log_print_wrapper(const char *fmt, ...)
+{
+  va_list args;
+  va_start(args, fmt);
+  error_log_print(ERROR_LEVEL, fmt, args);
+  va_end(args);
+}
+
 /**
    Check if the provided path is valid in the sense that it does cause
    a relative reference outside the directory.
@@ -486,8 +494,13 @@ static inline void free_plugin_mem(st_plugin_dl *p)
     my_free(p->plugins);
 }
 
-
-static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
+static st_plugin_dl *plugin_dl_add_for_dir(const char *plugin_dir,
+                                           const LEX_STRING *dl,
+                                           int report,
+                                           bool /* OUT */ *lib_open_error,
+                                           int /* OUT */ *err,
+                                           char /* OUT */ *err_msg,
+                                           size_t err_msg_size)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
@@ -495,10 +508,17 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   size_t plugin_dir_len, dlpathlen;
   st_plugin_dl *tmp, plugin_dl;
   void *sym;
-  DBUG_ENTER("plugin_dl_add");
-  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
-                       dl->str, (int) dl->length));
-  plugin_dir_len= strlen(opt_plugin_dir);
+  DBUG_ENTER("plugin_dl_add_for_dir");
+  DBUG_ASSERT(plugin_dir);
+  DBUG_ASSERT(dl);
+  DBUG_ASSERT(lib_open_error);
+  DBUG_ASSERT(err);
+  DBUG_ASSERT(err_msg);
+  DBUG_PRINT("enter", ("plugin_dir: '%s', dl->str: '%s', dl->length: %d",
+                       plugin_dir, dl->str, (int) dl->length));
+
+  *lib_open_error= false;
+  plugin_dir_len= strlen(plugin_dir);
   /*
     Ensure that the dll doesn't have a path.
     This is done to ensure that only approved libraries from the
@@ -510,7 +530,10 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
   {
-    report_error(report, ER_UDF_NO_PATHS);
+    *err= ER_UDF_NO_PATHS;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_UDF_NO_PATHS));
     DBUG_RETURN(NULL);
   }
   /* If this dll is already loaded just increase ref_count. */
@@ -522,7 +545,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   memset(&plugin_dl, 0, sizeof(plugin_dl));
   /* Compile dll path */
   dlpathlen=
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
+    strxnmov(dlpath, sizeof(dlpath) - 1, plugin_dir, "/", dl->str, NullS) -
     dlpath;
   (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
@@ -544,7 +567,14 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       if (*errmsg == ':') errmsg++;
       if (*errmsg == ' ') errmsg++;
     }
-    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, error_number, errmsg);
+    *lib_open_error= true;
+    *err= ER_CANT_OPEN_LIBRARY;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_CANT_OPEN_LIBRARY),
+                dlpath,
+                error_number,
+                errmsg);
 
     /*
       "The messages returned by dlerror() may reside in a static buffer
@@ -564,7 +594,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (!(sym= dlsym(plugin_dl.handle, plugin_interface_version_sym)))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_interface_version_sym);
+    *err= ER_CANT_FIND_DL_ENTRY;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_CANT_FIND_DL_ENTRY),
+                plugin_interface_version_sym);
     DBUG_RETURN(NULL);
   }
   plugin_dl.version= *(int *)sym;
@@ -573,8 +607,13 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
       (plugin_dl.version >> 8) > (MYSQL_PLUGIN_INTERFACE_VERSION >> 8))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0,
-                 "plugin interface version mismatch");
+    *err= ER_CANT_OPEN_LIBRARY;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_CANT_OPEN_LIBRARY),
+                dlpath,
+                0,
+                "plugin interface version mismatch");
     DBUG_RETURN(NULL);
   }
 
@@ -592,7 +631,13 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
         my_snprintf(buf, sizeof(buf),
                     "service '%s' interface version mismatch",
                     list_of_services[i].name);
-        report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0, buf);
+        *err= ER_CANT_OPEN_LIBRARY;
+        my_snprintf(err_msg,
+                    err_msg_size,
+                    ER_DEFAULT(ER_CANT_OPEN_LIBRARY),
+                    dlpath,
+                    0,
+                    buf);
         DBUG_RETURN(NULL);
       }
       *(void**)sym= list_of_services[i].service;
@@ -603,7 +648,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (!(sym= dlsym(plugin_dl.handle, plugin_declarations_sym)))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_declarations_sym);
+    *err= ER_CANT_FIND_DL_ENTRY;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_CANT_FIND_DL_ENTRY),
+                plugin_declarations_sym);
     DBUG_RETURN(NULL);
   }
 
@@ -641,8 +690,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if (!cur)
     {
       free_plugin_mem(&plugin_dl);
-      report_error(report, ER_OUTOFMEMORY,
-                   static_cast<int>(plugin_dl.dl.length));
+      *err= ER_OUTOFMEMORY;
+      my_snprintf(err_msg,
+                  err_msg_size,
+                  ER_DEFAULT(ER_OUTOFMEMORY),
+                  static_cast<int>(plugin_dl.dl.length));
       DBUG_RETURN(NULL);
     }
     /*
@@ -670,7 +722,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     for ( ; plugin->info ; ++plugin)
       if (plugin->flags & PLUGIN_OPT_NO_INSTALL)
       {
-        report_error(report, ER_PLUGIN_NO_INSTALL, plugin->name);
+        *err= ER_PLUGIN_NO_INSTALL;
+        my_snprintf(err_msg,
+                    err_msg_size,
+                    ER_DEFAULT(ER_PLUGIN_NO_INSTALL),
+                    plugin->name);
         free_plugin_mem(&plugin_dl);
         DBUG_RETURN(NULL);
    }
@@ -682,8 +738,11 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
                                              plugin_dl.dl.length, MYF(0))))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_OUTOFMEMORY,
-                 static_cast<int>(plugin_dl.dl.length));
+    *err= ER_OUTOFMEMORY;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_OUTOFMEMORY),
+                static_cast<int>(plugin_dl.dl.length));
     DBUG_RETURN(NULL);
   }
   plugin_dl.dl.length= copy_and_convert(plugin_dl.dl.str, plugin_dl.dl.length,
@@ -694,18 +753,106 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   if (! (tmp= plugin_dl_insert_or_reuse(&plugin_dl)))
   {
     free_plugin_mem(&plugin_dl);
-    report_error(report, ER_OUTOFMEMORY,
-                 static_cast<int>(sizeof(st_plugin_dl)));
+    *err= ER_OUTOFMEMORY;
+    my_snprintf(err_msg,
+                err_msg_size,
+                ER_DEFAULT(ER_OUTOFMEMORY),
+                static_cast<int>(sizeof(struct st_plugin_dl)));
     DBUG_RETURN(NULL);
   }
   DBUG_RETURN(tmp);
 #else
-  DBUG_ENTER("plugin_dl_add");
-  report_error(report, ER_FEATURE_DISABLED, "plugin", "HAVE_DLOPEN");
+  DBUG_ENTER("plugin_dl_add_for_dir");
   DBUG_RETURN(NULL);
 #endif
 }
 
+const char *get_next_plugin_dir(const char *curr_plugin_dir_ptr,
+                                char *out,
+                                size_t out_size)
+{
+  size_t cp_size;
+  const char *next_delimiter;
+  const char *result;
+  bool out_size_exceed= false;
+
+  DBUG_ASSERT(curr_plugin_dir_ptr);
+  DBUG_ASSERT(out);
+
+  if (!*curr_plugin_dir_ptr)
+    return NULL;
+
+  next_delimiter= strchr(curr_plugin_dir_ptr,
+                         OPT_PLUGIN_DIR_DELIMITER);
+  if (!next_delimiter)
+  {
+    cp_size= strlen(curr_plugin_dir_ptr);
+    result= curr_plugin_dir_ptr + cp_size;
+  }
+  else
+  {
+    cp_size= static_cast<size_t>(next_delimiter - curr_plugin_dir_ptr);
+    result= next_delimiter + 1;
+  }
+
+  if (cp_size >= out_size)
+    out_size_exceed= true;
+  cp_size= std::min(cp_size, out_size - 1);
+  strncpy(out, curr_plugin_dir_ptr, cp_size);
+  out[cp_size] = 0;
+  if (out_size_exceed)
+      sql_print_warning("Plugin dir max len was exceed and cut to: %s",
+                        out);
+
+  return result;
+}
+
+static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl,
+                                   int report)
+{
+#ifdef HAVE_DLOPEN
+  char curr_plugin_dir[FN_REFLEN];
+  const char *next_plugin_dir= opt_plugin_dir_ptr;
+  st_plugin_dl *result= NULL;
+  char err_msg[MYSQL_ERRMSG_SIZE];
+  int  err;
+  bool lib_open_error= true;
+
+  DBUG_ENTER("plugin_dl_add");
+  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
+                       dl->str, (int) dl->length));
+
+  while (!result &&
+         lib_open_error &&
+         (next_plugin_dir= get_next_plugin_dir(next_plugin_dir,
+                                               curr_plugin_dir,
+                                               FN_REFLEN)))
+  {
+    err= 0;
+    result= plugin_dl_add_for_dir(curr_plugin_dir,
+                                  dl,
+                                  report,
+                                  &lib_open_error,
+                                  &err,
+                                  err_msg,
+                                  sizeof(err_msg));
+  }
+
+  if (err)
+  {
+    if (report & REPORT_TO_USER)
+      my_message(err, err_msg, MYF(0));
+    if (report & REPORT_TO_LOG)
+      error_log_print_wrapper("%s", err_msg);
+  }
+
+  DBUG_RETURN(result);
+#else //HAVE_DLOPEN
+  DBUG_ENTER("plugin_dl_add");
+  report_error(report, ER_FEATURE_DISABLED, "plugin", "HAVE_DLOPEN");
+  DBUG_RETURN(0);
+#endif //HAVE_DLOPEN
+}
 
 static void plugin_dl_del(const LEX_STRING *dl)
 {
@@ -746,6 +893,7 @@ static st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
     DBUG_RETURN(NULL);
 
   mysql_mutex_assert_owner(&LOCK_plugin);
+
 
   if (type == MYSQL_ANY_PLUGIN)
   {

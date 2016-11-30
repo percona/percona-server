@@ -26,7 +26,7 @@ if ($modified_dict_name)
   }
 }
 
---echo *** "$original_column_name $original_column_definition" -> "$modified_column_name $modified_column_definition", ALGOTIRHM=$alter_table_algorithm
+--echo *** "$original_column_name $original_column_definition" -> "$modified_column_name $modified_column_definition", ALGORITHM=$alter_table_algorithm
 
 --disable_query_log
 

@@ -11908,9 +11908,13 @@ ha_innobase::info_low(
 					/* If this table is already queued for
 					background analyze, remove it from the
 					queue as we are about to do the same */
-					dict_mutex_enter_for_mysql();
-					dict_stats_recalc_pool_del(ib_table);
-					dict_mutex_exit_for_mysql();
+					if (!srv_read_only_mode) {
+
+						dict_mutex_enter_for_mysql();
+						dict_stats_recalc_pool_del(
+							ib_table);
+						dict_mutex_exit_for_mysql();
+					}
 
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {

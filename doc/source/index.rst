@@ -112,7 +112,6 @@ Reliability Improvements
 
    reliability/crash_resistant_replication
    reliability/log_connection_error
-   reliability/error_pad
    reliability/innodb_corrupt_table_action
    reliability/show_slave_status_nolock
 

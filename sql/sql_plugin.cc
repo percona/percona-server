@@ -3111,7 +3111,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 
 void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
 {
-  DBUG_ASSERT(thd == current_thd);
+  DBUG_ASSERT(current_thd == NULL || thd == current_thd);
 
   if (var->flags & PLUGIN_VAR_THDLOCAL)
   {

@@ -60,7 +60,8 @@ public:
   struct merge_buf_info {
     /* heap memory allocated for main memory sort/merge  */
     std::unique_ptr<uchar[]> block;
-    ulonglong block_len;   /* amount of data bytes allocated for block above */
+    const ulonglong
+        block_len;         /* amount of data bytes allocated for block above */
     ulonglong curr_offset; /* offset of the record pointer for the block */
     ulonglong disk_start_offset; /* where the chunk starts on disk */
     ulonglong disk_curr_offset;  /* current offset on disk */
@@ -76,11 +77,11 @@ public:
     int read_next_chunk_from_disk(File fd)
         __attribute__((__nonnull__, __warn_unused_result__));
 
-    inline bool is_chunk_finished() {
+    inline bool is_chunk_finished() const {
       return curr_offset + disk_curr_offset - disk_start_offset == total_size;
     }
 
-    inline bool has_space(uint64 needed) {
+    inline bool has_space(uint64 needed) const {
       return curr_offset + needed <= block_len;
     }
 
@@ -110,10 +111,10 @@ public:
     int read_next_chunk_from_disk(File fd)
         __attribute__((__nonnull__, __warn_unused_result__));
 
-    int read_rec(rocksdb::Slice *key, rocksdb::Slice *val)
+    int read_rec(rocksdb::Slice *const key, rocksdb::Slice *const val)
         __attribute__((__nonnull__, __warn_unused_result__));
 
-    int read_slice(rocksdb::Slice *slice, const uchar **block_ptr)
+    int read_slice(rocksdb::Slice *const slice, const uchar **block_ptr)
         __attribute__((__nonnull__, __warn_unused_result__));
 
     explicit merge_heap_entry(const rocksdb::Comparator *const comparator)
@@ -136,7 +137,8 @@ public:
       return merge_record_compare(this->block, record.block, comparator) < 0;
     }
 
-    merge_record(uchar *block, const rocksdb::Comparator *const comparator)
+    merge_record(uchar *const block,
+                 const rocksdb::Comparator *const comparator)
         : block(block), comparator(comparator) {}
   };
 
@@ -154,11 +156,12 @@ private:
                       merge_heap_comparator>
       m_merge_min_heap;
 
-  static inline void merge_store_uint64(uchar *dst, uint64 n) {
+  static inline void merge_store_uint64(uchar *const dst, uint64 n) {
     memcpy(dst, &n, sizeof(n));
   }
 
-  static inline void merge_read_uint64(const uchar **buf_ptr, uint64 *dst) {
+  static inline void merge_read_uint64(const uchar **buf_ptr,
+                                       uint64 *const dst) {
     DBUG_ASSERT(buf_ptr != nullptr);
     memcpy(dst, *buf_ptr, sizeof(uint64));
     *buf_ptr += sizeof(uint64);
@@ -175,16 +178,17 @@ private:
                                   const rocksdb::Comparator *const comparator)
       __attribute__((__nonnull__, __warn_unused_result__));
 
-  void merge_read_rec(const uchar *block, rocksdb::Slice *key,
-                      rocksdb::Slice *val) __attribute__((__nonnull__));
+  void merge_read_rec(const uchar *const block, rocksdb::Slice *const key,
+                      rocksdb::Slice *const val) __attribute__((__nonnull__));
 
   void read_slice(rocksdb::Slice *slice, const uchar *block_ptr)
       __attribute__((__nonnull__));
 
 public:
-  Rdb_index_merge(const char *tmpfile_path, const ulonglong merge_buf_size,
-                  const ulonglong merge_combine_read_size,
-                  const rocksdb::Comparator *comparator);
+  Rdb_index_merge(const char *const tmpfile_path,
+                  const ulonglong &merge_buf_size,
+                  const ulonglong &merge_combine_read_size,
+                  const rocksdb::Comparator *const comparator);
   ~Rdb_index_merge();
 
   int init() __attribute__((__nonnull__, __warn_unused_result__));
@@ -196,7 +200,7 @@ public:
 
   int merge_buf_write() __attribute__((__nonnull__, __warn_unused_result__));
 
-  int next(rocksdb::Slice *key, rocksdb::Slice *val)
+  int next(rocksdb::Slice *const key, rocksdb::Slice *const val)
       __attribute__((__nonnull__, __warn_unused_result__));
 
   int merge_heap_prepare() __attribute__((__nonnull__, __warn_unused_result__));
@@ -204,7 +208,8 @@ public:
   void merge_heap_top(rocksdb::Slice *key, rocksdb::Slice *val)
       __attribute__((__nonnull__));
 
-  int merge_heap_pop_and_get_next(rocksdb::Slice *key, rocksdb::Slice *val)
+  int merge_heap_pop_and_get_next(rocksdb::Slice *const key,
+                                  rocksdb::Slice *const val)
       __attribute__((__nonnull__, __warn_unused_result__));
 
   void merge_reset();

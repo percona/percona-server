@@ -37,9 +37,10 @@
 
 namespace myrocks {
 
-Rdb_sst_file::Rdb_sst_file(rocksdb::DB *db, rocksdb::ColumnFamilyHandle *cf,
+Rdb_sst_file::Rdb_sst_file(rocksdb::DB *const db,
+                           rocksdb::ColumnFamilyHandle *const cf,
                            const rocksdb::DBOptions &db_options,
-                           const std::string &name, bool tracing)
+                           const std::string &name, const bool tracing)
     : m_db(db), m_cf(cf), m_db_options(db_options), m_sst_file_writer(nullptr),
       m_name(name), m_tracing(tracing) {
   DBUG_ASSERT(db != nullptr);
@@ -70,11 +71,11 @@ rocksdb::Status Rdb_sst_file::open() {
   // Create an sst file writer with the current options and comparator
   const rocksdb::Comparator *comparator = m_cf->GetComparator();
 
-  rocksdb::EnvOptions env_options(m_db_options);
-  rocksdb::Options options(m_db_options, cf_descr.options);
+  const rocksdb::EnvOptions env_options(m_db_options);
+  const rocksdb::Options options(m_db_options, cf_descr.options);
 
   m_sst_file_writer =
-      new rocksdb::SstFileWriter(env_options, options, comparator);
+      new rocksdb::SstFileWriter(env_options, options, comparator, m_cf);
 
   s = m_sst_file_writer->Open(m_name);
   if (m_tracing) {
@@ -120,7 +121,7 @@ rocksdb::Status Rdb_sst_file::commit() {
   DBUG_ASSERT(m_sst_file_writer != nullptr);
 
   rocksdb::Status s;
-  rocksdb::ExternalSstFileInfo fileinfo;
+  rocksdb::ExternalSstFileInfo fileinfo; /// Finish may should be modified
 
   // Close out the sst file
   s = m_sst_file_writer->Finish(&fileinfo);
@@ -166,10 +167,11 @@ rocksdb::Status Rdb_sst_file::commit() {
   return s;
 }
 
-Rdb_sst_info::Rdb_sst_info(rocksdb::DB *db, const std::string &tablename,
+Rdb_sst_info::Rdb_sst_info(rocksdb::DB *const db, const std::string &tablename,
                            const std::string &indexname,
-                           rocksdb::ColumnFamilyHandle *cf,
-                           const rocksdb::DBOptions &db_options, bool tracing)
+                           rocksdb::ColumnFamilyHandle *const cf,
+                           const rocksdb::DBOptions &db_options,
+                           const bool &tracing)
     : m_db(db), m_cf(cf), m_db_options(db_options), m_curr_size(0),
       m_sst_count(0), m_error_msg(""),
 #if defined(RDB_SST_INFO_USE_THREAD)
@@ -190,7 +192,7 @@ Rdb_sst_info::Rdb_sst_info(rocksdb::DB *db, const std::string &tablename,
   }
 
   rocksdb::ColumnFamilyDescriptor cf_descr;
-  rocksdb::Status s = m_cf->GetDescriptor(&cf_descr);
+  const rocksdb::Status s = m_cf->GetDescriptor(&cf_descr);
   if (!s.ok()) {
     // Default size if we can't get the cf's target size
     m_max_size = 64 * 1024 * 1024;
@@ -211,13 +213,13 @@ int Rdb_sst_info::open_new_sst_file() {
   DBUG_ASSERT(m_sst_file == nullptr);
 
   // Create the new sst file's name
-  std::string name = m_prefix + std::to_string(m_sst_count++) + m_suffix;
+  const std::string name = m_prefix + std::to_string(m_sst_count++) + m_suffix;
 
   // Create the new sst file object
   m_sst_file = new Rdb_sst_file(m_db, m_cf, m_db_options, name, m_tracing);
 
   // Open the sst file
-  rocksdb::Status s = m_sst_file->open();
+  const rocksdb::Status s = m_sst_file->open();
   if (!s.ok()) {
     set_error_msg(s.ToString());
     delete m_sst_file;
@@ -244,14 +246,14 @@ void Rdb_sst_info::close_curr_sst_file() {
 
   {
     // Add this finished sst file to the queue (while holding mutex)
-    std::lock_guard<std::mutex> guard(m_mutex);
+    const std::lock_guard<std::mutex> guard(m_mutex);
     m_queue.push(m_sst_file);
   }
 
   // Notify the background thread that there is a new entry in the queue
   m_cond.notify_one();
 #else
-  rocksdb::Status s = m_sst_file->commit();
+  const rocksdb::Status s = m_sst_file->commit();
   if (!s.ok()) {
     set_error_msg(s.ToString());
   }
@@ -289,7 +291,7 @@ int Rdb_sst_info::put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
   DBUG_ASSERT(m_sst_file != nullptr);
 
   // Add the key/value to the current sst file
-  rocksdb::Status s = m_sst_file->put(key, value);
+  const rocksdb::Status s = m_sst_file->put(key, value);
   if (!s.ok()) {
     set_error_msg(s.ToString());
     return 1;
@@ -332,7 +334,7 @@ void Rdb_sst_info::set_error_msg(const std::string &msg) {
   // Both the foreground and background threads can set the error message
   // so lock the mutex to protect it.  We only want the first error that
   // we encounter.
-  std::lock_guard<std::mutex> guard(m_mutex);
+  const std::lock_guard<std::mutex> guard(m_mutex);
 #endif
   my_printf_error(ER_UNKNOWN_ERROR, "bulk load error: %s", MYF(0), msg.c_str());
   if (m_error_msg.empty()) {
@@ -347,7 +349,7 @@ void Rdb_sst_info::thread_fcn(void *object) {
 }
 
 void Rdb_sst_info::run_thread() {
-  std::unique_lock<std::mutex> lk(m_mutex);
+  const std::unique_lock<std::mutex> lk(m_mutex);
 
   do {
     // Wait for notification or 1 second to pass
@@ -355,14 +357,14 @@ void Rdb_sst_info::run_thread() {
 
     // Inner loop pulls off all Rdb_sst_file entries and processes them
     while (!m_queue.empty()) {
-      Rdb_sst_file *sst_file = m_queue.front();
+      const Rdb_sst_file *const sst_file = m_queue.front();
       m_queue.pop();
 
       // Release the lock - we don't want to hold it while committing the file
       lk.unlock();
 
       // Close out the sst file and add it to the database
-      rocksdb::Status s = sst_file->commit();
+      const rocksdb::Status s = sst_file->commit();
       if (!s.ok()) {
         set_error_msg(s.ToString());
       }
@@ -381,9 +383,9 @@ void Rdb_sst_info::run_thread() {
 }
 #endif
 
-void Rdb_sst_info::init(rocksdb::DB *db) {
-  std::string path = db->GetName() + FN_DIRSEP;
-  struct st_my_dir *dir_info = my_dir(path.c_str(), MYF(MY_DONT_SORT));
+void Rdb_sst_info::init(const rocksdb::DB *const db) {
+  const std::string path = db->GetName() + FN_DIRSEP;
+  struct st_my_dir *const dir_info = my_dir(path.c_str(), MYF(MY_DONT_SORT));
 
   // Access the directory
   if (dir_info == nullptr) {
@@ -394,14 +396,14 @@ void Rdb_sst_info::init(rocksdb::DB *db) {
   }
 
   // Scan through the files in the directory
-  struct fileinfo *file_info = dir_info->dir_entry;
+  const struct fileinfo *file_info = dir_info->dir_entry;
   for (uint ii = 0; ii < dir_info->number_off_files; ii++, file_info++) {
     // find any files ending with m_suffix ...
-    std::string name = file_info->name;
-    size_t pos = name.find(m_suffix);
+    const std::string name = file_info->name;
+    const size_t pos = name.find(m_suffix);
     if (pos != std::string::npos && name.size() - pos == m_suffix.size()) {
       // ... and remove them
-      std::string fullname = path + name;
+      const std::string fullname = path + name;
       my_delete(fullname.c_str(), MYF(0));
     }
   }

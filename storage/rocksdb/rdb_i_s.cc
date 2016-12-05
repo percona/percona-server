@@ -53,16 +53,26 @@ namespace myrocks {
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_CFSTATS dynamic table
  */
-static int rdb_i_s_cfstats_fill_table(my_core::THD *thd,
-                                      my_core::TABLE_LIST *tables,
-                                      my_core::Item *cond
+namespace RDB_CFSTATS_FIELD {
+enum { CF_NAME = 0, STAT_TYPE, VALUE };
+} // namespace RDB_CFSTATS_FIELD
+
+static ST_FIELD_INFO rdb_i_s_cfstats_fields_info[] = {
+    ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+static int rdb_i_s_cfstats_fill_table(my_core::THD *const thd,
+                                      my_core::TABLE_LIST *const tables,
+                                      my_core::Item *const cond
                                       __attribute__((__unused__))) {
   bool ret;
   uint64_t val;
 
   DBUG_ENTER("rdb_i_s_cfstats_fill_table");
 
-  std::vector<std::pair<const std::string, std::string>> cf_properties = {
+  const std::vector<std::pair<const std::string, std::string>> cf_properties = {
       {rocksdb::DB::Properties::kNumImmutableMemTable,
        "NUM_IMMUTABLE_MEM_TABLE"},
       {rocksdb::DB::Properties::kMemTableFlushPending,
@@ -80,11 +90,11 @@ static int rdb_i_s_cfstats_fill_table(my_core::THD *thd,
        "NON_BLOCK_CACHE_SST_MEM_USAGE"},
       {rocksdb::DB::Properties::kNumLiveVersions, "NUM_LIVE_VERSIONS"}};
 
-  rocksdb::DB *rdb = rdb_get_rocksdb_db();
-  Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
+  rocksdb::DB *const rdb = rdb_get_rocksdb_db();
+  const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
   DBUG_ASSERT(rdb != nullptr);
 
-  for (auto cf_name : cf_manager.get_cf_names()) {
+  for (const auto &cf_name : cf_manager.get_cf_names()) {
     rocksdb::ColumnFamilyHandle *cfh;
     bool is_automatic;
 
@@ -96,17 +106,17 @@ static int rdb_i_s_cfstats_fill_table(my_core::THD *thd,
     if (cfh == nullptr)
       continue;
 
-    for (auto property : cf_properties) {
+    for (const auto &property : cf_properties) {
       if (!rdb->GetIntProperty(cfh, property.first, &val))
         continue;
 
       DBUG_ASSERT(tables != nullptr);
 
-      tables->table->field[0]->store(cf_name.c_str(), cf_name.size(),
-                                     system_charset_info);
-      tables->table->field[1]->store(
+      tables->table->field[RDB_CFSTATS_FIELD::CF_NAME]->store(
+          cf_name.c_str(), cf_name.size(), system_charset_info);
+      tables->table->field[RDB_CFSTATS_FIELD::STAT_TYPE]->store(
           property.second.c_str(), property.second.size(), system_charset_info);
-      tables->table->field[2]->store(val, true);
+      tables->table->field[RDB_CFSTATS_FIELD::VALUE]->store(val, true);
 
       ret = my_core::schema_table_store_record(thd, tables->table);
 
@@ -116,12 +126,6 @@ static int rdb_i_s_cfstats_fill_table(my_core::THD *thd,
   }
   DBUG_RETURN(0);
 }
-
-static ST_FIELD_INFO rdb_i_s_cfstats_fields_info[] = {
-    ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO_END};
 
 static int rdb_i_s_cfstats_init(void *p) {
   my_core::ST_SCHEMA_TABLE *schema;
@@ -140,34 +144,43 @@ static int rdb_i_s_cfstats_init(void *p) {
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_DBSTATS dynamic table
  */
-static int rdb_i_s_dbstats_fill_table(my_core::THD *thd,
-                                      my_core::TABLE_LIST *tables,
-                                      my_core::Item *cond
+namespace RDB_DBSTATS_FIELD {
+enum { STAT_TYPE = 0, VALUE };
+} // namespace RDB_DBSTATS_FIELD
+
+static ST_FIELD_INFO rdb_i_s_dbstats_fields_info[] = {
+    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+static int rdb_i_s_dbstats_fill_table(my_core::THD *const thd,
+                                      my_core::TABLE_LIST *const tables,
+                                      my_core::Item *const cond
                                       __attribute__((__unused__))) {
   bool ret;
   uint64_t val;
 
   DBUG_ENTER("rdb_i_s_dbstats_fill_table");
 
-  std::vector<std::pair<std::string, std::string>> db_properties = {
+  const std::vector<std::pair<std::string, std::string>> db_properties = {
       {rocksdb::DB::Properties::kBackgroundErrors, "DB_BACKGROUND_ERRORS"},
       {rocksdb::DB::Properties::kNumSnapshots, "DB_NUM_SNAPSHOTS"},
       {rocksdb::DB::Properties::kOldestSnapshotTime,
        "DB_OLDEST_SNAPSHOT_TIME"}};
 
-  rocksdb::DB *rdb = rdb_get_rocksdb_db();
+  rocksdb::DB *const rdb = rdb_get_rocksdb_db();
   const rocksdb::BlockBasedTableOptions &table_options =
       rdb_get_table_options();
 
-  for (auto property : db_properties) {
+  for (const auto &property : db_properties) {
     if (!rdb->GetIntProperty(property.first, &val))
       continue;
 
     DBUG_ASSERT(tables != nullptr);
 
-    tables->table->field[0]->store(property.second.c_str(),
-                                   property.second.size(), system_charset_info);
-    tables->table->field[1]->store(val, true);
+    tables->table->field[RDB_DBSTATS_FIELD::STAT_TYPE]->store(
+        property.second.c_str(), property.second.size(), system_charset_info);
+    tables->table->field[RDB_DBSTATS_FIELD::VALUE]->store(val, true);
 
     ret = my_core::schema_table_store_record(thd, tables->table);
 
@@ -186,21 +199,16 @@ static int rdb_i_s_dbstats_fill_table(my_core::THD *thd,
     information from the column family.
    */
   val = (table_options.block_cache ? table_options.block_cache->GetUsage() : 0);
-  tables->table->field[0]->store(STRING_WITH_LEN("DB_BLOCK_CACHE_USAGE"),
-                                 system_charset_info);
-  tables->table->field[1]->store(val, true);
+  tables->table->field[RDB_DBSTATS_FIELD::STAT_TYPE]->store(
+      STRING_WITH_LEN("DB_BLOCK_CACHE_USAGE"), system_charset_info);
+  tables->table->field[RDB_DBSTATS_FIELD::VALUE]->store(val, true);
 
   ret = my_core::schema_table_store_record(thd, tables->table);
 
   DBUG_RETURN(ret);
 }
 
-static ST_FIELD_INFO rdb_i_s_dbstats_fields_info[] = {
-    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO_END};
-
-static int rdb_i_s_dbstats_init(void *p) {
+static int rdb_i_s_dbstats_init(void *const p) {
   DBUG_ASSERT(p != nullptr);
 
   my_core::ST_SCHEMA_TABLE *schema;
@@ -218,10 +226,22 @@ static int rdb_i_s_dbstats_init(void *p) {
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_PERF_CONTEXT dynamic table
  */
+namespace RDB_PERF_CONTEXT_FIELD {
+enum { TABLE_SCHEMA = 0, TABLE_NAME, PARTITION_NAME, STAT_TYPE, VALUE };
+} // namespace RDB_PERF_CONTEXT_FIELD
 
-static int rdb_i_s_perf_context_fill_table(my_core::THD *thd,
-                                           my_core::TABLE_LIST *tables,
-                                           my_core::Item *cond
+static ST_FIELD_INFO rdb_i_s_perf_context_fields_info[] = {
+    ROCKSDB_FIELD_INFO("TABLE_SCHEMA", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("TABLE_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("PARTITION_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING,
+                       MY_I_S_MAYBE_NULL),
+    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+static int rdb_i_s_perf_context_fill_table(my_core::THD *const thd,
+                                           my_core::TABLE_LIST *const tables,
+                                           my_core::Item *const cond
                                            __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
@@ -231,7 +251,7 @@ static int rdb_i_s_perf_context_fill_table(my_core::THD *thd,
 
   DBUG_ENTER("rdb_i_s_perf_context_fill_table");
 
-  std::vector<std::string> tablenames = rdb_get_open_table_names();
+  const std::vector<std::string> tablenames = rdb_get_open_table_names();
   for (const auto &it : tablenames) {
     std::string str, dbname, tablename, partname;
     Rdb_perf_counters counters;
@@ -250,19 +270,23 @@ static int rdb_i_s_perf_context_fill_table(my_core::THD *thd,
 
     DBUG_ASSERT(field != nullptr);
 
-    field[0]->store(dbname.c_str(), dbname.size(), system_charset_info);
-    field[1]->store(tablename.c_str(), tablename.size(), system_charset_info);
+    field[RDB_PERF_CONTEXT_FIELD::TABLE_SCHEMA]->store(
+        dbname.c_str(), dbname.size(), system_charset_info);
+    field[RDB_PERF_CONTEXT_FIELD::TABLE_NAME]->store(
+        tablename.c_str(), tablename.size(), system_charset_info);
     if (partname.size() == 0) {
-      field[2]->set_null();
+      field[RDB_PERF_CONTEXT_FIELD::PARTITION_NAME]->set_null();
     } else {
-      field[2]->set_notnull();
-      field[2]->store(partname.c_str(), partname.size(), system_charset_info);
+      field[RDB_PERF_CONTEXT_FIELD::PARTITION_NAME]->set_notnull();
+      field[RDB_PERF_CONTEXT_FIELD::PARTITION_NAME]->store(
+          partname.c_str(), partname.size(), system_charset_info);
     }
 
     for (int i = 0; i < PC_MAX_IDX; i++) {
-      field[3]->store(rdb_pc_stat_types[i].c_str(), rdb_pc_stat_types[i].size(),
-                      system_charset_info);
-      field[4]->store(counters.m_value[i], true);
+      field[RDB_PERF_CONTEXT_FIELD::STAT_TYPE]->store(
+          rdb_pc_stat_types[i].c_str(), rdb_pc_stat_types[i].size(),
+          system_charset_info);
+      field[RDB_PERF_CONTEXT_FIELD::VALUE]->store(counters.m_value[i], true);
 
       ret = my_core::schema_table_store_record(thd, tables->table);
       if (ret)
@@ -273,16 +297,7 @@ static int rdb_i_s_perf_context_fill_table(my_core::THD *thd,
   DBUG_RETURN(0);
 }
 
-static ST_FIELD_INFO rdb_i_s_perf_context_fields_info[] = {
-    ROCKSDB_FIELD_INFO("TABLE_SCHEMA", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("TABLE_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("PARTITION_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING,
-                       MY_I_S_MAYBE_NULL),
-    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO_END};
-
-static int rdb_i_s_perf_context_init(void *p) {
+static int rdb_i_s_perf_context_init(void *const p) {
   DBUG_ASSERT(p != nullptr);
 
   my_core::ST_SCHEMA_TABLE *schema;
@@ -297,10 +312,21 @@ static int rdb_i_s_perf_context_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int rdb_i_s_perf_context_global_fill_table(my_core::THD *thd,
-                                                  my_core::TABLE_LIST *tables,
-                                                  my_core::Item *cond
-                                                  __attribute__((__unused__))) {
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_PERF_CONTEXT_GLOBAL dynamic table
+ */
+namespace RDB_PERF_CONTEXT_GLOBAL_FIELD {
+enum { STAT_TYPE = 0, VALUE };
+} // namespace RDB_PERF_CONTEXT_GLOBAL_FIELD
+
+static ST_FIELD_INFO rdb_i_s_perf_context_global_fields_info[] = {
+    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+static int rdb_i_s_perf_context_global_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
 
@@ -315,10 +341,11 @@ static int rdb_i_s_perf_context_global_fill_table(my_core::THD *thd,
     DBUG_ASSERT(tables->table != nullptr);
     DBUG_ASSERT(tables->table->field != nullptr);
 
-    tables->table->field[0]->store(rdb_pc_stat_types[i].c_str(),
-                                   rdb_pc_stat_types[i].size(),
-                                   system_charset_info);
-    tables->table->field[1]->store(global_counters.m_value[i], true);
+    tables->table->field[RDB_PERF_CONTEXT_GLOBAL_FIELD::STAT_TYPE]->store(
+        rdb_pc_stat_types[i].c_str(), rdb_pc_stat_types[i].size(),
+        system_charset_info);
+    tables->table->field[RDB_PERF_CONTEXT_GLOBAL_FIELD::VALUE]->store(
+        global_counters.m_value[i], true);
 
     ret = my_core::schema_table_store_record(thd, tables->table);
     if (ret)
@@ -328,12 +355,7 @@ static int rdb_i_s_perf_context_global_fill_table(my_core::THD *thd,
   DBUG_RETURN(0);
 }
 
-static ST_FIELD_INFO rdb_i_s_perf_context_global_fields_info[] = {
-    ROCKSDB_FIELD_INFO("STAT_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("VALUE", sizeof(uint64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO_END};
-
-static int rdb_i_s_perf_context_global_init(void *p) {
+static int rdb_i_s_perf_context_global_init(void *const p) {
   DBUG_ASSERT(p != nullptr);
 
   my_core::ST_SCHEMA_TABLE *schema;
@@ -351,9 +373,19 @@ static int rdb_i_s_perf_context_global_init(void *p) {
 /*
   Support for INFORMATION_SCHEMA.ROCKSDB_CFOPTIONS dynamic table
  */
-static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
-                                        my_core::TABLE_LIST *tables,
-                                        my_core::Item *cond
+namespace RDB_CFOPTIONS_FIELD {
+enum { CF_NAME = 0, OPTION_TYPE, VALUE };
+} // namespace RDB_CFOPTIONS_FIELD
+
+static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
+    ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("OPTION_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("VALUE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
+                                        my_core::TABLE_LIST *const tables,
+                                        my_core::Item *const cond
                                         __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
@@ -364,7 +396,7 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
 
   Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
 
-  for (auto cf_name : cf_manager.get_cf_names()) {
+  for (const auto &cf_name : cf_manager.get_cf_names()) {
     std::string val;
     rocksdb::ColumnFamilyOptions opts;
     cf_manager.get_cf_options(cf_name, &opts);
@@ -440,7 +472,7 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
 
     // get MAX_BYTES_FOR_LEVEL_MULTIPLIER_ADDITIONAL option value
     val = opts.max_bytes_for_level_multiplier_additional.empty() ? "NULL" : "";
-    for (auto level : opts.max_bytes_for_level_multiplier_additional) {
+    for (const auto &level : opts.max_bytes_for_level_multiplier_additional) {
       val.append(std::to_string(level) + ":");
     }
     val.pop_back();
@@ -456,7 +488,7 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
 
     // get COMPRESSION_PER_LEVEL option value
     val = opts.compression_per_level.empty() ? "NULL" : "";
-    for (auto compression_type : opts.compression_per_level) {
+    for (const auto &compression_type : opts.compression_per_level) {
       std::string res;
       GetStringFromCompressionType(&res, compression_type);
       if (!res.empty()) {
@@ -507,7 +539,7 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
     cf_option_types.push_back({"COMPACTION_STYLE", val});
 
     // get COMPACTION_OPTIONS_UNIVERSAL related options
-    rocksdb::CompactionOptionsUniversal compac_opts =
+    const rocksdb::CompactionOptionsUniversal compac_opts =
         opts.compaction_options_universal;
     val = "{SIZE_RATIO=";
     val.append(std::to_string(compac_opts.size_ratio));
@@ -628,18 +660,18 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
     cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::FORMAT_VERSION",
                                std::to_string(table_options.format_version)});
 
-    for (auto cf_option_type : cf_option_types) {
+    for (const auto &cf_option_type : cf_option_types) {
       DBUG_ASSERT(tables->table != nullptr);
       DBUG_ASSERT(tables->table->field != nullptr);
 
-      tables->table->field[0]->store(cf_name.c_str(), cf_name.size(),
-                                     system_charset_info);
-      tables->table->field[1]->store(cf_option_type.first.c_str(),
-                                     cf_option_type.first.size(),
-                                     system_charset_info);
-      tables->table->field[2]->store(cf_option_type.second.c_str(),
-                                     cf_option_type.second.size(),
-                                     system_charset_info);
+      tables->table->field[RDB_CFOPTIONS_FIELD::CF_NAME]->store(
+          cf_name.c_str(), cf_name.size(), system_charset_info);
+      tables->table->field[RDB_CFOPTIONS_FIELD::OPTION_TYPE]->store(
+          cf_option_type.first.c_str(), cf_option_type.first.size(),
+          system_charset_info);
+      tables->table->field[RDB_CFOPTIONS_FIELD::VALUE]->store(
+          cf_option_type.second.c_str(), cf_option_type.second.size(),
+          system_charset_info);
 
       ret = my_core::schema_table_store_record(thd, tables->table);
 
@@ -650,10 +682,17 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *thd,
   DBUG_RETURN(0);
 }
 
-static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
-    ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("OPTION_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("VALUE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO dynamic table
+ */
+namespace RDB_GLOBAL_INFO_FIELD {
+enum { TYPE = 0, NAME, VALUE };
+}
+
+static ST_FIELD_INFO rdb_i_s_global_info_fields_info[] = {
+    ROCKSDB_FIELD_INFO("TYPE", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("NAME", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("VALUE", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
     ROCKSDB_FIELD_INFO_END};
 
 /*
@@ -661,10 +700,11 @@ static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
  * to insert (TYPE, KEY, VALUE) rows into
  * information_schema.rocksdb_global_info
  */
-static int rdb_global_info_fill_row(my_core::THD *thd,
-                                    my_core::TABLE_LIST *tables,
-                                    const char *type, const char *name,
-                                    const char *value) {
+static int rdb_global_info_fill_row(my_core::THD *const thd,
+                                    my_core::TABLE_LIST *const tables,
+                                    const char *const type,
+                                    const char *const name,
+                                    const char *const value) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
   DBUG_ASSERT(tables->table != nullptr);
@@ -675,19 +715,19 @@ static int rdb_global_info_fill_row(my_core::THD *thd,
   Field **field = tables->table->field;
   DBUG_ASSERT(field != nullptr);
 
-  field[0]->store(type, strlen(type), system_charset_info);
-  field[1]->store(name, strlen(name), system_charset_info);
-  field[2]->store(value, strlen(value), system_charset_info);
+  field[RDB_GLOBAL_INFO_FIELD::TYPE]->store(type, strlen(type),
+                                            system_charset_info);
+  field[RDB_GLOBAL_INFO_FIELD::NAME]->store(name, strlen(name),
+                                            system_charset_info);
+  field[RDB_GLOBAL_INFO_FIELD::VALUE]->store(value, strlen(value),
+                                             system_charset_info);
 
   return my_core::schema_table_store_record(thd, tables->table);
 }
 
-/*
-  Support for INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO dynamic table
- */
-static int rdb_i_s_global_info_fill_table(my_core::THD *thd,
-                                          my_core::TABLE_LIST *tables,
-                                          my_core::Item *cond
+static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
+                                          my_core::TABLE_LIST *const tables,
+                                          my_core::Item *const cond
                                           __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
@@ -699,7 +739,7 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *thd,
   int ret = 0;
 
   /* max index info */
-  Rdb_dict_manager *dict_manager = rdb_get_dict_manager();
+  const Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();
   DBUG_ASSERT(dict_manager != nullptr);
 
   uint32_t max_index_id;
@@ -714,8 +754,8 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *thd,
   /* cf_id -> cf_flags */
   char cf_id_buf[INT_BUF_LEN] = {0};
   char cf_value_buf[FN_REFLEN + 1] = {0};
-  Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
-  for (auto cf_handle : cf_manager.get_all_cf()) {
+  const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
+  for (const auto &cf_handle : cf_manager.get_all_cf()) {
     uint flags;
     dict_manager->get_cf_flags(cf_handle->GetID(), &flags);
     snprintf(cf_id_buf, INT_BUF_LEN, "%u", cf_handle->GetID());
@@ -746,12 +786,6 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *thd,
   DBUG_RETURN(ret);
 }
 
-static ST_FIELD_INFO rdb_i_s_global_info_fields_info[] = {
-    ROCKSDB_FIELD_INFO("TYPE", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("NAME", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("VALUE", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO_END};
-
 namespace // anonymous namespace = not visible outside this source file
 {
 struct Rdb_ddl_scanner : public Rdb_tables_scanner {
@@ -761,6 +795,37 @@ struct Rdb_ddl_scanner : public Rdb_tables_scanner {
   int add_table(Rdb_tbl_def *tdef) override;
 };
 } // anonymous namespace
+
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_DDL dynamic table
+ */
+namespace RDB_DDL_FIELD {
+enum {
+  TABLE_SCHEMA = 0,
+  TABLE_NAME,
+  PARTITION_NAME,
+  INDEX_NAME,
+  COLUMN_FAMILY,
+  INDEX_NUMBER,
+  INDEX_TYPE,
+  KV_FORMAT_VERSION,
+  CF
+};
+} // namespace RDB_DDL_FIELD
+
+static ST_FIELD_INFO rdb_i_s_ddl_fields_info[] = {
+    ROCKSDB_FIELD_INFO("TABLE_SCHEMA", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("TABLE_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("PARTITION_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING,
+                       MY_I_S_MAYBE_NULL),
+    ROCKSDB_FIELD_INFO("INDEX_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("INDEX_NUMBER", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("INDEX_TYPE", sizeof(uint16_t), MYSQL_TYPE_SHORT, 0),
+    ROCKSDB_FIELD_INFO("KV_FORMAT_VERSION", sizeof(uint16_t), MYSQL_TYPE_SHORT,
+                       0),
+    ROCKSDB_FIELD_INFO("CF", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO_END};
 
 int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
   DBUG_ASSERT(tdef != nullptr);
@@ -772,32 +837,38 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
   DBUG_ASSERT(field != nullptr);
 
   const std::string &dbname = tdef->base_dbname();
-  field[0]->store(dbname.c_str(), dbname.size(), system_charset_info);
+  field[RDB_DDL_FIELD::TABLE_SCHEMA]->store(dbname.c_str(), dbname.size(),
+                                            system_charset_info);
 
   const std::string &tablename = tdef->base_tablename();
-  field[1]->store(tablename.c_str(), tablename.size(), system_charset_info);
+  field[RDB_DDL_FIELD::TABLE_NAME]->store(tablename.c_str(), tablename.size(),
+                                          system_charset_info);
 
   const std::string &partname = tdef->base_partition();
   if (partname.length() == 0) {
-    field[2]->set_null();
+    field[RDB_DDL_FIELD::PARTITION_NAME]->set_null();
   } else {
-    field[2]->set_notnull();
-    field[2]->store(partname.c_str(), partname.size(), system_charset_info);
+    field[RDB_DDL_FIELD::PARTITION_NAME]->set_notnull();
+    field[RDB_DDL_FIELD::PARTITION_NAME]->store(
+        partname.c_str(), partname.size(), system_charset_info);
   }
 
   for (uint i = 0; i < tdef->m_key_count; i++) {
     const Rdb_key_def &kd = *tdef->m_key_descr_arr[i];
 
-    field[3]->store(kd.m_name.c_str(), kd.m_name.size(), system_charset_info);
+    field[RDB_DDL_FIELD::INDEX_NAME]->store(kd.m_name.c_str(), kd.m_name.size(),
+                                            system_charset_info);
 
     GL_INDEX_ID gl_index_id = kd.get_gl_index_id();
-    field[4]->store(gl_index_id.cf_id, true);
-    field[5]->store(gl_index_id.index_id, true);
-    field[6]->store(kd.m_index_type, true);
-    field[7]->store(kd.m_kv_format_version, true);
+    field[RDB_DDL_FIELD::COLUMN_FAMILY]->store(gl_index_id.cf_id, true);
+    field[RDB_DDL_FIELD::INDEX_NUMBER]->store(gl_index_id.index_id, true);
+    field[RDB_DDL_FIELD::INDEX_TYPE]->store(kd.m_index_type, true);
+    field[RDB_DDL_FIELD::KV_FORMAT_VERSION]->store(kd.m_kv_format_version,
+                                                   true);
 
     std::string cf_name = kd.get_cf()->GetName();
-    field[8]->store(cf_name.c_str(), cf_name.size(), system_charset_info);
+    field[RDB_DDL_FIELD::CF]->store(cf_name.c_str(), cf_name.size(),
+                                    system_charset_info);
 
     ret = my_core::schema_table_store_record(m_thd, m_table);
     if (ret)
@@ -806,9 +877,9 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
   return 0;
 }
 
-static int rdb_i_s_ddl_fill_table(my_core::THD *thd,
-                                  my_core::TABLE_LIST *tables,
-                                  my_core::Item *cond) {
+static int rdb_i_s_ddl_fill_table(my_core::THD *const thd,
+                                  my_core::TABLE_LIST *const tables,
+                                  my_core::Item *const cond) {
   DBUG_ENTER("rdb_i_s_ddl_fill_table");
 
   DBUG_ASSERT(thd != nullptr);
@@ -825,21 +896,7 @@ static int rdb_i_s_ddl_fill_table(my_core::THD *thd,
   DBUG_RETURN(ret);
 }
 
-static ST_FIELD_INFO rdb_i_s_ddl_fields_info[] = {
-    ROCKSDB_FIELD_INFO("TABLE_SCHEMA", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("TABLE_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("PARTITION_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING,
-                       MY_I_S_MAYBE_NULL),
-    ROCKSDB_FIELD_INFO("INDEX_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("INDEX_NUMBER", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("INDEX_TYPE", sizeof(uint16_t), MYSQL_TYPE_SHORT, 0),
-    ROCKSDB_FIELD_INFO("KV_FORMAT_VERSION", sizeof(uint16_t), MYSQL_TYPE_SHORT,
-                       0),
-    ROCKSDB_FIELD_INFO("CF", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO_END};
-
-static int rdb_i_s_ddl_init(void *p) {
+static int rdb_i_s_ddl_init(void *const p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER("rdb_i_s_ddl_init");
@@ -853,7 +910,7 @@ static int rdb_i_s_ddl_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int rdb_i_s_cfoptions_init(void *p) {
+static int rdb_i_s_cfoptions_init(void *const p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER("rdb_i_s_cfoptions_init");
@@ -867,7 +924,7 @@ static int rdb_i_s_cfoptions_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int rdb_i_s_global_info_init(void *p) {
+static int rdb_i_s_global_info_init(void *const p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER("rdb_i_s_global_info_init");
@@ -884,7 +941,7 @@ static int rdb_i_s_global_info_init(void *p) {
 /* Given a path to a file return just the filename portion. */
 static std::string rdb_filename_without_path(const std::string &path) {
   /* Find last slash in path */
-  size_t pos = path.rfind('/');
+  const size_t pos = path.rfind('/');
 
   /* None found?  Just return the original string */
   if (pos == std::string::npos) {
@@ -895,10 +952,48 @@ static std::string rdb_filename_without_path(const std::string &path) {
   return path.substr(pos + 1);
 }
 
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_INDEX_FILE_MAP dynamic table
+ */
+namespace RDB_INDEX_FILE_MAP_FIELD {
+enum {
+  COLUMN_FAMILY = 0,
+  INDEX_NUMBER,
+  SST_NAME,
+  NUM_ROWS,
+  DATA_SIZE,
+  ENTRY_DELETES,
+  ENTRY_SINGLEDELETES,
+  ENTRY_MERGES,
+  ENTRY_OTHERS
+};
+} // namespace RDB_INDEX_FILE_MAP_FIELD
+
+static ST_FIELD_INFO rdb_i_s_index_file_map_fields_info[] = {
+    /* The information_schema.rocksdb_index_file_map virtual table has four
+     * fields:
+     *   COLUMN_FAMILY => the index's column family contained in the SST file
+     *   INDEX_NUMBER => the index id contained in the SST file
+     *   SST_NAME => the name of the SST file containing some indexes
+     *   NUM_ROWS => the number of entries of this index id in this SST file
+     *   DATA_SIZE => the data size stored in this SST file for this index id */
+    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("INDEX_NUMBER", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("SST_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("NUM_ROWS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("DATA_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRY_DELETES", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("ENTRY_SINGLEDELETES", sizeof(int64_t),
+                       MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRY_MERGES", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("ENTRY_OTHERS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO_END};
+
 /* Fill the information_schema.rocksdb_index_file_map virtual table */
-static int rdb_i_s_index_file_map_fill_table(my_core::THD *thd,
-                                             my_core::TABLE_LIST *tables,
-                                             my_core::Item *cond
+static int rdb_i_s_index_file_map_fill_table(my_core::THD *const thd,
+                                             my_core::TABLE_LIST *const tables,
+                                             my_core::Item *const cond
                                              __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
@@ -911,14 +1006,14 @@ static int rdb_i_s_index_file_map_fill_table(my_core::THD *thd,
   DBUG_ENTER("rdb_i_s_index_file_map_fill_table");
 
   /* Iterate over all the column families */
-  rocksdb::DB *rdb = rdb_get_rocksdb_db();
+  rocksdb::DB *const rdb = rdb_get_rocksdb_db();
   DBUG_ASSERT(rdb != nullptr);
 
-  Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
-  for (auto cf_handle : cf_manager.get_all_cf()) {
+  const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
+  for (const auto &cf_handle : cf_manager.get_all_cf()) {
     /* Grab the the properties of all the tables in the column family */
     rocksdb::TablePropertiesCollection table_props_collection;
-    rocksdb::Status s =
+    const rocksdb::Status s =
         rdb->GetPropertiesOfAllTables(cf_handle, &table_props_collection);
     if (!s.ok()) {
       continue;
@@ -926,35 +1021,43 @@ static int rdb_i_s_index_file_map_fill_table(my_core::THD *thd,
 
     /* Iterate over all the items in the collection, each of which contains a
      * name and the actual properties */
-    for (auto props : table_props_collection) {
+    for (const auto &props : table_props_collection) {
       /* Add the SST name into the output */
-      std::string sst_name = rdb_filename_without_path(props.first);
-      field[2]->store(sst_name.data(), sst_name.size(), system_charset_info);
+      const std::string sst_name = rdb_filename_without_path(props.first);
+      field[RDB_INDEX_FILE_MAP_FIELD::SST_NAME]->store(
+          sst_name.data(), sst_name.size(), system_charset_info);
 
       /* Get the __indexstats__ data out of the table property */
       std::vector<Rdb_index_stats> stats;
       Rdb_tbl_prop_coll::read_stats_from_tbl_props(props.second, &stats);
       if (stats.empty()) {
-        field[0]->store(-1, true);
-        field[1]->store(-1, true);
-        field[3]->store(-1, true);
-        field[4]->store(-1, true);
-        field[5]->store(-1, true);
-        field[6]->store(-1, true);
-        field[7]->store(-1, true);
-        field[8]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::COLUMN_FAMILY]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::INDEX_NUMBER]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::NUM_ROWS]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::DATA_SIZE]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_DELETES]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_SINGLEDELETES]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_MERGES]->store(-1, true);
+        field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_OTHERS]->store(-1, true);
       } else {
         for (auto it : stats) {
           /* Add the index number, the number of rows, and data size to the
            * output */
-          field[0]->store(it.m_gl_index_id.cf_id, true);
-          field[1]->store(it.m_gl_index_id.index_id, true);
-          field[3]->store(it.m_rows, true);
-          field[4]->store(it.m_data_size, true);
-          field[5]->store(it.m_entry_deletes, true);
-          field[6]->store(it.m_entry_single_deletes, true);
-          field[7]->store(it.m_entry_merges, true);
-          field[8]->store(it.m_entry_others, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::COLUMN_FAMILY]->store(
+              it.m_gl_index_id.cf_id, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::INDEX_NUMBER]->store(
+              it.m_gl_index_id.index_id, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::NUM_ROWS]->store(it.m_rows, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::DATA_SIZE]->store(it.m_data_size,
+                                                            true);
+          field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_DELETES]->store(
+              it.m_entry_deletes, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_SINGLEDELETES]->store(
+              it.m_entry_single_deletes, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_MERGES]->store(
+              it.m_entry_merges, true);
+          field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_OTHERS]->store(
+              it.m_entry_others, true);
 
           /* Tell MySQL about this row in the virtual table */
           ret = my_core::schema_table_store_record(thd, tables->table);
@@ -969,28 +1072,8 @@ static int rdb_i_s_index_file_map_fill_table(my_core::THD *thd,
   DBUG_RETURN(ret);
 }
 
-static ST_FIELD_INFO rdb_i_s_index_file_map_fields_info[] = {
-    /* The information_schema.rocksdb_index_file_map virtual table has four
-     * fields: COLUMN_FAMILY => the index's column family contained in the SST
-     * file INDEX_NUMBER => the index id contained in the SST file SST_NAME =>
-     * the name of the SST file containing some indexes NUM_ROWS => the number
-     * of entries of this index id in this SST file DATA_SIZE => the data size
-     * stored in this SST file for this index id */
-    ROCKSDB_FIELD_INFO("COLUMN_FAMILY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("INDEX_NUMBER", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("SST_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("NUM_ROWS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("DATA_SIZE", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("ENTRY_DELETES", sizeof(int64_t), MYSQL_TYPE_LONGLONG,
-                       0),
-    ROCKSDB_FIELD_INFO("ENTRY_SINGLEDELETES", sizeof(int64_t),
-                       MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("ENTRY_MERGES", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("ENTRY_OTHERS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO_END};
-
 /* Initialize the information_schema.rocksdb_index_file_map virtual table */
-static int rdb_i_s_index_file_map_init(void *p) {
+static int rdb_i_s_index_file_map_init(void *const p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER("rdb_i_s_index_file_map_init");
@@ -1004,10 +1087,25 @@ static int rdb_i_s_index_file_map_init(void *p) {
   DBUG_RETURN(0);
 }
 
-/* Fill the information_schema.rocksdb_index_file_map virtual table */
-static int rdb_i_s_lock_info_fill_table(my_core::THD *thd,
-                                        my_core::TABLE_LIST *tables,
-                                        my_core::Item *cond
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_LOCKS dynamic table
+ */
+namespace RDB_LOCKS_FIELD {
+enum { COLUMN_FAMILY_ID = 0, TRANSACTION_ID, KEY, MODE };
+} // namespace RDB_LOCKS_FIELD
+
+static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] = {
+    ROCKSDB_FIELD_INFO("COLUMN_FAMILY_ID", sizeof(uint32_t), MYSQL_TYPE_LONG,
+                       0),
+    ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("KEY", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("MODE", 32, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO_END};
+
+/* Fill the information_schema.rocksdb_locks virtual table */
+static int rdb_i_s_lock_info_fill_table(my_core::THD *const thd,
+                                        my_core::TABLE_LIST *const tables,
+                                        my_core::Item *const cond
                                         __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
@@ -1017,42 +1115,41 @@ static int rdb_i_s_lock_info_fill_table(my_core::THD *thd,
 
   DBUG_ENTER("rdb_i_s_lock_info_fill_table");
 
-  rocksdb::TransactionDB *rdb = rdb_get_rocksdb_db();
+  rocksdb::TransactionDB *const rdb = rdb_get_rocksdb_db();
   DBUG_ASSERT(rdb != nullptr);
 
   /* cf id -> rocksdb::KeyLockInfo */
   std::unordered_multimap<uint32_t, rocksdb::KeyLockInfo> lock_info =
       rdb->GetLockStatusData();
 
-  for (auto it = lock_info.begin(); it != lock_info.end(); it++) {
-    uint32_t cf_id = it->first;
-    rocksdb::KeyLockInfo key_lock_info = it->second;
-    tables->table->field[0]->store(cf_id, true);
-    tables->table->field[1]->store(key_lock_info.id, true);
+  for (const auto &lock : lock_info) {
+    const uint32_t cf_id = lock.first;
+    const auto &key_lock_info = lock.second;
+    const auto key_hexstr = rdb_hexdump(key_lock_info.key.c_str(),
+                                        key_lock_info.key.length(), FN_REFLEN);
 
-    auto key_hexstr = rdb_hexdump(key_lock_info.key.c_str(),
-                                  key_lock_info.key.length(), FN_REFLEN);
-    tables->table->field[2]->store(key_hexstr.c_str(), key_hexstr.size(),
-                                   system_charset_info);
+    for (const auto &id : key_lock_info.ids) {
+      tables->table->field[RDB_LOCKS_FIELD::COLUMN_FAMILY_ID]->store(cf_id,
+                                                                     true);
+      tables->table->field[RDB_LOCKS_FIELD::TRANSACTION_ID]->store(id, true);
 
-    /* Tell MySQL about this row in the virtual table */
-    ret = my_core::schema_table_store_record(thd, tables->table);
-    if (ret != 0) {
-      break;
+      tables->table->field[RDB_LOCKS_FIELD::KEY]->store(
+          key_hexstr.c_str(), key_hexstr.size(), system_charset_info);
+      tables->table->field[RDB_LOCKS_FIELD::MODE]->store(
+          key_lock_info.exclusive ? "X" : "S", 1, system_charset_info);
+
+      /* Tell MySQL about this row in the virtual table */
+      ret = my_core::schema_table_store_record(thd, tables->table);
+      if (ret != 0) {
+        break;
+      }
     }
   }
   DBUG_RETURN(ret);
 }
 
-static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] = {
-    ROCKSDB_FIELD_INFO("COLUMN_FAMILY_ID", sizeof(uint32_t), MYSQL_TYPE_LONG,
-                       0),
-    ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("KEY", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO_END};
-
 /* Initialize the information_schema.rocksdb_lock_info virtual table */
-static int rdb_i_s_lock_info_init(void *p) {
+static int rdb_i_s_lock_info_init(void *const p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER("rdb_i_s_lock_info_init");
@@ -1066,10 +1163,56 @@ static int rdb_i_s_lock_info_init(void *p) {
   DBUG_RETURN(0);
 }
 
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_TRX dynamic table
+ */
+namespace RDB_TRX_FIELD {
+enum {
+  TRANSACTION_ID = 0,
+  STATE,
+  NAME,
+  WRITE_COUNT,
+  LOCK_COUNT,
+  TIMEOUT_SEC,
+  WAITING_KEY,
+  WAITING_COLUMN_FAMILY_ID,
+  IS_REPLICATION,
+  SKIP_TRX_API,
+  READ_ONLY,
+  HAS_DEADLOCK_DETECTION,
+  NUM_ONGOING_BULKLOAD,
+  THREAD_ID,
+  QUERY
+};
+} // namespace RDB_TRX_FIELD
+
+static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] = {
+    ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("STATE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("WRITE_COUNT", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("LOCK_COUNT", sizeof(ulonglong), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("TIMEOUT_SEC", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("WAITING_KEY", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("WAITING_COLUMN_FAMILY_ID", sizeof(uint32_t),
+                       MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("IS_REPLICATION", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("SKIP_TRX_API", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("READ_ONLY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("HAS_DEADLOCK_DETECTION", sizeof(uint32_t),
+                       MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("NUM_ONGOING_BULKLOAD", sizeof(uint32_t),
+                       MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("THREAD_ID", sizeof(ulong), MYSQL_TYPE_LONG, 0),
+    ROCKSDB_FIELD_INFO("QUERY", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO_END};
+
 /* Fill the information_schema.rocksdb_trx virtual table */
-static int rdb_i_s_trx_info_fill_table(my_core::THD *thd,
-                                       my_core::TABLE_LIST *tables,
-                                       my_core::Item *cond
+static int rdb_i_s_trx_info_fill_table(my_core::THD *const thd,
+                                       my_core::TABLE_LIST *const tables,
+                                       my_core::Item *const cond
                                        __attribute__((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
@@ -1079,27 +1222,41 @@ static int rdb_i_s_trx_info_fill_table(my_core::THD *thd,
 
   DBUG_ENTER("rdb_i_s_trx_info_fill_table");
 
-  std::vector<Rdb_trx_info> all_trx_info = rdb_get_all_trx_info();
+  const std::vector<Rdb_trx_info> &all_trx_info = rdb_get_all_trx_info();
 
   for (const auto &info : all_trx_info) {
     auto name_hexstr =
         rdb_hexdump(info.name.c_str(), info.name.length(), NAME_LEN);
-    tables->table->field[0]->store(info.trx_id, true);
-    tables->table->field[1]->store(info.state.c_str(), info.state.length(),
-                                   system_charset_info);
-    tables->table->field[2]->store(name_hexstr.c_str(), name_hexstr.length(),
-                                   system_charset_info);
-    tables->table->field[3]->store(info.write_count, true);
-    tables->table->field[4]->store(info.lock_count, true);
-    tables->table->field[5]->store(info.timeout_sec, false);
-    tables->table->field[6]->store(info.waiting_trx_id, true);
-    tables->table->field[7]->store(info.is_replication, false);
-    tables->table->field[8]->store(info.skip_trx_api, false);
-    tables->table->field[9]->store(info.read_only, false);
-    tables->table->field[10]->store(info.deadlock_detect, false);
-    tables->table->field[11]->store(info.num_ongoing_bulk_load, false);
-    tables->table->field[12]->store(info.thread_id, true);
-    tables->table->field[13]->store(
+    auto key_hexstr = rdb_hexdump(info.waiting_key.c_str(),
+                                  info.waiting_key.length(), FN_REFLEN);
+    tables->table->field[RDB_TRX_FIELD::TRANSACTION_ID]->store(info.trx_id,
+                                                               true);
+    tables->table->field[RDB_TRX_FIELD::STATE]->store(
+        info.state.c_str(), info.state.length(), system_charset_info);
+    tables->table->field[RDB_TRX_FIELD::NAME]->store(
+        name_hexstr.c_str(), name_hexstr.length(), system_charset_info);
+    tables->table->field[RDB_TRX_FIELD::WRITE_COUNT]->store(info.write_count,
+                                                            true);
+    tables->table->field[RDB_TRX_FIELD::LOCK_COUNT]->store(info.lock_count,
+                                                           true);
+    tables->table->field[RDB_TRX_FIELD::TIMEOUT_SEC]->store(info.timeout_sec,
+                                                            false);
+    tables->table->field[RDB_TRX_FIELD::WAITING_KEY]->store(
+        key_hexstr.c_str(), key_hexstr.length(), system_charset_info);
+    tables->table->field[RDB_TRX_FIELD::WAITING_COLUMN_FAMILY_ID]->store(
+        info.waiting_cf_id, true);
+    tables->table->field[RDB_TRX_FIELD::IS_REPLICATION]->store(
+        info.is_replication, false);
+    tables->table->field[RDB_TRX_FIELD::SKIP_TRX_API]->store(info.skip_trx_api,
+                                                             false);
+    tables->table->field[RDB_TRX_FIELD::READ_ONLY]->store(info.read_only,
+                                                          false);
+    tables->table->field[RDB_TRX_FIELD::HAS_DEADLOCK_DETECTION]->store(
+        info.deadlock_detect, false);
+    tables->table->field[RDB_TRX_FIELD::NUM_ONGOING_BULKLOAD]->store(
+        info.num_ongoing_bulk_load, false);
+    tables->table->field[RDB_TRX_FIELD::THREAD_ID]->store(info.thread_id, true);
+    tables->table->field[RDB_TRX_FIELD::QUERY]->store(
         info.query_str.c_str(), info.query_str.length(), system_charset_info);
 
     /* Tell MySQL about this row in the virtual table */
@@ -1112,30 +1269,8 @@ static int rdb_i_s_trx_info_fill_table(my_core::THD *thd,
   DBUG_RETURN(ret);
 }
 
-static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] = {
-    ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
-                       0),
-    ROCKSDB_FIELD_INFO("STATE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO("WRITE_COUNT", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
-                       0),
-    ROCKSDB_FIELD_INFO("LOCK_COUNT", sizeof(ulonglong), MYSQL_TYPE_LONGLONG, 0),
-    ROCKSDB_FIELD_INFO("TIMEOUT_SEC", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("WAITING_TXN_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
-                       0),
-    ROCKSDB_FIELD_INFO("IS_REPLICATION", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("SKIP_TRX_API", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("READ_ONLY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("HAS_DEADLOCK_DETECTION", sizeof(uint32_t),
-                       MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("NUM_ONGOING_BULKLOAD", sizeof(uint32_t),
-                       MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("THREAD_ID", sizeof(ulong), MYSQL_TYPE_LONG, 0),
-    ROCKSDB_FIELD_INFO("QUERY", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
-    ROCKSDB_FIELD_INFO_END};
-
 /* Initialize the information_schema.rocksdb_trx_info virtual table */
-static int rdb_i_s_trx_info_init(void *p) {
+static int rdb_i_s_trx_info_init(void *const p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
   DBUG_ENTER("rdb_i_s_trx_info_init");

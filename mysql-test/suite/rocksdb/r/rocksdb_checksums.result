@@ -1,6 +1,7 @@
 set @save_rocksdb_store_row_debug_checksums=@@global.rocksdb_store_row_debug_checksums;
 set @save_rocksdb_verify_row_debug_checksums=@@global.rocksdb_verify_row_debug_checksums;
 set @save_rocksdb_checksums_pct=@@global.rocksdb_checksums_pct;
+set session transaction isolation level read committed;
 drop table if exists t1,t2,t3;
 show variables like 'rocksdb_%checksum%';
 Variable_name	Value

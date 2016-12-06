@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 #  Tests for row checksums feature
@@ -8,6 +8,7 @@
 set @save_rocksdb_store_row_debug_checksums=@@global.rocksdb_store_row_debug_checksums;
 set @save_rocksdb_verify_row_debug_checksums=@@global.rocksdb_verify_row_debug_checksums;
 set @save_rocksdb_checksums_pct=@@global.rocksdb_checksums_pct;
+set session transaction isolation level read committed;
 
 # wiping mysql log for repeatable tests
 --exec echo "" > $MYSQLTEST_VARDIR/log/mysqld.1.err

@@ -3105,7 +3105,23 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   }
 #endif /* _WIN32 */
 
-  return popen(ds_cmd->str, mode);
+  errno= 0;
+  FILE *file= popen(ds_cmd->str, mode);
+  if (file == NULL)
+  {
+    if (errno != 0)
+    {
+      fprintf(stderr, "mysqltest: popen failed with errno %d (%s)\n", errno,
+              strerror(errno));
+    }
+    else
+    {
+      fprintf(stderr,
+              "mysqltest: popen returned NULL without setting errno "
+              "(out-of-memory?)\n");
+    }
+  }
+  return file;
 }
 
 

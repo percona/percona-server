@@ -9,6 +9,11 @@ Changed in Percona Server 5.7
 Features removed from |Percona Server| 5.7 that were available in |Percona Server| 5.6
 =======================================================================================
 
+.. note:: 
+
+  Percona Server 5.7 won't be able to start if any of variables from these
+  features are set in the server's configuration file.
+
 Some features that were present in |Percona Server| 5.6 have been removed in |Percona Server| 5.7. These are:
 
  * `Handlersocket <https://www.percona.com/doc/percona-server/5.6/performance/handlersocket.html>`_ - This feature might be included in a future release if HandlerSocket starts supporting 5.7.
@@ -33,6 +38,11 @@ Changes in Percona Server 5.6 features
 Features available in |Percona Server| 5.6 that have been replaced with |MySQL| 5.7 features
 ============================================================================================
 
+.. note:: 
+
+  Percona Server 5.7 won't be able to start if any of variables from these
+  features are set in the server's configuration file.
+
 Some |Percona Server| 5.6 features have been replaced by similar or equivalent |MySQL| 5.7 features, so we now keep the |MySQL| 5.7 implementations in |Percona Server| 5.7. These are:
 
  * `Lock-Free SHOW SLAVE STATUS NONBLOCKING <https://www.percona.com/doc/percona-server/5.6/reliability/show_slave_status_nolock.html>`_ has been replaced by a regular ``SHOW SLAVE STATUS`` `implementation <http://dev.mysql.com/doc/refman/5.7/en/show-slave-status.html>`_. Oracle implementation forbids calling it from a stored function.
@@ -43,7 +53,7 @@ Some |Percona Server| 5.6 features have been replaced by similar or equivalent |
  * `Online GTID migration patch <http://www.percona.com/doc/percona-server/5.6/flexibility/online_gtid_deployment.html>`_ has been replaced by an upstream variable `gtid_mode <http://dev.mysql.com/doc/refman/5.7/en/replication-options-gtids.html#option_mysqld_gtid-mode>`_ made dynamic.
  * The `Error Code Compatibility <https://www.percona.com/doc/percona-server/5.6/reliability/error_pad.html>`_ has been replaced by the multiple start-error-number directive in :file:`sql/share/errmsg-utf8.txt` support. 
  * `Ignoring missing tables in mysqldump <https://www.percona.com/doc/percona-server/5.6/flexibility/mysqldump_ignore_create_error.html>`_ with ``--ignore-create-error`` option has been replaced by the more general upstream option `--ignore-error <http://dev.mysql.com/doc/refman/5.7/en/mysqldump.html#option_mysqldump_ignore-error>`_ option.
- * `innodb_log_block_size <https://www.percona.com/doc/percona-server/5.6/scalability/innodb_io.html#innodb_log_block_size>`_ has been replaced by `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ variable. To avoid read on write when the storage block size is not equal to 512 bytes, the latter should be set to the same value the former was. If :variable:`innodb_log_block_size` was set to non-default values, new log files must be created during the upgrade.
+ * `innodb_log_block_size <https://www.percona.com/doc/percona-server/5.6/scalability/innodb_io.html#innodb_log_block_size>`_ has been replaced by `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ variable. To avoid read on write when the storage block size is not equal to 512 bytes, the latter should be set to the same value the former was. If :variable:`innodb_log_block_size` was set to non-default values, new log files must be created during the upgrade. This can be done by cleanly shutting down the service and removing the variable from :file:`my.cnf` configuration and removing the old logs and starting the service again before doing the upgrade.
  * `Extended secure-file-priv server option <https://www.percona.com/doc/percona-server/5.6/management/secure_file_priv_extended.html>`_, which was used to disable ``LOAD DATA INFILE``, ``SELECT INTO OUTFILE`` statements, and ``LOAD_FILE()`` function completely, has been replaced by upstream introducing ``NULL`` as a possible value to this variable. To migrate, any value-less settings must be replaced by ``NULL``.
  * `innodb_sched_priority_cleaner <https://www.percona.com/doc/percona-server/5.6/performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads.html#innodb_sched_priority_cleaner>`_ variable has been removed, as the effect of setting it to 39 (corresponding to nice value of -20), is now enabled by default.
  * `innodb_adaptive_hash_index_partitions <https://www.percona.com/doc/percona-server/5.6/scalability/innodb_adaptive_hash_index_partitions.html#innodb_adaptive_hash_index_partitions>`_ has been replaced by `innodb_adaptive_hash_index_parts <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_adaptive_hash_index_parts>`_. 
@@ -151,6 +161,8 @@ Following system variables available in |Percona Server| 5.6 are no longer prese
      - InnoDB redo log archiving has been removed due to lack of user uptake of the feature.
    * - :variable:`innodb_log_arch_expire_sec`                     
      - InnoDB redo log archiving has been removed due to lack of user uptake of the feature.
+   * - :variable:`innodb_log_block_size`
+     - Replaced by upstream `innodb_log_write_ahead_size <https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html#sysvar_innodb_log_write_ahead_size>`_ variable. To avoid read on write when the storage block size is not equal to 512 bytes, the latter should be set to the same value the former was. If :variable:`innodb_log_block_size` was set to non-default values, new log files must be created during the upgrade. This can be done by cleanly shutting down the service and removing the variable from :file:`my.cnf` configuration and removing the old logs and starting the service again before doing the upgrade.
    * - :variable:`max_statement_time`                     
      - Replaced by upstream `max_execution_time <http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_statement_time)>`_ variable in `Server-side SELECT statement timeouts <http://mysqlserverteam.com/server-side-select-statement-timeouts/>`_ implementation. 
    * - :variable:`have_statement_timeout`                     

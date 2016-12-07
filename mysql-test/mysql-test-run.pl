@@ -2271,21 +2271,28 @@ sub read_plugin_defs($)
     # listed in def. file but not found.
 
     if ($plugin) {
+      my $plug_dir= dirname($plugin);
       $ENV{$plug_var}= basename($plugin);
-      $ENV{$plug_var.'_DIR'}= dirname($plugin);
-      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".dirname($plugin);
+      $ENV{$plug_var.'_DIR'}= $plug_dir;
+      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".$plug_dir;
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
 	my $load_add_var= "--plugin_load_add=";
+	my $load_var_with_path = "--plugin_load=";
+	my $load_add_var_with_path = "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
 	  $load_add_var .= $semi . "$plug_name=$lib_name";
+	  $load_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
+	  $load_add_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
 	  $semi= ';';
 	}
 	$ENV{$plug_var.'_LOAD'}= $load_var;
 	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
+	$ENV{$plug_var.'_LOAD_PATH'}= $load_var_with_path;
+	$ENV{$plug_var.'_LOAD_ADD_PATH'}= $load_add_var_with_path;
       }
     } else {
       $ENV{$plug_var}= "";
@@ -2293,6 +2300,8 @@ sub read_plugin_defs($)
       $ENV{$plug_var.'_OPT'}= "";
       $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
       $ENV{$plug_var.'_LOAD_ADD'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_PATH'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_ADD_PATH'}= "" if $plug_names;
     }
   }
   close PLUGDEF;

@@ -506,33 +506,65 @@ static inline void free_plugin_mem(st_plugin_dl *p)
   @arg dl      The path to the plugin binary to load
   @arg report  a bitmask that's passed down to report_error()
 */
-static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
+static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl,
+                                   int report,
+                                   bool allow_dl_path)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
   uint dummy_errors, i;
-  size_t plugin_dir_len, dlpathlen;
+  size_t dlpathlen;
   st_plugin_dl *tmp, plugin_dl;
+  size_t dl_fname_pos= 0;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
   DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
                        dl->str, (int) dl->length));
-  plugin_dir_len= strlen(opt_plugin_dir);
-  /*
-    Ensure that the dll doesn't have a path.
-    This is done to ensure that only approved libraries from the
-    plugin directory are used (to make this even remotely secure).
-  */
-  LEX_CSTRING dl_cstr= {dl->str, dl->length};
-  if (check_valid_path(dl->str, dl->length) ||
-      check_string_char_length(dl_cstr, "", NAME_CHAR_LEN,
-                               system_charset_info, 1) ||
-      plugin_dir_len + dl->length + 1 >= FN_REFLEN)
-  {
-    mysql_mutex_unlock(&LOCK_plugin);
-    report_error(report, ER_UDF_NO_PATHS);
-    DBUG_RETURN(NULL);
+
+  if (allow_dl_path)
+    dl_fname_pos = dirname_length(dl->str);
+
+  if (!dl_fname_pos) {
+    size_t plugin_dir_len= strlen(opt_plugin_dir);
+    /*
+      Ensure that the dll doesn't have a path.
+      This is done to ensure that only approved libraries from the
+      plugin directory are used (to make this even remotely secure).
+    */
+    LEX_CSTRING dl_cstr= {dl->str, dl->length};
+    if (check_valid_path(dl->str, dl->length) ||
+        check_string_char_length(dl_cstr, "", NAME_CHAR_LEN,
+                                 system_charset_info, 1) ||
+        plugin_dir_len + dl->length + 1 >= FN_REFLEN)
+    {
+      mysql_mutex_unlock(&LOCK_plugin);
+      report_error(report, ER_UDF_NO_PATHS);
+      DBUG_RETURN(NULL);
+    }
+    /* Compile dll path */
+    dlpathlen=
+      strxnmov(dlpath,
+               sizeof(dlpath) - 1,
+               opt_plugin_dir,
+               "/",
+               dl->str,
+               NullS) -
+      dlpath;
   }
+  else
+  {
+    if (dl->length + 1 >= sizeof(dlpath))
+    {
+      mysql_mutex_unlock(&LOCK_plugin);
+      report_error(report, ER_UDF_NO_PATHS);
+      DBUG_RETURN(NULL);
+    }
+    strncpy(dlpath, dl->str, sizeof(dlpath) - 1);
+    dlpathlen= dl->length;
+  }
+
+  (void) unpack_filename(dlpath, dlpath);
+
   /* If this dll is already loaded just increase ref_count. */
   if ((tmp= plugin_dl_find(dl)))
   {
@@ -540,11 +572,6 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     DBUG_RETURN(tmp);
   }
   memset(&plugin_dl, 0, sizeof(plugin_dl));
-  /* Compile dll path */
-  dlpathlen=
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
-    dlpath;
-  (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
   mysql_mutex_assert_owner(&LOCK_plugin);
@@ -926,7 +953,7 @@ static st_plugin_int *plugin_insert_or_reuse(st_plugin_int *plugin)
 */
 static bool plugin_add(MEM_ROOT *tmp_root,
                        const LEX_STRING *name, const LEX_STRING *dl,
-                       int *argc, char **argv, int report)
+                       int *argc, char **argv, int report, bool allow_path)
 {
   st_plugin_int tmp;
   st_mysql_plugin *plugin;
@@ -942,7 +969,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   }
   /* Clear the whole struct to catch future extensions. */
   memset(&tmp, 0, sizeof(tmp));
-  if (!(tmp.plugin_dl = plugin_dl_add(dl, report)))
+  if (!(tmp.plugin_dl = plugin_dl_add(dl, report, allow_path)))
   {
     DBUG_RETURN(true);
   }
@@ -1787,7 +1814,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     */
     mysql_mutex_lock(&LOCK_plugin);
     mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-    if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+    if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG, false))
       sql_print_warning("Couldn't load plugin named '%s' with soname '%s'.",
                         str_name.c_ptr(), str_dl.c_ptr());
     else
@@ -1861,7 +1888,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         */
         mysql_mutex_lock(&LOCK_plugin);
         mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-        if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG)))
+        if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG, true)))
         {
           for (plugin= plugin_dl->plugins; plugin->info; plugin++)
           {
@@ -1869,7 +1896,8 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
             name.length= strlen(name.str);
 
             free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
-            if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+            if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG,
+                           true))
             {
               mysql_rwlock_unlock(&LOCK_system_variables_hash);
               goto error;
@@ -1893,7 +1921,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         */
         mysql_mutex_lock(&LOCK_plugin);
         mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-        if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+        if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG, true))
         {
           mysql_rwlock_unlock(&LOCK_system_variables_hash);
           goto error;
@@ -2198,7 +2226,13 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
     goto err;
   }
-  error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+  error= plugin_add(thd->mem_root,
+                    name,
+                    dl,
+                    &argc,
+                    argv,
+                    REPORT_TO_USER,
+                    false);
   if (argv)
     free_defaults(argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);

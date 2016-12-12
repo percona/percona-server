@@ -195,3 +195,18 @@ SELECT COUNT(*) AS number_of_rows_after_alteration FROM t1 WHERE a = @inserted_v
 DROP TABLE t1;
 
 SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;
+
+#
+# Bug lp:1640810 "Adding COMPRESSED attributes to InnoDB special tables fields can lead to server crashes"
+#
+call mtr.add_suppression("InnoDB: Error: Column .* in table .* has unexpected COMPRESSED attribute");
+
+ALTER TABLE mysql.innodb_index_stats
+  MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL COLUMN_FORMAT COMPRESSED;
+CREATE TABLE t1(i INT);
+--disable_result_log
+SELECT * FROM mysql.innodb_index_stats;
+--enable_result_log
+DROP TABLE t1;
+ALTER TABLE mysql.innodb_index_stats
+  MODIFY stat_description VARCHAR(1024) COLLATE utf8_bin NOT NULL;

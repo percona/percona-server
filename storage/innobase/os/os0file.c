@@ -1347,9 +1347,10 @@ os_file_create_simple_no_error_handling_func(
 }
 
 /****************************************************************//**
-Tries to disable OS caching on an opened file descriptor. */
+Tries to disable OS caching on an opened file descriptor.
+@return TRUE if operation is success and FALSE otherwise */
 UNIV_INTERN
-void
+ibool
 os_file_set_nocache(
 /*================*/
 	int		fd		/*!< in: file descriptor to alter */
@@ -1370,6 +1371,7 @@ os_file_set_nocache(
 			"  InnoDB: Failed to set DIRECTIO_ON "
 			"on file %s: %s: %s, continuing anyway\n",
 			file_name, operation_name, strerror(errno_save));
+		return FALSE;
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
@@ -1387,8 +1389,10 @@ os_file_set_nocache(
 				"'Invalid argument' on Linux on tmpfs, "
 				"see MySQL Bug#26662\n");
 		}
+		return FALSE;
 	}
 #endif
+	return TRUE;
 }
 
 /****************************************************************//**
@@ -1664,7 +1668,11 @@ try_again:
 
 	/* ALL_O_DIRECT: O_DIRECT also for transaction log file */
 	if (srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
-		os_file_set_nocache(file, name, mode_str);
+		/* Do fsync() on log files when setting O_DIRECT fails.
+		   See log_io_complete() */
+		if (!os_file_set_nocache(file, name, mode_str)) {
+			srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
+		}
 	}
 
 #ifdef USE_FILE_LOCK

@@ -183,6 +183,8 @@ rocksdb_compact_column_family(THD* thd,
   char buff[STRING_BUFFER_USUAL_SIZE];
   int  len = sizeof(buff);
 
+  DBUG_ASSERT(value != nullptr);
+
   if (const char* cf = value->val_str(value, buff, &len)) {
     bool is_automatic;
     auto cfh = cf_manager.get_cf(cf, "", nullptr, &is_automatic);
@@ -451,6 +453,8 @@ rocksdb_set_rocksdb_info_log_level(THD* thd,
                                    void* var_ptr,
                                    const void* save)
 {
+  DBUG_ASSERT(save != nullptr);
+
   mysql_mutex_lock(&rdb_sysvars_mutex);
   rocksdb_info_log_level = *static_cast<const uint64_t*>(save);
   rocksdb_db_options.info_log->SetInfoLogLevel(
@@ -1510,6 +1514,8 @@ public:
 
   static void walk_tx_list(Rdb_tx_list_walker* walker)
   {
+    DBUG_ASSERT(walker != nullptr);
+
     mysql_mutex_lock(&s_tx_list_mutex);
     for (auto it : s_tx_list)
       walker->process_tran(it);
@@ -1521,6 +1527,7 @@ public:
                        Rdb_tbl_def *tbl_def)
   {
     DBUG_ASSERT(!s.ok());
+    DBUG_ASSERT(tbl_def != nullptr);
 
     if (s.IsTimedOut())
     {
@@ -1682,6 +1689,8 @@ public:
 
   void snapshot_created(const rocksdb::Snapshot *snapshot)
   {
+    DBUG_ASSERT(snapshot != nullptr);
+
     m_read_opts.snapshot = snapshot;
     rdb->GetEnv()->GetCurrentTime(&m_snapshot_timestamp);
     m_is_delayed_snapshot = false;
@@ -1728,6 +1737,8 @@ public:
      multiple bulk loads to occur on a partitioned table, but then closes
      them all out when we switch to another table.
     */
+    DBUG_ASSERT(bulk_load != nullptr);
+
     if (!m_curr_bulk_load.empty() &&
         !bulk_load->same_table(*m_curr_bulk_load[0]))
     {
@@ -1823,6 +1834,7 @@ public:
     // Make sure we are not doing both read_current (which implies we don't
     // want a snapshot) and create_snapshot which makes sure we create
     // a snapshot
+    DBUG_ASSERT(column_family != nullptr);
     DBUG_ASSERT(!read_current || !create_snapshot);
 
     if (create_snapshot)
@@ -2848,6 +2860,8 @@ static std::string format_string(
   va_list     args_copy;
   char        static_buff[256];
 
+  DBUG_ASSERT(format != nullptr);
+
   va_start(args, format);
   va_copy(args_copy, args);
 
@@ -2945,6 +2959,8 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker
   /* Create one row in the snapshot status table */
   void process_tran(const Rdb_transaction *tx) override
   {
+    DBUG_ASSERT(tx != nullptr);
+
     /* Calculate the duration the snapshot has existed */
     int64_t snapshot_timestamp = tx->m_snapshot_timestamp;
     if (snapshot_timestamp != 0)
@@ -2990,6 +3006,8 @@ class Rdb_trx_info_aggregator : public Rdb_tx_list_walker
       {rocksdb::Transaction::AWAITING_ROLLBACK, "AWAITING_ROLLBACK"},
       {rocksdb::Transaction::ROLLEDBACK, "ROLLEDBACK"},
     };
+
+    DBUG_ASSERT(tx != nullptr);
 
     THD* thd = tx->get_thd();
     ulong thread_id = thd->thread_id;
@@ -3186,6 +3204,8 @@ static bool rocksdb_show_status(handlerton*		hton,
 static inline void rocksdb_register_tx(handlerton *hton, THD *thd,
                                        Rdb_transaction *tx)
 {
+  DBUG_ASSERT(tx != nullptr);
+
   trans_register_ha(thd, FALSE, rocksdb_hton);
   if (my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
   {
@@ -3979,6 +3999,7 @@ void Rdb_open_tables_map::release_table_handler(
 {
   mysql_mutex_lock(&m_mutex);
 
+  DBUG_ASSERT(table_handler != nullptr);
   DBUG_ASSERT(table_handler->m_ref_count > 0);
   if (!--table_handler->m_ref_count)
   {
@@ -4664,6 +4685,7 @@ int ha_rocksdb::alloc_key_buffers(const TABLE* table_arg,
 {
   DBUG_ENTER("ha_rocksdb::alloc_key_buffers");
   DBUG_ASSERT(m_pk_tuple == nullptr);
+  DBUG_ASSERT(tbl_def_arg != nullptr);
 
   std::shared_ptr<Rdb_key_def>* kd_arr= tbl_def_arg->m_key_descr_arr;
 

@@ -2461,8 +2461,8 @@ ON t1.col_varchar_key = t2.col_varchar_key
 GROUP BY field2
 ORDER BY field1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	3	Using index; Using temporary; Using filesort
-1	SIMPLE	t2	ref	col_varchar_key	col_varchar_key	3	test.t1.col_varchar_key	1	Using join buffer (Batched Key Access)
+1	SIMPLE	t1	index	col_int_key,col_varchar_key	col_varchar_key	7	NULL	ROWS	Using index; Using temporary; Using filesort
+1	SIMPLE	t2	ref	col_varchar_key	col_varchar_key	3	test.t1.col_varchar_key	ROWS	Using join buffer (Batched Key Access)
 SELECT MIN(t2.col_datetime_key) AS field1,
 t1.col_int_key AS field2  
 FROM t1

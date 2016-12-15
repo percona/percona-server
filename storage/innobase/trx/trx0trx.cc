@@ -124,6 +124,8 @@ trx_init(
 	trx_t::state here to NOT_STARTED. The FORCED_ROLLBACK
 	status is required for asynchronous handling. */
 
+	trx->id_saved = trx->id;
+
 	trx->id = 0;
 
 	trx->preallocated_id = 0;

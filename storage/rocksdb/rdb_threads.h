@@ -61,7 +61,7 @@ class Rdb_thread
 
   virtual void run(void) = 0;
 
-  void signal(bool stop_thread= false);
+  void signal(const bool &stop_thread= false);
 
   int join()
   {
@@ -73,7 +73,7 @@ class Rdb_thread
   virtual ~Rdb_thread() {}
 
  private:
-  static void* thread_func(void* thread_ptr);
+  static void* thread_func(void* const thread_ptr);
 };
 
 

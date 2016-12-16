@@ -888,6 +888,7 @@
    fun:malloc
    fun:CRYPTO_malloc
    fun:sk_new
+   ...
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
    fun:ssl_start
@@ -903,6 +904,7 @@
    fun:malloc
    fun:CRYPTO_malloc
    fun:sk_new
+   ...
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
    fun:ssl_start

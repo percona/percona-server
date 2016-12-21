@@ -1,0 +1,5 @@
+set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+set global innodb_empty_free_list_algorithm="backoff";
+SET @@GLOBAL.innodb_buffer_pool_size = 19922944;
+ERROR 42000: Variable 'innodb_buffer_pool_size' can't be set to the value of '19922944'
+SET @@GLOBAL.innodb_empty_free_list_algorithm=@old_innodb_empty_free_list_algorithm;

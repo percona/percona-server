@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_desc\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_DESC\FR" "1" "09/28/2016" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_DESC\FR" "1" "11/26/2016" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ ndb_desc \-c \fIconnection_string\fR \fItbl_name\fR \-d \fIdb_name\fR [\fIoption
 .RE
 .\}
 .PP
-(\fIMySQL Cluster NDB 7\&.2\&.9 and later:\fR)
+(\fINDB 7\&.2\&.9 and later:\fR)
 .sp
 .if n \{\
 .RS 4
@@ -141,7 +141,7 @@ Information about multiple tables can be obtained in a single invocation of
 \fBndb_desc\fR
 by using their names, separated by spaces\&. All of the tables must be in the same database\&.
 .PP
-Beginning with MySQL Cluster NDB 7\&.2\&.9, it is possible to obtain additional information about a specific index using the
+Beginning with NDB 7\&.2\&.9, it is possible to obtain additional information about a specific index using the
 \fB\-\-table\fR
 (short form:
 \fB\-t\fR) option introduced in this version and supplying the name of the index as the first argument to
@@ -240,7 +240,7 @@ ALTER TABLESPACE ts_1
 .\}
 .PP
 (For more information on the statements just shown and the objects created by them, see
-Section\ \&18.5.12.1, \(lqMySQL Cluster Disk Data Objects\(rq, as well as
+Section\ \&18.5.12.1, \(lqNDB Cluster Disk Data Objects\(rq, as well as
 Section\ \&13.1.14, \(lqCREATE LOGFILE GROUP Syntax\(rq, and
 Section\ \&13.1.18, \(lqCREATE TABLESPACE Syntax\(rq\&.)
 .PP
@@ -327,9 +327,9 @@ INFORMATION_SCHEMA\&.FILES
 table\&.
 .PP
 The following table includes options that are specific to
-\fBndb_desc\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_desc\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndb_desc\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -389,7 +389,7 @@ Specify the database in which the table should be found\&.
 \fB\-\-extra\-node\-info\fR,
 \fB\-n\fR
 .sp
-Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in MySQL Cluster\&.
+Include information about the mappings between table partitions and the data nodes upon which they reside\&. This information can be useful for verifying distribution awareness mechanisms and supporting more efficient application access to the data stored in NDB Cluster\&.
 .sp
 Use of this option also requires the use of the
 \fB\-\-extra\-partition\-info\fR
@@ -437,7 +437,7 @@ Try to connect this many times before giving up\&. One connect attempt is made p
 .sp
 Specify the table in which to look for an index\&.
 .sp
-This option was added in MySQL Cluster NDB 7\&.2\&.9\&.
+This option was added in NDB 7\&.2\&.9\&.
 .RE
 .sp
 .RS 4

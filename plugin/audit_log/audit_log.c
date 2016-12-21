@@ -208,6 +208,7 @@ void xml_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
     { '&',  5, "&amp;" },
     { '\r', 5, "&#13;" },
     { '\n', 5, "&#10;" },
+    { '\t', 5, "&#9;" },
     { '"',  6, "&quot;" },
     { 0,  0, NULL }
   };
@@ -224,6 +225,10 @@ void json_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
     { '"',  2, "\\\"" },
     { '\r',  2, "\\r" },
     { '\n',  2, "\\n" },
+    { '/',  2, "\\/" },
+    { '\b',  2, "\\b" },
+    { '\f',  2, "\\f" },
+    { '\t',  2, "\\t" },
     { 0,  0, NULL }
   };
 

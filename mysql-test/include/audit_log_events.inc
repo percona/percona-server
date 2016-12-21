@@ -53,4 +53,6 @@ connection default;
 create user 'jeffrey'@'localhost' IDENTIFIED BY 'mypass';
 drop user 'jeffrey'@'localhost';
 select '&;&&&""""<><<>>>>';
+let $str=`SELECT x'2009080c0a0d2f225c5c'`;
+eval select '$str';
 disconnect con1;

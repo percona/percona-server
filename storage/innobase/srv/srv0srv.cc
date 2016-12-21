@@ -2344,10 +2344,8 @@ DECLARE_THREAD(srv_redo_log_follow_thread)(
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
 
-	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_tracked_event);
-	srv_redo_log_thread_started = false; /* Defensive, not required */
 
 	my_thread_end();
 	os_thread_exit(NULL);

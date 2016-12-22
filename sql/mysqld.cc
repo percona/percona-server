@@ -8445,6 +8445,44 @@ bool check_secure_file_priv_path()
   return true;
 }
 
+static void fix_plugin_dir_path()
+{
+  char curr_plugin_dir[FN_REFLEN];
+  static const size_t full_plugin_dir_size= OPT_PLUGIN_DIR_MAX_LEN + FN_REFLEN;
+  char full_plugin_dir[full_plugin_dir_size];
+  char *full_plugin_dir_ptr= full_plugin_dir;
+  char *full_plugin_dir_end= full_plugin_dir + full_plugin_dir_size;
+  if (!opt_plugin_dir_ptr)
+    opt_plugin_dir_ptr= get_relative_path(PLUGINDIR);
+  const char *next_plugin_dir= opt_plugin_dir_ptr;
+
+  while ((next_plugin_dir= get_next_plugin_dir(next_plugin_dir,
+                                              curr_plugin_dir,
+                                              FN_REFLEN)))
+  {
+    char *new_full_plugin_dir_ptr;
+    size_t fixed_path_len;
+    if (full_plugin_dir_ptr != full_plugin_dir)
+      *(full_plugin_dir_ptr++)= OPT_PLUGIN_DIR_DELIMITER;
+    (void) convert_dirname(full_plugin_dir_ptr, curr_plugin_dir, NullS);
+    (void) my_load_path(full_plugin_dir_ptr, full_plugin_dir_ptr, mysql_home);
+    fixed_path_len= strlen(full_plugin_dir_ptr);
+    new_full_plugin_dir_ptr= full_plugin_dir_ptr + fixed_path_len;
+    if (full_plugin_dir_end - new_full_plugin_dir_ptr < FN_REFLEN + 1)
+    {
+      if (full_plugin_dir_ptr != full_plugin_dir)
+        --full_plugin_dir_ptr;
+      *full_plugin_dir_ptr= 0;
+      sql_print_warning("Plugin dir max len was exceed and cut to: %s", full_plugin_dir);
+      break;
+    }
+    full_plugin_dir_ptr= new_full_plugin_dir_ptr;
+  }
+
+  strncpy(opt_plugin_dir, full_plugin_dir, OPT_PLUGIN_DIR_MAX_LEN);
+  opt_plugin_dir_ptr= opt_plugin_dir;
+}
+
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
@@ -8464,11 +8502,7 @@ static int fix_paths(void)
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name, pidfile_name_ptr, mysql_real_data_home);
-
-  convert_dirname(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr : 
-                                  get_relative_path(PLUGINDIR), NullS);
-  (void) my_load_path(opt_plugin_dir, opt_plugin_dir, mysql_home);
-  opt_plugin_dir_ptr= opt_plugin_dir;
+  fix_plugin_dir_path();
 
   my_realpath(mysql_unpacked_real_data_home, mysql_real_data_home, MYF(0));
   mysql_unpacked_real_data_home_len=

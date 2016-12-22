@@ -20,6 +20,11 @@ call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in 
 --let $restart_parameters= restart:--innodb-log-file-size=256M --max-allowed-packet=48M
 --source include/restart_mysqld.inc
 
+if($row_format == 'COMPRESSED')
+{
+  --let $check_buffer_pool_evict = `SELECT version() LIKE '%debug%'`
+}
+
 # saving global variables
 SET @saved_innodb_file_format = @@global.innodb_file_format;
 SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;

@@ -34,22 +34,48 @@ if($full_field_type)
   --let $max_value_length= $field_length
 }
 
+--let $number_of_selects = 1
+if($check_buffer_pool_evict)
+{
+  --let $number_of_selects = 2
+}
+
 INSERT INTO t1 VALUES(NULL);
---let $include_silent= 1
---let $assert_text= null value must match ($local_full_field_type, ROW_RORMAT = $row_format, length = $field_length)
---let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a IS NULL] = 1
---source include/assert.inc
---let $include_silent= 0
+--let $i = 0
+while($i < $number_of_selects)
+{
+  if($i == 1)
+  {
+    SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+  }
+  --let $include_silent= 1
+  --let $assert_text= null value must match ($local_full_field_type, ROW_RORMAT = $row_format, length = $field_length)
+  --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a IS NULL] = 1
+  --source include/assert.inc
+  --let $include_silent= 0
+
+  --inc $i
+}
 DELETE FROM t1;
 
 if($full_field_type != 'JSON')
 {
   INSERT INTO t1 VALUES('');
-  --let $include_silent= 1
-  --let $assert_text= empty value must match ($local_full_field_type, ROW_RORMAT = $row_format, length = $field_length)
-  --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = ""] = 1
-  --source include/assert.inc
-  --let $include_silent= 0
+  --let $i = 0
+  while($i < $number_of_selects)
+  {
+    if($i == 1)
+    {
+      SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+    }
+    --let $include_silent= 1
+    --let $assert_text= empty value must match ($local_full_field_type, ROW_RORMAT = $row_format, length = $field_length)
+    --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = ""] = 1
+    --source include/assert.inc
+    --let $include_silent= 0
+
+    --inc $i
+  }
   DELETE FROM t1;
 }
 
@@ -64,18 +90,28 @@ while($current_value_length <= $max_value_length)
   --disable_warnings
   INSERT IGNORE INTO t1 VALUES(@inserted_value);
   --enable_warnings
-  --let $include_silent= 1
-  --let $assert_text= value of $current_value_length byte(s) must match ($local_full_field_type, ROW_RORMAT = $row_format, length = $field_length, current = $current_value_length)
-  if($full_field_type != 'JSON')
+  --let $i = 0
+  while($i < $number_of_selects)
   {
-    --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = LEFT(@inserted_value, $local_type_length_limit)] = 1
+    if($i == 1)
+    {
+      SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+    }
+    --let $include_silent= 1
+    --let $assert_text= value of $current_value_length byte(s) must match ($local_full_field_type, ROW_RORMAT = $row_format, length = $field_length, current = $current_value_length)
+    if($full_field_type != 'JSON')
+    {
+      --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = LEFT(@inserted_value, $local_type_length_limit)] = 1
+    }
+    if($full_field_type == 'JSON')
+    {
+      --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = CAST(@inserted_value AS JSON)] = 1
+    }
+    --source include/assert.inc
+    --let $include_silent= 0
+
+    --inc $i
   }
-  if($full_field_type == 'JSON')
-  {
-    --let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE a = CAST(@inserted_value AS JSON)] = 1
-  }
-  --source include/assert.inc
-  --let $include_silent= 0
   DELETE FROM t1;
   --inc $current_value_length
 }

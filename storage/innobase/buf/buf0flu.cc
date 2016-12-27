@@ -2206,13 +2206,14 @@ Clears up tail of the LRU lists:
 * Flush dirty pages at the tail of LRU to the disk
 The depth to which we scan each buffer pool is controlled by dynamic
 config parameter innodb_LRU_scan_depth.
-@return number of pages flushed */
+@return number of flushed and evicted pages */
 UNIV_INTERN
 ulint
 buf_flush_LRU_tail(void)
 /*====================*/
 {
 	ulint	total_flushed = 0;
+	ulint	total_evicted = 0;
 	ulint	start_time = ut_time_ms();
 	ulint	scan_depth[MAX_BUFFER_POOLS];
 	ulint	requested_pages[MAX_BUFFER_POOLS];
@@ -2278,6 +2279,7 @@ buf_flush_LRU_tail(void)
 				limited_scan[i]
 					= (previous_evicted[i] > n.evicted);
 				previous_evicted[i] = n.evicted;
+				total_evicted += n.evicted;
 
 				requested_pages[i] += lru_chunk_size;
 
@@ -2310,7 +2312,7 @@ buf_flush_LRU_tail(void)
 			MONITOR_LRU_BATCH_PAGES,
 			total_flushed);
 	}
-	return(total_flushed);
+	return(total_flushed + total_evicted);
 }
 
 /*********************************************************************//**
@@ -2604,6 +2606,23 @@ buf_get_total_free_list_length(void)
 	return result;
 }
 
+/** Returns the aggregate LRU list length over all buffer pool instances.
+@return total LRU list length. */
+MY_ATTRIBUTE((warn_unused_result))
+static
+ulint
+buf_get_total_LRU_list_length(void)
+{
+        ulint result = 0;
+
+        for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+
+                result += UT_LIST_GET_LEN(buf_pool_from_array(i)->LRU);
+        }
+
+        return result;
+}
+
 /*********************************************************************//**
 Adjust the desired page cleaner thread sleep time for LRU flushes.  */
 MY_ATTRIBUTE((nonnull))
@@ -2616,8 +2635,9 @@ page_cleaner_adapt_lru_sleep_time(
 	ulint	lru_n_flushed) /*!< in: number of flushed in previous batch */
 
 {
-	ulint free_len = buf_get_total_free_list_length();
-	ulint max_free_len = srv_LRU_scan_depth * srv_buf_pool_instances;
+        ulint free_len = buf_get_total_free_list_length();
+        ulint max_free_len = ut_min(buf_get_total_LRU_list_length(),
+                        srv_LRU_scan_depth * srv_buf_pool_instances);
 
 	if (free_len < max_free_len / 100 && lru_n_flushed) {
 
@@ -2629,7 +2649,7 @@ page_cleaner_adapt_lru_sleep_time(
 
 		/* Free lists filled more than 20%
 		or no pages flushed in previous batch, sleep a bit more */
-		*lru_sleep_time += 50;
+		*lru_sleep_time += 1;
 		if (*lru_sleep_time > srv_cleaner_max_lru_time)
 			*lru_sleep_time = srv_cleaner_max_lru_time;
 	} else if (free_len < max_free_len / 20 && *lru_sleep_time >= 50) {

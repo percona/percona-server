@@ -29,23 +29,12 @@ CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 --let $restart_parameters= restart:-#d,bitmap_page_write_error
 --source include/restart_mysqld.inc
 
-# Generate log data that is larger than the log capacity
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
-INSERT INTO t1 SELECT x FROM t1;
+# Generate some log data
+INSERT INTO t1 VALUES (1);
+
+# Checkpoint and track the log
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 
 # At this point the log tracker thread should have quit
 # TODO: test its status through I_S query once the table is implemented
@@ -55,6 +44,8 @@ INSERT INTO t1 SELECT x FROM t1;
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;
+
+RESET CHANGED_PAGE_BITMAPS;
 
 #
 # Test for bug 1217002 (RENAME/DROP crashes with innodb_track_changed_pages)
@@ -146,6 +137,11 @@ RESET CHANGED_PAGE_BITMAPS;
 --source include/count_sessions.inc
 
 --connect(con2,localhost,root,,)
+
+# Check that the currently-existing bitmaps can be read OK
+--disable_result_log
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+--enable_result_log
 
 SET DEBUG_SYNC="i_s_innodb_changed_pages_range_ready SIGNAL ready WAIT_FOR finish";
 send SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;

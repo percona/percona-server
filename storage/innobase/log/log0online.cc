@@ -1198,9 +1198,11 @@ log_online_write_bitmap(void)
 			rbt_next(log_bmp_sys->modified_pages, bmp_tree_node);
 
 		DBUG_EXECUTE_IF("bitmap_page_2_write_error",
-				ut_ad(bmp_tree_node); /* 2nd page must exist */
-				DBUG_SET("+d,bitmap_page_write_error");
-				DBUG_SET("-d,bitmap_page_2_write_error"););
+				if (bmp_tree_node)
+				{
+					DBUG_SET("+d,bitmap_page_write_error");
+					DBUG_SET("-d,bitmap_page_2_write_error");
+				});
 	}
 
 	rbt_reset(log_bmp_sys->modified_pages);
@@ -1602,6 +1604,8 @@ log_online_bitmap_iterator_init(
 {
 	ut_a(i);
 
+	i->max_lsn = max_lsn;
+
 	if (UNIV_UNLIKELY(min_lsn > max_lsn)) {
 
 		/* Empty range */
@@ -1709,6 +1713,9 @@ log_online_bitmap_iterator_next(
 				   i->bit_offset);
 		return TRUE;
 	}
+
+	if (i->end_lsn >= i->max_lsn && i->last_page_in_run)
+		return FALSE;
 
 	while (!checksum_ok)
 	{

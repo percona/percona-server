@@ -147,6 +147,15 @@ public:
     return entry;
   }
 
+  hash_filo_element *search_sync(uchar* key, size_t length)
+  {
+	  hash_filo_element* r;
+	  mysql_mutex_lock(&lock);
+	  r = search(key, length);
+	  mysql_mutex_unlock(&lock);
+	  return r;
+  }
+
   my_bool add(hash_filo_element *entry)
   {
     if (!m_size) return 1;
@@ -168,7 +177,7 @@ public:
     if (my_hash_insert(&cache,(uchar*) entry))
     {
       if (free_element)
-	(*free_element)(entry);		// This should never happen
+        (*free_element)(entry);
       return 1;
     }
     entry->prev_used= NULL;
@@ -180,6 +189,15 @@ public:
     first_link= entry;
 
     return 0;
+  }
+
+  my_bool add_sync(hash_filo_element *entry)
+  {
+	  my_bool r;
+	  mysql_mutex_lock(&lock);
+	  r = add(entry);
+	  mysql_mutex_unlock(&lock);
+	  return r;
   }
 
   uint size()

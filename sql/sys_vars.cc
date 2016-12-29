@@ -543,6 +543,23 @@ static Sys_var_long Sys_pfs_connect_attrs_size(
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+#ifndef EMBEDDED_LIBRARY
+static bool update_acl_cache_size(sys_var *self, THD *thd, enum_var_type type)
+{
+  acl_cache_update_size(opt_acl_cache_size);
+  return false;
+}
+
+static Sys_var_ulong Sys_acl_cache_size(
+       "acl_cache_size",
+       "Maximum size of the ACL cache",
+       GLOBAL_VAR(opt_acl_cache_size),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(1, 1024*1024),
+       DEFAULT(256),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(update_acl_cache_size));
+#endif /* EMBEDDED_LIBRARY */
+
 static Sys_var_ulong Sys_auto_increment_increment(
        "auto_increment_increment",
        "Auto-increment columns are incremented by this",

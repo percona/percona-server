@@ -97,6 +97,7 @@ extern CHARSET_INFO *error_message_charset_info;
 extern CHARSET_INFO *character_set_filesystem;
 
 extern MY_BITMAP temp_pool;
+extern ulong opt_acl_cache_size;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log, opt_log_raw;

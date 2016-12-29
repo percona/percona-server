@@ -307,6 +307,8 @@ int check_password_policy(String *password);
 my_bool acl_is_utility_user(const char *user, const char *host,
                          const char *ip);
 
+void acl_cache_update_size(uint size);
+
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0

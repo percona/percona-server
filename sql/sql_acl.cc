@@ -687,6 +687,11 @@ static bool acl_utility_user_initialized= false;
 static my_bool acl_init_utility_user(my_bool check_no_resolve);
 static void acl_free_utility_user();
 
+void acl_cache_update_size(uint size)
+{
+	acl_cache->resize(size);
+}
+
 /**
   Convert scrambled password to binary form, according to scramble type, 
   Binary form is stored in user.salt.
@@ -768,7 +773,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   my_bool return_val;
   DBUG_ENTER("acl_init");
 
-  acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
+  acl_cache= new hash_filo(opt_acl_cache_size, 0, 0,
                            (my_hash_get_key) acl_entry_get_key,
                            (my_hash_free_key) free,
                            &my_charset_utf8_bin);

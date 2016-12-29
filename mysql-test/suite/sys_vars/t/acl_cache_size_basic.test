@@ -1,0 +1,14 @@
+show variables like 'acl_cache_size';
+set global acl_cache_size = 100;
+show variables like 'acl_cache_size';
+set global acl_cache_size = 0;
+show variables like 'acl_cache_size';
+set global acl_cache_size = -1;
+show variables like 'acl_cache_size';
+set global acl_cache_size = 10000000;
+show variables like 'acl_cache_size';
+--error ER_GLOBAL_VARIABLE
+set acl_cache_size = 100000;
+show variables like 'acl_cache_size';
+set global acl_cache_size = 100000;
+show variables like 'acl_cache_size';

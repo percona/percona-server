@@ -370,6 +370,7 @@ static char *default_character_set_name;
 static char *character_set_filesystem_name;
 static char *lc_messages;
 static char *lc_time_names_name;
+ulong opt_acl_cache_size = ACL_CACHE_SIZE_DEFAULT;
 char *my_bind_addr_str;
 char *my_proxy_protocol_networks;
 static char *default_collation_name;

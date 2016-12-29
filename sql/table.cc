@@ -450,6 +450,21 @@ void TABLE_SHARE::destroy()
 
   DBUG_ENTER("TABLE_SHARE::destroy");
   DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
+  if (field != 0)
+  {
+    Field* current_field;
+    for (uint i= 0; i < fields; ++i)
+    {
+      current_field= field[i];
+      if (current_field->has_associated_compression_dictionary())
+      {
+        my_free(const_cast<char*>(current_field->zip_dict_data.str));
+        current_field->zip_dict_data= null_lex_cstr;
+        my_free(const_cast<char*>(current_field->zip_dict_name.str));
+        current_field->zip_dict_name= null_lex_cstr;
+      }
+    }
+  }
   if (ha_share)
   {
     delete ha_share;
@@ -485,6 +500,23 @@ void TABLE_SHARE::destroy()
   MEM_ROOT own_root= mem_root;
   free_root(&own_root, MYF(0));
   DBUG_VOID_RETURN;
+}
+
+/**
+  Checks if TABLE_SHARE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag.
+*/
+bool TABLE_SHARE::has_compressed_columns() const
+{
+  DBUG_ENTER("has_compressed_columns");
+  DBUG_ASSERT(field != 0);
+
+  Field **field_ptr= field;
+  while(*field_ptr != 0 &&
+        (*field_ptr)->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != 0);
 }
 
 /*
@@ -1804,6 +1836,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
   }
   *field_ptr=0;					// End marker
+  /* update zip dict info (name + data) from the handler */
+  if (share->has_compressed_columns())
+    handler_file->update_field_defs_with_zip_dict_info();
 
   /* Fix key->name and key_part->field */
   if (key_parts)
@@ -1976,6 +2011,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           (ha_option & HA_ANY_INDEX_MAY_BE_UNIQUE))
         set_if_bigger(share->max_unique_length,keyinfo->key_length);
     }
+
+    /*
+      The next call is here for MyRocks:  Now, we have filled in field and key
+      definitions, give the storage engine a chance to adjust its properties.
+
+      MyRocks may (and typically does) adjust HA_PRIMARY_KEY_IN_READ_INDEX
+      flag in this call.
+    */
+    if (handler_file->init_with_fields())
+      goto err;
+
     if (primary_key < MAX_KEY &&
 	(share->keys_in_use.is_set(primary_key)))
     {
@@ -2075,6 +2121,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->errarg= errarg;
   my_free(disk_buff);
   my_free(extra_segment_buff);
+  share->fields= 0;
+  share->field= 0;
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
@@ -5368,12 +5416,14 @@ void TABLE::mark_columns_needed_for_delete()
   @brief
   Mark columns needed for doing an update of a row
 
+  @param mark_binlog_columns if true, mark columns as per binlog_row_image
+                             requirements.
   @details
     Some engines needs to have all columns in an update (to be able to
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
 
-    If this is no the case, we do like in the delete case and mark
+    If this is not the case, we do like in the delete case and mark
     if neeed, either the primary key column or all columns to be read.
     (see mark_columns_needed_for_delete() for details)
 
@@ -5381,17 +5431,30 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
-    
+
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
     Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
+
+    Note: Marking additional columns as per binlog_row_image requirements will
+    influence query execution plan. For example in the case of
+    binlog_row_image=FULL the entire read_set and write_set needs to be flagged.
+    This will influence update query to think that 'used key is being modified'
+    and query will create a temporary table to process the update operation.
+    Which will result in performance degradation. Hence callers who don't want
+    their query execution to be influenced as per binlog_row_image requirements
+    can skip marking binlog specific columns here and they should make an
+    explicit call to 'mark_columns_per_binlog_row_image()' function to mark
+    binlog_row_image specific columns.
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(bool mark_binlog_columns)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+
+  if (mark_binlog_columns)
+    mark_columns_per_binlog_row_image();
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -6450,6 +6513,60 @@ bool TABLE::check_read_removal(uint index)
   DBUG_RETURN(file->start_read_removal());
 }
 
+/**
+  Checks if TABLE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag.
+*/
+bool TABLE::has_compressed_columns() const
+{
+  DBUG_ENTER("has_compressed_columns");
+  DBUG_ASSERT(field != 0);
+
+  Field **field_ptr= field;
+  while(*field_ptr != 0 &&
+        (*field_ptr)->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != 0);
+}
+
+/**
+  Checks if TABLE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+  zip_dict.
+*/
+bool TABLE::has_compressed_columns_with_dictionaries() const
+{
+  DBUG_ENTER("has_compressed_columns_with_dictionaries");
+  DBUG_ASSERT(field != 0);
+
+  Field **field_ptr= field;
+  while(*field_ptr != 0 &&
+        !(*field_ptr)->has_associated_compression_dictionary())
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != 0);
+}
+
+/**
+  Updates zip_dict_name in the TABLE's field definitions based on the
+  values from the supplied list of Create_field objects.
+*/
+void TABLE::update_compressed_columns_info(const List<Create_field>& fields)
+{
+  Field **field_ptr= field;
+  List_iterator<Create_field> it(const_cast<List<Create_field>&>(fields));
+  Create_field *field_definition= it++;
+
+  while (*field_ptr != 0 && field_definition != 0)
+  {
+    (*field_ptr)->zip_dict_name= field_definition->zip_dict_name;
+    ++field_ptr;
+    field_definition= it++;
+  }
+  DBUG_ASSERT(field_definition == 0);
+  DBUG_ASSERT(*field_ptr == 0);
+}
 
 /**
   Test if the order list consists of simple field expressions

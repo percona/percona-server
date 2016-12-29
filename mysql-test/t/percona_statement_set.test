@@ -873,4 +873,23 @@ DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
 
+####################################################################
+#   lp:1626519 memory allocation for PLUGIN_VAR_MEMALLOC           #
+####################################################################
+
+let $MYSQL_TMP_DIR= `select @@tmpdir`;
+--replace_result $MYSQL_TMP_DIR TMPDIR
+--eval SET STATEMENT innodb_tmpdir=@@global.tmpdir FOR SELECT @@innodb_tmpdir
+SET SESSION innodb_tmpdir = @@global.tmpdir;
+--replace_result $MYSQL_TMP_DIR TMPDIR
+SELECT @@innodb_tmpdir;
+--replace_result $MYSQL_TMP_DIR TMPDIR
+SET STATEMENT sql_mode='' FOR SELECT @@innodb_tmpdir;
+--replace_result $MYSQL_TMP_DIR TMPDIR
+SELECT @@innodb_tmpdir;
+--replace_result $MYSQL_TEST_DIR TESTDIR
+--eval SET STATEMENT innodb_tmpdir='$MYSQL_TEST_DIR' FOR SELECT @@innodb_tmpdir
+--replace_result $MYSQL_TMP_DIR TMPDIR
+SELECT @@innodb_tmpdir;
+
 --source include/wait_until_count_sessions.inc

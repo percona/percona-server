@@ -887,3 +887,22 @@ DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
+SET STATEMENT innodb_tmpdir=@@global.tmpdir FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET SESSION innodb_tmpdir = @@global.tmpdir;
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET STATEMENT sql_mode='' FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET STATEMENT innodb_tmpdir='TESTDIR' FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TESTDIR
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR

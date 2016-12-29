@@ -20,6 +20,7 @@ SET GLOBAL log_slow_admin_statements=ON;
 ALTER TABLE t1 ADD INDEX a(a);
 --source include/log_stop.inc
 --let grep_pattern=ALTER TABLE t1 ADD INDEX a\(a\);
+--let log_expected_matches= 1
 --source include/log_grep.inc
 
 #
@@ -31,6 +32,7 @@ SET GLOBAL log_slow_admin_statements=OFF;
 ALTER TABLE t1 DROP INDEX a;
 --source include/log_stop.inc
 --let grep_pattern=ALTER TABLE t1 DROP INDEX a;
+--let log_expected_matches= 0
 --source include/log_grep.inc
 
 SET GLOBAL log_slow_admin_statements=default;

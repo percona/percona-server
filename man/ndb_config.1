@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/08/2016
+.\"      Date: 09/29/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "07/08/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "09/29/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.85.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&18.87.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 .
@@ -940,7 +940,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.31\-ndb\-7\&.3\&.14"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.33\-ndb\-7\&.3\&.15"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -952,10 +952,10 @@ shell> \fBndb_config \-\-configinfo \-\-xml\fR
               type="unsigned" default="0" min="0" max="4294967039"/>
   </section>
   <section name="NDBD">
-    <param name="MaxNoOfSubscriptions" 
+    <param name="MaxNoOfSubscriptions"
               comment="Max no of subscriptions (default 0 == MaxNoOfTables)"
               type="unsigned" default="0" min="0" max="4294967039"/>
-    <param name="MaxNoOfSubscribers" 
+    <param name="MaxNoOfSubscribers"
               comment="Max no of subscribers (default 0 == 2 * MaxNoOfTables)"
               type="unsigned" default="0" min="0" max="4294967039"/>
     \&...
@@ -1010,7 +1010,7 @@ attributes highlighted for visibility):
 .RS 4
 .\}
 .nf
-<param name="Diskless" comment="Run wo/ disk" type="bool" default="false" 
+<param name="Diskless" comment="Run wo/ disk" type="bool" default="false"
           \fIrestart="system" initial="true"\fR/>
 .fi
 .if n \{\
@@ -1043,7 +1043,7 @@ attribute, as shown here:
 .RS 4
 .\}
 .nf
-<param name="NoOfDiskPagesToDiskAfterRestartACC" comment="DiskCheckpointSpeed" 
+<param name="NoOfDiskPagesToDiskAfterRestartACC" comment="DiskCheckpointSpeed"
        type="unsigned" default="20" min="1" max="4294967039" \fIdeprecated="true"\fR/>
 .fi
 .if n \{\
@@ -1169,7 +1169,7 @@ To produce a connection string that can be used by data, SQL, and API nodes to c
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e 
+shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e
 \-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
 192\&.168\&.0\&.179:1186
 .fi

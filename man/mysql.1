@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/08/2016
+.\"      Date: 09/29/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "07/08/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/29/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -475,6 +475,10 @@ is interpreted relative to the current directory if given as a relative path nam
 Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+Exception: Even with
+\fB\-\-defaults\-file\fR, client programs read
+\&.mylogin\&.cnf\&.
 .RE
 .sp
 .RS 4
@@ -642,7 +646,7 @@ Produce HTML output\&.
 Ignore spaces after function names\&. The effect of this is described in the discussion for the
 IGNORE_SPACE
 SQL mode (see
-Section\ \&5.1.7, \(lqServer SQL Modes\(rq)\&.
+Section\ \&5.1.8, \(lqServer SQL Modes\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1163,6 +1167,21 @@ to disable it\&.
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them will be removed in a future MySQL release\&. For account upgrade instructions, see
 Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+This option is deprecated and will be removed in a future release\&. As of MySQL 5\&.7\&.5, it is always enabled and attempting to disable it produces an error\&.
 .sp .5v
 .RE
 .RE
@@ -2805,7 +2824,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.9, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.10, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3245,7 +3264,7 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .\}
 .PP
 See
-Section\ \&5.1.4, \(lqServer System Variables\(rq\&.
+Section\ \&5.1.5, \(lqServer System Variables\(rq\&.
 .PP
 The
 SET

@@ -1807,6 +1807,7 @@ FROM t1
 GROUP BY field2
 ORDER BY field1;
 
+--replace_column 9 ROWS
 eval explain $query;
 eval $query;
 

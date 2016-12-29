@@ -96,7 +96,7 @@ const char *ha_row_type[] = {
   "", "FIXED", "DYNAMIC", "COMPRESSED", "REDUNDANT", "COMPACT",
   /* Reserved to be "PAGE" in future versions */ "?",
   "TOKUDB_UNCOMPRESSED", "TOKUDB_ZLIB", "TOKUDB_SNAPPY", "TOKUDB_QUICKLZ",
-  "TOKUDB_LZMA", "TOKUDB_FAST", "TOKUDB_SMALL",
+  "TOKUDB_LZMA", "TOKUDB_FAST", "TOKUDB_SMALL", "TOKUDB_DEFAULT",
   "?","?","?"
 };
 
@@ -2888,6 +2888,11 @@ int handler::ha_rnd_init(bool scan)
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == NONE || (inited == RND && scan));
+  if (scan && is_using_prohibited_gap_locks(table, false))
+  {
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+  }
+
   inited= (result= rnd_init(scan)) ? NONE : RND;
   end_range= NULL;
   DBUG_RETURN(result);
@@ -2936,6 +2941,12 @@ int handler::ha_rnd_next(uchar *buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
     { result= rnd_next(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(MAX_KEY);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -2962,6 +2973,12 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
     { result= rnd_pos(buf, pos); })
+
+  if (likely(!result))
+  {
+    update_index_stats(MAX_KEY);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -2998,9 +3015,20 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  if (is_using_prohibited_gap_locks(table, is_using_full_unique_key(
+                                    active_index, keypart_map, find_flag)))
+  {
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+  }
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3012,9 +3040,19 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
+  if (is_using_prohibited_gap_locks(table, false))
+  {
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
+  }
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last_map(buf, key, keypart_map); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3034,8 +3072,19 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(end_range == NULL);
 
+  if (is_using_prohibited_gap_locks(table, is_using_full_unique_key(
+                                    index, keypart_map, find_flag)))
+  {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
+
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
+
+  if (likely(!result))
+  {
+    update_index_stats(index);
+  }
   return result;
 }
 
@@ -3061,6 +3110,12 @@ int handler::ha_index_next(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3086,6 +3141,12 @@ int handler::ha_index_prev(uchar * buf)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_prev(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   DBUG_RETURN(result);
 }
 
@@ -3108,11 +3169,40 @@ int handler::ha_index_first(uchar * buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
+  if (is_using_prohibited_gap_locks(table, false))
+  {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
+
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_first(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
+bool handler::is_using_full_key(key_part_map keypart_map,
+                                uint actual_key_parts)
+{
+  return (keypart_map == HA_WHOLE_KEY) ||
+         (keypart_map == ((key_part_map(1) << actual_key_parts)
+                        - 1));
+}
+
+bool handler::is_using_full_unique_key(uint index,
+                                       key_part_map keypart_map,
+                                       enum ha_rkey_function find_flag) const
+{
+  return (is_using_full_key(keypart_map,
+                            table->key_info[index].actual_key_parts)
+          && find_flag == HA_READ_KEY_EXACT
+          && (index == table->s->primary_key
+              || (table->key_info[index].flags & HA_NOSAME)));
+}
 
 /**
   Reads the last row via index.
@@ -3132,8 +3222,19 @@ int handler::ha_index_last(uchar * buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
+  if (is_using_prohibited_gap_locks(table, false))
+  {
+    return HA_ERR_LOCK_DEADLOCK;
+  }
+
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_last(buf); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3160,6 +3261,12 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next_same(buf, key, keylen); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3188,6 +3295,12 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read(buf, key, key_len, find_flag); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -3214,6 +3327,12 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last(buf, key, key_len); })
+
+  if (likely(!result))
+  {
+    update_index_stats(active_index);
+  }
+
   return result;
 }
 
@@ -5085,6 +5204,7 @@ void handler::update_global_index_stats()
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
+                    const List<Create_field> *create_fields,
                     bool update_create_info,
                     bool is_temp_table)
 {
@@ -5121,6 +5241,15 @@ int ha_create_table(THD *thd, const char *path,
 
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
+
+  /*
+  Updating field definitions in 'table' with zip_dict_name values
+  from 'create_fields'
+  */
+  if (create_fields != 0)
+  {
+    table.update_compressed_columns_info(*create_fields);
+  }
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
@@ -7743,6 +7872,9 @@ int handler::ha_write_row(uchar *buf)
   if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
 
+  if (likely(!is_fake_change_enabled(ha_thd())))
+    rows_changed++;
+
   DEBUG_SYNC_C("ha_write_row_end");
   DBUG_RETURN(0);
 }
@@ -7773,6 +7905,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
     return error;
   if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
+
+  if (likely(!is_fake_change_enabled(ha_thd())))
+    rows_changed++;
+
   return 0;
 }
 
@@ -7801,6 +7937,10 @@ int handler::ha_delete_row(const uchar *buf)
     return error;
   if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
+
+  if (likely(!is_fake_change_enabled(ha_thd())))
+    rows_changed++;
+
   return 0;
 }
 
@@ -7900,6 +8040,36 @@ void signal_log_not_needed(struct handlerton, char *log_file)
   DBUG_PRINT("enter", ("logfile '%s'", log_file));
   DBUG_VOID_RETURN;
 }
+
+bool handler::is_using_prohibited_gap_locks(TABLE* table,
+                                            bool using_full_primary_key) const
+{
+  THD* thd = table->in_use;
+  thr_lock_type lock_type = table->reginfo.lock_type;
+
+  if (!using_full_primary_key
+      && has_transactions()
+      && !has_gap_locks()
+      && !thd->rli_slave
+      && (thd->lex->table_count >= 2 || thd->in_multi_stmt_transaction_mode())
+      && (lock_type >= TL_WRITE_ALLOW_WRITE ||
+          lock_type == TL_READ_WITH_SHARED_LOCKS ||
+          lock_type == TL_READ_NO_INSERT ||
+          (lock_type != TL_IGNORE && thd->lex->sql_command != SQLCOM_SELECT)))
+  {
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "Using Gap Lock without full unique key in multi-table "
+                    "or multi-statement transactions is not "
+                    "allowed. You need to either rewrite queries to use "
+                    "all unique key columns in WHERE equal conditions, or "
+                    "rewrite to single-table, single-statement "
+                    "transaction.  Query: %s",
+                    MYF(0), thd->query());
+    return true;
+  }
+  return false;
+}
+
 
 #ifdef TRANS_LOG_MGM_EXAMPLE_CODE
 /*

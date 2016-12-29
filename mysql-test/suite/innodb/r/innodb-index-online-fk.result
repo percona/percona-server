@@ -123,6 +123,8 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/slave_master_info
@@ -316,6 +318,8 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/slave_master_info
@@ -343,6 +347,8 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/slave_master_info
@@ -381,6 +387,8 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/slave_master_info
@@ -419,6 +427,8 @@ SYS_DATAFILES
 SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
+SYS_ZIP_DICT
+SYS_ZIP_DICT_COLS
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/slave_master_info

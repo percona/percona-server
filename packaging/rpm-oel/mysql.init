@@ -82,7 +82,15 @@ start(){
 	    fi
 	    chown mysql:mysql "$datadir"
 	    chmod 0755 "$datadir"
-	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
+	    if [ -x /sbin/restorecon ]; then
+		/sbin/restorecon "$datadir"
+		for dir in /var/lib/mysql-files ; do
+		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
+			/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
+			/sbin/restorecon $dir
+		    fi
+		done
+	    fi
 	    # Now create the database
 	    action $"Initializing MySQL database: " /usr/bin/mysql_install_db --rpm --datadir="$datadir" --user=mysql
 	    ret=$?
@@ -102,7 +110,7 @@ start(){
 	# alarms, per bug #547485
 	$exec   --datadir="$datadir" --socket="$socketfile" \
 		--pid-file="$mypidfile" \
-		--basedir=/usr --user=mysql >/dev/null 2>&1 &
+		--basedir=/usr --user=mysql >/dev/null &
 	safe_pid=$!
 	# Spin for a maximum of N seconds waiting for the server to come up;
 	# exit the loop immediately if mysqld_safe process disappears.

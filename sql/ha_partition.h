@@ -293,6 +293,9 @@ public:
                  ha_partition *clone_arg,
                  MEM_ROOT *clone_mem_root_arg);
    ~ha_partition();
+
+   bool init_with_fields();
+
   /*
     A partition handler has no characteristics in itself. It only inherits
     those from the underlying handlers. Here we set-up those constants to
@@ -615,6 +618,8 @@ public:
 			       const key_range * end_key,
 			       bool eq_range, bool sorted);
   virtual int read_range_next();
+
+  virtual bool has_gap_locks() const;
 
 private:
   bool init_record_priority_queue();
@@ -1244,6 +1249,15 @@ public:
     -------------------------------------------------------------------------
     virtual void append_create_info(String *packet)
   */
+
+    /* For TokuDB Read Free Replication */
+    void rpl_before_write_rows();
+    void rpl_after_write_rows();
+    void rpl_before_delete_rows();
+    void rpl_after_delete_rows();
+    void rpl_before_update_rows();
+    void rpl_after_update_rows();
+    bool rpl_lookup_rows();
 };
 
 #endif /* HA_PARTITION_INCLUDED */

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/08/2016
+.\"      Date: 09/29/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "07/08/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "09/29/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -72,14 +72,12 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.93.\ \& This table describes command\-line options for the ndb_restore program
+.B Table\ \&18.95.\ \& This table describes command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 .
 .TE
 .sp 1
-.PP
-Typical options for this utility are shown here:
 .PP
 Normally, when restoring from a MySQL Cluster backup,
 \fBndb_restore\fR
@@ -92,6 +90,8 @@ requires at a minimum the
 \fB\-b\fR), and
 \fB\-\-backup_path\fR
 options\&.
+.PP
+Typical options for this utility are shown here:
 .sp
 .if n \{\
 .RS 4
@@ -1447,7 +1447,7 @@ data node configuration parameter; this parameter has no effect on dropping and 
 Rebuilding of unique indexes uses disk write bandwidth for redo logging and local checkpointing\&. An insufficient amount of this bandwith can lead to redo buffer overload or log overload errors\&. In such cases you can run
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
-again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporarary errors\&. You can repeat execution of
+again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporary errors\&. You can repeat execution of
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
 indefinitely; you may be able to stop such errors by reducing the value of

@@ -48,6 +48,8 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 */
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= {(char *) "", 0};
+const LEX_CSTRING null_lex_cstr= {NULL, 0};
+const LEX_CSTRING empty_lex_cstr= {"", 0};
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -504,6 +506,10 @@ void lex_start(THD *thd)
   lex->is_set_password_sql= false;
   lex->mark_broken(false);
   lex->set_statement= false;
+
+  lex->zip_dict_name.str= 0;
+  lex->zip_dict_name.length= 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -3569,6 +3575,9 @@ void LEX::first_lists_tables_same()
     TABLE_LIST *next;
     if (query_tables_last == &first_table->next_global)
       query_tables_last= first_table->prev_global;
+
+    if (query_tables_own_last == &first_table->next_global)
+      query_tables_own_last= first_table->prev_global;
 
     if ((next= *first_table->prev_global= first_table->next_global))
       next->prev_global= first_table->prev_global;

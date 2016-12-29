@@ -325,6 +325,9 @@ The following options may be given as the first argument:
  The default size of key cache blocks
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
+ --kill-idle-transaction=# 
+ If non-zero, number of seconds to wait before killing
+ idle connections that have open transactions
  -L, --language=name Client error messages in given language. May be given as
  a full path. Deprecated. Use --lc-messages-dir instead.
  --large-pages       Enable support for large pages
@@ -1154,6 +1157,14 @@ The following options may be given as the first argument:
  --xtradb-rseg[=name] 
  Enable or disable XTRADB_RSEG plugin. Possible values are
  ON, OFF, FORCE (don't start if the plugin fails to load).
+ --xtradb-zip-dict[=name] 
+ Enable or disable XTRADB_ZIP_DICT plugin. Possible values
+ are ON, OFF, FORCE (don't start if the plugin fails to
+ load).
+ --xtradb-zip-dict-cols[=name] 
+ Enable or disable XTRADB_ZIP_DICT_COLS plugin. Possible
+ values are ON, OFF, FORCE (don't start if the plugin
+ fails to load).
 
 Variables (--variable-name=value)
 abort-slave-event-count 0
@@ -1241,6 +1252,7 @@ key-buffer-size 8388608
 key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
+kill-idle-transaction 0
 language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US
@@ -1370,7 +1382,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 179
+performance-schema-max-statement-classes 181
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1411,7 +1423,6 @@ report-user (No default value)
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
-secure-file-priv (No default value)
 server-id 0
 server-id-bits 32
 show-old-temporals FALSE
@@ -1479,6 +1490,8 @@ wait-timeout 28800
 xtradb-internal-hash-tables ON
 xtradb-read-view ON
 xtradb-rseg ON
+xtradb-zip-dict ON
+xtradb-zip-dict-cols ON
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.

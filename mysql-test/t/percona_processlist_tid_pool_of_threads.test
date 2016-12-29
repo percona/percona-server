@@ -4,6 +4,8 @@
 
 --source include/count_sessions.inc
 
+call mtr.add_suppression("Threadpool could not create additional thread to handle queries");
+
 let $default_id = `SELECT CONNECTION_ID()`;
 
 # in this test we expect "thread_pool_size" to be set to "2"

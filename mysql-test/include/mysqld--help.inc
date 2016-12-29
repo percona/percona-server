@@ -19,7 +19,7 @@ perl;
   @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
                pid-file slow-query-log-file
                datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
-               tls-version/;
+               secure-file-priv tls-version/;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file

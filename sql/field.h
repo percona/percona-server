@@ -538,6 +538,8 @@ public:
 
    */
   bool is_created_from_null_item;
+  LEX_CSTRING zip_dict_name; // associated compression dictionary name
+  LEX_CSTRING zip_dict_data; // associated compression dictionary data
 
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
@@ -906,6 +908,19 @@ public:
       null_ptr[row_offset]|= null_bit;
   }
 
+  /**
+    Checks if the field has COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    associated compression dictionary.
+  */
+  bool has_associated_compression_dictionary() const
+  {
+    DBUG_ASSERT(zip_dict_name.str == 0 ||
+      column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
+    return column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+           zip_dict_name.str != 0;
+  }
+
+
   void set_notnull(my_ptrdiff_t row_offset= 0)
   {
     if (real_maybe_null())
@@ -1177,7 +1192,7 @@ public:
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     bool *has_overflow);
   /* The max. number of characters */
-  virtual uint32 char_length()
+  virtual uint32 char_length() const
   {
     return field_length / charset()->mbmaxlen;
   }
@@ -1218,15 +1233,34 @@ public:
     flags |= (storage_type_arg << FIELD_FLAGS_STORAGE_MEDIA);
   }
 
+  /**
+    Returns column format type.
+
+    @return COLUMN_FORMAT_TYPE_DEFAULT,
+            COLUMN_FORMAT_TYPE_FIXED,
+            COLUMN_FORMAT_TYPE_DYNAMIC,
+            or
+            COLUMN_FORMAT_TYPE_COMPRESSED
+  */
   column_format_type column_format() const
   {
     return (column_format_type)
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
   }
 
+  /**
+    Sets column format type to a new value.
+
+    @param   column_format_arg   COLUMN_FORMAT_TYPE_DEFAULT,
+                                 COLUMN_FORMAT_TYPE_FIXED,
+                                 COLUMN_FORMAT_TYPE_DYNAMIC,
+                                 or
+                                 COLUMN_FORMAT_TYPE_COMPRESSED
+  */
   void set_column_format(column_format_type column_format_arg)
   {
     DBUG_ASSERT(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
+    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
@@ -1428,6 +1462,18 @@ protected:
     return from + sizeof(int64);
   }
 
+  /**
+    Checks if the current field definition and provided create field
+    definition have different compression attributes.
+
+    @param   new_field   create field definition to compare with
+
+    @return
+      true  - if compression attributes are different
+      false - if compression attributes are identical.
+  */
+  bool has_different_compression_attributes_with(
+    const Create_field& new_field) const;
 };
 
 
@@ -3406,7 +3452,7 @@ public:
       memcpy(ptr,length,packlength);
       memcpy(ptr+packlength, &data,sizeof(char*));
     }
-  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
+  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, const uchar *data)
     {
       uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
       store_length(ptr_ofs, packlength, length);
@@ -3452,7 +3498,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
-  uint32 char_length();
+  uint32 char_length() const;
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
@@ -3808,6 +3854,8 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+  LEX_CSTRING zip_dict_name;		// Compression dictionary name
+
   Create_field() :after(NULL) {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
@@ -3825,7 +3873,8 @@ public:
             const char *length, const char *decimals, uint type_modifier,
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, uint uint_geom_type);
+            const CHARSET_INFO *cs, uint uint_geom_type,
+            const LEX_CSTRING *zip_dict_name);
 
   ha_storage_media field_storage_type() const
   {
@@ -3837,6 +3886,12 @@ public:
   {
     return (column_format_type)
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
+  }
+
+  void set_column_format(column_format_type column_format_arg)
+  {
+    flags&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+    flags|= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 };
 

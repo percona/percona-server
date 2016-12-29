@@ -3048,7 +3048,23 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
   return popen(tmp_sh_cmd, mode);
 #else
-  return popen(ds_cmd->str, mode);
+  errno= 0;
+  FILE *file= popen(ds_cmd->str, mode);
+  if (file == NULL)
+  {
+    if (errno != 0)
+    {
+      fprintf(stderr, "mysqltest: popen failed with errno %d (%s)\n", errno,
+              strerror(errno));
+    }
+    else
+    {
+      fprintf(stderr,
+              "mysqltest: popen returned NULL without setting errno "
+              "(out-of-memory?)\n");
+    }
+  }
+  return file;
 #endif
 }
 
@@ -4861,10 +4877,11 @@ void do_shutdown_server(struct st_command *command)
   DBUG_PRINT("info", ("Killing server, pid: %d", pid));
   if (orig_timeout != 0)
   {
-    log_msg("shutdown_server timeout %ld exceeded, SIGKILL sent to the server",
-            orig_timeout);
+    log_msg("shutdown_server timeout %ld exceeded, "
+            "SIGABRT sent to the server PID %d",
+            orig_timeout, pid);
   }
-  (void)my_kill(pid, 9);
+  (void)my_kill(pid, (orig_timeout != 0) ? SIGABRT : SIGKILL);
 
   DBUG_VOID_RETURN;
 

@@ -68,6 +68,8 @@ using std::max;
 
 #include "sql_timer.h"                          // thd_timer_end
 
+ulong kill_idle_transaction_timeout= 0;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -1561,6 +1563,7 @@ void THD::reset_diff_stats(void)
   diff_lost_connections=           0;
   diff_access_denied_errors=       0;
   diff_empty_queries=              0;
+  diff_disconnects=                0;
 }
 
 // Updates 'diff' stats of a THD.

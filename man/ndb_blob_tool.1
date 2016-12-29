@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_blob_tool\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/08/2016
+.\"      Date: 09/29/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_BLOB_TOOL\FR" "1" "07/08/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_BLOB_TOOL\FR" "1" "09/29/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -93,7 +93,7 @@ Options Common to MySQL Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.84.\ \& This table describes command\-line options for the ndb_blob_tool program
+.B Table\ \&18.86.\ \& This table describes command\-line options for the ndb_blob_tool program
 .TS
 allbox tab(:);
 .
@@ -296,8 +296,8 @@ statement shown here:
 .nf
 USE test;
 CREATE TABLE btest (
-    c0 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, 
-    c1 TEXT, 
+    c0 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    c1 TEXT,
     c2 BLOB
 )   ENGINE=NDB;
 .fi

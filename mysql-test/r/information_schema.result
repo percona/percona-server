@@ -91,9 +91,11 @@ TRIGGERS
 USER_PRIVILEGES
 USER_STATISTICS
 VIEWS
-XTRADB_INTERNAL_HASH_TABLES
-XTRADB_RSEG
 XTRADB_READ_VIEW
+XTRADB_RSEG
+XTRADB_INTERNAL_HASH_TABLES
+XTRADB_ZIP_DICT
+XTRADB_ZIP_DICT_COLS
 columns_priv
 db
 event
@@ -931,7 +933,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	41
+information_schema	43
 mysql	25
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1305,12 +1307,12 @@ DROP PROCEDURE p1;
 DROP USER mysql_bug20230@localhost;
 SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
 MAX(table_name)
-XTRADB_RSEG
+XTRADB_ZIP_DICT_COLS
 SELECT table_name from information_schema.tables
 WHERE table_name=(SELECT MAX(table_name)
 FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test'));
 table_name
-XTRADB_RSEG
+XTRADB_ZIP_DICT_COLS
 DROP TABLE IF EXISTS bug23037;
 DROP FUNCTION IF EXISTS get_value;
 SELECT COLUMN_NAME, MD5(COLUMN_DEFAULT), LENGTH(COLUMN_DEFAULT) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='bug23037';
@@ -1412,6 +1414,8 @@ VIEWS	information_schema.VIEWS	1
 XTRADB_INTERNAL_HASH_TABLES	information_schema.XTRADB_INTERNAL_HASH_TABLES	1
 XTRADB_READ_VIEW	information_schema.XTRADB_READ_VIEW	1
 XTRADB_RSEG	information_schema.XTRADB_RSEG	1
+XTRADB_ZIP_DICT	information_schema.XTRADB_ZIP_DICT	1
+XTRADB_ZIP_DICT_COLS	information_schema.XTRADB_ZIP_DICT_COLS	1
 create table t1(f1 int);
 create view v1 as select f1+1 as a from t1;
 create table t2 (f1 int, f2 int);

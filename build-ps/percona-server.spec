@@ -511,6 +511,8 @@ mkdir debug
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_ROCKSDB=0 \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_ON}
 
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -532,6 +534,8 @@ mkdir release
            -DINSTALL_SUPPORTFILESDIR=share/percona-server \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           -DWITH_ROCKSDB=0 \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
   
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -578,6 +582,7 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 install -d $RBR%{_libdir}/mysql/plugin
+install -d -m 0750 $RBR/var/lib/mysql-files
 
 # SElinux
 pushd ${MBD}/policy
@@ -1367,6 +1372,7 @@ fi
 %attr(755, root, root) %{_datadir}/percona-server/spanish
 %attr(755, root, root) %{_datadir}/percona-server/swedish
 %attr(755, root, root) %{_datadir}/percona-server/ukrainian
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-client%{product_suffix}

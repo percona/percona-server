@@ -1851,6 +1851,7 @@ innobase_start_or_create_for_mysql(void)
 
 	fsp_init();
 	log_init();
+	log_online_init();
 
 	recv_sys_create();
 	recv_sys_init(buf_pool_get_curr_size());
@@ -2849,6 +2850,7 @@ innobase_shutdown_for_mysql(void)
 	btr_search_disable(true);
 
 	ibuf_close();
+	log_online_shutdown();
 	log_shutdown();
 	trx_sys_file_format_close();
 	trx_sys_close();

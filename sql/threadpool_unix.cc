@@ -1776,26 +1776,29 @@ A likely cause of pool blocks are clients that lock resources for long time. \
 
 static void print_pool_blocked_message(bool max_threads_reached)
 {
-  ulonglong now;
+  ulonglong now= my_microsecond_getsystime();
   static bool msg_written;
-  
-  now= my_microsecond_getsystime();
+
   if (pool_block_start == 0)
   {
     pool_block_start= now;
-    msg_written = false;
-    return;
+    msg_written= false;
   }
-  
-  if (now > pool_block_start + BLOCK_MSG_DELAY && !msg_written)
+
+  if (!msg_written
+      && ((now > pool_block_start + BLOCK_MSG_DELAY)
+          || (now == pool_block_start)))
   {
     if (max_threads_reached)
       sql_print_error(MAX_THREADS_REACHED_MSG);
     else
       sql_print_error(CREATE_THREAD_ERROR_MSG, my_errno);
-    
-    sql_print_information("Threadpool has been blocked for %u seconds\n",
-      (uint)((now- pool_block_start)/1000000));
+
+    if (now > pool_block_start)
+    {
+      sql_print_information("Threadpool has been blocked for %u seconds\n",
+                            (uint)((now - pool_block_start)/1000000));
+    }
     /* avoid reperated messages for the same blocking situation */
     msg_written= true;
   }

@@ -409,7 +409,8 @@ enum legacy_db_type
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_TOKUDB=41,
-  DB_TYPE_FIRST_DYNAMIC=42,
+  DB_TYPE_ROCKSDB=42,
+  DB_TYPE_FIRST_DYNAMIC=43,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
@@ -2412,6 +2413,15 @@ public:
   {
     cached_table_flags= table_flags();
   }
+  /**
+    For MyRocks, secondary initialization that happens after frm is parsed into
+    field information from within open_binary_frm. MyRocks uses this secondary
+    init phase to analyze the key and field definitions to determine if it can
+    expose the HA_PRIMARY_KEY_IN_READ_INDEX flag on the table as it only
+    supports that behavior for certain types of key combinations.
+    Return values: false success, true failure.
+  */
+  virtual bool init_with_fields() { return false; }
   /* ha_ methods: public wrappers for private virtual API */
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
@@ -3178,6 +3188,14 @@ public:
 
   void update_global_table_stats();
   void update_global_index_stats();
+  void update_index_stats(uint current_index)
+  {
+    rows_read++;
+    if (current_index < MAX_KEY)
+      index_rows_read[current_index]++;
+    else
+      index_rows_read[0]++;
+  }
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1

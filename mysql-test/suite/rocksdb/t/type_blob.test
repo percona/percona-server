@@ -1,0 +1,8 @@
+--source include/have_rocksdb_as_default.inc
+
+#
+# BLOB column types
+#
+
+--source type_blob.inc
+

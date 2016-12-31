@@ -1489,7 +1489,7 @@ public:
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     bool *has_overflow);
   /* The max. number of characters */
-  virtual uint32 char_length()
+  virtual uint32 char_length() const
   {
     return field_length / charset()->mbmaxlen;
   }
@@ -3814,7 +3814,7 @@ public:
       memcpy(ptr,length,packlength);
       memcpy(ptr+packlength, &data,sizeof(char*));
     }
-  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
+  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, const uchar *data)
     {
       uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
       store_length(ptr_ofs, packlength, length);
@@ -3866,7 +3866,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
-  uint32 char_length();
+  uint32 char_length() const;
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }

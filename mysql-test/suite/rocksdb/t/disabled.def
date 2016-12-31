@@ -1,0 +1,5 @@
+compression_zstd : https://jira.percona.com/browse/MYR-28
+cons_snapshot_serializable : Consistent read does not work on serializable
+level_read_uncommitted : Not supported
+level_serializable: Not supported
+

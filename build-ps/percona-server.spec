@@ -179,11 +179,12 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix}
+Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix} 
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Conflicts:      Percona-SQL-server-50 Percona-Server-server-51 Percona-Server-server-55 Percona-Server-server-56
+
 %if 0%{?systemd}
 Requires(post):   systemd
 Requires(preun):  systemd
@@ -274,7 +275,6 @@ Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
-Obsoletes:      mariadb-libs
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 %endif
@@ -356,8 +356,10 @@ mkdir debug
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
+           -DWITH_ROCKSDB=0 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
+           -DWITH_SCALABILITY_METRICS=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
@@ -390,7 +392,9 @@ mkdir release
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
+           -DWITH_ROCKSDB=0 \
            -DWITH_INNODB_MEMCACHED=1 \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_ZLIB=system \
            %{?ssl_option} \
            %{?mecab_option} \
@@ -428,7 +432,7 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_syscon
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
  
 #%if 0%{?rhel} > 6
-#install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
+#install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
 #%endif
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
@@ -489,6 +493,12 @@ rm -r $(readlink var) var
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
+if [ $1 -ge 1 ]; then
+  if [ ! -f /etc/my.cnf -a -f /etc/my.cnf_back_before_remove -a ! -L /etc/my.cnf ]; then
+    mv /etc/my.cnf_back_before_remove /etc/my.cnf
+    echo "    /etc/my.cnf was restored from backup file my.cnf_back_before_remove"
+  fi
+fi
 
 %post -n Percona-Server-server%{product_suffix}
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
@@ -500,6 +510,35 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %else
 /sbin/chkconfig --add mysql
 %endif
+MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
+if [ $MYCNF_PACKAGE = 'mariadb-libs' ]
+then
+  cat > /tmp/my.cnf << EOL
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+# Settings user and group are ignored when systemd is used.
+# If you need to run mysqld under a different user or group,
+# customize your systemd unit file for mariadb according to the
+# instructions in http://fedoraproject.org/wiki/Systemd
+
+[mysqld_safe]
+log-error=/var/log/mariadb/mariadb.log
+pid-file=/var/run/mariadb/mariadb.pid
+
+#
+# include all files from the config directory
+#
+!includedir /etc/my.cnf.d
+
+EOL
+  if cmp -s "/etc/my.cnf" "/tmp/my.cnf"
+  then
+    rm -f /etc/my.cnf /tmp/my.cnf
+  fi
+fi
 if [ ! -f /etc/my.cnf ]
 then
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
@@ -559,6 +598,14 @@ fi
 done
 /sbin/ldconfig
 
+
+%preun -n Percona-Server-shared-compat%{product_suffix} 
+if [ -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
+    cp -p /etc/my.cnf /etc/my.cnf_back_before_remove
+    echo "    The beckup of my.cnf file was created as /etc/my.cnf_back_before_remove"
+fi
+
+
 %postun -n Percona-Server-shared-compat%{product_suffix}
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
 if [ -h %{_libdir}/mysql/${lib} ]; then
@@ -615,6 +662,9 @@ fi
 %config(noreplace) %{_sysconfdir}/percona-server.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
+#%if 0%{?rhel} > 6
+#%config(noreplace) %{_sysconfdir}/my.cnf
+#%endif
 
 
 %attr(755, root, root) %{_bindir}/innochecksum

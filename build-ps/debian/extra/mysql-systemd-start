@@ -30,6 +30,10 @@ fix_thp_setting() {
 sanity () {
 	MYSQLRUN=/var/run/mysqld
 	MYSQLDATA=$(get_path datadir)
+        if [ -z ${MYSQLDATA} ];
+        then
+            MYSQLDATA=/var/lib/mysql
+        fi
 	MYSQLFILES=/var/lib/mysql-files
 	MYSQLLOG=/var/log/mysql
 	MYSQLKEYRING=/var/lib/mysql-keyring

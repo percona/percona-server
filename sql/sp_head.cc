@@ -543,6 +543,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   bool cur_db_changed= FALSE;
   bool err_status= FALSE;
   uint ip= 0;
+  bool save_enable_slow_log = thd->enable_slow_log;
   sql_mode_t save_sql_mode;
   Query_arena *old_arena;
   /* per-instruction arena */
@@ -794,6 +795,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 #endif
 
     thd->m_digest= parent_digest;
+
+    thd->enable_slow_log= save_enable_slow_log;
 
     if (i->free_list)
       cleanup_items(i->free_list);

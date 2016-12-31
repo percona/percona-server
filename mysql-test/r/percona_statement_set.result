@@ -889,3 +889,24 @@ DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
+SET STATEMENT innodb_tmpdir=@@global.tmpdir FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET SESSION innodb_tmpdir = @@global.tmpdir;
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET STATEMENT sql_mode='' FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET STATEMENT innodb_tmpdir='TESTDIR' FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TESTDIR
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR

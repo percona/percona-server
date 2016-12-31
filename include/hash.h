@@ -92,6 +92,7 @@ void my_hash_claim(HASH *tree);
 void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
 uchar *my_hash_element(HASH *hash, ulong idx);
+const uchar *my_hash_const_element(const HASH *hash, ulong idx);
 uchar *my_hash_search(const HASH *info, const uchar *key, size_t length);
 uchar *my_hash_search_using_hash_value(const HASH *info,
                                        my_hash_value_type hash_value,

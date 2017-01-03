@@ -357,7 +357,10 @@ extern SHOW_COMP_OPTION have_elliptic_curve_crypto;
 SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type);
 
 sys_var *find_sys_var(THD *thd, const char *str, uint length=0);
-int sql_set_variables(THD *thd, List<set_var_base> *var_list);
+
+MY_ATTRIBUTE((warn_unused_result))
+int sql_set_variables(THD *thd, List<set_var_base> *var_list,
+                      bool free_joins = true);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 

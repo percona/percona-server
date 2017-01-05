@@ -5,7 +5,10 @@ connection con1;
 CREATE TABLE t1 (a INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-ERROR: 1105
+Warnings:
+Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+ERROR: 0
 connection con2;
 select * from information_schema.rocksdb_dbstats where stat_type='DB_NUM_SNAPSHOTS';
 STAT_TYPE	VALUE
@@ -18,7 +21,10 @@ STAT_TYPE	VALUE
 DB_NUM_SNAPSHOTS	0
 connection con1;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-ERROR: 1105
+Warnings:
+Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+ERROR: 0
 connection con2;
 INSERT INTO t1 (a) VALUES (1);
 connection con1;
@@ -69,7 +75,10 @@ id	value	value2
 5	5	5
 6	6	6
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-ERROR: 1105
+Warnings:
+Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+ERROR: 0
 connection con2;
 INSERT INTO r1 values (7,7,7);
 connection con1;
@@ -107,12 +116,18 @@ id	value	value2
 7	7	7
 8	8	8
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-ERROR: 1105
+Warnings:
+Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+ERROR: 0
 connection con2;
 INSERT INTO r1 values (9,9,9);
 connection con1;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-ERROR: 1105
+Warnings:
+Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
+ERROR: 0
 connection con2;
 INSERT INTO r1 values (10,10,10);
 connection con1;
@@ -129,9 +144,12 @@ id	value	value2
 9	9	9
 10	10	10
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
-ERROR: 1105
-INSERT INTO r1 values (11,11,11);
+Warnings:
+Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
 ERROR: 0
+INSERT INTO r1 values (11,11,11);
+ERROR: 1105
 SELECT * FROM r1;
 id	value	value2
 1	1	1
@@ -144,7 +162,6 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-11	11	11
 drop table r1;
 connection default;
 disconnect con1;

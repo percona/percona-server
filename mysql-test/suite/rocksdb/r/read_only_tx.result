@@ -3,9 +3,11 @@ CREATE TABLE t1 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=Rock
 INSERT INTO t1 VALUES (1,1);
 select variable_value into @p from information_schema.global_status where variable_name='rocksdb_number_sst_entry_put';
 select variable_value into @s from information_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
-File	Position	Gtid_executed
-master-bin.000001	734	uuid:1-3
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000001
+Binlog_snapshot_position	770
 select case when variable_value-@p < 1000 then 'true' else variable_value-@p end from information_schema.global_status where variable_name='rocksdb_number_sst_entry_put';
 case when variable_value-@p < 1000 then 'true' else variable_value-@p end
 true
@@ -16,7 +18,7 @@ SELECT * FROM t1;
 id	value
 1	1
 INSERT INTO t1 values (2, 2);
-ERROR HY000: Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT.
+ERROR HY000: Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT SNAPSHOT.
 ROLLBACK;
 SELECT * FROM t1;
 id	value

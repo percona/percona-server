@@ -864,6 +864,36 @@ HANDLER t3 OPEN;
 SET STATEMENT max_join_size=1000 FOR SELECT * FROM t3;
 DROP TABLE t3;
 
+--echo #
+--echo # Bug 1392375: Crashing repeated execution of SET STATEMENT ... FOR <SELECT FROM view>
+--echo #
+
+CREATE VIEW t3 AS SELECT 1 AS a;
+PREPARE stmt1 FROM 'SET STATEMENT binlog_format=row FOR SELECT * FROM t3';
+EXECUTE stmt1;
+EXECUTE stmt1;
+
+DEALLOCATE PREPARE stmt1;
+DROP VIEW t3;
+
+--echo #
+--echo # Bug 1635927: Memory leak when using per-query variables with subquery temp tables
+--echo #
+
+CREATE TABLE t3 (row_key INT NOT NULL DEFAULT 0, ref_key BIGINT(20) NOT NULL);
+
+INSERT INTO t3 (ref_key) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+set @row_id := 0;
+INSERT INTO t3 (ref_key) SELECT @row_id := @row_id + 11 as ref_key
+       FROM t3 a1, t3 a2, t3 a3;
+
+SET STATEMENT myisam_repair_threads=1 FOR
+SELECT count(1) FROM t3 s
+       JOIN (SELECT row_key, ref_key AS ref_key FROM t3 t
+       WHERE t.row_key IN (SELECT row_key FROM t3)) AS r;
+
+DROP TABLE t3;
+
 --echo ''
 --echo '# Cleanup'
 DROP TABLE t1, t2;

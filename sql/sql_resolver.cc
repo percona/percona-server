@@ -101,6 +101,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
   group_list= ORDER_with_src(group_init, ESC_GROUP_BY);
   having= having_for_explain= having_init;
   tables_list= tables_init;
+  DBUG_ASSERT(!unit_arg->cleaned);
   select_lex= select_lex_arg;
   select_lex->join= this;
   join_list= &select_lex->top_join_list;

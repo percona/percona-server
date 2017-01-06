@@ -2953,7 +2953,7 @@ mysql_execute_command(THD *thd)
   if (lex->set_statement && !lex->var_list.is_empty()) {
     per_query_variables_backup= copy_system_variables(thd,
                                                       thd->m_enable_plugins);
-    if ((res= sql_set_variables(thd, &lex->var_list)))
+    if ((res= sql_set_variables(thd, &lex->var_list, false)))
     {
       /*
          We encountered some sort of error, but no message was sent.

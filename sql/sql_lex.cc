@@ -429,6 +429,7 @@ void lex_start(THD *thd)
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();
   lex->auxiliary_table_list.empty();
+  DBUG_ASSERT(!lex->unit.cleaned);
   lex->unit.next= lex->unit.master= lex->unit.link_next= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
   lex->unit.slave= lex->unit.global_parameters= lex->current_select=

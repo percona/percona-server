@@ -551,6 +551,9 @@ sys_var *intern_find_sys_var(const char *str, uint length)
 
   @param THD            Thread id
   @param var_list       List of variables to update
+  @param free_joins     Whether to free subselect joins if any. They are
+                        freed by default, except for SET STATEMENT ... FOR ...
+                        processing
 
   @retval
     0   ok
@@ -560,7 +563,7 @@ sys_var *intern_find_sys_var(const char *str, uint length)
     -1  ERROR, message not sent
 */
 
-int sql_set_variables(THD *thd, List<set_var_base> *var_list)
+int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool free_joins)
 {
   int error;
   List_iterator_fast<set_var_base> it(*var_list);
@@ -580,7 +583,8 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   }
 
 err:
-  free_underlaid_joins(thd, &thd->lex->select_lex);
+  if (free_joins)
+    free_underlaid_joins(thd, &thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 

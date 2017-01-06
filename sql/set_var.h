@@ -371,7 +371,10 @@ void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);
-int sql_set_variables(THD *thd, List<set_var_base> *var_list);
+
+MY_ATTRIBUTE((warn_unused_result))
+int sql_set_variables(THD *thd, List<set_var_base> *var_list,
+                      bool free_joins = true);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 

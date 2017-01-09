@@ -72,6 +72,7 @@
 #include "table_socket_summary_by_event_name.h"
 #include "table_session_connect_attrs.h"
 #include "table_session_account_connect_attrs.h"
+#include "table_malloc_stats.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -148,6 +149,8 @@ static PFS_engine_table_share *all_shares[]=
   &table_socket_summary_by_event_name::m_share,
   &table_session_connect_attrs::m_share,
   &table_session_account_connect_attrs::m_share,
+  &table_malloc_stats_summary::m_share,
+  &table_malloc_stats::m_share,
   NULL
 };
 

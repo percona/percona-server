@@ -5654,6 +5654,9 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
+  opt_jemalloc_detected = jemalloc_detected();
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
+
   {
     ulong requested_open_files;
     adjust_related_options(&requested_open_files);

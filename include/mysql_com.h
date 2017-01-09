@@ -169,6 +169,8 @@ enum enum_server_command
 #define REFRESH_FLUSH_PAGE_BITMAPS 0x4000000L
 #define REFRESH_RESET_PAGE_BITMAPS 0x8000000L
 
+#define DUMP_MEMORY_PROFILE 0x10000000L
+
 #define PURGE_BITMAPS_TO_LSN 1
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */

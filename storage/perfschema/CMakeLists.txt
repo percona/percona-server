@@ -180,6 +180,8 @@ cursor_by_thread_connect_attr.cc
 table_session_connect.cc
 table_session_connect_attrs.cc
 table_session_account_connect_attrs.cc
+table_malloc_stats.cc
+table_malloc_stats.h
 )
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)

@@ -133,6 +133,67 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
   return 0;
 }
 
+typedef int (*je_mallctl_func)(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
+
+my_bool opt_jemalloc_profiling_enabled = false;
+my_bool opt_jemalloc_detected = false;
+static je_mallctl_func mallctl_p = NULL;
+static unsigned jemalloc_initialized = 0;
+static unsigned jemalloc_profile_counter = 0;
+
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
+            size_t newlen)
+{
+  if (!mallctl_p && !jemalloc_initialized)
+  {
+    mallctl_p = (je_mallctl_func)dlsym(RTLD_DEFAULT, "mallctl");
+    jemalloc_initialized = 1;
+  }
+
+  if (mallctl_p)
+    return mallctl_p(name, oldp, oldlenp, newp, newlen);
+
+  return 1;
+}
+
+int jemalloc_profiling_dump()
+{
+    char *pfn;
+    size_t sz = sizeof(pfn);
+    char fn[64] = "/tmp/jeprof_mysqld.";
+    int n = jemalloc_mallctl("prof_prefix", &pfn, &sz, NULL, 0);
+    /* Only write to custom file if user doesn't overwrite prof_prefix in MALLOC_CONF */
+    if(n || !strcmp(pfn, "jeprof"))
+    {
+      time_t t = time(NULL);
+      struct tm ltm;
+      localtime_r(&t, &ltm);
+      int i = sprintf(fn, "/tmp/jeprof_mysqld.%u.%u.", getpid(), jemalloc_profile_counter++);
+      strftime(fn + i, 13, "%y%m%d%H%M%S", &ltm);
+      pfn = fn;
+      return jemalloc_mallctl("prof.dump", NULL, 0, &pfn, sizeof(pfn));
+    }
+    return jemalloc_mallctl("prof.dump", NULL, 0, NULL, 0);
+}
+
+/* Detected means Jemalloc loaded and profiling initialized using prof:true in
+ * MALLOC_CONF environment variable */
+bool jemalloc_detected()
+{
+  char active;
+  size_t sz = sizeof(active);
+  int n = jemalloc_mallctl("opt.prof", &active, &sz, NULL, 0);
+  return !n && active;
+}
+
+/* Actually enable or disable profiling during runtime, for existing and
+ * newly created threads */
+int jemalloc_profiling_enable(my_bool enable)
+{
+  int n = jemalloc_mallctl("prof.active", NULL, 0, &enable, 1);
+  n |= jemalloc_mallctl("prof.thread_active_init", NULL, 0, &enable, 1);
+  return n;
+}
 
 #if defined(ENABLED_PROFILING)
 

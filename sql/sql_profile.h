@@ -47,6 +47,12 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table);
 #include <sys/resource.h>
 #endif
 
+extern my_bool opt_jemalloc_profiling_enabled;
+extern my_bool opt_jemalloc_detected;
+int jemalloc_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
+int jemalloc_profiling_dump();
+int jemalloc_profiling_enable(my_bool enable);
+bool jemalloc_detected();
 
 class PROF_MEASUREMENT;
 class QUERY_PROFILE;

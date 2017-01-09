@@ -712,6 +712,41 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE MALLOC_STATS_SUMMARY
+--
+
+SET @cmd="CREATE TABLE performance_schema.malloc_stats_summary("
+  "ALLOCATED BIGINT unsigned not null,"
+  "ACTIVE BIGINT unsigned not null,"
+  "MAPPED BIGINT unsigned not null,"
+  "RESIDENT BIGINT unsigned not null,"
+  "RETAINED BIGINT unsigned not null,"
+  "METADATA BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE MALLOC_STATS
+--
+
+SET @cmd="CREATE TABLE performance_schema.malloc_stats("
+  "TYPE CHAR(8) not null,"
+  "ALLOCATED BIGINT unsigned not null,"
+  "NMALLOC BIGINT unsigned not null,"
+  "NDALLOC BIGINT unsigned not null,"
+  "NREQUESTS BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE MUTEX_INSTANCES
 --
 

@@ -4756,7 +4756,8 @@ end_with_restore_list:
     int write_to_binlog;
 
     if (lex->type & REFRESH_FLUSH_PAGE_BITMAPS
-        || lex->type & REFRESH_RESET_PAGE_BITMAPS)
+        || lex->type & REFRESH_RESET_PAGE_BITMAPS
+        || lex->type & DUMP_MEMORY_PROFILE)
     {
       if (check_global_access(thd, SUPER_ACL))
           goto error;

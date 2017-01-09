@@ -338,6 +338,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
      }
    }
 #endif
+   if (options & DUMP_MEMORY_PROFILE)
+   {
+     tmp_write_to_binlog= 0;
+     if(opt_jemalloc_profiling_enabled)
+       jemalloc_profiling_dump();
+   }
 #ifdef HAVE_REPLICATION
  if (options & REFRESH_SLAVE)
  {

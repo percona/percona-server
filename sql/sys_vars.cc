@@ -1440,6 +1440,33 @@ static Sys_var_mybool Sys_ignore_builtin_innodb(
        READ_ONLY GLOBAL_VAR(opt_ignore_builtin_innodb),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static bool jemalloc_profiling_check(sys_var *self, THD *thd, set_var *var)
+{
+  return !jemalloc_detected();
+}
+
+static bool jemalloc_profiling_update(sys_var *self, THD *thd, enum_var_type type)
+{
+  jemalloc_profiling_enable(opt_jemalloc_profiling_enabled);
+  return false;
+}
+
+static Sys_var_mybool Sys_jemalloc_profiling(
+       "jemalloc_profiling",
+       "Enable jemalloc profiling"
+       "Start MySQL with MALLOC_CONF set to 'prof:true' for this feature to work"
+       "Also Jemalloc should be compiled with profiling enabled",
+       GLOBAL_VAR(opt_jemalloc_profiling_enabled),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(jemalloc_profiling_check),
+       ON_UPDATE(jemalloc_profiling_update), NULL, sys_var::PARSE_EARLY);
+
+static Sys_var_mybool Sys_jemalloc_detected(
+       "jemalloc_detected",
+       "This is true if Jemalloc with PROFILING enabled detected",
+       READ_ONLY GLOBAL_VAR(opt_jemalloc_detected),
+       NO_CMD_LINE, DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool check_init_string(sys_var *self, THD *thd, set_var *var)
 {
   if (var->save_result.string_value.str == 0)

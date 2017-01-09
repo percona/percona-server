@@ -494,7 +494,10 @@ rm -r $(readlink var) var
 %post -n Percona-Server-server%{product_suffix}
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
-/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
+if [ ! -e /var/log/mysqld.log ]; then
+    /bin/install -omysql -gmysql /dev/null /var/log/mysqld.log
+fi
+#/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
 /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :

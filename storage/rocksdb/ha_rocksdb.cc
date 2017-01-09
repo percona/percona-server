@@ -2789,10 +2789,10 @@ static std::string format_string(
     res = std::string("");
   }
   else {
-    char buff[len];
+    char* buff = static_cast<char*>(my_malloc(len, MYF(0)));
     (void) vsnprintf(buff, len, format, args_copy);
-
-    res = std::string(buff);
+    res = buff;
+    my_free(buff);
   }
 
   va_end(args_copy);

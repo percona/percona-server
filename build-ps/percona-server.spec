@@ -880,9 +880,23 @@ else
 fi
 
 # ----------------------------------------------------------------------
+# Create a MySQL user and group. Do not report any problems if it already
+# exists.
+# ----------------------------------------------------------------------
+groupadd -r %{mysqld_group} 2> /dev/null || true
+useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
+  -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
+# The user may already exist, make sure it has the proper group nevertheless
+# (BUG#12823)
+usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
+
+
+# ----------------------------------------------------------------------
 # Create data directory if needed, check whether upgrade or install
 # ----------------------------------------------------------------------
-if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
+if [ ! -d $mysql_datadir ]; then
+    install -d -m 0755 -o %{mysqld_user} -g %{mysqld_group} $mysql_datadir
+fi
 # echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
 if [ ! -d $mysql_datadir/mysql ] ; then
 	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
@@ -909,23 +923,6 @@ elif [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
 %endif
-
-# ----------------------------------------------------------------------
-# Create a MySQL user and group. Do not report any problems if it already
-# exists.
-# ----------------------------------------------------------------------
-groupadd -r %{mysqld_group} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
-  -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
-# The user may already exist, make sure it has the proper group nevertheless
-# (BUG#12823)
-usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
-
-# ----------------------------------------------------------------------
-# Change permissions so that the user that will run the MySQL daemon
-# owns all database files.
-# ----------------------------------------------------------------------
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # ----------------------------------------------------------------------
 # Initiate databases if needed

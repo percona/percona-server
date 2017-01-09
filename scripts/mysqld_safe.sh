@@ -229,8 +229,14 @@ parse_arguments() {
 
       # mysqld_safe-specific options - must be set in my.cnf ([mysqld_safe])!
       --core-file-size=*) core_file_size="$val" ;;
-      --ledir=*) ledir="$val" ;;
-      --malloc-lib=*)
+      --ledir=*)
+        if [ -z "$pick_args" ]; then
+          log_error "--ledir option can only be used as command line option, found in config file"
+          exit 1
+        fi
+        ledir="$val"
+        ;;
+     --malloc-lib=*)
 	set_malloc_lib "$val"
 	load_jemalloc=0
 	;;
@@ -675,12 +681,48 @@ then
   else
     logging=file
   fi
+fi
 
-  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then  # if error log already exists,
-    touch "$err_log"                               # we just append. otherwise,
-    chmod "$fmode" "$err_log"                      # fix the permissions here!
+logdir=`dirname "$err_log"`
+# Change the err log to the right user, if possible and it is in use
+if [ $logging = "file" -o $logging = "both" ]; then
+  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then
+    if test -w / -o "$USER" = "root"; then
+      case $logdir in
+        /var/log)
+          (
+            umask 0137
+            set -o noclobber
+            > "$err_log" && chown $user "$err_log"
+          ) ;;
+        *) ;;
+      esac
+    else
+      (
+        umask 0137
+        set -o noclobber
+        > "$err_log"
+      )
+    fi
   fi
 
+  if [ -f "$err_log" ]; then        # Log to err_log file
+    log_notice "Logging to '$err_log'."
+  elif [ "x$user" = "xroot" ]; then # running as root, mysqld can create log file; continue
+    echo "Logging to '$err_log'." >&2
+  else
+    case $logdir in
+      # We can't create $err_log, however mysqld can; continue
+      /tmp|/var/tmp|/var/log/mysql|$DATADIR)
+        echo "Logging to '$err_log'." >&2
+        ;;
+      # We can't create $err_log and don't know if mysqld can; error out
+      *)
+        log_error "error: log-error set to '$err_log', however file don't exists. Create writable for user '$user'."
+        exit 1
+        ;;
+    esac
+  fi
 fi
 
 USER_OPTION=""
@@ -689,11 +731,6 @@ then
   if test "$user" != "root" -o $SET_USER = 1
   then
     USER_OPTION="--user=$user"
-  fi
-  # Change the err log to the right user, if it is in use
-  if [ $want_syslog -eq 0 -a ! -h "$err_log" ]; then
-    touch "$err_log"
-    chown $user "$err_log"
   fi
   if test -n "$open_files"
   then
@@ -711,11 +748,8 @@ safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
-  if [ ! -h $mysql_unix_port_dir ]; then
-    mkdir $mysql_unix_port_dir
-    chown $user $mysql_unix_port_dir
-    chmod 755 $mysql_unix_port_dir
-  fi
+  log_error "Directory '$mysql_unix_port_dir' for UNIX socket file don't exists."
+  exit 1
 fi
 
 # If the user doesn't specify a binary, we assume name "mysqld"
@@ -841,7 +875,6 @@ then
   if [ ! -h "$pid_file" ]; then
       rm -f "$pid_file"
   fi
-  
   if test -f "$pid_file"
   then
     log_error "Fatal error: Can't remove the pid file:
@@ -993,10 +1026,25 @@ do
   eval_log_error "$cmd"
 
   if [ $want_syslog -eq 0 -a ! -f "$err_log" -a ! -h "$err_log" ]; then
-    touch "$err_log"                    # hypothetical: log was renamed but not
-    chown $user "$err_log"              # flushed yet. we'd recreate it with
-    chmod "$fmode" "$err_log"           # wrong owner next time we log, so set
-  fi                                    # it up correctly while we can!
+    if test -w / -o "$USER" = "root"; then
+      logdir=`dirname "$err_log"`
+      case $logdir in
+        /var/log)
+          (
+            umask 0137
+            set -o noclobber
+            > "$err_log" && chown $user "$err_log"
+          ) ;;
+        *) ;;
+      esac
+    else
+      (
+        umask 0137
+        set -o noclobber
+        > "$err_log"
+      )
+    fi
+  fi
 
   end_time=`date +%M%S`
 

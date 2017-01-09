@@ -40,30 +40,22 @@ sanity () {
 
 	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 	then
-		mkdir ${MYSQLDATA}
-		chown mysql:mysql ${MYSQLDATA}
-		chmod 750 ${MYSQLDATA}
+                install -d -m 0750 -o mysql -g mysql ${MYSQLDATA}
 	fi
 
 	if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
 	then
-		mkdir ${MYSQLFILES}
-		chown mysql:mysql ${MYSQLFILES}
-		chmod 770 ${MYSQLFILES}
+                install -d -m 0770 -o mysql -g mysql ${MYSQLFILES}
 	fi
 
 	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
 	then
-		mkdir ${MYSQLKEYRING}
-		chown mysql:mysql ${MYSQLKEYRING}
-		chmod 750 ${MYSQLKEYRING}
+                install -d -m 0750 -o mysql -g mysql ${MYSQLKEYRING}
 	fi
 
 	if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
 	then
-		mkdir ${MYSQLDATA}/mysql
-		chown mysql:mysql ${MYSQLDATA}/mysql
-		chmod 750 ${MYSQLDATA}/mysql
+                install -d -m 0750 -o mysql -g mysql ${MYSQLDATA}/mysql
 	fi
 
 	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
@@ -83,19 +75,13 @@ sanity () {
 
 	if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
 	then
-		mkdir ${MYSQLLOG}
-		chown mysql:adm ${MYSQLLOG}
-		chmod 750 ${MYSQLLOG}
-		touch ${MYSQLLOG}/error.log
-		chmod 640 ${MYSQLLOG}/error.log
-		chown mysql:adm ${MYSQLLOG}/error.log
+                install -d -m 0750 -o mysql -g adm ${MYSQLLOG}
+		install -m 0640 -o mysql -g adm /dev/null ${MYSQLLOG}/error.log
 	fi
 
 	if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
 	then
-		mkdir ${MYSQLRUN}
-		chown mysql:mysql ${MYSQLRUN}
-		chmod 755 ${MYSQLRUN}
+                install -d -m 0755 -o mysql -g mysql ${MYSQLRUN} 
 	fi
 
 	if [ ! -r /etc/mysql/my.cnf ]; then

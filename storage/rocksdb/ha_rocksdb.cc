@@ -3005,66 +3005,41 @@ static inline void rocksdb_register_tx(handlerton *hton, THD *thd,
 }
 
 /*
-    Supporting START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT
+    Supporting START TRANSACTION WITH CONSISTENT SNAPSHOT
 
-    Features:
-    1. Supporting START TRANSACTION WITH CONSISTENT SNAPSHOT
-    2. Getting current binlog position in addition to #1.
-
-    The second feature is done by START TRANSACTION WITH
-    CONSISTENT ROCKSDB SNAPSHOT. This is Facebook's extension, and
-    it works like existing START TRANSACTION WITH CONSISTENT INNODB SNAPSHOT.
-
-    - When not setting engine, START TRANSACTION WITH CONSISTENT SNAPSHOT
+    - START TRANSACTION WITH CONSISTENT SNAPSHOT
     takes both InnoDB and RocksDB snapshots, and both InnoDB and RocksDB
     participate in transaction. When executing COMMIT, both InnoDB and
     RocksDB modifications are committed. Remember that XA is not supported yet,
     so mixing engines is not recommended anyway.
-
-    - When setting engine, START TRANSACTION WITH CONSISTENT.. takes
-    snapshot for the specified engine only. But it starts both
-    InnoDB and RocksDB transactions.
 */
 static int rocksdb_start_tx_and_assign_read_view(
         handlerton*     hton,           /*!< in: RocksDB handlerton */
-        THD*            thd,            /*!< in: MySQL thread handle of the
+        THD*            thd)            /*!< in: MySQL thread handle of the
                                         user for whom the transaction should
                                         be committed */
-        char*           binlog_file,    /* out: binlog file for last commit */
-        ulonglong*      binlog_pos,     /* out: binlog pos for last commit */
-        char**  gtid_executed,  /* out: Gtids logged until last commit */
-        int*    gtid_executed_length)   /*out: Length of gtid_executed string */
 {
   Rdb_perf_context_guard guard(thd);
 
   ulong const tx_isolation = my_core::thd_tx_isolation(thd);
 
-  if (tx_isolation != ISO_REPEATABLE_READ)
-  {
-    my_printf_error(ER_UNKNOWN_ERROR,
-                    "Only REPEATABLE READ isolation level is supported "
-                    "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
-                    "in RocksDB Storage Engine.", MYF(0));
-    return 1;
-  }
-
-  if (binlog_file)
-  {
-    if (binlog_pos && mysql_bin_log_is_open())
-      mysql_bin_log_lock_commits();
-    else
-      return 1;
-  }
-
   Rdb_transaction* tx= get_or_create_tx(thd);
   DBUG_ASSERT(!tx->has_snapshot());
   tx->set_tx_read_only(true);
   rocksdb_register_tx(hton, thd, tx);
-  tx->acquire_snapshot(true);
 
-  if (binlog_file)
-    mysql_bin_log_unlock_commits(binlog_file, binlog_pos, gtid_executed,
-                                 gtid_executed_length);
+  if (tx_isolation == ISO_REPEATABLE_READ)
+  {
+    tx->acquire_snapshot(true);
+  }
+  else
+  {
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, HA_ERR_UNSUPPORTED,
+                        "Only REPEATABLE READ isolation level is supported "
+                        "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
+                        "in RocksDB Storage Engine. Snapshot has not been "
+                        "taken.");
+  }
 
   return 0;
 }
@@ -8597,8 +8572,7 @@ int ha_rocksdb::external_lock(THD *thd, int lock_type)
       {
         my_printf_error(ER_UNKNOWN_ERROR,
                         "Can't execute updates when you started a transaction "
-                        "with START TRANSACTION WITH CONSISTENT [ROCKSDB] "
-                        "SNAPSHOT.",
+                        "with START TRANSACTION WITH CONSISTENT SNAPSHOT.",
                         MYF(0));
         DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
       }

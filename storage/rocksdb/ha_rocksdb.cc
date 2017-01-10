@@ -3067,98 +3067,6 @@ static bool rocksdb_rollback_to_savepoint_can_release_mdl(handlerton *hton,
   return true;
 }
 
-/*
-  This is called for INFORMATION_SCHEMA
-*/
-static void rocksdb_update_table_stats(
-  /* per-table stats callback */
-  void (*cb)(const char* db, const char* tbl, bool is_partition,
-    my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
-    my_io_perf_t* r_primary, my_io_perf_t* r_secondary,
-    page_stats_t *page_stats, comp_stats_t *comp_stats,
-    int n_lock_wait, int n_lock_wait_timeout,
-    const char* engine))
-{
-  my_io_perf_t io_perf_read;
-  my_io_perf_t io_perf;
-  page_stats_t page_stats;
-  comp_stats_t comp_stats;
-  std::vector<std::string> tablenames;
-
-  /*
-    Most of these are for innodb, so setting them to 0.
-    TODO: possibly separate out primary vs. secondary index reads
-   */
-  memset(&io_perf, 0, sizeof(io_perf));
-  memset(&page_stats, 0, sizeof(page_stats));
-  memset(&comp_stats, 0, sizeof(comp_stats));
-
-  tablenames= rdb_open_tables.get_table_names();
-
-  for (const auto& it : tablenames)
-  {
-    Rdb_table_handler *table_handler;
-    std::string str, dbname, tablename, partname;
-    char dbname_sys[NAME_LEN + 1];
-    char tablename_sys[NAME_LEN + 1];
-    bool is_partition;
-
-    if (rdb_normalize_tablename(it, &str)) {
-      /* Function needs to return void because of the interface and we've
-       * detected an error which shouldn't happen. There's no way to let
-       * caller know that something failed.
-      */
-      SHIP_ASSERT(false);
-      return;
-    }
-
-    if (rdb_split_normalized_tablename(str, &dbname, &tablename, &partname))
-    {
-      continue;
-    }
-
-    is_partition= (partname.size() != 0);
-
-    table_handler= rdb_open_tables.get_table_handler(it.c_str());
-    if (table_handler == nullptr)
-    {
-      continue;
-    }
-
-    io_perf_read.bytes= table_handler->m_io_perf_read.bytes.load();
-    io_perf_read.requests= table_handler->m_io_perf_read.requests.load();
-
-    /*
-      Convert from rocksdb timer to mysql timer. RocksDB values are
-      in nanoseconds, but table statistics expect the value to be
-      in my_timer format.
-     */
-     io_perf_read.svc_time= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.svc_time.load() / 1000);
-     io_perf_read.svc_time_max= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.svc_time_max.load() / 1000);
-     io_perf_read.wait_time= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.wait_time.load() / 1000);
-     io_perf_read.wait_time_max= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.wait_time_max.load() / 1000);
-     io_perf_read.slow_ios= table_handler->m_io_perf_read.slow_ios.load();
-     rdb_open_tables.release_table_handler(table_handler);
-
-    /*
-      Table stats expects our database and table name to be in system encoding,
-      not filename format. Convert before calling callback.
-     */
-    my_core::filename_to_tablename(dbname.c_str(), dbname_sys,
-                                   sizeof(dbname_sys));
-    my_core::filename_to_tablename(tablename.c_str(), tablename_sys,
-                                   sizeof(tablename_sys));
-    (*cb)(dbname_sys, tablename_sys, is_partition, &io_perf_read, &io_perf,
-          &io_perf, &io_perf, &io_perf, &page_stats, &comp_stats, 0, 0,
-          rocksdb_hton_name);
-  }
-}
-
-
 static rocksdb::Status check_rocksdb_options_compatibility(
         const char *dbpath,
         const rocksdb::Options& main_opts,
@@ -3275,7 +3183,6 @@ static int rocksdb_init_func(void *p)
   rocksdb_hton->savepoint_rollback= rocksdb_rollback_to_savepoint;
   rocksdb_hton->savepoint_rollback_can_release_mdl=
     rocksdb_rollback_to_savepoint_can_release_mdl;
-  rocksdb_hton->update_table_stats = rocksdb_update_table_stats;
   rocksdb_hton->flush_logs= rocksdb_flush_wal;
 
   rocksdb_hton->flags= HTON_TEMPORARY_NOT_SUPPORTED |
@@ -3684,7 +3591,7 @@ Rdb_table_handler* Rdb_open_tables_map::get_table_handler(
     }
 
     thr_lock_init(&table_handler->m_thr_lock);
-    my_io_perf_atomic_init(&table_handler->m_io_perf_read);
+    table_handler->m_io_perf_read.init();
   }
   DBUG_ASSERT(table_handler->m_ref_count >= 0);
   table_handler->m_ref_count++;

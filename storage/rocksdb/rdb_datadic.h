@@ -247,11 +247,17 @@ public:
     return gl_index_id;
   }
 
+  int read_memcmp_key_part(const TABLE *table_arg, Rdb_string_reader *reader,
+                           const uint part_num) const;
+
   /* Must only be called for secondary keys: */
   uint get_primary_key_tuple(const TABLE *const tbl,
                              const Rdb_key_def &pk_descr,
                              const rocksdb::Slice *const key,
                              uchar *const pk_buffer) const;
+
+  uint get_memcmp_sk_parts(const TABLE *table, const rocksdb::Slice &key,
+                           uchar *sk_buffer, uint *n_null_fields) const;
 
   /* Return max length of mem-comparable form */
   uint max_storage_fmt_length() const { return m_maxlength; }
@@ -271,6 +277,10 @@ public:
   inline Field *get_table_field_for_part_no(TABLE *table, uint part_no) const;
 
   const std::string &get_name() const { return m_name; }
+
+  const rocksdb::SliceTransform *get_extractor() const {
+    return m_prefix_extractor.get();
+  }
 
   Rdb_key_def &operator=(const Rdb_key_def &) = delete;
   Rdb_key_def(const Rdb_key_def &k);
@@ -430,6 +440,9 @@ private:
     many elements are in the m_pack_info array.
   */
   uint m_key_parts;
+
+  /* Prefix extractor for the column family of the key definiton */
+  std::shared_ptr<const rocksdb::SliceTransform> m_prefix_extractor;
 
   /* Maximum length of the mem-comparable form. */
   uint m_maxlength;
@@ -905,8 +918,9 @@ public:
   bool get_cf_flags(const uint &cf_id, uint *const cf_flags) const;
 
   /* Functions for fast CREATE/DROP TABLE/INDEX */
-  void get_ongoing_index_operation(std::vector<GL_INDEX_ID> *gl_index_ids,
-                                   Rdb_key_def::DATA_DICT_TYPE dd_type) const;
+  void
+  get_ongoing_index_operation(std::unordered_set<GL_INDEX_ID> *gl_index_ids,
+                              Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   bool is_index_operation_ongoing(const GL_INDEX_ID &gl_index_id,
                                   Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   void start_ongoing_index_operation(rocksdb::WriteBatch *batch,
@@ -928,13 +942,13 @@ public:
                            Rdb_key_def::DATA_DICT_TYPE dd_type) const;
   void rollback_ongoing_index_creation() const;
 
-  inline void
-  get_ongoing_drop_indexes(std::vector<GL_INDEX_ID> *gl_index_ids) const {
+  inline void get_ongoing_drop_indexes(
+      std::unordered_set<GL_INDEX_ID> *gl_index_ids) const {
     get_ongoing_index_operation(gl_index_ids,
                                 Rdb_key_def::DDL_DROP_INDEX_ONGOING);
   }
-  inline void
-  get_ongoing_create_indexes(std::vector<GL_INDEX_ID> *gl_index_ids) const {
+  inline void get_ongoing_create_indexes(
+      std::unordered_set<GL_INDEX_ID> *gl_index_ids) const {
     get_ongoing_index_operation(gl_index_ids,
                                 Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
   }

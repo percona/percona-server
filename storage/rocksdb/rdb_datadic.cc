@@ -63,7 +63,7 @@ Rdb_key_def::Rdb_key_def(uint indexnr_arg, uint keyno_arg,
       m_is_reverse_cf(is_reverse_cf_arg), m_is_auto_cf(is_auto_cf_arg),
       m_name(_name), m_stats(_stats), m_pk_part_no(nullptr),
       m_pack_info(nullptr), m_keyno(keyno_arg), m_key_parts(0),
-      m_maxlength(0) // means 'not intialized'
+      m_prefix_extractor(nullptr), m_maxlength(0) // means 'not intialized'
 {
   mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
   rdb_netbuf_store_index(m_index_number_storage_form, m_index_number);
@@ -75,7 +75,8 @@ Rdb_key_def::Rdb_key_def(const Rdb_key_def &k)
       m_is_reverse_cf(k.m_is_reverse_cf), m_is_auto_cf(k.m_is_auto_cf),
       m_name(k.m_name), m_stats(k.m_stats), m_pk_part_no(k.m_pk_part_no),
       m_pack_info(k.m_pack_info), m_keyno(k.m_keyno),
-      m_key_parts(k.m_key_parts), m_maxlength(k.m_maxlength) {
+      m_key_parts(k.m_key_parts), m_prefix_extractor(k.m_prefix_extractor),
+      m_maxlength(k.m_maxlength) {
   mysql_mutex_init(0, &m_mutex, MY_MUTEX_INIT_FAST);
   rdb_netbuf_store_index(m_index_number_storage_form, m_index_number);
   if (k.m_pack_info) {
@@ -194,11 +195,13 @@ void Rdb_key_def::setup(const TABLE *const tbl,
         Field *const field = key_part ? key_part->field : nullptr;
 
         if (simulating_extkey && !hidden_pk_exists) {
+          DBUG_ASSERT(secondary_key);
           /* Check if this field is already present in the key definition */
           bool found = false;
           for (uint j = 0; j < key_info->actual_key_parts; j++) {
             if (field->field_index ==
-                key_info->key_part[j].field->field_index) {
+                    key_info->key_part[j].field->field_index &&
+                key_part->length == key_info->key_part[j].length) {
               found = true;
               break;
             }
@@ -267,6 +270,10 @@ void Rdb_key_def::setup(const TABLE *const tbl,
     /* Initialize the memory needed by the stats structure */
     m_stats.m_distinct_keys_per_prefix.resize(get_key_parts());
 
+    /* Cache prefix extractor for bloom filter usage later */
+    rocksdb::Options opt = rdb_get_rocksdb_db()->GetOptions(get_cf());
+    m_prefix_extractor = opt.prefix_extractor;
+
     /*
       This should be the last member variable set before releasing the mutex
       so that other threads can't see the object partially set up.
@@ -275,6 +282,43 @@ void Rdb_key_def::setup(const TABLE *const tbl,
 
     mysql_mutex_unlock(&m_mutex);
   }
+}
+
+/**
+  Read a memcmp key part from a slice using the passed in reader.
+
+  Returns -1 if field was null, 1 if error, 0 otherwise.
+*/
+int Rdb_key_def::read_memcmp_key_part(const TABLE *table_arg,
+                                      Rdb_string_reader *reader,
+                                      const uint part_num) const {
+  /* It is impossible to unpack the column. Skip it. */
+  if (m_pack_info[part_num].m_maybe_null) {
+    const char *nullp;
+    if (!(nullp = reader->read(1)))
+      return 1;
+    if (*nullp == 0) {
+      /* This is a NULL value */
+      return -1;
+    } else {
+      /* If NULL marker is not '0', it can be only '1'  */
+      if (*nullp != 1)
+        return 1;
+    }
+  }
+
+  Rdb_field_packing *fpi = &m_pack_info[part_num];
+  DBUG_ASSERT(table_arg->s != nullptr);
+
+  bool is_hidden_pk_part = (part_num + 1 == m_key_parts) &&
+                           (table_arg->s->primary_key == MAX_INDEXES);
+  Field *field = nullptr;
+  if (!is_hidden_pk_part)
+    field = fpi->get_field_in_table(table_arg);
+  if (fpi->m_skip_func(fpi, field, reader))
+    return 1;
+
+  return 0;
 }
 
 /**
@@ -334,33 +378,8 @@ uint Rdb_key_def::get_primary_key_tuple(const TABLE *const table,
       start_offs[pk_key_part] = reader.get_current_ptr();
     }
 
-    bool have_value = true;
-    /* It is impossible to unpack the column. Skip it. */
-    if (m_pack_info[i].m_maybe_null) {
-      const char *nullp;
-      if (!(nullp = reader.read(1)))
-        return RDB_INVALID_KEY_LEN;
-      if (*nullp == 0) {
-        /* This is a NULL value */
-        have_value = false;
-      } else {
-        /* If NULL marker is not '0', it can be only '1'  */
-        if (*nullp != 1)
-          return RDB_INVALID_KEY_LEN;
-      }
-    }
-
-    if (have_value) {
-      Rdb_field_packing *const fpi = &m_pack_info[i];
-
-      DBUG_ASSERT(table->s != nullptr);
-      const bool is_hidden_pk_part =
-          (i + 1 == m_key_parts) && (table->s->primary_key == MAX_INDEXES);
-      Field *field = nullptr;
-      if (!is_hidden_pk_part)
-        field = fpi->get_field_in_table(table);
-      if (fpi->m_skip_func(fpi, field, &reader))
-        return RDB_INVALID_KEY_LEN;
+    if (read_memcmp_key_part(table, &reader, i) > 0) {
+      return RDB_INVALID_KEY_LEN;
     }
 
     if (pk_key_part != -1) {
@@ -376,6 +395,47 @@ uint Rdb_key_def::get_primary_key_tuple(const TABLE *const table,
   }
 
   return size;
+}
+
+/**
+  Get a mem-comparable form of Secondary Key from mem-comparable form of this
+  key, without the extended primary key tail.
+
+  @param
+    key                Index tuple from this key in mem-comparable form
+    sk_buffer     OUT  Put here mem-comparable form of the Secondary Key.
+    n_null_fields OUT  Put number of null fields contained within sk entry
+*/
+uint Rdb_key_def::get_memcmp_sk_parts(const TABLE *table,
+                                      const rocksdb::Slice &key,
+                                      uchar *sk_buffer,
+                                      uint *n_null_fields) const {
+  DBUG_ASSERT(table != nullptr);
+  DBUG_ASSERT(sk_buffer != nullptr);
+  DBUG_ASSERT(n_null_fields != nullptr);
+  DBUG_ASSERT(m_keyno != table->s->primary_key && !table_has_hidden_pk(table));
+
+  uchar *buf = sk_buffer;
+
+  int res;
+  Rdb_string_reader reader(&key);
+  const char *start = reader.get_current_ptr();
+
+  // Skip the index number
+  if ((!reader.read(INDEX_NUMBER_SIZE)))
+    return RDB_INVALID_KEY_LEN;
+
+  for (uint i = 0; i < table->key_info[m_keyno].user_defined_key_parts; i++) {
+    if ((res = read_memcmp_key_part(table, &reader, i)) > 0) {
+      return RDB_INVALID_KEY_LEN;
+    } else if (res == -1) {
+      (*n_null_fields)++;
+    }
+  }
+
+  uint sk_memcmp_len = reader.get_current_ptr() - start;
+  memcpy(buf, start, sk_memcmp_len);
+  return sk_memcmp_len;
 }
 
 /**
@@ -3486,7 +3546,7 @@ bool Rdb_dict_manager::get_cf_flags(const uint32_t &cf_id,
   ongoing creation.
  */
 void Rdb_dict_manager::get_ongoing_index_operation(
-    std::vector<GL_INDEX_ID> *const gl_index_ids,
+    std::unordered_set<GL_INDEX_ID> *gl_index_ids,
     Rdb_key_def::DATA_DICT_TYPE dd_type) const {
   DBUG_ASSERT(dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING ||
               dd_type == Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
@@ -3521,7 +3581,7 @@ void Rdb_dict_manager::get_ongoing_index_operation(
         rdb_netbuf_to_uint32(ptr + Rdb_key_def::INDEX_NUMBER_SIZE);
     gl_index_id.index_id =
         rdb_netbuf_to_uint32(ptr + 2 * Rdb_key_def::INDEX_NUMBER_SIZE);
-    gl_index_ids->push_back(gl_index_id);
+    gl_index_ids->insert(gl_index_id);
   }
   delete it;
 }
@@ -3596,7 +3656,7 @@ void Rdb_dict_manager::end_ongoing_index_operation(
   by drop_index_thread
  */
 bool Rdb_dict_manager::is_drop_index_empty() const {
-  std::vector<GL_INDEX_ID> gl_index_ids;
+  std::unordered_set<GL_INDEX_ID> gl_index_ids;
   get_ongoing_drop_indexes(&gl_index_ids);
   return gl_index_ids.empty();
 }
@@ -3660,6 +3720,9 @@ void Rdb_dict_manager::finish_indexes_operation(
   const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
   rocksdb::WriteBatch *const batch = wb.get();
 
+  std::unordered_set<GL_INDEX_ID> incomplete_create_indexes;
+  get_ongoing_create_indexes(&incomplete_create_indexes);
+
   for (const auto &gl_index_id : gl_index_ids) {
     if (is_index_operation_ongoing(gl_index_id, dd_type)) {
       // NO_LINT_DEBUG
@@ -3670,6 +3733,17 @@ void Rdb_dict_manager::finish_indexes_operation(
                             gl_index_id.cf_id, gl_index_id.index_id);
 
       end_ongoing_index_operation(batch, gl_index_id, dd_type);
+
+      /*
+        Remove the corresponding incomplete create indexes from data
+        dictionary as well
+      */
+      if (dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING) {
+        if (incomplete_create_indexes.count(gl_index_id)) {
+          end_ongoing_index_operation(batch, gl_index_id,
+                                      Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
+        }
+      }
     }
 
     if (dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING) {
@@ -3685,7 +3759,7 @@ void Rdb_dict_manager::finish_indexes_operation(
   drop ongoing, printing out messages for diagnostics purposes.
  */
 void Rdb_dict_manager::resume_drop_indexes() const {
-  std::vector<GL_INDEX_ID> gl_index_ids;
+  std::unordered_set<GL_INDEX_ID> gl_index_ids;
   get_ongoing_drop_indexes(&gl_index_ids);
 
   uint max_index_id_in_dict = 0;
@@ -3709,7 +3783,7 @@ void Rdb_dict_manager::rollback_ongoing_index_creation() const {
   const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
   rocksdb::WriteBatch *const batch = wb.get();
 
-  std::vector<GL_INDEX_ID> gl_index_ids;
+  std::unordered_set<GL_INDEX_ID> gl_index_ids;
   get_ongoing_create_indexes(&gl_index_ids);
 
   for (const auto &gl_index_id : gl_index_ids) {
@@ -3718,8 +3792,6 @@ void Rdb_dict_manager::rollback_ongoing_index_creation() const {
                           gl_index_id.cf_id, gl_index_id.index_id);
 
     start_drop_index(batch, gl_index_id);
-    end_ongoing_index_operation(batch, gl_index_id,
-                                Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
   }
 
   commit(batch);
@@ -3738,13 +3810,25 @@ void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,
   uint16 m_index_dict_version = 0;
   uchar m_index_type = 0;
   uint16 kv_version = 0;
+
   if (!get_index_info(gl_index_id, &m_index_dict_version, &m_index_type,
                       &kv_version)) {
-    sql_print_error("RocksDB: Failed to get column family info "
-                    "from index id (%u,%u). MyRocks data dictionary may "
-                    "get corrupted.",
-                    gl_index_id.cf_id, gl_index_id.index_id);
-    abort_with_stack_traces();
+    /*
+      If we don't find the index info, it could be that it's because it was a
+      partially created index that isn't in the data dictionary yet that needs
+      to be rolled back.
+    */
+    std::unordered_set<GL_INDEX_ID> incomplete_create_indexes;
+    get_ongoing_create_indexes(&incomplete_create_indexes);
+
+    if (!incomplete_create_indexes.count(gl_index_id)) {
+      /* If it's not a partially created index, something is very wrong. */
+      sql_print_error("RocksDB: Failed to get column family info "
+                      "from index id (%u,%u). MyRocks data dictionary may "
+                      "get corrupted.",
+                      gl_index_id.cf_id, gl_index_id.index_id);
+      abort_with_stack_traces();
+    }
   }
   sql_print_information("RocksDB: %s filtering dropped index (%u,%u)",
                         log_action, gl_index_id.cf_id, gl_index_id.index_id);

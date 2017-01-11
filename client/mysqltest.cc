@@ -4785,7 +4785,13 @@ static int my_kill(int pid, int sig)
   CloseHandle(proc);
   return 1;
 #else
-  return kill(pid, sig);
+  int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
 #endif
 }
 

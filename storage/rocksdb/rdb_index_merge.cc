@@ -76,7 +76,7 @@ int Rdb_index_merge::init()
   m_output_buf= std::shared_ptr<merge_buf_info>(
       new merge_buf_info(m_merge_buf_size));
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -118,7 +118,7 @@ int Rdb_index_merge::merge_file_create()
   m_merge_file.fd = fd;
   m_merge_file.num_sort_buffers = 0;
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -176,7 +176,7 @@ int Rdb_index_merge::add(const rocksdb::Slice& key,
   m_offset_tree.emplace(m_rec_buf_unsorted->block.get() + rec_offset,
                         m_comparator);
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -247,7 +247,7 @@ int Rdb_index_merge::merge_buf_write()
   /* Reset everything for next run */
   merge_reset();
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -314,7 +314,7 @@ int Rdb_index_merge::merge_heap_prepare()
     m_merge_min_heap.push(std::move(entry));
   }
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -343,7 +343,7 @@ int Rdb_index_merge::next(rocksdb::Slice* const key, rocksdb::Slice* const val)
     merge_read_rec(rec->block, key, val);
 
     m_offset_tree.erase(rec);
-    return 0;
+    return HA_EXIT_SUCCESS;
   }
 
   int res;
@@ -367,7 +367,7 @@ int Rdb_index_merge::next(rocksdb::Slice* const key, rocksdb::Slice* const val)
       inside the SST file yet.
     */
     merge_heap_top(key, val);
-    return 0;
+    return HA_EXIT_SUCCESS;
   }
 
   DBUG_ASSERT(!m_merge_min_heap.empty());
@@ -418,7 +418,7 @@ int Rdb_index_merge::merge_heap_pop_and_get_next(rocksdb::Slice* const key,
     }
 
     merge_heap_top(key, val);
-    return 0;
+    return HA_EXIT_SUCCESS;
   }
 
   /*
@@ -449,18 +449,18 @@ int Rdb_index_merge::merge_heap_pop_and_get_next(rocksdb::Slice* const key,
 
   /* Return the current top record on heap */
   merge_heap_top(key, val);
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 int Rdb_index_merge::merge_heap_entry::read_next_chunk_from_disk(File fd)
 {
   if (chunk_info->read_next_chunk_from_disk(fd))
   {
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   block= chunk_info->block.get();
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 int Rdb_index_merge::merge_buf_info::read_next_chunk_from_disk(File fd)
@@ -471,7 +471,7 @@ int Rdb_index_merge::merge_buf_info::read_next_chunk_from_disk(File fd)
   {
     // NO_LINT_DEBUG
     sql_print_error("Error seeking to location in merge file on disk.");
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   /* Overwrite the old block */
@@ -480,11 +480,11 @@ int Rdb_index_merge::merge_buf_info::read_next_chunk_from_disk(File fd)
   {
     // NO_LINT_DEBUG
     sql_print_error("Error reading merge file from disk.");
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   curr_offset= 0;
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 /**
@@ -529,7 +529,7 @@ int Rdb_index_merge::merge_heap_entry::read_rec(rocksdb::Slice* const key,
   /* Read key at block offset into key slice and the value into value slice*/
   if (read_slice(key, &block_ptr) != 0)
   {
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   chunk_info->curr_offset += (uintptr_t) block_ptr - (uintptr_t) block;
@@ -539,13 +539,13 @@ int Rdb_index_merge::merge_heap_entry::read_rec(rocksdb::Slice* const key,
   {
     chunk_info->curr_offset= orig_offset;
     block= orig_block;
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   chunk_info->curr_offset += (uintptr_t) block_ptr - (uintptr_t) block;
   block += (uintptr_t) block_ptr - (uintptr_t) block;
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 int Rdb_index_merge::merge_heap_entry::read_slice(rocksdb::Slice* const slice,
@@ -553,19 +553,19 @@ int Rdb_index_merge::merge_heap_entry::read_slice(rocksdb::Slice* const slice,
 {
   if (!chunk_info->has_space(RDB_MERGE_REC_DELIMITER))
   {
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   uint64 slice_len;
   merge_read_uint64(block_ptr, &slice_len);
   if (!chunk_info->has_space(RDB_MERGE_REC_DELIMITER + slice_len))
   {
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   *slice= rocksdb::Slice(reinterpret_cast<const char*>(*block_ptr), slice_len);
   *block_ptr += slice_len;
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 size_t Rdb_index_merge::merge_heap_entry::prepare(File fd, ulonglong f_offset,

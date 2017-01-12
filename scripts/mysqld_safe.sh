@@ -638,7 +638,7 @@ then
     # User explicitly asked for syslog, so warn that it isn't used
     log_error "Can't log to error log and syslog at the same time.  Remove all --log-error configuration options for --syslog to take effect."
   fi
-
+fi
 logdir=`dirname "$err_log"`
 # Change the err log to the right user, if possible and it is in use
 if [ $logging = "file" -o $logging = "both" ]; then

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/29/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "09/29/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "11/26/2016" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -198,6 +198,8 @@ The name of an option file to be read instead of the usual option files\&. This 
 If
 \fBmysqld_safe\fR
 cannot find the server, use this option to indicate the path name to the directory where the server is located\&.
+.sp
+As of MySQL 5\&.6\&.35, this option is accepted only on the command line, not in option files\&.
 .RE
 .sp
 .RS 4
@@ -495,7 +497,9 @@ for this to function properly\&.
 .\}
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name of the process ID file\&.
+The path name that
+\fBmysqld\fR
+should use for its process ID file\&.
 .RE
 .sp
 .RS 4

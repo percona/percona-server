@@ -18,6 +18,7 @@
 
 /* C++ standard header files */
 #include <atomic>
+#include <string>
 
 /* MySQL includes */
 #include "./my_global.h"
@@ -53,10 +54,11 @@ class Rdb_thread
   void init(my_core::PSI_mutex_key  stop_bg_psi_mutex_key,
             my_core::PSI_cond_key   stop_bg_psi_cond_key);
   int create_thread(
+            const std::string& thread_name,
             my_core::PSI_thread_key background_psi_thread_key);
 #else
   void init();
-  int create_thread();
+  int create_thread(const std::string& thread_name);
 #endif
 
   virtual void run(void) = 0;

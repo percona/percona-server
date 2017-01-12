@@ -8490,8 +8490,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     uint non_replicated_tables_count= 0;
 #ifndef DBUG_OFF
-    DBUG_PRINT("debug", ("prelocked_mode: %s",
-                         get_locked_tables_mode_name(locked_tables_mode)));
+    {
+      DBUG_PRINT("debug", ("prelocked_mode: %s",
+                           get_locked_tables_mode_name(locked_tables_mode)));
+    }
 #endif
 
     if (variables.binlog_format != BINLOG_FORMAT_ROW && tables)

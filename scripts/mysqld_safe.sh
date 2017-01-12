@@ -1,4 +1,4 @@
-#!/bin/sh
+#!@SHELL_PATH@
 # Copyright Abandoned 1996 TCX DataKonsult AB & Monty Program KB & Detron HB
 # This file is public domain and comes with NO WARRANTY of any kind
 #
@@ -145,7 +145,13 @@ log_generic () {
   echo "$msg"
   case $logging in
     init) ;;  # Just echo the message, don't save it anywhere
-    file) echo "$msg" >> "$err_log" ;;
+    file)
+      if [ -w / -o "$USER" = "root" ]; then
+        true
+      else
+        echo "$msg" >> "$err_log"
+      fi
+      ;;
     syslog) logger -t "$syslog_tag_mysqld_safe" -p "$priority" "$*" ;;
     *)
       echo "Internal program error (non-fatal):" \
@@ -165,7 +171,13 @@ log_notice () {
 eval_log_error () {
   cmd="$1"
   case $logging in
-    file) cmd="$cmd >> "`shell_quote_string "$err_log"`" 2>&1" ;;
+    file)
+      if [ -w / -o "$USER" = "root" ]; then
+        cmd="$cmd > /dev/null 2>&1"
+      else
+        cmd="$cmd >> "`shell_quote_string "$err_log"`" 2>&1"
+      fi
+      ;;
     syslog)
       # mysqld often prefixes its messages with a timestamp, which is
       # redundant when logging to syslog (which adds its own timestamp)
@@ -233,10 +245,10 @@ parse_arguments() {
         fi
         ledir="$val"
         ;;
-     --malloc-lib=*)
-	set_malloc_lib "$val"
-	load_jemalloc=0
-	;;
+      --malloc-lib=*)
+        set_malloc_lib "$val"
+        load_jemalloc=0
+        ;;
       --mysqld=*)
         if [ -z "$pick_args" ]; then
           log_error "--mysqld option can only be used as command line option, found in config file"
@@ -426,7 +438,15 @@ else
   relpkgdata='@pkgdatadir@'
 fi
 
-MY_PWD=`pwd`
+case "$0" in
+  /*)
+  MY_PWD='@prefix@'
+  ;;
+  *)
+  MY_PWD=`dirname $0`
+  MY_PWD=`dirname $MY_PWD`
+  ;;
+esac
 # Check for the directories we would expect from a binary release install
 if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
 then
@@ -638,7 +658,21 @@ then
     # User explicitly asked for syslog, so warn that it isn't used
     log_error "Can't log to error log and syslog at the same time.  Remove all --log-error configuration options for --syslog to take effect."
   fi
+
+  # Log to err_log file
+  logging=file
+else
+  if [ -n "$syslog_tag" ]
+  then
+    # Sanitize the syslog tag
+    syslog_tag=`echo "$syslog_tag" | sed -e 's/[^a-zA-Z0-9_-]/_/g'`
+    syslog_tag_mysqld_safe="${syslog_tag_mysqld_safe}-$syslog_tag"
+    syslog_tag_mysqld="${syslog_tag_mysqld}-$syslog_tag"
+  fi
+  log_notice "Logging to syslog."
+  logging=syslog
 fi
+
 logdir=`dirname "$err_log"`
 # Change the err log to the right user, if possible and it is in use
 if [ $logging = "file" -o $logging = "both" ]; then
@@ -662,16 +696,23 @@ if [ $logging = "file" -o $logging = "both" ]; then
     fi
   fi
 
-else
-  if [ -n "$syslog_tag" ]
-  then
-    # Sanitize the syslog tag
-    syslog_tag=`echo "$syslog_tag" | sed -e 's/[^a-zA-Z0-9_-]/_/g'`
-    syslog_tag_mysqld_safe="${syslog_tag_mysqld_safe}-$syslog_tag"
-    syslog_tag_mysqld="${syslog_tag_mysqld}-$syslog_tag"
+  if [ -f "$err_log" ]; then        # Log to err_log file
+    log_notice "Logging to '$err_log'."
+  elif [ "x$user" = "xroot" ]; then # running as root, mysqld can create log file; continue
+    echo "Logging to '$err_log'." >&2
+  else
+    case $logdir in
+      # We can't create $err_log, however mysqld can; continue
+      /tmp|/var/tmp|/var/log/mysql|$DATADIR)
+        echo "Logging to '$err_log'." >&2
+        ;;
+      # We can't create $err_log and don't know if mysqld can; error out
+      *)
+        log_error "error: log-error set to '$err_log', however file don't exists. Create writable for user '$user'."
+        exit 1
+        ;;
+    esac
   fi
-  log_notice "Logging to syslog."
-  logging=syslog
 fi
 
 USER_OPTION=""
@@ -693,7 +734,7 @@ then
 fi
 
 safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
-# Make sure that directory for $safe_mysql_unix_port exists
+# Check that directory for $safe_mysql_unix_port exists
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
@@ -961,6 +1002,11 @@ do
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
+
+  # hypothetical: log was renamed but not
+  # flushed yet. we'd recreate it with
+  # wrong owner next time we log, so set
+  # it up correctly while we can!
 
   if [ $want_syslog -eq 0 -a ! -f "$err_log" -a ! -h "$err_log" ]; then
     if test -w / -o "$USER" = "root"; then

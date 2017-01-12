@@ -224,12 +224,12 @@ int Rdb_sst_info::open_new_sst_file() {
     set_error_msg(s.ToString());
     delete m_sst_file;
     m_sst_file = nullptr;
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   m_curr_size = 0;
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 void Rdb_sst_info::close_curr_sst_file() {
@@ -276,7 +276,7 @@ int Rdb_sst_info::put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
     // While we are here, check to see if we have had any errors from the
     // background thread - we don't want to wait for the end to report them
     if (!m_error_msg.empty()) {
-      return 1;
+      return HA_EXIT_FAILURE;
     }
   }
 
@@ -294,12 +294,12 @@ int Rdb_sst_info::put(const rocksdb::Slice &key, const rocksdb::Slice &value) {
   const rocksdb::Status s = m_sst_file->put(key, value);
   if (!s.ok()) {
     set_error_msg(s.ToString());
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
   m_curr_size += key.size() + value.size();
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 int Rdb_sst_info::commit() {
@@ -323,10 +323,10 @@ int Rdb_sst_info::commit() {
 
   // Did we get any errors?
   if (!m_error_msg.empty()) {
-    return 1;
+    return HA_EXIT_FAILURE;
   }
 
-  return 0;
+  return HA_EXIT_SUCCESS;
 }
 
 void Rdb_sst_info::set_error_msg(const std::string &msg) {

@@ -5011,6 +5011,25 @@ int query_get_string(MYSQL* mysql, const char* query,
 
 
 /**
+  A wrapper around kill call that prints diagnostics if the call failed with
+  any other error than ESRCH.
+
+  @param pid    Process id
+  @param sig    Signal to send to process
+  @return The return value of kill call
+*/
+static int my_kill(int pid, int sig)
+{
+  const int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
+}
+
+/**
   Check if process is active.
 
   @param pid  Process id.
@@ -5035,7 +5054,7 @@ static bool is_process_active(int pid)
 
   return true;
 #else
-  return (kill(pid, 0) == 0);
+  return (my_kill(pid, 0) == 0);
 #endif
 }
 
@@ -5060,7 +5079,7 @@ static bool kill_process(int pid)
 
   CloseHandle(proc);
 #else
-  killed= (kill(pid, SIGKILL) == 0);
+  killed= (my_kill(pid, SIGKILL) == 0);
 #endif
   return killed;
 }
@@ -5131,7 +5150,7 @@ static void abort_process(int pid, const char *path)
 #else
   log_msg("shutdown_server timeout exceeded, SIGABRT set to the server PID %d",
           pid);
-  kill(pid, SIGABRT);
+  my_kill(pid, SIGABRT);
 #endif
 }
 

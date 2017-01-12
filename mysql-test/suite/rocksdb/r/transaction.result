@@ -26,23 +26,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -54,7 +54,7 @@ id	value	value2
 9	9	9
 10	10	10
 11	11	11
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -93,23 +93,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -121,7 +121,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -159,22 +159,22 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	100
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	100
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	100
 2	2	2
@@ -185,7 +185,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -221,21 +221,21 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	100	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	100	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	100	1
 2	2	2
@@ -246,8 +246,9 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
+100
 2
 3
 4
@@ -256,7 +257,6 @@ value
 8
 9
 10
-100
 rollback;
 begin;
 update t1 set id=100 where id=1;
@@ -283,22 +283,22 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
+2	2	2
 100	1	1
-2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
-1
 2
-select * from t1 where value2 < 3;
+1
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
 100	1	1
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 2	2	2
 3	3	3
@@ -309,9 +309,8 @@ id	value	value2
 9	9	9
 10	10	10
 100	1	1
-select value from t1;
+select value from t1 order by id;
 value
-1
 2
 3
 4
@@ -320,6 +319,7 @@ value
 8
 9
 10
+1
 rollback;
 set @orig_tx_iso=@@session.tx_isolation;
 set session tx_isolation='REPEATABLE-READ';
@@ -350,23 +350,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -377,7 +377,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -415,22 +415,22 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	100
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	100
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	100
 2	2	2
@@ -441,7 +441,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -483,23 +483,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -510,7 +510,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -547,21 +547,21 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	100	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	100	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	100	1
 2	2	2
@@ -572,8 +572,9 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
+100
 2
 3
 4
@@ -582,7 +583,6 @@ value
 8
 9
 10
-100
 rollback;
 set session tx_isolation=@orig_tx_iso;
 set @orig_tx_iso=@@session.tx_isolation;
@@ -614,23 +614,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -641,7 +641,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -679,22 +679,22 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
+2	2	2
 100	1	1
-2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
-1
 2
-select * from t1 where value2 < 3;
+1
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
 100	1	1
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 2	2	2
 3	3	3
@@ -705,9 +705,8 @@ id	value	value2
 9	9	9
 10	10	10
 100	1	1
-select value from t1;
+select value from t1 order by id;
 value
-1
 2
 3
 4
@@ -716,6 +715,7 @@ value
 8
 9
 10
+1
 rollback;
 set session tx_isolation=@orig_tx_iso;
 set @orig_tx_iso=@@session.tx_isolation;
@@ -747,23 +747,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -774,7 +774,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -812,22 +812,22 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	100
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	100
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	100
 2	2	2
@@ -838,7 +838,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -880,23 +880,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -907,7 +907,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -944,21 +944,21 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	100	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	100	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	100	1
 2	2	2
@@ -969,8 +969,9 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
+100
 2
 3
 4
@@ -979,7 +980,6 @@ value
 8
 9
 10
-100
 rollback;
 set session tx_isolation=@orig_tx_iso;
 set @orig_tx_iso=@@session.tx_isolation;
@@ -1011,23 +1011,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -1038,7 +1038,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -1076,22 +1076,22 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
+2	2	2
 100	1	1
-2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
-1
 2
-select * from t1 where value2 < 3;
+1
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
 100	1	1
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 2	2	2
 3	3	3
@@ -1102,9 +1102,8 @@ id	value	value2
 9	9	9
 10	10	10
 100	1	1
-select value from t1;
+select value from t1 order by id;
 value
-1
 2
 3
 4
@@ -1113,6 +1112,7 @@ value
 8
 9
 10
+1
 rollback;
 set session tx_isolation=@orig_tx_iso;
 begin;
@@ -1137,19 +1137,19 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 2	2	2
 3	3	3
@@ -1159,7 +1159,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 2
 3
@@ -1199,23 +1199,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -1226,7 +1226,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -1261,19 +1261,19 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 2	2	2
 3	3	3
@@ -1283,7 +1283,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 2
 3
@@ -1324,23 +1324,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -1351,7 +1351,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
@@ -1386,19 +1386,19 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 2	2	2
 3	3	3
@@ -1408,7 +1408,7 @@ id	value	value2
 8	8	8
 9	9	9
 10	10	10
-select value from t1;
+select value from t1 order by id;
 value
 2
 3
@@ -1458,23 +1458,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 5	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -1487,11 +1487,10 @@ id	value	value2
 12	12	12
 13	13	13
 115	3	3
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
-3
 4
 5
 6
@@ -1500,6 +1499,7 @@ value
 11
 12
 13
+3
 rollback;
 set session tx_isolation='READ-COMMITTED';
 begin;
@@ -1534,23 +1534,23 @@ value
 select * from t1 where value2=5;
 id	value	value2
 100	5	5
-select * from t1 where id < 3;
+select * from t1 where id < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1 where value < 3;
+select * from t1 where value < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select value from t1 where value < 3;
+select value from t1 where value < 3 order by id;
 value
 1
 2
-select * from t1 where value2 < 3;
+select * from t1 where value2 < 3 order by id;
 id	value	value2
 1	1	1
 2	2	2
-select * from t1;
+select * from t1 order by id;
 id	value	value2
 1	1	1
 2	2	2
@@ -1562,18 +1562,18 @@ id	value	value2
 13	13	13
 100	5	5
 115	3	3
-select value from t1;
+select value from t1 order by id;
 value
 1
 2
-3
-5
+103
 6
 10
 11
 12
 13
-103
+5
+3
 rollback;
 set session tx_isolation=@orig_tx_iso;
 drop table t1;

@@ -35,6 +35,8 @@ performance_schema	file_summary_by_event_name	def
 performance_schema	file_summary_by_instance	def
 performance_schema	host_cache	def
 performance_schema	hosts	def
+performance_schema	malloc_stats	def
+performance_schema	malloc_stats_summary	def
 performance_schema	mutex_instances	def
 performance_schema	objects_summary_global_by_type	def
 performance_schema	performance_timers	def
@@ -91,6 +93,8 @@ file_summary_by_event_name	BASE TABLE	PERFORMANCE_SCHEMA
 file_summary_by_instance	BASE TABLE	PERFORMANCE_SCHEMA
 host_cache	BASE TABLE	PERFORMANCE_SCHEMA
 hosts	BASE TABLE	PERFORMANCE_SCHEMA
+malloc_stats	BASE TABLE	PERFORMANCE_SCHEMA
+malloc_stats_summary	BASE TABLE	PERFORMANCE_SCHEMA
 mutex_instances	BASE TABLE	PERFORMANCE_SCHEMA
 objects_summary_global_by_type	BASE TABLE	PERFORMANCE_SCHEMA
 performance_timers	BASE TABLE	PERFORMANCE_SCHEMA
@@ -147,6 +151,8 @@ file_summary_by_event_name	10	Dynamic
 file_summary_by_instance	10	Dynamic
 host_cache	10	Dynamic
 hosts	10	Fixed
+malloc_stats	10	Fixed
+malloc_stats_summary	10	Fixed
 mutex_instances	10	Dynamic
 objects_summary_global_by_type	10	Dynamic
 performance_timers	10	Fixed
@@ -203,6 +209,8 @@ file_summary_by_event_name	1000	0
 file_summary_by_instance	1000	0
 host_cache	1000	0
 hosts	1000	0
+malloc_stats	5	0
+malloc_stats_summary	1	0
 mutex_instances	1000	0
 objects_summary_global_by_type	1000	0
 performance_timers	5	0
@@ -259,6 +267,8 @@ file_summary_by_event_name	0	0
 file_summary_by_instance	0	0
 host_cache	0	0
 hosts	0	0
+malloc_stats	0	0
+malloc_stats_summary	0	0
 mutex_instances	0	0
 objects_summary_global_by_type	0	0
 performance_timers	0	0
@@ -315,6 +325,8 @@ file_summary_by_event_name	0	0	NULL
 file_summary_by_instance	0	0	NULL
 host_cache	0	0	NULL
 hosts	0	0	NULL
+malloc_stats	0	0	NULL
+malloc_stats_summary	0	0	NULL
 mutex_instances	0	0	NULL
 objects_summary_global_by_type	0	0	NULL
 performance_timers	0	0	NULL
@@ -371,6 +383,8 @@ file_summary_by_event_name	NULL	NULL	NULL
 file_summary_by_instance	NULL	NULL	NULL
 host_cache	NULL	NULL	NULL
 hosts	NULL	NULL	NULL
+malloc_stats	NULL	NULL	NULL
+malloc_stats_summary	NULL	NULL	NULL
 mutex_instances	NULL	NULL	NULL
 objects_summary_global_by_type	NULL	NULL	NULL
 performance_timers	NULL	NULL	NULL
@@ -427,6 +441,8 @@ file_summary_by_event_name	utf8_general_ci	NULL
 file_summary_by_instance	utf8_general_ci	NULL
 host_cache	utf8_general_ci	NULL
 hosts	utf8_general_ci	NULL
+malloc_stats	utf8_general_ci	NULL
+malloc_stats_summary	utf8_general_ci	NULL
 mutex_instances	utf8_general_ci	NULL
 objects_summary_global_by_type	utf8_general_ci	NULL
 performance_timers	utf8_general_ci	NULL
@@ -483,6 +499,8 @@ file_summary_by_event_name
 file_summary_by_instance	
 host_cache	
 hosts	
+malloc_stats	
+malloc_stats_summary	
 mutex_instances	
 objects_summary_global_by_type	
 performance_timers	

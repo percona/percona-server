@@ -40,6 +40,8 @@ file_summary_by_event_name
 file_summary_by_instance
 host_cache
 hosts
+malloc_stats
+malloc_stats_summary
 mutex_instances
 objects_summary_global_by_type
 performance_timers
@@ -722,6 +724,25 @@ hosts	CREATE TABLE `hosts` (
   `HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `CURRENT_CONNECTIONS` bigint(20) NOT NULL,
   `TOTAL_CONNECTIONS` bigint(20) NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table malloc_stats;
+Table	Create Table
+malloc_stats	CREATE TABLE `malloc_stats` (
+  `TYPE` char(8) NOT NULL,
+  `ALLOCATED` bigint(20) unsigned NOT NULL,
+  `NMALLOC` bigint(20) unsigned NOT NULL,
+  `NDALLOC` bigint(20) unsigned NOT NULL,
+  `NREQUESTS` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table malloc_stats_summary;
+Table	Create Table
+malloc_stats_summary	CREATE TABLE `malloc_stats_summary` (
+  `ALLOCATED` bigint(20) unsigned NOT NULL,
+  `ACTIVE` bigint(20) unsigned NOT NULL,
+  `MAPPED` bigint(20) unsigned NOT NULL,
+  `RESIDENT` bigint(20) unsigned NOT NULL,
+  `RETAINED` bigint(20) unsigned NOT NULL,
+  `METADATA` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table mutex_instances;
 Table	Create Table

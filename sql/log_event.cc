@@ -59,6 +59,8 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+// Uses the THD to update the global stats by user name and client IP
+void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
 /*
   Size of buffer for printing a double in format %.<PREC>g
@@ -8181,6 +8183,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           if (idempotent_error == 0)
             break;
         }
+      }
+      else
+        thd->updated_row_count++;
+
+      if (unlikely(opt_userstat))
+      {
+        thd->update_stats(false);
+        update_global_user_stats(thd, true, time(NULL));
       }
 
       /*

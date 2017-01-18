@@ -31,6 +31,28 @@ In addition, when using the ``REPLACE INTO`` or ``INSERT IGNORE`` on tables with
 
 **XA behavior vs. InnoDB**: |InnoDB| forces a deadlocked XA transaction to abort, |TokuDB| does not.
 
+**Disabling the unique checks**: For tables with unique keys, every insertion
+into the table causes a lookup by key followed by an insertion, if the key is
+not in the table. This greatly limits insertion performance. If one knows by
+design that the rows being inserted into the table have unique keys, then one
+can disable the key lookup prior to insertion. 
+
+If your primary key is an auto-increment key, and none of your secondary keys
+are declared to be unique, then setting ``unique_checks=OFF`` will provide
+limited performance gains. On the other hand, if your primary key has a lot of
+entropy (it looks random), or your secondary keys are declared unique and have
+a lot of entropy, then disabling unique checks can provide a significant
+performance boost.
+
+If :variable:`unique_checks` is disabled when the primary key is not unique,
+secondary indexes may become corrupted. In this case, the indexes should be
+dropped and rebuilt. This behavior differs from that of |InnoDB|, in which
+uniqueness is always checked on the primary key, and setting
+:variable:`unique_checks` to off turns off uniqueness checking on secondary
+indexes only. Turning off uniqueness checking on the primary key can provide
+large performance boosts, but it should only be done when the primary key is
+known to be unique.
+
 .. _tokudb_lock_visualization:
 
 Lock Visualization in TokuDB

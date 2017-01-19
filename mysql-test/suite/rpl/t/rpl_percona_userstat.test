@@ -1,0 +1,60 @@
+--echo #
+--echo # Bug 995624 RBR events are not reflected in userstat's
+--echo # Rows_updated
+--echo #
+
+--source include/master-slave.inc
+
+connection slave;
+set @slave_userstat_saved= @@global.userstat;
+set global userstat=ON;
+--echo Rows_updated on slave - starting situation
+select ROWS_UPDATED from information_schema.client_statistics;
+
+connection master;
+set @master_userstat_saved= @@global.userstat;
+set global userstat=ON;
+--echo Rows_updated on master - starting situation
+select ROWS_UPDATED from information_schema.client_statistics;
+
+create table t1 (m int);
+--echo 3 "updates" to rows
+insert into t1 values(15),(16),(17); 
+--echo 1 "update" to rows (4 in total)
+update t1 set m=20 where m=16;
+--echo 1 "update" to rows (5 in total)
+delete from t1 where m=17;
+create table t2 (n int);
+--echo 2 "updates" to rows (7 in total)
+insert into t2 values(30),(30);
+--echo 2 "updates" to rows (9 in total)
+update t2 set n=10 where n=30;
+--echo 2 "updates" to rows (11 in total)
+delete from t2 where n=10;
+
+--echo 2 "updates" to rows (13 in total)
+insert into t2 (n)
+select t1.m
+from t1;
+
+--echo Rows_updated on master - ending situation
+select ROWS_UPDATED from information_schema.client_statistics;
+
+--echo t3 is not replicated. Let us make some updates
+--echo and check if they do not affect userstat
+create table t3(x int);
+insert into t3 value(1),(2),(3);
+update t3 set x=1 where x=2;
+delete from t3 where x=1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo Rows_updated on slave - ending situation
+select ROWS_UPDATED from information_schema.client_statistics;
+set global userstat=@slave_userstat_saved;
+select * from t1 ORDER BY m;
+
+connection master;
+set global userstat=@master_userstat_saved;
+drop table t1, t2;
+drop table t3;
+--source include/rpl_end.inc

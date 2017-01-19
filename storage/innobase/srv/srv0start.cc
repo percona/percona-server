@@ -2236,6 +2236,20 @@ files_checked:
 			return(srv_init_abort(DB_ERROR));
 		}
 
+		/* Start monitor thread early enough so that e.g. crash
+		recovery failing to find free pages in the buffer pool is
+		diagnosed. */
+		if (!srv_read_only_mode)
+		{
+			/* Create the thread which prints InnoDB monitor
+			info */
+			os_thread_create(
+				srv_monitor_thread,
+				NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+			srv_start_state_set(SRV_START_STATE_MONITOR);
+		}
+
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
@@ -2565,11 +2579,14 @@ files_checked:
 			NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
 
 		/* Create the thread which prints InnoDB monitor info */
-		os_thread_create(
-			srv_monitor_thread,
-			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+		if (!srv_start_state_is_set(SRV_START_STATE_MONITOR)) {
 
-		srv_start_state_set(SRV_START_STATE_MONITOR);
+			os_thread_create(
+				srv_monitor_thread,
+				NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+			srv_start_state_set(SRV_START_STATE_MONITOR);
+		}
 	}
 
 	/* wake main loop of page cleaner up */

@@ -114,6 +114,7 @@ When one supplies long data for a placeholder:
 #include <mysql.h>
 #else
 #include <mysql_com.h>
+#include "sql_connect.h" //update_global_user_stats
 #endif
 #include "sql_query_rewrite.h"
 
@@ -123,8 +124,6 @@ When one supplies long data for a placeholder:
 using std::max;
 using std::min;
 
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
 /****************************************************************************/
 

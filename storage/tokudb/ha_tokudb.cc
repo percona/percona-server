@@ -6119,8 +6119,6 @@ int ha_tokudb::info(uint flag) {
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
             uint64_t num_rows = 0;
-            TOKU_DB_FRAGMENTATION_S frag_info;
-            memset(&frag_info, 0, sizeof frag_info);
 
             error = txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED, ha_thd());
             if (error) {
@@ -6137,11 +6135,6 @@ int ha_tokudb::info(uint flag) {
             } else {
                 goto cleanup;
             }
-            error = share->file->get_fragmentation(share->file, &frag_info);
-            if (error) {
-                goto cleanup;
-            }
-            stats.delete_length = frag_info.unused_bytes;
 
             DB_BTREE_STAT64 dict_stats;
             error = share->file->stat64(share->file, txn, &dict_stats);
@@ -6153,6 +6146,7 @@ int ha_tokudb::info(uint flag) {
             stats.update_time = dict_stats.bt_modify_time_sec;
             stats.check_time = dict_stats.bt_verify_time_sec;
             stats.data_file_length = dict_stats.bt_dsize;
+            stats.delete_length = dict_stats.bt_fsize - dict_stats.bt_dsize;
             if (hidden_primary_key) {
                 //
                 // in this case, we have a hidden primary key, do not
@@ -6188,30 +6182,21 @@ int ha_tokudb::info(uint flag) {
             //
             // this solution is much simpler than trying to maintain an 
             // accurate number of valid keys at the handlerton layer.
-            uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
+            uint curr_num_DBs =
+                table->s->keys + tokudb_test(hidden_primary_key);
             for (uint i = 0; i < curr_num_DBs; i++) {
                 // skip the primary key, skip dropped indexes
                 if (i == primary_key || share->key_file[i] == NULL) {
                     continue;
                 }
-                error =
-                    share->key_file[i]->stat64(
-                        share->key_file[i],
-                        txn,
-                        &dict_stats);
+                error = share->key_file[i]->stat64(
+                    share->key_file[i], txn, &dict_stats);
                 if (error) {
                     goto cleanup;
                 }
                 stats.index_file_length += dict_stats.bt_dsize;
-
-                error =
-                    share->file->get_fragmentation(
-                        share->file,
-                        &frag_info);
-                if (error) {
-                    goto cleanup;
-                }
-                stats.delete_length += frag_info.unused_bytes;
+                stats.delete_length +=
+                    dict_stats.bt_fsize - dict_stats.bt_dsize;
             }
         }
 

@@ -64,9 +64,6 @@ using std::max;
 static int increment_connection_count(THD* thd, bool use_lock);
 #endif
 
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
-
 HASH global_user_stats;
 HASH global_client_stats;
 HASH global_thread_stats;

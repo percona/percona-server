@@ -8,8 +8,12 @@ UNIQUE KEY ui(value)) ENGINE=tokudb;
 CREATE TABLE gap4 (id INT, value INT,
 PRIMARY KEY (id)) ENGINE=tokudb
 PARTITION BY HASH(id) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.gap4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
 insert into gap4 values (1,1), (2,2),(3,3),(4,4),(5,5);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.gap4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 set session autocommit=0;
 select * from gap1 limit 1 for update;
 id1	id2	id3	c1	value

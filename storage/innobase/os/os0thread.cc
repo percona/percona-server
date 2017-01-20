@@ -214,27 +214,29 @@ os_thread_create_func(
 	}
 }
 
-/**
-Waits until the specified thread completes and joins it. Its return value is
-ignored.
-
-@param	thread	thread to join */
+/** Waits until the specified thread completes and joins it.
+Its return value is ignored.
+@param[in,out]	thread	thread to join */
 void
 os_thread_join(
 	os_thread_id_t	thread)
 {
-	int ret	MY_ATTRIBUTE((unused)) = pthread_join(thread, NULL);
+#ifdef _WIN32
+	/* Do nothing. */
+#else
+#ifdef UNIV_DEBUG
+	const int	ret =
+#endif /* UNIV_DEBUG */
+	pthread_join(thread, NULL);
 
-	/* Waiting on already-quit threads is allowed */
+	/* Waiting on already-quit threads is allowed. */
 	ut_ad(ret == 0 || ret == ESRCH);
+#endif /* _WIN32 */
 }
 
-
-/**
-Exits the current thread.
-
-@param	detach	if true, the thread will be detached right before exiting. If
-false, another thread is responsible for joining this thread */
+/** Exits the current thread.
+@param[in]	detach	if true, the thread will be detached right before
+exiting. If false, another thread is responsible for joining this thread */
 void
 os_thread_exit(
 	bool	detach)
@@ -262,8 +264,9 @@ os_thread_exit(
 
 	ExitThread(0);
 #else
-	if (detach)
+	if (detach) {
 		pthread_detach(pthread_self());
+	}
 	pthread_exit(NULL);
 #endif
 }

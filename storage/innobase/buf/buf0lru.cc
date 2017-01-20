@@ -299,21 +299,29 @@ next_page:
 			continue;
 		}
 
-		mutex_enter(&((buf_block_t*) bpage)->mutex);
+		buf_block_t*	block = reinterpret_cast<buf_block_t*>(bpage);
 
-		{
-			bool	skip = bpage->buf_fix_count > 0
-				|| !((buf_block_t*) bpage)->index;
+		mutex_enter(&block->mutex);
 
-			mutex_exit(&((buf_block_t*) bpage)->mutex);
+		/* This debug check uses a dirty read that could
+		theoretically cause false positives while
+		buf_pool_clear_hash_index() is executing.
+		(Other conflicting access paths to the adaptive hash
+		index should not be possible, because when a
+		tablespace is being discarded or dropped, there must
+		be no concurrect access to the contained tables.) */
+		assert_block_ahi_valid(block);
 
-			if (skip) {
-				/* Skip this block, because there are
-				no adaptive hash index entries
-				pointing to it, or because we cannot
-				drop them due to the buffer-fix. */
-				goto next_page;
-			}
+		bool	skip = bpage->buf_fix_count > 0 || !block->index;
+
+		mutex_exit(&block->mutex);
+
+		if (skip) {
+			/* Skip this block, because there are
+			no adaptive hash index entries
+			pointing to it, or because we cannot
+			drop them due to the buffer-fix. */
+			goto next_page;
 		}
 
 		/* Store the page number so that we can drop the hash
@@ -866,6 +874,17 @@ scan_again:
 				bpage->id, bpage->size);
 
 			goto scan_again;
+		} else {
+			/* This debug check uses a dirty read that could
+			theoretically cause false positives while
+			buf_pool_clear_hash_index() is executing,
+			if the writes to block->index=NULL and
+			block->n_pointers=0 are reordered.
+			(Other conflicting access paths to the adaptive hash
+			index should not be possible, because when a
+			tablespace is being discarded or dropped, there must
+			be no concurrect access to the contained tables.) */
+			assert_block_ahi_empty((buf_block_t*) bpage);
 		}
 
 		if (bpage->oldest_modification != 0) {
@@ -2264,9 +2283,7 @@ buf_LRU_block_free_non_file_page(
 		ut_error;
 	}
 
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	ut_a(block->n_pointers == 0);
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	assert_block_ahi_empty(block);
 	ut_ad(!block->page.in_free_list);
 	ut_ad(!block->page.in_flush_list);
 	ut_ad(!block->page.in_LRU_list);
@@ -2560,9 +2577,7 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/*!< in: block, must contain a file page and
 				be in a state where it can be freed */
 {
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	ut_a(block->n_pointers == 0);
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+	assert_block_ahi_empty(block);
 
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGM\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_MGM\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_mgm \- the MySQL Cluster management client
+ndb_mgm \- the NDB Cluster management client
 .SH "SYNOPSIS"
 .HP \w'\fBndb_mgm\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndb_mgm \fR\fB\fIoptions\fR\fR
@@ -67,10 +67,10 @@ The default host name and port number are
 localhost
 and 1186, respectively\&.
 .PP
-The following table includes options that are specific to the MySQL Cluster management client program
-\fBndb_mgm\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+The following table includes options that are specific to the NDB Cluster management client program
+\fBndb_mgm\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndb_mgm\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -138,7 +138,7 @@ option, which is now deprecated\&.
 The default for this option this option differs from its default when used with other
 NDB
 programs\&. See
-Options Common to MySQL Cluster Programs(1), for more information\&.
+Options Common to NDB Cluster Programs(1), for more information\&.
 .RE
 .sp
 .RS 4
@@ -161,7 +161,7 @@ T}:T{
 T}
 .TE
 .sp 1
-This option can be used to send a command to the MySQL Cluster management client from the system shell\&. For example, either of the following is equivalent to executing
+This option can be used to send a command to the NDB Cluster management client from the system shell\&. For example, either of the following is equivalent to executing
 SHOW
 in the management client:
 .sp
@@ -291,7 +291,7 @@ This option is deprecated and subject to removal in a future release\&. Use
 Additional information about using
 \fBndb_mgm\fR
 can be found in
-Section\ \&19.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq\&.
+Section\ \&19.5.2, \(lqCommands in the NDB Cluster Management Client\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

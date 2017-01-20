@@ -2174,6 +2174,10 @@ files_checked:
 
 		purge_queue = trx_sys_init_at_db_start();
 
+		DBUG_EXECUTE_IF("check_no_undo",
+				ut_ad(purge_queue->empty());
+				);
+
 		/* Create the per-buffer pool instance doublewrite buffers */
 		err = buf_parallel_dblwr_create();
 		if (err != DB_SUCCESS)

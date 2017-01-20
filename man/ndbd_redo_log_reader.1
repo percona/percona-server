@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd_redo_log_reader\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD_REDO_LOG_REA" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD_REDO_LOG_REA" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -36,19 +36,19 @@ ndbd_redo_log_reader \- check and print content of cluster redo log
 .PP
 Reads a redo log file, checking it for errors, printing its contents in a human\-readable format, or both\&.
 \fBndbd_redo_log_reader\fR
-is intended for use primarily by MySQL Cluster developers and Support personnel in debugging and diagnosing problems\&.
+is intended for use primarily by NDB Cluster developers and Support personnel in debugging and diagnosing problems\&.
 .PP
-This utility remains under development, and its syntax and behavior are subject to change in future MySQL Cluster releases\&.
+This utility remains under development, and its syntax and behavior are subject to change in future NDB Cluster releases\&.
 .PP
 The C++ source files for
 \fBndbd_redo_log_reader\fR
 can be found in the directory
 /storage/ndb/src/kernel/blocks/dblqh/redoLogReader\&.
 .PP
-The following table includes options that are specific to the MySQL Cluster program
-\fBndbd_redo_log_reader\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+The following table includes options that are specific to the NDB Cluster program
+\fBndbd_redo_log_reader\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndbd_redo_log_reader\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -77,7 +77,7 @@ is the name of a cluster redo log file\&. redo log files are located in the numb
 ndb_\fI#\fR_fs/D\fI#\fR/LCP/\fI#\fR/T\fI#\fRF\fI#\fR\&.Data\&. In each case, the
 \fI#\fR
 represents a number (not necessarily the same number)\&. For more information, see
-\m[blue]\fBMySQL Cluster Data Node File System Directory Files\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBNDB Cluster Data Node File System Directory Files\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .PP
 The name of the file to be read may be followed by one or more of the options listed here:
 .sp
@@ -194,7 +194,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-MySQL Cluster Data Node File System Directory Files
+NDB Cluster Data Node File System Directory Files
 .RS 4
 \%http://dev.mysql.com/doc/ndbapi/en/ndb-internals-ndbd-filesystemdir-files.html
 .RE

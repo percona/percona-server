@@ -4617,7 +4617,11 @@ DROP TABLE t1;
 # Testing partitions
 #
 CREATE TABLE t1 (a TIME(6)) PARTITION BY KEY(a) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:00:00.000000');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:00:00.000001');
 INSERT INTO t1 VALUES ('00:00:00.000002');
 INSERT INTO t1 VALUES ('00:00:00.000003');
@@ -4716,6 +4720,8 @@ PARTITION p1 VALUES LESS THAN ('00:00:01'),
 PARTITION p2 VALUES LESS THAN ('00:00:02.000003'),
 PARTITION p3 VALUES LESS THAN MAXVALUE
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p0);
 a
 00:00:00.000000
@@ -4739,6 +4745,8 @@ a
 00:00:00.000114
 00:00:00.000115
 00:00:00.000116
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p1);
 a
 00:00:00.000210
@@ -4773,6 +4781,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (s1 TIME(6))
 PARTITION BY RANGE COLUMNS (s1)
 (PARTITION p1 VALUES LESS THAN (TIME'01:01:01.000001'));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -4780,6 +4790,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 /*!50500 PARTITION BY RANGE  COLUMNS(s1)
 (PARTITION p1 VALUES LESS THAN ('01:01:01.000001') ENGINE = TokuDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #
 # Testing MAKETIME()
@@ -9571,7 +9583,11 @@ DROP TABLE t1;
 # Testing partitions
 #
 CREATE TABLE t1 (a DATETIME(6)) PARTITION BY KEY(a) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000000');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000001');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000002');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000003');
@@ -9670,6 +9686,8 @@ PARTITION p1 VALUES LESS THAN ('2001-01-01 00:00:01'),
 PARTITION p2 VALUES LESS THAN ('2001-01-01 00:00:02.000003'),
 PARTITION p3 VALUES LESS THAN MAXVALUE
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p0);
 a
 2001-01-01 00:00:00.000000
@@ -9693,6 +9711,8 @@ a
 2001-01-01 00:00:00.000114
 2001-01-01 00:00:00.000115
 2001-01-01 00:00:00.000116
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 PARTITION(p1);
 a
 2001-01-01 00:00:00.000210
@@ -9728,6 +9748,8 @@ CREATE TABLE t1 (s1 DATETIME(6))
 PARTITION BY RANGE COLUMNS (s1)
 (PARTITION p1 VALUES LESS THAN (TIMESTAMP'2001-01-01 01:01:01.000001'),
 PARTITION p2 VALUES LESS THAN (DATE'2002-01-01'));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -9736,6 +9758,8 @@ t1	CREATE TABLE `t1` (
 /*!50500 PARTITION BY RANGE  COLUMNS(s1)
 (PARTITION p1 VALUES LESS THAN ('2001-01-01 01:01:01.000001') ENGINE = ENGINE,
  PARTITION p2 VALUES LESS THAN ('2002-01-01') ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #
 # Testing CAST to DATETIME and DATETIME(6)
@@ -13652,7 +13676,11 @@ DROP TABLE t1;
 # Testing partitions
 #
 CREATE TABLE t1 (a TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)) PARTITION BY KEY(a) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000000');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000001');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000002');
 INSERT INTO t1 VALUES ('2001-01-01 00:00:00.000003');
@@ -15089,6 +15117,8 @@ KEY col_datetime_3_key (col_datetime_3_key),
 KEY col_time_not_null_key (col_time_not_null_key),
 KEY col_time_4_not_null_key (col_time_4_not_null_key))
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT ANY_VALUE(col_datetime_3_key) , COUNT( col_timestamp_5_key )
 FROM t1 FORCE KEY
 (PRIMARY, col_datetime_5_not_null_key, col_datetime_6_key, col_time_5_key, col_time_2_key) 
@@ -15123,6 +15153,7 @@ AND
 GROUP BY col_datetime_6_not_null_key;
 ANY_VALUE(col_datetime_3_key)	COUNT( col_timestamp_5_key )
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1292	Incorrect time value: '2002-01-01 21:50:38.023562' for column 'col_time_4_not_null_key' at row 1
 Note	1292	Incorrect time value: '20090504151448.022774' for column 'col_time_4_not_null_key' at row 1
 Note	1292	Incorrect time value: '2000-07-13 21:35:51.034786' for column 'col_time_1_not_null_key' at row 1
@@ -15152,6 +15183,8 @@ KEY col_time_2_key (col_time_2_key),
 KEY col_timestamp_3_not_null_key (col_timestamp_3_not_null_key),
 KEY col_datetime_5_key (col_datetime_5_key))
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 '00:20:00.00000',
 '15:50:06.1',
@@ -15161,6 +15194,8 @@ INSERT INTO t1 VALUES (
 '2009-10-14 21:00:00.000',
 '1971-01-01 00:00:00.00000',
 '22:59:36.734');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_datetime_5_key AS c1
 FROM t1
 WHERE col_datetime_not_null NOT BETWEEN col_time_5 AND
@@ -15347,6 +15382,8 @@ PRIMARY KEY (pk),
 KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
 KEY col_timestamp_5_not_null_key (col_timestamp_5_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT
 LEAST('2008-05-18', LOCALTIMESTAMP(), col_timestamp_5_not_null_key ) AS c1
 FROM t1
@@ -15364,6 +15401,7 @@ CONCAT_WS('-', '%I', '%S', '%v' )),
 CONCAT_WS('-', '%V', '%H' ));
 c1
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 Warning	1411	Incorrect datetime value: 'May:Mon:2009:00:124' for function str_to_date
 DROP TABLE t1;
@@ -15386,7 +15424,11 @@ KEY col_time_4_key (col_time_4_key),
 KEY col_time_2_key (col_time_2_key),
 KEY col_time_3_key (col_time_3_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2004-06-28 22:47:21.052552','17:11:33.0','00:20:09.0000','00:20:04.0','02:05:58.4461','08:36:44.02','1971-01-01 00:00:00','1971-01-01 00:00:00.00000','02:17:50.049','07:31:13.030');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_datetime_6 AS c1, col_datetime AS c2 
 FROM t1 
 WHERE col_time_2_key
@@ -15415,6 +15457,8 @@ KEY col_time_6_not_null_key (col_time_6_not_null_key),
 KEY col_time_key (col_time_key),
 KEY col_time_2_not_null_key (col_time_2_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 CURRENT_TIME(4),
 CURRENT_TIME(),
@@ -15424,6 +15468,8 @@ CURRENT_TIME(2),
 CURRENT_TIME(4),
 CURRENT_TIME(3),
 CURRENT_TIMESTAMP(2));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_datetime_2 AS c1, col_time_not_null AS c2
 FROM t1
 WHERE
@@ -15447,6 +15493,8 @@ KEY col_time_5_key (col_time_5_key),
 KEY col_time_key (col_time_key),
 KEY col_datetime_key (col_datetime_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES
 ('03:07:29.013169',NULL,'1971-01-01 00:00:00','18:29:54','2000-06-10 19:41:30',
 '13:56:51','2011-09-07 23:08:20.8362'),('00:20:06.000000','08:25:11.04580',
@@ -15465,6 +15513,8 @@ INSERT INTO t1 VALUES
 '1971-01-01 00:00:00','07:55:21','1971-01-01 00:00:00','14:48:29',
 '2011-09-07 23:08:25.8362'),('06:00:36.034953','00:20:01.00000','2007-03-15 21:00:00',
 '00:20:01',NULL,'23:29:59','2011-09-07 23:08:27.8362');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_time_5_key AS c1, col_time_key AS c2, col_timestamp AS c3 
 FROM t1 
 WHERE col_time_not_null
@@ -15498,6 +15548,8 @@ KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
 KEY col_date_key (col_date_key),
 KEY col_time_3_not_null_key (col_time_3_not_null_key)
 ) ENGINE=MEMORY /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 CURRENT_TIME(5),
 CURRENT_TIMESTAMP(4),
@@ -15506,6 +15558,8 @@ CURRENT_TIMESTAMP(),
 CURRENT_DATE(),
 CURRENT_TIME(),
 CURRENT_TIMESTAMP(),CURRENT_TIME());
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_time_3_not_null_key AS c1
 FROM t1
 WHERE col_timestamp <> col_date_key
@@ -15610,7 +15664,11 @@ KEY col_time_5_not_null_key (col_time_5_not_null_key),
 KEY col_time_2_not_null_key (col_time_2_not_null_key),
 KEY col_time_2_key (col_time_2_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('2007-11-05 00:00:00.0','00:20:01.00000','1971-01-01 00:00:00.00','1971-01-01 00:00:00.00','00:20:08.00','07:54:36.06','1971-01-01 00:00:00.000','2008-02-19 21:00:00.0000'),('2001-09-22 23:10:01.0','00:20:00.00000','1971-01-01 00:00:00.00','2011-09-09 20:59:53.03','00:20:01.00','00:20:02.00','1971-01-01 00:00:00.000','2003-07-11 13:55:04.0379'),('2007-10-20 00:00:00.0','22:15:28.06072','1971-01-01 00:00:00.00','2011-09-09 20:59:54.03','00:20:03.00','00:20:07.00','1971-01-01 00:00:00.000','1971-01-01 00:00:00.0000'),('1971-01-01 00:00:00.0','00:20:03.00000','2009-01-27 00:00:00.00','2011-09-09 20:59:55.03','03:34:18.06','14:32:24.01','1971-01-01 00:00:00.000','2003-11-17 09:58:11.0160'),('2008-04-10 00:00:00.0','00:20:05.00000','2004-10-16 01:19:20.06','2011-09-09 20:59:56.03','21:14:08.05','02:32:00.04','2008-09-15 17:48:32.047','2003-01-16 21:00:00.0000'),('1971-01-01 00:00:00.0','00:20:03.00000','1971-01-01 00:00:00.00','2011-09-09 20:59:57.03','00:20:05.00','22:08:39.02','1971-01-01 00:00:00.000','2003-03-19 02:39:29.0637'),('2009-04-10 21:16:38.0','00:20:07.00000','2001-05-17 15:25:33.04','2011-09-09 20:59:58.03','00:20:05.00','09:36:28.04','2005-01-12 10:44:24.031','1971-01-01 00:00:00.0000'),('2001-06-10 20:23:08.0','07:38:25.03484','2002-06-22 00:00:00.00','2011-09-09 20:59:59.03','02:05:30.01','04:24:09.06','2002-05-25 21:00:00.000','2006-05-16 06:48:03.0399');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT
 col_datetime_2_not_null AS c1,
 col_time_2_key AS c2,
@@ -15642,6 +15700,8 @@ PRIMARY KEY (pk),
 KEY col_datetime_6_not_null_key (col_datetime_6_not_null_key),
 KEY col_timestamp_key (col_timestamp_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (
 CURRENT_TIME(1),
 CURRENT_TIME(6),
@@ -15653,6 +15713,8 @@ CURRENT_TIMESTAMP,
 CURRENT_TIMESTAMP(3),
 CURRENT_TIME(6),
 CURRENT_TIMESTAMP(3));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_timestamp_not_null AS c1, col_datetime_6_not_null_key AS c2 
 FROM t1 
 WHERE col_timestamp IS NOT NULL
@@ -15754,7 +15816,11 @@ KEY col_datetime_5_not_null_key (col_datetime_5_not_null_key),
 KEY col_timestamp_6_key (col_timestamp_6_key),
 KEY col_time_2_key (col_time_2_key)
 )/*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:20:02','2007-08-09 05:14:12.05054','2007-06-20 21:00:00.000000','06:16:36.0','2011-09-09 21:37:45.2','19:15:37.02'),('18:00:14','1971-01-01 00:00:00.00000','2000-12-10 12:35:01.029761','00:20:04.0','2011-09-09 21:37:46.2','06:21:03.03');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT col_time_1 AS c1 
 FROM t1 
 WHERE col_time_not_null_key <= col_timestamp_6_key
@@ -15796,7 +15862,11 @@ KEY col_datetime_3_not_null_key (col_datetime_3_not_null_key),
 KEY col_time_2_key (col_time_2_key)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:20:05.0','1999-12-31 21:00:01','1971-01-01 00:00:00.000','04:25:59.01');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES ('00:15:56.0','1999-12-31 21:00:03','1971-01-01 00:00:00.000','00:20:06.00');
 INSERT INTO t1 VALUES ('00:20:03.0','1999-12-31 21:00:05','2002-10-18 16:08:58.006','00:20:00.00');
 INSERT INTO t1 VALUES ('00:20:09.0','1999-12-31 21:00:07','2002-11-11 17:21:02.045','18:39:12.05');

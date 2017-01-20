@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_print_file\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_PRINT_FILE\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_PRINT_FILE\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,7 +35,7 @@ ndb_print_file \- print NDB Disk Data file contents
 .SH "DESCRIPTION"
 .PP
 \fBndb_print_file\fR
-obtains information from a MySQL Cluster Disk Data file\&.
+obtains information from an NDB Cluster Disk Data file\&.
 Usage
 .sp
 .if n \{\
@@ -49,7 +49,7 @@ ndb_print_file [\-v] [\-q] \fIfile_name\fR+
 .\}
 .PP
 \fIfile_name\fR
-is the name of a MySQL Cluster Disk Data file\&. Multiple filenames are accepted, separated by spaces\&.
+is the name of an NDB Cluster Disk Data file\&. Multiple filenames are accepted, separated by spaces\&.
 .PP
 Like
 \fBndb_print_schema_file\fR
@@ -59,7 +59,7 @@ and
 NDB
 utilities that are intended to be run on a management server host or to connect to a management server)
 \fBndb_print_file\fR
-must be run on a MySQL Cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
+must be run on an NDB Cluster data node, since it accesses the data node file system directly\&. Because it does not make use of the management server, this utility can be used when the management server is not running, and even when the cluster has been completely shut down\&.
 Additional Options.PP
 \fBndb_print_file\fR
 supports the following options:
@@ -100,7 +100,7 @@ supports the following options:
 .RE
 .PP
 For more information, see
-Section\ \&19.5.13, \(lqMySQL Cluster Disk Data Tables\(rq\&.
+Section\ \&19.5.13, \(lqNDB Cluster Disk Data Tables\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

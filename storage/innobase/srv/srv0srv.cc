@@ -1336,22 +1336,26 @@ srv_printf_innodb_monitor(
 	low level 135. Therefore we can reserve the latter mutex here without
 	a danger of a deadlock of threads. */
 
-	mutex_enter(&dict_foreign_err_mutex);
+	if (!recv_recovery_on) {
 
-	if (!srv_read_only_mode && ftell(dict_foreign_err_file) != 0L) {
-		fputs("------------------------\n"
-		      "LATEST FOREIGN KEY ERROR\n"
-		      "------------------------\n", file);
-		ut_copy_file(file, dict_foreign_err_file);
+		mutex_enter(&dict_foreign_err_mutex);
+
+		if (!srv_read_only_mode
+		    && ftell(dict_foreign_err_file) != 0L) {
+			fputs("------------------------\n"
+			      "LATEST FOREIGN KEY ERROR\n"
+			      "------------------------\n", file);
+			ut_copy_file(file, dict_foreign_err_file);
+		}
+
+		mutex_exit(&dict_foreign_err_mutex);
 	}
-
-	mutex_exit(&dict_foreign_err_mutex);
 
 	/* Only if lock_print_info_summary proceeds correctly,
 	before we call the lock_print_info_all_transactions
 	to print all the lock information. IMPORTANT NOTE: This
 	function acquires the lock mutex on success. */
-	ret = lock_print_info_summary(file, nowait);
+	ret = recv_recovery_on ? FALSE : lock_print_info_summary(file, nowait);
 
 	if (ret) {
 		if (trx_start_pos) {
@@ -1384,10 +1388,13 @@ srv_printf_innodb_monitor(
 	      "--------\n", file);
 	os_aio_print(file);
 
-	fputs("-------------------------------------\n"
-	      "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
-	      "-------------------------------------\n", file);
-	ibuf_print(file);
+	if (!recv_recovery_on) {
+
+		fputs("-------------------------------------\n"
+		      "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
+		      "-------------------------------------\n", file);
+		ibuf_print(file);
+	}
 
 
 	fprintf(file,
@@ -1399,10 +1406,13 @@ srv_printf_innodb_monitor(
 	btr_cur_n_sea_old = btr_cur_n_sea;
 	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
-	fputs("---\n"
-	      "LOG\n"
-	      "---\n", file);
-	log_print(file);
+	if (!recv_recovery_on) {
+
+		fputs("---\n"
+		      "LOG\n"
+		      "---\n", file);
+		log_print(file);
+	}
 
 	fputs("----------------------\n"
 	      "BUFFER POOL AND MEMORY\n"
@@ -1497,8 +1507,9 @@ srv_printf_innodb_monitor(
 					? (recv_sys->addr_hash->n_cells * sizeof(hash_cell_t)) : 0),
 			recv_sys_subtotal);
 
+
 	fprintf(file, "Dictionary memory allocated " ULINTPF "\n",
-		dict_sys->size);
+		dict_sys ? dict_sys->size : 0);
 
 	buf_print_io(file);
 
@@ -1583,6 +1594,10 @@ srv_printf_innodb_monitor(
 	      "============================\n", file);
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
+
+#ifndef DBUG_OFF
+	srv_debug_monitor_printed = true;
+#endif
 
 	return(ret);
 }
@@ -1882,6 +1897,12 @@ srv_export_innodb_status(void)
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
+
+#ifndef DBUG_OFF
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+bool	srv_debug_monitor_printed	= false;
+#endif
 
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.

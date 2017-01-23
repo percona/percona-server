@@ -11,9 +11,6 @@ call mtr.add_suppression("last tracked LSN in");
 
 RESET CHANGED_PAGE_BITMAPS;
 
-let $MYSQLD_DATADIR= `select @@datadir`;
-let $BITMAP_FILE= $MYSQLD_DATADIR/ib_modified_log_1_0.xdb;
-
 # Generate log data that is larger than the log capacity and has two tablespace ids.
 CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -45,15 +42,9 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 --echo 1st restart
 --source include/restart_mysqld.inc
 
-# TODO: check the tracked LSN range continuity once this info is exposed through
-# INFORMATION_SCHEMA.
-
-file_exists $BITMAP_FILE;
---replace_regex /_[[:digit:]]+\.xdb$//
-list_files $MYSQLD_DATADIR ib_modified_log*;
-
-# Make sure the current bitmap file does not end up zero-sized and reused
-INSERT INTO t2 VALUES (1);
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
 
 #
 # Test crash right before writing of new bitmap data
@@ -69,13 +60,8 @@ INSERT INTO t1 SELECT x FROM t1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-
-file_exists $BITMAP_FILE;
---replace_regex /_[[:digit:]]+\.xdb$//
-list_files $MYSQLD_DATADIR ib_modified_log*;
-
-# TODO: check the tracked LSN range continuity once this info is exposed through
-# INFORMATION_SCHEMA.
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
 
 DROP TABLE t1, t2;

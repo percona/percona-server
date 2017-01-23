@@ -500,7 +500,8 @@ is the global server default. */
 #define HA_ERR_WRONG_FILE_NAME         199  /* Invalid Filename */
 #define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
 #define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
-#define HA_ERR_LAST                    201  /* Copy of last error nr */
+#define HA_ERR_DEST_SCHEMA_NOT_EXIST   202  /* Destination schema does not exist */
+#define HA_ERR_LAST                    202  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

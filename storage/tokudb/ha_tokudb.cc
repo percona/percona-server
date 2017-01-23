@@ -29,6 +29,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "tokudb_status.h"
 #include "tokudb_card.h"
 #include "ha_tokudb.h"
+#include "sql_db.h"
 
 
 HASH TOKUDB_SHARE::_open_tables;
@@ -7636,6 +7637,27 @@ int ha_tokudb::delete_table(const char *name) {
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
+static bool tokudb_check_db_dir_exist_from_table_name(const char *table_name) {
+    DBUG_ASSERT(table_name);
+    bool mysql_dir_exists;
+    char db_name[FN_REFLEN];
+    const char *db_name_begin = strchr(table_name, FN_LIBCHAR);
+    const char *db_name_end = strrchr(table_name, FN_LIBCHAR);
+    DBUG_ASSERT(db_name_begin);
+    DBUG_ASSERT(db_name_end);
+    DBUG_ASSERT(db_name_begin != db_name_end);
+
+    ++db_name_begin;
+    size_t db_name_size = db_name_end - db_name_begin;
+
+    DBUG_ASSERT(db_name_size < FN_REFLEN);
+
+    memcpy(db_name, db_name_begin, db_name_size);
+    db_name[db_name_size] = '\0';
+    mysql_dir_exists = (check_db_dir_existence(db_name) == 0);
+
+    return mysql_dir_exists;
+}
 
 //
 // renames table from "from" to "to"
@@ -7658,15 +7680,26 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
         TOKUDB_SHARE::drop_share(share);
     }
     int error;
-    error = delete_or_rename_table(from, to, false);
-    if (TOKUDB_LIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) &&
-        error == DB_LOCK_NOTGRANTED) {
+    bool to_db_dir_exist = tokudb_check_db_dir_exist_from_table_name(to);
+    if (!to_db_dir_exist) {
         sql_print_error(
-            "Could not rename table from %s to %s because another transaction "
-            "has accessed the table. To rename the table, make sure no "
-            "transactions touch the table.",
+            "Could not rename table from %s to %s because "
+            "destination db does not exist",
             from,
             to);
+        error = HA_ERR_DEST_SCHEMA_NOT_EXIST;
+    }
+    else {
+        error = delete_or_rename_table(from, to, false);
+        if (TOKUDB_LIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) &&
+            error == DB_LOCK_NOTGRANTED) {
+            sql_print_error(
+                "Could not rename table from %s to %s because another transaction "
+                "has accessed the table. To rename the table, make sure no "
+                "transactions touch the table.",
+                from,
+                to);
+        }
     }
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }

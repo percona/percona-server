@@ -41,8 +41,9 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 
-# TODO: check the tracked LSN range continuity once this info is exposed through
-# INFORMATION_SCHEMA.
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
 
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
@@ -53,8 +54,9 @@ list_files $MYSQLD_DATADIR ib_modified_log*;
 
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 
-# TODO: check the tracked LSN range continuity once this info is exposed through
-# INFORMATION_SCHEMA.
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
 
 file_exists $BITMAP_FILE;
 --replace_regex /_[[:digit:]]+\.xdb$//
@@ -73,6 +75,10 @@ write_file $BITMAP_FILE;
 EOF
 --echo 3rd restart
 --source include/start_mysqld.inc
+
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
 
 #
 # Test tracking more log data than the log capacity and the second tablespace id
@@ -96,12 +102,9 @@ INSERT INTO t1 SELECT x FROM t1;
 CREATE TABLE t2 (x INT) ENGINE=InnoDB;
 INSERT INTO t2 VALUES (1),(2),(3),(4),(5);
 
-# TODO: check the tracked LSN range continuity once this info is exposed through
-# INFORMATION_SCHEMA.
-
-file_exists $BITMAP_FILE;
---replace_regex /_[[:digit:]]+\.xdb$//
-list_files $MYSQLD_DATADIR ib_modified_log*;
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
 
 #
 # Test that an empty existing bitmap file is handled properly when it's impossible to re-read the full missing range.

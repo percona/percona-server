@@ -861,7 +861,83 @@ int audit_log_plugin_init(MYSQL_PLUGIN plugin_info)
 
   audit_log_filter_init();
 
-  return(0);
+  if (audit_log_exclude_accounts != NULL && audit_log_include_accounts != NULL)
+  {
+    my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
+                          "Both 'audit_log_exclude_accounts' and "
+                          "'audit_log_include_accounts' are not NULL\n");
+    goto validation_error;
+  }
+
+  if (audit_log_exclude_commands != NULL && audit_log_include_commands != NULL)
+  {
+    my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
+                          "Both 'audit_log_exclude_commands' and "
+                          "'audit_log_include_commands' are not NULL\n");
+    goto validation_error;
+  }
+
+  if (audit_log_exclude_databases != NULL
+      && audit_log_include_databases != NULL)
+  {
+    my_plugin_log_message(&plugin_ptr, MY_ERROR_LEVEL,
+                          "Both 'audit_log_exclude_databases' and "
+                          "'audit_log_include_databases' are not NULL\n");
+    goto validation_error;
+  }
+
+  if (audit_log_exclude_accounts != NULL)
+  {
+    audit_log_exclude_accounts= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          audit_log_exclude_accounts,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_accounts(audit_log_exclude_accounts);
+  }
+  if (audit_log_include_accounts != NULL)
+  {
+    audit_log_include_accounts= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          audit_log_include_accounts,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_accounts(audit_log_include_accounts);
+  }
+  if (audit_log_exclude_commands != NULL)
+  {
+    audit_log_exclude_commands= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          audit_log_exclude_commands,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_commands(audit_log_exclude_commands);
+  }
+  if (audit_log_include_commands != NULL)
+  {
+    audit_log_include_commands= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          audit_log_include_commands,
+                                          MYF(MY_FAE));
+    audit_log_set_include_commands(audit_log_include_commands);
+  }
+  if (audit_log_exclude_databases != NULL)
+  {
+    audit_log_exclude_databases= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          audit_log_exclude_databases,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_databases(audit_log_exclude_databases);
+  }
+  if (audit_log_include_databases != NULL)
+  {
+    audit_log_include_databases= my_strdup(PSI_NOT_INSTRUMENTED,
+                                          audit_log_include_databases,
+                                          MYF(MY_FAE));
+    audit_log_set_include_databases(audit_log_include_databases);
+  }
+
+  return 0;
+
+validation_error:
+
+  audit_log_exclude_accounts= audit_log_include_accounts= NULL;
+  audit_log_exclude_commands= audit_log_include_commands= NULL;
+  audit_log_exclude_databases= audit_log_include_databases= NULL;
+
+  return 1;
 }
 
 

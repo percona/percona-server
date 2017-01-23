@@ -818,7 +818,53 @@ int audit_log_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 
   audit_log_filter_init();
 
-  return(0);
+  if (audit_log_exclude_accounts != NULL && audit_log_include_accounts != NULL)
+  {
+    fprintf(stderr, "Both 'audit_log_exclude_accounts' and "
+            "'audit_log_include_accounts' are not NULL\n");
+    goto validation_error;
+  }
+
+  if (audit_log_exclude_commands != NULL && audit_log_include_commands != NULL)
+  {
+    fprintf(stderr, "Both 'audit_log_exclude_commands' and "
+            "'audit_log_include_commands' are not NULL\n");
+    goto validation_error;
+  }
+
+  if (audit_log_exclude_accounts != NULL)
+  {
+    audit_log_exclude_accounts= my_strdup(audit_log_exclude_accounts,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_accounts(audit_log_exclude_accounts);
+  }
+  if (audit_log_include_accounts != NULL)
+  {
+    audit_log_include_accounts= my_strdup(audit_log_include_accounts,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_accounts(audit_log_include_accounts);
+  }
+  if (audit_log_exclude_commands != NULL)
+  {
+    audit_log_exclude_commands= my_strdup(audit_log_exclude_commands,
+                                          MYF(MY_FAE));
+    audit_log_set_exclude_commands(audit_log_exclude_commands);
+  }
+  if (audit_log_include_commands != NULL)
+  {
+    audit_log_include_commands= my_strdup(audit_log_include_commands,
+                                          MYF(MY_FAE));
+    audit_log_set_include_commands(audit_log_include_commands);
+  }
+
+  return 0;
+
+validation_error:
+
+  audit_log_exclude_accounts= audit_log_include_accounts= NULL;
+  audit_log_exclude_commands= audit_log_include_commands= NULL;
+
+  return 1;
 }
 
 

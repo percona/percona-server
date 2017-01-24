@@ -214,4 +214,6 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
 
 extern "C" bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
+bool lock_binlog_for_backup(THD *thd);
+
 #endif /* SQL_PARSE_INCLUDED */

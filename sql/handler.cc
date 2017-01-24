@@ -8566,6 +8566,7 @@ bool handler::is_using_prohibited_gap_locks(TABLE* table,
   if (!using_full_primary_key
       && has_transactions()
       && !has_gap_locks()
+      && thd_tx_isolation(thd) >= ISO_REPEATABLE_READ
       && !thd->rli_slave
       && (thd->lex->table_count >= 2 || thd->in_multi_stmt_transaction_mode())
       && (lock_type >= TL_WRITE_ALLOW_WRITE ||

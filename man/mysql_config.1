@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -134,9 +134,28 @@ Compiler options to find MySQL include files\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-libmysqld\-libs\fR,
+\fB\-\-embedded\-libs\fR,
 \fB\-\-embedded\fR
 .sp
-Libraries and options required to link with the MySQL embedded server\&.
+Libraries and options required to link with
+libmysqld, the MySQL embedded server\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+The
+libmysqld
+embedded server library is deprecated as of MySQL 5\&.7\&.17 and will be removed in a future version of MySQL\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4

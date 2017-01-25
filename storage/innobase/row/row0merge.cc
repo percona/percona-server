@@ -286,7 +286,7 @@ row_merge_insert_index_tuples(
 
 /******************************************************//**
 Encode an index record. */
-static MY_ATTRIBUTE((nonnull))
+static
 void
 row_merge_buf_encode(
 /*=================*/
@@ -323,7 +323,7 @@ row_merge_buf_encode(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-static MY_ATTRIBUTE((malloc, nonnull))
+static MY_ATTRIBUTE((malloc))
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
@@ -4511,8 +4511,8 @@ wait_again:
 					for (j = 0; j < FTS_NUM_AUX_INDEX;
 					     j++) {
 
-					    os_thread_join(merge_info[j]
-							   .thread_hdl);
+						os_thread_join(merge_info[j]
+							       .thread_hdl);
 					}
 				}
 			} else {

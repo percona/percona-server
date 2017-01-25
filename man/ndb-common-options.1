@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: Options Common to MySQL Cluster Programs
+.\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO MY" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "OPTIONS COMMON TO ND" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,10 +28,10 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb-common-options \- MySQL Cluster Common Program Options
+ndb-common-options \- NDB Cluster Common Program Options
 .SH "DESCRIPTION"
 .PP
-All MySQL Cluster programs accept the options described in this section, with the following exceptions:
+All NDB Cluster programs accept the options described in this section, with the following exceptions:
 .sp
 .RS 4
 .ie n \{\
@@ -89,17 +89,17 @@ All MySQL Cluster programs accept the options described in this section, with th
 .ps -1
 .br
 .PP
-Users of earlier MySQL Cluster versions should note that some of these options have been changed to make them consistent with one another, and also with
+Users of earlier NDB Cluster versions should note that some of these options have been changed to make them consistent with one another, and also with
 \fBmysqld\fR\&. You can use the
 \fB\-\-help\fR
-option with any MySQL Cluster program\(emwith the exception of
+option with any NDB Cluster program\(emwith the exception of
 \fBndb_print_backup_file\fR,
 \fBndb_print_schema_file\fR, and
 \fBndb_print_sys_file\fR\(emto view a list of the options which the program supports\&.
 .sp .5v
 .RE
 .PP
-The options in the following table are common to all MySQL Cluster executables (except those noted previously in this section)\&.
+The options in the following table are common to all NDB Cluster executables (except those noted previously in this section)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -112,13 +112,13 @@ allbox tab(:);
 .TE
 .sp 1
 .PP
-For options specific to individual MySQL Cluster programs, see
-Section\ \&19.4, \(lqMySQL Cluster Programs\(rq\&.
+For options specific to individual NDB Cluster programs, see
+Section\ \&19.4, \(lqNDB Cluster Programs\(rq\&.
 .PP
 See
-Section\ \&19.3.3.8.1, \(lqMySQL Server Options for MySQL Cluster\(rq, for
+Section\ \&19.3.3.8.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
 \fBmysqld\fR
-options relating to MySQL Cluster\&.
+options relating to NDB Cluster \&.
 .sp
 .RS 4
 .ie n \{\
@@ -226,7 +226,7 @@ localhost:1186
 T}
 .TE
 .sp 1
-This option takes a MySQL Cluster connection string that specifies the management server for the application to connect to, as shown here:
+This option takes an NDB Cluster connection string that specifies the management server for the application to connect to, as shown here:
 .sp
 .if n \{\
 .RS 4
@@ -239,7 +239,7 @@ shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186
 .\}
 .sp
 For more information, see
-Section\ \&19.3.3.3, \(lqMySQL Cluster Connection Strings\(rq\&.
+Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
 .RE
 .sp
 .RS 4
@@ -416,12 +416,12 @@ FALSE
 T}
 .TE
 .sp 1
-Write a core file if the program dies\&. The name and location of the core file are system\-dependent\&. (For MySQL Cluster programs nodes running on Linux, the default location is the program\*(Aqs working directory\(emfor a data node, this is the node\*(Aqs
+Write a core file if the program dies\&. The name and location of the core file are system\-dependent\&. (For NDB Cluster programs nodes running on Linux, the default location is the program\*(Aqs working directory\(emfor a data node, this is the node\*(Aqs
 DataDir\&.) For some systems, there may be restrictions or limitations; for example, it might be necessary to execute
 \fBulimit \-c unlimited\fR
 before starting the server\&. Consult your system documentation for detailed information\&.
 .sp
-If MySQL Cluster was built using the
+If NDB Cluster was built using the
 \fB\-\-debug\fR
 option for
 \fBconfigure\fR, then
@@ -540,9 +540,9 @@ T}:T{
 T}
 .TE
 .sp 1
-Sets this node\*(Aqs MySQL Cluster node ID\&.
-\fIThe range of permitted values depends on the node\*(Aqs type (data, management, or API) and the MySQL Cluster software version\fR\&. See
-Section\ \&19.1.6.2, \(lqLimits and Differences of MySQL Cluster from Standard MySQL Limits\(rq, for more information\&.
+Sets this node\*(Aqs NDB Cluster node ID\&.
+\fIThe range of permitted values depends on the node\*(Aqs type (data, management, or API) and the NDB Cluster software version\fR\&. See
+Section\ \&19.1.6.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -601,10 +601,10 @@ T}:T{
 T}
 .TE
 .sp 1
-Prints the MySQL Cluster version number of the executable\&. The version number is relevant because not all versions can be used together, and the MySQL Cluster startup process verifies that the versions of the binaries being used can co\-exist in the same cluster\&. This is also important when performing an online (rolling) software upgrade or downgrade of MySQL Cluster\&.
+Prints the NDB Cluster version number of the executable\&. The version number is relevant because not all versions can be used together, and the NDB Cluster startup process verifies that the versions of the binaries being used can co\-exist in the same cluster\&. This is also important when performing an online (rolling) software upgrade or downgrade of NDB Cluster \&.
 .sp
 See
-Section\ \&19.5.5, \(lqPerforming a Rolling Restart of a MySQL Cluster\(rq), for more information\&.
+Section\ \&19.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
 .RE
 .SH "COPYRIGHT"
 .br

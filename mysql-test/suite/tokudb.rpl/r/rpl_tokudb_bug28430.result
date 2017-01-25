@@ -15,6 +15,10 @@ CURRENT_TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
 PRIMARY KEY(id)) ENGINE=TokuDB
 PARTITION BY KEY(id) partitions 5;
+Warnings:
+Level	Warning
+Code	1287
+Message	The partition engine, used by table 'test.bykey_tbl', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE test.byrange_tbl(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE 
 CURRENT_TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
@@ -33,6 +37,10 @@ PARTITION pa8 values less than (80),
 PARTITION pa9 values less than (90),
 PARTITION pa10 values less than (100),
 PARTITION pa11 values less than MAXVALUE);
+Warnings:
+Level	Warning
+Code	1287
+Message	The partition engine, used by table 'test.byrange_tbl', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE PROCEDURE test.proc_norm()
 BEGIN
 DECLARE ins_count INT DEFAULT 1000;
@@ -130,6 +138,10 @@ SUBPARTITIONS 2
  PARTITION pa9 VALUES LESS THAN (90) ENGINE = TokuDB,
  PARTITION pa10 VALUES LESS THAN (100) ENGINE = TokuDB,
  PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = TokuDB) */
+Warnings:
+Level	Warning
+Code	1287
+Message	The partition engine, used by table 'test.byrange_tbl', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT count(*) "Slave norm" FROM test.regular_tbl;
 Slave norm	500
 SELECT count(*) "Slave bykey" FROM test.bykey_tbl;

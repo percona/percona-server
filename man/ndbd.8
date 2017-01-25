@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndbd \- the MySQL Cluster data node daemon
+ndbd \- the NDB Cluster data node daemon
 .SH "SYNOPSIS"
 .HP \w'\fBndbd\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndbd \fR\fB\fIoptions\fR\fR
@@ -37,14 +37,14 @@ ndbd \- the MySQL Cluster data node daemon
 \fBndbd\fR
 is the process that is used to handle all the data in tables using the NDB Cluster storage engine\&. This is the process that empowers a data node to accomplish distributed transaction handling, node recovery, checkpointing to disk, online backup, and related tasks\&.
 .PP
-In a MySQL Cluster, a set of
+In an NDB Cluster , a set of
 \fBndbd\fR
 processes cooperate in handling data\&. These processes can execute on the same computer (host) or on different computers\&. The correspondences between data nodes and Cluster hosts is completely configurable\&.
 .PP
-The following table includes command options specific to the MySQL Cluster data node program
-\fBndbd\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+The following table includes command options specific to the NDB Cluster data node program
+\fBndbd\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndbd\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -303,7 +303,7 @@ start is to be used
 \fIonly\fR
 when starting the
 \fBndbd\fR
-process under very special circumstances; this is because this option causes all files to be removed from the MySQL Cluster file system and all redo log files to be re\-created\&. These circumstances are listed here:
+process under very special circumstances; this is because this option causes all files to be removed from the NDB Cluster file system and all redo log files to be re\-created\&. These circumstances are listed here:
 .sp
 .RS 4
 .ie n \{\
@@ -339,6 +339,34 @@ When restarting the node with a new version of
 As a measure of last resort when for some reason the node restart or system restart repeatedly fails\&. In this case, be aware that this node can no longer be used to restore data due to the destruction of the data files\&.
 .RE
 .sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+To avoid the possibility of eventual data loss, it is recommended that you
+\fInot\fR
+use the
+\fB\-\-initial\fR
+option together with
+StopOnError = 0\&. Instead, set
+StopOnError
+to 0 in
+config\&.ini
+only after the cluster has been started, then restart the data nodes normally\(emthat is, without the
+\fB\-\-initial\fR
+option\&. See the description of the
+StopOnError
+parameter for a detailed explanation of this issue\&. (Bug #24945638)
+.sp .5v
+.RE
 Use of this option prevents the
 StartPartialTimeout
 and
@@ -379,11 +407,11 @@ Backup files that have already been created by the affected node
 .sp -1
 .IP \(bu 2.3
 .\}
-MySQL Cluster Disk Data files (see
-Section\ \&19.5.13, \(lqMySQL Cluster Disk Data Tables\(rq)\&.
+NDB Cluster Disk Data files (see
+Section\ \&19.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .RE
 .sp
-This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in a MySQL Cluster that is running normally\&.
+This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
 .sp .5v
 .RE
 It is permissible to use this option when starting the cluster for the very first time (that is, before any data node files have been created); however, it is
@@ -554,7 +582,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&19.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
+Section\ \&19.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -779,7 +807,7 @@ Determines the time to wait between attempts to contact a management server when
 \fB\-\-connect\-retries\fR
 option)\&. The default is 5 seconds\&.
 .sp
-This option is deprecated, and is subject to removal in a future release of MySQL Cluster\&. Use
+This option is deprecated, and is subject to removal in a future release of NDB Cluster \&. Use
 \fB\-\-connect\-retry\-delay\fR
 instead\&.
 .RE
@@ -835,7 +863,7 @@ option)\&. The default is 5 seconds\&.
 .sp
 This option takes the place of the
 \fB\-\-connect\-delay\fR
-option, which is now deprecated and subject to removal in a future release of MySQL Cluster\&.
+option, which is now deprecated and subject to removal in a future release of NDB Cluster \&.
 .RE
 .PP
 \fBndbd\fR
@@ -919,7 +947,7 @@ file (see below)\&. Error log entries are thus overwritten in a cyclical and not
 .IP \(bu 2.3
 .\}
 ndb_\fInode_id\fR_trace\&.log\&.\fItrace_id\fR
-is a trace file describing exactly what happened just before the error occurred\&. This information is useful for analysis by the MySQL Cluster development team\&.
+is a trace file describing exactly what happened just before the error occurred\&. This information is useful for analysis by the NDB Cluster development team\&.
 .sp
 It is possible to configure the number of these trace files that will be created before old files are overwritten\&.
 \fItrace_id\fR
@@ -1001,10 +1029,10 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&19.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for additional information about this issue\&.
-Options Common to MySQL Cluster Programs(1), describes other command\-line options which can be used with
+Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
+Options Common to NDB Cluster Programs(1), describes other command\-line options which can be used with
 \fBndbd\fR\&. For information about data node configuration parameters, see
-Section\ \&19.3.3.6, \(lqDefining MySQL Cluster Data Nodes\(rq\&.
+Section\ \&19.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1028,7 +1056,7 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 5\&.7 in a production setting\&. See
-Section\ \&19.1.6, \(lqKnown Limitations of MySQL Cluster\(rq\&.
+Section\ \&19.1.6, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

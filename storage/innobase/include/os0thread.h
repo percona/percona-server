@@ -129,23 +129,19 @@ os_thread_create_func(
 	os_thread_id_t*		thread_id);	/*!< out: id of the created
 						thread, or NULL */
 
-/**
-Waits until the specified thread completes and joins it. Its return value is
-ignored.
-
-@param	thread	thread to join */
+/** Waits until the specified thread completes and joins it.
+Its return value is ignored.
+@param[in,out]	thread	thread to join */
 void
 os_thread_join(
 	os_thread_id_t	thread);
 
-/**
-Exits the current thread.
-
-@param	detach	if true, the thread will be detached right before exiting. If
-false, another thread is responsible for joining this thread */
+/** Exits the current thread.
+@param[in]	detach	if true, the thread will be detached right before
+exiting. If false, another thread is responsible for joining this thread */
 void
 os_thread_exit(
-	bool	detach	= true)
+	bool	detach = true)
 	UNIV_COLD MY_ATTRIBUTE((noreturn));
 
 /*****************************************************************//**

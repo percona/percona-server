@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -299,7 +299,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&11.1.5, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+Section\ \&11.1.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -1727,11 +1727,11 @@ Section\ \&14.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 \fB\-Q\fR
 .sp
 Quote identifiers (such as database, table, and column names) within
-\(lq`\(rq
+`
 characters\&. If the
 ANSI_QUOTES
 SQL mode is enabled, identifiers are quoted within
-\(lq"\(rq
+"
 characters\&. This option is enabled by default\&. It can be disabled with
 \fB\-\-skip\-quote\-names\fR, but this option should be given after any option such as
 \fB\-\-compatible\fR
@@ -1753,9 +1753,9 @@ that may enable
 Direct output to the named file\&. The result file is created and its previous contents overwritten, even if an error occurs while generating the dump\&.
 .sp
 This option should be used on Windows to prevent newline
-\(lq\en\(rq
+\en
 characters from being converted to
-\(lq\er\en\(rq
+\er\en
 carriage return/newline sequences\&.
 .RE
 .sp
@@ -2357,7 +2357,8 @@ option, the logs are flushed
 \fIfor each database dumped\fR\&. The exception is when using
 \fB\-\-lock\-all\-tables\fR,
 \fB\-\-master\-data\fR, or
-\fB\-\-single\-transaction\fR: In this case, the logs are flushed only once, corresponding to the moment that all tables are locked\&. If you want your dump and the log flush to happen at exactly the same moment, you should use
+\fB\-\-single\-transaction\fR: In this case, the logs are flushed only once, corresponding to the moment that all tables are locked by
+FLUSH TABLES WITH READ LOCK\&. If you want your dump and the log flush to happen at exactly the same moment, you should use
 \fB\-\-flush\-logs\fR
 together with
 \fB\-\-lock\-all\-tables\fR,

@@ -59,6 +59,9 @@ slave_ignored_err_throttle(window_size,
 #include "rpl_utility.h"
 
 #include "sql_digest.h"
+#ifndef EMBEDDED_LIBRARY
+#include "sql_connect.h" //update_global_user_stats
+#endif
 
 using std::min;
 using std::max;
@@ -11557,6 +11560,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= (this->*do_apply_row_ptr)(rli);
 
+      if (!error)
+        thd->updated_row_count++;
+
       if (handle_idempotent_and_ignored_errors(rli, &error))
         break;
 
@@ -11564,6 +11570,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       do_post_row_operations(rli, error);
 
     } while (!error && (m_curr_row != m_rows_end));
+
+    if (unlikely(opt_userstat))
+    {
+      thd->update_stats(false);
+#ifndef EMBEDDED_LIBRARY
+      update_global_user_stats(thd, true, time(NULL));
+#endif
+    }
 
 AFTER_MAIN_EXEC_ROW_LOOP:
 

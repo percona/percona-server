@@ -49,7 +49,7 @@ buf_buddy_alloc(
 	ulint		size)		/*!< in: compressed page size
 					(between UNIV_ZIP_SIZE_MIN and
 					UNIV_PAGE_SIZE) */
-	MY_ATTRIBUTE((malloc, nonnull));
+	MY_ATTRIBUTE((malloc));
 
 /**********************************************************************//**
 Deallocate a block. */
@@ -61,9 +61,8 @@ buf_buddy_free(
 					the block resides */
 	void*		buf,		/*!< in: block to be freed, must not
 					be pointed to by the buffer pool */
-	ulint		size)		/*!< in: block size,
+	ulint		size);		/*!< in: block size,
 					up to UNIV_PAGE_SIZE */
-	MY_ATTRIBUTE((nonnull));
 
 /** Try to reallocate a block.
 @param[in]	buf_pool	buffer pool instance

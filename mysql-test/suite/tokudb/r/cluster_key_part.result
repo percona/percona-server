@@ -2,6 +2,8 @@ set default_storage_engine='tokudb';
 DROP TABLE IF EXISTS t;
 CREATE TABLE t (a INT NOT NULL AUTO_INCREMENT, b INT, PRIMARY KEY(a), CLUSTERING KEY b(b)) ENGINE=TokuDB
 PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB, PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = TokuDB);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -13,9 +15,13 @@ t	CREATE TABLE `t` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = TokuDB,
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = TokuDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t;
 CREATE TABLE t (x INT NOT NULL, y INT NOT NULL, PRIMARY KEY(x))
 PARTITION BY HASH(x) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -25,7 +31,11 @@ t	CREATE TABLE `t` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (x)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t ADD CLUSTERING KEY(y);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -36,10 +46,16 @@ t	CREATE TABLE `t` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (x)
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t;
 CREATE TABLE t1(a INT, b INT, c INT, d INT, PRIMARY KEY(a,b,c), CLUSTERING KEY(b), KEY (c)) ENGINE=TOKUDB
 PARTITION BY RANGE(a) (PARTITION p0 VALUES LESS THAN (5) ENGINE = TOKUDB, PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = TOKUDB);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000),(6,60,600,6000),(7,70,700,7000),(8,80,800,8000),(9,90,900,9000);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	range	PRIMARY	PRIMARY	4	NULL;	4	100.00	Using where
@@ -104,13 +120,20 @@ a	c
 8	800
 9	900
 alter table t1 add clustering index bdca(b,d,c,a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (10,10,10,10);
 alter table t1 drop index bdca;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL;	6	33.33	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d
@@ -164,11 +187,16 @@ c
 800
 900
 alter table t1 add e varchar(20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add primary key (a,b,c);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	range	PRIMARY	PRIMARY	4	NULL;	5	100.00	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d	e
@@ -231,10 +259,13 @@ a	c
 8	800
 9	900
 alter table t1 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL;	6	33.33	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d	e
@@ -290,7 +321,11 @@ c
 DROP TABLE t1;
 CREATE TABLE t1(a INT, b INT, c INT, d INT, PRIMARY KEY(a,b,c), CLUSTERING KEY(b), KEY (c)) ENGINE=TOKUDB
 PARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (50) ENGINE = TOKUDB, PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = TOKUDB);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000),(6,60,600,6000),(7,70,700,7000),(8,80,800,8000),(9,90,900,9000);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	range	PRIMARY	PRIMARY	4	NULL;	2	100.00	Using where
@@ -355,13 +390,20 @@ a	c
 8	800
 9	900
 alter table t1 add clustering index bdca(b,d,c,a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (10,10,10,10);
 alter table t1 drop index bdca;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	ALL	NULL	NULL	NULL	NULL;	10	33.33	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d
@@ -415,11 +457,16 @@ c
 800
 900
 alter table t1 add e varchar(20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add primary key (a,b,c);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	range	PRIMARY	PRIMARY	4	NULL;	2	100.00	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d	e
@@ -482,10 +529,13 @@ a	c
 8	800
 9	900
 alter table t1 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	ALL	NULL	NULL	NULL	NULL;	10	33.33	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d	e
@@ -541,7 +591,11 @@ c
 DROP TABLE t1;
 CREATE TABLE t1(a INT, b INT, c INT, d INT, PRIMARY KEY(a,b,c), CLUSTERING KEY(b), KEY (c)) ENGINE=TOKUDB
 PARTITION BY RANGE(c) (PARTITION p0 VALUES LESS THAN (500) ENGINE = TOKUDB, PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = TOKUDB);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,10,100,1000),(2,20,200,2000),(3,30,300,3000),(4,40,400,4000),(5,50,500,5000),(6,60,600,6000),(7,70,700,7000),(8,80,800,8000),(9,90,900,9000);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	range	PRIMARY	PRIMARY	4	NULL;	2	100.00	Using where
@@ -606,13 +660,20 @@ a	c
 8	800
 9	900
 alter table t1 add clustering index bdca(b,d,c,a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (10,10,10,10);
 alter table t1 drop index bdca;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	ALL	NULL	NULL	NULL	NULL;	10	33.33	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d
@@ -666,11 +727,16 @@ c
 800
 900
 alter table t1 add e varchar(20);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1 add primary key (a,b,c);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	range	PRIMARY	PRIMARY	4	NULL;	2	100.00	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d	e
@@ -733,10 +799,13 @@ a	c
 8	800
 9	900
 alter table t1 drop primary key;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 explain select * from t1 where a > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p2	ALL	NULL	NULL	NULL	NULL;	10	33.33	Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t1`.`e` AS `e` from `test`.`t1` where (`test`.`t1`.`a` > 5)
 select * from t1 where a > 5;
 a	b	c	d	e

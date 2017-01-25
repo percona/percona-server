@@ -179,7 +179,6 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
-my_bool	srv_numa_interleave = FALSE;
 
 /** Whether the redo log tracking is currently enabled. Note that it is
 possible for the log tracker thread to be running and the tracking to be
@@ -429,6 +428,7 @@ this many index pages, there are 2 ways to calculate statistics:
   table/index are not found in the innodb database */
 unsigned long long	srv_stats_transient_sample_pages = 8;
 my_bool		srv_stats_persistent = TRUE;
+my_bool		srv_stats_include_delete_marked = FALSE;
 unsigned long long	srv_stats_persistent_sample_pages = 20;
 my_bool		srv_stats_auto_recalc = TRUE;
 

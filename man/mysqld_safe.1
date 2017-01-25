@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -217,6 +217,8 @@ The name of an option file to be read instead of the usual option files\&. This 
 If
 \fBmysqld_safe\fR
 cannot find the server, use this option to indicate the path name to the directory where the server is located\&.
+.sp
+As of MySQL 5\&.7\&.17, this option is accepted only on the command line, not in option files\&.
 .RE
 .sp
 .RS 4
@@ -620,13 +622,15 @@ for this to function properly\&.
 .\}
 \fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name of the process ID file\&.
+The path name that
+\fBmysqld\fR
+should use for its process ID file\&.
 .sp
-In MySQL 5\&.7\&.2 and later,
+In MySQL 5\&.7\&.2 and higher,
 \fBmysqld_safe\fR
-creates a PID file named
+has its own process ID file, which is always named
 mysqld_safe\&.pid
-in the MySQL data directory when starting up (Bug #16776528)\&.
+and located in the MySQL data directory\&.
 .RE
 .sp
 .RS 4

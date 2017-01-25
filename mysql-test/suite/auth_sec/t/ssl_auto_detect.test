@@ -23,7 +23,14 @@ let SEARCH_FILE= $server_log;
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/shutdown_mysqld.inc
 
---remove_file $server_log
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --echo # Copy SSL certificates before restarting.
 --echo # They should be picked up automatically by server.
 --copy_file std_data/cacert.pem $DATADIR_LOCATION/ca.pem
@@ -72,7 +79,14 @@ disconnect ssl_root_1;
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --source include/shutdown_mysqld.inc
 
---remove_file $server_log
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --echo # Remove one of the certificates/keys.
 --remove_file $DATADIR_LOCATION/server-key.pem
 

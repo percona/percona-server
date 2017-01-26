@@ -1,0 +1,22 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug 1617586 (SELECT DISTINCT x...ORDER BY y LIMIT N,N crashes server)
+--echo #
+
+--disable_query_log
+--disable_result_log
+--echo # Loading data
+source std_data/bug1617586.sql;
+--enable_result_log
+--enable_query_log
+
+SHOW CREATE TABLE t1;
+
+ANALYZE TABLE t1;
+
+SELECT DISTINCT field2 FROM t1
+       WHERE (field4 IS NULL AND field5 = 233 AND field1 = 'c6bb07f8b5')
+       ORDER BY field3 LIMIT 1;
+
+DROP TABLE t1;

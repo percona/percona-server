@@ -2,7 +2,7 @@ diff -rup old/client/base/CMakeLists.txt new/client/base/CMakeLists.txt
 --- old/client/base/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/client/base/CMakeLists.txt	2016-03-09 11:44:10.259330311 +0100
 @@ -52,7 +52,7 @@ ADD_COMPILE_FLAGS(
-   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
  )
  
 -TARGET_LINK_LIBRARIES(client_base perconaserverclient)
@@ -24,7 +24,7 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
  ENDIF(UNIX)
 @@ -55,58 +55,58 @@
  ADD_COMPILE_FLAGS(
-   upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+   upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
  )
 -TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
 +TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)

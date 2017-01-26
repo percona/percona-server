@@ -2395,7 +2395,7 @@ static bool lock_tables_for_backup(THD *thd)
   @return FALSE in case of success, TRUE in case of error.
 */
 
-static bool lock_binlog_for_backup(THD *thd)
+bool lock_binlog_for_backup(THD *thd)
 {
   DBUG_ENTER("lock_binlog_for_backup");
 

@@ -3918,7 +3918,8 @@ innobase_change_buffering_inited_ok:
 	if (!innodb_empty_free_list_algorithm_backoff_allowed(
 			static_cast<srv_empty_free_list_t>(
 				srv_empty_free_list_algorithm),
-			innobase_buffer_pool_size / srv_page_size)) {
+			innobase_buffer_pool_size / srv_page_size
+			/ innobase_buffer_pool_instances)) {
 		sql_print_information(
 				"InnoDB: innodb_empty_free_list_algorithm "
 				"has been changed to legacy "
@@ -17566,11 +17567,12 @@ innodb_srv_empty_free_list_algorithm_validate(
 	algorithm = static_cast<srv_empty_free_list_t>(algo);
 	if (!innodb_empty_free_list_algorithm_backoff_allowed(
 				algorithm,
-				innobase_buffer_pool_size / srv_page_size)) {
+				innobase_buffer_pool_size / srv_page_size
+				/ innobase_buffer_pool_instances)) {
 		sql_print_warning(
 				"InnoDB: innodb_empty_free_list_algorithm "
 				"= 'backoff' requires at least"
-				" 20MB buffer pool.\n");
+				" 20MB buffer pool instances.\n");
 		return(1);
 	}
 

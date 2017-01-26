@@ -28,6 +28,9 @@
 #define TOKUDB_BACKUP_PLUGIN_VERSION_STRING NULL
 #endif
 
+/* innodb_use_native_aio option */
+extern my_bool srv_use_native_aio;
+
 static char *tokudb_backup_plugin_version;
 
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
@@ -544,6 +547,17 @@ private:
 static void tokudb_backup_run(THD *thd, const char *dest_dir) {
     int error = 0;
 
+    if (srv_use_native_aio) {
+        error = EINVAL;
+        tokudb_backup_set_error_string(thd,
+                                       error,
+                                       "tokudb hot backup is disabled when "
+                                       "innodb_use_native_aio is enabled",
+                                       NULL,
+                                       NULL,
+                                       NULL);
+        return;
+    }
     // check that the dest dir is a child of the tokudb_backup_allowed_prefix
     if (tokudb_backup_allowed_prefix) {
         if (!tokudb_backup_is_child_of(dest_dir, tokudb_backup_allowed_prefix)) {

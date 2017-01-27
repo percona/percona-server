@@ -4508,6 +4508,7 @@ void THD::inc_status_created_tmp_disk_tables()
 void THD::inc_status_created_tmp_tables()
 {
   status_var.created_tmp_tables++;
+  query_plan_flags|= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif

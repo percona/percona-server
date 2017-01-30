@@ -109,6 +109,7 @@ enum options_client
   OPT_CONNECTION_SERVER_ID,
   OPT_TLS_VERSION,
   OPT_SSL_MODE,
+  OPT_ORDER_BY_PRIMARY_DESC,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };

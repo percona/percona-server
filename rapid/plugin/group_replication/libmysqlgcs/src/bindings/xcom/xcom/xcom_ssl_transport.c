@@ -140,12 +140,18 @@ static DH *get_dh2048(void)
   DH *dh;
   if ((dh=DH_new()))
   {
-    dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-    dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+    BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
+    BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    dh->p= p;
+    dh->g= g;
     if (! dh->p || ! dh->g)
+#else
+    if (!DH_set0_pqg(dh, p, NULL, g))
+#endif
     {
       DH_free(dh);
-      dh=0;
+      dh= NULL;
     }
   }
   return(dh);
@@ -567,7 +573,9 @@ void xcom_cleanup_ssl()
   if(!xcom_use_ssl())
     return;
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
 }
 
 void xcom_destroy_ssl()
@@ -607,7 +615,7 @@ void xcom_destroy_ssl()
 int ssl_verify_server_cert(SSL *ssl, const char* server_hostname)
 {
   X509 *server_cert= NULL;
-  char *cn= NULL;
+  const char *cn= NULL;
   int cn_loc= -1;
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;
@@ -677,7 +685,11 @@ int ssl_verify_server_cert(SSL *ssl, const char* server_hostname)
     goto error;
   }
 
-  cn= (char *) ASN1_STRING_data(cn_asn1);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  cn= (const char *) ASN1_STRING_data(cn_asn1);
+#else
+  cn= (const char *) ASN1_STRING_get0_data(cn_asn1);
+#endif
 
   /* There should not be any NULL embedded in the CN */
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))

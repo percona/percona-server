@@ -44,8 +44,7 @@ report_errors(SSL* ssl)
   }
 
   if (ssl)
-    DBUG_PRINT("error", ("error: %s",
-                         ERR_error_string(SSL_get_error(ssl, l), buf)));
+    DBUG_PRINT("error", ("SSL_get_error: %d", SSL_get_error(ssl, l)));
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
@@ -132,6 +131,8 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error= SSL_get_error(ssl, ret);
 
+  *ssl_errno_holder= ERR_peek_error();
+
   /* Retrieve the result for the SSL I/O operation. */
   switch (ssl_error)
   {
@@ -155,8 +156,6 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
     ssl_set_sys_error(ssl_error);
     break;
   }
-
-  *ssl_errno_holder= ssl_error;
 
   return should_retry;
 }
@@ -309,7 +308,7 @@ void vio_ssl_delete(Vio *vio)
     vio->ssl_arg= 0;
   }
 
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   ERR_remove_thread_state(0);
 #endif
 
@@ -383,7 +382,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
+    (OPENSSL_VERSION_NUMBER < 0x10100000L)
   int j, n;
 #endif
 
@@ -407,7 +407,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
+    (OPENSSL_VERSION_NUMBER < 0x10100000L)
+
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();

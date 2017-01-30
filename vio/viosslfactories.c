@@ -121,12 +121,18 @@ static DH *get_dh2048(void)
   DH *dh;
   if ((dh=DH_new()))
   {
-    dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-    dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+    BIGNUM* p= BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
+    BIGNUM* g= BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    dh->p= p;
+    dh->g= g;
     if (! dh->p || ! dh->g)
+#else
+    if (!DH_set0_pqg(dh, p, NULL, g))
+#endif
     {
       DH_free(dh);
-      dh=0;
+      dh= NULL;
     }
   }
   return(dh);
@@ -230,6 +236,7 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
 
 #ifndef HAVE_YASSL
 /* OpenSSL specific */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_key key_rwlock_openssl;
@@ -389,23 +396,30 @@ static void deinit_lock_callback_functions()
 {
   set_lock_callback_functions(FALSE);
 }
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
 void vio_ssl_end()
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   int i= 0;
+#endif
 
   if (ssl_initialized) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_state(0);
+#endif
     ERR_free_strings();
     EVP_cleanup();
 
     CRYPTO_cleanup_all_ex_data();
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     deinit_lock_callback_functions();
 
     for (; i < CRYPTO_num_locks(); ++i)
       mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
     OPENSSL_free(openssl_stdlocks);
+#endif
 
     ssl_initialized= FALSE;
   }
@@ -423,7 +437,7 @@ void ssl_start()
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
     init_ssl_locks();
     init_lock_callback_functions();
 #endif

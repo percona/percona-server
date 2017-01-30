@@ -1,0 +1,7 @@
+#
+# Bug 75311: Error for SSL cipher is unhelpful
+#
+SHOW STATUS LIKE 'Ssl_cipher_list';
+Variable_name	Value
+Ssl_cipher_list	DHE-RSA-AES256-SHA
+ERROR 2026 (HY000): SSL connection error: ERROR

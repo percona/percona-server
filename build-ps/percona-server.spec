@@ -275,7 +275,7 @@ Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
-Provides:       mariadb-libs
+Obsoletes:      mariadb-libs
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 %endif

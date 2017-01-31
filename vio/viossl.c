@@ -44,8 +44,7 @@ report_errors(SSL* ssl)
   }
 
   if (ssl)
-    DBUG_PRINT("error", ("error: %s",
-                         ERR_error_string(SSL_get_error(ssl, l), buf)));
+    DBUG_PRINT("error", ("SSL_get_error: %d", SSL_get_error(ssl, l)));
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
@@ -132,6 +131,8 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error= SSL_get_error(ssl, ret);
 
+  *ssl_errno_holder= ERR_peek_error();
+
   /* Retrieve the result for the SSL I/O operation. */
   switch (ssl_error)
   {
@@ -155,8 +156,6 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
     ssl_set_sys_error(ssl_error);
     break;
   }
-
-  *ssl_errno_holder= ssl_error;
 
   return should_retry;
 }

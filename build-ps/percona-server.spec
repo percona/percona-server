@@ -507,7 +507,7 @@ fi
 /sbin/chkconfig --add mysql
 %endif
 MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
-if [ $MYCNF_PACKAGE = 'mariadb-libs' ]
+if [ $MYCNF_PACKAGE = 'mariadb-libs' -o $MYCNF_PACKAGE = 'mysql-libs' ]
 then
   rm -f /etc/my.cnf
 fi

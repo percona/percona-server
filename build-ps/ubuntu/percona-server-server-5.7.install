@@ -76,6 +76,8 @@ usr/lib/mysql/plugin/debug/version_token.so
 usr/lib/mysql/plugin/debug/keyring_file.so
 usr/lib/mysql/plugin/debug/mysqlx.so
 usr/lib/mysql/plugin/debug/keyring_udf.so
+usr/lib/mysql/plugin/debug/connection_control.so
+usr/lib/mysql/plugin/debug/group_replication.so
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/debug/audit_log.so
@@ -96,6 +98,8 @@ usr/lib/mysql/plugin/debug/dialog.so
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/query_response_time.so
+usr/lib/mysql/plugin/connection_control.so
+usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/debug/query_response_time.so
 # support files
 usr/share/mysql/dictionary.txt

@@ -1,0 +1,51 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug 995624 RBR events are not reflected in userstat's
+# Rows_updated
+#
+SET @slave_userstat_saved= @@global.userstat;
+SET GLOBAL userstat=ON;
+include/assert.inc [Rows updated on slave should be equal to 0]
+SET @master_userstat_saved= @@global.userstat;
+SET GLOBAL userstat=ON;
+include/assert.inc [Rows updated on master should be equal to 0]
+CREATE TABLE t1 (m INT);
+3 "updates" to rows
+INSERT INTO t1 VALUES(15),(16),(17);
+1 "update" to rows (4 in total)
+UPDATE t1 SET m=20 WHERE m=16;
+1 "update" to rows (5 in total)
+DELETE FROM t1 WHERE m=17;
+CREATE TABLE t2 (n INT);
+2 "updates" to rows (7 in total)
+INSERT INTO t2 VALUES(30),(30);
+2 "updates" to rows (9 in total)
+UPDATE t2 SET n=10 WHERE n=30;
+2 "updates" to rows (11 in total)
+DELETE FROM t2 WHERE n=10;
+2 "updates" to rows (13 in total)
+INSERT INTO t2 (n)
+SELECT t1.m
+FROM t1;
+include/assert.inc [Rows updated on master should be equal to 13]
+t3 is not replicated. Let us make some updates
+and check if they do not affect userstat
+CREATE TABLE t3(x INT);
+INSERT INTO t3 VALUE(1),(2),(3);
+UPDATE t3 SET x=1 WHERE x=2;
+DELETE FROM t3 WHERE x=1;
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Rows updated on slave should be equal to 13 (i.e. Number of RBR rows updates replicated from master)]
+SET GLOBAL userstat=@slave_userstat_saved;
+SELECT * FROM t1 ORDER BY m;
+m
+15
+20
+SET GLOBAL userstat=@master_userstat_saved;
+DROP TABLE t1, t2;
+DROP TABLE t3;
+include/rpl_end.inc

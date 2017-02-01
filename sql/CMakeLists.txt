@@ -175,6 +175,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  sql_zip_dict.cc
   strfunc.cc
   sys_vars.cc
   table.cc

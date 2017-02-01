@@ -64,9 +64,6 @@ using std::max;
 static int increment_connection_count(THD* thd, bool use_lock);
 #endif
 
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
-
 HASH global_user_stats;
 HASH global_client_stats;
 HASH global_thread_stats;
@@ -423,6 +420,7 @@ static int increment_count_by_name(const char *name, const char *role_name,
       return 1; // Out of memory
     }
   }
+  user_stats->concurrent_connections++;
   user_stats->total_connections++;
   if (thd->net.vio &&  thd->net.vio->type == VIO_TYPE_SSL)
     user_stats->total_ssl_connections++;
@@ -544,6 +542,11 @@ static void update_global_user_stats_with_user(THD* thd,
   user_stats->lost_connections+=     thd->diff_lost_connections;
   user_stats->access_denied_errors+= thd->diff_access_denied_errors;
   user_stats->empty_queries+=        thd->diff_empty_queries;
+
+  if (thd->diff_disconnects && thd->diff_denied_connections == 0) {
+    DBUG_ASSERT(user_stats->concurrent_connections > 0);
+    user_stats->concurrent_connections-=  thd->diff_disconnects;
+  }
 }
 
 static void update_global_thread_stats_with_thread(THD* thd,
@@ -984,7 +987,7 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
                global_system_variables.character_set_client->csname);
       return true;
-    }    
+    }
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -1281,6 +1284,7 @@ bool login_connection(THD *thd)
   my_net_set_write_timeout(net, connect_timeout);
 
   error= check_connection(thd);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
   thd->protocol->end_statement();
 
   if (error)
@@ -1325,6 +1329,12 @@ void end_connection(THD *thd)
     of someone else.
   */
   release_user_connection(thd);
+
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(false);
+    thd->diff_disconnects= 1;
+    update_global_user_stats(thd, false, time(NULL));
+  }
 
   if (thd->killed || (net->error && net->vio != 0))
   {
@@ -1450,7 +1460,6 @@ bool thd_prepare_connection(THD *thd)
   bool rc;
   lex_start(thd);
   rc= login_connection(thd);
-  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
   if (rc)
     return rc;
 

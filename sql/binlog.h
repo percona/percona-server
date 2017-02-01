@@ -689,7 +689,8 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
-  void set_status_variables(THD *thd);
+private:
+  void publish_coordinates_for_global_status(void) const;
 };
 
 typedef struct st_load_file_info

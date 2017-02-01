@@ -2019,7 +2019,9 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
 
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
-                    const char act[]= "now wait_for signal.get_master_uuid";
+                    const char act[]
+                        = "now signal in_get_master_version_and_clock "
+                        "wait_for signal.get_master_uuid";
                     DBUG_ASSERT(opt_debug_sync_timeout > 0);
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
@@ -2278,7 +2280,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP",
                   {
                     const char act[]=
-                      "now "
+                      "now signal in_get_master_version_and_clock "
                       "wait_for signal.get_unix_timestamp";
                     DBUG_ASSERT(opt_debug_sync_timeout > 0);
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
@@ -2338,7 +2340,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
                   {
                     const char act[]=
-                      "now "
+                      "now signal in_get_master_version_and_clock "
                       "wait_for signal.get_server_id";
                     DBUG_ASSERT(opt_debug_sync_timeout > 0);
                     DBUG_ASSERT(!debug_sync_set_action(current_thd, 
@@ -4768,11 +4770,14 @@ pthread_handler_t handle_slave_io(void *arg)
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
   mi->clear_error();
+  mi->slave_running = 1;
   if (init_slave_thread(thd, SLAVE_THD_IO))
   {
     mysql_cond_broadcast(&mi->start_cond);
     mysql_mutex_unlock(&mi->run_lock);
-    sql_print_error("Failed during slave I/O thread initialization");
+    mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+               ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+               "Failed during slave I/O thread initialization");
     goto err;
   }
 
@@ -4781,7 +4786,6 @@ pthread_handler_t handle_slave_io(void *arg)
   thd_added= true;
   mysql_mutex_unlock(&LOCK_thread_count);
 
-  mi->slave_running = 1;
   mi->abort_slave = 0;
   mysql_mutex_unlock(&mi->run_lock);
   mysql_cond_broadcast(&mi->start_cond);

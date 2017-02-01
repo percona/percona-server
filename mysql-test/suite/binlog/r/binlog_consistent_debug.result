@@ -1,0 +1,27 @@
+#
+# Debug build tests for consistent binlog snapshot
+#
+RESET MASTER;
+#
+# Bug 1646100: Server becomes unresponsive during flushing after loading
+# big files through LOAD DATA INFILE
+#
+SET @saved_sync_binlog = @@sync_binlog;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1 (a INT);
+# connection con1
+BEGIN;
+INSERT INTO t1 VALUES (0);
+SET DEBUG_SYNC="before_sync_binlog_file SIGNAL commit_ready WAIT_FOR finish_commit";
+COMMIT;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR commit_ready";
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+Binlog_snapshot_file	master-bin.000001
+Binlog_snapshot_position	POSITION
+SET DEBUG_SYNC="now SIGNAL finish_commit";
+# connection con1
+# connection default
+DROP TABLE t1;
+SET GLOBAL sync_binlog = @saved_sync_binlog;

@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 --source include/have_fullregex.inc
 
 SET @start_global_value = @@global.ROCKSDB_STRICT_COLLATION_EXCEPTIONS;

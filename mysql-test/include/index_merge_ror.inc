@@ -183,6 +183,10 @@ select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=1
 
 delete from t1 where key3=100 and key4=100;
 
+# Force complete purge
+SET @@GLOBAL.innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+
 -- disable_query_log
 -- disable_result_log
 analyze table t1;

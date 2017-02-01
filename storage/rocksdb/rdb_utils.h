@@ -17,6 +17,7 @@
 
 /* C++ standard header files */
 #include <string>
+#include <regex>
 
 /* MySQL header files */
 #include "./sql_string.h"
@@ -71,6 +72,9 @@ namespace myrocks {
 
   Use the power of SHIP_ASSERT() wisely.
 */
+#ifndef abort_with_stack_traces
+#define abort_with_stack_traces abort
+#endif
 
 #ifndef SHIP_ASSERT
 #define SHIP_ASSERT(expr)                                               \
@@ -202,5 +206,61 @@ std::string rdb_hexdump(const char *data, std::size_t data_len,
   Helper function to see if a database exists
  */
 bool rdb_database_exists(const std::string& db_name);
+
+
+/*
+  Helper class imported from webscale and needed by MyRocks.
+  Used to handle system options that are lists of regex expressions.
+*/
+class Regex_list_handler
+{
+ private:
+#if defined(HAVE_PSI_INTERFACE)
+  const PSI_rwlock_key& m_key;
+#endif
+
+  char m_delimiter;
+  std::string m_bad_pattern_str;
+  std::unique_ptr<std::regex> m_pattern;
+
+  mutable mysql_rwlock_t m_rwlock;
+
+  Regex_list_handler(const Regex_list_handler& other)= delete;
+  Regex_list_handler& operator=(const Regex_list_handler& other)= delete;
+
+ public:
+#if defined(HAVE_PSI_INTERFACE)
+  Regex_list_handler(const PSI_rwlock_key& key,
+                     char delimiter= ',') :
+    m_key(key),
+#else
+  Regex_list_handler(char delimiter= ',') :
+#endif
+    m_delimiter(delimiter),
+    m_bad_pattern_str("")
+  {
+    mysql_rwlock_init(key, &m_rwlock);
+  }
+
+  ~Regex_list_handler()
+  {
+    mysql_rwlock_destroy(&m_rwlock);
+  }
+
+  // Set the list of patterns
+  bool set_patterns(const std::string& patterns);
+
+  // See if a string matches at least one pattern
+  bool matches(const std::string& str) const;
+
+  // See the list of bad patterns
+  const std::string& bad_pattern() const
+  {
+    return m_bad_pattern_str;
+  }
+};
+
+void warn_about_bad_patterns(const Regex_list_handler* regex_list_handler,
+                             const char *name);
 
 }  // namespace myrocks

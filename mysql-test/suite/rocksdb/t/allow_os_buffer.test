@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 # Issue221
 # Turning on --rocksdb-allow-mmap-reads while having --rocksdb-allow-os-buffer

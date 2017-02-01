@@ -1,0 +1,22 @@
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+SET @saved_innodb_file_format = @@global.innodb_file_format;
+SET @saved_innodb_compressed_columns_zip_level = @@global.innodb_compressed_columns_zip_level;
+SET GLOBAL innodb_file_format = Antelope;
+SET GLOBAL innodb_compressed_columns_zip_level = 0;
+Warnings:
+Note	1246	Converting column 'a' from VARCHAR to TEXT
+Warnings:
+Note	1246	Converting column 'a' from VARCHAR to TEXT
+Warnings:
+Note	1246	Converting column 'a' from VARCHAR to TEXT
+Warnings:
+Note	1246	Converting column 'a' from VARCHAR to TEXT
+Warnings:
+Note	1246	Converting column 'a' from VARCHAR to TEXT
+Warnings:
+Note	1246	Converting column 'a' from VARCHAR to TEXT
+SET GLOBAL innodb_file_format = @saved_innodb_file_format;
+SET GLOBAL innodb_compressed_columns_zip_level = @saved_innodb_compressed_columns_zip_level;

@@ -971,6 +971,7 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
   ulonglong ulonglong_number;
   longlong longlong_number;
   LEX_STRING lex_str;
+  LEX_CSTRING lex_cstr;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
   Table_ident *table;
@@ -1134,6 +1135,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  COMPACT_SYM
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
+%token  COMPRESSION_DICTIONARY_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -1624,6 +1626,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TOKU_LZMA_SYM
 %token  TOKU_FAST_SYM
 %token  TOKU_SMALL_SYM
+%token  TOKU_DEFAULT_SYM
 %token  TRAILING                      /* SQL-2003-R */
 %token  TRANSACTION_SYM
 %token  TRIGGERS_SYM
@@ -1718,6 +1721,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
 
+%type <lex_cstr>
+        opt_with_compression_dictionary
+
 %type <lex_str_ptr>
         opt_table_alias
 
@@ -1790,6 +1796,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         signal_allowed_expr
         simple_target_specification
         condition_number
+        create_compression_dictionary_allowed_expr
 
 %type <item_num>
         NUM_literal
@@ -2525,6 +2532,39 @@ create:
           {
             Lex->sql_command= SQLCOM_CREATE_SERVER;
           }
+        | CREATE COMPRESSION_DICTIONARY_SYM opt_if_not_exists ident
+          '(' create_compression_dictionary_allowed_expr ')'
+          {
+            Lex->sql_command= SQLCOM_CREATE_COMPRESSION_DICTIONARY;
+            Lex->create_info.options= $3;
+            Lex->ident= $4;
+            Lex->default_value= $6;
+          }
+        ;
+/*
+  Only a limited subset of <expr> are allowed in
+  CREATE COMPRESSION_DICTIONARY.
+*/
+create_compression_dictionary_allowed_expr:
+          text_literal
+          { $$= $1; }
+        | variable
+          {
+            if ($1->type() == Item::FUNC_ITEM)
+            {
+              Item_func *item= (Item_func*) $1;
+              if (item->functype() == Item_func::SUSERVAR_FUNC)
+              {
+                /*
+                  Don't allow the following syntax:
+                    CREATE COMPRESSION_DICTIONARY <dict>(@foo := expr)
+                */
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+              }
+            }
+            $$= $1;
+          }
         ;
 
 server_def:
@@ -2534,6 +2574,11 @@ server_def:
           ident_or_text
           OPTIONS_SYM '(' server_options_list ')'
           {
+            if ($2.length == 0)
+            {
+              my_error(ER_WRONG_VALUE, MYF(0), "server name", "");
+              MYSQL_YYABORT;
+            }
             Lex->server_options.server_name= $2.str;
             Lex->server_options.server_name_length= $2.length;
             Lex->server_options.scheme= $6.str;
@@ -5576,6 +5621,12 @@ part_name:
           {
             partition_info *part_info= Lex->part_info;
             partition_element *p_elem= part_info->curr_part_elem;
+            if (check_string_char_length(&$1, "", NAME_CHAR_LEN,
+                                         system_charset_info, true))
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
             p_elem->partition_name= $1.str;
           }
         ;
@@ -5870,7 +5921,15 @@ sub_part_definition:
 
 sub_name:
           ident_or_text
-          { Lex->part_info->curr_part_elem->partition_name= $1.str; }
+          {
+            if (check_string_char_length(&$1, "", NAME_CHAR_LEN,
+                                         system_charset_info, true))
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            Lex->part_info->curr_part_elem->partition_name= $1.str;
+          }
         ;
 
 opt_part_options:
@@ -6291,6 +6350,7 @@ row_types:
         | TOKU_LZMA_SYM         { $$= ROW_TYPE_TOKU_LZMA; }
         | TOKU_FAST_SYM         { $$= ROW_TYPE_TOKU_FAST; }
         | TOKU_SMALL_SYM        { $$= ROW_TYPE_TOKU_SMALL; }
+        | TOKU_DEFAULT_SYM      { $$= ROW_TYPE_TOKU_DEFAULT; }
         ;
 
 merge_insert_types:
@@ -6420,6 +6480,7 @@ field_spec:
             lex->default_value= lex->on_update_value= 0;
             lex->comment=null_lex_str;
             lex->charset=NULL;
+            lex->zip_dict_name=null_lex_cstr;
           }
           type opt_attribute
           {
@@ -6429,7 +6490,7 @@ field_spec:
                                   lex->default_value, lex->on_update_value, 
                                   &lex->comment,
                                   lex->change,&lex->interval_list,lex->charset,
-                                  lex->uint_geom_type))
+                                  lex->uint_geom_type, &lex->zip_dict_name))
               MYSQL_YYABORT;
           }
         ;
@@ -6815,6 +6876,13 @@ attribute:
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
           }
+        | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_COMPRESSED << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->zip_dict_name= $3;
+          }
         | STORAGE_SYM DEFAULT
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
@@ -6832,6 +6900,18 @@ attribute:
           }
         ;
 
+opt_with_compression_dictionary:
+          /* empty */ { $$= null_lex_cstr; }
+        | WITH COMPRESSION_DICTIONARY_SYM ident
+          {
+            /*
+              no single assignment because of
+              LEX_STRING -> LEX_CSTRING conversion
+            */
+            $$.str= $3.str;
+            $$.length= $3.length;
+          }
+        ;
 
 type_with_opt_collate:
         type opt_collate
@@ -7902,6 +7982,7 @@ alter_list_item:
             lex->comment=null_lex_str;
             lex->charset= NULL;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            lex->zip_dict_name= null_lex_cstr;
           }
           type opt_attribute
           {
@@ -7912,7 +7993,7 @@ alter_list_item:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   $3.str, &lex->interval_list, lex->charset,
-                                  lex->uint_geom_type))
+                                  lex->uint_geom_type, &lex->zip_dict_name))
               MYSQL_YYABORT;
           }
           opt_place
@@ -11988,6 +12069,12 @@ drop:
             Lex->server_options.server_name= $4.str;
             Lex->server_options.server_name_length= $4.length;
           }
+        | DROP COMPRESSION_DICTIONARY_SYM if_exists ident
+          {
+            Lex->sql_command= SQLCOM_DROP_COMPRESSION_DICTIONARY;
+            Lex->drop_if_exists= $3;
+            Lex->ident= $4;
+          }
         ;
 
 table_list:
@@ -14370,6 +14457,7 @@ keyword_sp:
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
         | COMPRESSED_SYM           {}
+        | COMPRESSION_DICTIONARY_SYM {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}
@@ -14627,6 +14715,7 @@ keyword_sp:
         | TOKU_LZMA_SYM            {}
         | TOKU_SMALL_SYM           {}
         | TOKU_FAST_SYM            {}
+        | TOKU_DEFAULT_SYM         {}
         | TYPES_SYM                {}
         | TYPE_SYM                 {}
         | UDF_RETURNS_SYM          {}

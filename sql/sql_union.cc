@@ -537,6 +537,7 @@ bool st_select_lex_unit::optimize()
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
+    DBUG_ASSERT(!cleaned);
     DBUG_ASSERT(sl->join);
     if (optimized)
     {
@@ -835,6 +836,10 @@ bool st_select_lex_unit::cleanup()
 
   if (cleaned)
   {
+#ifndef DBUG_OFF
+    for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+      DBUG_ASSERT(!sl->join);
+#endif
     DBUG_RETURN(FALSE);
   }
   cleaned= true;

@@ -879,6 +879,34 @@ HANDLER t3 OPEN;
 SET STATEMENT max_join_size=1000 FOR SELECT * FROM t3;
 ERROR HY000: Can't reopen table: 't3'
 DROP TABLE t3;
+#
+# Bug 1392375: Crashing repeated execution of SET STATEMENT ... FOR <SELECT FROM view>
+#
+CREATE VIEW t3 AS SELECT 1 AS a;
+PREPARE stmt1 FROM 'SET STATEMENT binlog_format=row FOR SELECT * FROM t3';
+EXECUTE stmt1;
+a
+1
+EXECUTE stmt1;
+a
+1
+DEALLOCATE PREPARE stmt1;
+DROP VIEW t3;
+#
+# Bug 1635927: Memory leak when using per-query variables with subquery temp tables
+#
+CREATE TABLE t3 (row_key INT NOT NULL DEFAULT 0, ref_key BIGINT(20) NOT NULL);
+INSERT INTO t3 (ref_key) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+set @row_id := 0;
+INSERT INTO t3 (ref_key) SELECT @row_id := @row_id + 11 as ref_key
+FROM t3 a1, t3 a2, t3 a3;
+SET STATEMENT myisam_repair_threads=1 FOR
+SELECT count(1) FROM t3 s
+JOIN (SELECT row_key, ref_key AS ref_key FROM t3 t
+WHERE t.row_key IN (SELECT row_key FROM t3)) AS r;
+count(1)
+1020100
+DROP TABLE t3;
 ''
 '# Cleanup'
 DROP TABLE t1, t2;
@@ -887,3 +915,22 @@ DROP PROCEDURE p2;
 DROP PROCEDURE p3;
 DROP PROCEDURE p4;
 DROP PROCEDURE p5;
+SET STATEMENT innodb_tmpdir=@@global.tmpdir FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET SESSION innodb_tmpdir = @@global.tmpdir;
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET STATEMENT sql_mode='' FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR
+SET STATEMENT innodb_tmpdir='TESTDIR' FOR SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TESTDIR
+SELECT @@innodb_tmpdir;
+@@innodb_tmpdir
+TMPDIR

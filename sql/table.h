@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -914,6 +914,12 @@ struct TABLE_SHARE
                             uint deadlock_weight);
   /** Release resources and free memory occupied by the table share. */
   void destroy();
+
+  /**
+    Checks if TABLE_SHARE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
 };
 
 
@@ -1223,7 +1229,7 @@ public:
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(void);
+  void mark_columns_needed_for_update(bool mark_binlog_columns);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
@@ -1300,6 +1306,38 @@ public:
   void set_deleted()
   {
     created= false;
+  }
+
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
+
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    zip_dict.
+  */
+  bool has_compressed_columns_with_dictionaries() const;
+
+  /**
+    Updates zip_dict_name in the TABLE's field definitions based on the
+    values from the supplied list of Create_field objects.
+  */
+  void update_compressed_columns_info(const List<Create_field>& fields);
+private:
+  bool should_binlog_drop_if_temp_flag;
+
+public:
+  void set_binlog_drop_if_temp(bool should_binlog)
+  {
+    should_binlog_drop_if_temp_flag= should_binlog;
+  }
+
+  bool should_binlog_drop_if_temp(void) const
+  {
+    return should_binlog_drop_if_temp_flag;
   }
 };
 

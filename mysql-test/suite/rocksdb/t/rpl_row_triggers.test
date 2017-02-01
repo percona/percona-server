@@ -1,6 +1,6 @@
 -- source include/have_binlog_format_row.inc
 -- source include/have_rbr_triggers.inc
--- source include/have_rocksdb.inc
+-- source include/have_rocksdb_as_default.inc
 -- source include/master-slave.inc
 
 -- echo # Test of row replication with triggers on the slave side

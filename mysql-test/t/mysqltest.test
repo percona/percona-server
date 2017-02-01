@@ -2969,6 +2969,10 @@ disconnect $x;
 disconnect $y;
 --echo $CURRENT_CONNECTION
 
+connection default;
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
 --echo #
 --echo # Test that a query failed with ER_NO_SUCH_THREAD causes mysqltest to dump the processlist before dying
 --echo #
@@ -2985,7 +2989,3 @@ disconnect $y;
 --exec echo "error ER_PARSE_ERROR; KILL QUERY 276447231;" | $MYSQL_TEST 2>&1
 
 --echo End of tests
-
-connection default;
-# Wait till we reached the initial number of concurrent sessions
---source include/wait_until_count_sessions.inc

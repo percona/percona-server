@@ -524,7 +524,8 @@ int rea_create_table(THD *thd, const char *path,
     goto err_handler_frm;
 
   if (!no_ha_table &&
-       ha_create_table(thd, path, db, table_name, create_info, 0))
+       ha_create_table(thd, path, db, table_name, create_info,
+                       &create_fields, 0))
     goto err_handler;
   DBUG_RETURN(0);
 

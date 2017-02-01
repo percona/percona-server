@@ -110,6 +110,7 @@ When one supplies long data for a placeholder:
 #include <mysql.h>
 #else
 #include <mysql_com.h>
+#include "sql_connect.h" //update_global_user_stats
 #endif
 #include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 #include "opt_trace.h"                          // Opt_trace_object
@@ -120,9 +121,6 @@ When one supplies long data for a placeholder:
 #include <algorithm>
 using std::max;
 using std::min;
-
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
 /**
   A result class used to send cursor rows using the binary protocol.
@@ -2178,6 +2176,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SLAVE_STOP:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
+  case SQLCOM_DROP_COMPRESSION_DICTIONARY:
   case SQLCOM_CREATE_DB:
   case SQLCOM_DROP_DB:
   case SQLCOM_ALTER_DB_UPGRADE:

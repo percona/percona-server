@@ -1,4 +1,4 @@
---source include/have_rocksdb.inc
+--source include/have_rocksdb_as_default.inc
 
 call mtr.add_suppression("Did not write failed ");
 call mtr.add_suppression("Can't open and lock privilege tables");

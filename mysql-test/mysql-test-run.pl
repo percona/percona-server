@@ -165,10 +165,10 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
 my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,"
-  ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,jp,stress,"
-  ."engines/iuds,engines/funcs,query_response_time,innodb_stress,"
-  ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
-  ."tokudb.rpl";
+  ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,"
+  ."connection_control,jp,stress,engines/iuds,engines/funcs,"
+  ."query_response_time,innodb_stress,tokudb.add_index,tokudb.alter_table,"
+  ."tokudb,tokudb.bugs,tokudb.parts,tokudb.rpl";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -405,14 +405,16 @@ sub main {
     for my $limit (2000, 1500, 1000, 500){
       $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
     }
-    my $max_par= $ENV{MTR_MAX_PARALLEL} || 8;
-    $opt_parallel= $max_par if ($opt_parallel > $max_par);
-    $opt_parallel= $num_tests if ($opt_parallel > $num_tests);
-    $opt_parallel= 1 if (IS_WINDOWS and $sys_info->isvm());
+    if(defined $ENV{MTR_MAX_PARALLEL}) {
+      my $max_par= $ENV{MTR_MAX_PARALLEL};
+      $opt_parallel= $max_par if ($opt_parallel > $max_par);
+    }
     $opt_parallel= 1 if ($opt_parallel < 1);
-    mtr_report("Using parallel: $opt_parallel");
   }
+  # Limit parallel workers to number of tests to avoid idle workers
+  $opt_parallel= $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
   $ENV{MTR_PARALLEL} = $opt_parallel;
+  mtr_report("Using parallel: $opt_parallel");
 
   if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress)) {
     mtr_warning("Parallel cannot be used with --start-and-exit or --stress\n" .
@@ -1802,9 +1804,13 @@ sub set_build_thread_ports($) {
   if ( lc($opt_build_thread) eq 'auto' ) {
     my $found_free = 0;
     $build_thread = 300;	# Start attempts from here
+
+    my $build_thread_upper = $build_thread + ($opt_parallel > 39
+                             ? $opt_parallel + int($opt_parallel / 4)
+                             : 49);
     while (! $found_free)
     {
-      $build_thread= mtr_get_unique_id($build_thread, 349);
+      $build_thread= mtr_get_unique_id($build_thread, $build_thread_upper);
       if ( !defined $build_thread ) {
         mtr_error("Could not get a unique build thread id");
       }
@@ -1865,6 +1871,7 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--basedir=%s", $basedir);
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
+  mtr_add_arg($args, "--secure-file-priv=\"\"");
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
@@ -2271,21 +2278,28 @@ sub read_plugin_defs($)
     # listed in def. file but not found.
 
     if ($plugin) {
+      my $plug_dir= dirname($plugin);
       $ENV{$plug_var}= basename($plugin);
-      $ENV{$plug_var.'_DIR'}= dirname($plugin);
-      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".dirname($plugin);
+      $ENV{$plug_var.'_DIR'}= $plug_dir;
+      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".$plug_dir;
       if ($plug_names) {
 	my $lib_name= basename($plugin);
 	my $load_var= "--plugin_load=";
 	my $load_add_var= "--plugin_load_add=";
+	my $load_var_with_path = "--plugin_load=";
+	my $load_add_var_with_path = "--plugin_load_add=";
 	my $semi= '';
 	foreach my $plug_name (split (',', $plug_names)) {
 	  $load_var .= $semi . "$plug_name=$lib_name";
 	  $load_add_var .= $semi . "$plug_name=$lib_name";
+	  $load_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
+	  $load_add_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
 	  $semi= ';';
 	}
 	$ENV{$plug_var.'_LOAD'}= $load_var;
 	$ENV{$plug_var.'_LOAD_ADD'}= $load_add_var;
+	$ENV{$plug_var.'_LOAD_PATH'}= $load_var_with_path;
+	$ENV{$plug_var.'_LOAD_ADD_PATH'}= $load_add_var_with_path;
       }
     } else {
       $ENV{$plug_var}= "";
@@ -2293,6 +2307,8 @@ sub read_plugin_defs($)
       $ENV{$plug_var.'_OPT'}= "";
       $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
       $ENV{$plug_var.'_LOAD_ADD'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_PATH'}= "" if $plug_names;
+      $ENV{$plug_var.'_LOAD_ADD_PATH'}= "" if $plug_names;
     }
   }
   close PLUGDEF;
@@ -3573,6 +3589,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
+  mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
   mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 

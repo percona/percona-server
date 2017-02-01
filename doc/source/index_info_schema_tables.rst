@@ -30,3 +30,6 @@ This is a list of the ``INFORMATION_SCHEMA TABLES`` that exist in |Percona Serve
 
   * :table:`XTRADB_RSEG`
 
+  * :table:`XTRADB_ZIP_DICT`
+
+  * :table:`XTRADB_ZIP_DICT_COLS`

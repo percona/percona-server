@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -359,6 +359,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
+  case Item::PARAM_ITEM:
     if (make_copy_field)
     {
       DBUG_ASSERT(((Item_result_field*)item)->result_field);
@@ -377,6 +378,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   default:					// Dosen't have to be stored
     break;
   }
+
+  /* Make sure temporary fields are never compressed */
+  if (result->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+    result->flags &= ~FIELD_FLAGS_COLUMN_FORMAT_MASK;
+  result->zip_dict_name = null_lex_cstr;
+  result->zip_dict_data = null_lex_cstr;
+
   return result;
 }
 
@@ -485,7 +493,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               (ulong) rows_limit, MY_TEST(group)));
 
   thd->inc_status_created_tmp_tables();
-  thd->query_plan_flags|= QPLAN_TMP_TABLE;
 
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);

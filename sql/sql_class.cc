@@ -68,6 +68,8 @@ using std::max;
 
 #include "sql_timer.h"                          // thd_timer_end
 
+ulong kill_idle_transaction_timeout= 0;
+
 /*
   The following is used to initialise Table_ident with a internal
   table name
@@ -638,21 +640,26 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 
 extern "C"
 void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line)
 {
   if (!thd)
     thd= current_thd;
 
-  return thd->ENTER_COND(cond, mutex, stage, old_stage);
+  return thd->enter_cond(cond, mutex, stage, old_stage,
+                         src_function, src_file, src_line);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
+void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+		   int src_line)
 {
   if (!thd)
     thd= current_thd;
 
-  thd->EXIT_COND(stage);
+  thd->exit_cond(stage, src_function, src_file, src_line);
   return;
 }
 
@@ -1561,6 +1568,7 @@ void THD::reset_diff_stats(void)
   diff_lost_connections=           0;
   diff_access_denied_errors=       0;
   diff_empty_queries=              0;
+  diff_disconnects=                0;
 }
 
 // Updates 'diff' stats of a THD.
@@ -4892,6 +4900,7 @@ void THD::inc_status_created_tmp_disk_tables()
 void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
+  query_plan_flags|= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif

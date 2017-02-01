@@ -116,13 +116,13 @@ drop table t0,t1,t2,t3;
 # First, some preparations
 #
 create procedure save_read_stats()
-select ROWS_READ, ROWS_REQUESTED, ROWS_INDEX_FIRST, ROWS_INDEX_NEXT 
-into @rr, @rq, @rif, @rin
+select ROWS_READ 
+into @rr
 from information_schema.table_statistics 
 where table_name='t4' and table_schema=database();
 create procedure get_read_stats()
 select 
-ROWS_READ-@rr, ROWS_REQUESTED-@rq, ROWS_INDEX_FIRST-@rif, ROWS_INDEX_NEXT-@rin
+ROWS_READ-@rr
 from information_schema.table_statistics 
 where table_name='t4' and table_schema=database();
 create table t4 (
@@ -142,8 +142,8 @@ insert into t4 values
 #
 call save_read_stats();
 call get_read_stats();
-ROWS_READ-@rr	ROWS_REQUESTED-@rq	ROWS_INDEX_FIRST-@rif	ROWS_INDEX_NEXT-@rin
-0	0	0	0
+ROWS_READ-@rr
+0
 # ============== index-only query ==============
 explain
 select id1,id2 from t4 force index (id1_id2) where id1=1 and id2 % 10 = 1;
@@ -155,9 +155,6 @@ id1	id2
 1	1
 call get_read_stats();
 ROWS_READ-@rr	10
-ROWS_REQUESTED-@rq	11
-ROWS_INDEX_FIRST-@rif	1
-ROWS_INDEX_NEXT-@rin	9
 # ============== Query without ICP ==============
 set optimizer_switch='index_condition_pushdown=off';
 explain
@@ -170,9 +167,6 @@ id	id1	id2	value	value2
 1	1	1	1	1
 call get_read_stats();
 ROWS_READ-@rr	10
-ROWS_REQUESTED-@rq	11
-ROWS_INDEX_FIRST-@rif	1
-ROWS_INDEX_NEXT-@rin	9
 # ============== Query with ICP ==============
 set optimizer_switch='index_condition_pushdown=on';
 explain
@@ -185,9 +179,6 @@ id	id1	id2	value	value2
 1	1	1	1	1
 call get_read_stats();
 ROWS_READ-@rr	1
-ROWS_REQUESTED-@rq	1
-ROWS_INDEX_FIRST-@rif	1
-ROWS_INDEX_NEXT-@rin	0
 drop table t4;
 drop procedure save_read_stats;
 drop procedure get_read_stats;

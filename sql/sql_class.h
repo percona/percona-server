@@ -53,6 +53,8 @@
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
+extern ulong kill_idle_transaction_timeout;
+
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters.
@@ -73,7 +75,17 @@ void set_thd_stage_info(void *thd,
                         const char *calling_func,
                         const char *calling_file,
                         const unsigned int calling_line);
-                        
+extern "C"
+void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line);
+
+extern "C"
+void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+                   int src_line);
+
 #define THD_STAGE_INFO(thd, stage) \
   (thd)->enter_stage(& stage, NULL, __func__, __FILE__, __LINE__)
 
@@ -1636,6 +1648,8 @@ typedef I_List<Item_change_record> Item_change_list;
 /**
   Type of locked tables mode.
   See comment for THD::locked_tables_mode for complete description.
+  While adding new enum values add them to the getter method for this enum
+  declared below and defined in binlog.cc as well.
 */
 
 enum enum_locked_tables_mode
@@ -1646,6 +1660,15 @@ enum enum_locked_tables_mode
   LTM_PRELOCKED_UNDER_LOCK_TABLES
 };
 
+#ifndef DBUG_OFF
+/**
+  Getter for the enum enum_locked_tables_mode
+  @param locked_tables_mode enum for types of locked tables mode
+
+  @return The string represantation of that enum value
+*/
+const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode);
+#endif
 
 /**
   Class that holds information about tables which were opened and locked
@@ -2457,6 +2480,10 @@ public:
   uint       last_errno;
   /*** The variables above used in slow_extended.patch ***/
 
+  inline void set_slow_log_for_admin_command() {
+	  enable_slow_log= opt_log_slow_admin_statements
+		  && (sp_runtime_ctx ? opt_log_slow_sp_statements : true);
+  }
   /*** Following methods used in slow_extended.patch ***/
   void clear_slow_extended();
 private:
@@ -2470,6 +2497,15 @@ public:
 
   /* Do not set socket timeouts for wait_timeout (used with threadpool) */
   bool skip_wait_timeout;
+
+  inline ulong get_wait_timeout(void) const
+  {
+    if (in_active_multi_stmt_transaction()
+        && kill_idle_transaction_timeout > 0
+        && kill_idle_transaction_timeout < variables.net_wait_timeout)
+      return kill_idle_transaction_timeout;
+    return variables.net_wait_timeout;
+  }
 
   /** 
     Used by fill_status() to avoid acquiring LOCK_status mutex twice
@@ -3373,6 +3409,7 @@ public:
   ulonglong diff_access_denied_errors;
   // Number of queries that return 0 rows
   ulonglong diff_empty_queries;
+  ulonglong diff_disconnects;
 
   // Per account query delay in miliseconds. When not 0, sleep this number of
   // milliseconds before every SQL command.

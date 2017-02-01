@@ -172,6 +172,8 @@ static bool initialized= 0;
 static MEM_ROOT plugin_mem_root;
 static uint global_variables_dynamic_size= 0;
 static HASH bookmark_hash;
+/** Hash for system variables of string type with MEMALLOC flag. */
+static HASH malloced_string_type_sysvars_bookmark_hash;
 
 
 /*
@@ -451,30 +453,61 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
 }
 
 
-static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
+static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl,
+                                   int report,
+                                   bool allow_dl_path)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
-  uint plugin_dir_len, dummy_errors, dlpathlen, i;
+  uint dummy_errors, dlpathlen, i;
   struct st_plugin_dl *tmp, plugin_dl;
+  size_t dl_fname_pos= 0;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
   DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
                        dl->str, (int) dl->length));
-  plugin_dir_len= strlen(opt_plugin_dir);
-  /*
-    Ensure that the dll doesn't have a path.
-    This is done to ensure that only approved libraries from the
-    plugin directory are used (to make this even remotely secure).
-  */
-  if (check_valid_path(dl->str, dl->length) ||
-      check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
-                               system_charset_info, 1) ||
-      plugin_dir_len + dl->length + 1 >= FN_REFLEN)
-  {
-    report_error(report, ER_UDF_NO_PATHS);
-    DBUG_RETURN(0);
+
+  if (allow_dl_path)
+    dl_fname_pos = dirname_length(dl->str);
+
+  if (!dl_fname_pos) {
+    size_t plugin_dir_len= strlen(opt_plugin_dir);
+    /*
+      Ensure that the dll doesn't have a path.
+      This is done to ensure that only approved libraries from the
+      plugin directory are used (to make this even remotely secure).
+    */
+    if (check_valid_path(dl->str, dl->length) ||
+        check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
+                                 system_charset_info, 1) ||
+        plugin_dir_len + dl->length + 1 >= FN_REFLEN)
+    {
+      report_error(report, ER_UDF_NO_PATHS);
+      DBUG_RETURN(0);
+    }
+    /* Compile dll path */
+    dlpathlen=
+      strxnmov(dlpath,
+               sizeof(dlpath) - 1,
+               opt_plugin_dir,
+               "/",
+               dl->str,
+               NullS) -
+      dlpath;
   }
+  else
+  {
+    if (dl->length + 1 >= sizeof(dlpath))
+    {
+      report_error(report, ER_UDF_NO_PATHS);
+      DBUG_RETURN(0);
+    }
+    strncpy(dlpath, dl->str, sizeof(dlpath) - 1);
+    dlpathlen= dl->length;
+  }
+
+  (void) unpack_filename(dlpath, dlpath);
+
   /* If this dll is already loaded just increase ref_count. */
   if ((tmp= plugin_dl_find(dl)))
   {
@@ -482,11 +515,6 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     DBUG_RETURN(tmp);
   }
   memset(&plugin_dl, 0, sizeof(plugin_dl));
-  /* Compile dll path */
-  dlpathlen=
-    strxnmov(dlpath, sizeof(dlpath) - 1, opt_plugin_dir, "/", dl->str, NullS) -
-    dlpath;
-  (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
   if (!(plugin_dl.handle= dlopen(dlpath, RTLD_NOW)))
@@ -839,7 +867,7 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
 */
 static bool plugin_add(MEM_ROOT *tmp_root,
                        const LEX_STRING *name, const LEX_STRING *dl,
-                       int *argc, char **argv, int report)
+                       int *argc, char **argv, int report, bool allow_path)
 {
   struct st_plugin_int tmp;
   struct st_mysql_plugin *plugin;
@@ -851,7 +879,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   }
   /* Clear the whole struct to catch future extensions. */
   memset(&tmp, 0, sizeof(tmp));
-  if (! (tmp.plugin_dl= plugin_dl_add(dl, report)))
+  if (! (tmp.plugin_dl= plugin_dl_add(dl, report, allow_path)))
     DBUG_RETURN(TRUE);
   /* Find plugin by name */
   for (plugin= tmp.plugin_dl->plugins; plugin->info; plugin++)
@@ -1299,6 +1327,9 @@ int plugin_init(int *argc, char **argv, int flags)
                    get_bookmark_hash_key, NULL, HASH_UNIQUE))
       goto err;
 
+  if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
+                   16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE))
+      goto err;
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
@@ -1562,7 +1593,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     LEX_STRING name= {(char *)str_name.ptr(), str_name.length()};
     LEX_STRING dl= {(char *)str_dl.ptr(), str_dl.length()};
 
-    if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+    if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG, false))
       sql_print_warning("Couldn't load plugin named '%s' with soname '%s'.",
                         str_name.c_ptr(), str_dl.c_ptr());
     free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
@@ -1619,7 +1650,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 
         dl= name;
         mysql_mutex_lock(&LOCK_plugin);
-        if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG)))
+        if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG, true)))
         {
           for (plugin= plugin_dl->plugins; plugin->info; plugin++)
           {
@@ -1627,7 +1658,13 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
             name.length= strlen(name.str);
 
             free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
-            if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+            if (plugin_add(tmp_root,
+                           &name,
+                           &dl,
+                           argc,
+                           argv,
+                           REPORT_TO_LOG,
+                           true))
               goto error;
           }
           plugin_dl_del(&dl); // reduce ref count
@@ -1637,7 +1674,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
       {
         free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
         mysql_mutex_lock(&LOCK_plugin);
-        if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+        if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG, true))
           goto error;
       }
       mysql_mutex_unlock(&LOCK_plugin);
@@ -1828,6 +1865,7 @@ void plugin_shutdown(void)
   delete_dynamic(&plugin_dl_array);
 
   my_hash_free(&bookmark_hash);
+  my_hash_free(&malloced_string_type_sysvars_bookmark_hash);
   free_root(&plugin_mem_root, MYF(0));
 
   global_variables_dynamic_size= 0;
@@ -1891,7 +1929,13 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
     goto err;
   }
-  error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+  error= plugin_add(thd->mem_root,
+                    name,
+                    dl,
+                    &argc,
+                    argv,
+                    REPORT_TO_USER,
+                    false);
   if (argv)
     free_defaults(argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
@@ -2697,6 +2741,19 @@ static st_bookmark *register_var(const char *plugin, const char *name,
       fprintf(stderr, "failed to add placeholder to hash");
       DBUG_ASSERT(0);
     }
+
+    /*
+      Hashing vars of string type with MEMALLOC flag.
+    */
+    if (((flags & PLUGIN_VAR_TYPEMASK) == PLUGIN_VAR_STR) &&
+        (flags & PLUGIN_VAR_MEMALLOC) &&
+        (my_hash_insert(&malloced_string_type_sysvars_bookmark_hash,
+                        (uchar *)result)))
+    {
+      fprintf(stderr, "failed to add placeholder to"
+                      " hash of malloced string type sysvars");
+      DBUG_ASSERT(0);
+    }
   }
   my_afree(varname);
   return result;
@@ -3092,7 +3149,7 @@ static bool plugin_var_memalloc_session_update(THD *thd,
 
 void plugin_thdvar_safe_update(THD *thd, st_mysql_sys_var *var, char **dest, const char *value)
 {
-  DBUG_ASSERT(thd == current_thd);
+  DBUG_ASSERT(current_thd == NULL || thd == current_thd);
 
   if (var->flags & PLUGIN_VAR_THDLOCAL)
   {
@@ -4028,45 +4085,69 @@ int unlock_plugin_data()
   Create deep copy of system_variables instance.
 */
 struct system_variables *
-copy_system_variables(const struct system_variables *src,
-                      bool enable_plugins)
+copy_system_variables(THD *thd, bool enable_plugins)
 {
   struct system_variables *dst;
+  ulong idx;
 
-  DBUG_ASSERT(src);
+  DBUG_ASSERT(thd);
 
   dst= (struct system_variables *)
     my_malloc(sizeof(struct system_variables), MYF(MY_WME | MY_FAE));
-  *dst = *src;
+  *dst = thd->variables;
 
   if (dst->dynamic_variables_ptr)
   {
     dst->dynamic_variables_ptr=
       (char *)my_malloc(dst->dynamic_variables_size, MYF(MY_WME | MY_FAE));
     memcpy(dst->dynamic_variables_ptr,
-           src->dynamic_variables_ptr,
-           src->dynamic_variables_size);
+           thd->variables.dynamic_variables_ptr,
+           thd->variables.dynamic_variables_size);
   }
 
-  dst->dynamic_variables_allocs= 0;
+  dst->dynamic_variables_allocs= thd->variables.dynamic_variables_allocs;
+  thd->variables.dynamic_variables_allocs= NULL;
 
-  for (LIST *i= src->dynamic_variables_allocs; i; i= i->next)
+  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
+
+  /*
+    Iterate through newly copied vars of string type with MEMALLOC
+    flag and strdup value.
+  */
+  for (idx= 0; idx < malloced_string_type_sysvars_bookmark_hash.records; idx++)
   {
-    const char *src_value= (const char *)(i + 1);
-    size_t src_length= strlen(src_value) + 1;
-    LIST *dst_el= (LIST *) my_malloc(sizeof(LIST) + src_length, MYF(MY_WME | MY_FAE));
-    memcpy(dst_el + 1, src_value, src_length);
-    dst->dynamic_variables_allocs= list_add(dst->dynamic_variables_allocs,
-                                             dst_el);
+    char **var;
+    st_bookmark *v=
+      (st_bookmark*)my_hash_element(&malloced_string_type_sysvars_bookmark_hash,
+                                    idx);
+
+    if (thd->variables.dynamic_variables_ptr == NULL ||
+        (uint) v->offset > thd->variables.dynamic_variables_head)
+      continue;
+
+    var= (char **) (thd->variables.dynamic_variables_ptr + v->offset);
+
+    if (*var)
+    {
+      size_t length= strlen(*var) + 1;
+      LIST *element;
+      element= (LIST *) my_malloc(sizeof(LIST) + length, MYF(MY_FAE));
+      memcpy(element + 1, *var, length);
+      *var= (char *) (element + 1);
+      thd->variables.dynamic_variables_allocs=
+        list_add(thd->variables.dynamic_variables_allocs, element);
+    }
   }
+
+  mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   if (enable_plugins)
   {
     mysql_mutex_lock(&LOCK_plugin);
     dst->table_plugin=
-      my_intern_plugin_lock(NULL, src->table_plugin);
+      my_intern_plugin_lock(NULL, thd->variables.table_plugin);
     dst->temp_table_plugin=
-      my_intern_plugin_lock(NULL, src->temp_table_plugin);
+      my_intern_plugin_lock(NULL, thd->variables.temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
 

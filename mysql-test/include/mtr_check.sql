@@ -99,6 +99,12 @@ BEGIN
   -- Dump all created procedures, there should be none
   SELECT * FROM INFORMATION_SCHEMA.ROUTINES;
 
+  -- Dump all created compression dictionaries if InnoDB is enabled
+  IF ((SELECT COUNT(*) FROM information_schema.engines
+       WHERE engine = 'InnoDB' AND support IN ('YES', 'DEFAULT')) = 1) THEN
+    SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
+  END IF;
+
   SHOW STATUS LIKE 'slave_open_temp_tables';
 
   -- Checksum system tables to make sure they have been properly

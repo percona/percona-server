@@ -35,6 +35,9 @@
 #include "sql_insert.h"       // mysql_insert
 #include "sql_update.h"       // mysql_update, mysql_multi_update
 #include "sql_partition.h"    // struct partition_info
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "partition_info.h"   // has_external_data_or_index_dir
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 #include "sql_db.h"           // mysql_change_db, mysql_create_db,
                               // mysql_rm_db, mysql_upgrade_db,
                               // mysql_alter_db,
@@ -71,6 +74,7 @@
 #include "sql_binlog.h"       // mysql_client_binlog_statement
 #include "sql_do.h"           // mysql_do
 #include "sql_help.h"         // mysqld_help
+#include "sql_zip_dict.h"     // mysqld_create_zip_dict, mysqld_drop_zip_dict
 #include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
 #include "log_event.h"
 #include "rpl_slave.h"
@@ -134,9 +138,6 @@ static void sql_kill(THD *thd, ulong id, bool only_kill_query);
 static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
 static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime);
-
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -335,6 +336,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_TABLE]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_LOAD]=           CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                             CF_CAN_GENERATE_ROW_EVENTS;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY]= CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
@@ -573,6 +578,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_RENAME_TABLE]|=     CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_INDEX]|=     CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY]|=
+                                               CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY]|=
+                                               CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]|=          CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|= CF_DISALLOW_IN_RO_TRANS;
@@ -938,7 +947,7 @@ bool do_command(THD *thd)
     number of seconds has passed.
   */
   if(!thd->skip_wait_timeout)
-    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+    my_net_set_read_timeout(net, thd->get_wait_timeout());
 
   /*
     XXX: this code is here only to clear possible errors of init_connect. 
@@ -1115,7 +1124,12 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
     (lex->sql_command == SQLCOM_CREATE_DB) ||
     (lex->sql_command == SQLCOM_DROP_DB);
 
-  if (update_real_tables || create_or_drop_databases)
+  const bool create_or_drop_compression_dictionary=
+    (lex->sql_command == SQLCOM_CREATE_COMPRESSION_DICTIONARY) ||
+    (lex->sql_command == SQLCOM_DROP_COMPRESSION_DICTIONARY);
+
+  if (update_real_tables || create_or_drop_databases ||
+      create_or_drop_compression_dictionary)
   {
       /*
         An attempt was made to modify one or more non-temporary tables.
@@ -1264,17 +1278,47 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->clear_slow_extended();
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
+  if (thd->is_valid_time() == false)
   {
     /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
+      If the time has gone past 2038 we need to shutdown the server. But
+      there is possibility of getting invalid time value on some platforms.
+      For example, gettimeofday() might return incorrect value on solaris
+      platform. Hence validating the current time with 5 iterations before
+      initiating the normal server shutdown process because of time getting
+      past 2038.
     */
-    thd->security_ctx->master_access|= SHUTDOWN_ACL;
-    command= COM_SHUTDOWN;
+    const int max_tries= 5;
+    sql_print_warning("Current time has got past year 2038. Validating current "
+                      "time with %d iterations before initiating the normal "
+                      "server shutdown process.", max_tries);
+
+    int tries= 0;
+    while (++tries <= max_tries)
+    {
+      thd->set_time();
+      if (thd->is_valid_time() == true)
+      {
+        sql_print_warning("Iteration %d: Obtained valid current time from "
+                           "system", tries);
+        break;
+      }
+      sql_print_warning("Iteration %d: Current time obtained from system is "
+                        "greater than 2038", tries);
+    }
+    if (tries > max_tries)
+    {
+      /*
+        If the time has got past 2038 we need to shut this server down.
+        We do this by making sure every command is a shutdown and we
+        have enough privileges to shut the server down
+
+        TODO: remove this when we have full 64 bit my_time_t support
+      */
+      sql_print_error("This MySQL server doesn't support dates later than 2038");
+      thd->security_ctx->master_access|= SHUTDOWN_ACL;
+      command= COM_SHUTDOWN;
+    }
   }
   thd->set_query_id(next_query_id());
   inc_thread_running();
@@ -1892,6 +1936,7 @@ done:
 
   thd->reset_query();
   thd->set_command(COM_SLEEP);
+  thd->proc_info= 0;
 
   /* Performance Schema Interface instrumentation, end */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
@@ -2937,9 +2982,9 @@ mysql_execute_command(THD *thd)
   }
 
   if (lex->set_statement && !lex->var_list.is_empty()) {
-    per_query_variables_backup= copy_system_variables(&thd->variables,
+    per_query_variables_backup= copy_system_variables(thd,
                                                       thd->m_enable_plugins);
-    if ((res= sql_set_variables(thd, &lex->var_list)))
+    if ((res= sql_set_variables(thd, &lex->var_list, false)))
     {
       /*
          We encountered some sort of error, but no message was sent.
@@ -3309,11 +3354,19 @@ case SQLCOM_PREPARE:
       copy.
     */
     Alter_info alter_info(lex->alter_info, thd->mem_root);
-
     if (thd->is_fatal_error)
     {
       /* If out of memory when creating a copy of alter_info. */
       res= 1;
+      goto end_with_restore_list;
+    }
+
+    if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
+         (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
+        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+    {
+      res= 1;
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
       goto end_with_restore_list;
     }
 
@@ -3354,6 +3407,12 @@ case SQLCOM_PREPARE:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= thd->lex->part_info;
+      if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+      {
+        res= -1;
+        goto end_with_restore_list;
+      }
       if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       {
         res= -1;
@@ -3553,7 +3612,7 @@ end_with_restore_list:
       and thus classify as slow administrative statements just like
       ALTER TABLE.
     */
-    thd->enable_slow_log= opt_log_slow_admin_statements;
+    thd->set_slow_log_for_admin_command();
 
     memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;
@@ -4316,6 +4375,31 @@ end_with_restore_list:
       my_ok(thd);
 
     break;
+  case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
+  {
+    if (lex->default_value->fixed == 0)
+      lex->default_value->fix_fields(thd, 0);
+    String dict_data;
+    String* dict_data_ptr= lex->default_value->val_str_ascii(&dict_data);
+    if (dict_data_ptr == 0 || dict_data_ptr->ptr() == 0)
+    {
+      dict_data.set("", 0, &my_charset_bin);
+      dict_data_ptr= &dict_data;
+    }
+
+    if ((res= mysql_create_zip_dict(thd, lex->ident.str, lex->ident.length,
+          dict_data_ptr->ptr(), dict_data_ptr->length(),
+         (lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS) != 0)) == 0)
+      my_ok(thd);
+    break;
+  }
+  case SQLCOM_DROP_COMPRESSION_DICTIONARY:
+  {
+    if ((res= mysql_drop_zip_dict(thd, lex->ident.str, lex->ident.length,
+                                  lex->drop_if_exists)) == 0)
+      my_ok(thd);
+    break;
+  }
   case SQLCOM_CREATE_DB:
   {
     /*
@@ -7164,7 +7248,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        LEX_STRING *comment,
 		       char *change,
                        List<String> *interval_list, const CHARSET_INFO *cs,
-		       uint uint_geom_type)
+		       uint uint_geom_type, const LEX_CSTRING *zip_dict)
 {
   register Create_field *new_field;
   LEX  *lex= thd->lex;
@@ -7251,7 +7335,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type))
+                      interval_list, cs, uint_geom_type, zip_dict))
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);

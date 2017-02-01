@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 --source include/have_log_bin.inc
 
@@ -7,9 +7,8 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---disable_warnings
-drop table if exists r1;
---enable_warnings
+set @save_default_storage_engine=@@global.default_storage_engine;
+set @save_binlog_format=@@global.binlog_format;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -34,22 +33,22 @@ insert into r1 values (2,2,2,1,15,15,15,15);
 insert into r1 values (2,2,2,2,16,16,16,16);
 
 connection con2;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN;
 insert into r1 values (5,5,5,5,5,5,5,5);
 update r1 set value1=value1+100 where id1=1 and id2=1 and id3='1';
 
---exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 --print-ordering-key --rocksdb --order-by-primary-desc --rocksdb_bulk_load test
+--exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 --order-by-primary-desc test
 
 rollback;
 
 connection con1;
 
---exec grep "START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT" $MYSQLTEST_VARDIR/mysqld.1/mysqld.log | wc -l
+--exec grep "START TRANSACTION /\*\!40100 WITH CONSISTENT SNAPSHOT \*/" $MYSQLTEST_VARDIR/mysqld.1/mysqld.log | wc -l
 
-set @save_default_storage_engine=@@global.default_storage_engine;
 SET GLOBAL default_storage_engine=rocksdb;
---exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 --print-ordering-key test
---exec grep "START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT" $MYSQLTEST_VARDIR/mysqld.1/mysqld.log | wc -l
+--exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 test
+--exec grep "START TRANSACTION /\*\!40100 WITH CONSISTENT SNAPSHOT \*/" $MYSQLTEST_VARDIR/mysqld.1/mysqld.log | wc -l
 
 
 # wiping general log so that this test case doesn't fail with --repeat
@@ -57,9 +56,16 @@ SET GLOBAL default_storage_engine=rocksdb;
 
 # testing mysqldump work with statement based binary logging
 SET GLOBAL binlog_format=statement;
---exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 --print-ordering-key test > /dev/null
-SET GLOBAL binlog_format=row;
+--exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 test > /dev/null
+
+connection default;
+disconnect con2;
+disconnect con1;
 
 drop table r1;
 reset master;
+
 set @@global.default_storage_engine=@save_default_storage_engine;
+set @@global.binlog_format=@save_binlog_format;
+
+--source include/wait_until_count_sessions.inc

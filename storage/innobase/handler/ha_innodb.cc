@@ -19448,17 +19448,17 @@ innodb_buffer_pool_evict_uncompressed(void)
 			ut_ad(block->page.in_LRU_list);
 
 			mutex_enter(&block->mutex);
+			all_evicted = buf_LRU_free_page(&block->page, false);
 
-			if (!buf_LRU_free_page(&block->page, false)) {
-
-				mutex_exit(&block->mutex);
-				all_evicted = false;
-			} else {
+			if (all_evicted) {
 
 				mutex_enter(&buf_pool->LRU_list_mutex);
-			}
+				block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+			} else {
 
-			block = prev_block;
+				mutex_exit(&block->mutex);
+				block = prev_block;
+			}
 		}
 
 		mutex_exit(&buf_pool->LRU_list_mutex);

@@ -1,0 +1,24 @@
+#
+# Bug 84736: 5.7 range optimizer crash
+#
+CREATE TABLE t1 (
+col1 INT(11) NOT NULL,
+col2 INT(11) NOT NULL,
+col3 TEXT,
+PRIMARY KEY (col1, col2)
+);
+INSERT INTO t1 VALUES (2, 1, "a");
+INSERT INTO t1 VALUES (3, 10, "b");
+INSERT INTO t1 VALUES (1, 2, "c");
+INSERT INTO t1 VALUES (100, 100, "x");
+SELECT * FROM t1
+WHERE
+(col1 = 2 AND col2 = 1) OR
+(col1 IN (3, 100) AND col2 = 10) OR
+(col1 = 1 AND col2 = 2) OR
+(col1 IN (1, 2, 3) AND col2 = 2);
+col1	col2	col3
+1	2	c
+2	1	a
+3	10	b
+DROP TABLE t1;

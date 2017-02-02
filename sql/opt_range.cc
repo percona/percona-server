@@ -742,7 +742,7 @@ public:
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
 #ifndef DBUG_OFF
-  friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
+  friend int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
 #endif
   bool test_use_count(SEL_ARG *root);
   SEL_ARG *first();
@@ -781,6 +781,8 @@ public:
     {
       if (cur_selarg->next_key_part)
       {
+        DBUG_ASSERT(count >= 0
+                    || (long)cur_selarg->next_key_part->use_count >= count);
         cur_selarg->next_key_part->use_count+= count;
         cur_selarg->next_key_part->increment_use_count(count);
       }
@@ -8045,9 +8047,12 @@ static SEL_ARG *
 and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
              uint clone_flag)
 {
+  DBUG_ASSERT(key1->part < key2->part);
+
   SEL_ARG *next;
   ulong use_count=key1->use_count;
 
+  DBUG_ASSERT(key1->elements > 0);
   if (key1->elements != 1)
   {
     key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?
@@ -9287,8 +9292,8 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 
 #ifndef DBUG_OFF
 	/* Test that the properties for a red-black tree hold */
-
-int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
+static
+int test_rb_subtree(const SEL_ARG *element, const SEL_ARG *parent)
 {
   int count_l,count_r;
 
@@ -9311,8 +9316,8 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
     sql_print_error("Wrong tree: Found right == left");
     return -1;
   }
-  count_l=test_rb_tree(element->left,element);
-  count_r=test_rb_tree(element->right,element);
+  count_l=test_rb_subtree(element->left,element);
+  count_r=test_rb_subtree(element->right,element);
   if (count_l >= 0 && count_r >= 0)
   {
     if (count_l == count_r)
@@ -9321,6 +9326,16 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 	    count_l,count_r);
   }
   return -1;					// Error, no more warnings
+}
+
+int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent)
+{
+  if (element->color == SEL_ARG::RED)
+  {
+    sql_print_error("Wrong tree: root node is red");
+    return -1;
+  }
+  return test_rb_subtree(element, parent);
 }
 #endif
 

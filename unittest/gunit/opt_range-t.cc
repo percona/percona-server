@@ -1674,7 +1674,7 @@ TEST_F(OptRangeTest, KeyOr2)
 
   EXPECT_EQ(0UL, fld1_20->keys[1]->use_count);
   EXPECT_NE(null_arg, fld1_20->keys[1]->next_key_part);
-  EXPECT_EQ(0UL, fld1_20->keys[1]->next_key_part->use_count);
+  EXPECT_EQ(1UL, fld1_20->keys[1]->next_key_part->use_count);
 }
 
 class Mock_SEL_ARG : public SEL_ARG

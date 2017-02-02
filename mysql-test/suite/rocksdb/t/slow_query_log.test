@@ -4,10 +4,6 @@ SET @cur_long_query_time = @@long_query_time;
 SET @@long_query_time = 600;
 # Test the slow query log feature
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
 
 --disable_query_log

@@ -88,6 +88,7 @@ Flexibility Improvements
    flexibility/csv_engine_mode
    flexibility/proxy_protocol_support
    flexibility/per_session_server-id
+   flexibility/compressed_columns
 
 Reliability Improvements
 ========================

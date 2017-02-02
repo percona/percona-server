@@ -694,8 +694,13 @@ safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
-  log_error "Directory '$mysql_unix_port_dir' for UNIX socket file don't exists."
-  exit 1
+  if [ ! -h $mysql_unix_port_dir ];
+  then
+    install -d -m 0755 -o $user $mysql_unix_port_dir
+  else 
+    log_error "Directory '$mysql_unix_port_dir' for UNIX socket file don't exists."
+    exit 1
+  fi
 fi
 
 # If the user doesn't specify a binary, we assume name "mysqld"

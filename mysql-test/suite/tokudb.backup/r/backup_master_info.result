@@ -1,0 +1,64 @@
+###
+# Test for binlog position
+#####
+include/rpl_init.inc [topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+Backup
+include/filter_file.inc
+### tokubackup_slave_info content:
+host: #.#.#.#, user: ####, port: ####, master log file: ####, relay log file: ####, exec master log pos: ####, executed gtid set: , channel name: 
+###
+# Test for gtid set
+#####
+include/rpl_set_gtid_mode.inc [ON on servers 1,2]
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+Backup
+include/filter_file.inc
+### tokubackup_slave_info content:
+host: #.#.#.#, user: ####, port: ####, master log file: ####, relay log file: ####, exec master log pos: ####, executed gtid set: ####, channel name: 
+include/rpl_set_gtid_mode.inc [OFF on servers 1,2]
+include/rpl_end.inc
+###
+# test for multisource replication with binlog
+####
+include/rpl_init.inc [topology=1->3, 2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+CREATE TABLE t2(a INT) ENGINE=TokuDB;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+Backup
+include/filter_file.inc
+### tokubackup_slave_info content:
+host: #.#.#.#, user: ####, port: ####, master log file: ####, relay log file: ####, exec master log pos: ####, executed gtid set: , channel name: channel_1
+host: #.#.#.#, user: ####, port: ####, master log file: ####, relay log file: ####, exec master log pos: ####, executed gtid set: , channel name: channel_2
+###
+# test for multisource replication with gtids
+####
+include/rpl_set_gtid_mode.inc [ON on servers 1,2,3]
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+CREATE TABLE t2(a INT) ENGINE=TokuDB;
+DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
+include/filter_file.inc
+### tokubackup_slave_info content:
+host: #.#.#.#, user: ####, port: ####, master log file: ####, relay log file: ####, exec master log pos: ####, executed gtid set: ####,####, channel name: channel_1
+host: #.#.#.#, user: ####, port: ####, master log file: ####, relay log file: ####, exec master log pos: ####, executed gtid set: ####,####, channel name: channel_2
+include/rpl_set_gtid_mode.inc [OFF on servers 1,2,3]
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL  'channel_1';
+RESET SLAVE ALL FOR CHANNEL  'channel_2';

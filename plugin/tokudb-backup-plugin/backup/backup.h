@@ -19,10 +19,23 @@ typedef void (*backup_error_fun_t)(int error_number, const char *error_string, v
 // When it returns 0, the file is copied.  Otherwise, the file copy is skipped.
 typedef int (*backup_exclude_copy_fun_t)(const char *source_file,void *extra);
 
-int tokubackup_create_backup(const char *source_dirs[], const char *dest_dirs[], int dir_count,
-                             backup_poll_fun_t poll_fun, void *poll_extra,
-                             backup_error_fun_t error_fun, void *error_extra,
-                             backup_exclude_copy_fun_t check_fun, void *exclude_copy_extra)
+typedef void (*backup_before_stop_capt_fun_t)(void *extra);
+typedef void (*backup_after_stop_capt_fun_t)(void *extra);
+
+
+int tokubackup_create_backup(const char *source_dirs[],
+                             const char *dest_dirs[],
+                             int dir_count,
+                             backup_poll_fun_t poll_fun,
+                             void *poll_extra,
+                             backup_error_fun_t error_fun,
+                             void *error_extra,
+                             backup_exclude_copy_fun_t check_fun,
+                             void *exclude_copy_extra,
+                             backup_before_stop_capt_fun_t bsc_fun,
+                             void *bsc_extra,
+                             backup_after_stop_capt_fun_t asc_fun,
+                             void *asc_extra)
     throw() __attribute__((visibility("default")));
 // Effect: Backup the directories in source_dirs into correspnding dest_dirs.
 // Periodically call poll_fun.

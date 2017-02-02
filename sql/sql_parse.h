@@ -163,4 +163,6 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 #endif /*HAVE_REPLICATION*/
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 
+bool lock_binlog_for_backup(THD *thd);
+
 #endif /* SQL_PARSE_INCLUDED */

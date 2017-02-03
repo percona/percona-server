@@ -35,8 +35,8 @@ New Features
 Bugs Fixed
 ==========
 
- Logical row for |TokuDB| tables could get inaccurate over time. Bug fixed
- :bug:`1651844` (:ftbug:`732`).
+ Logical row counts for |TokuDB| tables could get inaccurate over time. Bug
+ fixed :bug:`1651844` (:ftbug:`732`).
 
  Repeated execution of ``SET STATEMENT ... FOR <SELECT FROM view>`` could lead
  to a server crash. Bug fixed :bug:`1392375`.

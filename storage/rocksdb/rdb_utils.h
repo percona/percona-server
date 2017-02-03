@@ -21,6 +21,8 @@
 #include <regex>
 
 /* MySQL header files */
+#include "../sql/log.h"
+#include "./my_stacktrace.h"
 #include "./sql_string.h"
 #include "./sql_regex.h"
 
@@ -135,6 +137,16 @@ namespace myrocks {
 #define HA_EXIT_FAILURE TRUE
 
 /*
+  Macros to better convey the intent behind checking the results from locking
+  and unlocking mutexes.
+*/
+#define RDB_MUTEX_LOCK_CHECK(m)                                                \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, true, mysql_mutex_lock(&m))
+#define RDB_MUTEX_UNLOCK_CHECK(m)                                              \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false,                      \
+                              mysql_mutex_unlock(&m))
+
+/*
   Generic constant.
 */
 const size_t RDB_MAX_HEXDUMP_LEN = 1000;
@@ -206,6 +218,28 @@ inline int purge_all_jemalloc_arenas() {
 #else
   return EXIT_SUCCESS;
 #endif
+}
+
+/*
+  Helper function to check the result of locking or unlocking a mutex. We'll
+  intentionally abort in case of a failure because it's better to terminate
+  the process instead of continuing in an undefined state and corrupting data
+  as a result.
+*/
+inline void rdb_check_mutex_call_result(const char *function_name,
+                                        const bool attempt_lock,
+                                        const int result) {
+  if (unlikely(result)) {
+    /* NO_LINT_DEBUG */
+    sql_print_error("%s a mutex inside %s failed with an "
+                    "error code %d.",
+                    attempt_lock ? "Locking" : "Unlocking", function_name,
+                    result);
+
+    // This will hopefully result in a meaningful stack trace which we can use
+    // to efficiently debug the root cause.
+    abort_with_stack_traces();
+  }
 }
 
 /*

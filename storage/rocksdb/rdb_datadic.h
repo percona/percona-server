@@ -885,9 +885,9 @@ public:
 
   inline void cleanup() { mysql_mutex_destroy(&m_mutex); }
 
-  inline void lock() { mysql_mutex_lock(&m_mutex); }
+  inline void lock() { RDB_MUTEX_LOCK_CHECK(m_mutex); }
 
-  inline void unlock() { mysql_mutex_unlock(&m_mutex); }
+  inline void unlock() { RDB_MUTEX_UNLOCK_CHECK(m_mutex); }
 
   /* Raw RocksDB operations */
   std::unique_ptr<rocksdb::WriteBatch> begin() const;

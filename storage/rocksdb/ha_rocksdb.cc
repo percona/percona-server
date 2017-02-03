@@ -2869,20 +2869,6 @@ class Rdb_snapshot_status : public Rdb_tx_list_walker
   }
 };
 
-/* Generate the snapshot status table */
-static bool rocksdb_show_snapshot_status(handlerton*    hton,
-                                         THD*           thd,
-                                         stat_print_fn* stat_print)
-{
-  Rdb_snapshot_status showStatus;
-
-  Rdb_transaction::walk_tx_list(&showStatus);
-
-  // Send the result data back to MySQL */
-  return print_stats(thd, "SNAPSHOTS", "rocksdb", showStatus.getResult(),
-      stat_print);
-}
-
 /*
   This is called for SHOW ENGINE ROCKSDB STATUS|LOGS|etc.
 
@@ -2983,11 +2969,6 @@ static bool rocksdb_show_status(handlerton*		hton,
              internal_cache_count * kDefaultInternalCacheSize);
     str.append(buf);
     res |= print_stats(thd, "Memory_Stats", "rocksdb", str, stat_print);
-  }
-  else if (stat_type == HA_ENGINE_TRX)
-  {
-    /* Handle the SHOW ENGINE ROCKSDB TRANSACTION STATUS command */
-    res |= rocksdb_show_snapshot_status(hton, thd, stat_print);
   }
 
   return res;

@@ -455,6 +455,10 @@ alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
 
+# Force complete purge
+SET @@GLOBAL.innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+
 -- disable_query_log
 -- disable_result_log
 analyze table t3;

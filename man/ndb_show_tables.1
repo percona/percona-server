@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\F" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\F" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -40,12 +40,12 @@ NDB
 database objects in the cluster\&. By default, this includes not only both user\-created tables and
 NDB
 system tables, but
-NDB\-specific indexes, internal triggers, and MySQL Cluster Disk Data objects as well\&.
+NDB\-specific indexes, internal triggers, and NDB Cluster Disk Data objects as well\&.
 .PP
-The following table includes options that are specific to the MySQL Cluster native backup restoration program
-\fBndb_show_tables\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+The following table includes options that are specific to the NDB Cluster native backup restoration program
+\fBndb_show_tables\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndb_show_tables\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -206,7 +206,7 @@ If specified, this causes unqualified object names to be displayed\&.
 .ps -1
 .br
 .PP
-Only user\-created MySQL Cluster tables may be accessed from MySQL; system tables such as
+Only user\-created NDB Cluster tables may be accessed from MySQL; system tables such as
 SYSTAB_0
 are not visible to
 \fBmysqld\fR\&. However, you can examine the contents of system tables using

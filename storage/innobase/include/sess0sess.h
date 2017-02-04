@@ -67,11 +67,13 @@ typedef std::map<
 	table_cache_t;
 
 class innodb_session_t {
+	friend class innodb_session_dict_mutex_guard_t;
 public:
 	/** Constructor */
 	innodb_session_t()
 		: m_trx(),
-		  m_open_tables()
+		  m_open_tables(),
+		  m_dict_mutex_locked(0)
 	{
 		/* Do nothing. */
 	}
@@ -131,6 +133,12 @@ public:
 		return(static_cast<uint>(m_open_tables.size()));
 	}
 
+	/** Checks the state of the dict_sys mutex.
+	@return true, if dict_sys mutex is locked */
+	bool is_dict_mutex_locked() const
+	{
+		return m_dict_mutex_locked != 0;
+	}
 public:
 
 	/** transaction handler. */
@@ -140,6 +148,45 @@ public:
 	to InnoDB dictionary as they are session specific.
 	Currently, limited to intrinsic temporary tables only. */
 	table_cache_t	m_open_tables;
+
+private:
+	/** This counter is used by
+	ha_innobase::update_field_defs_with_zip_dict_info() to determine
+	whether it needs to acquire dict_sys mutex or not. Non-zero value
+	means that this mutex has already been locked by one of the purge
+	threads just before calling handler::my_prepare_gcolumn_template() /
+	handler::my_eval_gcolumn_expr_with_open() and therefore it must not
+	be touched to avoid recursive locking. */
+	uint		m_dict_mutex_locked;
+};
+
+/** A guard class which sets dict_mutex locked flag for the provided innodb
+session object in constructor and unset it in destructor. */
+class innodb_session_dict_mutex_guard_t {
+public:
+	/** Constructor
+	@param[in,out]	session	innodb session object. */
+	innodb_session_dict_mutex_guard_t(innodb_session_t& session)
+		: m_session(session)
+	{
+		++m_session.m_dict_mutex_locked;
+	}
+
+	/** Destructor */
+	~innodb_session_dict_mutex_guard_t()
+	{
+		--m_session.m_dict_mutex_locked;
+	}
+
+private:
+	/* noncopyable */
+	innodb_session_dict_mutex_guard_t(
+		const innodb_session_dict_mutex_guard_t&);
+	innodb_session_dict_mutex_guard_t& operator = (
+		const innodb_session_dict_mutex_guard_t&);
+
+	/** Reference to the innodb session object */
+	innodb_session_t& m_session;
 };
 
 

@@ -13,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_INCLUDE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 MYSQL_ADD_PLUGIN(keyring_file
@@ -23,6 +24,7 @@ MYSQL_ADD_PLUGIN(keyring_file
                  keyring.cc
                  hash_to_buffer_serializer.cc
                  buffered_file_io.cc
+                 file_io.cc
                  buffer.cc
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_file")

@@ -2,12 +2,12 @@
 .\"     Title: \fBinnochecksum\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBINNOCHECKSUM\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBINNOCHECKSUM\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,13 +39,17 @@ prints checksums for
 InnoDB
 files\&. This tool reads an
 InnoDB
-tablespace file, calculates the checksum for each page, compares the calculated checksum to the stored checksum, and reports mismatches, which indicate damaged pages\&. It was originally developed to speed up verifying the integrity of tablespace files after power outages but can also be used after file copies\&. Because checksum mismatches will cause
+tablespace file, calculates the checksum for each page, compares the calculated checksum to the stored checksum, and reports mismatches, which indicate damaged pages\&. It was originally developed to speed up verifying the integrity of tablespace files after power outages but can also be used after file copies\&. Because checksum mismatches cause
 InnoDB
-to deliberately shut down a running server, it can be preferable to use this tool rather than waiting for a server in production usage to encounter the damaged pages\&. As of MySQL 5\&.7\&.2,
+to deliberately shut down a running server, it may be preferable to use this tool rather than waiting for an in\-production server to encounter the damaged pages\&. As of MySQL 5\&.7\&.2,
 \fBinnochecksum\fR
 supports files greater than 2GB in size\&. Previously,
 \fBinnochecksum\fR
 only supported files up to 2GB in size\&.
+.PP
+As of MySQL 5\&.7\&.2,
+\fBinnochecksum\fR
+supports tablespaces that contain compressed pages\&.
 .PP
 \fBinnochecksum\fR
 cannot be used on tablespace files that the server already has open\&. For such files, you should use
@@ -796,13 +800,13 @@ shell> \fBinnochecksum \-l /tmp/log\&.txt \&.\&./data/test/tab1\&.ibd\fR
 .sp -1
 .IP \(bu 2.3
 .\}
-\(lq\-\(rq
+\-
 option\&.
 .sp
 Specify the
-\(lq\-\(rq
+\-
 option to read from standard input\&. If the
-\(lq\-\(rq
+\-
 option is missing when
 \(lqread from standard in\(rq
 is expected,
@@ -961,7 +965,7 @@ ibdata3) form one logical system tablespace\&. To run
 on multiple files that form one logical system tablespace,
 \fBinnochecksum\fR
 requires the
-\(lq\-\(rq
+\-
 option to read tablespace files in from standard input, which is equivalent to concatenating multiple files to create one single file\&. For the example provided above, the following
 \fBinnochecksum\fR
 command would be used:

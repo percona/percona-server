@@ -2,12 +2,12 @@
 .\"     Title: \fBndbmtd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBMTD\FR" "8" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBMTD\FR" "8" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndbmtd \- the MySQL Cluster data node daemon (multi\-threaded version)
+ndbmtd \- the NDB Cluster data node daemon (multi\-threaded version)
 .SH "SYNOPSIS"
 .HP \w'\fBndbmtd\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndbmtd \fR\fB\fIoptions\fR\fR
@@ -47,14 +47,14 @@ functions in the same way as
 \fBndbmtd\fR
 differs from
 \fBndbd\fR, and you should consult
-\fBndbd\fR(8), for additional information about running MySQL Cluster data nodes that apply to both the single\-threaded and multi\-threaded versions of the data node process\&.
+\fBndbd\fR(8), for additional information about running NDB Cluster data nodes that apply to both the single\-threaded and multi\-threaded versions of the data node process\&.
 .PP
 Command\-line options and configuration parameters used with
 \fBndbd\fR
 also apply to
 \fBndbmtd\fR\&. For more information about these options and parameters, see
 \fBndbd\fR(8), and
-Section\ \&19.3.3.6, \(lqDefining MySQL Cluster Data Nodes\(rq, respectively\&.
+Section\ \&19.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq, respectively\&.
 .PP
 \fBndbmtd\fR
 is also file system\-compatible with
@@ -133,7 +133,7 @@ configuration file\&. Except for trace files, these are generated in the same wa
 In the event of a critical error,
 \fBndbmtd\fR
 generates trace files describing what happened just prior to the error\*(Aq occurrence\&. These files, which can be found in the data node\*(Aqs
-DataDir, are useful for analysis of problems by the MySQL Cluster Development and Support teams\&. One trace file is generated for each
+DataDir, are useful for analysis of problems by the NDB Cluster Development and Support teams\&. One trace file is generated for each
 \fBndbmtd\fR
 thread\&. The names of these files have the following pattern:
 .sp
@@ -155,7 +155,7 @@ is a trace sequence number, and
 \fIthread_id\fR
 is the thread ID\&. For example, in the event of the failure of an
 \fBndbmtd\fR
-process running as a MySQL Cluster data node having the node ID 3 and with
+process running as an NDB Cluster data node having the node ID 3 and with
 MaxNoOfExecutionThreads
 equal to 4, four trace files are generated in the data node\*(Aqs data directory\&. If the is the first time this node has failed, then these files are named
 ndb_3_trace\&.log\&.1_t1,
@@ -187,7 +187,7 @@ It is possible to use
 \fBndbd\fR
 and
 \fBndbmtd\fR
-concurrently on different data nodes in the same MySQL Cluster\&. However, such configurations have not been tested extensively; thus, we cannot recommend doing so in a production setting at this time\&.
+concurrently on different data nodes in the same NDB Cluster \&. However, such configurations have not been tested extensively; thus, we cannot recommend doing so in a production setting at this time\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"

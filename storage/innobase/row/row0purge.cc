@@ -253,6 +253,8 @@ row_purge_poss_sec(
 {
 	bool	can_delete;
 	mtr_t	mtr;
+	row_prebuilt_t* prebuilt =
+		static_cast<que_thr_t*>(node->common.parent)->prebuilt;
 
 	ut_ad(!dict_index_is_clust(index));
 	mtr_start(&mtr);
@@ -261,7 +263,8 @@ row_purge_poss_sec(
 		|| !row_vers_old_has_index_entry(TRUE,
 						 btr_pcur_get_rec(&node->pcur),
 						 &mtr, index, entry,
-						 node->roll_ptr, node->trx_id);
+						 node->roll_ptr, node->trx_id,
+						 prebuilt);
 
 	/* Persistent cursor is closed if reposition fails. */
 	if (node->found_clust) {
@@ -1014,7 +1017,7 @@ row_purge_record_func(
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
 parent node, which is always a query thread node. */
-static MY_ATTRIBUTE((nonnull))
+static
 void
 row_purge(
 /*======*/
@@ -1116,6 +1119,10 @@ row_purge_step(
 		}
 	} else {
 		row_purge_end(thr);
+	}
+
+	if (thr->prebuilt !=0 && thr->prebuilt->compress_heap != 0) {
+		mem_heap_empty(thr->prebuilt->compress_heap);
 	}
 
 	return(thr);

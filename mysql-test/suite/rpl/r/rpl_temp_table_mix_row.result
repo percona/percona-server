@@ -15,7 +15,6 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 Variable_name	Value
 Slave_open_temp_tables	0
 [on master]
-[on master1]
 [on slave]
 include/sync_slave_sql_with_master.inc
 ==== Verify results on slave ====

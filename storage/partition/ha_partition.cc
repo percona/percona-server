@@ -3768,6 +3768,16 @@ int ha_partition::read_range_next_in_part(uint part, uchar *buf)
   return error;
 }
 
+bool ha_partition::has_gap_locks() const
+{
+  /* Pass the call to each partition */
+  for (uint i= 0; i < m_tot_parts; i++)
+  {
+    if (!m_file[i]->has_gap_locks())
+      return false;
+  }
+  return true;
+}
 
 /****************************************************************************
                 MODULE information calls

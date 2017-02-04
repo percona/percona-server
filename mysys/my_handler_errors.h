@@ -104,7 +104,8 @@ static const char *handler_error_messages[]=
   "Tablespace is not empty",
   "Incorrect file name",
   "Operation is not allowed",
-  "Compute generate value failed"
+  "Compute generate value failed",
+  "Destination schema does not exist"
 };
 
 extern void my_handler_error_register(void);

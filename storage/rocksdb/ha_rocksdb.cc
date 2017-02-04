@@ -3005,66 +3005,41 @@ static inline void rocksdb_register_tx(handlerton *hton, THD *thd,
 }
 
 /*
-    Supporting START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT
+    Supporting START TRANSACTION WITH CONSISTENT SNAPSHOT
 
-    Features:
-    1. Supporting START TRANSACTION WITH CONSISTENT SNAPSHOT
-    2. Getting current binlog position in addition to #1.
-
-    The second feature is done by START TRANSACTION WITH
-    CONSISTENT ROCKSDB SNAPSHOT. This is Facebook's extension, and
-    it works like existing START TRANSACTION WITH CONSISTENT INNODB SNAPSHOT.
-
-    - When not setting engine, START TRANSACTION WITH CONSISTENT SNAPSHOT
+    - START TRANSACTION WITH CONSISTENT SNAPSHOT
     takes both InnoDB and RocksDB snapshots, and both InnoDB and RocksDB
     participate in transaction. When executing COMMIT, both InnoDB and
     RocksDB modifications are committed. Remember that XA is not supported yet,
     so mixing engines is not recommended anyway.
-
-    - When setting engine, START TRANSACTION WITH CONSISTENT.. takes
-    snapshot for the specified engine only. But it starts both
-    InnoDB and RocksDB transactions.
 */
 static int rocksdb_start_tx_and_assign_read_view(
         handlerton*     hton,           /*!< in: RocksDB handlerton */
-        THD*            thd,            /*!< in: MySQL thread handle of the
+        THD*            thd)            /*!< in: MySQL thread handle of the
                                         user for whom the transaction should
                                         be committed */
-        char*           binlog_file,    /* out: binlog file for last commit */
-        ulonglong*      binlog_pos,     /* out: binlog pos for last commit */
-        char**  gtid_executed,  /* out: Gtids logged until last commit */
-        int*    gtid_executed_length)   /*out: Length of gtid_executed string */
 {
   Rdb_perf_context_guard guard(thd);
 
   ulong const tx_isolation = my_core::thd_tx_isolation(thd);
 
-  if (tx_isolation != ISO_REPEATABLE_READ)
-  {
-    my_printf_error(ER_UNKNOWN_ERROR,
-                    "Only REPEATABLE READ isolation level is supported "
-                    "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
-                    "in RocksDB Storage Engine.", MYF(0));
-    return 1;
-  }
-
-  if (binlog_file)
-  {
-    if (binlog_pos && mysql_bin_log_is_open())
-      mysql_bin_log_lock_commits();
-    else
-      return 1;
-  }
-
   Rdb_transaction* tx= get_or_create_tx(thd);
   DBUG_ASSERT(!tx->has_snapshot());
   tx->set_tx_read_only(true);
   rocksdb_register_tx(hton, thd, tx);
-  tx->acquire_snapshot(true);
 
-  if (binlog_file)
-    mysql_bin_log_unlock_commits(binlog_file, binlog_pos, gtid_executed,
-                                 gtid_executed_length);
+  if (tx_isolation == ISO_REPEATABLE_READ)
+  {
+    tx->acquire_snapshot(true);
+  }
+  else
+  {
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, HA_ERR_UNSUPPORTED,
+                        "Only REPEATABLE READ isolation level is supported "
+                        "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
+                        "in RocksDB Storage Engine. Snapshot has not been "
+                        "taken.");
+  }
 
   return 0;
 }
@@ -3091,98 +3066,6 @@ static bool rocksdb_rollback_to_savepoint_can_release_mdl(handlerton *hton,
 {
   return true;
 }
-
-/*
-  This is called for INFORMATION_SCHEMA
-*/
-static void rocksdb_update_table_stats(
-  /* per-table stats callback */
-  void (*cb)(const char* db, const char* tbl, bool is_partition,
-    my_io_perf_t* r, my_io_perf_t* w, my_io_perf_t* r_blob,
-    my_io_perf_t* r_primary, my_io_perf_t* r_secondary,
-    page_stats_t *page_stats, comp_stats_t *comp_stats,
-    int n_lock_wait, int n_lock_wait_timeout,
-    const char* engine))
-{
-  my_io_perf_t io_perf_read;
-  my_io_perf_t io_perf;
-  page_stats_t page_stats;
-  comp_stats_t comp_stats;
-  std::vector<std::string> tablenames;
-
-  /*
-    Most of these are for innodb, so setting them to 0.
-    TODO: possibly separate out primary vs. secondary index reads
-   */
-  memset(&io_perf, 0, sizeof(io_perf));
-  memset(&page_stats, 0, sizeof(page_stats));
-  memset(&comp_stats, 0, sizeof(comp_stats));
-
-  tablenames= rdb_open_tables.get_table_names();
-
-  for (const auto& it : tablenames)
-  {
-    Rdb_table_handler *table_handler;
-    std::string str, dbname, tablename, partname;
-    char dbname_sys[NAME_LEN + 1];
-    char tablename_sys[NAME_LEN + 1];
-    bool is_partition;
-
-    if (rdb_normalize_tablename(it, &str)) {
-      /* Function needs to return void because of the interface and we've
-       * detected an error which shouldn't happen. There's no way to let
-       * caller know that something failed.
-      */
-      SHIP_ASSERT(false);
-      return;
-    }
-
-    if (rdb_split_normalized_tablename(str, &dbname, &tablename, &partname))
-    {
-      continue;
-    }
-
-    is_partition= (partname.size() != 0);
-
-    table_handler= rdb_open_tables.get_table_handler(it.c_str());
-    if (table_handler == nullptr)
-    {
-      continue;
-    }
-
-    io_perf_read.bytes= table_handler->m_io_perf_read.bytes.load();
-    io_perf_read.requests= table_handler->m_io_perf_read.requests.load();
-
-    /*
-      Convert from rocksdb timer to mysql timer. RocksDB values are
-      in nanoseconds, but table statistics expect the value to be
-      in my_timer format.
-     */
-     io_perf_read.svc_time= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.svc_time.load() / 1000);
-     io_perf_read.svc_time_max= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.svc_time_max.load() / 1000);
-     io_perf_read.wait_time= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.wait_time.load() / 1000);
-     io_perf_read.wait_time_max= my_core::microseconds_to_my_timer(
-         table_handler->m_io_perf_read.wait_time_max.load() / 1000);
-     io_perf_read.slow_ios= table_handler->m_io_perf_read.slow_ios.load();
-     rdb_open_tables.release_table_handler(table_handler);
-
-    /*
-      Table stats expects our database and table name to be in system encoding,
-      not filename format. Convert before calling callback.
-     */
-    my_core::filename_to_tablename(dbname.c_str(), dbname_sys,
-                                   sizeof(dbname_sys));
-    my_core::filename_to_tablename(tablename.c_str(), tablename_sys,
-                                   sizeof(tablename_sys));
-    (*cb)(dbname_sys, tablename_sys, is_partition, &io_perf_read, &io_perf,
-          &io_perf, &io_perf, &io_perf, &page_stats, &comp_stats, 0, 0,
-          rocksdb_hton_name);
-  }
-}
-
 
 static rocksdb::Status check_rocksdb_options_compatibility(
         const char *dbpath,
@@ -3300,7 +3183,6 @@ static int rocksdb_init_func(void *p)
   rocksdb_hton->savepoint_rollback= rocksdb_rollback_to_savepoint;
   rocksdb_hton->savepoint_rollback_can_release_mdl=
     rocksdb_rollback_to_savepoint_can_release_mdl;
-  rocksdb_hton->update_table_stats = rocksdb_update_table_stats;
   rocksdb_hton->flush_logs= rocksdb_flush_wal;
 
   rocksdb_hton->flags= HTON_TEMPORARY_NOT_SUPPORTED |
@@ -3709,7 +3591,7 @@ Rdb_table_handler* Rdb_open_tables_map::get_table_handler(
     }
 
     thr_lock_init(&table_handler->m_thr_lock);
-    my_io_perf_atomic_init(&table_handler->m_io_perf_read);
+    table_handler->m_io_perf_read.init();
   }
   DBUG_ASSERT(table_handler->m_ref_count >= 0);
   table_handler->m_ref_count++;
@@ -6054,8 +5936,6 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *buf)
   DBUG_ASSERT(buf != nullptr);
   DBUG_ASSERT(table != nullptr);
 
-  stats.rows_requested++;
-
   /* Use STATUS_NOT_FOUND when record not found or some error occurred */
   table->status= STATUS_NOT_FOUND;
 
@@ -6092,8 +5972,6 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *buf)
       if (!rc)
       {
         table->status= 0;
-        stats.rows_read++;
-        stats.rows_index_next++;
         update_row_stats(ROWS_READ);
       }
       return rc;
@@ -6199,7 +6077,6 @@ int ha_rocksdb::index_read_map_impl(uchar *buf, const uchar *key,
 
   /* By default, we don't need the retrieved records to match the prefix */
   m_sk_match_prefix= nullptr;
-  stats.rows_requested++;
 
   if (active_index == table->s->primary_key &&
       find_flag == HA_READ_KEY_EXACT && using_full_key)
@@ -6213,8 +6090,6 @@ int ha_rocksdb::index_read_map_impl(uchar *buf, const uchar *key,
     rc= get_row_by_rowid(buf, m_pk_packed_tuple, size);
     if (!rc)
     {
-      stats.rows_read++;
-      stats.rows_index_first++;
       update_row_stats(ROWS_READ);
     }
     DBUG_RETURN(rc);
@@ -6340,8 +6215,6 @@ int ha_rocksdb::index_read_map_impl(uchar *buf, const uchar *key,
   else
   {
     table->status= 0;
-    stats.rows_read++;
-    stats.rows_index_first++;
     update_row_stats(ROWS_READ);
   }
   DBUG_RETURN(rc);
@@ -6903,15 +6776,6 @@ int ha_rocksdb::index_first_intern(uchar *buf)
     release_scan_iterator();
   }
 
-  if (!rc)
-  {
-    /*
-      index_next is always incremented on success, so decrement if it is
-      index_first instead
-     */
-    stats.rows_index_first++;
-    stats.rows_index_next--;
-  }
   DBUG_RETURN(rc);
 }
 
@@ -7035,15 +6899,6 @@ int ha_rocksdb::index_last_intern(uchar *buf)
     release_scan_iterator();
   }
 
-  if (!rc)
-  {
-    /*
-      index_next is always incremented on success, so decrement if it is
-      index_first instead
-     */
-    stats.rows_index_first++;
-    stats.rows_index_next--;
-  }
   DBUG_RETURN(rc);
 }
 
@@ -7212,7 +7067,6 @@ int ha_rocksdb::write_row(uchar *buf)
 
   if (rv == 0)
   {
-    stats.rows_inserted++;
     update_row_stats(ROWS_INSERTED);
   }
   DBUG_RETURN(rv);
@@ -7994,7 +7848,6 @@ int ha_rocksdb::rnd_next_with_direction(uchar *buf, bool move_forward)
   DBUG_ENTER("ha_rocksdb::rnd_next");
 
   table->status= STATUS_NOT_FOUND;
-  stats.rows_requested++;
 
   if (!m_scan_it || !m_scan_it->Valid())
   {
@@ -8070,8 +7923,6 @@ int ha_rocksdb::rnd_next_with_direction(uchar *buf, bool move_forward)
     rc= HA_ERR_END_OF_FILE;
 
   if (!rc) {
-    stats.rows_read++;
-    stats.rows_index_next++;
     update_row_stats(ROWS_READ);
   }
 
@@ -8176,7 +8027,6 @@ int ha_rocksdb::delete_row(const uchar *buf)
   {
     DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
   }
-  stats.rows_deleted++;
   update_row_stats(ROWS_DELETED);
 
   DBUG_RETURN(0);
@@ -8367,7 +8217,6 @@ int ha_rocksdb::rnd_pos(uchar *buf, uchar *pos)
   DBUG_ENTER("ha_rocksdb::rnd_pos");
 
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  stats.rows_requested++;
   len= m_pk_descr->key_length(table, rocksdb::Slice((const char*)pos,
                                                   ref_length));
   if (len == size_t(-1))
@@ -8379,7 +8228,6 @@ int ha_rocksdb::rnd_pos(uchar *buf, uchar *pos)
 
   if (!rc)
   {
-    stats.rows_read++;
     update_row_stats(ROWS_READ);
   }
 
@@ -8443,7 +8291,6 @@ int ha_rocksdb::update_row(const uchar *old_data, uchar *new_data)
 
   if (rv == 0)
   {
-    stats.rows_updated++;
     update_row_stats(ROWS_UPDATED);
   }
   DBUG_RETURN(rv);
@@ -8482,7 +8329,9 @@ THR_LOCK_DATA **ha_rocksdb::store_lock(THD *thd,
       uint sql_command = my_core::thd_sql_command(thd);
       if ((lock_type == TL_READ && in_lock_tables) ||
           (lock_type == TL_READ_HIGH_PRIORITY && in_lock_tables) ||
-          can_hold_read_locks_on_select(thd, lock_type))
+          lock_type == TL_READ_WITH_SHARED_LOCKS ||
+          lock_type == TL_READ_NO_INSERT ||
+          (lock_type != TL_IGNORE && sql_command != SQLCOM_SELECT))
       {
         ulong tx_isolation = my_core::thd_tx_isolation(thd);
         if (sql_command != SQLCOM_CHECKSUM &&
@@ -8630,8 +8479,7 @@ int ha_rocksdb::external_lock(THD *thd, int lock_type)
       {
         my_printf_error(ER_UNKNOWN_ERROR,
                         "Can't execute updates when you started a transaction "
-                        "with START TRANSACTION WITH CONSISTENT [ROCKSDB] "
-                        "SNAPSHOT.",
+                        "with START TRANSACTION WITH CONSISTENT SNAPSHOT.",
                         MYF(0));
         DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
       }

@@ -501,6 +501,21 @@ void TABLE_SHARE::destroy()
 
   DBUG_ENTER("TABLE_SHARE::destroy");
   DBUG_PRINT("info", ("db: %s table: %s", db.str, table_name.str));
+  if (field != 0)
+  {
+    Field* current_field;
+    for (uint i= 0; i < fields; ++i)
+    {
+      current_field= field[i];
+      if (current_field->has_associated_compression_dictionary())
+      {
+        my_free(const_cast<char*>(current_field->zip_dict_data.str));
+        current_field->zip_dict_data= null_lex_cstr;
+        my_free(const_cast<char*>(current_field->zip_dict_name.str));
+        current_field->zip_dict_name= null_lex_cstr;
+      }
+    }
+  }
   if (ha_share)
   {
     delete ha_share;
@@ -536,6 +551,23 @@ void TABLE_SHARE::destroy()
   MEM_ROOT own_root= mem_root;
   free_root(&own_root, MYF(0));
   DBUG_VOID_RETURN;
+}
+
+/**
+  Checks if TABLE_SHARE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag.
+*/
+bool TABLE_SHARE::has_compressed_columns() const
+{
+  DBUG_ENTER("has_compressed_columns");
+  DBUG_ASSERT(field != 0);
+
+  Field **field_ptr= field;
+  while(*field_ptr != 0 &&
+        (*field_ptr)->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != 0);
 }
 
 /*
@@ -1951,6 +1983,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       else if (!tmp_plugin && str_db_type_length == 9 &&
                !strncmp((char *) next_chunk + 2, "partition", 9))
       {
+        /*
+          An I_S query during server restart will provoke deprecation warnings.
+          Since there is no client connection for this query, make sure we
+          write the deprecation warning in the error log. Otherwise, push
+          warnings to the client.
+        */
+        if (mysqld_server_started)
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER_THD(thd,
+                                     ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                              share->db.str, share->table_name.str);
+        else
+          /*
+            Use the same string as above, not for localization, but for
+            making sure the wording is equal.
+          */
+          sql_print_warning(
+                  ER_DEFAULT(ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                  share->db.str, share->table_name.str);
+
         /* Check if the partitioning engine is ready */
         if (!ha_checktype(thd, DB_TYPE_PARTITION_DB, true, false))
         {
@@ -2360,6 +2413,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   DBUG_ASSERT(share->fields >= share->stored_fields);
   DBUG_ASSERT(share->reclength >= share->stored_rec_length);
 
+  /* update zip dict info (name + data) from the handler */
+  if (share->has_compressed_columns())
+    handler_file->update_field_defs_with_zip_dict_info(thd);
+
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
@@ -2653,6 +2710,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->errarg= errarg;
   my_free(disk_buff);
   my_free(extra_segment_buff);
+  share->fields= 0;
+  share->field= 0;
   delete handler_file;
   my_hash_free(&share->name_hash);
 
@@ -5792,6 +5851,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                Name_resolution_context *context)
 {
   Item *field= *field_ref;
+  const char *table_name;
   DBUG_ENTER("create_view_field");
 
   if (view->schema_table_reformed)
@@ -5814,15 +5874,36 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   /*
+    Original table name of a field is calculated as follows:
+    - For a view or base table, the view or base table name.
+    - For a derived table, the base table name.
+    - For an expression that is not a simple column reference, an empty string.
+  */
+  if (view->is_derived())
+  {
+    while (field->type() == Item::REF_ITEM)
+    {
+      field= down_cast<Item_ref *>(field)->ref[0];
+    }
+    if (field->type() == Item::FIELD_ITEM)
+      table_name= down_cast<Item_field *>(field)->table_name;
+    else
+      table_name= "";
+  }
+  else
+  {
+    table_name= view->table_name;
+  }
+  /*
     @note Creating an Item_direct_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
-  */ 
+  */
   Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, view->table_name,
+                                       view->alias, table_name,
                                        name, view);
   DBUG_RETURN(item);
 }
@@ -7611,6 +7692,60 @@ bool TABLE::check_read_removal(uint index)
   DBUG_RETURN(retval);
 }
 
+/**
+  Checks if TABLE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag.
+*/
+bool TABLE::has_compressed_columns() const
+{
+  DBUG_ENTER("has_compressed_columns");
+  DBUG_ASSERT(field != 0);
+
+  Field **field_ptr= field;
+  while(*field_ptr != 0 &&
+        (*field_ptr)->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != 0);
+}
+
+/**
+  Checks if TABLE has at least one field with
+  COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+  zip_dict.
+*/
+bool TABLE::has_compressed_columns_with_dictionaries() const
+{
+  DBUG_ENTER("has_compressed_columns_with_dictionaries");
+  DBUG_ASSERT(field != 0);
+
+  Field **field_ptr= field;
+  while(*field_ptr != 0 &&
+        !(*field_ptr)->has_associated_compression_dictionary())
+    ++field_ptr;
+
+  DBUG_RETURN(*field_ptr != 0);
+}
+
+/**
+  Updates zip_dict_name in the TABLE's field definitions based on the
+  values from the supplied list of Create_field objects.
+*/
+void TABLE::update_compressed_columns_info(const List<Create_field>& fields)
+{
+  Field **field_ptr= field;
+  List_iterator<Create_field> it(const_cast<List<Create_field>&>(fields));
+  Create_field *field_definition= it++;
+
+  while (*field_ptr != 0 && field_definition != 0)
+  {
+    (*field_ptr)->zip_dict_name= field_definition->zip_dict_name;
+    ++field_ptr;
+    field_definition= it++;
+  }
+  DBUG_ASSERT(field_definition == 0);
+  DBUG_ASSERT(*field_ptr == 0);
+}
 
 /**
   Test if the order list consists of simple field expressions

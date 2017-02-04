@@ -1851,6 +1851,7 @@ innobase_start_or_create_for_mysql(void)
 
 	fsp_init();
 	log_init();
+	log_online_init();
 
 	recv_sys_create();
 	recv_sys_init(buf_pool_get_curr_size());
@@ -2173,6 +2174,10 @@ files_checked:
 
 		purge_queue = trx_sys_init_at_db_start();
 
+		DBUG_EXECUTE_IF("check_no_undo",
+				ut_ad(purge_queue->empty());
+				);
+
 		/* Create the per-buffer pool instance doublewrite buffers */
 		err = buf_parallel_dblwr_create();
 		if (err != DB_SUCCESS)
@@ -2233,6 +2238,20 @@ files_checked:
 		if (err != DB_SUCCESS) {
 
 			return(srv_init_abort(DB_ERROR));
+		}
+
+		/* Start monitor thread early enough so that e.g. crash
+		recovery failing to find free pages in the buffer pool is
+		diagnosed. */
+		if (!srv_read_only_mode)
+		{
+			/* Create the thread which prints InnoDB monitor
+			info */
+			os_thread_create(
+				srv_monitor_thread,
+				NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+			srv_start_state_set(SRV_START_STATE_MONITOR);
 		}
 
 		/* We always try to do a recovery, even if the database had
@@ -2564,11 +2583,14 @@ files_checked:
 			NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
 
 		/* Create the thread which prints InnoDB monitor info */
-		os_thread_create(
-			srv_monitor_thread,
-			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+		if (!srv_start_state_is_set(SRV_START_STATE_MONITOR)) {
 
-		srv_start_state_set(SRV_START_STATE_MONITOR);
+			os_thread_create(
+				srv_monitor_thread,
+				NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+			srv_start_state_set(SRV_START_STATE_MONITOR);
+		}
 	}
 
 	/* wake main loop of page cleaner up */
@@ -2591,6 +2613,12 @@ files_checked:
 	err = dict_create_or_check_sys_virtual();
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
+	}
+
+	/* Create the SYS_ZIP_DICT system table */
+	err = dict_create_or_check_sys_zip_dict();
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	srv_is_being_started = false;
@@ -2843,6 +2871,7 @@ innobase_shutdown_for_mysql(void)
 	btr_search_disable(true);
 
 	ibuf_close();
+	log_online_shutdown();
 	log_shutdown();
 	trx_sys_file_format_close();
 	trx_sys_close();

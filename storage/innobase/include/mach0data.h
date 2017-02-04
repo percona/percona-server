@@ -159,7 +159,8 @@ advanced by the number of bytes consumed
 UNIV_INLINE
 ib_uint32_t
 mach_read_next_compressed(
-	const byte**	b);
+	const byte**	b)
+	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************//**
 The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address. */
@@ -233,7 +234,8 @@ advanced by the number of bytes consumed
 UNIV_INLINE
 ib_uint64_t
 mach_u64_read_next_compressed(
-	const byte**	b);
+	const byte**	b)
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************//**
 Writes a 64-bit integer in a compressed form (1..11 bytes).
 @return size in bytes */

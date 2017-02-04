@@ -43,6 +43,9 @@ struct SysIndexCallback;
 
 extern ibool row_rollback_on_timeout;
 
+extern uint	srv_compressed_columns_zip_level;
+extern ulong	srv_compressed_columns_threshold;
+
 struct row_prebuilt_t;
 
 /*******************************************************************//**
@@ -52,6 +55,48 @@ row_mysql_prebuilt_free_blob_heap(
 /*==============================*/
 	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct of a
 					ha_innobase:: table handle */
+
+/** Frees the compress heap in prebuilt when no longer needed. */
+void
+row_mysql_prebuilt_free_compress_heap(
+	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct of a
+					ha_innobase:: table handle */
+
+/** Uncompress blob/text/varchar column using zlib
+@return pointer to the uncompressed data */
+const byte*
+row_decompress_column(
+	const byte*	data,	/*!< in: data in innodb(compressed) format */
+	ulint		*len,	/*!< in: data length; out: length of
+				decompressed data*/
+	const byte*	dict_data,
+				/*!< in: optional dictionary data used for
+				decompression */
+	ulint		dict_data_len,
+				/*!< in: optional dictionary data length */
+	row_prebuilt_t*	prebuilt);
+				/*!< in: use prebuilt->compress_heap only
+				here*/
+
+/** Compress blob/text/varchar column using zlib
+@return pointer to the compressed data */
+byte*
+row_compress_column(
+	const byte*	data,	/*!< in: data in mysql(uncompressed)
+				format */
+	ulint		*len,	/*!< in: data length; out: length of
+				compressed data*/
+	ulint		lenlen,	/*!< in: bytes used to store the length of
+				data */
+	const byte*	dict_data,
+				/*!< in: optional dictionary data used for
+				compression */
+	ulint		dict_data_len,
+				/*!< in: optional dictionary data length */
+	row_prebuilt_t*	prebuilt);
+				/*!< in: use prebuilt->compress_heap only
+				here*/
+
 /*******************************************************************//**
 Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
 format.
@@ -87,10 +132,21 @@ row_mysql_store_blob_ref(
 				to 4 bytes */
 	const void*	data,	/*!< in: BLOB data; if the value to store
 				is SQL NULL this should be NULL pointer */
-	ulint		len);	/*!< in: BLOB length; if the value to store
+	ulint		len,	/*!< in: BLOB length; if the value to store
 				is SQL NULL this should be 0; remember
 				also to set the NULL bit in the MySQL record
 				header! */
+	bool		need_decompression,
+				/*!< in: if the data need to be compressed*/
+	const byte*	dict_data,
+				/*!< in: optional compression dictionary
+				data */
+	ulint		dict_data_len,
+				/*!< in: optional compression dictionary data
+				length */
+	row_prebuilt_t*	prebuilt);
+				/*<! in: use prebuilt->compress_heap only
+				here */
 /*******************************************************************//**
 Reads a reference to a BLOB in the MySQL format.
 @return pointer to BLOB data */
@@ -100,8 +156,17 @@ row_mysql_read_blob_ref(
 	ulint*		len,		/*!< out: BLOB length */
 	const byte*	ref,		/*!< in: BLOB reference in the
 					MySQL format */
-	ulint		col_len);	/*!< in: BLOB reference length
+	ulint		col_len,	/*!< in: BLOB reference length
 					(not BLOB length) */
+	bool		need_compression,
+					/*!< in: if the data need to be
+					compressed*/
+	const byte*	dict_data,	/*!< in: optional compression
+					dictionary data */
+	ulint		dict_data_len,	/*!< in: optional compression
+					dictionary data length */
+	row_prebuilt_t*	prebuilt);	/*!< in: use prebuilt->compress_heap
+					only here */
 /*******************************************************************//**
 Converts InnoDB geometry data format to MySQL data format. */
 void
@@ -129,7 +194,7 @@ row_mysql_read_geometry(
 					MySQL format */
 	ulint		col_len)	/*!< in: BLOB reference length
 					(not BLOB length) */
-	MY_ATTRIBUTE((nonnull(1,2), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -175,7 +240,16 @@ row_mysql_store_col_in_innobase_format(
 					necessarily the length of the actual
 					payload data; if the column is a true
 					VARCHAR then this is irrelevant */
-	ulint		comp);		/*!< in: nonzero=compact format */
+	ulint		comp,		/*!< in: nonzero=compact format */
+	bool		need_compression,
+					/*!< in: if the data need to be
+					compressed */
+	const byte*	dict_data,	/*!< in: optional compression
+					dictionary data */
+	ulint		dict_data_len,	/*!< in: optional compression
+					dictionary data length */
+	row_prebuilt_t*	prebuilt);	/*!< in: use prebuilt->compress_heap
+					only here */
 /****************************************************************//**
 Handles user errors and lock waits detected by the database engine.
 @return true if it was a lock wait and we should continue running the
@@ -188,8 +262,7 @@ row_mysql_handle_errors(
 				during the function entry */
 	trx_t*		trx,	/*!< in: transaction */
 	que_thr_t*	thr,	/*!< in: query thread, or NULL */
-	trx_savept_t*	savept)	/*!< in: savepoint, or NULL */
-	MY_ATTRIBUTE((nonnull(1,2)));
+	trx_savept_t*	savept);	/*!< in: savepoint, or NULL */
 /********************************************************************//**
 Create a prebuilt struct for a MySQL table handle.
 @return own: a prebuilt struct */
@@ -227,7 +300,7 @@ row_lock_table_autoinc_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
@@ -241,9 +314,8 @@ row_lock_table_for_mysql(
 					if prebuilt->table should be
 					locked as
 					prebuilt->select_lock_type */
-	ulint		mode)		/*!< in: lock mode of table
+	ulint		mode);		/*!< in: lock mode of table
 					(ignored if table==NULL) */
-	MY_ATTRIBUTE((nonnull(1)));
 
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
@@ -464,7 +536,7 @@ row_mysql_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
 	const char*	op_info)	/*!< in: string for trx->op_info */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Truncates a table for MySQL.
@@ -474,7 +546,7 @@ row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
@@ -507,7 +579,7 @@ row_discard_tablespace_for_mysql(
 /*=============================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
@@ -517,7 +589,7 @@ row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -540,7 +612,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,	/*!< in: new table name */
 	trx_t*		trx,		/*!< in/out: transaction */
 	bool		commit)		/*!< in: whether to commit trx */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Renames a partitioned table for MySQL.
 @param[in]	old_name	Old table name.
@@ -552,7 +624,7 @@ row_rename_partitions_for_mysql(
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Scans an index for either COOUNT(*) or CHECK TABLE.
@@ -593,7 +665,7 @@ row_mysql_table_id_reassign(
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx,	/*!< in/out: transaction */
 	table_id_t*	new_id) /*!< out: new table id */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
@@ -644,6 +716,8 @@ struct mysql_row_templ_t {
 					type and this field is != 0, then
 					it is an unsigned integer type */
 	ulint	is_virtual;		/*!< if a column is a virtual column */
+	bool		compressed;	/*!< if column format is compressed */
+	LEX_CSTRING	zip_dict_data;	/*!< associated compression dictionary */
 };
 
 #define MYSQL_FETCH_CACHE_SIZE		8
@@ -843,6 +917,8 @@ struct row_prebuilt_t {
 					in fetch_cache */
 	mem_heap_t*	blob_heap;	/*!< in SELECTS BLOB fields are copied
 					to this heap */
+	mem_heap_t*	compress_heap;  /*!< memory heap used to compress
+					/decompress blob column*/
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
 	bool		in_fts_query;	/*!< Whether we are in a FTS query */
@@ -930,6 +1006,7 @@ struct SysIndexCallback {
 				or NULL.
 @param[in]	parent_update	update vector for the parent row
 @param[in]	foreign		foreign key information
+@param[in]	prebuilt	compress_heap must be taken from here
 @return the field filled with computed value */
 dfield_t*
 innobase_get_computed_value(
@@ -943,7 +1020,8 @@ innobase_get_computed_value(
 	TABLE*			mysql_table,
 	const dict_table_t*	old_table,
 	upd_t*			parent_update,
-	dict_foreign_t*		foreign);
+	dict_foreign_t*		foreign,
+	row_prebuilt_t*		prebuilt);
 
 /** Get the computed value by supplying the base column values.
 @param[in,out]	table	the table whose virtual column template to be built */

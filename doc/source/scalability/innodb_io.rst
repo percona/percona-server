@@ -4,7 +4,7 @@
  Improved |InnoDB| I/O Scalability
 ===================================
 
-Because |InnoDB| is a complex storage engine it must be configured properly in order to perform at its best. Some points are not configurable in standard |InnoDB|. The goal of this feature is to provide a more exhaustive set of options for |XtraDB|, like ability to change the log block size. 
+Because |InnoDB| is a complex storage engine it must be configured properly in order to perform at its best. Some points are not configurable in standard |InnoDB|. The goal of this feature is to provide a more exhaustive set of options for |XtraDB|.
 
 Version Specific Information
 ============================

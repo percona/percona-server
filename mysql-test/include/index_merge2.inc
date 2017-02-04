@@ -372,6 +372,10 @@ alter table t1 add index i2(key2);
 alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
 
+# Force complete purge
+SET @@GLOBAL.innodb_fast_shutdown = 0;
+--source include/restart_mysqld.inc
+
 -- disable_query_log
 -- disable_result_log
 analyze table t1;

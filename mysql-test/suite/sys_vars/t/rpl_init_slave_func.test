@@ -66,6 +66,7 @@ let $wait_condition= SELECT @@global.max_connections = @start_max_connections;
 # check that the action in init_slave does not happen immediately
 --let $assert_text= @@global.max_connections = @start_max_connections
 --let $assert_cond= @@global.max_connections = @start_max_connections
+--let $assert_debug= SELECT @@global.max_connections, @start_max_connections
 --source include/assert.inc
 #
 # reset of the server

@@ -190,7 +190,7 @@ bool
 row_upd_changes_disowned_external(
 /*==============================*/
 	const upd_t*	update)	/*!< in: update vector */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the
@@ -221,7 +221,7 @@ row_upd_build_sec_rec_difference_binary(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
-	MY_ATTRIBUTE((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result));
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -236,6 +236,7 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	heap		memory heap from which allocated
 @param[in,out]	mysql_table	NULL, or mysql table object when
 				user thread invokes dml
+@param[in]	prebuilt	compress_heap must be taken from here
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t*
@@ -247,8 +248,9 @@ row_upd_build_difference_binary(
 	bool		no_sys,
 	trx_t*		trx,
 	mem_heap_t*	heap,
-	TABLE*		mysql_table)
-	MY_ATTRIBUTE((nonnull(1,2,3,7), warn_unused_result));
+	TABLE*		mysql_table,
+	row_prebuilt_t*	prebuilt)
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -268,9 +270,8 @@ row_upd_index_replace_new_col_vals_index_pos(
 				/*!< in: if TRUE, limit the replacement to
 				ordering fields of index; note that this
 				does not work for non-clustered indexes. */
-	mem_heap_t*	heap)	/*!< in: memory heap for allocating and
+	mem_heap_t*	heap);	/*!< in: memory heap for allocating and
 				copying the new values */
-	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -286,9 +287,8 @@ row_upd_index_replace_new_col_vals(
 	const upd_t*	update,	/*!< in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
-	mem_heap_t*	heap)	/*!< in: memory heap for allocating and
+	mem_heap_t*	heap);	/*!< in: memory heap for allocating and
 				copying the new values */
-	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Replaces the new column values stored in the update vector. */
 void
@@ -347,7 +347,7 @@ row_upd_changes_ord_field_binary_func(
 				stored columns in the old row */
 	ulint		flag)	/*!< in: ROW_BUILD_NORMAL,
 				ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
-	MY_ATTRIBUTE((nonnull(1,2), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 # define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
 	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext,0)
@@ -372,7 +372,7 @@ row_upd_changes_doc_id(
 /*===================*/
 	dict_table_t*	table,		/*!< in: table */
 	upd_field_t*	upd_field)	/*!< in: field to check */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -388,13 +388,14 @@ row_upd_changes_some_index_ord_field_binary(
 /** Stores to the heap the row on which the node->pcur is positioned.
 @param[in]	node		row update node
 @param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	NULL, or mysql table object when
-				user thread invokes dml */
+@param[in,out]	prebuilt	NULL, or a prebuilt object: used to extract
+				mysql table object when user thread invokes
+				dml and for compress heap */
 void
 row_upd_store_row(
 	upd_node_t*	node,
 	THD*		thd,
-	TABLE*		mysql_table);
+	row_prebuilt_t*	prebuilt);
 /***********************************************************//**
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs.

@@ -1301,6 +1301,7 @@ static void wait_end(thread_group_t *thread_group)
 static connection_t *alloc_connection(THD *thd)
 {
   DBUG_ENTER("alloc_connection");
+  DBUG_EXECUTE_IF("simulate_tp_alloc_connection_oom", DBUG_RETURN(NULL););
 
   connection_t* connection = (connection_t *)
       my_malloc(key_memory_thread_pool_connection,
@@ -1328,6 +1329,23 @@ bool Thread_pool_connection_handler::add_connection(Channel_info *channel_info)
   DBUG_ENTER("Thread_pool_connection_handler::add_connection");
 
   THD* thd= channel_info->create_thd();
+
+  if (unlikely(!thd))
+  {
+    channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
+    DBUG_RETURN(true);
+  }
+
+  connection_t *connection= alloc_connection(thd);
+
+  if (unlikely(!connection))
+  {
+    thd->get_protocol_classic()->end_net();
+    delete thd;
+    channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
+    DBUG_RETURN(true);
+  }
+
   delete channel_info;
 
   thd->set_new_thread_id();
@@ -1336,15 +1354,6 @@ bool Thread_pool_connection_handler::add_connection(Channel_info *channel_info)
   thd->scheduler= &tp_event_functions;
 
   Global_THD_manager::get_instance()->add_thd(thd);
-
-  connection_t *connection= alloc_connection(thd);
-
-  if (!connection)
-  {
-    /* Allocation failed */
-    threadpool_remove_connection(thd);
-    DBUG_RETURN(true);
-  }
 
   thd->event_scheduler.data= connection;
 
@@ -1471,7 +1480,7 @@ static void set_wait_timeout(connection_t *c)
 
   c->abs_wait_timeout= pool_timer.current_microtime +
     1000LL*pool_timer.tick_interval +
-    1000000LL*c->thd->variables.net_wait_timeout;
+    1000000LL*c->thd->get_wait_timeout();
 
   set_next_timeout_check(c->abs_wait_timeout);
   DBUG_VOID_RETURN;

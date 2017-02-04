@@ -53,6 +53,8 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 */
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= {(char *) "", 0};
+const LEX_CSTRING null_lex_cstr= {NULL, 0};
+const LEX_CSTRING empty_lex_cstr= {"", 0};
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 
@@ -477,6 +479,8 @@ void LEX::reset()
   is_set_password_sql= false;
   mark_broken(false);
   set_statement= false;
+  zip_dict_name.str = 0;
+  zip_dict_name.length = 0;
   max_execution_time= 0;
   parse_gcol_expr= false;
   opt_hints_global= NULL;
@@ -3031,7 +3035,17 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       else
       {
-        append_identifier(thd, str, table_name, table_name_length);
+        /**
+         Fix for printing empty string when internal_table_name is
+         used. Actual length of internal_table_name cannot be reduced
+         as server expects a valid string of length atleast 1 for any
+         table. So while printing we use the correct length of the
+         table_name i.e 0 when internal_table_name is used.
+        */
+        if (table_name != internal_table_name)
+          append_identifier(thd, str, table_name, table_name_length);
+        else
+          append_identifier(thd, str, table_name, 0);
         cmp_name= table_name;
       }
       if (partition_names && partition_names->elements)

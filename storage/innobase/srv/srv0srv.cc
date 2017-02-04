@@ -73,12 +73,9 @@ Created 10/8/1995 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #include "ut0mem.h"
+#include "handler.h"
+#include "ha_innodb.h"
 
-/* prototypes of new functions added to ha_innodb.cc for kill_idle_transaction */
-bool		innobase_thd_is_idle(const void* thd);
-ib_uint64_t	innobase_thd_get_start_time(const void* thd);
-void		innobase_thd_kill(ulong thd_id);
-ulong		innobase_thd_get_thread_id(const void* thd);
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -182,7 +179,6 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
-my_bool	srv_numa_interleave = FALSE;
 
 /** Whether the redo log tracking is currently enabled. Note that it is
 possible for the log tracker thread to be running and the tracking to be
@@ -432,6 +428,7 @@ this many index pages, there are 2 ways to calculate statistics:
   table/index are not found in the innodb database */
 unsigned long long	srv_stats_transient_sample_pages = 8;
 my_bool		srv_stats_persistent = TRUE;
+my_bool		srv_stats_include_delete_marked = FALSE;
 unsigned long long	srv_stats_persistent_sample_pages = 20;
 my_bool		srv_stats_auto_recalc = TRUE;
 
@@ -1301,22 +1298,26 @@ srv_printf_innodb_monitor(
 	low level 135. Therefore we can reserve the latter mutex here without
 	a danger of a deadlock of threads. */
 
-	mutex_enter(&dict_foreign_err_mutex);
+	if (!recv_recovery_on) {
 
-	if (!srv_read_only_mode && ftell(dict_foreign_err_file) != 0L) {
-		fputs("------------------------\n"
-		      "LATEST FOREIGN KEY ERROR\n"
-		      "------------------------\n", file);
-		ut_copy_file(file, dict_foreign_err_file);
+		mutex_enter(&dict_foreign_err_mutex);
+
+		if (!srv_read_only_mode
+		    && ftell(dict_foreign_err_file) != 0L) {
+			fputs("------------------------\n"
+			      "LATEST FOREIGN KEY ERROR\n"
+			      "------------------------\n", file);
+			ut_copy_file(file, dict_foreign_err_file);
+		}
+
+		mutex_exit(&dict_foreign_err_mutex);
 	}
-
-	mutex_exit(&dict_foreign_err_mutex);
 
 	/* Only if lock_print_info_summary proceeds correctly,
 	before we call the lock_print_info_all_transactions
 	to print all the lock information. IMPORTANT NOTE: This
 	function acquires the lock mutex on success. */
-	ret = lock_print_info_summary(file, nowait);
+	ret = recv_recovery_on ? FALSE : lock_print_info_summary(file, nowait);
 
 	if (ret) {
 		if (trx_start_pos) {
@@ -1349,10 +1350,13 @@ srv_printf_innodb_monitor(
 	      "--------\n", file);
 	os_aio_print(file);
 
-	fputs("-------------------------------------\n"
-	      "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
-	      "-------------------------------------\n", file);
-	ibuf_print(file);
+	if (!recv_recovery_on) {
+
+		fputs("-------------------------------------\n"
+		      "INSERT BUFFER AND ADAPTIVE HASH INDEX\n"
+		      "-------------------------------------\n", file);
+		ibuf_print(file);
+	}
 
 	for (ulint i = 0; i < btr_ahi_parts; ++i) {
 		rw_lock_s_lock(btr_search_latches[i]);
@@ -1369,10 +1373,13 @@ srv_printf_innodb_monitor(
 	btr_cur_n_sea_old = btr_cur_n_sea;
 	btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
-	fputs("---\n"
-	      "LOG\n"
-	      "---\n", file);
-	log_print(file);
+	if (!recv_recovery_on) {
+
+		fputs("---\n"
+		      "LOG\n"
+		      "---\n", file);
+		log_print(file);
+	}
 
 	fputs("----------------------\n"
 	      "BUFFER POOL AND MEMORY\n"
@@ -1380,7 +1387,7 @@ srv_printf_innodb_monitor(
 	fprintf(file,
 		"Total large memory allocated " ULINTPF "\n"
 		"Dictionary memory allocated " ULINTPF "\n",
-		os_total_large_mem_allocated, dict_sys->size);
+		os_total_large_mem_allocated, dict_sys ? dict_sys->size : 0UL);
 
 	/* Calculate AHI constant and variable memory allocations */
 
@@ -1405,8 +1412,8 @@ srv_printf_innodb_monitor(
 	recv_sys_subtotal = ((recv_sys && recv_sys->addr_hash)
 			? mem_heap_get_size(recv_sys->heap) : 0);
 
-	dict_sys_hash_size = dict_sys->hash_size;
-	dict_sys_size = dict_sys->size;
+	dict_sys_hash_size = dict_sys ? dict_sys->hash_size : 0;
+	dict_sys_size = dict_sys ? dict_sys->size : 0;
 
 	fprintf(file,
 			"Internal hash tables (constant factor + variable factor)\n"
@@ -1521,6 +1528,10 @@ srv_printf_innodb_monitor(
 	      "============================\n", file);
 	mutex_exit(&srv_innodb_monitor_mutex);
 	fflush(file);
+
+#ifndef DBUG_OFF
+	srv_debug_monitor_printed = true;
+#endif
 
 	return(ret);
 }
@@ -1764,6 +1775,12 @@ srv_export_innodb_status(void)
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
+#ifndef DBUG_OFF
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+bool	srv_debug_monitor_printed	= false;
+#endif
+
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return a dummy parameter */
@@ -1957,36 +1974,6 @@ loop:
 		old_sema = sema;
 	}
 
-	if (srv_kill_idle_transaction && trx_sys) {
-		trx_t*	trx;
-		time_t	now;
-rescan_idle:
-		now = time(NULL);
-		mutex_enter(&trx_sys->mutex);
-		trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
-		while (trx) {
-			if (trx->state == TRX_STATE_ACTIVE
-			    && trx->mysql_thd
-			    && innobase_thd_is_idle(trx->mysql_thd)) {
-				ib_uint64_t	start_time = innobase_thd_get_start_time(trx->mysql_thd);
-				ulong		thd_id = innobase_thd_get_thread_id(trx->mysql_thd);
-
-				if (trx->last_stmt_start != start_time) {
-					trx->idle_start = now;
-					trx->last_stmt_start = start_time;
-				} else if (difftime(now, trx->idle_start)
-					   > srv_kill_idle_transaction) {
-					/* kill the session */
-					mutex_exit(&trx_sys->mutex);
-					innobase_thd_kill(thd_id);
-					goto rescan_idle;
-				}
-			}
-			trx = UT_LIST_GET_NEXT(mysql_trx_list, trx);
-		}
-		mutex_exit(&trx_sys->mutex);
-	}
-
 	/* Flush stderr so that a database user gets the output
 	to possible MySQL error file */
 
@@ -2145,10 +2132,8 @@ DECLARE_THREAD(srv_redo_log_follow_thread)(
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
 
-	srv_track_changed_pages = FALSE;
 	log_online_read_shutdown();
 	os_event_set(srv_redo_log_tracked_event);
-	srv_redo_log_thread_started = false; /* Defensive, not required */
 
 	my_thread_end();
 	os_thread_exit();
@@ -2907,6 +2892,7 @@ DECLARE_THREAD(srv_worker_thread)(
 		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
+	thd_free_innodb_session(thd);
 	destroy_thd(thd);
         my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
@@ -3236,6 +3222,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 		srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
 	}
 
+	thd_free_innodb_session(thd);
 	destroy_thd(thd);
 	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created

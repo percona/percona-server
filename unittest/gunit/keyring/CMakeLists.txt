@@ -18,7 +18,8 @@ IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
-INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR})
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_INCLUDE_DIR})
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}
@@ -33,6 +34,7 @@ SET(TESTS
   keyring-api
   keys_container
   buffered_file_io
+  file_io
 )
 
 IF (MERGE_UNITTESTS)
@@ -54,6 +56,7 @@ IF (MERGE_UNITTESTS)
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
        )
@@ -82,6 +85,7 @@ ELSE()
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
+        ${CMAKE_SOURCE_DIR}/plugin/keyring/file_io.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffer.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/hash_to_buffer_serializer.cc
         )

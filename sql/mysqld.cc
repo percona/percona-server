@@ -1293,6 +1293,7 @@ ulong mts_parallel_option;
 ulong binlog_cache_size = 0;
 ulonglong max_binlog_cache_size = 0;
 ulong slave_max_allowed_packet = 0;
+ulong net_buffer_shrink_interval= 0;
 ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
 long opt_binlog_group_commit_sync_delay = 0;

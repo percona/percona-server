@@ -1334,7 +1334,16 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
+  if (net_buffer_shrink_interval &&
+          thd->start_utime / 1000000 > thd->net_buffer_shrink_time +
+          net_buffer_shrink_interval)
+  {
+      my_net_shrink_buffer(net, global_system_variables.net_buffer_length);
+      thd->net_buffer_shrink_time = thd->start_utime / 1000000;
+  }
+
   DEBUG_SYNC(thd, "before_command_dispatch");
+
 
   return_value = dispatch_command(thd, &com_data, command);
   thd->get_protocol_classic()->get_output_packet()->shrink(

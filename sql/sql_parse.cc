@@ -1057,6 +1057,14 @@ bool do_command(THD *thd)
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
+  if (opt_net_buffer_shrink_interval &&
+          thd->start_utime / 1000000 > thd->net_buffer_shrink_time +
+          opt_net_buffer_shrink_interval)
+  {
+      my_net_shrink_buffer(net, global_system_variables.net_buffer_length);
+      thd->net_buffer_shrink_time = thd->start_utime / 1000000;
+  }
+
   DBUG_ASSERT(packet_length);
 
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));

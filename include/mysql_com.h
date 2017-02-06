@@ -378,6 +378,7 @@ typedef struct st_net {
     to maintain the server internal instrumentation for the connection.
   */
   void *extension;
+  unsigned long max_interval_packet;
 } NET;
 
 
@@ -507,6 +508,7 @@ my_bool	net_write_command(NET *net,unsigned char command,
 			  const unsigned char *packet, size_t len);
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
+my_bool my_net_shrink_buffer(NET *net, ulong min_buf_size);
 
 #ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);

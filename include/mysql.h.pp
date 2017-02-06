@@ -40,6 +40,7 @@ typedef struct st_net {
   char last_error[512];
   char sqlstate[5 +1];
   void *extension;
+  unsigned long max_interval_packet;
 } NET;
 enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
    MYSQL_TYPE_SHORT, MYSQL_TYPE_LONG,
@@ -98,6 +99,7 @@ my_bool net_write_command(NET *net,unsigned char command,
      const unsigned char *packet, size_t len);
 my_bool net_write_packet(NET *net, const unsigned char *packet, size_t length);
 unsigned long my_net_read(NET *net);
+my_bool my_net_shrink_buffer(NET *net, ulong min_buf_size);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;
   double max_value_dbl;

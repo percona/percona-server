@@ -113,6 +113,8 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
   net->unused= 0;
+  net->max_interval_packet = net->max_packet + NET_HEADER_SIZE +
+	  COMP_HEADER_SIZE;
 #ifdef MYSQL_SERVER
   net->extension= NULL;
 #endif
@@ -848,6 +850,11 @@ static ulong net_read_packet(NET *net, size_t *complen)
   if ((pkt_data_len >= net->max_packet) && net_realloc(net, pkt_data_len))
     goto error;
 
+  pkt_data_len = (pkt_data_len+IO_SIZE-1) & ~(IO_SIZE-1); 
+
+  if(net->max_interval_packet < pkt_data_len)
+      net->max_interval_packet = pkt_data_len;
+
   /* Read the packet data (payload). */
   if (net_read_raw_loop(net, pkt_len))
     goto error;
@@ -861,6 +868,36 @@ error:
   return packet_error;
 }
 
+my_bool my_net_shrink_buffer(NET *net, ulong min_buf_size)
+{
+    /* Buffer is already of smallest possible size */
+    if(net->max_packet <= min_buf_size)
+        return false;
+
+    ulong max_interval_packet = net->max_interval_packet;
+    /*Reset buffer size for next interval */
+    net->max_interval_packet = min_buf_size;
+
+    /* In the last interval packets were not smaller then 90% of the max_packet,
+     * so no shrink needed. We allow 10% variance in workload to reduce number
+     * of reallocs */
+    if(max_interval_packet * 110 / 100 >= net->max_packet)
+        return false;
+
+    /* Buffer cannot be smaller then, default, net_buffer_length + header */
+    if(max_interval_packet < min_buf_size)
+        max_interval_packet = min_buf_size;
+
+    /* In the last interval packets were significantly smaller then max_packet,
+     * so do shrink the buffer */
+    if(net_realloc(net, max_interval_packet))
+        return true;
+
+    /* Realloc succeeded, set new buffer size */
+    net->max_packet= max_interval_packet;
+
+    return false;
+}
 
 /**
   Read a packet from the client/server and return it without the internal

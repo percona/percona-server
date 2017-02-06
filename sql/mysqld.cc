@@ -541,6 +541,7 @@ uint slave_rows_last_search_algorithm_used;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
+ulong opt_net_buffer_shrink_interval= 0;
 ulong binlog_stmt_cache_size=0;
 my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
 int32 opt_binlog_max_flush_queue_time= 0;

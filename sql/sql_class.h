@@ -2429,6 +2429,7 @@ public:
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock, utime_after_query;
+  ulonglong  net_buffer_shrink_time;
 
   thr_lock_type update_lock_default;
   Delayed_insert *di;

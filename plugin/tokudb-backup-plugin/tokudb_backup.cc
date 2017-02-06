@@ -3,6 +3,7 @@
 #ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
 #define MYSQL_SERVER
+#define HAVE_REPLICATION
 #include <my_config.h>
 #include <mysql_version.h>
 #include <mysql/plugin.h>
@@ -19,6 +20,80 @@
 #include <sql_parse.h> // check_global_access
 #include "backup/backup.h"
 #include <regex.h>
+#include <rpl_mi.h>
+#include <rpl_slave.h>
+#include <rpl_rli.h>
+#include <sql_parse.h>
+#include <mysqld.h>
+
+#include <inttypes.h>
+#include <algorithm>
+#include <string>
+#include <sstream>
+#include <vector>
+
+template <typename T>
+class BasicLockableClassWrapper
+{
+    T &m_lockable;
+    void (T::*m_lock)(void);
+    void (T::*m_unlock)(void);
+public:
+    BasicLockableClassWrapper(T &a_lockable,
+                              void (T::*a_lock)(void),
+                              void (T::*a_unlock)(void)) :
+        m_lockable(a_lockable),
+        m_lock(a_lock),
+        m_unlock(a_unlock) {}
+
+    void lock() {
+        ((m_lockable).*(m_lock))();
+    }
+
+    void unlock() {
+        ((m_lockable).*(m_unlock))();
+    }
+};
+
+class BasicLockableMysqlMutextT {
+    mysql_mutex_t &m_mutex;
+    public:
+        BasicLockableMysqlMutextT(mysql_mutex_t &mutex) : m_mutex(mutex) {}
+        void lock() { mysql_mutex_lock(&m_mutex); }
+        void unlock() {mysql_mutex_unlock(&m_mutex); }
+};
+
+template <typename BasicLockableWrapper>
+class scoped_lock_wrapper
+{
+    BasicLockableWrapper m_lockable;
+public:
+    scoped_lock_wrapper(const BasicLockableWrapper &lockable) :
+        m_lockable(lockable) {
+        m_lockable.lock();
+    }
+    ~scoped_lock_wrapper() {
+        m_lockable.unlock();
+    }
+private:
+    scoped_lock_wrapper(
+        const scoped_lock_wrapper<BasicLockableWrapper> &);
+    scoped_lock_wrapper& operator=(
+        scoped_lock_wrapper<BasicLockableWrapper> &);
+};
+
+typedef BasicLockableClassWrapper<Checkable_rwlock> Checkable_rwlock_lockable;
+
+struct tokudb_backup_master_info {
+    std::string host;
+    std::string user;
+    uint32_t port;
+    std::string master_log_file;
+    std::string relay_log_file;
+    uint64_t exec_master_log_pos;
+    std::string executed_gtid_set;
+    std::string channel_name;
+};
 
 #ifdef TOKUDB_BACKUP_PLUGIN_VERSION
 #define stringify2(x) #x
@@ -32,6 +107,8 @@
 extern my_bool srv_use_native_aio;
 
 static char *tokudb_backup_plugin_version;
+
+static const char* master_info_file_name = "tokubackup_slave_info";
 
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
     PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -189,6 +266,87 @@ static void tokudb_backup_error_fun(int error_number, const char *error_string, 
         // append the new error string to the last error string
         tokudb_backup_set_error_string(be->_thd, error_number, "%s; %s", last_error_string, error_string, NULL);
     }
+}
+
+static void tokudb_backup_before_stop_capt_fun(void *arg) {
+    THD *thd = static_cast<THD *>(arg);
+    (void)lock_binlog_for_backup(thd);
+}
+
+static void tokudb_backup_store_master_infos(
+    THD *thd,
+    std::vector<tokudb_backup_master_info> *master_info_channels) {
+
+    Master_info *mi = active_mi;
+    char* sql_gtid_set_buffer = NULL;
+    tokudb_backup_master_info tbmi;
+
+    {
+        scoped_lock_wrapper<BasicLockableMysqlMutextT>
+            with_LOCK_active_mi_locked(
+            BasicLockableMysqlMutextT(&LOCK_active_mi));
+
+        if (!active_mi)
+            return;
+
+        {
+            scoped_lock_wrapper<Checkable_rwlock_lockable>
+                with_global_sid_lock_wrlock(
+                    Checkable_rwlock_lockable(*global_sid_lock,
+                                         &Checkable_rwlock::wrlock,
+                                         &Checkable_rwlock::unlock));
+
+
+            const Gtid_set *sql_gtid_set= gtid_state->get_logged_gtids();
+            (void)sql_gtid_set->to_string(&sql_gtid_set_buffer);
+        }
+        {
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_1(BasicLockableMysqlMutextT(
+                    mi->data_lock));
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_2(BasicLockableMysqlMutextT(
+                    mi->rli->data_lock));
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_3(BasicLockableMysqlMutextT(
+                    mi->err_lock));
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_4(BasicLockableMysqlMutextT(
+                    mi->rli->err_lock));
+
+            tbmi.host.assign(mi->host);
+            tbmi.user.assign(mi->get_user());
+            tbmi.port = mi->port;
+            tbmi.master_log_file.assign(mi->get_master_log_name());
+            tbmi.relay_log_file.assign(mi->rli->get_group_relay_log_name() +
+                dirname_length(mi->rli->get_group_relay_log_name()));
+            tbmi.exec_master_log_pos = mi->rli->get_group_master_log_pos();
+            tbmi.executed_gtid_set.assign(sql_gtid_set_buffer);
+        }
+    }
+    std::string &str = tbmi.executed_gtid_set;
+    str.erase(std::remove(str.begin(), str.end(),'\n'), str.end());
+
+    master_info_channels->push_back(tbmi);
+}
+
+struct tokudb_backup_after_stop_capt_extra {
+    THD *thd;
+    std::vector<tokudb_backup_master_info> *master_info_channels;
+};
+
+static void tokudb_backup_after_stop_capt_fun(void *arg) {
+    tokudb_backup_after_stop_capt_extra *extra =
+        static_cast<tokudb_backup_after_stop_capt_extra *>(arg);
+    THD *thd = extra->thd;
+    std::vector<tokudb_backup_master_info> *master_info_channels =
+        extra->master_info_channels;
+
+    tokudb_backup_store_master_infos(thd, master_info_channels);
+
+    if (thd->backup_binlog_lock.is_acquired())
+      thd->backup_binlog_lock.release(thd);
+
 }
 
 static char *tokudb_backup_realpath_with_slash(const char *a) {
@@ -633,18 +791,80 @@ static void tokudb_backup_run(THD *thd, const char *dest_dir) {
     // set the throttle
     tokubackup_throttle_backup(THDVAR(thd, throttle));
 
+    std::vector<tokudb_backup_master_info> master_info_channels;
+
     // do the backup
     tokudb_backup_progress_extra progress_extra = { thd, NULL };
     tokudb_backup_error_extra error_extra = { thd };
     tokudb_backup_exclude_copy_extra exclude_copy_extra = { thd, exclude_string, &exclude_re };
-    error = tokubackup_create_backup(source_dirs, dest_dirs, count,
-                                     tokudb_backup_progress_fun, &progress_extra,
-                                     tokudb_backup_error_fun, &error_extra,
-                                     tokudb_backup_exclude_copy_fun, &exclude_copy_extra);
+    tokudb_backup_after_stop_capt_extra asce = {thd, &master_info_channels};
+    error = tokubackup_create_backup(source_dirs,
+                                     dest_dirs,
+                                     count,
+                                     tokudb_backup_progress_fun,
+                                     &progress_extra,
+                                     tokudb_backup_error_fun,
+                                     &error_extra,
+                                     tokudb_backup_exclude_copy_fun,
+                                     &exclude_copy_extra,
+                                     tokudb_backup_before_stop_capt_fun,
+                                     thd,
+                                     tokudb_backup_after_stop_capt_fun,
+                                     &asce);
 
     if (exclude_string)
         regfree(&exclude_re);
 
+    if (!master_info_channels.empty()) {
+        std::string mi_full_file_name(dest_dir);
+        mi_full_file_name.append("/");
+        mi_full_file_name.append(master_info_file_name);
+
+        int fd = open(mi_full_file_name.c_str(),
+                      O_WRONLY|O_CREAT,
+                      S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
+        if (fd < 0) {
+            error = errno;
+            tokudb_backup_set_error_string(
+                thd, error, "Can't open master info file %s\n",
+                mi_full_file_name.c_str(), NULL, NULL);
+            goto exit;
+        }
+
+        for (std::vector<tokudb_backup_master_info>::iterator i =
+                master_info_channels.begin(), end = master_info_channels.end();
+            i != end;
+            ++i) {
+
+            std::stringstream out;
+            out << "host: " << i->host << ", "
+                << "user: " << i->user << ", "
+                << "port: " << i->port << ", "
+                << "master log file: " << i->master_log_file << ", "
+                << "relay log file: " << i->relay_log_file << ", "
+                << "exec master log pos: " << i->exec_master_log_pos << ", "
+                << "executed gtid set: " << i->executed_gtid_set << ", "
+                << "channel name: " << i->channel_name << std::endl;
+            const std::string &out_str = out.str();
+            if (write(fd, out_str.c_str(), out_str.length()) <
+                (int)out_str.length())
+            {
+                error = EINVAL;
+                tokudb_backup_set_error_string(
+                    thd, error, "Master info was not written fully",
+                    NULL, NULL, NULL);
+                goto exit;
+            }
+        }
+
+        if (close(fd) < 0) {
+            error = errno;
+            tokudb_backup_set_error_string(
+                thd, error, "Can't close master info file %s\n",
+                mi_full_file_name.c_str(), NULL, NULL);
+        }
+    }
+exit:
     // cleanup
     thd_proc_info(thd, "tokudb backup done"); // must be a static string
     my_free(progress_extra._the_string);

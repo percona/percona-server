@@ -63,6 +63,29 @@
 namespace myrocks {
 
 /*
+ * class for exporting transaction information for
+ * information_schema.rocksdb_trx
+ */
+struct Rdb_trx_info {
+  std::string name;
+  ulonglong trx_id;
+  ulonglong write_count;
+  ulonglong lock_count;
+  int timeout_sec;
+  std::string state;
+  ulonglong waiting_trx_id;
+  int is_replication;
+  int skip_trx_api;
+  int read_only;
+  int deadlock_detect;
+  int num_ongoing_bulk_load;
+  ulong thread_id;
+  std::string query_str;
+};
+
+std::vector<Rdb_trx_info> rdb_get_all_trx_info();
+
+/*
   This is
   - the name of the default Column Family (the CF which stores indexes which
     didn't explicitly specify which CF they are in)
@@ -302,6 +325,8 @@ class ha_rocksdb: public my_core::handler
   /* Whether m_scan_it was created with skip_bloom=true */
   bool m_scan_it_skips_bloom;
 
+  const rocksdb::Snapshot *m_scan_it_snapshot;
+
   Rdb_tbl_def *m_tbl_def;
 
   /* Primary Key encoder from KeyTupleFormat to StorageFormat */
@@ -441,11 +466,7 @@ class ha_rocksdb: public my_core::handler
                            rocksdb::Slice *slice, const bool use_all_keys,
                            const bool is_ascending, const uint eq_cond_len)
     __attribute__((__nonnull__));
-  void release_scan_iterator(void)
-  {
-    delete m_scan_it;
-    m_scan_it= nullptr;
-  }
+  void release_scan_iterator(void);
 
   rocksdb::Status get_for_update(Rdb_transaction* tx,
                                  rocksdb::ColumnFamilyHandle* column_family,
@@ -547,10 +568,10 @@ public:
     Controls whether writes include checksums. This is updated from the session variable
     at the start of each query.
   */
-  bool m_store_checksums;
+  bool m_store_row_debug_checksums;
 
   /* Same as above but for verifying checksums when reading */
-  bool m_verify_checksums;
+  bool m_verify_row_debug_checksums;
   int m_checksums_pct;
 
   ha_rocksdb(my_core::handlerton *hton, my_core::TABLE_SHARE *table_arg);
@@ -628,9 +649,9 @@ public:
     return true;
   }
 
-  bool should_store_checksums() const
+  bool should_store_row_debug_checksums() const
   {
-    return m_store_checksums && (rand() % 100 < m_checksums_pct);
+    return m_store_row_debug_checksums && (rand() % 100 < m_checksums_pct);
   }
 
   int rename_table(const char *from, const char *to)
@@ -883,6 +904,9 @@ private:
     __attribute__((__nonnull__, __warn_unused_result__));
   void read_thd_vars(THD *thd)
     __attribute__((__nonnull__));
+  const char* thd_rocksdb_tmpdir()
+    __attribute__((__nonnull__, __warn_unused_result__));
+
   bool contains_foreign_key(THD* thd)
     __attribute__((__nonnull__, __warn_unused_result__));
 

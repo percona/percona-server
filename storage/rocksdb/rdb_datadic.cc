@@ -347,12 +347,11 @@ void Rdb_key_def::setup(const TABLE *tbl, const Rdb_tbl_def *tbl_def)
 */
 
 uint Rdb_key_def::get_primary_key_tuple(TABLE *table,
-    const std::shared_ptr<const Rdb_key_def>& pk_descr,
+    const Rdb_key_def& pk_descr,
     const rocksdb::Slice *key,
     uchar *pk_buffer) const
 {
   DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(pk_descr != nullptr);
   DBUG_ASSERT(key != nullptr);
   DBUG_ASSERT(pk_buffer);
 
@@ -361,7 +360,7 @@ uint Rdb_key_def::get_primary_key_tuple(TABLE *table,
   DBUG_ASSERT(m_pk_key_parts);
 
   /* Put the PK number */
-  rdb_netbuf_store_index(buf, pk_descr->m_index_number);
+  rdb_netbuf_store_index(buf, pk_descr.m_index_number);
   buf += INDEX_NUMBER_SIZE;
   size += INDEX_NUMBER_SIZE;
 
@@ -544,7 +543,7 @@ int Rdb_key_def::successor(uchar *packed_tuple, uint len)
 uint Rdb_key_def::pack_record(const TABLE *tbl, uchar *pack_buffer,
                               const uchar *record, uchar *packed_tuple,
                               Rdb_string_writer *unpack_info,
-                              bool should_store_checksums,
+                              bool should_store_row_debug_checksums,
                               longlong hidden_pk_id, uint n_key_parts,
                               uint *n_null_fields) const
 {
@@ -554,7 +553,7 @@ uint Rdb_key_def::pack_record(const TABLE *tbl, uchar *pack_buffer,
   DBUG_ASSERT(packed_tuple != nullptr);
   // Checksums for PKs are made when record is packed.
   // We should never attempt to make checksum just from PK values
-  DBUG_ASSERT_IMP(should_store_checksums,
+  DBUG_ASSERT_IMP(should_store_row_debug_checksums,
                   (m_index_type == INDEX_TYPE_SECONDARY));
 
   uchar *tuple= packed_tuple;
@@ -676,7 +675,7 @@ uint Rdb_key_def::pack_record(const TABLE *tbl, uchar *pack_buffer,
     // so the checksums are computed and stored by
     // ha_rocksdb::convert_record_to_storage_format
     //
-    if (should_store_checksums)
+    if (should_store_row_debug_checksums)
     {
       uint32_t key_crc32= crc32(0, packed_tuple, tuple - packed_tuple);
       uint32_t val_crc32= crc32(0, unpack_info->ptr(),
@@ -873,7 +872,7 @@ size_t Rdb_key_def::key_length(TABLE *table, const rocksdb::Slice &key) const
 int Rdb_key_def::unpack_record(TABLE *table, uchar *buf,
                                const rocksdb::Slice *packed_key,
                                const rocksdb::Slice *unpack_info,
-                               bool verify_checksums) const
+                               bool verify_row_debug_checksums) const
 {
   Rdb_string_reader reader(packed_key);
   Rdb_string_reader unp_reader("");
@@ -883,7 +882,7 @@ int Rdb_key_def::unpack_record(TABLE *table, uchar *buf,
   // There is no checksuming data after unpack_info for primary keys, because
   // the layout there is different. The checksum is verified in
   // ha_rocksdb::convert_record_from_storage_format instead.
-  DBUG_ASSERT_IMP(!secondary_key, !verify_checksums);
+  DBUG_ASSERT_IMP(!secondary_key, !verify_row_debug_checksums);
 
   if (unpack_info)
   {
@@ -1001,7 +1000,7 @@ int Rdb_key_def::unpack_record(TABLE *table, uchar *buf,
   const char* ptr;
   if ((ptr= unp_reader.read(1)) && *ptr == RDB_CHECKSUM_DATA_TAG)
   {
-    if (verify_checksums)
+    if (verify_row_debug_checksums)
     {
       uint32_t stored_key_chksum= rdb_netbuf_to_uint32(
           (const uchar*)unp_reader.read(RDB_CHECKSUM_SIZE));
@@ -2887,13 +2886,13 @@ bool Rdb_tbl_def::put_dict(Rdb_dict_manager* dict, rocksdb::WriteBatch *batch,
 
   for (uint i = 0; i < m_key_count; i++)
   {
-    const std::shared_ptr<const Rdb_key_def>& kd= m_key_descr_arr[i];
+    const Rdb_key_def& kd= *m_key_descr_arr[i];
 
     uchar flags =
-      (kd->m_is_reverse_cf ? Rdb_key_def::REVERSE_CF_FLAG : 0) |
-      (kd->m_is_auto_cf ? Rdb_key_def::AUTO_CF_FLAG : 0);
+      (kd.m_is_reverse_cf ? Rdb_key_def::REVERSE_CF_FLAG : 0) |
+      (kd.m_is_auto_cf ? Rdb_key_def::AUTO_CF_FLAG : 0);
 
-    uint cf_id= kd->get_cf()->GetID();
+    uint cf_id= kd.get_cf()->GetID();
     /*
       If cf_id already exists, cf_flags must be the same.
       To prevent race condition, reading/modifying/committing CF flags
@@ -2919,10 +2918,10 @@ bool Rdb_tbl_def::put_dict(Rdb_dict_manager* dict, rocksdb::WriteBatch *batch,
     }
 
     rdb_netstr_append_uint32(&indexes, cf_id);
-    rdb_netstr_append_uint32(&indexes, kd->m_index_number);
-    dict->add_or_update_index_cf_mapping(batch, kd->m_index_type,
-                                         kd->m_kv_format_version,
-                                         kd->m_index_number, cf_id);
+    rdb_netstr_append_uint32(&indexes, kd.m_index_number);
+    dict->add_or_update_index_cf_mapping(batch, kd.m_index_type,
+                                         kd.m_kv_format_version,
+                                         kd.m_index_number, cf_id);
   }
 
   rocksdb::Slice skey((char*)key, keylen);
@@ -3421,9 +3420,10 @@ Rdb_tbl_def* Rdb_ddl_manager::find(const std::string& table_name, bool lock)
 // lock on m_rwlock to make sure the Rdb_key_def is not discarded while we
 // are finding it.  Copying it into 'ret' increments the count making sure
 // that the object will not be discarded until we are finished with it.
-std::shared_ptr<Rdb_key_def> Rdb_ddl_manager::safe_find(GL_INDEX_ID gl_index_id)
+std::shared_ptr<const Rdb_key_def> Rdb_ddl_manager::safe_find(
+    GL_INDEX_ID gl_index_id)
 {
-  std::shared_ptr<Rdb_key_def> ret(nullptr);
+  std::shared_ptr<const Rdb_key_def> ret(nullptr);
 
   mysql_rwlock_rdlock(&m_rwlock);
 
@@ -3470,7 +3470,7 @@ void Rdb_ddl_manager::set_stats(
 {
   mysql_rwlock_wrlock(&m_rwlock);
   for (auto src : stats) {
-    auto keydef = find(src.second.m_gl_index_id);
+    const auto& keydef = find(src.second.m_gl_index_id);
     if (keydef) {
       keydef->m_stats = src.second;
     }
@@ -3488,7 +3488,7 @@ void Rdb_ddl_manager::adjust_stats(
   {
     for (const auto& src : data)
     {
-      auto keydef= find(src.m_gl_index_id);
+      const auto& keydef= find(src.m_gl_index_id);
       if (keydef)
       {
         keydef->m_stats.merge(src, i == 0, keydef->max_storage_fmt_length());
@@ -3575,7 +3575,7 @@ int Rdb_ddl_manager::put(Rdb_tbl_def *tbl, bool lock)
 
   // We have to do this find because 'tbl' is not yet in the list.  We need
   // to find the one we are replacing ('rec')
-  rec= reinterpret_cast<Rdb_tbl_def*>(find(dbname_tablename, false));
+  rec= find(dbname_tablename, false);
   if (rec)
   {
     // this will free the old record.

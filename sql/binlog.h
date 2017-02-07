@@ -108,7 +108,11 @@ public:
       return m_first == NULL;
     }
 
-    /** Append a linked list of threads to the queue */
+    /**
+      Append a linked list of threads to the queue.
+      @retval true The queue was empty before this operation.
+      @retval false The queue was non-empty before this operation.
+    */
     bool append(THD *first);
 
     /**
@@ -274,7 +278,7 @@ public:
                     session is waiting on
     @param stage    which stage queue size to compare count against.
    */
-  time_t wait_count_or_timeout(ulong count, time_t usec, StageID stage);
+  void wait_count_or_timeout(ulong count, ulong usec, StageID stage);
 
   void signal_done(THD *queue);
 
@@ -812,6 +816,14 @@ public:
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
                    class Binlog_event_writer *writer);
+  /**
+    Assign automatic generated GTIDs for all commit group threads in the flush
+    stage having gtid_next.type == AUTOMATIC_GROUP.
+
+    @param first_seen The first thread seen entering the flush stage.
+    @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool assign_automatic_gtids_to_flush_group(THD *first_seen);
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
 
@@ -931,7 +943,6 @@ public:
   mysql_mutex_t* get_binlog_end_pos_lock() { return &LOCK_binlog_end_pos; }
   void lock_binlog_end_pos() { mysql_mutex_lock(&LOCK_binlog_end_pos); }
   void unlock_binlog_end_pos() { mysql_mutex_unlock(&LOCK_binlog_end_pos); }
-  void set_status_variables(THD *thd);
 
   /**
     Deep copy global_sid_map to @param sid_map and
@@ -949,6 +960,8 @@ public:
       @retval !=0    Error
   */
   int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
+private:
+  void publish_coordinates_for_global_status(void) const;
 };
 
 typedef struct st_load_file_info

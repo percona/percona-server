@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0thread.h"
 #include "que0que.h"
 #include "read0read.h"
+#include "row0mysql.h"
 #include "row0purge.h"
 #include "row0upd.h"
 #include "srv0mon.h"
@@ -198,8 +199,12 @@ trx_purge_graph_build(
 
 	for (i = 0; i < n_purge_threads; ++i) {
 		que_thr_t*	thr;
+		row_prebuilt_t*	prebuilt;
 
-		thr = que_thr_create(fork, heap, NULL);
+		prebuilt = static_cast<row_prebuilt_t*>(
+			mem_heap_zalloc(heap, sizeof(*prebuilt)));
+
+		thr = que_thr_create(fork, heap, prebuilt);
 
 		thr->child = row_purge_node_create(thr, heap);
 	}
@@ -273,6 +278,15 @@ void
 trx_purge_sys_close(void)
 /*======================*/
 {
+	for (que_thr_t* thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+		thr != NULL;
+		thr = UT_LIST_GET_NEXT(thrs, thr)) {
+		if (thr->prebuilt != 0 &&
+			thr->prebuilt->compress_heap != 0) {
+			row_mysql_prebuilt_free_compress_heap(thr->prebuilt);
+		}
+	}
+
 	que_graph_free(purge_sys->query);
 
 	ut_a(purge_sys->trx->id == 0);
@@ -395,19 +409,34 @@ trx_purge_add_update_undo_to_history(
 	}
 }
 
-/**********************************************************************//**
-Frees an undo log segment which is in the history list. Cuts the end of the
-history list at the youngest undo log in this segment. */
+/** Remove undo log header from the history list.
+@param[in,out]	rseg_hdr	rollback segment header
+@param[in]	log_hdr		undo log segment header
+@param[in,out]	mtr		mini transaction. */
+static
+void
+trx_purge_remove_log_hdr(
+	trx_rsegf_t*	rseg_hdr,
+	trx_ulogf_t*	log_hdr,
+	mtr_t*		mtr)
+{
+	flst_remove(rseg_hdr + TRX_RSEG_HISTORY,
+		    log_hdr + TRX_UNDO_HISTORY_NODE, mtr);
+
+	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, 1);
+}
+
+/** Frees an undo log segment which is in the history list. Removes the
+undo log hdr from the history list.
+@param[in,out]	rseg		rollback segment
+@param[in]	hdr_addr	file address of log_hdr
+@param[in]	noredo		skip redo logging. */
 static
 void
 trx_purge_free_segment(
-/*===================*/
-	trx_rseg_t*	rseg,		/*!< in: rollback segment */
-	fil_addr_t	hdr_addr,	/*!< in: the file address of log_hdr */
-	ulint		n_removed_logs,	/*!< in: count of how many undo logs we
-					will cut off from the end of the
-					history list */
-	bool		noredo)		/*!< in: skip redo logging */
+	trx_rseg_t*	rseg,
+	fil_addr_t	hdr_addr,
+	bool		noredo)
 {
 	mtr_t		mtr;
 	trx_rsegf_t*	rseg_hdr;
@@ -473,10 +502,7 @@ trx_purge_free_segment(
 	history list: otherwise, in case of a database crash, the segment
 	could become inaccessible garbage in the file space. */
 
-	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
-		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
-
-	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
+	trx_purge_remove_log_hdr(rseg_hdr, log_hdr, &mtr);
 
 	do {
 
@@ -518,7 +544,6 @@ trx_purge_truncate_rseg_history(
 	page_t*		undo_page;
 	trx_ulogf_t*	log_hdr;
 	trx_usegf_t*	seg_hdr;
-	ulint		n_removed_logs	= 0;
 	mtr_t		mtr;
 	trx_id_t	undo_trx_no;
 	const bool	noredo		= trx_sys_is_noredo_rseg_slot(
@@ -565,13 +590,6 @@ loop:
 				hdr_addr.boffset, limit->undo_no);
 		}
 
-		os_atomic_decrement_ulint(
-			&trx_sys->rseg_history_len, n_removed_logs);
-
-		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
-				  log_hdr + TRX_UNDO_HISTORY_NODE,
-				  n_removed_logs, &mtr);
-
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
@@ -580,7 +598,6 @@ loop:
 
 	prev_hdr_addr = trx_purge_get_log_from_hist(
 		flst_get_prev_addr(log_hdr + TRX_UNDO_HISTORY_NODE, &mtr));
-	n_removed_logs++;
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
 
@@ -592,10 +609,14 @@ loop:
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		trx_purge_free_segment(rseg, hdr_addr, n_removed_logs, noredo);
+		/* calls the trx_purge_remove_log_hdr()
+		inside trx_purge_free_segment(). */
+		trx_purge_free_segment(rseg, hdr_addr, noredo);
 
-		n_removed_logs = 0;
 	} else {
+		/* Remove the log hdr from the rseg history. */
+		trx_purge_remove_log_hdr(rseg_hdr, log_hdr, &mtr);
+
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 	}

@@ -1,0 +1,76 @@
+--source include/not_embedded.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug 995624 RBR events are not reflected in userstat's
+--echo # Rows_updated
+--echo #
+
+connection slave;
+
+STOP SLAVE SQL_THREAD;
+CHANGE REPLICATION FILTER
+REPLICATE_DO_TABLE= (test.t1, test.t2);
+START SLAVE SQL_THREAD;
+
+SET @slave_userstat_saved= @@global.userstat;
+SET GLOBAL userstat=ON;
+
+--let $assert_text= Rows updated on slave should be equal to 0
+--let $assert_cond= [SELECT ROWS_UPDATED FROM information_schema.client_statistics] = 0
+--source include/assert.inc
+
+connection master;
+SET @master_userstat_saved= @@global.userstat;
+SET GLOBAL userstat=ON;
+
+--let $assert_text= Rows updated on master should be equal to 0
+--let $assert_cond= [SELECT ROWS_UPDATED FROM information_schema.client_statistics] = 0
+--source include/assert.inc
+
+CREATE TABLE t1 (m INT);
+--echo 3 "updates" to rows
+INSERT INTO t1 VALUES(15),(16),(17);
+--echo 1 "update" to rows (4 in total)
+UPDATE t1 SET m=20 WHERE m=16;
+--echo 1 "update" to rows (5 in total)
+DELETE FROM t1 WHERE m=17;
+CREATE TABLE t2 (n INT);
+--echo 2 "updates" to rows (7 in total)
+INSERT INTO t2 VALUES(30),(30);
+--echo 2 "updates" to rows (9 in total)
+UPDATE t2 SET n=10 WHERE n=30;
+--echo 2 "updates" to rows (11 in total)
+DELETE FROM t2 WHERE n=10;
+
+--echo 2 "updates" to rows (13 in total)
+INSERT INTO t2 (n)
+SELECT t1.m
+FROM t1;
+
+--let $assert_text= Rows updated on master should be equal to 13
+--let $assert_cond= [SELECT ROWS_UPDATED FROM information_schema.client_statistics] = 13
+--source include/assert.inc
+
+--echo t3 is not replicated. Let us make some updates
+--echo and check if they do not affect userstat
+CREATE TABLE t3(x INT);
+INSERT INTO t3 VALUE(1),(2),(3);
+UPDATE t3 SET x=1 WHERE x=2;
+DELETE FROM t3 WHERE x=1;
+
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Rows updated on slave should be equal to 13 (i.e. Number of RBR rows updates replicated from master)
+--let $assert_cond= [SELECT ROWS_UPDATED FROM information_schema.client_statistics WHERE CLIENT != \'localhost\'] = 13
+--source include/assert.inc
+
+SET GLOBAL userstat=@slave_userstat_saved;
+
+SELECT * FROM t1 ORDER BY m;
+
+connection master;
+SET GLOBAL userstat=@master_userstat_saved;
+DROP TABLE t1, t2;
+DROP TABLE t3;
+--source include/rpl_end.inc

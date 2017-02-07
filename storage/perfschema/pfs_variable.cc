@@ -991,6 +991,7 @@ int PFS_status_variable_cache::do_materialize_all(THD* unsafe_thd)
     /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd= get_THD(unsafe_thd)) != NULL)
   {
+    DEBUG_SYNC(m_current_thd, "materialize_session_status_array_THD_locked");
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
@@ -1234,12 +1235,10 @@ void Status_variable::init(const SHOW_VAR *show_var, STATUS_VAR *status_vars, en
   m_type= show_var->type;
   m_scope= show_var->scope;
 
-  const CHARSET_INFO *charset= system_charset_info;
-
   /* Get the value of the status variable. */
   const char *value;
   value= get_one_variable(current_thd, show_var, query_scope, m_type,
-                          status_vars, &charset, m_value_str, &m_value_length);
+                          status_vars, &m_charset, m_value_str, &m_value_length);
   m_value_length= MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
 
   /* Returned value may reference a string other than m_value_str. */

@@ -226,6 +226,7 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_CUT_VALUE_GROUP_CONCAT:
   case ER_DATETIME_FUNCTION_OVERFLOW:
   case ER_WARN_TOO_FEW_RECORDS:
+  case ER_WARN_TOO_MANY_RECORDS:
   case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
   case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE:
   case ER_INVALID_JSON_VALUE_FOR_CAST:
@@ -9954,6 +9955,11 @@ bool init_ftfuncs(THD *thd, SELECT_LEX *select_lex)
 
 
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
+{
+  return a->length == b->length && !strncmp(a->str, b->str, a->length);
+}
+
+bool is_equal(const LEX_CSTRING *a, const LEX_CSTRING *b)
 {
   return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }

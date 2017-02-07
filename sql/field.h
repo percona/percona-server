@@ -148,10 +148,10 @@ enum type_conversion_status
   */
   TYPE_WARN_TRUNCATED,
   /**
-    Value has been completely truncated. When this happens, it makes
-    comparisions with index impossible and confuses the range optimizer.
+    Value has invalid string data. When present in a predicate with
+    equality operator, range optimizer returns an impossible where.
   */
-  TYPE_WARN_ALL_TRUNCATED,
+  TYPE_WARN_INVALID_STRING,
   /// Trying to store NULL in a NOT NULL field.
   TYPE_ERR_NULL_CONSTRAINT_VIOLATION,
   /**
@@ -685,6 +685,8 @@ public:
 
    */
   bool is_created_from_null_item;
+  LEX_CSTRING zip_dict_name; // associated compression dictionary name
+  LEX_CSTRING zip_dict_data; // associated compression dictionary data
   /**
      True if this field belongs to some index (unlike part_of_key, the index
      might have only a prefix).
@@ -1147,6 +1149,19 @@ public:
   }
 
   /**
+    Checks if the field has COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    associated compression dictionary.
+  */
+  bool has_associated_compression_dictionary() const
+  {
+    DBUG_ASSERT(zip_dict_name.str == 0 ||
+      column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
+    return column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+           zip_dict_name.str != 0;
+  }
+
+
+  /**
     Check if the Field has value NULL or the record specified by argument
     has value NULL for this Field.
 
@@ -1530,15 +1545,34 @@ public:
     flags |= (storage_type_arg << FIELD_FLAGS_STORAGE_MEDIA);
   }
 
+  /**
+    Returns column format type.
+
+    @return COLUMN_FORMAT_TYPE_DEFAULT,
+            COLUMN_FORMAT_TYPE_FIXED,
+            COLUMN_FORMAT_TYPE_DYNAMIC,
+            or
+            COLUMN_FORMAT_TYPE_COMPRESSED
+  */
   column_format_type column_format() const
   {
     return (column_format_type)
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
   }
 
+  /**
+    Sets column format type to a new value.
+
+    @param   column_format_arg   COLUMN_FORMAT_TYPE_DEFAULT,
+                                 COLUMN_FORMAT_TYPE_FIXED,
+                                 COLUMN_FORMAT_TYPE_DYNAMIC,
+                                 or
+                                 COLUMN_FORMAT_TYPE_COMPRESSED
+  */
   void set_column_format(column_format_type column_format_arg)
   {
     DBUG_ASSERT(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
+    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
@@ -1754,6 +1788,18 @@ protected:
     return from + sizeof(int64);
   }
 
+  /**
+    Checks if the current field definition and provided create field
+    definition have different compression attributes.
+
+    @param   new_field   create field definition to compare with
+
+    @return
+      true  - if compression attributes are different
+      false - if compression attributes are identical.
+  */
+  bool has_different_compression_attributes_with(
+    const Create_field& new_field) const;
 };
 
 
@@ -4424,6 +4470,8 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+  LEX_CSTRING zip_dict_name;		// Compression dictionary name
+
 
   /* Generated column expression information */
   Generated_column *gcol_info;
@@ -4455,6 +4503,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
+            const LEX_CSTRING *zip_dict_name,
             Generated_column *gcol_info= NULL);
 
   ha_storage_media field_storage_type() const
@@ -4467,6 +4516,12 @@ public:
   {
     return (column_format_type)
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
+  }
+
+  void set_column_format(column_format_type column_format_arg)
+  {
+    flags&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+    flags|= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 };
 

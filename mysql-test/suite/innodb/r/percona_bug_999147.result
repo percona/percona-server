@@ -12,6 +12,8 @@ SYS_FOREIGN	0
 SYS_FOREIGN_COLS	0
 SYS_TABLESPACES	0
 SYS_VIRTUAL	0
+SYS_ZIP_DICT	0
+SYS_ZIP_DICT_COLS	0
 mysql/engine_cost	33
 mysql/gtid_executed	33
 mysql/help_category	33

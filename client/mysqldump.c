@@ -123,7 +123,12 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0, opt_comments_used= 0,
                 opt_alltspcs=0, opt_notspcs= 0, opt_drop_trigger= 0,
-                opt_secure_auth= TRUE;
+                opt_secure_auth= TRUE,
+                opt_compressed_columns= 0,
+                opt_compressed_columns_with_dictionaries= 0,
+                opt_drop_compression_dictionary= 1,
+                opt_order_by_primary_desc= 0;
+
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -223,6 +228,7 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
                                   "", compatible_mode_names, NULL};
 
 HASH ignore_table;
+static HASH processed_compression_dictionaries;
 
 static LIST *skipped_keys_list;
 
@@ -474,6 +480,9 @@ static struct my_option my_long_options[] =
   {"order-by-primary", OPT_ORDER_BY_PRIMARY,
    "Sorts each table's rows by primary key, or first unique key, if such a key exists.  Useful when dumping a MyISAM table to be loaded into an InnoDB table, but will make the dump itself take considerably longer.",
    &opt_order_by_primary, &opt_order_by_primary, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"order-by-primary-desc", OPT_ORDER_BY_PRIMARY_DESC,
+   "Taking backup ORDER BY primary key DESC.",
+   &opt_order_by_primary_desc, &opt_order_by_primary_desc, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
    "Password to use when connecting to server. If password is not given it's solicited on the tty.",
    0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -587,6 +596,21 @@ static struct my_option my_long_options[] =
    "Enable/disable the clear text authentication plugin.",
    &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin,
    0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable-compressed-columns", OPT_ENABLE_COMPRESSED_COLUMNS,
+   "Enable compressed columns extensions.",
+   &opt_compressed_columns, &opt_compressed_columns, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"enable-compressed-columns-with-dictionaries",
+   OPT_ENABLE_COMPRESSED_COLUMNS_WITH_DICTIONARIES,
+   "Enable dictionaries for compressed columns extensions.",
+   &opt_compressed_columns_with_dictionaries,
+   &opt_compressed_columns_with_dictionaries, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+   {"add-drop-compression-dictionary", OPT_DROP_COMPRESSION_DICTIONARY,
+    "Add a DROP COMPRESSION_DICTIONARY before each create.",
+    &opt_drop_compression_dictionary,
+    &opt_drop_compression_dictionary, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
+    0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -608,7 +632,7 @@ static int dump_databases(char **);
 static int dump_all_databases();
 static char *quote_name(const char *name, char *buff, my_bool force);
 char check_if_ignore_table(const char *table_name, char *table_type);
-static char *primary_key_fields(const char *table_name);
+static char *primary_key_fields(const char *table_name, const my_bool desc);
 static my_bool get_view_structure(char *table, char* db);
 static my_bool dump_all_views_in_db(char *database);
 static int dump_all_tablespaces();
@@ -763,6 +787,23 @@ static void write_header(FILE *sql_file, char *db_name)
             "/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\n",
             path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
             compatible_mode_normal_str);
+    fprintf(sql_file,
+            "/*!50112 SELECT COUNT(*) INTO @is_rocksdb_supported FROM"
+            " INFORMATION_SCHEMA.SESSION_VARIABLES WHERE"
+            " VARIABLE_NAME='rocksdb_bulk_load' */;\n"
+            "/*!50112 SET @save_old_rocksdb_bulk_load ="
+            " IF (@is_rocksdb_supported,"
+            " 'SET @old_rocksdb_bulk_load = @@rocksdb_bulk_load',"
+            " 'SET @dummy_old_rocksdb_bulk_load = 0') */;\n"
+            "/*!50112 PREPARE s FROM @save_old_rocksdb_bulk_load */;\n"
+            "/*!50112 EXECUTE s */;\n"
+            "/*!50112 SET @enable_bulk_load = IF (@is_rocksdb_supported,"
+            " 'SET SESSION rocksdb_bulk_load = 1',"
+            " 'SET @dummy_rocksdb_bulk_load = 0') */;\n"
+            "/*!50112 PREPARE s FROM @enable_bulk_load */;\n"
+            "/*!50112 EXECUTE s */;\n"
+            "/*!50112 DEALLOCATE PREPARE s */;\n");
+
     check_io(sql_file);
   }
 } /* write_header */
@@ -777,6 +818,15 @@ static void write_footer(FILE *sql_file)
   }
   else if (!opt_compact)
   {
+    fprintf(sql_file,
+            "/*!50112 SET @disable_bulk_load = IF (@is_rocksdb_supported,"
+            " 'SET SESSION rocksdb_bulk_load = @old_rocksdb_bulk_load',"
+            " 'SET @dummy_rocksdb_bulk_load = 0') */;\n"
+            "/*!50112 PREPARE s FROM @disable_bulk_load */;\n"
+            "/*!50112 EXECUTE s */;\n"
+            "/*!50112 DEALLOCATE PREPARE s */;\n");
+
+
     if (opt_tz_utc)
       fprintf(sql_file,"/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;\n");
 
@@ -1042,6 +1092,10 @@ static int get_options(int *argc, char ***argv)
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup(PSI_NOT_INSTRUMENTED,
                                         "mysql.slow_log", MYF(MY_WME))))
+    return(EX_EOM);
+
+  if (my_hash_init(&processed_compression_dictionaries, charset_info, 16, 0,
+    0, (my_hash_get_key)get_table_key, my_free, 0, PSI_NOT_INSTRUMENTED))
     return(EX_EOM);
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
@@ -1602,6 +1656,11 @@ static FILE* open_sql_file_for_table(const char* table, int flags)
 {
   FILE* res;
   char filename[FN_REFLEN], tmp_path[FN_REFLEN];
+  /*
+    We need to reset processed compression dictionaries container
+    each time a new SQL file is created (for --tab option).
+  */
+  my_hash_reset(&processed_compression_dictionaries);
   convert_dirname(tmp_path,path,NullS);
   res= my_fopen(fn_format(filename, table, tmp_path, ".sql", 4),
                 flags, MYF(MY_WME));
@@ -1616,6 +1675,8 @@ static void free_resources()
   my_free(opt_password);
   if (my_hash_inited(&ignore_table))
     my_hash_free(&ignore_table);
+  if (my_hash_inited(&processed_compression_dictionaries))
+    my_hash_free(&processed_compression_dictionaries);
   if (insert_pat_inited)
     dynstr_free(&insert_pat);
   if (defaults_argv)
@@ -1864,6 +1925,51 @@ static char *quote_name(const char *name, char *buff, my_bool force)
   to[1]= 0;
   return buff;
 } /* quote_name */
+
+/**
+  Unquotes char string, taking into account compatible mode
+
+  @param opt_quoted_name   Optionally quoted string
+  @param buff              The buffer that will contain the unquoted value,
+                           may be returned
+
+  @return Pointer to unquoted string (either original opt_quoted_name or
+          buff).
+*/
+static char *unquote_name(const char *opt_quoted_name, char *buff)
+{
+  char *to= buff;
+  const char qtype= (opt_compatible_mode & MASK_ANSI_QUOTES) ? '\"' : '`';
+
+  if (!opt_quoted)
+    return (char*)opt_quoted_name;
+  if (*opt_quoted_name != qtype)
+  {
+    DBUG_ASSERT(strchr(opt_quoted_name, qtype) == 0);
+    return (char*)opt_quoted_name;
+  }
+
+  ++opt_quoted_name;
+  while (*opt_quoted_name)
+  {
+    if (*opt_quoted_name == qtype)
+    {
+      ++opt_quoted_name;
+      if (*opt_quoted_name == qtype)
+        *to++= qtype;
+      else
+      {
+        DBUG_ASSERT(*opt_quoted_name == '\0');
+      }
+    }
+    else
+    {
+      *to++= *opt_quoted_name++;
+    }
+  }
+  to[0]= 0;
+  return buff;
+} /* unquote_name */
 
 
 /*
@@ -2996,6 +3102,99 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
   my_free(autoinc_column);
 }
 
+/**
+  Removes some compressed columns extensions from the create table
+  definition (a string produced by SHOW CREATE TABLE) depending on
+  opt_compressed_columns and opt_compressed_columns_with_dictionaries flags.
+  If opt_compressed_columns_with_dictionaries flags is true, in addition
+  dictionaries list will be filled with referenced compression
+  dictionaries.
+
+  @param create_str     SHOW CREATE TABLE output
+  @param dictionaries   the list of dictionary names found in the
+                        create table definition
+*/
+static void skip_compressed_columns(char *create_str, LIST **dictionaries)
+{
+  static const char prefix[]=
+    " /*!"
+    STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
+    " COLUMN_FORMAT COMPRESSED";
+  static const size_t prefix_length= sizeof(prefix) - 1;
+  static const char suffix[]= " */";
+  static const size_t suffix_length= sizeof(suffix) - 1;
+  static const char dictionary_keyword[]=" WITH COMPRESSION_DICTIONARY ";
+  static const size_t dictionary_keyword_length=
+    sizeof(dictionary_keyword) - 1;
+
+  char *ptr, *end_ptr, *prefix_ptr, *suffix_ptr, *dictionary_keyword_ptr;
+
+  DBUG_ENTER("skip_compressed_columns");
+
+  ptr= create_str;
+  end_ptr= ptr + strlen(create_str);
+  if (opt_compressed_columns_with_dictionaries && dictionaries != 0)
+    *dictionaries= 0;
+
+  while ((prefix_ptr= strstr(ptr, prefix)) != 0)
+  {
+    suffix_ptr= strstr(prefix_ptr + prefix_length, suffix);
+    DBUG_ASSERT(suffix_ptr != 0);
+    if (!opt_compressed_columns_with_dictionaries)
+    {
+      if (!opt_compressed_columns)
+      {
+        /* Strip out all compressed columns extensions. */
+        memmove(prefix_ptr, suffix_ptr + suffix_length,
+                end_ptr - (suffix_ptr + suffix_length) + 1);
+        end_ptr-= suffix_ptr + suffix_length - prefix_ptr;
+        ptr= prefix_ptr;
+      }
+      else
+      {
+        /* Strip out only compression dictionary references. */
+        memmove(prefix_ptr + prefix_length, suffix_ptr,
+          end_ptr - suffix_ptr + 1);
+        end_ptr-= suffix_ptr - (prefix_ptr + prefix_length);
+        ptr= prefix_ptr + prefix_length + suffix_length;
+      }
+    }
+    else
+    {
+      /* Do not strip out anything. Leave full column definition as is. */
+      if (dictionaries !=0 && prefix_ptr + prefix_length != suffix_ptr)
+      {
+        char *dictionary_name_ptr;
+        size_t dictionary_name_length;
+        char opt_quoted_buff[NAME_LEN * 2 + 3],
+             unquoted_buff[NAME_LEN * 2 + 3];
+
+        dictionary_keyword_ptr= strstr(prefix_ptr + prefix_length,
+                                       dictionary_keyword);
+        DBUG_ASSERT(dictionary_keyword_ptr < suffix_ptr);
+        dictionary_name_length= suffix_ptr -
+          (dictionary_keyword_ptr + dictionary_keyword_length);
+
+        strncpy(opt_quoted_buff,
+          dictionary_keyword_ptr + dictionary_keyword_length,
+          dictionary_name_length);
+        opt_quoted_buff[dictionary_name_length]= '\0';
+
+        dictionary_name_ptr=
+          my_strdup(PSI_NOT_INSTRUMENTED,
+                    unquote_name(opt_quoted_buff, unquoted_buff), MYF(0));
+        if (dictionary_name_ptr == 0)
+          die(EX_MYSQLERR, "Couldn't allocate memory");
+
+        list_push(*dictionaries, dictionary_name_ptr);
+      }
+      ptr= suffix_ptr + suffix_length;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Check if the table has a primary key defined either explicitly or
   implicitly (i.e. a unique key on non-nullable columns).
@@ -3040,7 +3239,123 @@ cleanup:
   return has_pk;
 }
 
+/**
+  Prints "CREATE COMPRESSION_DICTIONARY ..." statement for the specified
+  dictionary name if this is the first time this dictionary is referenced.
 
+  @param sql_file          output file
+  @param dictionary_name   dictionary name
+*/
+static void print_optional_create_compression_dictionary(FILE* sql_file,
+  const char *dictionary_name)
+{
+  DBUG_ENTER("print_optional_create_compression_dictionary");
+  DBUG_PRINT("enter", ("dictionary: %s", dictionary_name));
+
+  /*
+    We skip this compression dictionary if it has already been processed
+  */
+  if (my_hash_search(&processed_compression_dictionaries,
+    (const uchar *)dictionary_name, strlen(dictionary_name)) == 0)
+  {
+    static const char get_zip_dict_data_stmt[] =
+      "SELECT `ZIP_DICT` "
+      "FROM `INFORMATION_SCHEMA`.`XTRADB_ZIP_DICT` "
+      "WHERE `NAME` = '%s'";
+
+    char quoted_buff[NAME_LEN * 2 + 3];
+    char *quoted_dictionary_name;
+    char query_buff[QUERY_LENGTH];
+    MYSQL_RES *result= 0;
+    MYSQL_ROW row;
+    ulong *lengths;
+
+    if (my_hash_insert(&processed_compression_dictionaries,
+      (uchar*)my_strdup(PSI_NOT_INSTRUMENTED, dictionary_name, MYF(0))))
+      die(EX_MYSQLERR, "Couldn't allocate memory");
+
+    my_snprintf(query_buff, sizeof(query_buff), get_zip_dict_data_stmt,
+                dictionary_name);
+
+    if (mysql_query_with_error_report(mysql, &result, query_buff))
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    row= mysql_fetch_row(result);
+    if (row == 0)
+    {
+      mysql_free_result(result);
+      maybe_die(EX_MYSQLERR,
+                "Couldn't read data for compresion dictionary %s (%s)\n",
+                dictionary_name, mysql_error(mysql));
+      DBUG_VOID_RETURN;
+    }
+    lengths= mysql_fetch_lengths(result);
+    DBUG_ASSERT(lengths != 0);
+
+    quoted_dictionary_name= quote_name(dictionary_name, quoted_buff, 0);
+
+    /*
+      We print DROP COMPRESSION_DICTIONARY only if no --tab
+      (file per table option) and no --skip-add-drop-compression-dictionary
+      were specified
+    */
+    if (path == 0 && opt_drop_compression_dictionary)
+    {
+      fprintf(sql_file,
+        "/*!"  STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
+        " DROP COMPRESSION_DICTIONARY IF EXISTS %s */;\n",
+        quoted_dictionary_name);
+      check_io(sql_file);
+    }
+
+    /*
+      Whether IF NOT EXISTS is added to CREATE COMPRESSION_DICTIONARY
+      depends on the --add-drop-compression-dictionary /
+      --skip-add-drop-compression-dictionary options.
+    */
+    fprintf(sql_file,
+      "/*!"  STRINGIFY_ARG(FIRST_SUPPORTED_COMPRESSED_COLUMNS_VERSION)
+      " CREATE COMPRESSION_DICTIONARY %s%s (",
+      path != 0 ? "IF NOT EXISTS " : "",
+      quoted_dictionary_name);
+    check_io(sql_file);
+
+    unescape(sql_file, row[0], lengths[0]);
+    fputs(") */;\n", sql_file);
+    check_io(sql_file);
+
+    mysql_free_result(result);
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Checks if --add-drop-table option is enabled and prints
+  "DROP TABLE IF EXISTS ..." if the specified table is not a log table.
+
+  @param sq_file            output file
+  @param db                 db name
+  @param table              table name
+  @param opt_quoted_table   optionally quoted table name
+*/
+static void print_optional_drop_table(FILE *sql_file, const char* db,
+                                      const char *table,
+                                      const char *opt_quoted_table)
+{
+  DBUG_ENTER("print_optional_drop_table");
+  DBUG_PRINT("enter", ("db: %s  table: %s", db, table));
+  if (opt_drop)
+  {
+    if (!general_log_or_slow_log_tables(db, table))
+    {
+      fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", opt_quoted_table);
+      check_io(sql_file);
+    }
+  }
+  DBUG_VOID_RETURN;
+}
 /*
   get_table_structure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat if the table is the type we will
@@ -3079,6 +3394,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   size_t     len;
   my_bool    is_log_table;
   unsigned int colno;
+  my_bool    is_innodb_table;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
   my_bool    has_pk= FALSE;
@@ -3117,8 +3433,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
     has_pk= has_primary_key(table);
 
-  if (opt_order_by_primary)
-    order_by= primary_key_fields(result_table);
+  if (opt_order_by_primary || opt_order_by_primary_desc)
+    order_by= primary_key_fields(result_table,
+                                 opt_order_by_primary_desc ? TRUE : FALSE);
 
   if (!opt_xml && !mysql_query_with_error_report(mysql, 0, query_buff))
   {
@@ -3153,25 +3470,19 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                       "\n--\n-- Table structure for table %s\n--\n\n",
                       result_table);
 
-      if (opt_drop)
-      {
-      /*
-        Even if the "table" is a view, we do a DROP TABLE here.  The
-        view-specific code below fills in the DROP VIEW.
-        We will skip the DROP TABLE for general_log and slow_log, since
-        those stmts will fail, in case we apply dump by enabling logging.
-       */
-        if (!general_log_or_slow_log_tables(db, table))
-          fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",
-                  opt_quoted_table);
-        check_io(sql_file);
-      }
-
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
       {
         char *scv_buff= NULL;
         my_ulonglong n_cols;
+
+        /*
+          Even if the "table" is a view, we do a DROP TABLE here.  The
+          view-specific code below fills in the DROP VIEW.
+          We will skip the DROP TABLE for general_log and slow_log, since
+          those stmts will fail, in case we apply dump by enabling logging.
+        */
+        print_optional_drop_table(sql_file, db, table, opt_quoted_table);
 
         verbose_msg("-- It's a view, create dummy view\n");
 
@@ -3290,8 +3601,31 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       row= mysql_fetch_row(result);
 
-      if (opt_innodb_optimize_keys && !strcmp(table_type, "InnoDB"))
+      is_innodb_table= (strcmp(table_type, "InnoDB") == 0);
+      if (opt_innodb_optimize_keys && is_innodb_table)
         skip_secondary_keys(row[1], has_pk);
+      if (is_innodb_table)
+      {
+        /*
+          Search for compressed columns attributes and remove them if
+          necessary.
+        */
+
+        LIST *referenced_dictionaries= 0, *current_dictionary;
+
+        skip_compressed_columns(row[1], &referenced_dictionaries);
+        referenced_dictionaries= list_reverse(referenced_dictionaries);
+        for (current_dictionary= referenced_dictionaries;
+             current_dictionary != 0;
+             current_dictionary= list_rest(current_dictionary))
+        {
+          print_optional_create_compression_dictionary(
+            sql_file, (const char*)current_dictionary->data);
+        }
+        list_free(referenced_dictionaries, TRUE);
+      }
+
+      print_optional_drop_table(sql_file, db, table, opt_quoted_table);
 
       is_log_table= general_log_or_slow_log_tables(db, table);
       if (is_log_table)
@@ -6026,7 +6360,7 @@ char check_if_ignore_table(const char *table_name, char *table_type)
     the table unsorted, rather than exit without dumping the data.
 */
 
-static char *primary_key_fields(const char *table_name)
+static char *primary_key_fields(const char *table_name, const my_bool desc)
 {
   MYSQL_RES  *res= NULL;
   MYSQL_ROW  row;
@@ -6036,6 +6370,7 @@ static char *primary_key_fields(const char *table_name)
   char *result= 0;
   char buff[NAME_LEN * 2 + 3];
   char *quoted_field;
+  static const char *desc_index= " DESC";
 
   my_snprintf(show_keys_buff, sizeof(show_keys_buff),
               "SHOW KEYS FROM %s", table_name);
@@ -6062,6 +6397,10 @@ static char *primary_key_fields(const char *table_name)
     {
       quoted_field= quote_name(row[4], buff, 0);
       result_length+= strlen(quoted_field) + 1; /* + 1 for ',' or \0 */
+      if (desc)
+      {
+        result_length+= strlen(desc_index);
+      }
     } while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1);
   }
 
@@ -6084,7 +6423,11 @@ static char *primary_key_fields(const char *table_name)
     while ((row= mysql_fetch_row(res)) && atoi(row[3]) > 1)
     {
       quoted_field= quote_name(row[4], buff, 0);
-      end= strxmov(end, ",", quoted_field, NullS);
+      end= strxmov(end, desc ? " DESC," : ",", quoted_field, NullS);
+    }
+    if (desc)
+    {
+      end= my_stpmov(end, " DESC");
     }
   }
 
@@ -6535,6 +6878,27 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
     die(EX_MYSQLERR, DYNAMIC_STR_ERROR_MSG);
 }
 
+static my_bool has_session_variables_like(MYSQL *mysql_con, const char *var_name)
+{
+  MYSQL_RES  *res;
+  MYSQL_ROW  row;
+  char       *val= 0;
+  char buf[32], query[256];
+  my_bool has_var= FALSE;
+
+  my_snprintf(query, sizeof(query), "SELECT COUNT(*) FROM"
+              " INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE"
+              " %s", quote_for_like(var_name, buf));
+  if (mysql_query_with_error_report(mysql_con, &res, query))
+    return FALSE;
+
+  row = mysql_fetch_row(res);
+  val = row ? (char*)row[0] : NULL;
+  has_var = val && strcmp(val, "0") != 0;
+  mysql_free_result(res);
+  return has_var;
+}
+
 /**
    Check if the server supports LOCK TABLES FOR BACKUP.
 
@@ -6663,6 +7027,10 @@ int main(int argc, char **argv)
     if (get_bin_log_name(mysql, bin_log_name, sizeof(bin_log_name)))
       goto err;
   }
+
+  if (has_session_variables_like(mysql, "rocksdb_skip_fill_cache"))
+    mysql_query_with_error_report(mysql, 0,
+                                  "SET SESSION rocksdb_skip_fill_cache=1");
 
   if (opt_single_transaction && start_transaction(mysql))
     goto err;

@@ -128,23 +128,17 @@ case "$1" in
 
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 		then
-			mkdir ${MYSQLDATA}
-			chown mysql:mysql ${MYSQLDATA}
-			chmod 750 ${MYSQLDATA}
+                        install -d -m 0750 -omysql -gmysql ${MYSQLDATA}
 		fi
 
 		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
 		then
-			mkdir ${MYSQLFILES}
-			chown mysql:mysql ${MYSQLFILES}
-			chmod 770 ${MYSQLFILES}
+                        install -d -m 0770 -omysql -gmysql ${MYSQLFILES}
 		fi
 
 		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
 		then
-			mkdir ${MYSQLKEYRING}
-			chown mysql:mysql ${MYSQLKEYRING}
-			chmod 750 ${MYSQLKEYRING}
+                        install -d -m 0750 -omysql -gmysql ${MYSQLKEYRING} 
 		fi
 
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ] && [ -d ${MYSQLKEYRING} ];
@@ -164,19 +158,13 @@ case "$1" in
 
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
 		then
-			mkdir ${MYSQLLOG}
-			chown mysql:adm ${MYSQLLOG}
-			chmod 750 ${MYSQLLOG}
-			touch ${MYSQLLOG}/error.log
-			chmod 640 ${MYSQLLOG}/error.log
-			chown mysql:adm ${MYSQLLOG}/error.log
+                        install -d -m 0750 -omysql -gadm ${MYSQLLOG} 
+                        install -m 0640 -omysql -gadm /dev/null ${MYSQLLOG}/error.log
 		fi
 
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
 		then
-			mkdir ${MYSQLRUN}
-			chown mysql:mysql ${MYSQLRUN}
-			chmod 755 ${MYSQLRUN}
+                        install -d -m 0755 -omysql -gmysql ${MYSQLRUN} 
 		fi
 
 		# Needed because of TokuDB

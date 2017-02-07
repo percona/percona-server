@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "09/28/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,13 +28,13 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_config \- extract MySQL Cluster configuration information
+ndb_config \- extract NDB Cluster configuration information
 .SH "SYNOPSIS"
 .HP \w'\fBndb_config\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndb_config \fR\fB\fIoptions\fR\fR
 .SH "DESCRIPTION"
 .PP
-This tool extracts current configuration information for data nodes, SQL nodes, and API nodes from one of a number of sources: a MySQL Cluster management node, or its
+This tool extracts current configuration information for data nodes, SQL nodes, and API nodes from one of a number of sources: an NDB Cluster management node, or its
 config\&.ini
 or
 my\&.cnf
@@ -60,9 +60,9 @@ CONNECTIONS) using one of the options
 \fB\-\-connections\fR\&.
 .PP
 The following table includes options that are specific to
-\fBndb_config\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+\fBndb_config\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndb_config\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -225,7 +225,7 @@ T}
 .TE
 .sp 1
 Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&19.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, and defaults to
+Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
 .RE
 .sp
@@ -427,7 +427,7 @@ to fail if
 is run on a different host where
 localhost
 resolves to a different address (for example, on some versions of SUSE Linux, this is
-127\&.0\&.0\&.2)\&. In general, for best results, you should use numeric IP addresses for all MySQL Cluster configuration values relating to hosts, or verify that all MySQL Cluster hosts handle
+127\&.0\&.0\&.2)\&. In general, for best results, you should use numeric IP addresses for all NDB Cluster configuration values relating to hosts, or verify that all NDB Cluster hosts handle
 localhost
 in the same fashion\&.
 .sp .5v
@@ -514,7 +514,7 @@ to print information relating only to parameters defined in an
 or
 [ndbd default]
 section of the cluster configuration file (see
-Section\ \&19.3.3.6, \(lqDefining MySQL Cluster Data Nodes\(rq)\&.
+Section\ \&19.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-connections\fR
@@ -567,9 +567,9 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&19.3.3.9, \(lqMySQL Cluster TCP/IP Connections\(rq,
-Section\ \&19.3.3.12, \(lqSCI Transport Connections in MySQL Cluster\(rq, and
-Section\ \&19.3.3.11, \(lqMySQL Cluster Shared-Memory Connections\(rq, for more information)\&.
+Section\ \&19.3.3.9, \(lqNDB Cluster TCP/IP Connections\(rq,
+Section\ \&19.3.3.12, \(lqSCI Transport Connections in NDB Cluster\(rq, and
+Section\ \&19.3.3.11, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
@@ -716,7 +716,7 @@ T}
 Specifies a
 \fIdelimiter\fR
 string used to separate the fields in the result\&. The default is
-\(lq,\(rq
+,
 (the comma character)\&.
 .if n \{\
 .sp
@@ -811,7 +811,7 @@ The
 \fB\-\-configinfo\fR
 option causes
 \fBndb_config\fR
-to dump a list of each MySQL Cluster configuration parameter supported by the MySQL Cluster distribution of which
+to dump a list of each NDB Cluster configuration parameter supported by the NDB Cluster distribution of which
 \fBndb_config\fR
 is a part, including the following information:
 .sp
@@ -869,7 +869,7 @@ Where applicable, the parameter\*(Aqs default, minimum, and maximum values
 .sp -1
 .IP \(bu 2.3
 .\}
-MySQL Cluster release version and build information
+NDB Cluster release version and build information
 .RE
 .sp
 By default, this output is in text format\&. Part of this output is shown here:
@@ -940,7 +940,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.15\-ndb\-7\&.5\&.4"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.16\-ndb\-7\&.5\&.5"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1061,7 +1061,7 @@ deprecated
 attribute is indicated only when the parameter is deprecated, with
 deprecated="true", and does not appear at all for parameters which are not deprecated\&. (Bug #21127135)
 .sp
-Beginning with MySQL Cluster NDB 7\&.5\&.0, parameters that are required are indicated with
+Beginning with NDB 7\&.5\&.0, parameters that are required are indicated with
 mandatory="true", as shown here:
 .sp
 .if n \{\
@@ -1110,9 +1110,9 @@ Unlike the options used with this program to obtain current configuration data,
 \fB\-\-configinfo\fR
 and
 \fB\-\-xml\fR
-use information obtained from the MySQL Cluster sources when
+use information obtained from the NDB Cluster sources when
 \fBndb_config\fR
-was compiled\&. For this reason, no connection to a running MySQL Cluster or access to a
+was compiled\&. For this reason, no connection to a running NDB Cluster or access to a
 config\&.ini
 or
 my\&.cnf
@@ -1135,7 +1135,7 @@ are simply ignored\&.
 \fIHowever, this behavior is not guaranteed and is subject to change at any time\fR\&. In addition, since
 \fBndb_config\fR, when used with the
 \fB\-\-configinfo\fR
-option, does not access the MySQL Cluster or read any files, trying to specify additional options such as
+option, does not access the NDB Cluster or read any files, trying to specify additional options such as
 \fB\-\-ndb\-connectstring\fR
 or
 \fB\-\-config\-file\fR

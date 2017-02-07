@@ -2985,16 +2985,20 @@ int open_file(const char *name)
   DBUG_ENTER("open_file");
   DBUG_PRINT("enter", ("name: %s", name));
 
+  my_bool file_exists= false;
   /* Extract path from current file and try it as base first */
   if (dirname_part(buff, cur_file->file_name, &length))
   {
     strxmov(buff, buff, name, NullS);
-    if (access(buff, F_OK) == 0){
+    if (access(buff, F_OK) == 0)
+    {
       DBUG_PRINT("info", ("The file exists"));
       name= buff;
+      file_exists= true;
     }
   }
-  if (!test_if_hard_path(name))
+
+  if (!test_if_hard_path(name) && !file_exists)
   {
     strxmov(buff, opt_basedir, name, NullS);
     name=buff;
@@ -3105,7 +3109,23 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   }
 #endif /* _WIN32 */
 
-  return popen(ds_cmd->str, mode);
+  errno= 0;
+  FILE *file= popen(ds_cmd->str, mode);
+  if (file == NULL)
+  {
+    if (errno != 0)
+    {
+      fprintf(stderr, "mysqltest: popen failed with errno %d (%s)\n", errno,
+              strerror(errno));
+    }
+    else
+    {
+      fprintf(stderr,
+              "mysqltest: popen returned NULL without setting errno "
+              "(out-of-memory?)\n");
+    }
+  }
+  return file;
 }
 
 
@@ -4995,6 +5015,25 @@ int query_get_string(MYSQL* mysql, const char* query,
 
 
 /**
+  A wrapper around kill call that prints diagnostics if the call failed with
+  any other error than ESRCH.
+
+  @param pid    Process id
+  @param sig    Signal to send to process
+  @return The return value of kill call
+*/
+static int my_kill(int pid, int sig)
+{
+  const int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
+}
+
+/**
   Check if process is active.
 
   @param pid  Process id.
@@ -5019,7 +5058,7 @@ static bool is_process_active(int pid)
 
   return true;
 #else
-  return (kill(pid, 0) == 0);
+  return (my_kill(pid, 0) == 0);
 #endif
 }
 
@@ -5044,7 +5083,7 @@ static bool kill_process(int pid)
 
   CloseHandle(proc);
 #else
-  killed= (kill(pid, SIGKILL) == 0);
+  killed= (my_kill(pid, SIGKILL) == 0);
 #endif
   return killed;
 }
@@ -5076,7 +5115,7 @@ static void abort_process(int pid, const char *path)
       /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
       if ((end - name) < (sizeof(name) - 23))
       {
-        if (end[-1] != FN_LIBCHAR && end[-1] != FN_LIBCHAR2)
+        if (!is_directory_separator(end[-1]))
         {
           end[0]= FN_LIBCHAR2;   // datadir path normally uses '/'.
           end++;
@@ -5115,7 +5154,7 @@ static void abort_process(int pid, const char *path)
 #else
   log_msg("shutdown_server timeout exceeded, SIGABRT set to the server PID %d",
           pid);
-  kill(pid, SIGABRT);
+  my_kill(pid, SIGABRT);
 #endif
 }
 

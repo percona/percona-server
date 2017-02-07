@@ -227,6 +227,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  sql_zip_dict.cc
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
@@ -350,6 +351,21 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     spatial.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
+ENDIF()
+
+# Boost source has misleading indentation
+MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                           HAVE_MISLEADING_INDENTATION)
+IF(HAVE_MISLEADING_INDENTATION)
+  ADD_COMPILE_FLAGS(
+    geometry_rtree.cc
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_internal.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc    
+    COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

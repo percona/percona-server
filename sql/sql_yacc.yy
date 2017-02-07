@@ -559,6 +559,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPACT_SYM
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
+%token  COMPRESSION_DICTIONARY_SYM
 %token  COMPRESSION_SYM
 %token  ENCRYPTION_SYM
 %token  CONCURRENT
@@ -1178,6 +1179,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
         filter_wild_db_table_string
 
+%type <lex_cstr>
+        opt_with_compression_dictionary
+
 %type <lex_str_ptr>
         opt_table_alias
 
@@ -1250,6 +1254,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         signal_allowed_expr
         simple_target_specification
         condition_number
+        create_compression_dictionary_allowed_expr
         filter_db_ident
         filter_table_ident
         filter_string
@@ -2394,6 +2399,40 @@ create:
             Lex->server_options.set_scheme($7);
             Lex->m_sql_cmd=
               new (YYTHD->mem_root) Sql_cmd_create_server(&Lex->server_options);
+          }
+        | CREATE COMPRESSION_DICTIONARY_SYM opt_if_not_exists ident
+          '(' create_compression_dictionary_allowed_expr ')'
+          {
+            Lex->sql_command= SQLCOM_CREATE_COMPRESSION_DICTIONARY;
+            Lex->create_info.options= $3;
+            Lex->ident= $4;
+            Lex->default_value= $6;
+          }
+        ;
+/*
+  Only a limited subset of <expr> are allowed in
+  CREATE COMPRESSION_DICTIONARY.
+*/
+create_compression_dictionary_allowed_expr:
+          text_literal
+          { ITEMIZE($1, &$$); }
+        | variable
+          {
+            ITEMIZE($1, &$1);
+            if ($1->type() == Item::FUNC_ITEM)
+            {
+              Item_func *item= (Item_func*) $1;
+              if (item->functype() == Item_func::SUSERVAR_FUNC)
+              {
+                /*
+                  Don't allow the following syntax:
+                    CREATE COMPRESSION_DICTIONARY <dict>(@foo := expr)
+                */
+                my_syntax_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+              }
+            }
+            $$= $1;
           }
         ;
 
@@ -5510,6 +5549,12 @@ part_name:
           {
             partition_info *part_info= Lex->part_info;
             partition_element *p_elem= part_info->curr_part_elem;
+            if (check_string_char_length(to_lex_cstring($1), "", NAME_CHAR_LEN,
+                                         system_charset_info, true))
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
             p_elem->partition_name= $1.str;
           }
         ;
@@ -5806,7 +5851,15 @@ sub_part_definition:
 
 sub_name:
           ident_or_text
-          { Lex->part_info->curr_part_elem->partition_name= $1.str; }
+          {
+            if (check_string_char_length(to_lex_cstring($1), "", NAME_CHAR_LEN,
+                                         system_charset_info, true))
+            {
+              my_error(ER_TOO_LONG_IDENT, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+            Lex->part_info->curr_part_elem->partition_name= $1.str;
+          }
         ;
 
 opt_part_options:
@@ -6346,6 +6399,7 @@ field_spec:
             lex->default_value= lex->on_update_value= 0;
             lex->comment=null_lex_str;
             lex->charset=NULL;
+            lex->zip_dict_name=null_lex_cstr;
             lex->gcol_info= 0;
           }
           field_def
@@ -6357,6 +6411,7 @@ field_spec:
                                   &lex->comment,
                                   lex->change,&lex->interval_list,lex->charset,
                                   lex->uint_geom_type,
+                                  &lex->zip_dict_name,
                                   lex->gcol_info))
               MYSQL_YYABORT;
           }
@@ -6417,6 +6472,19 @@ gcol_attribute:
             LEX *lex=Lex;
             lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
+          }
+        | COLUMN_FORMAT_SYM DEFAULT
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_COMPRESSED << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->zip_dict_name= $3;
           }
         ;
 
@@ -6961,6 +7029,13 @@ attribute:
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
           }
+        | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_COMPRESSED << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->zip_dict_name= $3;
+          }
         | STORAGE_SYM DEFAULT
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
@@ -6978,6 +7053,18 @@ attribute:
           }
         ;
 
+opt_with_compression_dictionary:
+          /* empty */ { $$= null_lex_cstr; }
+        | WITH COMPRESSION_DICTIONARY_SYM ident
+          {
+            /*
+              no single assignment because of
+              LEX_STRING -> LEX_CSTRING conversion
+            */
+            $$.str= $3.str;
+            $$.length= $3.length;
+          }
+        ;
 
 type_with_opt_collate:
         type opt_collate
@@ -8225,6 +8312,7 @@ alter_list_item:
             lex->comment=null_lex_str;
             lex->charset= NULL;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            lex->zip_dict_name= null_lex_cstr;
             lex->gcol_info= 0;
           }
           field_def
@@ -8236,7 +8324,7 @@ alter_list_item:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   $3.str, &lex->interval_list, lex->charset,
-                                  lex->uint_geom_type,
+                                  lex->uint_geom_type, &lex->zip_dict_name,
                                   lex->gcol_info))
               MYSQL_YYABORT;
           }
@@ -11322,6 +11410,12 @@ drop:
             Lex->m_sql_cmd=
               new (YYTHD->mem_root) Sql_cmd_drop_server($4, $3);
           }
+        | DROP COMPRESSION_DICTIONARY_SYM if_exists ident
+          {
+            Lex->sql_command= SQLCOM_DROP_COMPRESSION_DICTIONARY;
+            Lex->drop_if_exists= $3;
+            Lex->ident= $4;
+          }
         ;
 
 table_list:
@@ -13491,6 +13585,7 @@ keyword_sp:
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
         | COMPRESSED_SYM           {}
+        | COMPRESSION_DICTIONARY_SYM {}
         | COMPRESSION_SYM          {}
         | ENCRYPTION_SYM           {}
         | CONCURRENT               {}

@@ -3944,6 +3944,7 @@ btr_cur_update_in_place(
 		rw_lock_x_lock(btr_get_search_latch(index));
 	}
 
+	assert_block_ahi_valid(block);
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 	if (is_hashed) {
@@ -5769,6 +5770,12 @@ btr_estimate_n_rows_in_range_low(
 
 	mtr_commit(&mtr);
 
+#ifdef UNIV_DEBUG
+	if (!strcmp(index->name, "iC")) {
+		DEBUG_SYNC_C("btr_estimate_n_rows_in_range_between_dives");
+	}
+#endif
+
 	mtr_start(&mtr);
 
 	cursor.path_arr = path2;
@@ -5945,12 +5952,16 @@ btr_estimate_n_rows_in_range_low(
 
 		if (!diverged && slot1->nth_rec != slot2->nth_rec) {
 
-			/* If both slots do not point to the same page,
+			/* If both slots do not point to the same page or if
+			the paths have crossed and the same page on both
+			apparently contains a different number of records,
 			this means that the tree must have changed between
 			the dive for slot1 and the dive for slot2 at the
 			beginning of this function. */
 			if (slot1->page_no != slot2->page_no
-			    || slot1->page_level != slot2->page_level) {
+			    || slot1->page_level != slot2->page_level
+			    || (slot1->nth_rec >= slot2->nth_rec
+				&& slot1->n_recs != slot2->n_recs)) {
 
 				/* If the tree keeps changing even after a
 				few attempts, then just return some arbitrary
@@ -5991,10 +6002,8 @@ btr_estimate_n_rows_in_range_low(
 				and we select where x > 20 and x < 30;
 				in this case slot1->nth_rec will point
 				to the supr record and slot2->nth_rec
-				will point to 6. */
-				n_rows = 0;
-				should_count_the_left_border = false;
-				should_count_the_right_border = false;
+				will point to 6 */
+				return(0);
 			}
 
 		} else if (diverged && !diverged_lot) {

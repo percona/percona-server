@@ -28,12 +28,14 @@
 #include "rocksdb/memtablerep.h"
 #include "rocksdb/merge_operator.h"
 #include "rocksdb/slice_transform.h"
+#include "rocksdb/utilities/transaction_db.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 #include "./ha_rocksdb_proto.h"
 #include "./rdb_cf_manager.h"
 #include "./rdb_datadic.h"
+#include "./rdb_utils.h"
 
 namespace myrocks {
 
@@ -811,18 +813,17 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef)
 
   for (uint i= 0; i < tdef->m_key_count; i++)
   {
-    const std::shared_ptr<const Rdb_key_def>& kd= tdef->m_key_descr_arr[i];
-    DBUG_ASSERT(kd != nullptr);
+    const Rdb_key_def& kd= *tdef->m_key_descr_arr[i];
 
-    field[3]->store(kd->m_name.c_str(), kd->m_name.size(), system_charset_info);
+    field[3]->store(kd.m_name.c_str(), kd.m_name.size(), system_charset_info);
 
-    GL_INDEX_ID gl_index_id = kd->get_gl_index_id();
+    GL_INDEX_ID gl_index_id = kd.get_gl_index_id();
     field[4]->store(gl_index_id.cf_id, true);
     field[5]->store(gl_index_id.index_id, true);
-    field[6]->store(kd->m_index_type, true);
-    field[7]->store(kd->m_kv_format_version, true);
+    field[6]->store(kd.m_index_type, true);
+    field[7]->store(kd.m_kv_format_version, true);
 
-    std::string cf_name= kd->get_cf()->GetName();
+    std::string cf_name= kd.get_cf()->GetName();
     field[8]->store(cf_name.c_str(), cf_name.size(), system_charset_info);
 
     ret= my_core::schema_table_store_record(m_thd, m_table);
@@ -1041,6 +1042,158 @@ static int rdb_i_s_index_file_map_init(void *p)
   DBUG_RETURN(0);
 }
 
+/* Fill the information_schema.rocksdb_index_file_map virtual table */
+static int rdb_i_s_lock_info_fill_table(
+    my_core::THD        *thd,
+    my_core::TABLE_LIST *tables,
+    my_core::Item       *cond __attribute__((__unused__)))
+{
+  DBUG_ASSERT(thd != nullptr);
+  DBUG_ASSERT(tables != nullptr);
+  DBUG_ASSERT(tables->table != nullptr);
+
+  int ret = 0;
+
+  DBUG_ENTER("rdb_i_s_lock_info_fill_table");
+
+  rocksdb::TransactionDB *rdb= rdb_get_rocksdb_db();
+  DBUG_ASSERT(rdb != nullptr);
+
+  /* cf id -> rocksdb::KeyLockInfo */
+  std::unordered_multimap<uint32_t, rocksdb::KeyLockInfo> lock_info =
+    rdb->GetLockStatusData();
+
+  for (auto it = lock_info.begin(); it != lock_info.end(); it++) {
+    uint32_t cf_id = it->first;
+    rocksdb::KeyLockInfo key_lock_info = it->second;
+    tables->table->field[0]->store(cf_id, true);
+    tables->table->field[1]->store(key_lock_info.id, true);
+
+    auto key_hexstr = rdb_hexdump(key_lock_info.key.c_str(),
+                                  key_lock_info.key.length(), FN_REFLEN);
+    tables->table->field[2]->store(key_hexstr.c_str(), key_hexstr.size(),
+                                   system_charset_info);
+
+    /* Tell MySQL about this row in the virtual table */
+    ret= my_core::schema_table_store_record(thd, tables->table);
+    if (ret != 0) {
+      break;
+    }
+  }
+  DBUG_RETURN(ret);
+}
+
+static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] =
+{
+  ROCKSDB_FIELD_INFO("COLUMN_FAMILY_ID", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("KEY", FN_REFLEN+1, MYSQL_TYPE_STRING, 0),
+  ROCKSDB_FIELD_INFO_END
+};
+
+/* Initialize the information_schema.rocksdb_lock_info virtual table */
+static int rdb_i_s_lock_info_init(void *p)
+{
+  my_core::ST_SCHEMA_TABLE *schema;
+
+  DBUG_ENTER("rdb_i_s_lock_info_init");
+  DBUG_ASSERT(p != nullptr);
+
+  schema= (my_core::ST_SCHEMA_TABLE*) p;
+
+  schema->fields_info= rdb_i_s_lock_info_fields_info;
+  schema->fill_table= rdb_i_s_lock_info_fill_table;
+
+  DBUG_RETURN(0);
+}
+
+/* Fill the information_schema.rocksdb_trx virtual table */
+static int rdb_i_s_trx_info_fill_table(
+    my_core::THD        *thd,
+    my_core::TABLE_LIST *tables,
+    my_core::Item       *cond __attribute__((__unused__)))
+{
+  DBUG_ASSERT(thd != nullptr);
+  DBUG_ASSERT(tables != nullptr);
+  DBUG_ASSERT(tables->table != nullptr);
+
+  int ret = 0;
+
+  DBUG_ENTER("rdb_i_s_trx_info_fill_table");
+
+  std::vector<Rdb_trx_info> all_trx_info = rdb_get_all_trx_info();
+
+  for (const auto &info : all_trx_info) {
+    auto name_hexstr = rdb_hexdump(info.name.c_str(), info.name.length(),
+                                   NAME_LEN);
+    tables->table->field[0]->store(info.trx_id, true);
+    tables->table->field[1]->store(info.state.c_str(), info.state.length(),
+                                   system_charset_info);
+    tables->table->field[2]->store(name_hexstr.c_str(), name_hexstr.length(),
+                                   system_charset_info);
+    tables->table->field[3]->store(info.write_count, true);
+    tables->table->field[4]->store(info.lock_count, true);
+    tables->table->field[5]->store(info.timeout_sec, false);
+    tables->table->field[6]->store(info.waiting_trx_id, true);
+    tables->table->field[7]->store(info.is_replication, false);
+    tables->table->field[8]->store(info.skip_trx_api, false);
+    tables->table->field[9]->store(info.read_only, false);
+    tables->table->field[10]->store(info.deadlock_detect, false);
+    tables->table->field[11]->store(info.num_ongoing_bulk_load, false);
+    tables->table->field[12]->store(info.thread_id, true);
+    tables->table->field[13]->store(info.query_str.c_str(), info.query_str.length(),
+                                   system_charset_info);
+
+
+    /* Tell MySQL about this row in the virtual table */
+    ret= my_core::schema_table_store_record(thd, tables->table);
+    if (ret != 0) {
+      break;
+    }
+  }
+
+  DBUG_RETURN(ret);
+}
+
+static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] =
+{
+  ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(ulonglong),
+                     MYSQL_TYPE_LONGLONG, 0),
+  ROCKSDB_FIELD_INFO("STATE", NAME_LEN+1, MYSQL_TYPE_STRING, 0),
+  ROCKSDB_FIELD_INFO("NAME", NAME_LEN+1, MYSQL_TYPE_STRING, 0),
+  ROCKSDB_FIELD_INFO("WRITE_COUNT", sizeof(ulonglong), MYSQL_TYPE_LONGLONG, 0),
+  ROCKSDB_FIELD_INFO("LOCK_COUNT", sizeof(ulonglong), MYSQL_TYPE_LONGLONG, 0),
+  ROCKSDB_FIELD_INFO("TIMEOUT_SEC", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("WAITING_TXN_ID", sizeof(ulonglong),
+                     MYSQL_TYPE_LONGLONG, 0),
+  ROCKSDB_FIELD_INFO("IS_REPLICATION", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("SKIP_TRX_API", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("READ_ONLY", sizeof(uint32_t), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("HAS_DEADLOCK_DETECTION", sizeof(uint32_t),
+                     MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("NUM_ONGOING_BULKLOAD", sizeof(uint32_t),
+                     MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("THREAD_ID", sizeof(ulong), MYSQL_TYPE_LONG, 0),
+  ROCKSDB_FIELD_INFO("QUERY", NAME_LEN+1, MYSQL_TYPE_STRING, 0),
+  ROCKSDB_FIELD_INFO_END
+};
+
+/* Initialize the information_schema.rocksdb_trx_info virtual table */
+static int rdb_i_s_trx_info_init(void *p)
+{
+  my_core::ST_SCHEMA_TABLE *schema;
+
+  DBUG_ENTER("rdb_i_s_trx_info_init");
+  DBUG_ASSERT(p != nullptr);
+
+  schema= (my_core::ST_SCHEMA_TABLE*) p;
+
+  schema->fields_info= rdb_i_s_trx_info_fields_info;
+  schema->fill_table= rdb_i_s_trx_info_fill_table;
+
+  DBUG_RETURN(0);
+}
+
 static int rdb_i_s_deinit(void *p __attribute__((__unused__)))
 {
   DBUG_ENTER("rdb_i_s_deinit");
@@ -1186,4 +1339,37 @@ struct st_mysql_plugin rdb_i_s_index_file_map=
   0,                                  /* flags */
 };
 
+struct st_mysql_plugin rdb_i_s_lock_info=
+{
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &rdb_i_s_info,
+  "ROCKSDB_LOCKS",
+  "Facebook",
+  "RocksDB lock information",
+  PLUGIN_LICENSE_GPL,
+  rdb_i_s_lock_info_init,
+  nullptr,
+  0x0001,                             /* version number (0.1) */
+  nullptr,                            /* status variables */
+  nullptr,                            /* system variables */
+  nullptr,                            /* config options */
+  0,                                  /* flags */
+};
+
+struct st_mysql_plugin rdb_i_s_trx_info=
+{
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &rdb_i_s_info,
+  "ROCKSDB_TRX",
+  "Facebook",
+  "RocksDB transaction information",
+  PLUGIN_LICENSE_GPL,
+  rdb_i_s_trx_info_init,
+  nullptr,
+  0x0001,                             /* version number (0.1) */
+  nullptr,                            /* status variables */
+  nullptr,                            /* system variables */
+  nullptr,                            /* config options */
+  0,                                  /* flags */
+};
 }  // namespace myrocks

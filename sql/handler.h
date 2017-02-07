@@ -428,7 +428,8 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 enum column_format_type {
   COLUMN_FORMAT_TYPE_DEFAULT=   0, /* Not specified (use engine default) */
   COLUMN_FORMAT_TYPE_FIXED=     1, /* FIXED format */
-  COLUMN_FORMAT_TYPE_DYNAMIC=   2  /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_DYNAMIC=   2, /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_COMPRESSED= 3  /* COMPRESSED format*/
 };
 
 enum enum_binlog_func {
@@ -689,6 +690,31 @@ enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 extern st_plugin_int *hton2plugin[MAX_HA];
 
+/** Create compression dictionary result type. */
+enum handler_create_zip_dict_result
+{
+  HA_CREATE_ZIP_DICT_OK,             /*!< zip_dict successfully created */
+  HA_CREATE_ZIP_DICT_ALREADY_EXISTS, /*!< zip dict with such name already
+                                          exists */
+  HA_CREATE_ZIP_DICT_NAME_TOO_LONG,  /*!< zip dict name is too long */
+  HA_CREATE_ZIP_DICT_DATA_TOO_LONG,  /*!< zip dict data is too long */
+  HA_CREATE_ZIP_DICT_READ_ONLY,      /*!< cannot create in read-only mode */
+  HA_CREATE_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
+                                          creation */
+};
+
+/** Drop compression dictionary result type. */
+enum handler_drop_zip_dict_result
+{
+  HA_DROP_ZIP_DICT_OK,             /*!< zip_dict successfully dropped */
+  HA_DROP_ZIP_DICT_DOES_NOT_EXIST, /*!< zip dict with such name does not
+                                        exist */
+  HA_DROP_ZIP_DICT_IS_REFERENCED,  /*!< zip dict is in use */
+  HA_DROP_ZIP_DICT_READ_ONLY,      /*!< cannot drop in read-only mode */
+  HA_DROP_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
+                                        removal */
+};
+
 class handler;
 /*
   handlerton is a singleton structure - one instance per storage engine -
@@ -946,6 +972,8 @@ struct handlerton
                               lock is to be acquired/was released.
     @param notification_type  Indicates whether this is pre-acquire or
                               post-release notification.
+    @param victimized        'true' if locking failed as we were selected
+                              as a victim in order to avoid possible deadlocks.
 
     @note Notification is done only for objects from TABLESPACE, SCHEMA,
           TABLE, FUNCTION, PROCEDURE, TRIGGER and EVENT namespaces.
@@ -967,7 +995,8 @@ struct handlerton
             True - if it has failed/lock should not be acquired.
   */
   bool (*notify_exclusive_mdl)(THD *thd, const MDL_key *mdl_key,
-                               ha_notification_type notification_type);
+                               ha_notification_type notification_type,
+                               bool *victimized);
 
   /**
     Notify/get permission from storage engine before or after execution of
@@ -1009,6 +1038,38 @@ struct handlerton
              true on failure
   */
   bool (*rotate_encryption_master_key)(void);
+
+  /**
+    Creates a new compression dictionary with the specified data for this SE.
+
+    @param hton                       handletron object.
+    @param thd                        thread descriptor.
+    @param name                       compression dictionary name
+    @param name_len                   compression dictionary name length
+    @param data                       compression dictionary data
+    @param data_len                   compression dictionary data length
+
+    @return a valid #handler_create_zip_dict_result value.
+
+    This interface is optional, so not every SE needs to implement it.
+  */
+  handler_create_zip_dict_result (*create_zip_dict)(handlerton *hton,
+    THD* thd, const char* name, ulong* name_len, const char* data,
+    ulong* data_len);
+  /**
+    Deletes a compression dictionary for this SE.
+
+    @param hton                       handletron object.
+    @param thd                        thread descriptor.
+    @param name                       compression dictionary name
+    @param name_len                   compression dictionary name length
+
+    @return a valid #handler_drop_zip_dict_result value.
+
+    This interface is optional, so not every SE needs to implement it.
+  */
+  handler_drop_zip_dict_result (*drop_zip_dict)(handlerton *hton, THD* thd,
+    const char* name, ulong* name_len);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -3902,6 +3963,13 @@ public:
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+  /**
+    This method is supposed to fill field definition objects with
+    compression dictionary info (name and data).
+    If the handler does not support compression dictionaries
+    this method should be left empty (not overloaded).
+  */
+  virtual void update_field_defs_with_zip_dict_info(THD* thd) { }
 
 public:
   /* Read-free replication interface */
@@ -4165,10 +4233,13 @@ void ha_kill_connection(THD *thd);
 */
 bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush= false);
 void ha_drop_database(char* path);
+
+class Create_field;
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		                bool update_create_info,
+                    const List<Create_field> *create_fields,
+                    bool update_create_info,
                     bool is_temp_table= false);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
@@ -4288,7 +4359,8 @@ void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
 
 bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
-                             ha_notification_type notification_type);
+                             ha_notification_type notification_type,
+                             bool *victimized);
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 

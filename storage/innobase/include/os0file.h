@@ -1029,8 +1029,9 @@ os_file_create_simple_no_error_handling_func(
 @param[in]	fd		file descriptor to alter
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	name		"open" or "create"; used in the diagnostic
-				message */
-void
+				message
+@return true if operation is success and false */
+bool
 os_file_set_nocache(
 	int		fd,
 	const char*	file_name,

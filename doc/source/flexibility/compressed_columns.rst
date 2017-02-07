@@ -4,7 +4,7 @@
 Compressed columns with dictionaries
 ====================================
 
-In :rn:`5.7.16-10` |Percona Server| has been extended with a new per-column
+In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
 compression feature. It is a data type modifier, independent from user-level
 SQL and |InnoDB| data compression, that causes the data stored in the column to
 be compressed on writing to storage and decompressed on read. For all other
@@ -237,7 +237,7 @@ Downgrade scenario
 ==================
 
 If it is necessary to perform |Percona Server| downgrade from a version
-:rn:`5.7.16-10` (or newer) to a version older than :rn:`5.7.16-10` and if
+:rn:`5.7.17-11` (or newer) to a version older than :rn:`5.7.17-11` and if
 user databases have one or more table with compressed columns, there are two
 options to do this safely:
 
@@ -252,7 +252,7 @@ options to do this safely:
 Version Specific Information
 ============================
 
-  * :rn:`5.7.16-10`
+  * :rn:`5.7.17-11`
     Feature implemented in |Percona Server| 5.7
 
 System Variables

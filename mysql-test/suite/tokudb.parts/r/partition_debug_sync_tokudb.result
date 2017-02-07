@@ -7,7 +7,11 @@ ENGINE = TokuDB
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (15),
 PARTITION pMax VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1), (11), (21), (33);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 BEGIN;
 DELETE FROM t1 WHERE a = 11;
 SELECT * FROM t1;
@@ -31,6 +35,8 @@ COMMIT;
 SELECT * FROM t1;
 a
 1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #
 # Bug#50561: ALTER PARTITIONS does not have adequate lock, breaks with
@@ -39,7 +45,11 @@ create table t1 (a int)
 engine = tokudb stats_persistent=0
 partition by range (a)
 (partition p0 values less than MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1), (11), (21), (33);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a
 1
@@ -53,6 +63,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=TokuDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = TokuDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 t1.frm
 t1.par
 t1_P_p0_main_id.tokudb
@@ -73,6 +85,7 @@ ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
 (PARTITION p0 VALUES LESS THAN (10),
 PARTITION p10 VALUES LESS THAN MAXVALUE);
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Warning	1639	debug sync point wait timed out
 TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_DESCRIPTION	TABLE_ROWS
 test	t1	p0	1	10	1
@@ -91,6 +104,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10) ENGINE = TokuDB,
  PARTITION p10 VALUES LESS THAN MAXVALUE ENGINE = TokuDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1;
 a
 1

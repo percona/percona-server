@@ -117,6 +117,10 @@ static const char* tokudb_backup_exclude_default="(mysqld_safe\\.pid)+";
 
 static const char* master_info_file_name = "tokubackup_slave_info";
 static const char* master_state_file_name = "tokubackup_binlog_info";
+
+/* innodb_use_native_aio option */
+extern my_bool srv_use_native_aio;
+
 // This is just a place holder for now and must be replaced soon with a proper
 // PSI key for this plugin.
 static PSI_memory_key tokudb_backup_mem_key = 0;
@@ -928,6 +932,17 @@ int tokudb_backup_save_master_state(
 static void tokudb_backup_run(THD *thd, const char *dest_dir) {
     int error = 0;
 
+    if (srv_use_native_aio) {
+        error = EINVAL;
+        tokudb_backup_set_error_string(thd,
+                                       error,
+                                       "tokudb hot backup is disabled when "
+                                       "innodb_use_native_aio is enabled",
+                                       NULL,
+                                       NULL,
+                                       NULL);
+        return;
+    }
     // check that the dest dir is a child of the tokudb_backup_allowed_prefix
     if (tokudb_backup_allowed_prefix) {
         if (!tokudb_backup_is_child_of(dest_dir, tokudb_backup_allowed_prefix)) {

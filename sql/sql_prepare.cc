@@ -114,6 +114,7 @@ When one supplies long data for a placeholder:
 #include <mysql.h>
 #else
 #include <mysql_com.h>
+#include "sql_connect.h" //update_global_user_stats
 #endif
 #include "sql_query_rewrite.h"
 
@@ -123,8 +124,6 @@ When one supplies long data for a placeholder:
 using std::max;
 using std::min;
 
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
 /****************************************************************************/
 
@@ -1203,9 +1202,6 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
 
   if ((values= its++))
   {
-    uint value_count;
-    ulong counter= 0;
-
     if (table_list->table)
     {
       // don't allocate insert_values
@@ -1215,20 +1211,7 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
     if (mysql_prepare_insert(thd, table_list, values, false))
       goto error;
 
-    value_count= values->elements;
     its.rewind();
-
-    while ((values= its++))
-    {
-      counter++;
-      if (values->elements != value_count)
-      {
-        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-        goto error;
-      }
-      if (setup_fields(thd, Ref_ptr_array(), *values, 0, NULL, false, false))
-        goto error;
-    }
   }
   DBUG_RETURN(FALSE);
 
@@ -1990,6 +1973,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SLAVE_STOP:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
+  case SQLCOM_DROP_COMPRESSION_DICTIONARY:
   case SQLCOM_CREATE_DB:
   case SQLCOM_DROP_DB:
   case SQLCOM_ALTER_DB_UPGRADE:

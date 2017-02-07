@@ -354,6 +354,11 @@ let $wait_condition =
 #
 # Bug#41131 "Questions" fails to increment - ignores statements instead stored procs
 #
+SET @old2_log_output = @@GLOBAL.log_output;
+SET GLOBAL log_output = 'TABLE';
+SET @old_general_log = @@GLOBAL.general_log;
+SET GLOBAL general_log = 'ON';
+TRUNCATE TABLE mysql.general_log;
 connect (con1,localhost,root,,);
 connection con1;
 --disable_warnings
@@ -382,10 +387,16 @@ let $new_queries= `SHOW STATUS LIKE 'Queries'`;
 let $diff= `SELECT SUBSTRING('$new_queries',9)-SUBSTRING('$org_queries',9)`;
 --enable_query_log
 eval SELECT $diff;
+if ($diff != 9)
+{
+  SELECT * FROM mysql.general_log;
+}
 disconnect con1;
 connection default;
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+SET GLOBAL log_output = @old2_log_output;
+SET GLOBAL general_log = @old_general_log;
 
 # End of 5.1 tests
 

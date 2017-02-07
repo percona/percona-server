@@ -6073,8 +6073,6 @@ ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
@@ -6083,8 +6081,6 @@ SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 DELETE FROM t1;
 INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
@@ -6106,14 +6102,10 @@ ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
 ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch
@@ -6160,12 +6152,44 @@ Warning	1300	Invalid utf8 character string: 'F09D8C'
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch
 a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch<'a𝌆b' ORDER BY ch;
 ch
 a
+a?
+a??
+a???
+a????
+a????b
+a????z
+a???b
+a???z
+a??b
+a??z
+a?b
+a?z
+ab
+az
+aЀ
+aր
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
@@ -6299,8 +6323,6 @@ ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
@@ -6309,8 +6331,6 @@ SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='admin𝌆';
 ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 DELETE FROM t1;
 INSERT INTO t1 (ch) VALUES ('a'), ('a?'), ('a??'), ('a???'), ('a????');
@@ -6332,14 +6352,10 @@ ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86' for column 'ch' at row 1
 SELECT ch FROM t1 FORCE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;
 ch
 Warnings:
 Warning	1300	Invalid utf8 character string: 'F09D8C'
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
-Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 Warning	1366	Incorrect string value: '\xF0\x9D\x8C\x86b' for column 'ch' at row 1
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch<'a𝌆' ORDER BY ch;
 ch

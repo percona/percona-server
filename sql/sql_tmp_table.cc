@@ -400,6 +400,13 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     DBUG_ASSERT(false);
     break;
   }
+
+  /* Make sure temporary fields are never compressed */
+  if (result->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED)
+    result->flags&= ~FIELD_FLAGS_COLUMN_FORMAT_MASK;
+  result->zip_dict_name= null_lex_cstr;
+  result->zip_dict_data= null_lex_cstr;
+
   return result;
 }
 
@@ -694,7 +701,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
               (ulong) rows_limit, MY_TEST(group)));
 
   thd->inc_status_created_tmp_tables();
-  thd->query_plan_flags|= QPLAN_TMP_TABLE;
 
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);

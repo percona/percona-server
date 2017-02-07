@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/16/2016
+.\"      Date: 11/25/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "09/16/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "11/25/2016" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -262,6 +262,7 @@ l l
 l l
 l l
 l l
+l l
 l l.
 T{
 MTR_BUILD_THREAD
@@ -293,7 +294,7 @@ Setting of a timeout in minutes or seconds, corresponding to command
                 CTEST (all in seconds)\&.
                 MTR_CTEST_TIMEOUT is for
                 \fBctest\fR unit tests; it was added in
-                MySQL 5\&.8\&.0\&.
+                MySQL 8\&.0\&.0\&.
 T}
 T{
 MTR_PARALLEL
@@ -364,6 +365,12 @@ MYSQLTEST_VARDIR
 T}:T{
 Path name to the var directory that is used for
                 logs, temporary files, and so forth
+T}
+T{
+TSAN_OPTIONS
+T}:T{
+Path name to a file containing ThreadSanitizer suppressions\&. Supported
+                as of MySQL 8\&.0\&.1\&.
 T}
 .TE
 .sp 1
@@ -1126,7 +1133,7 @@ Do not perform controlled shutdown when servers need to be restarted or at the e
 .\}
 \fB\-\-fail\-check\-testcases\fR
 .sp
-Enabling this option when a test is run, causes it to fail if MTR\*(Aqs internal check of the test case fails\&. If this option is disabled, only a warning is generated while the test passes\&. For additional information, see the description of the
+Enabling this option when a test is run, causes it to fail if MTR\*(Aqs internal check of the test case fails\&. If this option is disabled, only a warning is generated while the test passes\&. This option is enabled by default\&. For additional information, see the description of the
 \fB\-\-check\-testcases\fR
 option\&.
 .sp
@@ -1471,7 +1478,7 @@ options to set more than one variable\&.
 Extra options to pass to
 \fBmysqltest\fR\&.
 .sp
-This option was added in MySQL 5\&.8\&.0\&.
+This option was added in MySQL 8\&.0\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1821,6 +1828,26 @@ may fail in total, as each repetition is considered a new test case, which may i
 \fB\-\-retry\-failure=\fR\fB\fIN\fR\fR
 .sp
 Allow a failed and retried test to fail more than the default 2 times before giving it up\&. Setting it to 0 or 1 effectively turns off retries
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-sanitize\fR
+.sp
+Scan the server log files for warnings from various sanitizers\&. Use of this option assumes that MySQL was configured with
+\fB\-DWITH_ASAN\fR
+or
+\fB\-DWITH_UBSAN\fR\&.
+.sp
+This option was added in MySQL 8\&.0\&.0\&. As of MySQL 8\&.0\&.1, the
+TSAN_OPTIONS
+environment variable can be set to specify the path name of a file containing ThreadSanitizer suppressions\&.
 .RE
 .sp
 .RS 4
@@ -2187,6 +2214,19 @@ directory)\&.
 \fB\-\-suite\-timeout=\fR\fB\fIminutes\fR\fR
 .sp
 Specify the maximum test suite runtime in minutes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-summary\-file=\fR\fB\fIfile_name\fR\fR
+.sp
+Generate a plain text version of the test summary only and write it to the file named as the option argument\&. The file is suitable for sending by email\&. This option was added in MySQL 8\&.0\&.1\&.
 .RE
 .sp
 .RS 4

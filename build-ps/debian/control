@@ -45,7 +45,7 @@ Description: TokuDB engine plugin for Percona Server
  .
  This package includes the TokuDB plugin library.
 
-Package: libperconaserverclient18.1
+Package: libperconaserverclient18.2
 Section: libs
 Architecture: any
 Depends: percona-server-common-5.6, ${misc:Depends}, ${shlibs:Depends}
@@ -58,12 +58,13 @@ Description: Percona Server database client library
  .
  This package includes the client library.
 
-Package: libperconaserverclient18.1-dev
+Package: libperconaserverclient18.2-dev
 Architecture: any
 Section: libdevel
-Depends: libperconaserverclient18.1 (= ${binary:Version}),
+Depends: libperconaserverclient18.2 (= ${binary:Version}),
          zlib1g-dev, ${misc:Depends}
-Breaks: libperconaserverclient18-dev,
+Breaks: libperconaserverclient18.1-dev,
+        libperconaserverclient18-dev,
         libperconaserverclient16-dev,
         libperconaserverclient15-dev,
         libperconaserverclient14-dev,
@@ -72,7 +73,8 @@ Breaks: libperconaserverclient18-dev,
         libmysqlclient-dev,
         libmysqlclient18-dev,
         libmariadbclient-dev
-Replaces: libperconaserverclient18-dev,
+Replaces: libperconaserverclient18.1-dev,
+          libperconaserverclient18-dev,
           libperconaserverclient16-dev,
           libperconaserverclient15-dev,
           libperconaserverclient14-dev,
@@ -107,7 +109,7 @@ Architecture: any
 Depends: debianutils (>=1.6),
          libdbi-perl,
          percona-server-common-5.6 (>= ${source:Version}),
-         libperconaserverclient18.1 (>= ${source:Version}),
+         libperconaserverclient18.2 (>= ${source:Version}),
          ${shlibs:Depends},
          ${misc:Depends}
 Provides: mysql-client,

@@ -2,7 +2,7 @@ diff -rup old/client/base/CMakeLists.txt new/client/base/CMakeLists.txt
 --- old/client/base/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/client/base/CMakeLists.txt	2016-03-09 11:44:10.259330311 +0100
 @@ -52,7 +52,7 @@ ADD_COMPILE_FLAGS(
-   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
  )
  
 -TARGET_LINK_LIBRARIES(client_base perconaserverclient)
@@ -22,9 +22,9 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
  IF(UNIX)
    TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
  ENDIF(UNIX)
-@@ -54,57 +54,57 @@ IF(NOT WITHOUT_SERVER)
+@@ -54,57 +54,57 @@
  ADD_COMPILE_FLAGS(
-   upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+   upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
  )
 -TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
 +TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
@@ -514,12 +514,12 @@ diff -rup old/rapid/plugin/x/CMakeLists.txt new/rapid/plugin/x/CMakeLists.txt
 diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gunit/xplugin/CMakeLists.txt
 --- old/rapid/unittest/gunit/xplugin/CMakeLists.txt
 +++ new/rapid/unittest/gunit/xplugin/CMakeLists.txt
-@@ -121,7 +121,7 @@ TARGET_LINK_LIBRARIES(
+@@ -137,7 +137,7 @@
    regex
    gmock
    mysqlservices
 -  perconaserverclient
 +  mysqlclient
-   ${LIBEVENT_LIBRARY}
+   ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
    ${CMAKE_THREAD_LIBS_INIT}
    ${PROTOBUF_LIBRARY}

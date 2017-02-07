@@ -275,7 +275,7 @@ Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
 Provides:       libmysqlclient.so.18()(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_16)(64bit)
 Provides:       libmysqlclient.so.18(libmysqlclient_18)(64bit)
-Provides:       mariadb-libs
+Obsoletes:      mariadb-libs
 Conflicts:      Percona-Server-shared-55
 Conflicts:      Percona-Server-shared-56
 %endif
@@ -359,6 +359,7 @@ mkdir debug
            -DWITH_PAM=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
+           -DWITH_SCALABILITY_METRICS=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
@@ -393,6 +394,7 @@ mkdir release
            -DWITH_PAM=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
+           -DWITH_SCALABILITY_METRICS=ON \
            %{?ssl_option} \
            %{?mecab_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
@@ -504,8 +506,12 @@ fi
 %else
 /sbin/chkconfig --add mysql
 %endif
-MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
-if [ $MYCNF_PACKAGE = 'mariadb-libs' ]
+if [ -e /etc/my.cnf ]; then
+    MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
+else
+    MYCNF_PACKAGE='mariadb-libs'
+fi
+if [ $MYCNF_PACKAGE = 'mariadb-libs' -o $MYCNF_PACKAGE = 'mysql-libs' ]
 then
   rm -f /etc/my.cnf
 fi
@@ -675,6 +681,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysqlx.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -693,6 +701,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysqlx.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_udf.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/group_replication.so
 %if 0%{?mecab}
 %{_libdir}/mysql/mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so

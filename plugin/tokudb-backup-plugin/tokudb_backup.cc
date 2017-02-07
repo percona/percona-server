@@ -24,6 +24,7 @@
 #include <rpl_msr.h>
 #include <rpl_rli.h>
 #include <sql_parse.h>
+#include <sql_plugin.h>
 #include <mysqld.h>
 
 #include <inttypes.h>
@@ -296,9 +297,32 @@ static void tokudb_backup_error_fun(int error_number, const char *error_string, 
     }
 }
 
+static my_bool
+tokudb_backup_flush_log_plugin_callback(THD *,
+                                        plugin_ref plugin,
+                                        void *) {
+
+    const char *name = plugin_name(plugin)->str;
+    handlerton *hton= plugin_data<handlerton*>(plugin);
+
+    if (!strcmp(name, "TokuDB") &&
+        hton->state == SHOW_OPTION_YES && hton->flush_logs &&
+        !hton->flush_logs(hton, NULL))
+        return TRUE;
+
+    return FALSE;
+}
+
+
 static void tokudb_backup_before_stop_capt_fun(void *arg) {
     THD *thd = static_cast<THD *>(arg);
     (void)lock_binlog_for_backup(thd);
+    if (!plugin_foreach(NULL,
+                        tokudb_backup_flush_log_plugin_callback,
+                        MYSQL_STORAGE_ENGINE_PLUGIN,
+                        0))
+        tokudb_backup_set_error_string(thd, EINVAL, "Can't flush TokuDB log",
+            NULL, NULL, NULL);
 }
 
 static void tokudb_backup_get_master_info(

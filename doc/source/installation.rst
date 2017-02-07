@@ -57,7 +57,7 @@ Installing |Percona Server| from a Source Tarball
 
 Fetch and extract the source tarball. For example: ::
 
-  $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/binary/tarball/Percona-Server-5.7.10-3-Linux.x86_64.ssl100.tar.gz
+  $ wget https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.10-3/source/tarball/percona-server-5.7.10-3.tar.gz
   $ tar xfz Percona-Server-5.7.10-3-Linux.x86_64.ssl100.tar.gz
 
 Next, follow the instructions in :ref:`compile_from_source` below.

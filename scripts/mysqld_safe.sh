@@ -708,7 +708,7 @@ if [ $logging = "file" -o $logging = "both" ]; then
         ;;
       # We can't create $err_log and don't know if mysqld can; error out
       *)
-        log_error "error: log-error set to '$err_log', however file don't exists. Create writable for user '$user'."
+        log_error "error: log-error set to '$err_log', however file does not exist. Create writable for user '$user'."
         exit 1
         ;;
     esac
@@ -738,8 +738,13 @@ safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
-  log_error "Directory '$mysql_unix_port_dir' for UNIX socket file don't exists."
-  exit 1
+  if [ ! -h $mysql_unix_port_dir ];
+  then
+    install -d -m 0755 -o $user $mysql_unix_port_dir
+  else
+    log_error "Directory '$mysql_unix_port_dir' for UNIX socket file does not exist."
+    exit 1
+  fi
 fi
 
 # If the user doesn't specify a binary, we assume name "mysqld"

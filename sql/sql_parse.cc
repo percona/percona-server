@@ -1342,8 +1342,9 @@ bool do_command(THD *thd) {
       thd->net_buffer_shrink_time = thd->start_utime / 1000000;
   }
 
-  DEBUG_SYNC(thd, "before_command_dispatch");
+  thd->status_var.net_buffer_length = net->max_packet;
 
+  DEBUG_SYNC(thd, "before_command_dispatch");
 
   return_value = dispatch_command(thd, &com_data, command);
   thd->get_protocol_classic()->get_output_packet()->shrink(

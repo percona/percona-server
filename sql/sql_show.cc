@@ -3778,6 +3778,9 @@ class Add_status : public Do_THD_Impl {
 void calc_sum_of_all_status(System_status_var *to) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_status);
+
+  global_status_var.net_buffer_length = 0;
+
   /* Get global values as base. */
   *to = global_status_var;
   Add_status add_status(to);

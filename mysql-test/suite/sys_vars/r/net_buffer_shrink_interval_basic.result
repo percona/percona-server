@@ -123,10 +123,11 @@ Check default connections size
 show status like 'net_buffer_length';
 Variable_name	Value
 Net_buffer_length	16384
-By some reason above disconnect doesn't work and the size is 8K more then expected
+"This also serves as a delay to give time for above disconnects to finish"
+"Should be change for explicit delay if test fails nondeterministically"
+DROP TABLE t1;
 show global status like 'net_buffer_length';
 Variable_name	Value
-Net_buffer_length	24576
-DROP TABLE t1;
+Net_buffer_length	16384
 set global net_buffer_length=default;
 set global net_buffer_shrink_interval=default;

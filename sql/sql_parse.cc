@@ -1065,6 +1065,8 @@ bool do_command(THD *thd)
       thd->net_buffer_shrink_time = thd->start_utime / 1000000;
   }
 
+  thd->status_var.net_buffer_length = net->max_packet;
+
   DBUG_ASSERT(packet_length);
 
   return_value= dispatch_command(command, thd, packet+1, (uint) (packet_length-1));

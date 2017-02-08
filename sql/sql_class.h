@@ -702,6 +702,9 @@ typedef struct system_status_var
 
   ulonglong bytes_received;
   ulonglong bytes_sent;
+
+  ulong net_buffer_length;
+
   /*
     Number of statements sent from the client
   */

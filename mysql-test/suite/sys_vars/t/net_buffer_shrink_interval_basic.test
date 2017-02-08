@@ -112,10 +112,11 @@ show status like 'net_buffer_length';
 disconnect con_int1;
 disconnect con_int2;
 
---echo By some reason above disconnect doesn't work and the size is 8K more then expected
-show global status like 'net_buffer_length';
-
+--echo "This also serves as a delay to give time for above disconnects to finish"
+--echo "Should be change for explicit delay if test fails nondeterministically"
 DROP TABLE t1;
+
+show global status like 'net_buffer_length';
 
 set global net_buffer_length=default;
 set global net_buffer_shrink_interval=default;

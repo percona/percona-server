@@ -3109,6 +3109,8 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 
   mysql_mutex_lock(&LOCK_thread_count);
 
+  global_status_var.net_buffer_length = 0;
+
   Thread_iterator it= global_thread_list_begin();
   Thread_iterator end= global_thread_list_end();
   /* Get global values as base */

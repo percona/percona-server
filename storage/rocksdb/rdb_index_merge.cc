@@ -23,9 +23,11 @@
 
 namespace myrocks {
 
-Rdb_index_merge::Rdb_index_merge(const ulonglong merge_buf_size,
+Rdb_index_merge::Rdb_index_merge(const char* tmpfile_path,
+                                 const ulonglong merge_buf_size,
                                  const ulonglong merge_combine_read_size,
                                  const rocksdb::Comparator* comparator) :
+  m_tmpfile_path(tmpfile_path),
   m_merge_buf_size(merge_buf_size),
   m_merge_combine_read_size(merge_combine_read_size),
   m_comparator(comparator),
@@ -64,13 +66,15 @@ int Rdb_index_merge::init()
     to disk. They will be written to disk sorted. A sorted tree is used to
     keep track of the offset of each record within the unsorted buffer.
   */
-  m_rec_buf_unsorted= std::make_shared<merge_buf_info>(m_merge_buf_size);
+  m_rec_buf_unsorted= std::shared_ptr<merge_buf_info>(
+      new merge_buf_info(m_merge_buf_size));
 
   /*
     Allocate output buffer that will contain sorted block that is written to
     disk.
   */
-  m_output_buf= std::make_shared<merge_buf_info>(m_merge_buf_size);
+  m_output_buf= std::shared_ptr<merge_buf_info>(
+      new merge_buf_info(m_merge_buf_size));
 
   return 0;
 }
@@ -82,7 +86,29 @@ int Rdb_index_merge::merge_file_create()
 {
   DBUG_ASSERT(m_merge_file.fd == -1);
 
-  int fd = mysql_tmpfile("myrocks");
+  int fd;
+  /* If no path set for tmpfile, use mysql_tmpdir by default */
+  if (m_tmpfile_path == nullptr)
+  {
+    fd = mysql_tmpfile("myrocks");
+  }
+  else
+  {
+    char filename[FN_REFLEN];
+    fd = create_temp_file(filename, m_tmpfile_path, "myrocks",
+                          O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
+                          MYF(MY_WME));
+    if (fd >= 0) {
+#ifndef __WIN__
+      /*
+        This can be removed once the following bug is fixed:
+        Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
+                    (file not removed) (Unix)
+      */
+      unlink(filename);
+#endif /* !__WIN__ */
+    }
+  }
 
   if (fd < 0)
   {
@@ -117,6 +143,18 @@ int Rdb_index_merge::add(const rocksdb::Slice& key,
                      key.size() + val.size();
   if (total_offset >= m_rec_buf_unsorted->total_size)
   {
+    /*
+      If the offset tree is empty here, that means that the proposed key to
+      add is too large for the buffer.
+    */
+    if (m_offset_tree.empty())
+    {
+      // NO_LINT_DEBUG
+      sql_print_error("Sort buffer size is too small to process merge. "
+                      "Please set merge buffer size to a higher value.");
+      return HA_ERR_INTERNAL_ERROR;
+    }
+
     if (merge_buf_write())
     {
       // NO_LINT_DEBUG
@@ -478,10 +516,22 @@ int Rdb_index_merge::merge_heap_entry::read_rec(rocksdb::Slice *key,
                                                 rocksdb::Slice *val)
 {
   const uchar* block_ptr= block;
+  const auto orig_offset = chunk_info->curr_offset;
+  const auto orig_block = block;
 
   /* Read key at block offset into key slice and the value into value slice*/
-  if (read_slice(key, &block_ptr) != 0 || read_slice(val, &block_ptr) != 0)
+  if (read_slice(key, &block_ptr) != 0)
   {
+    return 1;
+  }
+
+  chunk_info->curr_offset += (uintptr_t) block_ptr - (uintptr_t) block;
+  block += (uintptr_t) block_ptr - (uintptr_t) block;
+
+  if (read_slice(val, &block_ptr) != 0)
+  {
+    chunk_info->curr_offset= orig_offset;
+    block= orig_block;
     return 1;
   }
 

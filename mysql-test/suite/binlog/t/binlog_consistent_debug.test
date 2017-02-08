@@ -1,0 +1,55 @@
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Debug build tests for consistent binlog snapshot
+--echo #
+
+RESET MASTER;
+
+--echo #
+--echo # Bug 1646100: Server becomes unresponsive during flushing after loading
+--echo # big files through LOAD DATA INFILE
+--echo #
+
+SET @saved_sync_binlog = @@sync_binlog;
+SET GLOBAL sync_binlog = 1;
+
+CREATE TABLE t1 (a INT);
+
+--source include/count_sessions.inc
+
+--connect(con1,localhost,root,,)
+--echo # connection con1
+
+BEGIN;
+INSERT INTO t1 VALUES (0);
+
+SET DEBUG_SYNC="before_sync_binlog_file SIGNAL commit_ready WAIT_FOR finish_commit";
+
+send COMMIT;
+
+--connection default
+--echo # connection default
+
+SET DEBUG_SYNC="now WAIT_FOR commit_ready";
+
+--replace_result 405 POSITION 426 POSITION
+SHOW STATUS LIKE 'binlog_snapshot_%';
+
+SET DEBUG_SYNC="now SIGNAL finish_commit";
+
+--connection con1
+--echo # connection con1
+reap;
+
+--disconnect con1
+--connection default
+--echo # connection default
+
+DROP TABLE t1;
+
+SET GLOBAL sync_binlog = @saved_sync_binlog;
+
+--source include/wait_until_count_sessions.inc

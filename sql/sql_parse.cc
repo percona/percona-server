@@ -139,9 +139,6 @@ static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
 static inline ulonglong get_query_exec_time(THD *thd, ulonglong cur_utime);
 
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
-
 const char *any_db="*any*";	// Special symbol for check_access
 
 const LEX_STRING command_name[]={
@@ -2620,7 +2617,7 @@ static bool lock_tables_for_backup(THD *thd)
   @return FALSE in case of success, TRUE in case of error.
 */
 
-static bool lock_binlog_for_backup(THD *thd)
+bool lock_binlog_for_backup(THD *thd)
 {
   DBUG_ENTER("lock_binlog_for_backup");
 

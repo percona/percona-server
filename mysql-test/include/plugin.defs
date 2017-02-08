@@ -60,4 +60,4 @@ test_udf_services  plugin/udf_services TESTUDFSERVICES
 connection_control  plugin/connection_control   CONNECTION_CONTROL_PLUGIN    connection_control
 ha_tokudb          storage/tokudb             TOKUDB            tokudb,tokudb_trx,tokudb_locks,tokudb_lock_waits,tokudb_fractal_tree_info,tokudb_background_job_status
 tokudb_backup      plugin/tokudb-backup-plugin       TOKUDB_BACKUP     tokudb_backup
-ha_rocksdb         storage/rocksdb            ROCKSDB           rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map
+ha_rocksdb         storage/rocksdb            ROCKSDB           rocksdb,rocksdb_cfstats,rocksdb_dbstats,rocksdb_perf_context_global,rocksdb_cf_options,rocksdb_global_info,rocksdb_ddl,rocksdb_index_file_map,rocksdb_locks,rocksdb_trx

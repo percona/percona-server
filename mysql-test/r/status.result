@@ -213,6 +213,11 @@ drop procedure proc37908;
 drop function func37908;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM mysqltest_1@localhost;
 DROP USER mysqltest_1@localhost;
+SET @old2_log_output = @@GLOBAL.log_output;
+SET GLOBAL log_output = 'TABLE';
+SET @old_general_log = @@GLOBAL.general_log;
+SET GLOBAL general_log = 'ON';
+TRUNCATE TABLE mysql.general_log;
 DROP PROCEDURE IF EXISTS p1;
 DROP FUNCTION IF EXISTS f1;
 CREATE FUNCTION f1() RETURNS INTEGER
@@ -238,6 +243,8 @@ SELECT 9;
 9
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+SET GLOBAL log_output = @old2_log_output;
+SET GLOBAL general_log = @old_general_log;
 #
 # Test coverage for status variables which were introduced by
 # WL#5772 "Add partitioned Table Definition Cache to avoid

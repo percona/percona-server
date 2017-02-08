@@ -6478,10 +6478,15 @@ bool ha_rocksdb::skip_unique_check() const {
   /*
     We want to skip unique checks if:
       1) bulk_load is on
-      2) the user set unique_checks option to 0
+      2) the user set unique_checks option to 0, and the table does not have
+         any indexes. If the table has secondary keys, then those might becomes
+         inconsisted/corrupted
+
   */
   return THDVAR(table->in_use, bulk_load) ||
-         my_core::thd_test_options(table->in_use, OPTION_RELAXED_UNIQUE_CHECKS);
+         (my_core::thd_test_options(table->in_use,
+                                    OPTION_RELAXED_UNIQUE_CHECKS) &&
+          m_tbl_def->m_key_count == 1);
 }
 
 bool ha_rocksdb::commit_in_the_middle() {

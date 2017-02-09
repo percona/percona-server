@@ -989,6 +989,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
   // Default value : treat all values signed
   bool unsigned_flag= FALSE;
+  bool sign_from_slave= FALSE;
 
   // Check if slave_type_conversions contains ALL_UNSIGNED
   unsigned_flag= slave_type_conversions_options &
@@ -997,6 +998,10 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   // Check if slave_type_conversions contains ALL_SIGNED
   unsigned_flag= unsigned_flag && !(slave_type_conversions_options &
                  (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_SIGNED));
+
+// Check if slave_type_conversions contains ALL_SIGNS_AS_ON_SLAVE
+  sign_from_slave= slave_type_conversions_options &
+                   (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_SIGNS_AS_ON_SLAVE);
 
   for (uint col= 0 ; col < cols_to_create; ++col)
   {
@@ -1049,6 +1054,19 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_GEOMETRY:
       pack_length= field_metadata(col) & 0x00ff;
+      break;
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      /*
+        As we don't know if the integer was signed or not on the master,
+        assume we have same sign on master and slave.  This is true when not
+        using conversions so it should be true also when using conversions.
+      */
+      if (sign_from_slave)
+        unsigned_flag= ((Field_num*) target_table->field[col])->unsigned_flag;
       break;
 
     default:

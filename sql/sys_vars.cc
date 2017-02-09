@@ -2872,7 +2872,8 @@ static Sys_var_enum Slave_exec_mode(
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
 const char *slave_type_conversions_name[]=
-       {"ALL_LOSSY", "ALL_NON_LOSSY", "ALL_UNSIGNED", "ALL_SIGNED", 0};
+       {"ALL_LOSSY", "ALL_NON_LOSSY", "ALL_UNSIGNED", "ALL_SIGNED",
+        "ALL_SIGNS_AS_ON_SLAVE", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",
        "Set of slave type conversions that are enabled. Legal values are:"
@@ -2880,8 +2881,10 @@ static Sys_var_set Slave_type_conversions(
        " ALL_NON_LOSSY to enable non-lossy conversions,"
        " ALL_UNSIGNED to treat all integer column type data to be unsigned values, and"
        " ALL_SIGNED to treat all integer column type data to be signed values."
+       " ALL_SIGNS_AS_ON_SLAVE to get a sign of integer column from slave."
        " Default treatment is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are"
        " specifed, ALL_SIGNED will take high priority than ALL_UNSIGNED."
+       " ALL_SIGNS_AS_ON_SLAVE will take high priority than ALL_SIGNED and ALL_UNSIGNED."
        " If the variable is assigned the empty set, no conversions are"
        " allowed and it is expected that the types match exactly.",
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),

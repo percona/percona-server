@@ -1,0 +1,103 @@
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug #82599: slave_type_conversions messing with
+--echo # data which still fits within allowed range
+--echo #
+
+--source include/have_binlog_format_row.inc
+
+connection slave;
+SET @saved_slave_type_conversions=@@global.slave_type_conversions;
+SET @@global.slave_type_conversions=ALL_NON_LOSSY;
+
+connection master;
+
+CREATE TABLE `type_convert` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `providerid`  tinyint(3) unsigned NOT NULL,
+  `providerid2` tinyint(3) signed NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--source include/sync_slave_sql_with_master.inc
+
+SET @@global.slave_type_conversions='ALL_NON_LOSSY';
+ALTER TABLE test.type_convert MODIFY providerid SMALLINT UNSIGNED NOT NULL;
+ALTER TABLE test.type_convert MODIFY providerid2 SMALLINT SIGNED NOT NULL;
+
+connection master;
+INSERT INTO type_convert(providerid, providerid2) VALUES (128, -12);
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo # The default sign conversion for ALL_NON_LOSSY is ALL_SIGNED, thus unsigned
+--echo # values will be first converted to signed value - causing possible truncations
+
+SELECT * FROM type_convert;
+
+connection slave;
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_UNSIGNED';
+
+--echo # With ALL_UNSIGNED conversion unsigned values will not be truncated,
+--echo # however this conversion causes singed values to be converted to
+--echo # unsigned value, i.e. < 0 on master => 0 on slave
+
+connection master;
+INSERT INTO type_convert(providerid, providerid2) VALUES (128, -12);
+--source include/sync_slave_sql_with_master.inc
+
+SELECT * FROM type_convert;
+
+--echo # Thus the only option to propagate correctly table with both signed and unsigned
+--echo # values which fields were extended on slave is to assume that the sign on master
+--echo # is the same as on slave
+
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_SIGNS_AS_ON_SLAVE';
+
+connection master;
+INSERT INTO type_convert(providerid, providerid2) VALUES (128, -12);
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM type_convert;
+
+# Some more tests to verify the above - INT to BIGINT
+
+SET @@global.slave_type_conversions='ALL_NON_LOSSY';
+connection master;
+CREATE TABLE c1 (id INT UNSIGNED NOT NULL,
+		 id2 INT SIGNED NOT NULL);
+--source include/sync_slave_sql_with_master.inc
+
+ALTER TABLE c1 MODIFY id BIGINT NOT NULL;
+ALTER TABLE c1 MODIFY id2 BIGINT NOT NULL;
+
+connection master;
+INSERT INTO c1 (id, id2) VALUES (1,-120),(2147483647,-120),(2147483649,-120),(2147483650,-120);
+--source include/sync_slave_sql_with_master.inc
+
+SELECT * FROM test.c1;
+
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_UNSIGNED';
+
+connection master;
+INSERT INTO c1 (id, id2) VALUES (1,-120),(2147483647,-120),(2147483649,-120),(2147483650,-120);
+--source include/sync_slave_sql_with_master.inc
+
+SELECT * FROM test.c1;
+
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_SIGNS_AS_ON_SLAVE';
+
+connection master;
+INSERT INTO c1 (id, id2) VALUES (1,-120),(2147483647,-120),(2147483649,-120),(2147483650,-120);
+--source include/sync_slave_sql_with_master.inc
+
+SELECT * FROM test.c1;
+
+# cleanup
+SET GLOBAL slave_type_conversions=@saved_slave_type_conversions;
+connection master;
+DROP TABLE type_convert;
+DROP TABLE c1;
+
+--source include/rpl_end.inc
+

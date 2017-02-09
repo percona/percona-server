@@ -145,7 +145,8 @@ enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
-                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED};
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNED,
+                                   SLAVE_TYPE_CONVERSIONS_ALL_SIGNS_AS_ON_SLAVE};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};

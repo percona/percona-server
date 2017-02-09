@@ -1,0 +1,97 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug #82599: slave_type_conversions messing with
+# data which still fits within allowed range
+#
+SET @saved_slave_type_conversions=@@global.slave_type_conversions;
+SET @@global.slave_type_conversions=ALL_NON_LOSSY;
+CREATE TABLE `type_convert` (
+`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+`providerid`  tinyint(3) unsigned NOT NULL,
+`providerid2` tinyint(3) signed NOT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+include/sync_slave_sql_with_master.inc
+SET @@global.slave_type_conversions='ALL_NON_LOSSY';
+ALTER TABLE test.type_convert MODIFY providerid SMALLINT UNSIGNED NOT NULL;
+ALTER TABLE test.type_convert MODIFY providerid2 SMALLINT SIGNED NOT NULL;
+INSERT INTO type_convert(providerid, providerid2) VALUES (128, -12);
+include/sync_slave_sql_with_master.inc
+# The default sign conversion for ALL_NON_LOSSY is ALL_SIGNED, thus unsigned
+# values will be first converted to signed value - causing possible truncations
+SELECT * FROM type_convert;
+id	providerid	providerid2
+1	0	-12
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_UNSIGNED';
+# With ALL_UNSIGNED conversion unsigned values will not be truncated,
+# however this conversion causes singed values to be converted to
+# unsigned value, i.e. < 0 on master => 0 on slave
+INSERT INTO type_convert(providerid, providerid2) VALUES (128, -12);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM type_convert;
+id	providerid	providerid2
+1	0	-12
+2	128	244
+# Thus the only option to propagate correctly table with both signed and unsigned
+# values which fields were extended on slave is to assume that the sign on master
+# is the same as on slave
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_SIGNS_AS_ON_SLAVE';
+INSERT INTO type_convert(providerid, providerid2) VALUES (128, -12);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM type_convert;
+id	providerid	providerid2
+1	0	-12
+2	128	244
+3	128	-12
+SET @@global.slave_type_conversions='ALL_NON_LOSSY';
+CREATE TABLE c1 (id INT UNSIGNED NOT NULL,
+id2 INT SIGNED NOT NULL);
+include/sync_slave_sql_with_master.inc
+ALTER TABLE c1 MODIFY id BIGINT NOT NULL;
+ALTER TABLE c1 MODIFY id2 BIGINT NOT NULL;
+INSERT INTO c1 (id, id2) VALUES (1,-120),(2147483647,-120),(2147483649,-120),(2147483650,-120);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM test.c1;
+id	id2
+1	-120
+2147483647	-120
+-2147483647	-120
+-2147483646	-120
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_UNSIGNED';
+INSERT INTO c1 (id, id2) VALUES (1,-120),(2147483647,-120),(2147483649,-120),(2147483650,-120);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM test.c1;
+id	id2
+1	-120
+2147483647	-120
+-2147483647	-120
+-2147483646	-120
+1	4294967176
+2147483647	4294967176
+2147483649	4294967176
+2147483650	4294967176
+SET @@global.slave_type_conversions='ALL_NON_LOSSY,ALL_SIGNS_AS_ON_SLAVE';
+INSERT INTO c1 (id, id2) VALUES (1,-120),(2147483647,-120),(2147483649,-120),(2147483650,-120);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM test.c1;
+id	id2
+1	-120
+2147483647	-120
+-2147483647	-120
+-2147483646	-120
+1	4294967176
+2147483647	4294967176
+2147483649	4294967176
+2147483650	4294967176
+1	-120
+2147483647	-120
+-2147483647	-120
+-2147483646	-120
+SET GLOBAL slave_type_conversions=@saved_slave_type_conversions;
+DROP TABLE type_convert;
+DROP TABLE c1;
+include/rpl_end.inc

@@ -2432,8 +2432,6 @@ static std::string rdb_xid_to_string(const XID &src) {
   transactions.
 */
 static bool rocksdb_flush_wal(handlerton *const hton
-                              __attribute__((__unused__)),
-                              ulonglong target_lsn
                               __attribute__((__unused__))) {
   DBUG_ASSERT(rdb != nullptr);
   rocksdb_wal_group_syncs++;

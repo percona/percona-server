@@ -3003,7 +3003,7 @@ static inline void rocksdb_register_tx(handlerton *const hton, THD *const thd,
 */
 static int rocksdb_start_tx_and_assign_read_view(
     handlerton *const hton,          /*!< in: RocksDB handlerton */
-    THD *const thd))                 /*!< in: MySQL thread handle of the
+    THD *const thd)                  /*!< in: MySQL thread handle of the
                                      user for whom the transaction should
                                      be committed */
 {
@@ -3063,7 +3063,8 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 
   // If we're starting from scratch and there are no options saved yet then this
   // is a valid case. Therefore we can't compare the current set of options to
-  // anything. 
+  // anything.
+  if (status.IsNotFound()) {
     return rocksdb::Status::OK();
   }
 
@@ -6484,7 +6485,7 @@ int ha_rocksdb::index_last_intern(uchar *const buf) {
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
   DBUG_ASSERT(tx != nullptr);
 
-  const const bool is_new_snapshot = !tx->has_snapshot();
+  const bool is_new_snapshot = !tx->has_snapshot();
   // Loop as long as we get a deadlock error AND we end up creating the
   // snapshot here (i.e. it did not exist prior to this)
   for (;;) {

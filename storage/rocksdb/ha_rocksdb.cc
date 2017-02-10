@@ -580,8 +580,9 @@ static MYSQL_THDVAR_INT(
 
 static MYSQL_SYSVAR_UINT(
     wal_recovery_mode, rocksdb_wal_recovery_mode, PLUGIN_VAR_RQCMDARG,
-    "DBOptions::wal_recovery_mode for RocksDB", nullptr, nullptr,
-    /* default */ (uint)rocksdb::WALRecoveryMode::kPointInTimeRecovery,
+    "DBOptions::wal_recovery_mode for RocksDB. Default is kAbsoluteConsistency",
+    nullptr, nullptr,
+    /* default */ (uint)rocksdb::WALRecoveryMode::kAbsoluteConsistency,
     /* min */ (uint)rocksdb::WALRecoveryMode::kTolerateCorruptedTailRecords,
     /* max */ (uint)rocksdb::WALRecoveryMode::kSkipAnyCorruptedRecords, 0);
 
@@ -947,9 +948,12 @@ static MYSQL_SYSVAR_BOOL(background_sync, rocksdb_background_sync,
                          "turns on background syncs for RocksDB", nullptr,
                          nullptr, FALSE);
 
-static MYSQL_THDVAR_BOOL(write_sync, PLUGIN_VAR_RQCMDARG,
-                         "WriteOptions::sync for RocksDB", nullptr, nullptr,
-                         rocksdb::WriteOptions().sync);
+static MYSQL_THDVAR_UINT(flush_log_at_trx_commit, PLUGIN_VAR_RQCMDARG,
+                         "Sync on transaction commit. Similar to "
+                         "innodb_flush_log_at_trx_commit. 1: sync on commit, "
+                         "0,2: not sync on commit",
+                         nullptr, nullptr,
+                         1, 0, 2, 0);
 
 static MYSQL_THDVAR_BOOL(write_disable_wal, PLUGIN_VAR_RQCMDARG,
                          "WriteOptions::disableWAL for RocksDB", nullptr,
@@ -1221,7 +1225,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(background_sync),
 
-    MYSQL_SYSVAR(write_sync),
+    MYSQL_SYSVAR(flush_log_at_trx_commit),
     MYSQL_SYSVAR(write_disable_wal),
     MYSQL_SYSVAR(write_ignore_missing_column_families),
 
@@ -1264,7 +1268,7 @@ static rocksdb::WriteOptions
 rdb_get_rocksdb_write_options(my_core::THD *const thd) {
   rocksdb::WriteOptions opt;
 
-  opt.sync = THDVAR(thd, write_sync);
+  opt.sync = THDVAR(thd, flush_log_at_trx_commit) == 1;
   opt.disableWAL = THDVAR(thd, write_disable_wal);
   opt.ignore_missing_column_families =
       THDVAR(thd, write_ignore_missing_column_families);
@@ -1973,7 +1977,7 @@ public:
     tx_opts.lock_timeout = rdb_convert_sec_to_ms(m_timeout_sec);
     tx_opts.deadlock_detect = THDVAR(m_thd, deadlock_detect);
 
-    write_opts.sync = THDVAR(m_thd, write_sync);
+    write_opts.sync = THDVAR(m_thd, flush_log_at_trx_commit) == 1;
     write_opts.disableWAL = THDVAR(m_thd, write_disable_wal);
     write_opts.ignore_missing_column_families =
         THDVAR(m_thd, write_ignore_missing_column_families);
@@ -2183,7 +2187,7 @@ public:
 
   void start_tx() override {
     reset();
-    write_opts.sync = THDVAR(m_thd, write_sync);
+    write_opts.sync = THDVAR(m_thd, flush_log_at_trx_commit) == 1;
     write_opts.disableWAL = THDVAR(m_thd, write_disable_wal);
     write_opts.ignore_missing_column_families =
         THDVAR(m_thd, write_ignore_missing_column_families);

@@ -75,8 +75,4 @@ class Rdb_ddl_manager;
 Rdb_ddl_manager *rdb_get_ddl_manager(void)
     __attribute__((__warn_unused_result__));
 
-class Rdb_binlog_manager;
-Rdb_binlog_manager *rdb_get_binlog_manager(void)
-    __attribute__((__warn_unused_result__));
-
 } // namespace myrocks

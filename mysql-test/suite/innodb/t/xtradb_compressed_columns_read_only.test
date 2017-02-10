@@ -50,8 +50,7 @@ INSERT INTO t1 VALUES(0, @json_value);
 SELECT COUNT(*) = 1 AS number_of_rows_matches FROM t1 WHERE a = @json_value;
 
 --echo # Restarting with --innodb-read-only.
---let $restart_parameters = restart:--innodb-read-only
---source include/restart_mysqld.inc
+--source include/restart_readonly_mysqld.inc
 
 --echo # Reading table data in read-only mode.
 eval SET @json_value = '$permanent_json_value';
@@ -78,7 +77,6 @@ SELECT table_id INTO @table_id FROM information_schema.innodb_sys_tables WHERE n
 SELECT dict_id = @dict_id AS dictionary_ids_match FROM information_schema.xtradb_zip_dict_cols WHERE table_id = @table_id AND column_pos = 1;
 
 --echo # Restarting with default options.
---let $restart_parameters =
 --source include/restart_mysqld.inc
 
 --echo # Cleaning up.

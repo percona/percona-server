@@ -56,7 +56,6 @@ call mtr.add_suppression("Allocated tablespace [0-9]+, old maximum was");
 RESET CHANGED_PAGE_BITMAPS;
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 9th restart
-SET GLOBAL innodb_fast_shutdown=0;
 10th restart
 SELECT @@innodb_read_only;
 @@innodb_read_only

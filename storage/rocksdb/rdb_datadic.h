@@ -801,52 +801,6 @@ private:
 };
 
 /*
-  Writing binlog information into RocksDB at commit(),
-  and retrieving binlog information at crash recovery.
-  commit() and recovery are always executed by at most single client
-  at the same time, so concurrency control is not needed.
-
-  Binlog info is stored in RocksDB as the following.
-   key: BINLOG_INFO_INDEX_NUMBER
-   value: packed single row:
-     binlog_name_length (2 byte form)
-     binlog_name
-     binlog_position (4 byte form)
-     binlog_gtid_length (2 byte form)
-     binlog_gtid
-*/
-class Rdb_binlog_manager {
-public:
-  Rdb_binlog_manager(const Rdb_binlog_manager &) = delete;
-  Rdb_binlog_manager &operator=(const Rdb_binlog_manager &) = delete;
-  Rdb_binlog_manager() = default;
-
-  bool init(Rdb_dict_manager *const dict);
-  void cleanup();
-  void update(const char *const binlog_name, const my_off_t binlog_pos,
-              const char *const binlog_max_gtid,
-              rocksdb::WriteBatchBase *const batch);
-  bool read(char *const binlog_name, my_off_t *const binlog_pos,
-            char *const binlog_gtid) const;
-  void update_slave_gtid_info(const uint &id, const char *const db,
-                              const char *const gtid,
-                              rocksdb::WriteBatchBase *const write_batch);
-
-private:
-  Rdb_dict_manager *m_dict = nullptr;
-  uchar m_key_buf[Rdb_key_def::INDEX_NUMBER_SIZE] = {0};
-  rocksdb::Slice m_key_slice;
-
-  rocksdb::Slice pack_value(uchar *const buf, const char *const binlog_name,
-                            const my_off_t &binlog_pos,
-                            const char *const binlog_gtid) const;
-  bool unpack_value(const uchar *const value, char *const binlog_name,
-                    my_off_t *const binlog_pos, char *const binlog_gtid) const;
-
-  std::atomic<Rdb_tbl_def *> m_slave_gtid_info_tbl;
-};
-
-/*
    Rdb_dict_manager manages how MySQL on RocksDB (MyRocks) stores its
   internal data dictionary.
    MyRocks stores data dictionary on dedicated system column family

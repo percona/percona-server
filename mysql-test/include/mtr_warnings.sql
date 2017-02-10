@@ -251,6 +251,9 @@ INSERT INTO global_suppressions VALUES
  */
  ("Insecure configuration for --secure-file-priv:*"),
 
+ /* ASan memory allocation warnings */
+ ("==[0-9]*== WARNING: AddressSanitizer failed to allocate 0x[0-9a-f]+ bytes"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

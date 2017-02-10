@@ -353,7 +353,7 @@ static uint64_t rocksdb_info_log_level;
 static char *rocksdb_wal_dir;
 static char *rocksdb_persistent_cache_path;
 static uint64_t rocksdb_index_type;
-static char rocksdb_background_sync;
+static uint32_t rocksdb_flush_log_at_trx_commit;
 static uint32_t rocksdb_debug_optimizer_n_rows;
 static my_bool rocksdb_debug_optimizer_no_zero_cardinality;
 static uint32_t rocksdb_wal_recovery_mode;
@@ -576,8 +576,9 @@ static MYSQL_THDVAR_INT(
 
 static MYSQL_SYSVAR_UINT(
     wal_recovery_mode, rocksdb_wal_recovery_mode, PLUGIN_VAR_RQCMDARG,
-    "DBOptions::wal_recovery_mode for RocksDB", nullptr, nullptr,
-    /* default */ (uint)rocksdb::WALRecoveryMode::kPointInTimeRecovery,
+    "DBOptions::wal_recovery_mode for RocksDB. Default is kAbsoluteConsistency",
+    nullptr, nullptr,
+    /* default */ (uint)rocksdb::WALRecoveryMode::kAbsoluteConsistency,
     /* min */ (uint)rocksdb::WALRecoveryMode::kTolerateCorruptedTailRecords,
     /* max */ (uint)rocksdb::WALRecoveryMode::kSkipAnyCorruptedRecords, 0);
 
@@ -938,14 +939,19 @@ static MYSQL_SYSVAR_STR(override_cf_options, rocksdb_override_cf_options,
                         "option overrides per cf for RocksDB", nullptr, nullptr,
                         "");
 
-static MYSQL_SYSVAR_BOOL(background_sync, rocksdb_background_sync,
-                         PLUGIN_VAR_RQCMDARG,
-                         "turns on background syncs for RocksDB", nullptr,
-                         nullptr, FALSE);
+static MYSQL_SYSVAR_STR(update_cf_options, rocksdb_update_cf_options,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+                        "Option updates per column family for RocksDB",
+                        nullptr, rocksdb_set_update_cf_options,
+                        nullptr);
 
-static MYSQL_THDVAR_BOOL(write_sync, PLUGIN_VAR_RQCMDARG,
-                         "WriteOptions::sync for RocksDB", nullptr, nullptr,
-                         rocksdb::WriteOptions().sync);
+static MYSQL_SYSVAR_UINT(flush_log_at_trx_commit,
+                         rocksdb_flush_log_at_trx_commit, PLUGIN_VAR_RQCMDARG,
+                         "Sync on transaction commit. Similar to "
+                         "innodb_flush_log_at_trx_commit. 1: sync on commit, "
+                         "0,2: not sync on commit",
+                         nullptr, nullptr,
+                         1, 0, 2, 0);
 
 static MYSQL_THDVAR_BOOL(write_disable_wal, PLUGIN_VAR_RQCMDARG,
                          "WriteOptions::disableWAL for RocksDB", nullptr,
@@ -1215,9 +1221,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(default_cf_options),
     MYSQL_SYSVAR(override_cf_options),
 
-    MYSQL_SYSVAR(background_sync),
-
-    MYSQL_SYSVAR(write_sync),
+    MYSQL_SYSVAR(flush_log_at_trx_commit),
     MYSQL_SYSVAR(write_disable_wal),
     MYSQL_SYSVAR(write_ignore_missing_column_families),
 
@@ -1260,7 +1264,7 @@ static rocksdb::WriteOptions
 rdb_get_rocksdb_write_options(my_core::THD *const thd) {
   rocksdb::WriteOptions opt;
 
-  opt.sync = THDVAR(thd, write_sync);
+  opt.sync = (rocksdb_flush_log_at_trx_commit == 1);
   opt.disableWAL = THDVAR(thd, write_disable_wal);
   opt.ignore_missing_column_families =
       THDVAR(thd, write_ignore_missing_column_families);
@@ -1965,7 +1969,7 @@ public:
     tx_opts.lock_timeout = rdb_convert_sec_to_ms(m_timeout_sec);
     tx_opts.deadlock_detect = THDVAR(m_thd, deadlock_detect);
 
-    write_opts.sync = THDVAR(m_thd, write_sync);
+    write_opts.sync = (rocksdb_flush_log_at_trx_commit == 1);
     write_opts.disableWAL = THDVAR(m_thd, write_disable_wal);
     write_opts.ignore_missing_column_families =
         THDVAR(m_thd, write_ignore_missing_column_families);
@@ -2175,7 +2179,7 @@ public:
 
   void start_tx() override {
     reset();
-    write_opts.sync = THDVAR(m_thd, write_sync);
+    write_opts.sync = (rocksdb_flush_log_at_trx_commit == 1);
     write_opts.disableWAL = THDVAR(m_thd, write_disable_wal);
     write_opts.ignore_missing_column_families =
         THDVAR(m_thd, write_ignore_missing_column_families);
@@ -2324,14 +2328,39 @@ static std::string rdb_xid_to_string(const XID &src) {
 */
 static bool rocksdb_flush_wal(handlerton *const hton
                               MY_ATTRIBUTE((__unused__)),
-                              bool binlog_group_flush MY_ATTRIBUTE((unused))) {
+                              bool binlog_group_flush) {
+  DBUG_ENTER("rocksdb_flush_wal");
   DBUG_ASSERT(rdb != nullptr);
-  rocksdb_wal_group_syncs++;
-  const rocksdb::Status s = rdb->SyncWAL();
-  if (!s.ok()) {
-    return HA_EXIT_FAILURE;
+
+  /**
+    If !binlog_group_flush, we got invoked by FLUSH LOGS or similar.
+    Else, we got invoked by binlog group commit during flush stage.
+  */
+
+  if (binlog_group_flush && rocksdb_flush_log_at_trx_commit == 0) {
+    /**
+      rocksdb_flush_log_at_trx_commit=0
+      (write and sync based on timer in Rdb_background_thread).
+      Do not flush the redo log during binlog group commit.
+    */
+    DBUG_RETURN(false);
   }
-  return HA_EXIT_SUCCESS;
+
+  if (!binlog_group_flush || rocksdb_flush_log_at_trx_commit == 1) {
+    /**
+      Sync the WAL if we are in FLUSH LOGS, or if
+      rocksdb_flush_log_at_trx_commit=1
+      (write and sync at each commit).
+    */
+    rocksdb_wal_group_syncs++;
+    const rocksdb::Status s = rdb->SyncWAL();
+    if (!s.ok()) {
+      rdb_log_status_error(s);
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
 }
 
 /**
@@ -3296,7 +3325,7 @@ static int rocksdb_done_func(void *const p) {
   // signal the drop index thread to stop
   rdb_drop_idx_thread.signal(true);
 
-  // Flush all memtables for not lose data, even if WAL is disabled.
+  // Flush all memtables for not losing data, even if WAL is disabled.
   rocksdb_flush_all_memtables();
 
   // Stop all rocksdb background work
@@ -9597,7 +9626,7 @@ void Rdb_background_thread::run() {
     clock_gettime(CLOCK_REALTIME, &ts);
 
     // Flush the WAL.
-    if (rdb && rocksdb_background_sync) {
+    if (rdb && rocksdb_flush_log_at_trx_commit == 2) {
       DBUG_ASSERT(!rocksdb_db_options.allow_mmap_writes);
       const rocksdb::Status s = rdb->SyncWAL();
       if (!s.ok()) {

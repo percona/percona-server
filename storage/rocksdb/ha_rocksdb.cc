@@ -466,11 +466,6 @@ static MYSQL_THDVAR_STR(tmpdir, PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Directory for temporary files during DDL operations.",
                         nullptr, nullptr, "");
 
-static MYSQL_THDVAR_STR(
-    skip_unique_check_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-    "Skip unique constraint checking for the specified tables", nullptr,
-    nullptr, ".*");
-
 static MYSQL_THDVAR_BOOL(
     commit_in_the_middle, PLUGIN_VAR_RQCMDARG,
     "Commit rows implicitly every rocksdb_bulk_load_size, on bulk load/insert, "
@@ -1155,7 +1150,6 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(max_row_locks),
     MYSQL_SYSVAR(lock_scanned_rows),
     MYSQL_SYSVAR(bulk_load),
-    MYSQL_SYSVAR(skip_unique_check_tables),
     MYSQL_SYSVAR(trace_sst_api),
     MYSQL_SYSVAR(commit_in_the_middle),
     MYSQL_SYSVAR(read_free_rpl_tables),
@@ -1325,14 +1319,11 @@ static PSI_mutex_info all_rocksdb_mutexes[] = {
 
 static PSI_rwlock_key key_rwlock_collation_exception_list;
 static PSI_rwlock_key key_rwlock_read_free_rpl_tables;
-static PSI_rwlock_key key_rwlock_skip_unique_check_tables;
 
 static PSI_rwlock_info all_rocksdb_rwlocks[] = {
     {&key_rwlock_collation_exception_list, "collation_exception_list",
      PSI_FLAG_GLOBAL},
-    {&key_rwlock_read_free_rpl_tables, "read_free_rpl_tables", PSI_FLAG_GLOBAL},
-    {&key_rwlock_skip_unique_check_tables, "skip_unique_check_tables",
-     PSI_FLAG_GLOBAL},
+    {&key_rwlock_read_free_rpl_tables, "read_free_rpl_tables", PSI_FLAG_GLOBAL}
 };
 
 PSI_cond_key rdb_signal_bg_psi_cond_key, rdb_signal_drop_idx_psi_cond_key;
@@ -3776,7 +3767,7 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_lock_rows(RDB_LOCK_NONE), m_keyread_only(FALSE),
       m_bulk_load_tx(nullptr), m_encoder_arr(nullptr),
       m_row_checksums_checked(0), m_in_rpl_delete_rows(false),
-      m_in_rpl_update_rows(false), m_force_skip_unique_check(false) {
+      m_in_rpl_update_rows(false) {
   // TODO(alexyang): create a valid PSI_mutex_key for this mutex
   mysql_mutex_init(0, &m_bulk_load_mutex, MY_MUTEX_INIT_FAST);
 }
@@ -4431,22 +4422,6 @@ void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
   m_use_read_free_rpl = regex_handler.matches(m_tbl_def->base_tablename());
 }
 
-void ha_rocksdb::set_skip_unique_check_tables(const char *const whitelist) {
-  DBUG_ASSERT(whitelist != nullptr);
-
-#if defined(HAVE_PSI_INTERFACE)
-  Regex_list_handler regex_handler(key_rwlock_skip_unique_check_tables);
-#else
-  Regex_list_handler regex_handler;
-#endif
-
-  if (!regex_handler.set_patterns(whitelist)) {
-    warn_about_bad_patterns(&regex_handler, "skip_unique_check_tables");
-  }
-
-  m_skip_unique_check = regex_handler.matches(m_tbl_def->base_tablename());
-}
-
 int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
   DBUG_ENTER_FUNC();
 
@@ -4535,9 +4510,6 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
 
   /* Determine at open whether we can use Read Free Replication or not */
   set_use_read_free_rpl(THDVAR(ha_thd(), read_free_rpl_tables));
-
-  /* Determine at open whether we should skip unique checks for this table */
-  set_skip_unique_check_tables(THDVAR(ha_thd(), skip_unique_check_tables));
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -6556,22 +6528,10 @@ bool ha_rocksdb::skip_unique_check() const {
   /*
     We want to skip unique checks if:
       1) bulk_load is on
-      2) this table is in the whitelist of tables to skip and the replication
-         lag has reached a large enough value (see unique_check_lag_threshold
-         and unique_check_lage_reset_threshold)
-      3) the user set unique_checks option to 0
+      2) the user set unique_checks option to 0
   */
   return THDVAR(table->in_use, bulk_load) ||
-         (m_force_skip_unique_check && m_skip_unique_check) ||
          my_core::thd_test_options(table->in_use, OPTION_RELAXED_UNIQUE_CHECKS);
-}
-
-void ha_rocksdb::set_force_skip_unique_check(bool skip) {
-  DBUG_ENTER_FUNC();
-
-  m_force_skip_unique_check = skip;
-
-  DBUG_VOID_RETURN;
 }
 
 bool ha_rocksdb::commit_in_the_middle() {

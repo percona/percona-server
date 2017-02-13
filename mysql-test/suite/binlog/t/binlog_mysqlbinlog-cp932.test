@@ -23,6 +23,7 @@ rename table t3 to t03, t4 to t04;
 RESET MASTER;
 
 --exec $MYSQL_BINLOG --short-form $datadir/master-bin.saved | $MYSQL --default-character-set=utf8
+remove_file $datadir/master-bin.saved;
 # original and recovered data must be equal
 select HEX(f) from t03;
 select HEX(f) from t3;

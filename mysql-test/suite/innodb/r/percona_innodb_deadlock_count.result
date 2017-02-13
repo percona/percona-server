@@ -5,7 +5,8 @@ create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
 # Insert two rows to test table
 insert into t values(2,1);
 insert into t values(1,2);
-SET GLOBAL innodb_monitor_reset = lock_deadlocks;
+SELECT COUNT INTO @start_metrics_val
+FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 # Switch to connection con1
 BEGIN;
 SELECT b FROM t WHERE a=1 FOR UPDATE;
@@ -23,9 +24,6 @@ ROLLBACK;
 # Switch to connection default
 SELECT COUNT INTO @lock_deadlocks_var FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 include/assert.inc [Exactly one deadlock should have been found]
-SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
-NAME	COUNT
-lock_deadlocks	1
 Deadlocks: 1
 # Drop test table
 drop table t;

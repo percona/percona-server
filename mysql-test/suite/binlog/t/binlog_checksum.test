@@ -29,6 +29,7 @@ drop table t1;
 RESET MASTER;
 
 --exec $MYSQL_BINLOG -c $MYSQLD_DATADIR/master-bin.saved | $MYSQL
+remove_file $MYSQLD_DATADIR/master-bin.saved;
 --source include/show_binlog_events.inc
 show tables;
 

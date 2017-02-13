@@ -12,7 +12,11 @@ create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
 insert into t values(2,1);
 insert into t values(1,2);
 
-SET GLOBAL innodb_monitor_reset = lock_deadlocks;
+connection default;
+SELECT COUNT INTO @start_metrics_val
+       FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
+
+
 #--echo # Save current deadlock count
 let $current = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = 'Innodb_deadlocks'`;
 
@@ -57,9 +61,8 @@ let $result = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE
 
 SELECT COUNT INTO @lock_deadlocks_var FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 --let $assert_text= Exactly one deadlock should have been found
---let $assert_cond= @lock_deadlocks_var = 1
+--let $assert_cond= @lock_deadlocks_var - @start_metrics_val = 1
 --source include/assert.inc
-SELECT NAME, COUNT FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
 
 let $diff = `SELECT $result - $current`;
 echo Deadlocks: $diff;

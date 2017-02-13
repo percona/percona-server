@@ -1,1 +1,1 @@
---loose-debug=+d,extra_row_data_set
+--force-restart --loose-debug=+d,extra_row_data_set

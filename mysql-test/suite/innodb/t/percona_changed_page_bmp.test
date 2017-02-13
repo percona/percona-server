@@ -251,7 +251,6 @@ list_files $tmpdatadir ib_modified_log*;
 
 --source include/shutdown_mysqld.inc
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
---remove_files_wildcard $MYSQLD_DATADIR ibdata*
 --remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
 --echo 13th restart
 --source include/start_mysqld.inc

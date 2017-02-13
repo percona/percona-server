@@ -89,6 +89,7 @@ copy_file $MYSQLD_DATADIR/$binlog_file $MYSQLD_DATADIR/master-bin.saved35583;
 # Reset GTIDs
 RESET MASTER;
 exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved35583 | $MYSQL;
+remove_file $MYSQLD_DATADIR/master-bin.saved35583;
 select * from foo;
 
 # clean up
@@ -167,3 +168,4 @@ RESET MASTER;
 # assertion: assert that when replaying the binary log will succeed,
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL
+remove_file $MYSQLD_DATADIR/master-bin.saved51226;

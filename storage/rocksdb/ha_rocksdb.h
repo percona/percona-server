@@ -382,6 +382,7 @@ enum operation_type : int {
   ROWS_INSERTED,
   ROWS_READ,
   ROWS_UPDATED,
+  ROWS_DELETED_BLIND,
   ROWS_EXPIRED,
   ROWS_FILTERED,
   ROWS_HIDDEN_NO_SNAPSHOT,
@@ -412,6 +413,7 @@ struct st_global_stats {
 /* Struct used for exporting status to MySQL */
 struct st_export_stats {
   ulonglong rows_deleted;
+  ulonglong rows_deleted_blind;
   ulonglong rows_inserted;
   ulonglong rows_read;
   ulonglong rows_updated;
@@ -663,13 +665,13 @@ class ha_rocksdb : public my_core::handler {
                  rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true)
+                       const uint rowid_size, const bool skip_ttl_check = true, const bool skip_lookup = false)
       MY_ATTRIBUTE((__warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
-                       const uint rowid_size, const bool skip_ttl_check = true)
+                       const uint rowid_size, const bool skip_ttl_check = true, const bool skip_lookup = false)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
     return get_row_by_rowid(buf, reinterpret_cast<const char *>(rowid),
-                            rowid_size, skip_ttl_check);
+                            rowid_size, skip_ttl_check, skip_lookup);
   }
 
   void load_auto_incr_value();
@@ -685,6 +687,7 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   bool can_use_single_delete(const uint index) const
       MY_ATTRIBUTE((__warn_unused_result__));
+  bool is_blind_delete_enabled();
   bool skip_unique_check() const MY_ATTRIBUTE((__warn_unused_result__));
   bool commit_in_the_middle() MY_ATTRIBUTE((__warn_unused_result__));
   bool do_bulk_commit(Rdb_transaction *const tx)

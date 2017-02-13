@@ -812,6 +812,11 @@ enum handler_create_zip_dict_result
   HA_CREATE_ZIP_DICT_NAME_TOO_LONG,  /*!< zip dict name is too long */
   HA_CREATE_ZIP_DICT_DATA_TOO_LONG,  /*!< zip dict data is too long */
   HA_CREATE_ZIP_DICT_READ_ONLY,      /*!< cannot create in read-only mode */
+  HA_CREATE_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
+  HA_CREATE_ZIP_DICT_OUT_OF_FILE_SPACE,
+                                     /*!< out of disk space */
+  HA_CREATE_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS,
+                                     /*!< too many concurrent transactions */
   HA_CREATE_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
                                           creation */
 };
@@ -824,6 +829,11 @@ enum handler_drop_zip_dict_result
                                         exist */
   HA_DROP_ZIP_DICT_IS_REFERENCED,  /*!< zip dict is in use */
   HA_DROP_ZIP_DICT_READ_ONLY,      /*!< cannot drop in read-only mode */
+  HA_DROP_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
+  HA_DROP_ZIP_DICT_OUT_OF_FILE_SPACE,
+                                   /*!< out of disk space */
+  HA_DROP_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS,
+                                   /*!< too many concurrent transactions */
   HA_DROP_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
                                         removal */
 };

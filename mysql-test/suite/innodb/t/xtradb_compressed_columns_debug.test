@@ -21,3 +21,34 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
+
+#
+# Bug lp:1663452 "Resource allocation failures in 'CREATE/DROP COMPRESSION_DICTIONARY' result in server crashes (debug mode) | handle_fatal_signal (sig=6) in innobase_create_zip_dict"
+#
+SET @dict_data = REPEAT('a', 16384);
+CREATE COMPRESSION_DICTIONARY d1(@dict_data);
+
+# Check for out of disk space simulation.
+SET SESSION debug = "+d,btr_store_big_rec_extern";
+--error ER_RECORD_FILE_FULL
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+SET SESSION debug = "-d,btr_store_big_rec_extern";
+
+# Check for too many concurrent transactions simulation
+SET debug = '+d,ib_create_table_fail_too_many_trx';
+--error ER_TOO_MANY_CONCURRENT_TRXS
+DROP COMPRESSION_DICTIONARY d1;
+--error ER_TOO_MANY_CONCURRENT_TRXS
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+SET debug = '-d,ib_create_table_fail_too_many_trx';
+
+# Check for out of memory simulation
+SET debug = '+d,simulate_out_of_memory';
+--error ER_OUT_OF_RESOURCES
+DROP COMPRESSION_DICTIONARY d1;
+SET debug = '+d,simulate_out_of_memory';
+--error ER_OUT_OF_RESOURCES
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+SET debug = '-d,simulate_out_of_memory';
+
+DROP COMPRESSION_DICTIONARY d1;

@@ -95,6 +95,17 @@ case "$1" in
 			chmod 755 ${MYSQLRUN}
 		fi
 
+		# we do this because we don't provide our own my.cnf
+		# but use the one from system mysql-common package
+		# so we need to disable options that don't work for 5.7
+		MYSQLCONFIG=/etc/mysql/my.cnf
+		if [ -f ${MYSQLCONFIG} ];
+		then
+			cp -f ${MYSQLCONFIG} /etc/mysql/my.cnf.old
+			sed -e '/^key_buffer[^_-]/s/^/#/g' -i ${MYSQLCONFIG}
+			sed -e '/^myisam-recover/s/^/#/g' -i ${MYSQLCONFIG}
+		fi
+
 		set +e
 
 	fi

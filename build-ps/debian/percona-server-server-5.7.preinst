@@ -102,7 +102,7 @@ case "$1" in
 		if [ -f ${MYSQLCONFIG} ];
 		then
 			cp -f ${MYSQLCONFIG} /etc/mysql/my.cnf.old
-			sed -e '/^key_buffer/s/^/#/g' -i ${MYSQLCONFIG}
+			sed -e '/^key_buffer[^_-]/s/^/#/g' -i ${MYSQLCONFIG}
 			sed -e '/^myisam-recover/s/^/#/g' -i ${MYSQLCONFIG}
 		fi
 

@@ -327,6 +327,11 @@ static void rocksdb_set_rate_limiter_bytes_per_sec(THD *thd,
                                                    void *var_ptr,
                                                    const void *save);
 
+static void rocksdb_set_delayed_write_rate(THD *thd,
+                                           struct st_mysql_sys_var *var,
+                                           void *var_ptr,
+                                           const void *save);
+
 static void rdb_set_collation_exception_list(const char *exception_list);
 static void rocksdb_set_collation_exception_list(THD *thd,
                                                  struct st_mysql_sys_var *var,
@@ -347,6 +352,7 @@ static long long rocksdb_block_cache_size;
 /* Use unsigned long long instead of uint64_t because of MySQL compatibility */
 static unsigned long long // NOLINT(runtime/int)
     rocksdb_rate_limiter_bytes_per_sec;
+static unsigned long long rocksdb_delayed_write_rate;
 static unsigned long // NOLINT(runtime/int)
     rocksdb_persistent_cache_size;
 static uint64_t rocksdb_info_log_level;
@@ -558,6 +564,12 @@ static MYSQL_SYSVAR_ULONGLONG(
     nullptr, rocksdb_set_rate_limiter_bytes_per_sec, /* default */ 0L,
     /* min */ 0L, /* max */ MAX_RATE_LIMITER_BYTES_PER_SEC, 0);
 
+static MYSQL_SYSVAR_ULONGLONG(
+    delayed_write_rate, rocksdb_delayed_write_rate,
+    PLUGIN_VAR_RQCMDARG, "DBOptions::delayed_write_rate", nullptr,
+    rocksdb_set_delayed_write_rate, rocksdb_db_options.delayed_write_rate,
+    0, UINT64_MAX, 0);
+
 static MYSQL_SYSVAR_ENUM(
     info_log_level, rocksdb_info_log_level, PLUGIN_VAR_RQCMDARG,
     "Filter level for info logs to be written mysqld error log. "
@@ -634,13 +646,6 @@ static MYSQL_SYSVAR_ULONG(max_total_wal_size,
                           "DBOptions::max_total_wal_size for RocksDB", nullptr,
                           nullptr, rocksdb_db_options.max_total_wal_size,
                           /* min */ 0L, /* max */ LONG_MAX, 0);
-
-static MYSQL_SYSVAR_BOOL(
-    disabledatasync,
-    *reinterpret_cast<my_bool *>(&rocksdb_db_options.disableDataSync),
-    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "DBOptions::disableDataSync for RocksDB", nullptr, nullptr,
-    rocksdb_db_options.disableDataSync);
 
 static MYSQL_SYSVAR_BOOL(
     use_fsync, *reinterpret_cast<my_bool *>(&rocksdb_db_options.use_fsync),
@@ -1166,10 +1171,10 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(error_if_exists),
     MYSQL_SYSVAR(paranoid_checks),
     MYSQL_SYSVAR(rate_limiter_bytes_per_sec),
+    MYSQL_SYSVAR(delayed_write_rate),
     MYSQL_SYSVAR(info_log_level),
     MYSQL_SYSVAR(max_open_files),
     MYSQL_SYSVAR(max_total_wal_size),
-    MYSQL_SYSVAR(disabledatasync),
     MYSQL_SYSVAR(use_fsync),
     MYSQL_SYSVAR(wal_dir),
     MYSQL_SYSVAR(persistent_cache_path),
@@ -3049,6 +3054,8 @@ static int rocksdb_init_func(void *const p) {
         rocksdb::NewGenericRateLimiter(rocksdb_rate_limiter_bytes_per_sec));
     rocksdb_db_options.rate_limiter = rocksdb_rate_limiter;
   }
+
+  rocksdb_db_options.delayed_write_rate = rocksdb_delayed_write_rate;
 
   std::shared_ptr<Rdb_logger> myrocks_logger = std::make_shared<Rdb_logger>();
   rocksdb::Status s = rocksdb::CreateLoggerFromOptions(
@@ -9912,6 +9919,25 @@ void rocksdb_set_rate_limiter_bytes_per_sec(my_core::THD *const thd,
     rocksdb_rate_limiter_bytes_per_sec = new_val;
     rocksdb_rate_limiter->SetBytesPerSecond(new_val);
   }
+}
+
+void rocksdb_set_delayed_write_rate(THD *thd, struct st_mysql_sys_var *var,
+                                    void *var_ptr, const void *save) {
+  RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
+  const uint64_t new_val = *static_cast<const uint64_t *>(save);
+  if (rocksdb_delayed_write_rate != new_val) {
+    rocksdb_delayed_write_rate = new_val;
+    rocksdb::Status s =
+        rdb->SetDBOptions({{"delayed_write_rate", std::to_string(new_val)}});
+
+    if (!s.ok()) {
+      /* NO_LINT_DEBUG */
+      sql_print_warning("MyRocks: failed to update delayed_write_rate. "
+                        "status code = %d, status = %s",
+                        s.code(), s.ToString().c_str());
+    }
+  }
+  RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
 void rdb_set_collation_exception_list(const char *const exception_list) {

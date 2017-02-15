@@ -913,8 +913,8 @@ buf_page_get_newest_modification(
 
 /********************************************************************//**
 Increments the modify clock of a frame by 1. The caller must (1) own the
-buf_pool->LRU_list_mutex and block bufferfix count has to be zero, (2) or own
-an x-lock on the block, (3) or the block must belong to an intrinsic table. */
+buffer page mutex and block bufferfix count has to be zero, (2) or own an
+x-lock on the block, (3) or the block must belong to an intrinsic table. */
 UNIV_INLINE
 void
 buf_block_modify_clock_inc(
@@ -922,12 +922,12 @@ buf_block_modify_clock_inc(
 	buf_block_t*	block)	/*!< in: block */
 {
 #ifdef UNIV_DEBUG
-	buf_pool_t*	buf_pool = buf_pool_from_bpage((buf_page_t*) block);
+	const buf_page_t* const	bpage = &block->page;
 
 	/* No latch is acquired if block belongs to intrinsic table. */
-	if (!fsp_is_system_temporary(block->page.id.space())) {
-		ut_ad((mutex_own(&buf_pool->LRU_list_mutex)
-		       && (block->page.buf_fix_count == 0))
+	if (!fsp_is_system_temporary(bpage->id.space())) {
+		ut_ad((mutex_own(buf_page_get_mutex(bpage))
+		       && (bpage->buf_fix_count == 0))
 		      || rw_lock_own_flagged(&block->lock,
 					     RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 	}
@@ -1016,8 +1016,9 @@ buf_block_unfix(
 	buf_page_t*	bpage)
 {
 	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
-	ulint	count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
-	ut_ad(count + 1 != 0);
+	const ib_uint32_t count
+		= os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
+	ut_ad(count != UINT32_MAX);
 	return(count);
 }
 

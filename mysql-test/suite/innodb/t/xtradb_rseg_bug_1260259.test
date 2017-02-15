@@ -23,6 +23,9 @@ SHOW STATUS LIKE 'Innodb_available_undo_logs';
 SELECT * FROM INFORMATION_SCHEMA.XTRADB_RSEG;
 
 # Remove the temporary system tablespace and redo logs as soon when mysqld quits
+--error 0,1
 remove_file $MYSQL_TMP_DIR/ib1260259;
+--error 0,1
 remove_file $MYSQL_TMP_DIR/ib_logfile0;
+--error 0,1
 remove_file $MYSQL_TMP_DIR/ib_logfile1;

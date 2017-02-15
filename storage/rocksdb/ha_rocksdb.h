@@ -20,6 +20,7 @@
 #endif
 
 /* C++ standard header files */
+#include <cinttypes>
 #include <set>
 #include <string>
 #include <unordered_set>

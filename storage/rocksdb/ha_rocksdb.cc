@@ -2414,8 +2414,6 @@ static std::string rdb_xid_to_string(const XID &src) {
   transactions.
 */
 static bool rocksdb_flush_wal(handlerton *const hton
-                              __attribute__((__unused__)),
-                              ulonglong target_lsn
                               __attribute__((__unused__))) {
   DBUG_ASSERT(rdb != nullptr);
   rocksdb_wal_group_syncs++;
@@ -2447,13 +2445,6 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
       thd_get_xid(thd, reinterpret_cast<MYSQL_XID *>(&xid));
       if (!tx->prepare(rdb_xid_to_string(xid))) {
         return HA_EXIT_FAILURE;
-      }
-      if (thd->durability_property == HA_IGNORE_DURABILITY &&
-          THDVAR(thd, write_sync)) {
-        /**
-          we set the log sequence as '1' just to trigger hton->flush_logs
-        */
-        thd_store_lsn(thd, 1, DB_TYPE_ROCKSDB);
       }
     }
 

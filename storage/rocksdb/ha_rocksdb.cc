@@ -131,7 +131,6 @@ static std::shared_ptr<Rdb_tbl_prop_coll_factory> properties_collector_factory;
 Rdb_dict_manager dict_manager;
 Rdb_cf_manager cf_manager;
 Rdb_ddl_manager ddl_manager;
-Rdb_binlog_manager binlog_manager;
 
 /**
   MyRocks background thread control
@@ -1474,16 +1473,12 @@ protected:
   std::shared_ptr<Rdb_snapshot_notifier> m_notifier;
 
   // This should be used only when updating binlog information.
-  virtual rocksdb::WriteBatchBase *get_write_batch() = 0;
   virtual bool commit_no_binlog() = 0;
   virtual rocksdb::Iterator *
   get_iterator(const rocksdb::ReadOptions &options,
                rocksdb::ColumnFamilyHandle *column_family) = 0;
 
 public:
-  const char *m_mysql_log_file_name;
-  my_off_t m_mysql_log_offset;
-  const char *m_mysql_gtid;
   int64_t m_snapshot_timestamp = 0;
   bool m_ddl_transaction;
 
@@ -1645,10 +1640,6 @@ public:
       rollback();
       return true;
     } else {
-      my_core::thd_binlog_pos(m_thd, &m_mysql_log_file_name,
-                              &m_mysql_log_offset, &m_mysql_gtid);
-      binlog_manager.update(m_mysql_log_file_name, m_mysql_log_offset,
-                            m_mysql_gtid, get_write_batch());
       return commit_no_binlog();
     }
   }
@@ -2024,13 +2015,6 @@ public:
            m_rocksdb_tx->GetWriteBatch()->GetWriteBatch()->Count() > 0;
   }
 
-  rocksdb::WriteBatchBase *get_write_batch() override {
-    if (is_two_phase()) {
-      return m_rocksdb_tx->GetCommitTimeWriteBatch();
-    }
-    return m_rocksdb_tx->GetWriteBatch()->GetWriteBatch();
-  }
-
   /*
     Return a WriteBatch that one can write to. The writes will skip any
     transaction locking. The writes WILL be visible to the transaction.
@@ -2255,8 +2239,6 @@ public:
     return m_batch->GetWriteBatch()->Count() > 0;
   }
 
-  rocksdb::WriteBatchBase *get_write_batch() override { return m_batch; }
-
   rocksdb::WriteBatchBase *get_indexed_write_batch() override {
     ++m_write_count;
     return m_batch;
@@ -2449,24 +2431,16 @@ static bool rocksdb_flush_wal(handlerton *const hton
   replication progress.
 */
 static int rocksdb_prepare(handlerton *const hton, THD *const thd,
-                           bool prepare_tx, bool async) {
+                           bool prepare_tx) {
   Rdb_transaction *&tx = get_tx_from_thd(thd);
   if (!tx->can_prepare()) {
     return HA_EXIT_FAILURE;
   }
   if (prepare_tx ||
       (!my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
-    /* We were instructed to prepare the whole transaction, or
-    this is an SQL statement end and autocommit is on */
-    std::vector<st_slave_gtid_info> slave_gtid_info;
-    my_core::thd_slave_gtid_info(thd, &slave_gtid_info);
-    for (const auto &it : slave_gtid_info) {
-      rocksdb::WriteBatchBase *const write_batch = tx->get_blind_write_batch();
-      binlog_manager.update_slave_gtid_info(it.id, it.db, it.gtid, write_batch);
-    }
 
     if (tx->is_two_phase()) {
-      if (thd->durability_property == HA_IGNORE_DURABILITY || async) {
+      if (thd->durability_property == HA_IGNORE_DURABILITY) {
         tx->set_sync(false);
       }
       XID xid;
@@ -2551,26 +2525,7 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   The info is needed for crash safe slave/master to work.
 */
 static int rocksdb_recover(handlerton *const hton, XID *const xid_list,
-                           uint len, char *const binlog_file,
-                           my_off_t *const binlog_pos) {
-  if (binlog_file && binlog_pos) {
-    char file_buf[FN_REFLEN + 1] = {0};
-    my_off_t pos;
-    char gtid_buf[FN_REFLEN + 1] = {0};
-    if (binlog_manager.read(file_buf, &pos, gtid_buf)) {
-      if (is_binlog_advanced(binlog_file, *binlog_pos, file_buf, pos)) {
-        memcpy(binlog_file, file_buf, FN_REFLEN + 1);
-        *binlog_pos = pos;
-        fprintf(stderr, "RocksDB: Last binlog file position %llu,"
-                        " file name %s\n",
-                pos, file_buf);
-        if (*gtid_buf) {
-          fprintf(stderr, "RocksDB: Last MySQL Gtid %s\n", gtid_buf);
-        }
-      }
-    }
-  }
-
+                           uint len) {
   if (len == 0 || xid_list == nullptr) {
     return HA_EXIT_SUCCESS;
   }
@@ -3365,13 +3320,6 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
-  if (binlog_manager.init(&dict_manager)) {
-    // NO_LINT_DEBUG
-    sql_print_error("RocksDB: Failed to initialize binlog manager.");
-    rdb_open_tables.free_hash();
-    DBUG_RETURN(HA_EXIT_FAILURE);
-  }
-
   if (ddl_manager.init(&dict_manager, &cf_manager, rocksdb_validate_tables)) {
     // NO_LINT_DEBUG
     sql_print_error("RocksDB: Failed to initialize DDL manager.");
@@ -3501,7 +3449,6 @@ static int rocksdb_done_func(void *const p) {
   }
 
   ddl_manager.cleanup();
-  binlog_manager.cleanup();
   dict_manager.cleanup();
   cf_manager.cleanup();
 
@@ -9888,8 +9835,6 @@ void rdb_handle_io_error(rocksdb::Status status, RDB_IO_ERROR_TYPE err_type) {
 Rdb_dict_manager *rdb_get_dict_manager(void) { return &dict_manager; }
 
 Rdb_ddl_manager *rdb_get_ddl_manager(void) { return &ddl_manager; }
-
-Rdb_binlog_manager *rdb_get_binlog_manager(void) { return &binlog_manager; }
 
 void rocksdb_set_compaction_options(my_core::THD *const thd
                                     __attribute__((__unused__)),

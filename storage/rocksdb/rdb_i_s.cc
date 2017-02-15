@@ -738,26 +738,9 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
   DBUG_ASSERT(tables != nullptr);
 
   static const uint32_t INT_BUF_LEN = 21;
-  static const uint32_t GTID_BUF_LEN = 60;
   static const uint32_t CF_ID_INDEX_BUF_LEN = 60;
 
   int ret = 0;
-
-  /* binlog info */
-  Rdb_binlog_manager *const blm = rdb_get_binlog_manager();
-  DBUG_ASSERT(blm != nullptr);
-
-  char file_buf[FN_REFLEN + 1] = {0};
-  my_off_t pos = 0;
-  char pos_buf[INT_BUF_LEN] = {0};
-  char gtid_buf[GTID_BUF_LEN] = {0};
-
-  if (blm->read(file_buf, &pos, gtid_buf)) {
-    snprintf(pos_buf, INT_BUF_LEN, "%lu", (uint64_t)pos);
-    ret |= rdb_global_info_fill_row(thd, tables, "BINLOG", "FILE", file_buf);
-    ret |= rdb_global_info_fill_row(thd, tables, "BINLOG", "POS", pos_buf);
-    ret |= rdb_global_info_fill_row(thd, tables, "BINLOG", "GTID", gtid_buf);
-  }
 
   /* max index info */
   const Rdb_dict_manager *const dict_manager = rdb_get_dict_manager();

@@ -650,7 +650,7 @@ public:
     DBUG_RETURN(&key_map_full);
   }
 
-  bool primary_key_is_clustered() override {
+  bool primary_key_is_clustered() const override {
     DBUG_ENTER_FUNC();
 
     DBUG_RETURN(true);

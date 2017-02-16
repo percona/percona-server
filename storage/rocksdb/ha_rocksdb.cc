@@ -1518,9 +1518,9 @@ public:
         char user_host_buff[MAX_USER_HOST_SIZE + 1];
         make_user_name(thd->security_context(), user_host_buff);
         // NO_LINT_DEBUG
-        sql_print_warning("Got snapshot conflict errors: User: %s "
-                          "Query: %s",
-                          user_host_buff, thd->query());
+        sql_print_warning("Got snapshot conflict errors: User: %s Query: %.*s",
+                          user_host_buff, static_cast<int>(thd->query().length),
+                          thd->query().str);
       }
       return HA_ERR_LOCK_DEADLOCK;
     }
@@ -7922,10 +7922,10 @@ int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
         my_printf_error(ER_UNKNOWN_ERROR,
                         "When unique checking is disabled in MyRocks, INSERT,"
                         "UPDATE,LOAD statements with clauses that update or "
-                        "replace the key (i.e. "
-                        "INSERT ON DUPLICATE KEY UPDATE, REPLACE) are not "
-                        "allowed. Query: %s",
-                        MYF(0), thd->query());
+                        "replace the key (i.e. INSERT ON DUPLICATE KEY UPDATE, "
+                        "REPLACE) are not allowed. Query: %.*s",
+                        MYF(0), static_cast<int>(thd->query().length),
+                        thd->query().str);
         DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
       }
     }

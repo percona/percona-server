@@ -3496,7 +3496,7 @@ Rdb_open_tables_map::get_table_handler(const char *const table_name) {
     table_handler->m_ref_count = 0;
     table_handler->m_table_name_length = length;
     table_handler->m_table_name = tmp_name;
-    strmov(table_handler->m_table_name, table_name);
+    my_stpmov(table_handler->m_table_name, table_name);
 
     if (my_hash_insert(&m_hash, reinterpret_cast<uchar *>(table_handler))) {
       // Inserting into the hash map failed.

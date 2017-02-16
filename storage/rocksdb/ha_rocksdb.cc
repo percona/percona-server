@@ -2950,16 +2950,16 @@ static inline void rocksdb_register_tx(handlerton *const hton, THD *const thd,
     so mixing engines is not recommended anyway.
 */
 static int rocksdb_start_tx_and_assign_read_view(
-    handlerton *const hton,          /*!< in: RocksDB handlerton */
-    THD *const thd)                  /*!< in: MySQL thread handle of the
-                                     user for whom the transaction should
-                                     be committed */
+    handlerton *const hton, /*!< in: RocksDB handlerton */
+    THD *const thd)         /*!< in: MySQL thread handle of the
+                            user for whom the transaction should
+                            be committed */
 {
   Rdb_perf_context_guard guard(thd);
 
   ulong const tx_isolation = my_core::thd_tx_isolation(thd);
 
-  Rdb_transaction* tx= get_or_create_tx(thd);
+  Rdb_transaction *tx = get_or_create_tx(thd);
   DBUG_ASSERT(!tx->has_snapshot());
   tx->set_tx_read_only(true);
   rocksdb_register_tx(hton, thd, tx);
@@ -2967,12 +2967,13 @@ static int rocksdb_start_tx_and_assign_read_view(
   if (tx_isolation == ISO_REPEATABLE_READ) {
     tx->acquire_snapshot(true);
   } else {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, HA_ERR_UNSUPPORTED,
+    push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
                         "Only REPEATABLE READ isolation level is supported "
                         "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
                         "in RocksDB Storage Engine. Snapshot has not been "
                         "taken.");
-  }  return HA_EXIT_SUCCESS;
+  }
+  return HA_EXIT_SUCCESS;
 }
 
 /* Dummy SAVEPOINT support. This is needed for long running transactions
@@ -9857,7 +9858,7 @@ void rocksdb_set_rate_limiter_bytes_per_sec(my_core::THD *const thd,
       If a rate_limiter was not enabled at startup we can't change it nor
       can we disable it if one was created at startup
     */
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_WRONG_ARGUMENTS,
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "RocksDB: rocksdb_rate_limiter_bytes_per_sec cannot "
                         "be dynamically changed to or from 0.  Do a clean "
                         "shutdown if you want to change it from or to 0.");

@@ -2400,7 +2400,9 @@ static std::string rdb_xid_to_string(const XID &src) {
   transactions.
 */
 static bool rocksdb_flush_wal(handlerton *const hton
-                              __attribute__((__unused__))) {
+                              __attribute__((__unused__)),
+// GOL : MYR-19
+                              bool binlog_group_flush __attribute__((unused))) {
   DBUG_ASSERT(rdb != nullptr);
   rocksdb_wal_group_syncs++;
   const rocksdb::Status s = rdb->SyncWAL();
@@ -2432,13 +2434,18 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
       if (!tx->prepare(rdb_xid_to_string(xid))) {
         return HA_EXIT_FAILURE;
       }
-      if (thd->durability_property == HA_IGNORE_DURABILITY &&
-          THDVAR(thd, write_sync)) {
-        /**
-          we set the log sequence as '1' just to trigger hton->flush_logs
-        */
-        thd_store_lsn(thd, 1, DB_TYPE_ROCKSDB);
-      }
+// GOL : MYR-19
+// https://github.com/percona/percona-server/pull/1399
+// https://github.com/facebook/mysql-5.6/commit/a869c56d361bb44f46c0efeb11a8f03561676247
+// https://bugs.mysql.com/bug.php?id=73202
+// https://github.com/facebook/mysql-5.6/issues/474
+//    if (thd->durability_property == HA_IGNORE_DURABILITY &&
+//        THDVAR(thd, write_sync)) {
+//      /**
+//        we set the log sequence as '1' just to trigger hton->flush_logs
+//      */
+//      thd_store_lsn(thd, 1, DB_TYPE_ROCKSDB);
+//    }
     }
 
     DEBUG_SYNC(thd, "rocksdb.prepared");

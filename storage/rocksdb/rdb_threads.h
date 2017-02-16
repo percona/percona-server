@@ -22,6 +22,7 @@
 
 /* MySQL includes */
 #include "./my_global.h"
+#include "./my_thread.h"
 #include <mysql/psi/mysql_table.h>
 #include <mysql/thread_pool_priv.h>
 

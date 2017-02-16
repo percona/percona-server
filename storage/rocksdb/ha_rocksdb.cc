@@ -2370,25 +2370,28 @@ static int rocksdb_close_connection(handlerton *const hton, THD *const thd) {
  * be used as a rocksdb transaction name
  */
 static std::string rdb_xid_to_string(const XID &src) {
-  DBUG_ASSERT(src.gtrid_length >= 0 && src.gtrid_length <= MAXGTRIDSIZE);
-  DBUG_ASSERT(src.bqual_length >= 0 && src.bqual_length <= MAXBQUALSIZE);
+  DBUG_ASSERT(src.get_gtrid_length() >= 0 &&
+              src.get_gtrid_length() <= MAXGTRIDSIZE);
+  DBUG_ASSERT(src.get_bqual_length() >= 0 &&
+              src.get_bqual_length() <= MAXBQUALSIZE);
 
   std::string buf;
-  buf.reserve(RDB_XIDHDR_LEN + src.gtrid_length + src.bqual_length);
+  buf.reserve(RDB_XIDHDR_LEN + src.get_gtrid_length() + src.get_bqual_length());
 
   /*
    * expand formatID to fill 8 bytes if it doesn't already
    * then reinterpret bit pattern as unsigned and store in network order
    */
   uchar fidbuf[RDB_FORMATID_SZ];
-  int64 signed_fid8 = src.formatID;
+  int64 signed_fid8 = src.get_format_id();
   const uint64 raw_fid8 = *reinterpret_cast<uint64 *>(&signed_fid8);
   rdb_netbuf_store_uint64(fidbuf, raw_fid8);
   buf.append(reinterpret_cast<const char *>(fidbuf), RDB_FORMATID_SZ);
 
-  buf.push_back(src.gtrid_length);
-  buf.push_back(src.bqual_length);
-  buf.append(src.data, (src.gtrid_length) + (src.bqual_length));
+  buf.push_back(src.get_gtrid_length());
+  buf.push_back(src.get_bqual_length());
+  buf.append(src.get_data(),
+             (src.get_gtrid_length()) + (src.get_bqual_length()));
   return buf;
 }
 
@@ -2487,18 +2490,21 @@ static void rdb_xid_from_string(const std::string &src, XID *const dst) {
   uint64 raw_fid8 =
       rdb_netbuf_to_uint64(reinterpret_cast<const uchar *>(src.data()));
   const int64 signed_fid8 = *reinterpret_cast<int64 *>(&raw_fid8);
-  dst->formatID = signed_fid8;
+  dst->set_format_id(signed_fid8);
   offset += RDB_FORMATID_SZ;
-  dst->gtrid_length = src.at(offset);
+  dst->set_gtrid_length(src.at(offset));
   offset += RDB_GTRID_SZ;
-  dst->bqual_length = src.at(offset);
+  dst->set_bqual_length(src.at(offset));
   offset += RDB_BQUAL_SZ;
 
-  DBUG_ASSERT(dst->gtrid_length >= 0 && dst->gtrid_length <= MAXGTRIDSIZE);
-  DBUG_ASSERT(dst->bqual_length >= 0 && dst->bqual_length <= MAXBQUALSIZE);
+  DBUG_ASSERT(dst->get_gtrid_length() >= 0 &&
+              dst->get_gtrid_length() <= MAXGTRIDSIZE);
+  DBUG_ASSERT(dst->get_bqual_length() >= 0 &&
+              dst->get_bqual_length() <= MAXBQUALSIZE);
 
-  src.copy(dst->data, (dst->gtrid_length) + (dst->bqual_length),
-           RDB_XIDHDR_LEN);
+  const std::string &tmp_data = src.substr(
+      RDB_XIDHDR_LEN, (dst->get_gtrid_length()) + (dst->get_bqual_length()));
+  dst->set_data(tmp_data.data(), tmp_data.length());
 }
 
 /**

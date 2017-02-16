@@ -24,6 +24,9 @@
 /* C standard header files */
 #include <ctype.h>
 
+/* MySQL header files */
+#include "my_dir.h"
+
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 

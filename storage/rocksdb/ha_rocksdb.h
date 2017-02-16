@@ -1048,7 +1048,7 @@ public:
       __attribute__((__warn_unused_result__));
 
   my_bool register_query_cache_table(THD *const thd, char *const table_key,
-                                     uint key_length,
+                                     size_t key_length,
                                      qc_engine_callback *const engine_callback,
                                      ulonglong *const engine_data) override {
     DBUG_ENTER_FUNC();

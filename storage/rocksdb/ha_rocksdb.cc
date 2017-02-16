@@ -2823,18 +2823,6 @@ std::vector<Rdb_trx_info> rdb_get_all_trx_info() {
   return trx_info;
 }
 
-/* Generate the snapshot status table */
-static bool rocksdb_show_snapshot_status(handlerton *const hton, THD *const thd,
-                                         stat_print_fn *const stat_print) {
-  Rdb_snapshot_status showStatus;
-
-  Rdb_transaction::walk_tx_list(&showStatus);
-
-  /* Send the result data back to MySQL */
-  return print_stats(thd, "SNAPSHOTS", "rocksdb", showStatus.getResult(),
-                     stat_print);
-}
-
 /*
   This is called for SHOW ENGINE ROCKSDB STATUS|LOGS|etc.
 

@@ -1516,7 +1516,7 @@ public:
       rocksdb_snapshot_conflict_errors++;
       if (rocksdb_print_snapshot_conflict_queries) {
         char user_host_buff[MAX_USER_HOST_SIZE + 1];
-        make_user_name(thd, user_host_buff);
+        make_user_name(thd->security_context(), user_host_buff);
         // NO_LINT_DEBUG
         sql_print_warning("Got snapshot conflict errors: User: %s "
                           "Query: %s",

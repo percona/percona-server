@@ -64,13 +64,6 @@
 // Internal MySQL APIs not exposed in any header.
 extern "C" {
 /**
-  Mark transaction to rollback and mark error as fatal to a sub-statement.
-  @param  thd   Thread handle
-  @param  all   TRUE <=> rollback main transaction.
-*/
-void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
-
-/**
  *   Get the user thread's binary logging format
  *   @param thd  user thread
  *   @return Value to be used as index into the binlog_format_names array
@@ -1511,14 +1504,13 @@ public:
         convert_error_code_to_mysql() does: force a statement
         rollback before returning HA_ERR_LOCK_WAIT_TIMEOUT:
         */
-      my_core::thd_mark_transaction_to_rollback(thd, false /*just statement*/);
+      thd->mark_transaction_to_rollback(false /*just statement*/);
 
       return HA_ERR_LOCK_WAIT_TIMEOUT;
     }
 
     if (s.IsDeadlock()) {
-      my_core::thd_mark_transaction_to_rollback(thd,
-                                                false /* just statement */);
+      thd->mark_transaction_to_rollback(false /* just statement */);
       return HA_ERR_LOCK_DEADLOCK;
     } else if (s.IsBusy()) {
       rocksdb_snapshot_conflict_errors++;

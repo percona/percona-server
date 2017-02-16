@@ -31,6 +31,7 @@
 #include "./my_global.h" /* ulonglong */
 #include "./sql_string.h"
 #include "./ib_ut0counter.h"
+#include "sql_bitmap.h"
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"

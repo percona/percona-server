@@ -329,8 +329,7 @@ static void rocksdb_set_rate_limiter_bytes_per_sec(THD *thd,
 
 static void rocksdb_set_delayed_write_rate(THD *thd,
                                            struct st_mysql_sys_var *var,
-                                           void *var_ptr,
-                                           const void *save);
+                                           void *var_ptr, const void *save);
 
 static void rdb_set_collation_exception_list(const char *exception_list);
 static void rocksdb_set_collation_exception_list(THD *thd,
@@ -565,11 +564,12 @@ static MYSQL_SYSVAR_ULONGLONG(
     nullptr, rocksdb_set_rate_limiter_bytes_per_sec, /* default */ 0L,
     /* min */ 0L, /* max */ MAX_RATE_LIMITER_BYTES_PER_SEC, 0);
 
-static MYSQL_SYSVAR_ULONGLONG(
-    delayed_write_rate, rocksdb_delayed_write_rate,
-    PLUGIN_VAR_RQCMDARG, "DBOptions::delayed_write_rate", nullptr,
-    rocksdb_set_delayed_write_rate, rocksdb_db_options.delayed_write_rate,
-    0, UINT64_MAX, 0);
+static MYSQL_SYSVAR_ULONGLONG(delayed_write_rate, rocksdb_delayed_write_rate,
+                              PLUGIN_VAR_RQCMDARG,
+                              "DBOptions::delayed_write_rate", nullptr,
+                              rocksdb_set_delayed_write_rate,
+                              rocksdb_db_options.delayed_write_rate, 0,
+                              UINT64_MAX, 0);
 
 static MYSQL_SYSVAR_ENUM(
     info_log_level, rocksdb_info_log_level, PLUGIN_VAR_RQCMDARG,
@@ -956,8 +956,7 @@ static MYSQL_SYSVAR_UINT(flush_log_at_trx_commit,
                          "Sync on transaction commit. Similar to "
                          "innodb_flush_log_at_trx_commit. 1: sync on commit, "
                          "0,2: not sync on commit",
-                         nullptr, nullptr,
-                         1, 0, 2, 0);
+                         nullptr, nullptr, 1, 0, 2, 0);
 
 static MYSQL_THDVAR_BOOL(write_disable_wal, PLUGIN_VAR_RQCMDARG,
                          "WriteOptions::disableWAL for RocksDB", nullptr,
@@ -4509,6 +4508,14 @@ bool ha_rocksdb::get_error_message(const int error, String *const buf) {
   case HA_ERR_ROCKSDB_TOO_MANY_LOCKS:
     buf->append("Number of locks held reached @@rocksdb_max_row_locks.");
     break;
+  case HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED:
+    buf->append("Specifying DATA DIRECTORY for an individual table is not "
+                "supported.");
+    break;
+  case HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED:
+    buf->append("Specifying INDEX DIRECTORY for an individual table is not "
+                "supported.");
+    break;
   default:
     // We can be called with the values which are < HA_ERR_FIRST because most
     // MySQL internal functions will just return HA_EXIT_FAILURE in case of
@@ -5056,6 +5063,22 @@ int rdb_split_normalized_tablename(const std::string &fullname,
 int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
                        HA_CREATE_INFO *const create_info) {
   DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(table_arg != nullptr);
+  DBUG_ASSERT(create_info != nullptr);
+
+  if (create_info->data_file_name) {
+    // DATA DIRECTORY is used to create tables under a specific location
+    // outside the MySQL data directory. We don't support this for MyRocks.
+    // The `rocksdb_datadir` setting should be used to configure RocksDB data
+    // directory.
+    DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED);
+  }
+
+  if (create_info->index_file_name) {
+    // Similar check for INDEX DIRECTORY as well.
+    DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED);
+  }
 
   int res;
   std::string str;
@@ -9980,7 +10003,7 @@ void rocksdb_set_collation_exception_list(THD *const thd,
                                           const void *const save) {
   const char *const val = *static_cast<const char *const *>(save);
 
-  rdb_set_collation_exception_list(val);
+  rdb_set_collation_exception_list(val == nullptr ? "" : val);
 
   *static_cast<const char **>(var_ptr) = val;
 }

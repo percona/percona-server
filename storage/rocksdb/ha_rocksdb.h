@@ -32,6 +32,7 @@
 #include "./sql_string.h"
 #include "./ib_ut0counter.h"
 #include "sql_bitmap.h"
+#include "my_icp.h"
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"

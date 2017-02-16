@@ -4525,6 +4525,15 @@ innobase_create_zip_dict(
 		case DB_DUPLICATE_KEY:
 			result = HA_CREATE_ZIP_DICT_ALREADY_EXISTS;
 			break;
+		case DB_OUT_OF_MEMORY:
+			result = HA_CREATE_ZIP_DICT_OUT_OF_MEMORY;
+			break;
+		case DB_OUT_OF_FILE_SPACE:
+			result = HA_CREATE_ZIP_DICT_OUT_OF_FILE_SPACE;
+			break;
+		case DB_TOO_MANY_CONCURRENT_TRXS:
+			result = HA_CREATE_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS;
+			break;
 		default:
 			ut_ad(0);
 			result = HA_CREATE_ZIP_DICT_UNKNOWN_ERROR;
@@ -4560,6 +4569,15 @@ innobase_drop_zip_dict(
 			break;
 		case DB_ROW_IS_REFERENCED:
 			result = HA_DROP_ZIP_DICT_IS_REFERENCED;
+			break;
+		case DB_OUT_OF_MEMORY:
+			result = HA_DROP_ZIP_DICT_OUT_OF_MEMORY;
+			break;
+		case DB_OUT_OF_FILE_SPACE:
+			result = HA_DROP_ZIP_DICT_OUT_OF_FILE_SPACE;
+			break;
+		case DB_TOO_MANY_CONCURRENT_TRXS:
+			result = HA_DROP_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS;
 			break;
 		default:
 			ut_ad(0);

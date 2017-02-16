@@ -2790,9 +2790,8 @@ public:
       }
 
       std::string query_str;
-      LEX_STRING *const lex_str = thd_query_string(thd);
-      if (lex_str != nullptr && lex_str->str != nullptr) {
-        query_str = std::string(lex_str->str);
+      if (thd->query().str != nullptr) {
+        query_str = std::string(thd->query().str);
       }
 
       const auto state_it = state_map.find(rdb_trx->GetState());
@@ -4931,7 +4930,7 @@ int rdb_normalize_tablename(const std::string &tablename,
 */
 bool ha_rocksdb::contains_foreign_key(THD *const thd) {
   bool success;
-  const char *str = thd_query_string(thd)->str;
+  const char *str = thd->query().str;
 
   DBUG_ASSERT(str != nullptr);
 

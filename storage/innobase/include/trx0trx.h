@@ -929,6 +929,9 @@ struct trx_t {
 
 	trx_id_t	id;		/*!< transaction id */
 
+	trx_id_t        id_saved;       /*!< save transaction id for slow
+					log tracking */
+
 	trx_id_t	preallocated_id;/*!< preallocated transaction id for a
 					RO transaction whose read view was
 					cloned. If this transaction is promoted

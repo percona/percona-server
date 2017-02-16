@@ -16475,7 +16475,7 @@ ha_innobase::external_lock(
 
 		if (UNIV_UNLIKELY(trx->take_stats)) {
 			increment_thd_innodb_stats(thd,
-						   (unsigned long long) trx->id,
+						   static_cast<unsigned long long>(trx->id ? trx->id : trx->id_saved),
 						   trx->io_reads,
 						   trx->io_read,
 						   trx->io_reads_wait_timer,
@@ -16483,6 +16483,7 @@ ha_innobase::external_lock(
 						   trx->innodb_que_wait_timer,
 						   trx->distinct_page_access);
 
+			trx->id_saved = 0;
 			trx->io_reads = 0;
 			trx->io_read = 0;
 			trx->io_reads_wait_timer = 0;

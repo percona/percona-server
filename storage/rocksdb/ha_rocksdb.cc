@@ -2763,7 +2763,7 @@ public:
     DBUG_ASSERT(tx != nullptr);
 
     THD *const thd = tx->get_thd();
-    ulong thread_id = thd->thread_id;
+    const my_thread_id thread_id = thd->thread_id();
 
     if (tx->is_writebatch_trx()) {
       const auto wb_impl = static_cast<const Rdb_writebatch_impl *>(tx);

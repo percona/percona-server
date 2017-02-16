@@ -5922,7 +5922,7 @@ int ha_rocksdb::check(THD *const thd, HA_CHECK_OPT *const check_opt) {
   // NO_LINT_DEBUG
   sql_print_information("CHECKTABLE %s: Checking table %s", table_name,
                         table_name);
-  ha_rows UNINIT_VAR(row_checksums_at_start); // set/used iff first_index==true
+  ha_rows row_checksums_at_start = 0; // set/used iff first_index==true
   ha_rows row_checksums = ha_rows(-1);
   bool first_index = true;
 

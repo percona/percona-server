@@ -9361,13 +9361,13 @@ bool ha_rocksdb::commit_inplace_alter_table(
   }
 
 #define DEF_STATUS_VAR(name)                                                   \
-  { "rocksdb_" #name, (char *)&SHOW_FNAME(name), SHOW_FUNC }
+  { "rocksdb_" #name, (char *)&SHOW_FNAME(name), SHOW_FUNC, SHOW_SCOPE_GLOBAL }
 
 #define DEF_STATUS_VAR_PTR(name, ptr, option)                                  \
-  { "rocksdb_" name, (char *)ptr, option }
+  { "rocksdb_" name, (char *)ptr, option, SHOW_SCOPE_GLOBAL }
 
 #define DEF_STATUS_VAR_FUNC(name, ptr, option)                                 \
-  { name, reinterpret_cast<char *>(ptr), option }
+  { name, reinterpret_cast<char *>(ptr), option, SHOW_SCOPE_GLOBAL }
 
 struct rocksdb_status_counters_t {
   uint64_t block_cache_miss;
@@ -9508,7 +9508,7 @@ static SHOW_VAR myrocks_status_variables[] = {
     DEF_STATUS_VAR_FUNC("system_rows_updated",
                         &export_stats.system_rows_updated, SHOW_LONGLONG),
 
-    {NullS, NullS, SHOW_LONG}};
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 static void show_myrocks_vars(THD *thd, SHOW_VAR *var, char *buff) {
   myrocks_update_status();
@@ -9585,8 +9585,9 @@ static SHOW_VAR rocksdb_status_vars[] = {
                        SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("number_sst_entry_other", &rocksdb_num_sst_entry_other,
                        SHOW_LONGLONG),
-    {"rocksdb", reinterpret_cast<char *>(&show_myrocks_vars), SHOW_FUNC},
-    {NullS, NullS, SHOW_LONG}};
+    {"rocksdb", reinterpret_cast<char *>(&show_myrocks_vars), SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
 /*
   Background thread's main logic

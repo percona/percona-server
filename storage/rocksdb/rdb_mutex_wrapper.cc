@@ -77,7 +77,7 @@ Rdb_cond_var::WaitFor(const std::shared_ptr<TransactionDBMutex> mutex_arg,
 
   if (timeout_micros < 0)
     timeout_micros = ONE_YEAR_IN_MICROSECS;
-  set_timespec_nsec(wait_timeout, timeout_micros * 1000);
+  set_timespec_nsec(&wait_timeout, timeout_micros * 1000);
 
 #ifndef STANDALONE_UNITTEST
   PSI_stage_info old_stage;

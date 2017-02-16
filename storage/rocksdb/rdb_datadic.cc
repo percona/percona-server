@@ -2921,10 +2921,11 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
   const ulong TABLE_HASH_SIZE = 32;
   m_dict = dict_arg;
   mysql_rwlock_init(0, &m_rwlock);
+  // TODO: instrument for PFS
   (void)my_hash_init(&m_ddl_hash,
                      /*system_charset_info*/ &my_charset_bin, TABLE_HASH_SIZE,
                      0, 0, (my_hash_get_key)Rdb_ddl_manager::get_hash_key,
-                     Rdb_ddl_manager::free_hash_elem, 0);
+                     Rdb_ddl_manager::free_hash_elem, 0, 0);
 
   /* Read the data dictionary and populate the hash */
   uchar ddl_entry[Rdb_key_def::INDEX_NUMBER_SIZE];

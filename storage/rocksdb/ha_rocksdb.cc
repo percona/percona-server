@@ -200,7 +200,7 @@ struct Rdb_open_tables_map {
   void init_hash(void) {
     (void)my_hash_init(&m_hash, my_core::system_charset_info, TABLE_HASH_SIZE,
                        0, 0, (my_hash_get_key)Rdb_open_tables_map::get_hash_key,
-                       0, 0);
+                       nullptr, 0, 0); // TODO: instrument for PFS
   }
 
   void free_hash(void) { my_hash_free(&m_hash); }

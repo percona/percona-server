@@ -463,7 +463,7 @@ uint Rdb_key_def::pack_index_tuple(TABLE *const tbl, uchar *const pack_buffer,
   DBUG_ASSERT(key_tuple != nullptr);
 
   /* We were given a record in KeyTupleFormat. First, save it to record */
-  const uint key_len = calculate_key_len(tbl, m_keyno, key_tuple, keypart_map);
+  const uint key_len = calculate_key_len(tbl, m_keyno, keypart_map);
   key_restore(tbl->record[0], key_tuple, &tbl->key_info[m_keyno], key_len);
 
   uint n_used_parts = my_count_bits(keypart_map);

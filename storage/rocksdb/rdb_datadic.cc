@@ -81,14 +81,16 @@ Rdb_key_def::Rdb_key_def(const Rdb_key_def &k)
   rdb_netbuf_store_index(m_index_number_storage_form, m_index_number);
   if (k.m_pack_info) {
     const size_t size = sizeof(Rdb_field_packing) * k.m_key_parts;
+    // TODO: instrument for PFS
     m_pack_info =
-        reinterpret_cast<Rdb_field_packing *>(my_malloc(size, MYF(0)));
+        reinterpret_cast<Rdb_field_packing *>(my_malloc(0, size, MYF(0)));
     memcpy(m_pack_info, k.m_pack_info, size);
   }
 
   if (k.m_pk_part_no) {
     const size_t size = sizeof(uint) * m_key_parts;
-    m_pk_part_no = reinterpret_cast<uint *>(my_malloc(size, MYF(0)));
+    // TODO: instrument for PFS
+    m_pk_part_no = reinterpret_cast<uint *>(my_malloc(0, size, MYF(0)));
     memcpy(m_pk_part_no, k.m_pk_part_no, size);
   }
 }
@@ -162,14 +164,16 @@ void Rdb_key_def::setup(const TABLE *const tbl,
     }
 
     if (secondary_key)
+      // TODO: instrument for PFS
       m_pk_part_no = reinterpret_cast<uint *>(
-          my_malloc(sizeof(uint) * m_key_parts, MYF(0)));
+          my_malloc(0, sizeof(uint) * m_key_parts, MYF(0)));
     else
       m_pk_part_no = nullptr;
 
     const size_t size = sizeof(Rdb_field_packing) * m_key_parts;
+    // TODO: instrument for PFS
     m_pack_info =
-        reinterpret_cast<Rdb_field_packing *>(my_malloc(size, MYF(0)));
+        reinterpret_cast<Rdb_field_packing *>(my_malloc(0, size, MYF(0)));
 
     size_t max_len = INDEX_NUMBER_SIZE;
     int unpack_len = 0;

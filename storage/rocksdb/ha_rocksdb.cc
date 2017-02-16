@@ -3484,9 +3484,10 @@ Rdb_open_tables_map::get_table_handler(const char *const table_name) {
             &m_hash, reinterpret_cast<const uchar *>(table_name), length)))) {
     // Since we did not find it in the hash map, attempt to create and add it
     // to the hash map.
+    // TODO: instrument for PFS
     if (!(table_handler = reinterpret_cast<Rdb_table_handler *>(my_multi_malloc(
-              MYF(MY_WME | MY_ZEROFILL), &table_handler, sizeof(*table_handler),
-              &tmp_name, length + 1, NullS)))) {
+              0, MYF(MY_WME | MY_ZEROFILL), &table_handler,
+              sizeof(*table_handler), &tmp_name, length + 1, NullS)))) {
       // Allocating a new Rdb_table_handler and a new table name failed.
       mysql_mutex_unlock(&m_mutex);
       return nullptr;
@@ -4182,8 +4183,9 @@ void ha_rocksdb::setup_field_converters() {
   uchar cur_null_mask = 0x1;
 
   DBUG_ASSERT(m_encoder_arr == nullptr);
+  // TODO: instrument for PFS
   m_encoder_arr = static_cast<Rdb_field_encoder *>(
-      my_malloc(table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
+      my_malloc(0, table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
   if (m_encoder_arr == nullptr) {
     return;
   }
@@ -4264,14 +4266,16 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
   // move this into get_table_handler() ??
   m_pk_descr->setup(table_arg, tbl_def_arg);
 
-  m_pk_tuple = reinterpret_cast<uchar *>(my_malloc(key_len, MYF(0)));
+  // TODO: instrument for PFS
+  m_pk_tuple = reinterpret_cast<uchar *>(my_malloc(0, key_len, MYF(0)));
   if (m_pk_tuple == nullptr) {
     goto error;
   }
 
   pack_key_len = m_pk_descr->max_storage_fmt_length();
+  // TODO: instrument for PFS
   m_pk_packed_tuple =
-      reinterpret_cast<uchar *>(my_malloc(pack_key_len, MYF(0)));
+      reinterpret_cast<uchar *>(my_malloc(0, pack_key_len, MYF(0)));
   if (m_pk_packed_tuple == nullptr) {
     goto error;
   }
@@ -4291,16 +4295,17 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
     }
   }
 
-  if (!(m_sk_packed_tuple =
-            reinterpret_cast<uchar *>(my_malloc(max_packed_sk_len, MYF(0)))) ||
-      !(m_sk_match_prefix_buf =
-            reinterpret_cast<uchar *>(my_malloc(max_packed_sk_len, MYF(0)))) ||
-      !(m_sk_packed_tuple_old =
-            reinterpret_cast<uchar *>(my_malloc(max_packed_sk_len, MYF(0)))) ||
-      !(m_end_key_packed_tuple =
-            reinterpret_cast<uchar *>(my_malloc(max_packed_sk_len, MYF(0)))) ||
+  // TODO: instrument for PFS
+  if (!(m_sk_packed_tuple = reinterpret_cast<uchar *>(
+            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
+      !(m_sk_match_prefix_buf = reinterpret_cast<uchar *>(
+            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
+      !(m_sk_packed_tuple_old = reinterpret_cast<uchar *>(
+            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
+      !(m_end_key_packed_tuple = reinterpret_cast<uchar *>(
+            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
       !((m_pack_buffer = reinterpret_cast<uchar *>(
-             my_malloc(max_packed_sk_len, MYF(0)))))) {
+             my_malloc(0, max_packed_sk_len, MYF(0)))))) {
     goto error;
   }
 
@@ -4308,11 +4313,12 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
     If inplace alter is happening, allocate special buffers for unique
     secondary index duplicate checking.
   */
+  // TODO: instrument for PFS
   if (alloc_alter_buffers &&
-      (!(m_dup_sk_packed_tuple =
-             reinterpret_cast<uchar *>(my_malloc(max_packed_sk_len, MYF(0)))) ||
+      (!(m_dup_sk_packed_tuple = reinterpret_cast<uchar *>(
+             my_malloc(0, max_packed_sk_len, MYF(0)))) ||
        !(m_dup_sk_packed_tuple_old = reinterpret_cast<uchar *>(
-             my_malloc(max_packed_sk_len, MYF(0)))))) {
+             my_malloc(0, max_packed_sk_len, MYF(0)))))) {
     goto error;
   }
 

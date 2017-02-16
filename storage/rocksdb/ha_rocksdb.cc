@@ -2933,10 +2933,10 @@ static inline void rocksdb_register_tx(handlerton *const hton, THD *const thd,
                                        Rdb_transaction *const tx) {
   DBUG_ASSERT(tx != nullptr);
 
-  trans_register_ha(thd, FALSE, rocksdb_hton);
+  trans_register_ha(thd, FALSE, rocksdb_hton, NULL); // TODO: PFS
   if (my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
     tx->start_stmt();
-    trans_register_ha(thd, TRUE, rocksdb_hton);
+    trans_register_ha(thd, TRUE, rocksdb_hton, NULL); // TODO: PFS
   }
 }
 

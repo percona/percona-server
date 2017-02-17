@@ -1,3 +1,5 @@
+--source include/have_rocksdb.inc
+
 CREATE TABLE `r1.lol` (
   `c1` int(10) NOT NULL DEFAULT '0',
   `c2` int(11) NOT NULL DEFAULT '0',
@@ -24,4 +26,3 @@ CREATE TABLE `r1.lol` (
 
 DROP INDEX i1 ON `r1.lol`;
 DROP TABLE `r1.lol`;
-

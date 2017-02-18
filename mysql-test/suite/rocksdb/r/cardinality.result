@@ -31,6 +31,7 @@ SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema 
 table_name	table_rows
 t1	100000
 restarting...
+# restart
 show index in t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	id	A	100000	NULL	NULL		LSMTREE		

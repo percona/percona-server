@@ -889,7 +889,6 @@ void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
   mysql_mutex_assert_owner(&LOCK_thread_count);
-  DBUG_ASSERT(!shutdown_in_progress);
   const bool have_thread=
     global_thread_list->find(thd) != global_thread_list->end();
   if (!have_thread)

@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let file= $MYSQL_TMP_DIR/cf_configs.cnf;
@@ -18,6 +18,7 @@ insert into t3 values (2);
 
 # restart with new column families in DB
 
+--let $restart_parameters=
 --source include/restart_mysqld.inc
 
 # check column family options in log -- should be all default settings
@@ -34,8 +35,9 @@ select cf_name, option_type, value
 # restart with cf configs for cf1 and cf2
 
 --exec echo "" > $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $_mysqld_option=--rocksdb_override_cf_options=cf1={write_buffer_size=8m;target_file_size_base=2m};cf2={write_buffer_size=16m;max_bytes_for_level_multiplier=8};z={target_file_size_base=4m};
---source include/restart_mysqld_with_option.inc
+--let $restart_parameters=restart:--rocksdb_override_cf_options=cf1={write_buffer_size=8m;target_file_size_base=2m};cf2={write_buffer_size=16m;max_bytes_for_level_multiplier=8};z={target_file_size_base=4m};
+--source include/restart_mysqld.inc
+
 
 # check column family options in log -- should reflect individual settings
 
@@ -69,6 +71,7 @@ select cf_name, option_type, value
 
 # clean up
 
+--let $restart_parameters=
 --source include/restart_mysqld.inc
 
 --echo

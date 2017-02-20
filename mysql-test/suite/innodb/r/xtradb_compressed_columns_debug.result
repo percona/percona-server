@@ -15,3 +15,23 @@ abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcab
 DROP TABLE t1;
 SET GLOBAL innodb_file_format = @old_innodb_file_format;
 SET GLOBAL innodb_compressed_columns_zip_level = @old_innodb_compressed_columns_zip_level;
+SET @dict_data = REPEAT('a', 16384);
+CREATE COMPRESSION_DICTIONARY d1(@dict_data);
+SET SESSION debug = "+d,btr_store_big_rec_extern";
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+ERROR HY000: The table 'SYS_ZIP_DICT' is full
+SET SESSION debug = "-d,btr_store_big_rec_extern";
+SET debug = '+d,ib_create_table_fail_too_many_trx';
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Too many active concurrent transactions
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+ERROR HY000: Too many active concurrent transactions
+SET debug = '-d,ib_create_table_fail_too_many_trx';
+SET debug = '+d,simulate_out_of_memory';
+DROP COMPRESSION_DICTIONARY d1;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET debug = '+d,simulate_out_of_memory';
+CREATE COMPRESSION_DICTIONARY d2(@dict_data);
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET debug = '-d,simulate_out_of_memory';
+DROP COMPRESSION_DICTIONARY d1;

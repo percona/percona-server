@@ -214,5 +214,5 @@ where table_schema=database() and table_name='t1' and stat_type='INTERNAL_KEY_SK
 # The following must be =1, or in any case not 999:
 select @count_diff as "INTERNAL_KEY_SKIPPED_COUNT increment";
 INTERNAL_KEY_SKIPPED_COUNT increment
-0
+1
 drop table t0,t1;

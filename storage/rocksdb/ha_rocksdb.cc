@@ -84,6 +84,10 @@ namespace myrocks {
 static st_global_stats global_stats;
 static st_export_stats export_stats;
 
+const std::string DEFAULT_CF_NAME("default");
+const std::string DEFAULT_SYSTEM_CF_NAME("__system__");
+const std::string PER_INDEX_CF_NAME("$per_index_cf");
+
 /**
   Updates row counters based on the table type and operation type.
 */
@@ -103,7 +107,7 @@ static handler *rocksdb_create_handler(my_core::handlerton *hton,
 
 bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
                           const rocksdb::Slice &eq_cond,
-                          const bool use_all_keys, bool is_ascending);
+                          const bool use_all_keys);
 
 ///////////////////////////////////////////////////////////
 // Parameters and settings
@@ -165,8 +169,7 @@ static int rocksdb_compact_column_family(THD *const thd,
   DBUG_ASSERT(value != nullptr);
 
   if (const char *const cf = value->val_str(value, buff, &len)) {
-    bool is_automatic;
-    auto cfh = cf_manager.get_cf(cf, "", nullptr, &is_automatic);
+    auto cfh = cf_manager.get_cf(cf);
     if (cfh != nullptr && rdb != nullptr) {
       sql_print_information("RocksDB: Manual compaction of column family: %s\n",
                             cf);
@@ -353,7 +356,7 @@ static unsigned long long // NOLINT(runtime/int)
     rocksdb_rate_limiter_bytes_per_sec;
 static unsigned long long rocksdb_delayed_write_rate;
 static unsigned long // NOLINT(runtime/int)
-    rocksdb_persistent_cache_size;
+    rocksdb_persistent_cache_size_mb;
 static uint64_t rocksdb_info_log_level;
 static char *rocksdb_wal_dir;
 static char *rocksdb_persistent_cache_path;
@@ -666,10 +669,10 @@ static MYSQL_SYSVAR_STR(
     nullptr, "");
 
 static MYSQL_SYSVAR_ULONG(
-    persistent_cache_size, rocksdb_persistent_cache_size,
+    persistent_cache_size_mb, rocksdb_persistent_cache_size_mb,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "Size of cache for BlockBasedTableOptions::persistent_cache for RocksDB",
-    nullptr, nullptr, rocksdb_persistent_cache_size,
+    "Size of cache in MB for BlockBasedTableOptions::persistent_cache "
+    "for RocksDB", nullptr, nullptr, rocksdb_persistent_cache_size_mb,
     /* min */ 0L, /* max */ ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(
@@ -1184,7 +1187,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(use_fsync),
     MYSQL_SYSVAR(wal_dir),
     MYSQL_SYSVAR(persistent_cache_path),
-    MYSQL_SYSVAR(persistent_cache_size),
+    MYSQL_SYSVAR(persistent_cache_size_mb),
     MYSQL_SYSVAR(delete_obsolete_files_period_micros),
     MYSQL_SYSVAR(base_background_compactions),
     MYSQL_SYSVAR(max_background_compactions),
@@ -2794,16 +2797,10 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
 
     /* Per column family stats */
     for (const auto &cf_name : cf_manager.get_cf_names()) {
-      rocksdb::ColumnFamilyHandle *cfh;
-      bool is_automatic;
-
-      /*
-        Only the cf name is important. Whether it was generated automatically
-        does not matter, so is_automatic is ignored.
-      */
-      cfh = cf_manager.get_cf(cf_name.c_str(), "", nullptr, &is_automatic);
-      if (cfh == nullptr)
+      rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
+      if (cfh == nullptr) {
         continue;
+      }
 
       if (!rdb->GetProperty(cfh, "rocksdb.cfstats", &str))
         continue;
@@ -3159,14 +3156,15 @@ static int rocksdb_init_func(void *const p) {
     RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
   }
 
-  if (rocksdb_persistent_cache_size > 0) {
+  if (rocksdb_persistent_cache_size_mb > 0) {
     std::shared_ptr<rocksdb::PersistentCache> pcache;
+    uint64_t cache_size_bytes= rocksdb_persistent_cache_size_mb * 1024 * 1024;
     rocksdb::NewPersistentCache(
         rocksdb::Env::Default(), std::string(rocksdb_persistent_cache_path),
-        rocksdb_persistent_cache_size, myrocks_logger, true, &pcache);
+        cache_size_bytes, myrocks_logger, true, &pcache);
     rocksdb_tbl_options.persistent_cache = pcache;
   } else if (strlen(rocksdb_persistent_cache_path)) {
-    sql_print_error("RocksDB: Must specify rocksdb_persistent_cache_size");
+    sql_print_error("RocksDB: Must specify rocksdb_persistent_cache_size_mb");
     DBUG_RETURN(1);
   }
 
@@ -3407,6 +3405,16 @@ static int rocksdb_done_func(void *const p) {
 #endif /* HAVE_purify */
 
   DBUG_RETURN(error);
+}
+
+static inline void rocksdb_smart_seek(bool seek_backward,
+                                      rocksdb::Iterator *const iter,
+                                      const rocksdb::Slice &key_slice) {
+  if (seek_backward) {
+    iter->SeekForPrev(key_slice);
+  } else {
+    iter->Seek(key_slice);
+  }
 }
 
 /**
@@ -4630,7 +4638,7 @@ int ha_rocksdb::create_key_defs(
   */
   if (create_cfs(table_arg, tbl_def_arg, &cfs)) {
     DBUG_RETURN(HA_EXIT_FAILURE);
-  };
+  }
 
   if (!old_tbl_def_arg) {
     /*
@@ -4684,6 +4692,7 @@ int ha_rocksdb::create_cfs(
 
   DBUG_ASSERT(table_arg != nullptr);
   DBUG_ASSERT(table_arg->s != nullptr);
+  DBUG_ASSERT(tbl_def_arg != nullptr);
 
   char tablename_sys[NAME_LEN + 1];
 
@@ -4723,35 +4732,37 @@ int ha_rocksdb::create_cfs(
       }
     }
 
-    /*
-      index comment has Column Family name. If there was no comment, we get
-      NULL, and it means use the default column family.
-    */
-    const char *const comment = get_key_comment(i, table_arg, tbl_def_arg);
-    const char *const key_name = get_key_name(i, table_arg, tbl_def_arg);
+    // Internal consistency check to make sure that data in TABLE and
+    // Rdb_tbl_def structures matches. Either both are missing or both are
+    // specified. Yes, this is critical enough to make it into SHIP_ASSERT.
+    SHIP_ASSERT(!table_arg->part_info == tbl_def_arg->base_partition().empty());
 
-    if (looks_like_per_index_cf_typo(comment)) {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-               "column family name looks like a typo of $per_index_cf");
-      DBUG_RETURN(HA_EXIT_FAILURE);
-    }
-    /* Prevent create from using the system column family */
-    if (comment && strcmp(DEFAULT_SYSTEM_CF_NAME, comment) == 0) {
+    // Generate the name for the column family to use.
+    bool per_part_match_found = false;
+    std::string cf_name = generate_cf_name(i, table_arg, tbl_def_arg,
+      &per_part_match_found);
+
+    // Prevent create from using the system column family.
+    if (cf_name == DEFAULT_SYSTEM_CF_NAME) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0),
-               "column family not valid for storing index data");
+               "column family not valid for storing index data.");
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
-    bool is_auto_cf_flag;
-    cf_handle =
-        cf_manager.get_or_create_cf(rdb, comment, tbl_def_arg->full_tablename(),
-                                    key_name, &is_auto_cf_flag);
-    if (!cf_handle)
+
+    // Here's how `get_or_create_cf` will use the input parameters:
+    //
+    // `cf_name` - will be used as a CF name.
+    cf_handle = cf_manager.get_or_create_cf(rdb, cf_name);
+
+    if (!cf_handle) {
       DBUG_RETURN(HA_EXIT_FAILURE);
+    }
 
     auto &cf = (*cfs)[i];
+
     cf.cf_handle = cf_handle;
-    cf.is_reverse_cf = Rdb_cf_manager::is_cf_name_reverse(comment);
-    cf.is_auto_cf = is_auto_cf_flag;
+    cf.is_reverse_cf = Rdb_cf_manager::is_cf_name_reverse(cf_name.c_str());
+    cf.is_per_partition_cf = per_part_match_found;
   }
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
@@ -4820,8 +4831,9 @@ int ha_rocksdb::create_inplace_key_defs(
       */
       new_key_descr[i] = std::make_shared<Rdb_key_def>(
           okd.get_index_number(), i, okd.get_cf(), index_dict_version,
-          index_type, kv_version, okd.m_is_reverse_cf, okd.m_is_auto_cf,
-          okd.m_name.c_str(), dict_manager.get_stats(gl_index_id));
+          index_type, kv_version, okd.m_is_reverse_cf,
+          okd.m_is_per_partition_cf, okd.m_name.c_str(),
+          dict_manager.get_stats(gl_index_id));
     } else if (create_key_def(table_arg, i, tbl_def_arg, &new_key_descr[i],
                               cfs[i])) {
       DBUG_RETURN(HA_EXIT_FAILURE);
@@ -4957,7 +4969,8 @@ int ha_rocksdb::create_key_def(const TABLE *const table_arg, const uint &i,
   const char *const key_name = get_key_name(i, table_arg, m_tbl_def);
   *new_key_def = std::make_shared<Rdb_key_def>(
       index_id, i, cf_info.cf_handle, index_dict_version, index_type,
-      kv_version, cf_info.is_reverse_cf, cf_info.is_auto_cf, key_name);
+      kv_version, cf_info.is_reverse_cf, cf_info.is_per_partition_cf,
+      key_name);
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -5166,20 +5179,6 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
     DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
   }
 
-  /*
-    TODO(alexyang): Temporarily disable unique indexes support when there is no
-    Primary Key
-  */
-  for (uint keyno = 0; keyno < table_arg->s->keys; keyno++) {
-    if ((table_arg->key_info[keyno].flags & HA_NOSAME) &&
-        has_hidden_pk(table_arg)) {
-      my_printf_error(ER_UNKNOWN_ERROR, "Unique index support is disabled when "
-                                        "the table has no primary key. ",
-                      MYF(0));
-      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-    }
-  }
-
   bool write_err = false;
   const std::unique_ptr<rocksdb::WriteBatch> wb = dict_manager.begin();
   rocksdb::WriteBatch *const batch = wb.get();
@@ -5296,15 +5295,7 @@ int ha_rocksdb::read_key_exact(const Rdb_key_def &kd,
       index_tuple= lookup_tuple.
     lookup_tuple may be a prefix of the index.
   */
-  if (kd.m_is_reverse_cf) {
-    if (!full_key_match) {
-      if (!iter->Valid())
-        iter->SeekToLast();
-      else
-        iter->Prev();
-    }
-  }
-
+  rocksdb_smart_seek(kd.m_is_reverse_cf, iter, key_slice);
   if (!iter->Valid() || !kd.value_matches_prefix(iter->key(), key_slice)) {
     /*
       Got a record that is not equal to the lookup value, or even a record
@@ -5322,24 +5313,20 @@ int ha_rocksdb::read_before_key(const Rdb_key_def &kd,
     We are looking for record with the biggest t.key such that
     t.key < lookup_tuple.
   */
-  if (kd.m_is_reverse_cf) {
-    if (m_scan_it->Valid() && full_key_match &&
-        kd.value_matches_prefix(m_scan_it->key(), key_slice)) {
-      /* We are using full key and we've hit an exact match */
+  rocksdb_smart_seek(!kd.m_is_reverse_cf, m_scan_it, key_slice);
+  if (m_scan_it->Valid() && full_key_match &&
+      kd.value_matches_prefix(m_scan_it->key(), key_slice)) {
+    /* We are using full key and we've hit an exact match */
+    if (kd.m_is_reverse_cf) {
       m_scan_it->Next();
-    }
-  } else {
-    if (m_scan_it->Valid())
+    } else {
       m_scan_it->Prev();
-    else
-      m_scan_it->SeekToLast();
+    }
   }
-
   return m_scan_it->Valid() ? HA_EXIT_SUCCESS : HA_ERR_KEY_NOT_FOUND;
 }
 
 int ha_rocksdb::read_after_key(const Rdb_key_def &kd,
-                               const bool &full_key_match,
                                const rocksdb::Slice &key_slice) {
   /*
     We are looking for the first record such that
@@ -5349,22 +5336,7 @@ int ha_rocksdb::read_after_key(const Rdb_key_def &kd,
     with HA_READ_AFTER_KEY, $GT = '>',
     with HA_READ_KEY_OR_NEXT, $GT = '>='
   */
-  if (kd.m_is_reverse_cf) {
-    if (!m_scan_it->Valid()) {
-      m_scan_it->SeekToLast();
-    } else {
-      /*
-        We should step back
-         - when not using full extended key
-         - when using full extended key and when we've got an exact match
-      */
-      if (!full_key_match ||
-          !kd.value_matches_prefix(m_scan_it->key(), key_slice)) {
-        m_scan_it->Prev();
-      }
-    }
-  }
-
+  rocksdb_smart_seek(kd.m_is_reverse_cf, m_scan_it, key_slice);
   return m_scan_it->Valid() ? HA_EXIT_SUCCESS : HA_ERR_KEY_NOT_FOUND;
 }
 
@@ -5393,7 +5365,7 @@ int ha_rocksdb::position_to_correct_key(const Rdb_key_def &kd,
     break;
   case HA_READ_AFTER_KEY:
   case HA_READ_KEY_OR_NEXT:
-    rc = read_after_key(kd, full_key_match, key_slice);
+    rc = read_after_key(kd, key_slice);
     if (rc == 0 && !kd.covers_key(m_scan_it->key())) {
       /* The record we've got is not from this index */
       rc = HA_ERR_KEY_NOT_FOUND;
@@ -5828,8 +5800,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
       This will open the iterator and position it at a record that's equal or
       greater than the lookup tuple.
     */
-    setup_scan_iterator(kd, &slice, use_all_keys, is_ascending(kd, find_flag),
-                        eq_cond_len);
+    setup_scan_iterator(kd, &slice, use_all_keys, eq_cond_len);
 
     /*
       Once we are positioned on from above, move to the position we really
@@ -6396,8 +6367,8 @@ int ha_rocksdb::index_first_intern(uchar *const buf) {
   // Loop as long as we get a deadlock error AND we end up creating the
   // snapshot here (i.e. it did not exist prior to this)
   for (;;) {
-    setup_scan_iterator(kd, &index_key, false, !kd.m_is_reverse_cf,
-                        Rdb_key_def::INDEX_NUMBER_SIZE);
+    setup_scan_iterator(kd, &index_key, false, Rdb_key_def::INDEX_NUMBER_SIZE);
+    m_scan_it->Seek(index_key);
     m_skip_scan_it_next_call = true;
 
     rc = index_next_with_direction(buf, true);
@@ -6429,13 +6400,13 @@ int ha_rocksdb::index_first_intern(uchar *const buf) {
      (n+1)      <---- Doesn't exist, but would be here.
      (n+1)-smth, or no value at all
 
-   RocksDB's Iterator::Seek($val) seeks to "at $val or first value that's
-   greater". We can't see to "(n)-ccc" directly, because we don't know what
+   RocksDB's Iterator::SeekForPrev($val) seeks to "at $val or last value that's
+   smaller". We can't seek to "(n)-ccc" directly, because we don't know what
    is the value of 'ccc' (the biggest record with prefix (n)). Instead, we seek
    to "(n+1)", which is the least possible value that's greater than any value
-   in index #n. Then we step one record back.
+   in index #n.
 
-   So, need to:  it->Seek(n+1) || it->SeekToLast(); it->Prev();
+   So, need to:  it->SeekForPrev(n+1)
 
    A backward-ordered keyspace:
 
@@ -6446,7 +6417,7 @@ int ha_rocksdb::index_first_intern(uchar *const buf) {
       ( n ) <--- Doesn't exist, but would be here.
       (n-1)-smth, or no value at all
 
-   So, need to:  it->Seek(n) || it->SeekToLast(); it->Prev();
+   So, need to:  it->SeekForPrev(n)
 */
 
 int ha_rocksdb::index_last_intern(uchar *const buf) {
@@ -6482,23 +6453,8 @@ int ha_rocksdb::index_last_intern(uchar *const buf) {
   // Loop as long as we get a deadlock error AND we end up creating the
   // snapshot here (i.e. it did not exist prior to this)
   for (;;) {
-    setup_scan_iterator(kd, &index_key, false, kd.m_is_reverse_cf,
-                        Rdb_key_def::INDEX_NUMBER_SIZE);
-
-    if (!m_scan_it->Valid()) {
-      /*
-        RocksDB keyspace has no records that follow our index. It could be, our
-        index is the last in the keyspace. Navigate to last record in the
-        keyspace.
-      */
-      m_scan_it->SeekToLast();
-    } else {
-      /*
-        Iterator is pointing at some record right after the end of the index.
-        Move one record back.
-      */
-      m_scan_it->Prev();
-    }
+    setup_scan_iterator(kd, &index_key, false, Rdb_key_def::INDEX_NUMBER_SIZE);
+    m_scan_it->SeekForPrev(index_key);
     m_skip_scan_it_next_call = false;
 
     if (is_pk(active_index, table, m_tbl_def)) {
@@ -6624,14 +6580,30 @@ bool ha_rocksdb::is_pk(const uint index, const TABLE *const table_arg,
          is_hidden_pk(index, table_arg, tbl_def_arg);
 }
 
+/*
+  Formats the string and returns the column family name assignment part for a
+  specific partition.
+*/
+const std::string ha_rocksdb::gen_cf_name_qualifier_for_partition(
+        const std::string& prefix) {
+  DBUG_ASSERT(!prefix.empty());
+
+  return prefix + RDB_PER_PARTITION_QUALIFIER_NAME_SEP + RDB_CF_NAME_QUALIFIER
+    + RDB_PER_PARTITION_QUALIFIER_VALUE_SEP;
+}
+
 const char *ha_rocksdb::get_key_name(const uint index,
                                      const TABLE *const table_arg,
                                      const Rdb_tbl_def *const tbl_def_arg) {
   DBUG_ASSERT(table_arg != nullptr);
+  DBUG_ASSERT(tbl_def_arg != nullptr);
 
   if (is_hidden_pk(index, table_arg, tbl_def_arg)) {
     return HIDDEN_PK_NAME;
   }
+
+  DBUG_ASSERT(table_arg->key_info != nullptr);
+  DBUG_ASSERT(table_arg->key_info[index].name != nullptr);
 
   return table_arg->key_info[index].name;
 }
@@ -6640,12 +6612,82 @@ const char *ha_rocksdb::get_key_comment(const uint index,
                                         const TABLE *const table_arg,
                                         const Rdb_tbl_def *const tbl_def_arg) {
   DBUG_ASSERT(table_arg != nullptr);
+  DBUG_ASSERT(tbl_def_arg != nullptr);
 
   if (is_hidden_pk(index, table_arg, tbl_def_arg)) {
     return nullptr;
   }
 
+  DBUG_ASSERT(table_arg->key_info != nullptr);
+
   return table_arg->key_info[index].comment.str;
+}
+
+const std::string ha_rocksdb::generate_cf_name(const uint index,
+                                        const TABLE *const table_arg,
+                                        const Rdb_tbl_def *const tbl_def_arg,
+                                        bool  *per_part_match_found) {
+  DBUG_ASSERT(table_arg != nullptr);
+  DBUG_ASSERT(tbl_def_arg != nullptr);
+  DBUG_ASSERT(per_part_match_found != nullptr);
+
+  // When creating CF-s the caller needs to know if there was a custom CF name
+  // specified for a given paritition.
+  *per_part_match_found = false;
+
+  // Index comment is used to define the column family name specification(s).
+  // If there was no comment, we get an emptry string, and it means "use the
+  // default column family".
+  const char *const comment = get_key_comment(index, table_arg, tbl_def_arg);
+
+  // `get_key_comment` can return `nullptr`, that's why this.
+  std::string key_comment = comment ? comment : "";
+
+  // If table has partitions then we need to check if user has requested to
+  // create a column family with a specific name on a per partition basis.
+  if (table_arg->part_info != nullptr) {
+    std::string partition_name = tbl_def_arg->base_partition();
+    DBUG_ASSERT(!partition_name.empty());
+
+    // Let's fetch the comment for a index and check if there's a custom key
+    // name specified for a partition we are handling.
+    std::vector<std::string> v = myrocks::parse_into_tokens(key_comment,
+                                                   RDB_QUALIFIER_SEP);
+    std::string part_to_search = gen_cf_name_qualifier_for_partition(
+      partition_name);
+    DBUG_ASSERT(!part_to_search.empty());
+
+    // Basic O(N) search for a matching assignment. At most we expect maybe
+    // ten or so elements here.
+    for (const auto &it : v) {
+      if (it.substr(0, part_to_search.length()) == part_to_search) {
+        // We found a prefix match. Try to parse it as an assignment.
+        std::vector<std::string> tokens = myrocks::parse_into_tokens(it,
+          RDB_PER_PARTITION_QUALIFIER_VALUE_SEP);
+
+        // We found a custom name, it was in the form we expected it to be.
+        // Return that instead of whatever we initially wanted to return. In
+        // a case below the `foo` part will be returned to the caller.
+        //
+        // p3_cfname=foo
+        //
+        // If no value was specified then we'll return an empty string which
+        // later gets translated into using a default CF.
+        if (tokens.size() == 2) {
+          *per_part_match_found = true;
+          return tokens[1];
+        } else {
+          return "";
+        }
+      }
+    }
+
+    // At this point we tried to search for a custom CF name for a partition,
+    // but none was specified. Therefore default one will be used.
+    return "";
+  }
+
+  return key_comment;
 }
 
 int ha_rocksdb::write_row(uchar *const buf) {
@@ -6843,8 +6885,8 @@ int ha_rocksdb::check_and_lock_sk(const uint &key_id,
   */
   if (row_info.old_data != nullptr) {
     size = kd.pack_record(table, m_pack_buffer, row_info.old_data,
-                          m_sk_packed_tuple_old, nullptr, false,
-                          row_info.hidden_pk_id, user_defined_key_parts);
+                          m_sk_packed_tuple_old, nullptr, false, 0,
+                          user_defined_key_parts);
     const rocksdb::Slice old_slice =
         rocksdb::Slice((const char *)m_sk_packed_tuple_old, size);
 
@@ -6882,8 +6924,7 @@ int ha_rocksdb::check_and_lock_sk(const uint &key_id,
     The bloom filter may need to be disabled for this lookup.
   */
   const bool total_order_seek = !can_use_bloom_filter(
-      ha_thd(), kd, new_slice, all_parts_used,
-      is_ascending(*m_key_descr_arr[key_id], HA_READ_KEY_EXACT));
+      ha_thd(), kd, new_slice, all_parts_used);
   const bool fill_cache = !THDVAR(ha_thd(), skip_fill_cache);
 
   /*
@@ -7259,13 +7300,12 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
 }
 
 /*
-  Open a cursor and position it at the passed record
+  Open a cursor
 */
 
 void ha_rocksdb::setup_scan_iterator(const Rdb_key_def &kd,
                                      rocksdb::Slice *const slice,
                                      const bool use_all_keys,
-                                     const bool is_ascending,
                                      const uint eq_cond_len) {
   DBUG_ASSERT(slice != nullptr);
   DBUG_ASSERT(slice->size() >= eq_cond_len);
@@ -7275,7 +7315,7 @@ void ha_rocksdb::setup_scan_iterator(const Rdb_key_def &kd,
   bool skip_bloom = true;
 
   const rocksdb::Slice eq_cond(slice->data(), eq_cond_len);
-  if (can_use_bloom_filter(ha_thd(), kd, eq_cond, use_all_keys, is_ascending)) {
+  if (can_use_bloom_filter(ha_thd(), kd, eq_cond, use_all_keys)) {
     skip_bloom = false;
   }
 
@@ -7319,12 +7359,6 @@ void ha_rocksdb::setup_scan_iterator(const Rdb_key_def &kd,
     }
     m_scan_it_skips_bloom = skip_bloom;
   }
-  /*
-    Seek() will "Position at the first key in the source that at or past
-    target".
-    The operation cannot fail.
-  */
-  m_scan_it->Seek(*slice);
 }
 
 void ha_rocksdb::release_scan_iterator() {
@@ -7348,6 +7382,7 @@ void ha_rocksdb::setup_iterator_for_rnd_scan() {
   rocksdb::Slice table_key((const char *)m_pk_packed_tuple, key_size);
 
   setup_scan_iterator(*m_pk_descr, &table_key);
+  m_scan_it->Seek(table_key);
   m_skip_scan_it_next_call = true;
 }
 
@@ -8115,14 +8150,7 @@ static bool is_myrocks_index_empty(
   const rocksdb::Slice key =
     rocksdb::Slice(reinterpret_cast<char *>(key_buf), sizeof(key_buf));
   std::unique_ptr<rocksdb::Iterator> it(rdb->NewIterator(read_opts, cfh));
-  it->Seek(key);
-  if (is_reverse_cf) {
-    if (!it->Valid()) {
-      it->SeekToLast();
-    } else {
-      it->Prev();
-    }
-  }
+  rocksdb_smart_seek(is_reverse_cf, it.get(), key);
   if (!it->Valid()) {
     index_removed = true;
   } else {
@@ -8341,32 +8369,6 @@ int ha_rocksdb::rename_table(const char *const from, const char *const to) {
   // 'to' database exists.
   if (from_db != to_db && !rdb_database_exists(to_db)) {
     DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-  }
-
-  /* Check if any index has a per-index column family */
-  {
-    /*
-      We can't check this directly, because
-      1. the object that referred to the old table has been close()d.
-      2. this ha_rocksdb object has no connection to any table at all, it has
-         been just created with (TABLE*)nullptr.
-
-      So, we have to find the old table in the ddl_manager (it's there because
-      it has been opened by this statement), and check is_auto_cf there.
-    */
-    Rdb_tbl_def *tdef;
-    if (!(tdef = ddl_manager.find(from_str)))
-      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-
-    for (uint i = 0; i < tdef->m_key_count; i++) {
-      DBUG_ASSERT(tdef->m_key_descr_arr != nullptr);
-
-      if (tdef->m_key_descr_arr[i]->m_is_auto_cf) {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-                 "ALTER TABLE on table with per-index CF");
-        DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
-      }
-    }
   }
 
   const std::unique_ptr<rocksdb::WriteBatch> wb = dict_manager.begin();
@@ -8810,47 +8812,6 @@ enum icp_result ha_rocksdb::check_index_cond() const {
   }
 
   return pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
-}
-
-/**
-  Checking if an index is used for ascending scan or not
-
-  @detail
-  Currently RocksDB does not support bloom filter for
-  prefix lookup + descending scan, but supports bloom filter for
-  prefix lookup + ascending scan. This function returns true if
-  the scan pattern is absolutely ascending.
-  @param kd
-  @param find_flag
-*/
-bool ha_rocksdb::is_ascending(const Rdb_key_def &kd,
-                              enum ha_rkey_function find_flag) const {
-  bool is_ascending;
-  switch (find_flag) {
-  case HA_READ_KEY_EXACT: {
-    is_ascending = !kd.m_is_reverse_cf;
-    break;
-  }
-  case HA_READ_PREFIX: {
-    is_ascending = true;
-    break;
-  }
-  case HA_READ_KEY_OR_NEXT:
-  case HA_READ_AFTER_KEY: {
-    is_ascending = !kd.m_is_reverse_cf;
-    break;
-  }
-  case HA_READ_KEY_OR_PREV:
-  case HA_READ_BEFORE_KEY:
-  case HA_READ_PREFIX_LAST:
-  case HA_READ_PREFIX_LAST_OR_PREV: {
-    is_ascending = kd.m_is_reverse_cf;
-    break;
-  }
-  default:
-    is_ascending = false;
-  }
-  return is_ascending;
 }
 
 /*
@@ -9778,7 +9739,7 @@ void Rdb_background_thread::run() {
 */
 bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
                           const rocksdb::Slice &eq_cond,
-                          const bool use_all_keys, bool is_ascending) {
+                          const bool use_all_keys) {
   bool can_use = false;
 
   if (THDVAR(thd, skip_bloom_filter_on_read)) {
@@ -9805,11 +9766,8 @@ bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
       shorter require all parts of the key to be available
       for the short key match.
     */
-    if (use_all_keys && prefix_extractor->InRange(eq_cond))
-      can_use = true;
-    else if (!is_ascending)
-      can_use = false;
-    else if (prefix_extractor->SameResultWhenAppended(eq_cond))
+    if ((use_all_keys && prefix_extractor->InRange(eq_cond))
+        || prefix_extractor->SameResultWhenAppended(eq_cond))
       can_use = true;
     else
       can_use = false;

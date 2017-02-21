@@ -97,12 +97,12 @@ std::vector<Rdb_trx_info> rdb_get_all_trx_info();
   - the name used to set the default column family parameter for per-cf
     arguments.
 */
-const char *const DEFAULT_CF_NAME = "default";
+extern const std::string DEFAULT_CF_NAME;
 
 /*
   This is the name of the Column Family used for storing the data dictionary.
 */
-const char *const DEFAULT_SYSTEM_CF_NAME = "__system__";
+extern const std::string DEFAULT_SYSTEM_CF_NAME;
 
 /*
   This is the name of the hidden primary key for tables with no pk.
@@ -111,9 +111,9 @@ const char *const HIDDEN_PK_NAME = "HIDDEN_PK_ID";
 
 /*
   Column family name which means "put this index into its own column family".
-  See Rdb_cf_manager::get_per_index_cf_name().
+  DEPRECATED!!!
 */
-const char *const PER_INDEX_CF_NAME = "$per_index_cf";
+extern const std::string PER_INDEX_CF_NAME;
 
 /*
   Name for the background thread.
@@ -124,6 +124,34 @@ const char *const BG_THREAD_NAME = "myrocks-bg";
   Name for the drop index thread.
 */
 const char *const INDEX_THREAD_NAME = "myrocks-index";
+
+/*
+  Separator between partition name and the qualifier. Sample usage:
+
+  - p0_cfname=foo
+  - p3_tts_col=bar
+*/
+constexpr char RDB_PER_PARTITION_QUALIFIER_NAME_SEP = '_';
+
+/*
+  Separator between qualifier name and value. Sample usage:
+
+  - p0_cfname=foo
+  - p3_tts_col=bar
+*/
+constexpr char RDB_PER_PARTITION_QUALIFIER_VALUE_SEP = '=';
+
+/*
+  Separator between multiple qualifier assignments. Sample usage:
+
+  - p0_cfname=foo;p1_cfname=bar;p2_cfname=baz
+*/
+constexpr char RDB_QUALIFIER_SEP = ';';
+
+/*
+  Qualifier name for a custom per partition column family.
+*/
+const char *const RDB_CF_NAME_QUALIFIER = "cfname";
 
 /*
   Default, minimal valid, and maximum valid sampling rate values when collecting
@@ -199,10 +227,6 @@ const char *const INDEX_THREAD_NAME = "myrocks-index";
 #define HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED (HA_ERR_LAST + 4)
 #define HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED (HA_ERR_LAST + 5)
 #define HA_ERR_ROCKSDB_LAST HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED
-
-inline bool looks_like_per_index_cf_typo(const char *const name) {
-  return (name && name[0] == '$' && strcmp(name, PER_INDEX_CF_NAME));
-}
 
 /**
   @brief
@@ -458,14 +482,14 @@ class ha_rocksdb : public my_core::handler {
   void setup_iterator_for_rnd_scan();
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *const slice)
       MY_ATTRIBUTE((__nonnull__)) {
-    setup_scan_iterator(kd, slice, false, false, 0);
+    setup_scan_iterator(kd, slice, false, 0);
   }
   bool is_ascending(const Rdb_key_def &keydef,
                     enum ha_rkey_function find_flag) const
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *slice,
-                           const bool use_all_keys, const bool is_ascending,
-                           const uint eq_cond_len) MY_ATTRIBUTE((__nonnull__));
+                           const bool use_all_keys, const uint eq_cond_len)
+      MY_ATTRIBUTE((__nonnull__));
   void release_scan_iterator(void);
 
   rocksdb::Status
@@ -667,20 +691,18 @@ public:
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_blob_from_storage_format(my_core::Field_blob *const blob,
-                                       Rdb_string_reader *const   reader,
-                                       bool                       decode)
+                                       Rdb_string_reader *const reader,
+                                       bool decode)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_varchar_from_storage_format(
-                                my_core::Field_varstring *const field_var,
-                                Rdb_string_reader *const        reader,
-                                bool                            decode)
+      my_core::Field_varstring *const field_var,
+      Rdb_string_reader *const reader, bool decode)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
-  int convert_field_from_storage_format(my_core::Field *const    field,
+  int convert_field_from_storage_format(my_core::Field *const field,
                                         Rdb_string_reader *const reader,
-                                        bool                     decode,
-                                        uint                     len)
+                                        bool decode, uint len)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
@@ -696,6 +718,17 @@ public:
                                         Rdb_string_writer *const pk_unpack_info,
                                         rocksdb::Slice *const packed_rec)
       MY_ATTRIBUTE((__nonnull__));
+
+  static const std::string gen_cf_name_qualifier_for_partition(
+    const std::string &s);
+
+  static const std::vector<std::string> parse_into_tokens(const std::string &s,
+                                                          const char delim);
+
+  static const std::string generate_cf_name(const uint index,
+    const TABLE *const table_arg,
+    const Rdb_tbl_def *const tbl_def_arg,
+    bool *per_part_match_found);
 
   static const char *get_key_name(const uint index,
                                   const TABLE *const table_arg,
@@ -718,7 +751,6 @@ public:
   static bool is_pk(const uint index, const TABLE *table_arg,
                     const Rdb_tbl_def *tbl_def_arg)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-
   /** @brief
     unireg.cc will call max_supported_record_length(), max_supported_keys(),
     max_supported_key_parts(), uint max_supported_key_length()
@@ -842,7 +874,7 @@ private:
   struct key_def_cf_info {
     rocksdb::ColumnFamilyHandle *cf_handle;
     bool is_reverse_cf;
-    bool is_auto_cf;
+    bool is_per_partition_cf;
   };
 
   struct update_row_info {
@@ -962,10 +994,8 @@ private:
   int read_before_key(const Rdb_key_def &kd, const bool &using_full_key,
                       const rocksdb::Slice &key_slice)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-  int read_after_key(const Rdb_key_def &kd, const bool &using_full_key,
-                     const rocksdb::Slice &key_slice)
+  int read_after_key(const Rdb_key_def &kd, const rocksdb::Slice &key_slice)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-
   int position_to_correct_key(
       const Rdb_key_def &kd, const enum ha_rkey_function &find_flag,
       const bool &full_key_match, const uchar *const key,

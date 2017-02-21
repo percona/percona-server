@@ -52,11 +52,7 @@ class Rdb_cf_manager {
 
   mutable mysql_mutex_t m_mutex;
 
-  static void get_per_index_cf_name(const std::string &db_table_name,
-                                    const char *const index_name,
-                                    std::string *const res);
-
-  Rdb_cf_options *m_cf_options = nullptr;
+  std::unique_ptr<Rdb_cf_options> m_cf_options = nullptr;
 
 public:
   Rdb_cf_manager(const Rdb_cf_manager &) = delete;
@@ -77,18 +73,12 @@ public:
   /*
     Used by CREATE TABLE.
     - cf_name=nullptr means use default column family
-    - cf_name=_auto_ means use 'dbname.tablename.indexname'
   */
-  rocksdb::ColumnFamilyHandle *
-  get_or_create_cf(rocksdb::DB *const rdb, const char *cf_name,
-                   const std::string &db_table_name,
-                   const char *const index_name, bool *const is_automatic);
+  rocksdb::ColumnFamilyHandle *get_or_create_cf(rocksdb::DB *const rdb,
+                                                const std::string &cf_name);
 
   /* Used by table open */
-  rocksdb::ColumnFamilyHandle *get_cf(const char *cf_name,
-                                      const std::string &db_table_name,
-                                      const char *const index_name,
-                                      bool *const is_automatic) const;
+  rocksdb::ColumnFamilyHandle *get_cf(const std::string &cf_name) const;
 
   /* Look up cf by id; used by datadic */
   rocksdb::ColumnFamilyHandle *get_cf(const uint32_t &id) const;

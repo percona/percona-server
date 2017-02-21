@@ -97,16 +97,11 @@ static int rdb_i_s_cfstats_fill_table(my_core::THD *const thd,
   DBUG_ASSERT(rdb != nullptr);
 
   for (const auto &cf_name : cf_manager.get_cf_names()) {
-    rocksdb::ColumnFamilyHandle *cfh;
-    bool is_automatic;
-
-    /*
-      Only the cf name is important. Whether it was generated automatically
-      does not matter, so is_automatic is ignored.
-    */
-    cfh = cf_manager.get_cf(cf_name.c_str(), "", nullptr, &is_automatic);
-    if (cfh == nullptr)
+    DBUG_ASSERT(!cf_name.empty());
+    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
+    if (cfh == nullptr) {
       continue;
+    }
 
     for (const auto &property : cf_properties) {
       if (!rdb->GetIntProperty(cfh, property.first, &val))
@@ -820,13 +815,8 @@ static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
   DBUG_ASSERT(rdb != nullptr);
 
   for (auto cf_name : cf_manager.get_cf_names()) {
-    rocksdb::ColumnFamilyHandle *cfh;
-    bool is_automatic;
-    /*
-       Only the cf name is important. Whether it was generated automatically
-       does not matter, so is_automatic is ignored.
-    */
-    cfh = cf_manager.get_cf(cf_name.c_str(), "", nullptr, &is_automatic);
+    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
+
     if (cfh == nullptr) {
       continue;
     }

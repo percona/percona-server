@@ -19,6 +19,7 @@
 #include <chrono>
 #include <string>
 #include <regex>
+#include <vector>
 
 /* MySQL header files */
 #include "../sql/log.h"
@@ -268,6 +269,9 @@ const char *rdb_parse_id(const struct charset_info_st *const cs,
 
 const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
     MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+const std::vector<std::string> parse_into_tokens(const std::string& s,
+                                                 const char delim);
 
 /*
   Helper functions to populate strings.

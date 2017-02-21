@@ -8523,6 +8523,7 @@ int ha_rocksdb::calculate_stats(const TABLE *const table_arg, THD *const thd,
   std::unordered_map<rocksdb::ColumnFamilyHandle *, std::vector<rocksdb::Range>>
       ranges;
   std::unordered_set<GL_INDEX_ID> ids_to_check;
+  std::unordered_map<GL_INDEX_ID, uint> ids_to_keyparts;
   std::vector<uchar> buf(table_arg->s->keys * 2 *
                          Rdb_key_def::INDEX_NUMBER_SIZE);
   for (uint i = 0; i < table_arg->s->keys; i++) {
@@ -8530,6 +8531,7 @@ int ha_rocksdb::calculate_stats(const TABLE *const table_arg, THD *const thd,
     const Rdb_key_def &kd = *m_key_descr_arr[i];
     ranges[kd.get_cf()].push_back(get_range(i, bufp));
     ids_to_check.insert(kd.get_gl_index_id());
+    ids_to_keyparts[kd.get_gl_index_id()] = kd.get_key_parts();
   }
 
   // for analyze statements, force flush on memtable to get accurate cardinality
@@ -8559,6 +8561,8 @@ int ha_rocksdb::calculate_stats(const TABLE *const table_arg, THD *const thd,
     // Initialize the stats to 0. If there are no files that contain
     // this gl_index_id, then 0 should be stored for the cached stats.
     stats[it] = Rdb_index_stats(it);
+    DBUG_ASSERT(ids_to_keyparts.count(it) > 0);
+    stats[it].m_distinct_keys_per_prefix.resize(ids_to_keyparts[it]);
   }
   for (const auto &it : props) {
     std::vector<Rdb_index_stats> sst_stats;
@@ -9030,6 +9034,15 @@ int ha_rocksdb::inplace_populate_sk(
   dict_manager.add_create_index(create_index_ids, batch);
   dict_manager.commit(batch);
 
+  /*
+    Add uncommitted key definitons to ddl_manager.  We need to do this
+    so that the property collector can find this keydef when it needs to
+    update stats.  The property collector looks for the keydef in the
+    data dictionary, but it won't be there yet since this key definition
+    is still in the creation process.
+  */
+  ddl_manager.add_uncommitted_keydefs(indexes);
+
   const bool hidden_pk_exists = has_hidden_pk(table);
 
   int res = 0;
@@ -9282,6 +9295,9 @@ bool ha_rocksdb::commit_inplace_alter_table(
       delete ctx0->m_new_tdef;
     }
 
+    /* Remove uncommitted key definitons from ddl_manager */
+    ddl_manager.remove_uncommitted_keydefs(ctx0->m_added_indexes);
+
     /* Rollback any partially created indexes */
     dict_manager.rollback_ongoing_index_creation();
 
@@ -9341,6 +9357,12 @@ bool ha_rocksdb::commit_inplace_alter_table(
         */
         DBUG_ASSERT(0);
       }
+
+      /*
+        Remove uncommitted key definitons from ddl_manager, as they are now
+        committed into the data dictionary.
+      */
+      ddl_manager.remove_uncommitted_keydefs(ctx->m_added_indexes);
     }
 
     if (dict_manager.commit(batch)) {

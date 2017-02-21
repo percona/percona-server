@@ -2727,6 +2727,24 @@ void Rdb_ddl_manager::erase_index_num(const GL_INDEX_ID &gl_index_id) {
   m_index_num_to_keydef.erase(gl_index_id);
 }
 
+void Rdb_ddl_manager::add_uncommitted_keydefs(
+    const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes) {
+  mysql_rwlock_wrlock(&m_rwlock);
+  for (const auto &index : indexes) {
+    m_index_num_to_uncommitted_keydef[index->get_gl_index_id()] = index;
+  }
+  mysql_rwlock_unlock(&m_rwlock);
+}
+
+void Rdb_ddl_manager::remove_uncommitted_keydefs(
+    const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes) {
+  mysql_rwlock_wrlock(&m_rwlock);
+  for (const auto &index : indexes) {
+    m_index_num_to_uncommitted_keydef.erase(index->get_gl_index_id());
+  }
+  mysql_rwlock_unlock(&m_rwlock);
+}
+
 namespace // anonymous namespace = not visible outside this source file
 {
 struct Rdb_validate_tbls : public Rdb_tables_scanner {
@@ -3124,6 +3142,14 @@ Rdb_ddl_manager::safe_find(GL_INDEX_ID gl_index_id) {
         ret = kd;
       }
     }
+  } else {
+    auto it = m_index_num_to_uncommitted_keydef.find(gl_index_id);
+    if (it != m_index_num_to_uncommitted_keydef.end()) {
+      const auto &kd = it->second;
+      if (kd->max_storage_fmt_length() != 0) {
+        ret = kd;
+      }
+    }
   }
 
   mysql_rwlock_unlock(&m_rwlock);
@@ -3141,6 +3167,11 @@ Rdb_ddl_manager::find(GL_INDEX_ID gl_index_id) {
       if (it->second.second < table_def->m_key_count) {
         return table_def->m_key_descr_arr[it->second.second];
       }
+    }
+  } else {
+    auto it = m_index_num_to_uncommitted_keydef.find(gl_index_id);
+    if (it != m_index_num_to_uncommitted_keydef.end()) {
+      return it->second;
     }
   }
 
@@ -3171,6 +3202,8 @@ void Rdb_ddl_manager::adjust_stats(
     for (const auto &src : data) {
       const auto &keydef = find(src.m_gl_index_id);
       if (keydef) {
+        keydef->m_stats.m_distinct_keys_per_prefix.resize(
+            keydef->get_key_parts());
         keydef->m_stats.merge(src, i == 0, keydef->max_storage_fmt_length());
         m_stats2store[keydef->m_stats.m_gl_index_id] = keydef->m_stats;
       }
@@ -3506,6 +3539,7 @@ void Rdb_dict_manager::add_cf_flags(rocksdb::WriteBatch *const batch,
 void Rdb_dict_manager::delete_index_info(rocksdb::WriteBatch *batch,
                                          const GL_INDEX_ID &gl_index_id) const {
   delete_with_prefix(batch, Rdb_key_def::INDEX_INFO, gl_index_id);
+  delete_with_prefix(batch, Rdb_key_def::INDEX_STATISTICS, gl_index_id);
 }
 
 bool Rdb_dict_manager::get_index_info(const GL_INDEX_ID &gl_index_id,

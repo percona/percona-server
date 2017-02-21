@@ -1,10 +1,10 @@
 #
-# Test server signal handling with one-thread-per-connection handler
+# Test server signal handling with threadpool
 #
 # restart:--log-error=MYSQLTEST_VARDIR/tmp/test_threadpool_sig_handler.err
 SELECT @@GLOBAL.thread_handling;
 @@GLOBAL.thread_handling
-one-thread-per-connection
+pool-of-threads
 # Test SIGPIPE, SIGTSTP, SIGINT, which should be ignored
 # Test SIGHUP, which should result in status dump in the error log
 SELECT 1;

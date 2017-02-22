@@ -15270,16 +15270,21 @@ and SYS_ZIP_DICT_COLS for all columns marked with
 COLUMN_FORMAT_TYPE_COMPRESSED flag and updates
 zip_dict_name / zip_dict_data for those which have associated
 compression dictionaries.
+
+@param part_name Full table name (including partition part).
+		 Must be non-NULL only if called from ha_partition.
 */
 UNIV_INTERN
 void
-ha_innobase::update_field_defs_with_zip_dict_info()
+ha_innobase::update_field_defs_with_zip_dict_info(const char *part_name)
 {
 	DBUG_ENTER("update_field_defs_with_zip_dict_info");
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	char norm_name[FN_REFLEN];
-	normalize_table_name(norm_name, table_share->normalized_path.str);
+	normalize_table_name(norm_name,
+		part_name != 0 ? part_name :
+			table_share->normalized_path.str);
 
 	dict_table_t* ib_table = dict_table_open_on_name(
 		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);

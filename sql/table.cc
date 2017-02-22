@@ -1838,7 +1838,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   *field_ptr=0;					// End marker
   /* update zip dict info (name + data) from the handler */
   if (share->has_compressed_columns())
-    handler_file->update_field_defs_with_zip_dict_info();
+    handler_file->update_field_defs_with_zip_dict_info(NULL);
 
   /* Fix key->name and key_part->field */
   if (key_parts)

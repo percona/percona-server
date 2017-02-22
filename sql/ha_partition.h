@@ -337,6 +337,14 @@ public:
                                 size_t pack_frm_len);
   virtual int drop_partitions(const char *path);
   virtual int rename_partitions(const char *path);
+
+  /** This function reads zip dict-related info from partition handlers.
+  It may do nothing if individual handlers do not support COMPRESSED_COLUMNS.
+
+  @param    part_name    Must be always NULL.
+  */
+  virtual void update_field_defs_with_zip_dict_info(const char* part_name);
+
   bool get_no_parts(const char *name, uint *num_parts)
   {
     DBUG_ENTER("ha_partition::get_no_parts");

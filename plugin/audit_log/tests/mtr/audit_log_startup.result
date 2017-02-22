@@ -1,6 +1,8 @@
 call mtr.add_suppression("Plugin 'audit_log' init function returned error.");
 call mtr.add_suppression("Plugin 'audit_log' registration as a AUDIT failed.");
 call mtr.add_suppression("Plugin audit_log reported: 'Both");
+call mtr.add_suppression("Plugin audit_log reported: 'Cannot open file");
+call mtr.add_suppression("Plugin audit_log reported: 'Error: No such file or directory'");
 # restart: --audit_log_exclude_accounts=user@localhost
 SET GLOBAL audit_log_exclude_accounts='info@localhost';
 # restart: --audit_log_include_accounts=user@localhost
@@ -20,5 +22,8 @@ Variable_name	Value
 SHOW VARIABLES LIKE 'audit_log%';
 Variable_name	Value
 # restart: --audit_log_exclude_databases=test --audit_log_include_databases=test
+SHOW VARIABLES LIKE 'audit_log%';
+Variable_name	Value
+# restart: --audit_log_exclude_accounts=user@localhost --audit_log_file=./directory/file
 SHOW VARIABLES LIKE 'audit_log%';
 Variable_name	Value

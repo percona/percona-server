@@ -20,6 +20,9 @@ SET SESSION log_slow_verbosity='microtime,innodb,query_plan';
 
 --source include/log_start.inc
 INSERT INTO t1 VALUE(0);
+BEGIN;
+INSERT INTO t1 VALUE(1);
+ROLLBACK;
 --source include/log_stop.inc
 
 --echo log_slow_verbosity='microtime,innodb,query_plan':

@@ -927,7 +927,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 #endif
 
   if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB))
-      && thd->innodb_was_used)
+      && thd->innodb_trx_id)
   {
     char buf[20];
     snprintf(buf, 20, "%llX", thd->innodb_trx_id);

@@ -4741,7 +4741,8 @@ void THD::clear_slow_extended()
   tmp_tables_disk_used=         0;
   tmp_tables_size=              0;
   innodb_was_used=              FALSE;
-  innodb_trx_id=                0;
+  if (!(server_status & SERVER_STATUS_IN_TRANS))
+    innodb_trx_id= 0;
   innodb_io_reads=              0;
   innodb_io_read=               0;
   innodb_io_reads_wait_timer=   0;

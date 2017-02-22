@@ -39,3 +39,10 @@ SHOW VARIABLES LIKE 'audit_log%';
 
 # there should be no audit_log% variables shown
 SHOW VARIABLES LIKE 'audit_log%';
+
+
+--let $restart_parameters="restart: --audit_log_exclude_accounts='user@localhost' --audit_log_file=./directory/file"
+--source include/restart_mysqld.inc
+
+# there should be no audit_log% variables shown
+SHOW VARIABLES LIKE 'audit_log%';

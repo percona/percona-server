@@ -8,3 +8,5 @@ SHOW VARIABLES LIKE 'audit_log%';
 Variable_name	Value
 SHOW VARIABLES LIKE 'audit_log%';
 Variable_name	Value
+SHOW VARIABLES LIKE 'audit_log%';
+Variable_name	Value

@@ -208,6 +208,15 @@ public:
                                                copied,
                                                deleted);
   }
+
+  /** This function reads zip dict-related info from partition handlers.
+  It may do nothing if individual handlers do not support COMPRESSED_COLUMNS.
+
+  @param    thd          Thread handler
+  @param    part_name    Must be always NULL.
+  */
+  virtual void update_field_defs_with_zip_dict_info(THD* thd,
+                                                    const char* part_name);
 private:
   bool get_num_parts(const char *name, uint *num_parts)
   {

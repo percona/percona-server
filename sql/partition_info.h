@@ -557,6 +557,24 @@ bool fill_partition_tablespace_names(
        partition_info *part_info,
        Tablespace_hash_set *tablespace_set);
 
+/**
+  Fill output buffer with the name of the first partition / subpartition
+  found in the specified partition_info.
+
+  @param[in]  part_info       - Partition info.
+  @param[in]  normalized_path - Normalized path name of table and database
+  @param[out] first_name      - The name of the first partition.
+                                Must be at least FN_REFLEN bytes long.
+
+  @return true - On failure.
+  @return false - On success.
+*/
+MY_ATTRIBUTE((warn_unused_result))
+bool fill_first_partition_name(
+       const partition_info *part_info,
+       const char *normalized_path,
+       char* first_name);
+
 bool check_partition_tablespace_names(partition_info *part_info);
 
 /**

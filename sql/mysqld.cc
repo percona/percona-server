@@ -4868,6 +4868,22 @@ int mysqld_main(int argc, char **argv)
 
   my_init_signals();
 
+#ifndef EMBEDDED_LIBRARY
+  // Move connection handler initialization after the signal handling has been
+  // set up. Percona Server threadpool constructor is heavy, and creates a
+  // timer thread. If done before my_init_signals(), this thread will have
+  // the default signal mask, breaking SIGTERM etc. handing.
+  // This is not a problem with upstream loadable thread scheduler plugins, as
+  // its constructor is light and actual initialization is done later.
+  // This bit should be reverted once Percona Server threadpool becomes a
+  // plugin.
+  if (Connection_handler_manager::init())
+  {
+    sql_print_error("Could not allocate memory for connection handling");
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+#endif
+
   size_t guardize= 0;
 #ifndef _WIN32
   int retval= pthread_attr_getguardsize(&connection_attrib, &guardize);
@@ -8169,13 +8185,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                                   &global_datetime_format))
     return 1;
 
-#ifndef EMBEDDED_LIBRARY
-  if (Connection_handler_manager::init())
-  {
-    sql_print_error("Could not allocate memory for connection handling");
-    return 1;
-  }
-#endif
   if (Global_THD_manager::create_instance())
   {
     sql_print_error("Could not allocate memory for thread handling");

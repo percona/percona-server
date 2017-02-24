@@ -853,12 +853,6 @@ int audit_log_plugin_init(MYSQL_PLUGIN plugin_info)
   mysql_memory_register(AUDIT_LOG_PSI_CATEGORY, all_audit_log_memory, count);
   logger_init_mutexes();
 
-  if (init_new_log_file())
-    return(1);
-
-  if (audit_log_audit_record(buf, sizeof(buf), "Audit", time(NULL), &len))
-    audit_log_write(buf, len);
-
   audit_log_filter_init();
 
   if (audit_log_exclude_accounts != NULL && audit_log_include_accounts != NULL)
@@ -928,6 +922,12 @@ int audit_log_plugin_init(MYSQL_PLUGIN plugin_info)
                                           MYF(MY_FAE));
     audit_log_set_include_databases(audit_log_include_databases);
   }
+
+  if (init_new_log_file())
+    return(1);
+
+  if (audit_log_audit_record(buf, sizeof(buf), "Audit", time(NULL), &len))
+    audit_log_write(buf, len);
 
   return 0;
 

@@ -1,3 +1,4 @@
+SET GLOBAL query_response_time_flush='ON';
 SHOW VARIABLES WHERE VARIABLE_NAME LIKE 'query_response_time%' AND VARIABLE_NAME!='query_response_time_exec_time_debug';
 Variable_name	Value
 query_response_time_flush	OFF

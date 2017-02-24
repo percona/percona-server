@@ -47,7 +47,9 @@
 --echo ==== Conditions for gtid_execute ====
 
 --echo # Readable.
+--replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@GLOBAL.GTID_EXECUTED;
+--replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9-]*//
 SELECT @@SESSION.GTID_EXECUTED;
 --echo # Read-only.
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR

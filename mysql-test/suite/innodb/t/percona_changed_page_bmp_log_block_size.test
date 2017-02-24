@@ -27,5 +27,6 @@ DROP TABLE t1;
 --source include/shutdown_mysqld.inc
 --file_exists $MYSQLD_DATADIR/ib_modified_log_1_0.xdb
 --remove_files_wildcard $MYSQLD_DATADIR ib_logfile*
+--remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*
 --let $restart_parameters=
 --source include/start_mysqld.inc

@@ -1,0 +1,1 @@
+$KEYRING_VAULT_PLUGIN_OPT $KEYRING_VAULT_PLUGIN_LOAD --keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf

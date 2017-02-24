@@ -1,0 +1,22 @@
+--disable_ps_protocol
+--disable_warnings
+--source include/not_embedded.inc
+
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
+
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+SELECT @@global.keyring_vault_config;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval SET @@global.keyring_vault_config= '$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf';
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+SELECT @@global.keyring_vault_config;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.keyring_vault_config= '../../../../../bad_dir/bad_keyring_vault.conf';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.keyring_vault_config=NULL;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+SELECT @@global.keyring_vault_config;
+
+# cleanup
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval SET @@global.keyring_vault_config= '$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf';

@@ -16,18 +16,16 @@ After 2nd RESET
 ib_modified_log_1
 After RESETs and restart:
 ib_modified_log_1
-ib_modified_log_2
 PURGE CHANGED_PAGE_BITMAPS BEFORE 1;
 After PURGE ... BEFORE 1:
 ib_modified_log_1
-ib_modified_log_2
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 After PURGE ... BEFORE 100000000 and restart:
+ib_modified_log_2
 ib_modified_log_3
 ib_modified_log_4
-ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 5+5;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '+5' at line 1
 PURGE CHANGED_PAGE_BITMAPS BEFORE -12;
@@ -57,25 +55,25 @@ SELECT @@GLOBAL.innodb_track_changed_pages;
 0
 FLUSH CHANGED_PAGE_BITMAPS;
 Before the PURGE with tracking disabled
+ib_modified_log_2
 ib_modified_log_3
 ib_modified_log_4
-ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 1;
 After the PURGE that deletes nothing:
+ib_modified_log_2
 ib_modified_log_3
 ib_modified_log_4
-ib_modified_log_5
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 After the PURGE that deletes everything but the last file:
-ib_modified_log_5
+ib_modified_log_4
 PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 After the repeated PURGE:
-ib_modified_log_5
+ib_modified_log_4
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 Before the RESET while tracking disabled:
 ib_modified_log_1
 ib_modified_log_2
-ib_modified_log_5
+ib_modified_log_4
 RESET CHANGED_PAGE_BITMAPS;
 After the RESET with tracking disabled:
 Created dummy bitmap files

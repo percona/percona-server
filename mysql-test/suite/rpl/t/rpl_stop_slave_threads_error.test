@@ -23,7 +23,15 @@
 
 --source include/master-slave.inc
 
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --no-console --log-error=$MYSQLTEST_VARDIR/tmp/slave_log.err
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_restart_server.inc
+--connection slave
+--source include/start_slave.inc
+
 # Execute dummy statements on Master and sync with Slave.
+--connection master
 CREATE TABLE t1(i INT);
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
@@ -54,6 +62,12 @@ DROP TABLE t1;
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/slave_log.err
 --let SEARCH_PATTERN=Lost connection to MySQL server during query
 --source include/search_pattern.inc
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters=
+--source include/rpl_restart_server.inc
+--connection slave
+--source include/start_slave.inc
 
 --remove_file $MYSQLTEST_VARDIR/tmp/slave_log.err
 --source include/rpl_end.inc

@@ -3,3 +3,4 @@ SET @old_master_info_repository=@@GLOBAL.master_info_repository;
 SET @@GLOBAL.master_info_repository="TABLE";
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 SET @@GLOBAL.master_info_repository=@old_master_info_repository;
+RESET SLAVE;

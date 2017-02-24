@@ -338,7 +338,7 @@ log_online_read_last_tracked_lsn(void)
 	lsn_t		result;
 	os_offset_t	read_offset	= log_bmp_sys->out.offset;
 
-	while (!checksum_ok && read_offset > 0 && !is_last_page)
+	while ((!checksum_ok || !is_last_page) && read_offset > 0)
 	{
 		read_offset -= MODIFIED_PAGE_BLOCK_SIZE;
 		log_bmp_sys->out.offset = read_offset;
@@ -731,7 +731,11 @@ log_online_read_init(void)
 		}
 
 		last_tracked_lsn = log_online_read_last_tracked_lsn();
+		/* Do not rotate if we truncated the file to zero length - we
+		can just start writing there */
+		const bool need_rotate = (last_tracked_lsn != 0);
 		if (!last_tracked_lsn) {
+
 			last_tracked_lsn = last_file_start_lsn;
 		}
 
@@ -743,7 +747,10 @@ log_online_read_init(void)
 		} else {
 			file_start_lsn = tracking_start_lsn;
 		}
-		if (!log_online_rotate_bitmap_file(file_start_lsn)) {
+
+		if (need_rotate
+		    && !log_online_rotate_bitmap_file(file_start_lsn)) {
+
 			exit(1);
 		}
 
@@ -1139,6 +1146,17 @@ log_online_write_bitmap_page(
 				}
 			});
 
+	/* A crash injection site that ensures last checkpoint LSN > last
+	tracked LSN, so that LSN tracking for this interval is tested. */
+	DBUG_EXECUTE_IF("crash_before_bitmap_write",
+			{
+				ulint space_id
+					= mach_read_from_4(block
+						+ MODIFIED_PAGE_SPACE_ID);
+				if (space_id > 0)
+					DBUG_SUICIDE();
+			});
+
 	IORequest io_request(IORequest::WRITE | IORequest::NO_COMPRESSION);
 	bool success = os_file_write(io_request, log_bmp_sys->out.name,
 				log_bmp_sys->out.file, block,
@@ -1290,10 +1308,6 @@ log_online_follow_redo_log(void)
 			goto end;
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
-
-	/* A crash injection site that ensures last checkpoint LSN > last
-	tracked LSN, so that LSN tracking for this interval is tested. */
-	DBUG_EXECUTE_IF("crash_before_bitmap_write", DBUG_SUICIDE(););
 
 	result = log_online_write_bitmap();
 	log_bmp_sys->start_lsn = log_bmp_sys->end_lsn;

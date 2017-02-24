@@ -810,12 +810,6 @@ int audit_log_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 
   logger_init_mutexes();
 
-  if (init_new_log_file())
-    return(1);
-
-  if (audit_log_audit_record(buf, sizeof(buf), "Audit", time(NULL), &len))
-    audit_log_write(buf, len);
-
   audit_log_filter_init();
 
   if (audit_log_exclude_accounts != NULL && audit_log_include_accounts != NULL)
@@ -856,6 +850,12 @@ int audit_log_plugin_init(void *arg MY_ATTRIBUTE((unused)))
                                           MYF(MY_FAE));
     audit_log_set_include_commands(audit_log_include_commands);
   }
+
+  if (init_new_log_file())
+    return(1);
+
+  if (audit_log_audit_record(buf, sizeof(buf), "Audit", time(NULL), &len))
+    audit_log_write(buf, len);
 
   return 0;
 

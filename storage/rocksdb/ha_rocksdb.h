@@ -33,6 +33,7 @@
 #include "./ib_ut0counter.h"
 #include "sql_bitmap.h"
 #include "my_icp.h"
+#include "field.h"
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"
@@ -663,6 +664,23 @@ public:
   }
 
   int rename_table(const char *const from, const char *const to) override
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  int convert_blob_from_storage_format(my_core::Field_blob *const blob,
+                                       Rdb_string_reader *const   reader,
+                                       bool                       decode)
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  int convert_varchar_from_storage_format(
+                                my_core::Field_varstring *const field_var,
+                                Rdb_string_reader *const        reader,
+                                bool                            decode)
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  int convert_field_from_storage_format(my_core::Field *const    field,
+                                        Rdb_string_reader *const reader,
+                                        bool                     decode,
+                                        uint                     len)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,

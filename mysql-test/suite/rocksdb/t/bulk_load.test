@@ -21,7 +21,7 @@ CREATE TABLE t3(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) ENGINE=R
 perl;
 my $fn = $ENV{'ROCKSDB_INFILE'};
 open(my $fh, '>>', $fn) || die "perl open($fn): $!";
-my $max = 10000000;
+my $max = 5000000;
 my @chars = ("A".."Z", "a".."z", "0".."9");
 my @lowerchars = ("a".."z");
 my @powers_of_26 = (26 * 26 * 26 * 26, 26 * 26 * 26, 26 * 26, 26, 1);

@@ -1,0 +1,52 @@
+CALL mtr.add_suppression("InnoDB: Page \\[page id: space=[0-9]+, page number=[0-9]+\\] log sequence number [0-9]+ is in the future! Current system log sequence number [0-9]+\\.");
+CALL mtr.add_suppression("InnoDB: Your database may be corrupt or you may have copied the InnoDB tablespace but not the InnoDB log files. Please refer to http://dev\\.mysql\\.com/doc/refman/5\\.7/en/forcing-innodb-recovery\\.html for information about forcing recovery\\.");
+SET GLOBAL innodb_file_format = Antelope;
+CREATE COMPRESSION_DICTIONARY numbers ('one' 'two' 'three');
+CREATE TABLE t5635(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ROW_FORMAT=COMPACT ENGINE=InnoDB;
+SHOW CREATE TABLE t5635;
+Table	Create Table
+t5635	CREATE TABLE `t5635` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+# restart
+SHOW CREATE TABLE t5635;
+Table	Create Table
+t5635	CREATE TABLE `t5635` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+CREATE TABLE tmp AS SELECT * FROM t5635;
+DELETE FROM t5635;
+INSERT INTO t5635 SELECT * FROM tmp;
+DROP TABLE tmp;
+[t5635] checking data consistency just after upgrade
+include/assert.inc [[t5635] initial number of records must be 2]
+include/assert.inc [[t5635] initial short record must not be corrupted]
+include/assert.inc [[t5635] initial long record must not be corrupted]
+[t5635] inserting a new record
+INSERT INTO t5635 VALUES (4 + 0 + 0, @a_short, @b_long);
+include/assert.inc [[t5635] number of records after insert must be 3]
+include/assert.inc [[t5635] short record after insert must not be corrupted]
+include/assert.inc [[t5635] long record after insert must not be corrupted]
+include/assert.inc [[t5635] inserted record must not be corrupted]
+[t5635] updating existing record
+UPDATE t5635 SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635] number of records after update must be 3]
+include/assert.inc [[t5635] short record after update must not be corrupted]
+include/assert.inc [[t5635] long record after update must not be corrupted]
+include/assert.inc [[t5635] updated record must not be corrupted]
+[t5635] deleting existing record
+DELETE FROM t5635 WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635] number of records after delete must be 2]
+include/assert.inc [[t5635] short record after delete must not be corrupted]
+include/assert.inc [[t5635] long record after delete must not be corrupted]
+include/assert.inc [[t5635] deleted record must not exist]
+DROP TABLE t5635;
+DROP COMPRESSION_DICTIONARY numbers;

@@ -358,10 +358,15 @@ public:
 	COLUMN_FORMAT_TYPE_COMPRESSED flag and updates
 	zip_dict_name / zip_dict_data for those which have associated
 	compression dictionaries.
-	@param thd Thread handle, used to determine whether it is necessary
-	to lock dict_sys mutex
+
+	@param	thd		Thread handle, used to determine whether it
+				is necessary to lock dict_sys mutex
+	@param	part_name	Full table name (including partition part).
+				Must be non-NULL only if called from
+				ha_partition.
 	*/
-	virtual void update_field_defs_with_zip_dict_info(THD* thd);
+	virtual void update_field_defs_with_zip_dict_info(THD* thd,
+		const char* part_name);
 
 	bool check_if_incompatible_data(
 		HA_CREATE_INFO*		info,

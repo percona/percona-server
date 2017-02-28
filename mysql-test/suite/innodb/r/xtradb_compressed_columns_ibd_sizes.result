@@ -1,15 +1,28 @@
+# *******************************
+# *** Field type: BLOB
+# *** Partitioning: 
+# *******************************
 # Requiring innodb_file_per_table.
 SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = 1;
 # Defining compression dictionary content.
-# Defining a JSON-formatted value which can be well compressed with the created dictionary.
 # Creating a compression dictionary.
 CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
-# ********************
-# *** BLOB
-# ********************
 # Creating three tables with identical structure but different
 # column compression attributes.
+CREATE TABLE t1(
+id INT,
+a BLOB
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t3(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB;
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
 # Filling tables with a big number of records.
 # Checking tables integrity. All records must have the same value.
 number_of_rows_for_uncompressed_matches
@@ -27,11 +40,34 @@ dictionary_comressed_is_smaller_than_compressed
 1
 # Cleaning up.
 DROP TABLE ibd_info, t1, t2, t3;
-# ********************
-# *** TEXT
-# ********************
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: TEXT
+# *** Partitioning: 
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
 # Creating three tables with identical structure but different
 # column compression attributes.
+CREATE TABLE t1(
+id INT,
+a TEXT
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id INT,
+a TEXT COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t3(
+id INT,
+a TEXT COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB;
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
 # Filling tables with a big number of records.
 # Checking tables integrity. All records must have the same value.
 number_of_rows_for_uncompressed_matches
@@ -49,11 +85,34 @@ dictionary_comressed_is_smaller_than_compressed
 1
 # Cleaning up.
 DROP TABLE ibd_info, t1, t2, t3;
-# ********************
-# *** JSON
-# ********************
+DROP COMPRESSION_DICTIONARY names;
+# Restoring innodb_file_per_table
+SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
+# *******************************
+# *** Field type: JSON
+# *** Partitioning: 
+# *******************************
+# Requiring innodb_file_per_table.
+SET @old_innodb_file_per_table = @@global.innodb_file_per_table;
+SET GLOBAL innodb_file_per_table = 1;
+# Defining compression dictionary content.
+# Creating a compression dictionary.
+CREATE COMPRESSION_DICTIONARY names (@dictionary_data);
 # Creating three tables with identical structure but different
 # column compression attributes.
+CREATE TABLE t1(
+id INT,
+a JSON
+) ENGINE=InnoDB;
+CREATE TABLE t2(
+id INT,
+a JSON COLUMN_FORMAT COMPRESSED
+) ENGINE=InnoDB;
+CREATE TABLE t3(
+id INT,
+a JSON COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY names
+) ENGINE=InnoDB;
+# Defining a JSON-formatted value which can be well compressed with the created dictionary.
 # Filling tables with a big number of records.
 # Checking tables integrity. All records must have the same value.
 number_of_rows_for_uncompressed_matches

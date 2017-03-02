@@ -46,6 +46,11 @@ IF(HAVE_SCHED_GETCPU)
   ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1)
 ENDIF()
 
+CHECK_FUNCTION_EXISTS(fallocate HAVE_FALLOCATE)
+IF(HAVE_FALLOCATE)
+  ADD_DEFINITIONS(-DROCKSDB_FALLOCATE_PRESENT)
+ENDIF()
+
 # get a list of rocksdb library source files
 # run with env -i to avoid passing variables
 EXECUTE_PROCESS(

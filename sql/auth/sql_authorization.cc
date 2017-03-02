@@ -532,7 +532,9 @@ bool check_readonly(THD *thd, bool err_if_readonly)
       sql_command == SQLCOM_CHANGE_MASTER ||
       sql_command == SQLCOM_START_GROUP_REPLICATION ||
       sql_command == SQLCOM_STOP_GROUP_REPLICATION ||
-      sql_command == SQLCOM_CHANGE_REPLICATION_FILTER)
+      sql_command == SQLCOM_CHANGE_REPLICATION_FILTER ||
+      (sql_command == SQLCOM_FLUSH &&
+      thd->lex->type & (REFRESH_LOG | REFRESH_BINARY_LOG)))
     DBUG_RETURN(FALSE);
 
   bool is_super = thd->security_context()->check_access(SUPER_ACL);

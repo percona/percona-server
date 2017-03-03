@@ -178,6 +178,7 @@ select key1,key2,filler1 from t1 where key2=100 and key2=200;
 
 # ROR-union(ROR-intersection) with one of ROR-intersection giving empty
 # results
+--replace_result key3 key34 key4 key34
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 

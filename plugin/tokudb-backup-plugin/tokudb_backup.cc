@@ -26,6 +26,7 @@
 #include <sql_parse.h>
 #include <sql_plugin.h>
 #include <mysqld.h>
+#include <debug_sync.h>
 
 #include <inttypes.h>
 #include <algorithm>
@@ -125,6 +126,10 @@ extern my_bool srv_use_native_aio;
 // PSI key for this plugin.
 static PSI_memory_key tokudb_backup_mem_key = 0;
 
+static char tokudb_backup_safe_slave = FALSE;
+static ulonglong tokudb_backup_safe_slave_timeout = 0;
+static bool sql_thread_started = false;
+
 static MYSQL_SYSVAR_STR(plugin_version, tokudb_backup_plugin_version,
     PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
     "version of the tokudb backup plugin",
@@ -186,10 +191,25 @@ static MYSQL_SYSVAR_STR(allowed_prefix, tokudb_backup_allowed_prefix,
     "allowed prefix of the destination directory",
     NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_BOOL(safe_slave, tokudb_backup_safe_slave,
+       PLUGIN_VAR_OPCMDARG, "Wait until there is no temporary slave tables.",
+       NULL,
+       NULL,
+       0);
+
+static MYSQL_SYSVAR_ULONGLONG(safe_slave_timeout,
+    tokudb_backup_safe_slave_timeout,
+    PLUGIN_VAR_OPCMDARG,
+    "The maximum amount of seconds to wait for slave temp tables disappear "
+    "0 - don't wait",
+    NULL, NULL, 0, 0, (~(ulonglong) 0), 0);
+
 static struct st_mysql_sys_var *tokudb_backup_system_variables[] = {
     MYSQL_SYSVAR(plugin_version),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(allowed_prefix),
+    MYSQL_SYSVAR(safe_slave),
+    MYSQL_SYSVAR(safe_slave_timeout),
     MYSQL_SYSVAR(throttle),
     MYSQL_SYSVAR(dir),
     MYSQL_SYSVAR(last_error),
@@ -301,6 +321,169 @@ static void tokudb_backup_error_fun(int error_number, const char *error_string, 
     }
 }
 
+static bool tokudb_backup_check_slave_sql_thread_running(THD *thd) {
+    bool have_slave = false;
+    scoped_lock_wrapper<Multisource_info_lockable>
+        with_channel_map_rdlock(
+            Multisource_info_lockable(channel_map,
+                                      &Multisource_info::rdlock,
+                                      &Multisource_info::unlock));
+
+    /* Run through each mi */
+    for (mi_map::iterator it = channel_map.begin();
+         it != channel_map.end();
+         ++it)
+    {
+        Master_info *mi= it->second;
+        if (mi != NULL && mi->inited && mi->host[0]) {
+            have_slave = true;
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_1(BasicLockableMysqlMutextT(
+                    mi->data_lock));
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_2(BasicLockableMysqlMutextT(
+                    mi->rli->data_lock));
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_3(BasicLockableMysqlMutextT(
+                    mi->err_lock));
+            scoped_lock_wrapper<BasicLockableMysqlMutextT>
+                with_mi_data_locked_4(BasicLockableMysqlMutextT(
+                    mi->rli->err_lock));
+
+            if (!mi->rli->slave_running)
+                return false;
+        }
+    }
+
+    return have_slave;
+}
+
+static bool tokudb_backup_stop_slave_sql_thread(THD *thd) {
+    bool result = true;
+    bool have_slave = false;
+
+    thd->lex->slave_thd_opt = SLAVE_SQL;
+
+    {
+        scoped_lock_wrapper<Multisource_info_lockable>
+            with_channel_map_rdlock(
+                Multisource_info_lockable(channel_map,
+                                          &Multisource_info::rdlock,
+                                          &Multisource_info::unlock));
+        /* Run through each mi */
+        for (mi_map::iterator it = channel_map.begin();
+             it != channel_map.end();
+             ++it)
+        {
+            Master_info *mi = it->second;
+            if (mi && mi->inited && mi->host[0]) {
+                bool temp_tables_warning;
+                have_slave = true;
+                result = !stop_slave(thd, mi, 0, 0, &temp_tables_warning);
+                if (!result)
+                    break;
+            }
+        }
+    }
+
+    if (have_slave && result)
+        result = !tokudb_backup_check_slave_sql_thread_running(thd);
+
+    if (!result)
+        sql_print_error("TokuDB Hotbackup: Can't start slave sql thread\n");
+
+    return result;
+}
+
+static bool tokudb_backup_start_slave_sql_thread(THD *thd) {
+    bool result = true;
+    bool have_slave = false;
+
+    thd->lex->slave_thd_opt = SLAVE_SQL;
+
+    {
+        scoped_lock_wrapper<Multisource_info_lockable>
+            with_channel_map_rdlock(
+                Multisource_info_lockable(channel_map,
+                                          &Multisource_info::rdlock,
+                                          &Multisource_info::unlock));
+        /* Run through each mi */
+        for (mi_map::iterator it = channel_map.begin();
+             result && (it != channel_map.end());
+             ++it)
+        {
+            Master_info *mi= it->second;
+            if (mi && mi->inited && mi->host[0]) {
+                have_slave = true;
+                result = !start_slave(thd,
+                                      &thd->lex->slave_connection,
+                                      &thd->lex->mi,
+                                      thd->lex->slave_thd_opt,
+                                      mi,
+                                      true);
+                if (!result)
+                    break;
+            }
+        }
+    }
+
+    if (have_slave && result)
+        result = tokudb_backup_check_slave_sql_thread_running(thd);
+
+    if (!result)
+        sql_print_error("TokuDB Hotbackup: Can't start slave sql thread\n");
+
+    return result;
+}
+
+static bool tokudb_backup_wait_for_safe_slave(THD *thd, uint timeout) {
+    static const uint sleep_time = 3000000;
+    size_t n_attemts = tokudb_backup_safe_slave_timeout ?
+        (1000000 * tokudb_backup_safe_slave_timeout) / sleep_time : 1;
+    DEBUG_SYNC(thd, "tokudb_backup_wait_for_safe_slave_entered");
+
+    {
+        scoped_lock_wrapper<Multisource_info_lockable>
+        with_channel_map_rdlock(
+            Multisource_info_lockable(channel_map,
+                                      &Multisource_info::rdlock,
+                                      &Multisource_info::unlock));
+
+        if (!channel_map.get_num_instances()) {
+            sql_thread_started = false;
+            return false;
+        }
+    }
+
+    sql_thread_started = tokudb_backup_check_slave_sql_thread_running(thd);
+
+    if (sql_thread_started && !tokudb_backup_stop_slave_sql_thread(thd))
+        return false;
+
+    while(slave_open_temp_tables.atomic_get() && n_attemts--) {
+        DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_begin");
+        if (!tokudb_backup_start_slave_sql_thread(thd))
+            return false;
+        DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_slave_started");
+        my_sleep(sleep_time);
+        if (!tokudb_backup_stop_slave_sql_thread(thd))
+            return false;
+        DEBUG_SYNC(thd, "tokudb_backup_wait_for_temp_tables_loop_end");
+    }
+
+    if (!n_attemts &&
+        slave_open_temp_tables.atomic_get()) {
+
+        (sql_thread_started &&
+        !tokudb_backup_check_slave_sql_thread_running(thd) &&
+        !tokudb_backup_start_slave_sql_thread(thd));
+
+        return false;
+    }
+
+    return true;
+}
+
 static my_bool
 tokudb_backup_flush_log_plugin_callback(THD *,
                                         plugin_ref plugin,
@@ -317,10 +500,16 @@ tokudb_backup_flush_log_plugin_callback(THD *,
     return FALSE;
 }
 
-
 static void tokudb_backup_before_stop_capt_fun(void *arg) {
     THD *thd = static_cast<THD *>(arg);
-    (void)lock_binlog_for_backup(thd);
+    if (tokudb_backup_safe_slave) {
+        if (!tokudb_backup_wait_for_safe_slave(
+                thd,tokudb_backup_safe_slave_timeout)) {
+            sql_print_error("TokuDB Hotbackup: safe slave option error");
+        }
+    }
+    else
+        (void)lock_binlog_for_backup(thd);
     if (!plugin_foreach(NULL,
                         tokudb_backup_flush_log_plugin_callback,
                         MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -442,12 +631,37 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
         extra->master_info_channels;
     tokudb_backup_master_state *master_state = extra->master_state;
 
+    if (tokudb_backup_safe_slave &&
+        sql_thread_started &&
+        tokudb_backup_check_slave_sql_thread_running(thd)) {
+
+        tokudb_backup_set_error_string(thd,
+                                       EINVAL,
+                                       "Slave sql thread is not stopped",
+                                       NULL, NULL, NULL);
+        sql_print_error("TokuDB Hotbackup: "
+                        "master and slave info can't be saved "
+                        "because slave sql thread can't be stopped\n");
+        return;
+    }
+
     tokudb_backup_get_master_infos(thd, master_info_channels);
     tokudb_backup_get_master_state(master_state);
 
-    if (thd->backup_binlog_lock.is_acquired())
-      thd->backup_binlog_lock.release(thd);
-
+    if (tokudb_backup_safe_slave && sql_thread_started) {
+        if (!tokudb_backup_start_slave_sql_thread(thd)) {
+            tokudb_backup_set_error_string(thd,
+                                       EINVAL,
+                                       "Slave sql thread can't be started",
+                                       NULL, NULL, NULL);
+            sql_print_error("TokuDB Hotbackup: "
+                            "slave sql thread can't be started\n");
+            return;
+        }
+    }
+    else if (thd->backup_binlog_lock.is_acquired()) {
+        thd->backup_binlog_lock.release(thd);
+    }
 }
 
 static char *tokudb_backup_realpath_with_slash(const char *a) {

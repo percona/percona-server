@@ -60,6 +60,7 @@ my_core::PSI_mutex_info all_rocksdb_mutexes[] = {
     {&key_mutex_tx_list, "tx_list", PSI_FLAG_GLOBAL},
     {&rdb_sysvars_psi_mutex_key, "setting sysvar", PSI_FLAG_GLOBAL},
     {&rdb_cfm_mutex_key, "column family manager", PSI_FLAG_GLOBAL},
+    {&rdb_bulk_load_mutex_key, "bulk load", PSI_FLAG_GLOBAL},
 };
 
 my_core::PSI_rwlock_key key_rwlock_collation_exception_list,
@@ -80,6 +81,15 @@ my_core::PSI_cond_info all_rocksdb_conds[] = {
     {&rdb_signal_bg_psi_cond_key, "cond signal background", PSI_FLAG_GLOBAL},
     {&rdb_signal_drop_idx_psi_cond_key, "cond signal drop index",
      PSI_FLAG_GLOBAL},
+};
+
+my_core::PSI_memory_key rdb_datadic_memory_key, rdb_open_tables_memory_key,
+    rdb_handler_memory_key;
+
+my_core::PSI_memory_info all_rocksdb_memory[] = {
+    {&rdb_datadic_memory_key, "datadic", 0},
+    {&rdb_open_tables_memory_key, "open tables", 0},
+    {&rdb_handler_memory_key, "handler", 0},
 };
 
 void init_rocksdb_psi_keys() {
@@ -105,6 +115,9 @@ void init_rocksdb_psi_keys() {
 
   count = array_elements(all_rocksdb_threads);
   mysql_thread_register(category, all_rocksdb_threads, count);
+
+  count = array_elements(all_rocksdb_memory);
+  mysql_memory_register(category, all_rocksdb_memory, count);
 }
 #else  // HAVE_PSI_INTERFACE
 void init_rocksdb_psi_keys() {}

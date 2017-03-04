@@ -75,7 +75,11 @@ class Rdb_cond_var : public rocksdb::TransactionDBCondVar {
   Rdb_cond_var &operator=(const Rdb_cond_var &) = delete;
 
 public:
+#ifdef HAVE_PSI_INTERFACE
+  explicit Rdb_cond_var(PSI_memory_key psi_key);
+#else
   Rdb_cond_var();
+#endif
   virtual ~Rdb_cond_var();
 
   /*
@@ -133,8 +137,15 @@ public:
 
   virtual std::shared_ptr<rocksdb::TransactionDBCondVar>
   AllocateCondVar() override {
-    return std::make_shared<Rdb_cond_var>();
+    return std::make_shared<Rdb_cond_var>(PSI_NOT_INSTRUMENTED);
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  virtual std::shared_ptr<rocksdb::TransactionDBCondVar>
+  AllocateCondVar(PSI_memory_key psi_key) {
+    return std::make_shared<Rdb_cond_var>(psi_key);
+  }
+#endif
 
   virtual ~Rdb_mutex_factory() {}
 };

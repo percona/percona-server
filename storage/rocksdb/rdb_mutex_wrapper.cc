@@ -41,8 +41,13 @@ static const int64_t ONE_SECOND_IN_MICROSECS = 1000 * 1000;
 static const int64_t ONE_YEAR_IN_MICROSECS =
     ONE_SECOND_IN_MICROSECS * 60 * 60 * 24 * 365;
 
-// TODO : instrument for PFS
-Rdb_cond_var::Rdb_cond_var() { mysql_cond_init(0, &m_cond); }
+#ifdef HAVE_PSI_INTERFACE
+Rdb_cond_var::Rdb_cond_var(PSI_memory_key psi_key) {
+  mysql_cond_init(psi_key, &m_cond);
+}
+#else
+Rdb_cond_var::Rdb_cond_var() { mysql_cond_init(PSI_NOT_INSTRUMENTED, &m_cond); }
+#endif
 
 Rdb_cond_var::~Rdb_cond_var() { mysql_cond_destroy(&m_cond); }
 

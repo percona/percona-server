@@ -5748,6 +5748,22 @@ requesting master dump") ||
       */
       THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
       event_len= read_event(mysql, mi, &suppress_warnings);
+
+      DBUG_EXECUTE_IF("relay_xid_trigger",
+        if (event_len != packet_error)
+        {
+          const char* event_buf= (const char*)mysql->net.read_pos + 1;
+          Log_event_type event_type= (Log_event_type)
+                                        event_buf[EVENT_TYPE_OFFSET];
+          if (event_type == binary_log::XID_EVENT)
+          {
+            const char act[]= "now signal relay_xid_reached wait_for resume";
+            DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                               STRING_WITH_LEN(act)));
+          }
+        }
+      );
+
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
 reading event"))
         goto err;

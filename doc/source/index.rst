@@ -170,6 +170,7 @@ TokuDB
    tokudb/tokudb_file_management
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
+   tokudb/tokudb_status_variables
    tokudb/tokudb_troubleshooting
    tokudb/toku_backup
    tokudb/tokudb_faq

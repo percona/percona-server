@@ -142,7 +142,7 @@ static Rdb_background_thread rdb_bg_thread;
 
 // List of table names (using regex) that are exceptions to the strict
 // collation check requirement.
-Regex_list_handler *rdb_collation_exceptions;
+Regex *rdb_collation_exceptions;
 
 static const char *const ERRSTR_ROLLBACK_ONLY =
     "This transaction was rolled back and cannot be "
@@ -473,8 +473,8 @@ static MYSQL_THDVAR_BOOL(
 
 static MYSQL_THDVAR_STR(
     read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-    "List of tables that will use read-free replication on the slave "
-    "(i.e. not lookup a row during replication)",
+    "Regex that describes set of tables that will use read-free replication "
+    "on the slave (i.e. not lookup a row during replication)",
     nullptr, nullptr, "");
 
 static MYSQL_SYSVAR_BOOL(
@@ -1022,7 +1022,7 @@ static MYSQL_SYSVAR_BOOL(strict_collation_check, rocksdb_strict_collation_check,
 static MYSQL_SYSVAR_STR(strict_collation_exceptions,
                         rocksdb_strict_collation_exceptions,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
-                        "List of tables (using regex) that are excluded "
+                        "Regex that describes set of tables that are excluded "
                         "from the case sensitive collation enforcement",
                         nullptr, rocksdb_set_collation_exception_list, "");
 
@@ -3078,10 +3078,9 @@ static int rocksdb_init_func(void *const p) {
                    MY_MUTEX_INIT_FAST);
 
 #if defined(HAVE_PSI_INTERFACE)
-  rdb_collation_exceptions =
-      new Regex_list_handler(key_rwlock_collation_exception_list);
+  rdb_collation_exceptions = new Regex(key_rwlock_collation_exception_list);
 #else
-  rdb_collation_exceptions = new Regex_list_handler();
+  rdb_collation_exceptions = new Regex();
 #endif
 
   mysql_mutex_init(rdb_sysvars_psi_mutex_key, &rdb_sysvars_mutex,
@@ -4355,16 +4354,22 @@ void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
   DBUG_ASSERT(whitelist != nullptr);
 
 #if defined(HAVE_PSI_INTERFACE)
-  Regex_list_handler regex_handler(key_rwlock_read_free_rpl_tables);
+  Regex regex_handler(key_rwlock_read_free_rpl_tables);
 #else
-  Regex_list_handler regex_handler;
+  Regex regex_handler;
 #endif
 
-  if (!regex_handler.set_patterns(whitelist)) {
-    warn_about_bad_patterns(&regex_handler, "read_free_rpl_tables");
+  int flags = MY_REG_EXTENDED | MY_REG_NOSUB;
+  if (lower_case_table_names)
+    flags |= MY_REG_ICASE;
+
+  if (!regex_handler.compile(whitelist,
+                             flags,
+                             table_alias_charset)) {
+      warn_about_bad_patterns(regex_handler, "read_free_rpl_tables");
   }
 
-  m_use_read_free_rpl = regex_handler.matches(m_tbl_def->base_tablename());
+  m_use_read_free_rpl = regex_handler.match(m_tbl_def->base_tablename());
 }
 
 int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
@@ -4642,7 +4647,7 @@ int ha_rocksdb::create_cfs(
            part++) {
         if (!rdb_is_index_collation_supported(
                 table_arg->key_info[i].key_part[part].field) &&
-            !rdb_collation_exceptions->matches(tablename_sys)) {
+            !rdb_collation_exceptions->match(tablename_sys)) {
           std::string collation_err;
           for (const auto &coll : RDB_INDEX_COLLATIONS) {
             if (collation_err != "") {
@@ -9868,8 +9873,12 @@ void rocksdb_set_rate_limiter_bytes_per_sec(my_core::THD *const thd,
 void rdb_set_collation_exception_list(const char *const exception_list) {
   DBUG_ASSERT(rdb_collation_exceptions != nullptr);
 
-  if (!rdb_collation_exceptions->set_patterns(exception_list)) {
-    warn_about_bad_patterns(rdb_collation_exceptions,
+  int flags = MY_REG_EXTENDED | MY_REG_NOSUB;
+  if (lower_case_table_names)
+    flags |= MY_REG_ICASE;
+  if (!rdb_collation_exceptions->compile(
+          exception_list, flags, table_alias_charset)) {
+    warn_about_bad_patterns(*rdb_collation_exceptions,
                             "strict_collation_exceptions");
   }
 }

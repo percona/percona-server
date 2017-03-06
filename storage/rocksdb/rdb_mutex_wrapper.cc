@@ -202,6 +202,8 @@ void Rdb_mutex::UnLock() {
         m_old_stage_info[current_thd];
     m_old_stage_info.erase(current_thd);
     /* The following will call mysql_mutex_unlock */
+    /* GOL - not in 5.7, see commentary in sql_class.h */
+    mysql_mutex_unlock(&m_mutex);
     my_core::thd_exit_cond(current_thd, old_stage.get());
     return;
   }

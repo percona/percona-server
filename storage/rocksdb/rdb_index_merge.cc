@@ -17,6 +17,10 @@
 /* This C++ file's header file */
 #include "./rdb_index_merge.h"
 
+/* MySQL header files */
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_file.h"
+
 /* MyRocks header files */
 #include "./ha_rocksdb.h"
 #include "./rdb_datadic.h"

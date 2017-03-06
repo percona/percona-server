@@ -31,6 +31,8 @@
 #include "./my_global.h" /* ulonglong */
 #include "./sql_string.h"
 #include "./ib_ut0counter.h"
+#include "sql_bitmap.h"
+#include "my_icp.h"
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"
@@ -178,7 +180,7 @@ const char *const INDEX_THREAD_NAME = "myrocks-index";
 
   The reason behind the cast issue is the lack of unsigned int support in Java.
 */
-#define MAX_RATE_LIMITER_BYTES_PER_SEC static_cast<uint64_t>(LONGLONG_MAX)
+#define MAX_RATE_LIMITER_BYTES_PER_SEC static_cast<uint64_t>(LLONG_MAX)
 
 /*
   Hidden PK column (for tables with no primary key) is a longlong (aka 8 bytes).
@@ -648,7 +650,7 @@ public:
     DBUG_RETURN(&key_map_full);
   }
 
-  bool primary_key_is_clustered() override {
+  bool primary_key_is_clustered() const override {
     DBUG_ENTER_FUNC();
 
     DBUG_RETURN(true);
@@ -1046,7 +1048,7 @@ public:
       __attribute__((__warn_unused_result__));
 
   my_bool register_query_cache_table(THD *const thd, char *const table_key,
-                                     uint key_length,
+                                     size_t key_length,
                                      qc_engine_callback *const engine_callback,
                                      ulonglong *const engine_data) override {
     DBUG_ENTER_FUNC();

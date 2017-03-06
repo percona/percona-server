@@ -42,7 +42,7 @@ void Rdb_thread::init(
     ) {
   DBUG_ASSERT(!m_run_once);
   mysql_mutex_init(stop_bg_psi_mutex_key, &m_signal_mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(stop_bg_psi_cond_key, &m_signal_cond, nullptr);
+  mysql_cond_init(stop_bg_psi_cond_key, &m_signal_cond);
 }
 
 void Rdb_thread::uninit() {
@@ -60,17 +60,6 @@ int Rdb_thread::create_thread(const std::string &thread_name
 
   int err = mysql_thread_create(background_psi_thread_key, &m_handle, nullptr,
                                 thread_func, this);
-
-  if (!err) {
-    /*
-      mysql_thread_create() ends up doing some work underneath and setting the
-      thread name as "my-func". This isn't what we want. Our intent is to name
-      the threads according to their purpose so that when displayed under the
-      debugger then they'll be more easily identifiable. Therefore we'll reset
-      the name if thread was successfully created.
-    */
-    err = pthread_setname_np(m_handle, thread_name.c_str());
-  }
 
   return err;
 }

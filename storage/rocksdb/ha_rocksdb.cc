@@ -2690,6 +2690,7 @@ public:
         {rocksdb::Transaction::AWAITING_ROLLBACK, "AWAITING_ROLLBACK"},
         {rocksdb::Transaction::ROLLEDBACK, "ROLLEDBACK"},
     };
+    static const size_t trx_query_max_len = 1024; // length stolen from InnoDB
 
     DBUG_ASSERT(tx != nullptr);
 
@@ -2721,9 +2722,9 @@ public:
       }
 
       std::string query_str;
-      if (thd->query().str != nullptr) {
-        query_str = std::string(thd->query().str);
-      }
+      query_str.reserve(trx_query_max_len + 1);
+      size_t query_len = thd_query_safe(thd, &query_str[0], trx_query_max_len);
+      query_str.resize(query_len);
 
       const auto state_it = state_map.find(rdb_trx->GetState());
       DBUG_ASSERT(state_it != state_map.end());

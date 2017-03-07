@@ -20,7 +20,7 @@
 #include <algorithm>
 
 #include "my_global.h"
-#include "my_pthread.h"
+#include "my_thread.h"
 #include "my_regex.h"
 
 /*

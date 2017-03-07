@@ -1846,6 +1846,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     const int pk_off= find_type(primary_key_name, &share->keynames,
                                   FIND_TYPE_NO_PREFIX);
     uint primary_key= (pk_off > 0 ? pk_off-1 : MAX_KEY);
+    /*
+      The following if-else is here for MyRocks:
+      set share->primary_key as early as possible, because the return value
+      of ha_rocksdb::index_flags(key, ...) (HA_KEYREAD_ONLY bit in particular)
+      depends on whether the key is the primary key.
+    */
+    if (primary_key < MAX_KEY && share->keys_in_use.is_set(primary_key))
+      share->primary_key= primary_key;
+    else
+      share->primary_key= MAX_KEY;
 
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
@@ -1901,6 +1911,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	    break;
 	  }
 	}
+
+        /*
+          The following is here for MyRocks. See the comment above
+          about "set share->primary_key as early as possible"
+        */
+        if (primary_key < MAX_KEY && share->keys_in_use.is_set(primary_key))
+          share->primary_key= primary_key;
       }
 
       for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
@@ -2024,10 +2041,28 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (handler_file->init_with_fields())
       goto err;
 
-    if (primary_key < MAX_KEY &&
-	(share->keys_in_use.is_set(primary_key)))
+    if (primary_key < MAX_KEY && (handler_file->ha_table_flags() &
+                                  HA_PRIMARY_KEY_IN_READ_INDEX))
     {
-      share->primary_key= primary_key;
+      keyinfo= &share->key_info[primary_key];
+      key_part= keyinfo->key_part;
+      for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
+      {
+        Field *field= key_part->field;
+        /*
+          If this field is part of the primary key and all keys contains
+          the primary key, then we can use any key to find this column
+        */
+        if (field->key_length() == key_part->length &&
+            !(field->flags & BLOB_FLAG))
+          field->part_of_key= share->keys_in_use;
+        if (field->part_of_sortkey.is_set(primary_key))
+            field->part_of_sortkey= share->keys_in_use;
+      }
+    }
+
+    if (share->primary_key != MAX_KEY)
+    {
       /*
 	If we are using an integer as the primary key then allow the user to
 	refer to it as '_rowid'
@@ -2043,8 +2078,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
     }
-    else
-      share->primary_key = MAX_KEY; // we do not have a primary key
   }
   else
     share->primary_key= MAX_KEY;

@@ -59,6 +59,7 @@
 #include "./rdb_i_s.h"
 #include "./rdb_index_merge.h"
 #include "./rdb_mutex_wrapper.h"
+#include "./rdb_psi.h"
 #include "./rdb_threads.h"
 
 // Internal MySQL APIs not exposed in any header.
@@ -191,9 +192,15 @@ struct Rdb_open_tables_map {
   mutable mysql_mutex_t m_mutex;
 
   void init_hash(void) {
+#ifdef HAVE_PSI_INTERFACE
     (void)my_hash_init(&m_hash, my_core::system_charset_info, TABLE_HASH_SIZE,
                        0, 0, (my_hash_get_key)Rdb_open_tables_map::get_hash_key,
-                       nullptr, 0, 0); // TODO: instrument for PFS
+                       nullptr, 0, rdb_open_tables_memory_key);
+#else
+    (void)my_hash_init(&m_hash, my_core::system_charset_info, TABLE_HASH_SIZE,
+                       0, 0, (my_hash_get_key)Rdb_open_tables_map::get_hash_key,
+                       nullptr, 0, PSI_NOT_INSTRUMENTED);
+#endif
   }
 
   void free_hash(void) { my_hash_free(&m_hash); }
@@ -1280,82 +1287,6 @@ uchar *Rdb_open_tables_map::get_hash_key(Rdb_table_handler *const table_handler,
   *length = table_handler->m_table_name_length;
   return reinterpret_cast<uchar *>(table_handler->m_table_name);
 }
-
-/*
-  The following is needed as an argument for mysql_stage_register,
-  irrespectively of whether we're compiling with P_S or not.
-*/
-PSI_stage_info stage_waiting_on_row_lock = {0, "Waiting for row lock", 0};
-
-#ifdef HAVE_PSI_INTERFACE
-static PSI_thread_key rdb_background_psi_thread_key;
-static PSI_thread_key rdb_drop_idx_psi_thread_key;
-
-static PSI_stage_info *all_rocksdb_stages[] = {&stage_waiting_on_row_lock};
-
-static my_core::PSI_mutex_key rdb_psi_open_tbls_mutex_key,
-    rdb_signal_bg_psi_mutex_key, rdb_signal_drop_idx_psi_mutex_key,
-    rdb_collation_data_mutex_key, rdb_mem_cmp_space_mutex_key,
-    key_mutex_tx_list, rdb_sysvars_psi_mutex_key;
-
-static PSI_mutex_info all_rocksdb_mutexes[] = {
-    {&rdb_psi_open_tbls_mutex_key, "open tables", PSI_FLAG_GLOBAL},
-    {&rdb_signal_bg_psi_mutex_key, "stop background", PSI_FLAG_GLOBAL},
-    {&rdb_signal_drop_idx_psi_mutex_key, "signal drop index", PSI_FLAG_GLOBAL},
-    {&rdb_collation_data_mutex_key, "collation data init", PSI_FLAG_GLOBAL},
-    {&rdb_mem_cmp_space_mutex_key, "collation space char data init",
-     PSI_FLAG_GLOBAL},
-    {&key_mutex_tx_list, "tx_list", PSI_FLAG_GLOBAL},
-    {&rdb_sysvars_psi_mutex_key, "setting sysvar", PSI_FLAG_GLOBAL},
-};
-
-static PSI_rwlock_key key_rwlock_collation_exception_list;
-static PSI_rwlock_key key_rwlock_read_free_rpl_tables;
-
-static PSI_rwlock_info all_rocksdb_rwlocks[] = {
-    {&key_rwlock_collation_exception_list, "collation_exception_list",
-     PSI_FLAG_GLOBAL},
-    {&key_rwlock_read_free_rpl_tables, "read_free_rpl_tables", PSI_FLAG_GLOBAL}
-};
-
-PSI_cond_key rdb_signal_bg_psi_cond_key, rdb_signal_drop_idx_psi_cond_key;
-
-static PSI_cond_info all_rocksdb_conds[] = {
-    {&rdb_signal_bg_psi_cond_key, "cond signal background", PSI_FLAG_GLOBAL},
-    {&rdb_signal_drop_idx_psi_cond_key, "cond signal drop index",
-     PSI_FLAG_GLOBAL},
-};
-
-static PSI_thread_info all_rocksdb_threads[] = {
-    {&rdb_background_psi_thread_key, "background", PSI_FLAG_GLOBAL},
-    {&rdb_drop_idx_psi_thread_key, "drop index", PSI_FLAG_GLOBAL},
-};
-
-static void init_rocksdb_psi_keys() {
-  const char *const category = "rocksdb";
-  int count;
-
-  if (PSI_server == nullptr)
-    return;
-
-  count = array_elements(all_rocksdb_mutexes);
-  PSI_server->register_mutex(category, all_rocksdb_mutexes, count);
-
-  count = array_elements(all_rocksdb_rwlocks);
-  PSI_server->register_rwlock(category, all_rocksdb_rwlocks, count);
-
-  count = array_elements(all_rocksdb_conds);
-  // TODO Disabling PFS for conditions due to the bug
-  // https://github.com/MySQLOnRocksDB/mysql-5.6/issues/92
-  // PSI_server->register_cond(category, all_rocksdb_conds, count);
-
-  count = array_elements(all_rocksdb_stages);
-  mysql_stage_register(category, all_rocksdb_stages, count);
-
-  count = array_elements(all_rocksdb_threads);
-  mysql_thread_register(category, all_rocksdb_threads, count);
-}
-#endif
 
 /*
   Drop index thread's control
@@ -2921,10 +2852,10 @@ static inline void rocksdb_register_tx(handlerton *const hton, THD *const thd,
                                        Rdb_transaction *const tx) {
   DBUG_ASSERT(tx != nullptr);
 
-  trans_register_ha(thd, FALSE, rocksdb_hton, NULL); // TODO: PFS
+  trans_register_ha(thd, false, rocksdb_hton, nullptr);
   if (my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
     tx->start_stmt();
-    trans_register_ha(thd, TRUE, rocksdb_hton, NULL); // TODO: PFS
+    trans_register_ha(thd, true, rocksdb_hton, nullptr);
   }
 }
 
@@ -3050,9 +2981,7 @@ static int rocksdb_init_func(void *const p) {
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
   static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
 
-#ifdef HAVE_PSI_INTERFACE
   init_rocksdb_psi_keys();
-#endif
 
   rocksdb_hton = (handlerton *)p;
   mysql_mutex_init(rdb_psi_open_tbls_mutex_key, &rdb_open_tables.m_mutex,
@@ -3471,10 +3400,15 @@ Rdb_open_tables_map::get_table_handler(const char *const table_name) {
             &m_hash, reinterpret_cast<const uchar *>(table_name), length)))) {
     // Since we did not find it in the hash map, attempt to create and add it
     // to the hash map.
-    // TODO: instrument for PFS
-    if (!(table_handler = reinterpret_cast<Rdb_table_handler *>(my_multi_malloc(
-              0, MYF(MY_WME | MY_ZEROFILL), &table_handler,
+#ifdef HAVE_PSI_INTERFACE
+    if (!(table_handler = static_cast<Rdb_table_handler *>(my_multi_malloc(
+              rdb_handler_memory_key, MYF(MY_WME | MY_ZEROFILL), &table_handler,
               sizeof(*table_handler), &tmp_name, length + 1, NullS)))) {
+#else
+    if (!(table_handler = static_cast<Rdb_table_handler *>(my_multi_malloc(
+              PSI_NOT_INSTRUMENTED, MYF(MY_WME | MY_ZEROFILL), &table_handler,
+              sizeof(*table_handler), &tmp_name, length + 1, NullS)))) {
+#endif
       // Allocating a new Rdb_table_handler and a new table name failed.
       mysql_mutex_unlock(&m_mutex);
       return nullptr;
@@ -3706,8 +3640,13 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_bulk_load_tx(nullptr), m_encoder_arr(nullptr),
       m_row_checksums_checked(0), m_in_rpl_delete_rows(false),
       m_in_rpl_update_rows(false) {
-  // TODO(alexyang): create a valid PSI_mutex_key for this mutex
-  mysql_mutex_init(0, &m_bulk_load_mutex, MY_MUTEX_INIT_FAST);
+#ifdef HAVE_PSI_INTERFACE
+  mysql_mutex_init(rdb_bulk_load_mutex_key, &m_bulk_load_mutex,
+                   MY_MUTEX_INIT_FAST);
+#else
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &m_bulk_load_mutex,
+                   MY_MUTEX_INIT_FAST);
+#endif
 }
 
 static const char *ha_rocksdb_exts[] = {NullS};
@@ -4170,9 +4109,15 @@ void ha_rocksdb::setup_field_converters() {
   uchar cur_null_mask = 0x1;
 
   DBUG_ASSERT(m_encoder_arr == nullptr);
-  // TODO: instrument for PFS
+#ifdef HAVE_PSI_INTERFACE
   m_encoder_arr = static_cast<Rdb_field_encoder *>(
-      my_malloc(0, table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
+      my_malloc(rdb_handler_memory_key,
+                table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
+#else
+  m_encoder_arr = static_cast<Rdb_field_encoder *>(
+      my_malloc(PSI_NOT_INSTRUMENTED,
+                table->s->fields * sizeof(Rdb_field_encoder), MYF(0)));
+#endif
   if (m_encoder_arr == nullptr) {
     return;
   }
@@ -4253,16 +4198,25 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
   // move this into get_table_handler() ??
   m_pk_descr->setup(table_arg, tbl_def_arg);
 
-  // TODO: instrument for PFS
-  m_pk_tuple = reinterpret_cast<uchar *>(my_malloc(0, key_len, MYF(0)));
+#ifdef HAVE_PSI_INTERFACE
+  m_pk_tuple =
+      static_cast<uchar *>(my_malloc(rdb_handler_memory_key, key_len, MYF(0)));
+#else
+  m_pk_tuple =
+      static_cast<uchar *>(my_malloc(PSI_NOT_INSTRUMENTED, key_len, MYF(0)));
+#endif
   if (m_pk_tuple == nullptr) {
     goto error;
   }
 
   pack_key_len = m_pk_descr->max_storage_fmt_length();
-  // TODO: instrument for PFS
-  m_pk_packed_tuple =
-      reinterpret_cast<uchar *>(my_malloc(0, pack_key_len, MYF(0)));
+#ifdef HAVE_PSI_INTERFACE
+  m_pk_packed_tuple = static_cast<uchar *>(
+      my_malloc(rdb_handler_memory_key, pack_key_len, MYF(0)));
+#else
+  m_pk_packed_tuple = static_cast<uchar *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, pack_key_len, MYF(0)));
+#endif
   if (m_pk_packed_tuple == nullptr) {
     goto error;
   }
@@ -4282,17 +4236,29 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
     }
   }
 
-  // TODO: instrument for PFS
-  if (!(m_sk_packed_tuple = reinterpret_cast<uchar *>(
-            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
-      !(m_sk_match_prefix_buf = reinterpret_cast<uchar *>(
-            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
-      !(m_sk_packed_tuple_old = reinterpret_cast<uchar *>(
-            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
-      !(m_end_key_packed_tuple = reinterpret_cast<uchar *>(
-            my_malloc(0, max_packed_sk_len, MYF(0)))) ||
-      !((m_pack_buffer = reinterpret_cast<uchar *>(
-             my_malloc(0, max_packed_sk_len, MYF(0)))))) {
+#ifdef HAVE_PSI_INTERFACE
+  if (!(m_sk_packed_tuple = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+      !(m_sk_match_prefix_buf = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+      !(m_sk_packed_tuple_old = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+      !(m_end_key_packed_tuple = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+      !((m_pack_buffer = static_cast<uchar *>(
+             my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))))) {
+#else
+  if (!(m_sk_packed_tuple = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+      !(m_sk_match_prefix_buf = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+      !(m_sk_packed_tuple_old = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+      !(m_end_key_packed_tuple = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+      !((m_pack_buffer = static_cast<uchar *>(
+             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))))) {
+#endif
     goto error;
   }
 
@@ -4300,12 +4266,19 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
     If inplace alter is happening, allocate special buffers for unique
     secondary index duplicate checking.
   */
-  // TODO: instrument for PFS
+#ifdef HAVE_PSI_INTERFACE
   if (alloc_alter_buffers &&
-      (!(m_dup_sk_packed_tuple = reinterpret_cast<uchar *>(
-             my_malloc(0, max_packed_sk_len, MYF(0)))) ||
-       !(m_dup_sk_packed_tuple_old = reinterpret_cast<uchar *>(
-             my_malloc(0, max_packed_sk_len, MYF(0)))))) {
+      (!(m_dup_sk_packed_tuple = static_cast<uchar *>(
+             my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+       !(m_dup_sk_packed_tuple_old = static_cast<uchar *>(
+             my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))))) {
+#else
+  if (alloc_alter_buffers &&
+      (!(m_dup_sk_packed_tuple = static_cast<uchar *>(
+             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+       !(m_dup_sk_packed_tuple_old = static_cast<uchar *>(
+             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))))) {
+#endif
     goto error;
   }
 

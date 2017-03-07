@@ -39,6 +39,7 @@
 #include "./ha_rocksdb_proto.h"
 #include "./my_stacktrace.h"
 #include "./rdb_cf_manager.h"
+#include "./rdb_psi.h"
 #include "./rdb_utils.h"
 
 namespace myrocks {
@@ -81,16 +82,25 @@ Rdb_key_def::Rdb_key_def(const Rdb_key_def &k)
   rdb_netbuf_store_index(m_index_number_storage_form, m_index_number);
   if (k.m_pack_info) {
     const size_t size = sizeof(Rdb_field_packing) * k.m_key_parts;
-    // TODO: instrument for PFS
-    m_pack_info =
-        reinterpret_cast<Rdb_field_packing *>(my_malloc(0, size, MYF(0)));
+#ifdef HAVE_PSI_INTERFACE
+    m_pack_info = static_cast<Rdb_field_packing *>(
+        my_malloc(rdb_datadic_memory_key, size, MYF(0)));
+#else
+    m_pack_info = static_cast<Rdb_field_packing *>(
+        my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0)));
+#endif
     memcpy(m_pack_info, k.m_pack_info, size);
   }
 
   if (k.m_pk_part_no) {
     const size_t size = sizeof(uint) * m_key_parts;
-    // TODO: instrument for PFS
-    m_pk_part_no = reinterpret_cast<uint *>(my_malloc(0, size, MYF(0)));
+#ifdef HAVE_PSI_INTERFACE
+    m_pk_part_no =
+        static_cast<uint *>(my_malloc(rdb_datadic_memory_key, size, MYF(0)));
+#else
+    m_pk_part_no =
+        static_cast<uint *>(my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0)));
+#endif
     memcpy(m_pk_part_no, k.m_pk_part_no, size);
   }
 }
@@ -164,16 +174,24 @@ void Rdb_key_def::setup(const TABLE *const tbl,
     }
 
     if (secondary_key)
-      // TODO: instrument for PFS
-      m_pk_part_no = reinterpret_cast<uint *>(
-          my_malloc(0, sizeof(uint) * m_key_parts, MYF(0)));
+#ifdef HAVE_PSI_INTERFACE
+      m_pk_part_no = static_cast<uint *>(my_malloc(
+          rdb_datadic_memory_key, sizeof(uint) * m_key_parts, MYF(0)));
+#else
+      m_pk_part_no = static_cast<uint *>(
+          my_malloc(PSI_NOT_INSTRUMENTED, sizeof(uint) * m_key_parts, MYF(0)));
+#endif
     else
       m_pk_part_no = nullptr;
 
     const size_t size = sizeof(Rdb_field_packing) * m_key_parts;
-    // TODO: instrument for PFS
-    m_pack_info =
-        reinterpret_cast<Rdb_field_packing *>(my_malloc(0, size, MYF(0)));
+#ifdef HAVE_PSI_INTERFACE
+    m_pack_info = static_cast<Rdb_field_packing *>(
+        my_malloc(rdb_datadic_memory_key, size, MYF(0)));
+#else
+    m_pack_info = static_cast<Rdb_field_packing *>(
+        my_malloc(PSI_NOT_INSTRUMENTED, size, MYF(0)));
+#endif
 
     size_t max_len = INDEX_NUMBER_SIZE;
     int unpack_len = 0;
@@ -2925,11 +2943,18 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
   const ulong TABLE_HASH_SIZE = 32;
   m_dict = dict_arg;
   mysql_rwlock_init(0, &m_rwlock);
-  // TODO: instrument for PFS
+#ifdef HAVE_PSI_INTERFACE
   (void)my_hash_init(&m_ddl_hash,
                      /*system_charset_info*/ &my_charset_bin, TABLE_HASH_SIZE,
                      0, 0, (my_hash_get_key)Rdb_ddl_manager::get_hash_key,
-                     Rdb_ddl_manager::free_hash_elem, 0, 0);
+                     Rdb_ddl_manager::free_hash_elem, 0,
+                     rdb_datadic_memory_key);
+#else
+  (void)my_hash_init(&m_ddl_hash,
+                     /*system_charset_info*/ &my_charset_bin, TABLE_HASH_SIZE,
+                     0, 0, (my_hash_get_key)Rdb_ddl_manager::get_hash_key,
+                     Rdb_ddl_manager::free_hash_elem, 0, PSI_NOT_INSTRUMENTED);
+#endif
 
   /* Read the data dictionary and populate the hash */
   uchar ddl_entry[Rdb_key_def::INDEX_NUMBER_SIZE];

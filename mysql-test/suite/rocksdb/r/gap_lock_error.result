@@ -8,6 +8,10 @@ UNIQUE KEY ui(value)) ENGINE=rocksdb;
 CREATE TABLE gap4 (id INT, value INT,
 PRIMARY KEY (id)) ENGINE=rocksdb
 PARTITION BY HASH(id) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.gap4', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
+Warning	1287	The partition engine, used by table 'test.gap4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
 insert into gap4 values (1,1), (2,2),(3,3),(4,4),(5,5);
 set session autocommit=0;

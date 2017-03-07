@@ -3448,7 +3448,7 @@ int handler::ha_index_first(uchar * buf)
 
   if (is_using_prohibited_gap_locks(table, false))
   {
-    return HA_ERR_LOCK_DEADLOCK;
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
   }
 
   // Set status for the need to update generated fields
@@ -3493,7 +3493,7 @@ int handler::ha_index_last(uchar * buf)
 
   if (is_using_prohibited_gap_locks(table, false))
   {
-    return HA_ERR_LOCK_DEADLOCK;
+    DBUG_RETURN(HA_ERR_LOCK_DEADLOCK);
   }
 
   // Set status for the need to update generated fields

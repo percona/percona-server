@@ -6121,7 +6121,6 @@ int ha_tokudb::info(uint flag) {
         stats.records = share->row_count() + share->rows_from_locked_table;
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
-            uint64_t num_rows = 0;
             TOKU_DB_FRAGMENTATION_S frag_info;
             memset(&frag_info, 0, sizeof frag_info);
 
@@ -6133,13 +6132,6 @@ int ha_tokudb::info(uint flag) {
             // we should always have a primary key
             assert_always(share->file != NULL);
 
-            error = estimate_num_rows(share->file, &num_rows, txn);
-            if (error == 0) {
-                share->set_row_count(num_rows, false);
-                stats.records = num_rows;
-            } else {
-                goto cleanup;
-            }
             error = share->file->get_fragmentation(share->file, &frag_info);
             if (error) {
                 goto cleanup;
@@ -6151,7 +6143,8 @@ int ha_tokudb::info(uint flag) {
             if (error) {
                 goto cleanup;
             }
-
+            share->set_row_count(dict_stats.bt_ndata, false);
+            stats.records = dict_stats.bt_ndata;
             stats.create_time = dict_stats.bt_create_time_sec;
             stats.update_time = dict_stats.bt_modify_time_sec;
             stats.check_time = dict_stats.bt_verify_time_sec;
@@ -7823,7 +7816,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     // As a result, equal may be 0 and greater may actually be equal+greater
     // So, we call key_range64 on the key, and the key that is after it.
     if (!start_key && !end_key) {
-        error = estimate_num_rows(kfile, &rows, transaction);
+        error = estimate_num_rows(share->file, &rows, transaction);
         if (error) {
             ret_val = HA_TOKUDB_RANGE_COUNT;
             goto cleanup;

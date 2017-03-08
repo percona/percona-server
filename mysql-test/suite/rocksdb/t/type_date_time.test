@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Date and time column types
@@ -6,4 +6,3 @@
 #
 
 --source type_date_time.inc
-

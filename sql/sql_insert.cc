@@ -2809,6 +2809,10 @@ int Query_result_create::prepare2()
       if (error)
         return error;
 
+      create_table->table->set_binlog_drop_if_temp(
+        !thd->is_current_stmt_binlog_disabled()
+        && !thd->is_current_stmt_binlog_format_row());
+
       TABLE const *const table = *tables;
       if (thd->is_current_stmt_binlog_format_row()  &&
           !table->s->tmp_table)

@@ -288,7 +288,7 @@ static bool tokudb_backup_check_slave_sql_thread_running(THD *thd) {
 
     Master_info *mi = active_mi;
 
-    if (!mi || !mi->inited || !mi->host[0])
+    if (!mi || !mi->inited || !mi->host || !mi->host[0])
         return false;
 
     scoped_lock_wrapper<BasicLockableMysqlMutextT>
@@ -321,10 +321,12 @@ static bool tokudb_backup_stop_slave_sql_thread(THD *thd) {
             with_LOCK_active_mi_locked(
             BasicLockableMysqlMutextT(&LOCK_active_mi));
 
-        if (!active_mi || !active_mi->inited || !active_mi->host[0])
+        Master_info *mi = active_mi;
+
+        if (!mi || !mi->inited || !mi->host || !mi->host[0])
             return true;
 
-        stop_slave_result = stop_slave(thd, active_mi, 0);
+        stop_slave_result = stop_slave(thd, mi, 0);
     }
 
     result = !stop_slave_result &&
@@ -344,16 +346,20 @@ static bool tokudb_backup_start_slave_sql_thread(THD *thd) {
         return true;
 
     thd->lex->slave_thd_opt = SLAVE_SQL;
+    thd->lex->slave_connection.user = NULL;
+    thd->lex->slave_connection.password = NULL;
 
     {
         scoped_lock_wrapper<BasicLockableMysqlMutextT>
             with_LOCK_active_mi_locked(
             BasicLockableMysqlMutextT(&LOCK_active_mi));
 
-        if (!active_mi || !active_mi->inited || !active_mi->host[0])
+        Master_info *mi = active_mi;
+
+        if (!mi || !mi->inited || !mi->host || !mi->host[0])
             return true;
 
-        start_slave_result = start_slave(thd, active_mi, 0);
+        start_slave_result = start_slave(thd, mi, 0);
     }
 
     result = !start_slave_result &&
@@ -427,10 +433,10 @@ static void tokudb_backup_before_stop_capt_fun(void *arg) {
         if (!tokudb_backup_wait_for_safe_slave(
                 thd,tokudb_backup_safe_slave_timeout)) {
             sql_print_error("TokuDB Hotbackup: safe slave option error");
+            return;
         }
     }
-    else
-        (void)lock_binlog_for_backup(thd);
+    (void)lock_binlog_for_backup(thd);
     if (!plugin_foreach(NULL,
                         tokudb_backup_flush_log_plugin_callback,
                         MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -453,6 +459,7 @@ std::string tokudb_backup_get_executed_gtids_set() {
         (void)sql_gtid_set->to_string(&sql_gtid_set_buffer);
     }
     result.assign(sql_gtid_set_buffer);
+    my_free(sql_gtid_set_buffer);
     result.erase(std::remove(result.begin(), result.end(),'\n'), result.end());
     return result;
 };
@@ -460,16 +467,19 @@ std::string tokudb_backup_get_executed_gtids_set() {
 static void tokudb_backup_get_master_infos(
     THD *thd,
     std::vector<tokudb_backup_master_info> *master_info_channels) {
-
-    Master_info *mi = active_mi;
     tokudb_backup_master_info tbmi;
+
+    if (!active_mi)
+        return;
 
     {
         scoped_lock_wrapper<BasicLockableMysqlMutextT>
             with_LOCK_active_mi_locked(
             BasicLockableMysqlMutextT(&LOCK_active_mi));
 
-        if (!active_mi)
+        Master_info *mi = active_mi;
+
+        if (!mi || !mi->inited || !mi->host || !mi->host[0])
             return;
 
         std::string executed_gtid_set = tokudb_backup_get_executed_gtids_set();
@@ -545,7 +555,7 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
                         "master and slave info can't be saved "
                         "because slave sql thread can't be stopped\n");
 
-        return;
+        goto exit;
     }
 
     tokudb_backup_get_master_infos(thd, master_info_channels);
@@ -559,10 +569,12 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
                                        NULL, NULL, NULL);
             sql_print_error("TokuDB Hotbackup: "
                             "slave sql thread can't be started\n");
-            return;
+            goto exit;
         }
     }
-    else if (thd->backup_binlog_lock.is_acquired()) {
+
+exit:
+    if (thd->backup_binlog_lock.is_acquired()) {
         thd->backup_binlog_lock.release(thd);
     }
 }

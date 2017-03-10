@@ -18041,11 +18041,16 @@ and SYS_ZIP_DICT_COLS for all columns marked with
 COLUMN_FORMAT_TYPE_COMPRESSED flag and updates
 zip_dict_name / zip_dict_data for those which have associated
 compression dictionaries.
-@param thd Thread handle, used to determine whether it is necessary
-to lock dict_sys mutex
+
+@param	thd		Thread handle, used to determine whether it is
+			necessary to lock dict_sys mutex
+@param	part_name	Full table name (including partition part).
+			Must be non-NULL only if called from
+			ha_partition.
 */
 void
-ha_innobase::update_field_defs_with_zip_dict_info(THD* thd)
+ha_innobase::update_field_defs_with_zip_dict_info(THD* thd,
+	const char *part_name)
 {
 	DBUG_ENTER("update_field_defs_with_zip_dict_info");
 
@@ -18053,7 +18058,9 @@ ha_innobase::update_field_defs_with_zip_dict_info(THD* thd)
 	innodb_session_t* innodb_session = thd_to_innodb_session(thd);
 	bool dict_locked = innodb_session->is_dict_mutex_locked();
 
-	normalize_table_name(norm_name, table_share->normalized_path.str);
+	normalize_table_name(norm_name,
+		part_name != 0 ? part_name :
+			table_share->normalized_path.str);
 
 	DBUG_EXECUTE_IF("ib_purge_virtual_index_callback",
 		dict_locked = false; );

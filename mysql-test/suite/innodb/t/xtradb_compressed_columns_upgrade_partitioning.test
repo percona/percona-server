@@ -1,0 +1,258 @@
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_partition.inc
+
+# this test case needs '--force-restart' option in the '.opt' file to make sure
+# that max tablespace id and max index id in the InnoDB system tables are still
+# not greater then the values in pre-included 5.6 '.ibd' files which may happen
+# when a bunch of other MTR test cases is executed before this one without
+# server restart
+
+--let $partition_boundary = 128
+
+# making sure that the next tablespace id and clustered index id will be exactly the
+# same as in the pre-included 5.6 files
+--let $desired_tablespace_id = 101
+--let $desired_index_id = 151
+
+--disable_query_log
+
+CREATE TABLE dummy_t (id INT) ENGINE=InnoDB;
+CREATE INDEX dummy_idx ON dummy_t(id);
+--let $initial_max_tablespace_id = `SELECT MAX(space) FROM information_schema.innodb_sys_tablespaces`
+--let $initial_max_index_id = `SELECT MAX(index_id) FROM information_schema.innodb_sys_indexes`
+
+if($initial_max_tablespace_id >= $desired_tablespace_id)
+{
+  DROP TABLE dummy_t;
+  --die Unable to create table with desired tablespace id
+}
+if(`SELECT $initial_max_index_id + $desired_tablespace_id - $initial_max_tablespace_id - 1 >= $desired_index_id`)
+{
+  DROP TABLE dummy_t;
+  --die Unable to create table with desired index id
+}
+
+# creating a bunch of dummy tables to increase table id
+--let $i = $initial_max_tablespace_id
+--inc $i
+while($i < $desired_tablespace_id)
+{
+  eval CREATE TABLE dummy_t$i (id INT) ENGINE=InnoDB;
+  --inc $i
+}
+
+# creating a bunch of dummy indexes to increase index id
+--let $initial_max_index_id = `SELECT MAX(index_id) FROM information_schema.innodb_sys_indexes`
+--let $i = $initial_max_index_id
+--inc $i
+--disable_warnings
+while($i < $desired_index_id)
+{
+  eval CREATE INDEX dummy_idx$i ON dummy_t(id);
+  --inc $i
+}
+--enable_warnings
+
+--enable_query_log
+
+# suppressing LSN errors which may appear after exchanging .ibd files
+CALL mtr.add_suppression("InnoDB: Page \\[page id: space=[0-9]+, page number=[0-9]+\\] log sequence number [0-9]+ is in the future! Current system log sequence number [0-9]+\\.");
+CALL mtr.add_suppression("InnoDB: Your database may be corrupt or you may have copied the InnoDB tablespace but not the InnoDB log files. Please refer to http://dev\\.mysql\\.com/doc/refman/5\\.7/en/forcing-innodb-recovery\\.html for information about forcing recovery\\.");
+
+# setting InnoDB file format to Antelope - the format in which pre-included 5.6 tables were created
+# no need to save/restore this global variable as the server will be restarted
+--disable_warnings
+SET GLOBAL innodb_file_format = Antelope;
+--enable_warnings
+
+# creating a compression dictionary
+CREATE COMPRESSION_DICTIONARY numbers ('one' 'two' 'three');
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $table_name_par = t5635_par
+--let $table_name_subpar = t5635_subpar
+
+# defining the same string values which were inserted into the pre-included 5.6 tables
+--let $a_short = one
+--let $b_short = two
+--let $a_long = `SELECT REPEAT('$a_short', 128)`
+--let $b_long = `SELECT REPEAT('$b_short', 128)`
+
+# creating 5.7 partitioned/subpartitioned tables with the same structure as
+# in pre-included 'std_data/parts/t5635_par*' and 'std_data/parts/t5635_subpar*'
+# please notice ROW_FORMAT=COMPACT here - as this is a default 5.6 file format
+eval CREATE TABLE $table_name_par(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ROW_FORMAT=COMPACT ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN ($partition_boundary) ENGINE = InnoDB,
+  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+eval CREATE TABLE $table_name_subpar(
+  id INT,
+  a BLOB COLUMN_FORMAT COMPRESSED,
+  b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ROW_FORMAT=COMPACT ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+  PARTITION p0 VALUES LESS THAN ($partition_boundary) ENGINE = InnoDB,
+  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+
+# showing table structure
+eval SHOW CREATE TABLE $table_name_par;
+eval SHOW CREATE TABLE $table_name_subpar;
+
+# stopping the server in order to rewrite table data files
+--source include/shutdown_mysqld.inc
+
+# substituting partition data files with pre-included 5.6 files
+--remove_file $MYSQLD_DATADIR/test/$table_name_par.frm
+--remove_file $MYSQLD_DATADIR/test/$table_name_par#P#p0.ibd
+--remove_file $MYSQLD_DATADIR/test/$table_name_par#P#p1.ibd
+--copy_file std_data/parts/t5635_par.frm $MYSQLD_DATADIR/test/$table_name_par.frm
+--copy_file std_data/parts/t5635_par.par $MYSQLD_DATADIR/test/$table_name_par.par
+--copy_file std_data/parts/t5635_par#P#p0.ibd $MYSQLD_DATADIR/test/$table_name_par#P#p0.ibd
+--copy_file std_data/parts/t5635_par#P#p1.ibd $MYSQLD_DATADIR/test/$table_name_par#P#p1.ibd
+
+--remove_file $MYSQLD_DATADIR/test/$table_name_subpar.frm
+--remove_file $MYSQLD_DATADIR/test/$table_name_subpar#P#p0#SP#p0sp0.ibd
+--remove_file $MYSQLD_DATADIR/test/$table_name_subpar#P#p0#SP#p0sp1.ibd
+--remove_file $MYSQLD_DATADIR/test/$table_name_subpar#P#p1#SP#p1sp0.ibd
+--remove_file $MYSQLD_DATADIR/test/$table_name_subpar#P#p1#SP#p1sp1.ibd
+--copy_file std_data/parts/t5635_subpar.frm $MYSQLD_DATADIR/test/$table_name_subpar.frm
+--copy_file std_data/parts/t5635_subpar.par $MYSQLD_DATADIR/test/$table_name_subpar.par
+--copy_file std_data/parts/t5635_subpar#P#p0#SP#p0sp0.ibd $MYSQLD_DATADIR/test/$table_name_subpar#P#p0#SP#p0sp0.ibd
+--copy_file std_data/parts/t5635_subpar#P#p0#SP#p0sp1.ibd $MYSQLD_DATADIR/test/$table_name_subpar#P#p0#SP#p0sp1.ibd
+--copy_file std_data/parts/t5635_subpar#P#p1#SP#p1sp0.ibd $MYSQLD_DATADIR/test/$table_name_subpar#P#p1#SP#p1sp0.ibd
+--copy_file std_data/parts/t5635_subpar#P#p1#SP#p1sp1.ibd $MYSQLD_DATADIR/test/$table_name_subpar#P#p1#SP#p1sp1.ibd
+
+# starting the server with 5.6 data files
+--source include/start_mysqld.inc
+
+# showing table structure from the 5.6 data files
+eval SHOW CREATE TABLE $table_name_par;
+eval SHOW CREATE TABLE $table_name_subpar;
+
+# refreshing table data
+--let $tmp_table = tmp
+eval CREATE TABLE $tmp_table AS SELECT * FROM $table_name_par;
+eval DELETE FROM $table_name_par;
+eval INSERT INTO $table_name_par SELECT * FROM $tmp_table;
+eval DROP TABLE $tmp_table;
+
+eval CREATE TABLE $tmp_table AS SELECT * FROM $table_name_subpar;
+eval DELETE FROM $table_name_subpar;
+eval INSERT INTO $table_name_subpar SELECT * FROM $tmp_table;
+eval DROP TABLE $tmp_table;
+
+
+--let $table_name = $table_name_par
+
+# partitioned table: checking data consistency for the first partition 'p0'
+--let $part_shift = 0
+--let $subpart_shift = 0
+--let $partition_name = p0
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# partitioned table: checking data consistency for the second partition 'p1'
+--let $part_shift = $partition_boundary
+--let $subpart_shift = 0
+--let $partition_name = p1
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# partitioned table: upgrading partitioning engine from 'ha_partition' to native 'ha_innopart'
+eval ALTER TABLE $table_name_par UPGRADE PARTITIONING;
+
+# partitioned table: showing table structure after 'UPGRADE PARTITIONING'
+eval SHOW CREATE TABLE $table_name_par;
+
+# partitioned table: checking data consistency for the first partition 'p0'
+--let $part_shift = 0
+--let $subpart_shift = 0
+--let $partition_name = p0
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# partitioned table: checking data consistency for the second partition 'p1'
+--let $part_shift = $partition_boundary
+--let $subpart_shift = 0
+--let $partition_name = p1
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+
+--let $table_name = $table_name_subpar
+
+# subpartitioned table: checking data consistency for 'p0sp0'
+--let $part_shift = 0
+--let $subpart_shift = 0
+--let $partition_name = p0sp0
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: checking data consistency for 'p0sp1'
+--let $part_shift = 0
+--let $subpart_shift = 1
+--let $partition_name = p0sp1
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: checking data consistency for 'p1sp0'
+--let $part_shift = $partition_boundary
+--let $subpart_shift = 0
+--let $partition_name = p1sp0
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: checking data consistency for 'p1sp1'
+--let $part_shift = $partition_boundary
+--let $subpart_shift = 1
+--let $partition_name = p1sp1
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: upgrading partitioning engine from 'ha_partition' to native 'ha_innopart'
+eval ALTER TABLE $table_name_subpar UPGRADE PARTITIONING;
+
+# subpartitioned table: showing table structure after 'UPGRADE PARTITIONING'
+eval SHOW CREATE TABLE $table_name_subpar;
+
+# subpartitioned table: checking data consistency for 'p0sp0'
+--let $part_shift = 0
+--let $subpart_shift = 0
+--let $partition_name = p0sp0
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: checking data consistency for 'p0sp1'
+--let $part_shift = 0
+--let $subpart_shift = 1
+--let $partition_name = p0sp1
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: checking data consistency for 'p1sp0'
+--let $part_shift = $partition_boundary
+--let $subpart_shift = 0
+--let $partition_name = p1sp0
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+# subpartitioned table: checking data consistency for 'p1sp1'
+--let $part_shift = $partition_boundary
+--let $subpart_shift = 1
+--let $partition_name = p1sp1
+--source suite/innodb/include/xtradb_compressed_columns_upgrade_check.inc
+
+
+# cleanup
+--let $i = $initial_max_tablespace_id
+--inc $i
+--disable_query_log
+while($i < $desired_tablespace_id)
+{
+  eval DROP TABLE dummy_t$i;
+  --inc $i
+}
+DROP TABLE dummy_t;
+--enable_query_log
+eval DROP TABLE $table_name_par;
+eval DROP TABLE $table_name_subpar;
+
+DROP COMPRESSION_DICTIONARY numbers;

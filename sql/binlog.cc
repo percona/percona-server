@@ -7124,6 +7124,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
           stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
       delete pending;
+      pending= NULL;
       cache_data->set_pending(NULL);
       DBUG_RETURN(1);
     }

@@ -343,7 +343,10 @@ static int run_command(char* cmd,
     fflush(stderr);
   }
   if (!(res_file= popen(cmd, "r")))
-    die("popen(\"%s\", \"r\") failed", cmd);
+  {
+    die("popen(\"%s\", \"r\") failed, error: %s (errno = %d)", cmd,
+        strerror(errno), errno);
+  }
 
   while (fgets(buf, sizeof(buf), res_file))
   {
@@ -366,8 +369,33 @@ static int run_command(char* cmd,
     fflush(stderr);
   }
 
+  if (ferror(res_file))
+  {
+    fprintf(stderr,
+            "%s: fgets from popen(\"%s\", \"r\") failed, error: %s (errno = %d)",
+            my_progname, cmd, strerror(errno), errno);
+  }
+
   error= pclose(res_file);
-  return WEXITSTATUS(error);
+  if (error == -1)
+  {
+    fprintf(stderr, "%s: pclose for popen(\"%s\", \"r\") failed, error: %s "
+            "(errno = %d)\n",
+            my_progname, cmd, strerror(errno), errno);
+    return -1;
+  }
+  if (WIFEXITED(error))
+    return WEXITSTATUS(error);
+  if (WIFSIGNALED(error)) {
+    fprintf(stderr, "%s: child process of popen(\"%s\", \"r\") terminated "
+            "with signal %d\n", my_progname, cmd, WTERMSIG(error));
+    return -1;
+  }
+  else {
+    fprintf(stderr, "%s: child process of popen(\"%s\", \"r\") unknown "
+            "termination status %d\n", my_progname, cmd, error);
+    return -1;
+  }
 }
 
 
@@ -427,6 +455,7 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
 {
   char *last_fn_libchar;
   DYNAMIC_STRING ds_tmp;
+  int error;
   DBUG_ENTER("find_tool");
   DBUG_PRINT("enter", ("progname: %s", my_progname));
 
@@ -479,14 +508,15 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
   /*
     Make sure it can be executed
   */
-  if (run_tool(tool_executable_name,
+  error= run_tool(tool_executable_name,
                &ds_tmp, /* Get output from command, discard*/
                "--no-defaults",
                "--help",
                "2>&1",
                IF_WIN("> NUL", "> /dev/null"),
-               NULL))
-    die("Can't execute '%s'", tool_executable_name);
+               NULL);
+  if (error)
+    die("Can't execute '%s', returned %d", tool_executable_name, error);
 
   dynstr_free(&ds_tmp);
 
@@ -553,6 +583,13 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   my_close(fd, MYF(0));
   my_delete(query_file_path, MYF(0));
+
+  if (ret)
+  {
+    fprintf(stderr,
+            "mysql_upgrade: running mysql with query \"%s\" returned %d\n",
+            query, ret);
+  }
 
   DBUG_RETURN(ret);
 }

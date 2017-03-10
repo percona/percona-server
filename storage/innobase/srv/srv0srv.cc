@@ -573,6 +573,12 @@ static ulint		srv_main_shutdown_loops		= 0;
 /** Log writes involving flush. */
 static ulint		srv_log_writes_and_flush	= 0;
 
+/** Number of times secondary index lookup triggered cluster lookup */
+ulint	srv_sec_rec_cluster_reads		= 0;
+
+/** Number of times prefix optimization avoided triggering cluster lookup */
+ulint	srv_sec_rec_cluster_reads_avoided	= 0;
+
 /* This is only ever touched by the master thread. It records the
 time when the last flush of log file has happened. The master
 thread ensures that we flush the log files at least once per
@@ -1878,6 +1884,12 @@ srv_export_innodb_status(void)
 			(ulint) (max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
+
+	os_rmb;
+	export_vars.innodb_sec_rec_cluster_reads =
+		srv_sec_rec_cluster_reads;
+	export_vars.innodb_sec_rec_cluster_reads_avoided =
+		srv_sec_rec_cluster_reads_avoided;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

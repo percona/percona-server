@@ -587,6 +587,11 @@ extern my_bool srv_print_all_deadlocks;
 
 extern my_bool	srv_cmp_per_index_enabled;
 
+/** Number of times secondary index lookup triggered cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads_avoided;
+
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 
@@ -1084,6 +1089,9 @@ struct export_var_t{
 #endif /* UNIV_DEBUG */
 	ulint innodb_column_compressed;		/*!< srv_column_compressed */
 	ulint innodb_column_decompressed;	/*!< srv_column_decompressed */
+
+	ulint innodb_sec_rec_cluster_reads;	/*!< srv_sec_rec_cluster_reads */
+	ulint innodb_sec_rec_cluster_reads_avoided; /*!< srv_sec_rec_cluster_reads_avoided */
 };
 
 /** Thread slot in the thread table.  */

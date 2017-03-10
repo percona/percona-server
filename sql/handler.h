@@ -3445,8 +3445,11 @@ public:
     compression dictionary info (name and data).
     If the handler does not support compression dictionaries
     this method should be left empty (not overloaded).
+
+    @param    part_name    Full table name (including partition part).
+                           Optional.
   */
-  virtual void update_field_defs_with_zip_dict_info() { }
+  virtual void update_field_defs_with_zip_dict_info(const char* part_name) {}
 
 public:
   /* Read-free replication interface */

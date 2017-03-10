@@ -3446,7 +3446,8 @@ innobase_init(
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
 	innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-		HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_FOREIGN_KEYS;
+		HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_COMPRESSED_COLUMNS;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;

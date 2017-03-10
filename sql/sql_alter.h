@@ -255,6 +255,15 @@ public:
 
   bool set_requested_lock(const LEX_STRING *str);
 
+  /**
+    Checks if there are any columns with COLUMN_FORMAT COMRPESSED
+    attribute among field definitions in create_list.
+
+    @retval false there are no compressed columns
+    @retval true there is at least one compressed column
+  */
+  bool has_compressed_columns() const;
+
 private:
   Alter_info &operator=(const Alter_info &rhs); // not implemented
   Alter_info(const Alter_info &rhs);            // not implemented

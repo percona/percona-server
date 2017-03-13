@@ -184,7 +184,7 @@ case "$1" in
   'stop')
 	if [ "$(get_running)" -eq 1 ];
 	then
-		killall -u mysql
+		mysqladmin shutdown
 		verify_server stop
 		if [ "$?" -eq 0 ];
 		then

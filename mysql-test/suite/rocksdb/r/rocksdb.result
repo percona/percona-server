@@ -970,6 +970,7 @@ rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
 rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
+rocksdb_sst_mgr_rate_bytes_per_sec	67108864
 rocksdb_stats_dump_period_sec	600
 rocksdb_store_row_debug_checksums	OFF
 rocksdb_strict_collation_check	OFF
@@ -1515,9 +1516,6 @@ rocksdb_compaction_key_drop_obsolete	#
 rocksdb_compaction_key_drop_user	#
 rocksdb_flush_write_bytes	#
 rocksdb_getupdatessince_calls	#
-rocksdb_l0_num_files_stall_micros	#
-rocksdb_l0_slowdown_micros	#
-rocksdb_memtable_compaction_micros	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
 rocksdb_no_file_closes	#
@@ -1545,6 +1543,7 @@ rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
 rocksdb_rate_limit_delay_millis	#
 rocksdb_snapshot_conflict_errors	#
+rocksdb_stall_micros	#
 rocksdb_wal_bytes	#
 rocksdb_wal_group_syncs	#
 rocksdb_wal_synced	#
@@ -1585,9 +1584,6 @@ rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
 rocksdb_getupdatessince_calls
-rocksdb_l0_num_files_stall_micros
-rocksdb_l0_slowdown_micros
-rocksdb_memtable_compaction_micros
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1615,6 +1611,7 @@ rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
 rocksdb_rate_limit_delay_millis
 rocksdb_snapshot_conflict_errors
+rocksdb_stall_micros
 rocksdb_wal_bytes
 rocksdb_wal_group_syncs
 rocksdb_wal_synced
@@ -1657,9 +1654,6 @@ rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
 rocksdb_getupdatessince_calls
-rocksdb_l0_num_files_stall_micros
-rocksdb_l0_slowdown_micros
-rocksdb_memtable_compaction_micros
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1687,6 +1681,7 @@ rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
 rocksdb_rate_limit_delay_millis
 rocksdb_snapshot_conflict_errors
+rocksdb_stall_micros
 rocksdb_wal_bytes
 rocksdb_wal_group_syncs
 rocksdb_wal_synced

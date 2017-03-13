@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS r1;
 create table r1 (
 id1 int,
 id2 int,

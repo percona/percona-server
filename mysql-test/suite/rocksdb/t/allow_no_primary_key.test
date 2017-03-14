@@ -1,14 +1,10 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # This test checks some very basic capabilities
 # for tables without primary keys. A hidden pk will be generated under the hood
 # in myrocks.  Everything should work here as normal.
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 # test CREATE
 CREATE TABLE t1 (a INT, b CHAR(8)) ENGINE=rocksdb;
@@ -42,10 +38,6 @@ DROP TABLE t1;
 # in which case rdiff will be needed. Or, the output might say that
 # the storage engine does not support CHECK.
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
 
 CREATE TABLE t1 (a INT, b CHAR(8)) ENGINE=rocksdb;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');

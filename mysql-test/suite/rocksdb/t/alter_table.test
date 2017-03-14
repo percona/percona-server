@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Basic ALTER TABLE statements.
@@ -10,10 +10,6 @@
 #
 # ALTER OFFLINE is not covered as it is not supported, as of 5.5.23
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
 
 CREATE TABLE t1 (pk INT PRIMARY KEY, a INT, c CHAR(8)) ENGINE=rocksdb;
 INSERT INTO t1 VALUES (1,1,'a'),(2,5,'z');
@@ -90,5 +86,3 @@ ALTER TABLE t1 FORCE;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
-
-

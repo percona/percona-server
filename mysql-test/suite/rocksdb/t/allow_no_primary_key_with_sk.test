@@ -1,14 +1,10 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # This test checks some very basic capabilities
 # for tables without primary keys. A hidden pk will be generated under the hood
 # in myrocks.  Everything should work here as normal.
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 ## test CREATE with SK
 CREATE TABLE t1 (a INT, b CHAR(8), KEY(a)) ENGINE=rocksdb;

@@ -1,12 +1,8 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # ANALYZE TABLE statements
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
 
 CREATE TABLE t1 (pk INT PRIMARY KEY, a INT(11), b CHAR(8)) ENGINE=rocksdb;
 INSERT INTO t1 VALUES (1,1,'a'),(2,2,'b');
@@ -28,4 +24,3 @@ ANALYZE TABLE t1;
 INSERT INTO t1 VALUES (5,8),(6,10),(7,11),(8,12);
 ANALYZE TABLE t1;
 DROP TABLE t1;
-

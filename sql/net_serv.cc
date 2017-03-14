@@ -850,9 +850,9 @@ static ulong net_read_packet(NET *net, size_t *complen)
   if ((pkt_data_len >= net->max_packet) && net_realloc(net, pkt_data_len))
     goto error;
 
-  pkt_data_len = (pkt_data_len+IO_SIZE-1) & ~(IO_SIZE-1); 
+  pkt_data_len= (pkt_data_len+IO_SIZE-1) & ~(IO_SIZE-1); 
 
-  if(net->max_interval_packet < pkt_data_len)
+  if (net->max_interval_packet < pkt_data_len)
       net->max_interval_packet = pkt_data_len;
 
   /* Read the packet data (payload). */
@@ -871,32 +871,32 @@ error:
 my_bool my_net_shrink_buffer(NET *net, ulong min_buf_size)
 {
     /* Buffer is already of smallest possible size */
-    if(net->max_packet <= min_buf_size)
-        return false;
+    if (net->max_packet <= min_buf_size)
+        return FALSE;
 
-    ulong max_interval_packet = net->max_interval_packet;
+    ulong max_interval_packet= net->max_interval_packet;
     /*Reset buffer size for next interval */
-    net->max_interval_packet = min_buf_size;
+    net->max_interval_packet= min_buf_size;
 
     /* In the last interval packets were not smaller then 90% of the max_packet,
      * so no shrink needed. We allow 10% variance in workload to reduce number
      * of reallocs */
-    if(max_interval_packet * 110 / 100 >= net->max_packet)
-        return false;
+    if (max_interval_packet * 110 / 100 >= net->max_packet)
+        return FALSE;
 
     /* Buffer cannot be smaller then, default, net_buffer_length + header */
-    if(max_interval_packet < min_buf_size)
-        max_interval_packet = min_buf_size;
+    if (max_interval_packet < min_buf_size)
+        max_interval_packet= min_buf_size;
 
     /* In the last interval packets were significantly smaller then max_packet,
      * so do shrink the buffer */
-    if(net_realloc(net, max_interval_packet))
-        return true;
+    if (net_realloc(net, max_interval_packet))
+        return TRUE;
 
     /* Realloc succeeded, set new buffer size */
     net->max_packet= max_interval_packet;
 
-    return false;
+    return FALSE;
 }
 
 /**

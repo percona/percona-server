@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source include/have_partition.inc
 
 # temporarily disable 5.7 full_group_by for test
 --source include/turn_off_only_full_group_by.inc

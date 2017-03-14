@@ -1,8 +1,6 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS r1;
---enable_warnings
+--file_exists $MYSQL_SST_DUMP
 
 create table r1 (
  id1 int,

@@ -44,7 +44,7 @@ insert into t1 values (2, 'a',  'a');
 insert into t1 values (3, 'a  \t', 'a-tab');
 
 --echo # Must show 'using index' for latin1_bin and utf8_bin:
---replace_column 9 #
+--replace_column 10 #
 explain
 select col1, hex(col1) from t1;
 select col1, hex(col1) from t1;

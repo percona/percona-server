@@ -5317,17 +5317,17 @@ int ha_tokudb::fill_range_query_buf(
             DEBUG_SYNC(ha_thd(), "tokudb_icp_asc_scan_out_of_range");
             goto cleanup;
         } else if (result == ICP_NO_MATCH) {
-            // if we are performing a DESC ICP scan and have no end_range
-            // to compare to stop using ICP filtering as there isn't much more
-            // that we can do without going through contortions with remembering
-            // and comparing key parts.
+            // Optimizer change for MyRocks also benefits us here in TokuDB as
+            // opt_range.cc QUICK_SELECT::get_next now sets end_range during
+            // descending scan. We should not ever hit this condition, but
+            // leaving this code in to prevent any possibility of a descending
+            // scan to the beginning of an index and catch any possibility
+            // in debug builds with an assertion
+            assert_debug(!(!end_range && direction < 0));
             if (!end_range &&
                 direction < 0) {
-
                 cancel_pushed_idx_cond();
-                DEBUG_SYNC(ha_thd(), "tokudb_icp_desc_scan_invalidate");
             }
-
             error = TOKUDB_CURSOR_CONTINUE;
             goto cleanup;
         }

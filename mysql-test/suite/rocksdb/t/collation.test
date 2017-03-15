@@ -76,7 +76,8 @@ ALTER TABLE t2 ADD INDEX(value);
 DROP TABLE t2;
 
 --let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.collation.err
---let $restart_parameters="restart: --log-error=$SEARCH_FILE"
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE
+--replace_result $SEARCH_FILE LOG_FILE
 --source include/restart_mysqld.inc
 
 # test invalid regex (missing end bracket)

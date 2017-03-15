@@ -19,17 +19,17 @@ optimize table t1;
 --let $restart_parameters=restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000
 --source include/restart_mysqld.inc
 
-select variable_value into @a from information_schema.global_status where variable_name='rocksdb_block_cache_add';
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
 --exec $MYSQL_DUMP --skip-comments --single-transaction --master-data=2 test > /dev/null
 
 # verifying block cache was not filled
-select case when variable_value - @a > 20 then 'true' else 'false' end from information_schema.global_status where variable_name='rocksdb_block_cache_add';
+select case when variable_value - @a > 20 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
 select count(*) from t1;
 
 # verifying block cache was filled
-select case when variable_value - @a > 100 then 'true' else 'false' end from information_schema.global_status where variable_name='rocksdb_block_cache_add';
+select case when variable_value - @a > 100 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
 #cleanup
 DROP TABLE t1;

@@ -2121,7 +2121,8 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       Here we are sure that the tmp table exists and will set the flag based on
       table transactional type.
     */
-    if (is_temporary_table(table))
+    if (is_temporary_table(table)
+        && table->table->should_binlog_drop_if_temp())
     {
       if (table->table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
         have_trans_tmp_table= 1;
@@ -2353,13 +2354,16 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   int non_temp_tables_count= 0;
   bool foreign_key_error=0;
   bool non_tmp_error= 0;
-  bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
+  bool trans_tmp_table_delete_to_binlog= false;
+  bool non_trans_tmp_table_delete_to_binlog= false;
   bool non_tmp_table_deleted= 0;
-  bool have_nonexistent_tmp_table= 0;
-  bool is_drop_tmp_if_exists_with_no_defaultdb= 0;
+  bool nonexistent_tmp_table_to_binlog= false;
+  bool is_drop_tmp_with_no_defaultdb= false;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   String nonexistent_tmp_tables;
+  bool tmp_table_deleted= false;
+  bool tmp_table_not_found= false;
   DBUG_ENTER("mysql_rm_table_no_locks");
 
   if (thd_sql_command(thd) == SQLCOM_DROP_DB
@@ -2415,16 +2419,18 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         built_query.append("DROP TABLE ");
     }
 
-    if (thd->is_current_stmt_binlog_format_row() || if_exists)
+    /*
+      If default database doesnot exist in those cases set
+      'is_drop_tmp_with_no_defaultdb flag to 'true' so that the
+      'DROP TEMPORARY TABLE IF EXISTS' command is logged with a qualified
+      table name.
+    */
+    is_drop_tmp_with_no_defaultdb=
+      (thd->is_current_stmt_binlog_format_row() && thd->db().str != NULL
+       && check_db_dir_existence(thd->db().str));
+
+    if (if_exists)
     {
-      /*
-        If default database doesnot exist in those cases set
-        'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true' so that the
-        'DROP TEMPORARY TABLE IF EXISTS' command is logged with a qualified
-        table name.
-      */
-      if (thd->db().str != NULL && check_db_dir_existence(thd->db().str))
-        is_drop_tmp_if_exists_with_no_defaultdb= true;
       built_trans_tmp_query.set_charset(system_charset_info);
       built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
       built_non_trans_tmp_query.set_charset(system_charset_info);
@@ -2464,6 +2470,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     thd->add_to_binlog_accessed_dbs(table->db);
 
+    // Save this before drop_temporary_table resets table->table to NULL
+    const bool should_binlog_drop_if_temp=
+      is_temporary_table(table) && table->table->should_binlog_drop_if_temp();
     /*
       drop_temporary_table may return one of the following error codes:
       .  0 - a temporary table was successfully dropped.
@@ -2492,36 +2501,50 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       */
       if (!dont_log_query)
       {
-        /*
-          If there is an error, we don't know the type of the engine
-          at this point. So, we keep it in the nonexistent_tmp_table list.
-        */
         if (error == 1)
-          have_nonexistent_tmp_table= true;
-        else if (is_trans)
-          trans_tmp_table_deleted= TRUE;
+          tmp_table_not_found= true;
         else
-          non_trans_tmp_table_deleted= TRUE;
+          tmp_table_deleted= true;
 
-        String *built_ptr_query=
-          (error == 1 ? &nonexistent_tmp_tables :
-           (is_trans ? &built_trans_tmp_query : &built_non_trans_tmp_query));
-        /*
-          Write the database name if it is not the current one or if
-          thd->db is NULL or 'IF EXISTS' clause is present in 'DROP TEMPORARY'
-          query.
-        */
-        if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0
-            || is_drop_tmp_if_exists_with_no_defaultdb )
+        if (should_binlog_drop_if_temp)
         {
-          append_identifier(thd, built_ptr_query, db, db_len,
-                            system_charset_info, thd->charset());
-          built_ptr_query->append(".");
+          String *built_ptr_query;
+          if (error == 1)
+          {
+            /*
+              If there is an error, we don't know the type of the engine
+              at this point. So, we keep it in the nonexistent_tmp_table list.
+            */
+            built_ptr_query= &nonexistent_tmp_tables;
+            nonexistent_tmp_table_to_binlog= true;
+          }
+          else if (is_trans)
+          {
+            built_ptr_query= &built_trans_tmp_query;
+            trans_tmp_table_delete_to_binlog= true;
+          }
+          else
+          {
+            built_ptr_query= &built_non_trans_tmp_query;
+            non_trans_tmp_table_delete_to_binlog= true;
+          }
+          /*
+            Write the database name if it is not the current one or if
+            thd->db is NULL or 'IF EXISTS' clause is present in 'DROP
+            TEMPORARY' query.
+          */
+          if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0
+              || is_drop_tmp_with_no_defaultdb)
+          {
+            append_identifier(thd, built_ptr_query, db, db_len,
+                              system_charset_info, thd->charset());
+            built_ptr_query->append(".");
+          }
+          append_identifier(thd, built_ptr_query, table->table_name,
+                            strlen(table->table_name), system_charset_info,
+                            thd->charset());
+          built_ptr_query->append(",");
         }
-        append_identifier(thd, built_ptr_query, table->table_name,
-                           strlen(table->table_name), system_charset_info,
-                           thd->charset());
-        built_ptr_query->append(",");
       }
       /*
         This means that a temporary table was droped and as such there
@@ -2709,8 +2732,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 #endif
   }
   DEBUG_SYNC(thd, "rm_table_no_locks_before_binlog");
-  thd->thread_specific_used|= (trans_tmp_table_deleted ||
-                               non_trans_tmp_table_deleted);
+  thd->thread_specific_used= thd->thread_specific_used || tmp_table_deleted;
   error= 0;
 err:
   if (wrong_tables.length())
@@ -2723,11 +2745,9 @@ err:
     error= 1;
   }
 
-  if (have_nonexistent_tmp_table || non_trans_tmp_table_deleted ||
-      trans_tmp_table_deleted || non_tmp_table_deleted)
+  if (tmp_table_deleted || tmp_table_not_found || non_tmp_table_deleted)
   {
-    if (have_nonexistent_tmp_table || non_trans_tmp_table_deleted ||
-        trans_tmp_table_deleted)
+    if (tmp_table_deleted || tmp_table_not_found)
       thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
 
     /*
@@ -2757,13 +2777,14 @@ err:
     */
     if (!dont_log_query && mysql_bin_log.is_open())
     {
-      if (non_trans_tmp_table_deleted)
+      if (non_trans_tmp_table_delete_to_binlog)
       {
         /*
           Add the list of nonexistent tmp tables here only if there is no
           trans tmp table deleted.
         */
-        if (!trans_tmp_table_deleted && have_nonexistent_tmp_table)
+        if (!trans_tmp_table_delete_to_binlog
+            && nonexistent_tmp_table_to_binlog)
           built_non_trans_tmp_query.append(nonexistent_tmp_tables);
         /* Chop off the last comma */
         built_non_trans_tmp_query.chop();
@@ -2772,11 +2793,12 @@ err:
                                    built_non_trans_tmp_query.ptr(),
                                    built_non_trans_tmp_query.length(),
                                    false/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
+                                   is_drop_tmp_with_no_defaultdb/*suppress_use*/,
                                    0)/*errcode*/;
       }
-      if (trans_tmp_table_deleted ||
-          (have_nonexistent_tmp_table && !non_trans_tmp_table_deleted))
+      if (trans_tmp_table_delete_to_binlog ||
+          (nonexistent_tmp_table_to_binlog
+           && !non_trans_tmp_table_delete_to_binlog))
       {
         /*
           When multiple tables are dropped, the tables are classified
@@ -2818,14 +2840,14 @@ err:
             (non_tmp_table_deleted)'.
         */
         if (!thd->in_active_multi_stmt_transaction() &&
-            non_trans_tmp_table_deleted)
+            non_trans_tmp_table_delete_to_binlog)
         {
           DBUG_PRINT("info", ("mysql_rm_table_no_locks commit point 1"));
           thd->is_commit_in_middle_of_statement= true;
           error |= mysql_bin_log.commit(thd, true);
           thd->is_commit_in_middle_of_statement= false;
         }
-        if (have_nonexistent_tmp_table)
+        if (nonexistent_tmp_table_to_binlog)
           built_trans_tmp_query.append(nonexistent_tmp_tables);
         /* Chop off the last comma */
         built_trans_tmp_query.chop();
@@ -2834,7 +2856,7 @@ err:
                                    built_trans_tmp_query.ptr(),
                                    built_trans_tmp_query.length(),
                                    true/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
+                                   is_drop_tmp_with_no_defaultdb/*suppress_use*/,
                                    0/*errcode*/);
       }
       /*
@@ -2846,8 +2868,9 @@ err:
           (thd->lex->select_lex->table_list.elements > 1 || !error))
       {
         /// @see comment for mysql_bin_log.commit above.
-        if (non_trans_tmp_table_deleted || trans_tmp_table_deleted ||
-            have_nonexistent_tmp_table)
+        if (non_trans_tmp_table_delete_to_binlog
+            || trans_tmp_table_delete_to_binlog
+            || nonexistent_tmp_table_to_binlog)
         {
           DBUG_PRINT("info", ("mysql_rm_table_no_locks commit point 1"));
           thd->is_commit_in_middle_of_statement= true;

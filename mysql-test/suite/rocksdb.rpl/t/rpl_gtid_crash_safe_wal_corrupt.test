@@ -1,4 +1,4 @@
--- source suite/rocksdb_rpl/t/rpl_gtid_crash_safe_wal_corrupt.inc
+-- source suite/rocksdb.rpl/t/rpl_gtid_crash_safe_wal_corrupt.inc
 
 connection slave;
 -- let _SLAVE_PID_FILE= query_get_value(SELECT @@pid_file, @@pid_file, 1)

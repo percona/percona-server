@@ -5329,6 +5329,16 @@ bool create_table_impl(THD *thd,
         }
       }
     }
+    if (alter_info->has_compressed_columns() &&
+      !ha_check_storage_engine_flag(part_info->default_engine_type,
+        HTON_SUPPORTS_COMPRESSED_COLUMNS))
+    {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+        ha_resolve_storage_engine_name(part_info->default_engine_type),
+        "COMPRESSED COLUMNS");
+      goto err;
+    }
+
   }
 
   if (mysql_prepare_create_table(thd, db, error_table_name,
@@ -11162,15 +11172,14 @@ static bool check_engine(THD *thd, const char *db_name,
     Check if the given table has compressed columns, and if the storage engine
     does support it.
   */
-  List_iterator<Create_field> it(
-    const_cast<List<Create_field>&>(alter_info->create_list));
-  Create_field* sql_field= it++;
-  while (sql_field != 0 &&
-         sql_field->column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
-    sql_field= it++;
-  if (sql_field != 0 &&
-    ((*new_engine)->create_zip_dict == 0 ||
-     (*new_engine)->drop_zip_dict == 0))
+  partition_info *part_info= thd->work_part_info;
+  bool check_compressed_columns= part_info == 0 &&
+    !(create_info->db_type->partition_flags &&
+    (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION));
+
+  if (check_compressed_columns && alter_info->has_compressed_columns() &&
+      !ha_check_storage_engine_flag(*new_engine,
+                                    HTON_SUPPORTS_COMPRESSED_COLUMNS))
   {
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
       ha_resolve_storage_engine_name(*new_engine), "COMPRESSED COLUMNS");

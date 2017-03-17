@@ -1138,6 +1138,11 @@ struct handlerton
 
 #define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 13)
 
+/**
+  Engine supports compressed columns.
+*/
+#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 14)
+
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 

@@ -1622,7 +1622,7 @@ innobase_rec_to_mysql(
 		field->reset();
 
 		ipos = dict_index_get_nth_col_or_prefix_pos(
-			index, i, true, false);
+			index, i, true, false, NULL);
 
 		if (ipos == ULINT_UNDEFINED
 		    || rec_offs_nth_extern(offsets, ipos)) {
@@ -1680,7 +1680,7 @@ innobase_fields_to_mysql(
 		}
 
 		ipos = dict_index_get_nth_col_or_prefix_pos(
-			index, col_n, true, innobase_is_v_fld(field));
+			index, col_n, true, innobase_is_v_fld(field), NULL);
 
 		if (ipos == ULINT_UNDEFINED
 		    || dfield_is_ext(&fields[ipos])

@@ -1267,13 +1267,15 @@ ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
 	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	ulint			n,	/*!< in: column number */
+	ulint*			prefix_col_pos) /*!< out: col num if prefix */
+	MY_ATTRIBUTE((nonnull(1), warn_unused_result));
 /** Looks for column n in an index.
 @param[in]	index		index
 @param[in]	n		column number
 @param[in]	inc_prefix	true=consider column prefixes too
 @param[in]	is_virtual	true==virtual column
+@param[in]	prefix_col_pos	col num if prefix
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
 ulint
@@ -1282,7 +1284,8 @@ dict_index_get_nth_col_or_prefix_pos(
 	ulint			n,		/*!< in: column number */
 	bool			inc_prefix,	/*!< in: TRUE=consider
 						column prefixes too */
-	bool			is_virtual)	/*!< in: is a virtual column */
+	bool			is_virtual,	/*!< in: is a virtual column */
+	ulint*			prefix_col_pos)	/*!< out: col num if prefix */
 	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.

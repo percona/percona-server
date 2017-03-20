@@ -36,10 +36,9 @@ drop database mysqltest;
 sync_slave_with_master;
 
 #
-# Bug#49137
 # This test verifies if DROP MULTI TEMPORARY TABLE
-# will cause different errors on master and slave,
-# when one or more of these tables do not exist.
+# will be binlogged correctly when one or more of
+# these tables do not exist.
 #
 
 connection master;
@@ -61,7 +60,6 @@ CREATE TEMPORARY TABLE tmp3 (a int);
 DROP TEMPORARY TABLE tmp3;
 
 connection slave;
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 
 connection master;

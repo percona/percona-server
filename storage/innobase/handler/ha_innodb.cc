@@ -4165,6 +4165,10 @@ innobase_create_zip_dict(
 	if (UNIV_UNLIKELY(high_level_read_only)) {
 		DBUG_RETURN(HA_CREATE_ZIP_DICT_READ_ONLY);
 	}
+	
+	if (UNIV_UNLIKELY(THDVAR(NULL, fake_changes))) {
+		DBUG_RETURN(HA_CREATE_ZIP_DICT_FAKE_CHANGES);
+	}
 
 	if (UNIV_UNLIKELY(*name_len > ZIP_DICT_MAX_NAME_LENGTH)) {
 		*name_len = ZIP_DICT_MAX_NAME_LENGTH;
@@ -4216,6 +4220,10 @@ innobase_drop_zip_dict(
 
 	if (UNIV_UNLIKELY(high_level_read_only)) {
 		DBUG_RETURN(HA_DROP_ZIP_DICT_READ_ONLY);
+	}
+
+	if (UNIV_UNLIKELY(THDVAR(NULL, fake_changes))) {
+		DBUG_RETURN(HA_DROP_ZIP_DICT_FAKE_CHANGES);
 	}
 
 	switch (dict_drop_zip_dict(name, *name_len)) {

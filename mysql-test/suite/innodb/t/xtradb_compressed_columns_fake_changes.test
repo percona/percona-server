@@ -1,0 +1,22 @@
+--source include/have_innodb.inc
+
+#
+# Bug lp:1629257 "Creating a compression dictionary with fake changes enabled crashes | handle_fatal_signal (sig=6) in innobase_create_zip_dict"
+# Bug lp:1668508 "handle_fatal_signal (sig=6) in innobase_create_zip_dict | InnoDB: Assertion failure in thread 140384186160896 in file ha_innodb.cc line 4182"
+#
+
+CREATE COMPRESSION_DICTIONARY numbers1('one' 'two' 'three');
+
+SET @saved_innodb_fake_changes = @@global.innodb_fake_changes;
+SET GLOBAL innodb_fake_changes = 1;
+
+--error ER_ILLEGAL_HA
+CREATE COMPRESSION_DICTIONARY numbers2('four' 'five' 'six');
+--error ER_ILLEGAL_HA
+DROP COMPRESSION_DICTIONARY numbers1;
+
+SET GLOBAL innodb_fake_changes = 0;
+
+DROP COMPRESSION_DICTIONARY numbers1;
+
+SET GLOBAL innodb_fake_changes = @saved_innodb_fake_changes;

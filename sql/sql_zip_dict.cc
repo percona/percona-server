@@ -41,6 +41,8 @@ Creates a new compression dictionary with the specified data.
 @retval ER_COMPRESSION_DICTIONARY_EXISTS        Dictionary with such name
                                                 already exists
 @retval ER_READ_ONLY_MODE                       Forbidden in read-only mode
+@retval ER_ILLEGAL_HA                           Forbidden when fake changes
+                                                enabled
 @retval ER_OUT_OF_RESOURCES                     Out of memory
 @retval ER_RECORD_FILE_FULL                     Out of disk space
 @retval ER_TOO_MANY_CONCURRENT_TRXS             Too many concurrent
@@ -99,6 +101,10 @@ int mysql_create_zip_dict(THD* thd, const char* name, ulong name_len,
         error= ER_READ_ONLY_MODE;
         my_error(error, MYF(0));
         break;
+      case HA_CREATE_ZIP_DICT_FAKE_CHANGES:
+        error= ER_ILLEGAL_HA;
+        my_error(error, MYF(0), name);
+        break;
       case HA_CREATE_ZIP_DICT_OUT_OF_MEMORY:
         error= ER_OUT_OF_RESOURCES;
         my_error(error, MYF(0));
@@ -140,6 +146,8 @@ Deletes a compression dictionary.
 @retval ER_COMPRESSION_DICTIONARY_IS_REFERENCED  Dictictionary is still in
                                                  use
 @retval ER_READ_ONLY_MODE                        Forbidden in read-only mode
+@retval ER_ILLEGAL_HA                            Forbidden when fake changes
+                                                 enabled
 @retval ER_OUT_OF_RESOURCES                      Out of memory
 @retval ER_RECORD_FILE_FULL                      Out of disk space
 @retval ER_TOO_MANY_CONCURRENT_TRXS              Too many concurrent
@@ -191,6 +199,10 @@ int mysql_drop_zip_dict(THD* thd, const char* name, ulong name_len,
       case HA_DROP_ZIP_DICT_READ_ONLY:
         error= ER_READ_ONLY_MODE;
         my_error(error, MYF(0));
+        break;
+      case HA_DROP_ZIP_DICT_FAKE_CHANGES:
+        error= ER_ILLEGAL_HA;
+        my_error(error, MYF(0), name);
         break;
       case HA_DROP_ZIP_DICT_OUT_OF_MEMORY:
         error= ER_OUT_OF_RESOURCES;

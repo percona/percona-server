@@ -438,12 +438,12 @@ ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-stat
 insert into gap2 select * from gap1 where id1=1;
 ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: insert into gap2 select * from gap1 where id1=1
 insert into gap2 select * from gap1 where id1=1 and id2=1 and id3=1;
-create table t4 select * from gap1 where id1=1 and id2=1 and id3=1;
+create table t4 engine=rocksdb select * from gap1 where id1=1 and id2=1 and id3=1;
 drop table t4;
-create table t4 select * from gap1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: create table t4 select * from gap1
-create table t4 select * from gap1 where id1=1;
-ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: create table t4 select * from gap1 where id1=1
+create table t4 engine=rocksdb select * from gap1;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: create table t4 engine=rocksdb select * from gap1
+create table t4 engine=rocksdb select * from gap1 where id1=1;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: create table t4 engine=rocksdb select * from gap1 where id1=1
 update gap1 join gap2 on gap1.id1 and gap1.id2=gap2.id2 set gap1.value=100 where gap2.id1=3
 and gap2.id2=3 and gap2.id3=3;
 update gap1 join gap2 on gap1.id1 and gap1.id2=gap2.id2 set gap1.value=100 where gap2.id1=3;
@@ -469,7 +469,7 @@ c3 int,
 c4 int,
 primary key (c1, c2, c3),
 unique key (c3, c1)
-);
+) engine=rocksdb;
 begin;
 insert into u1 values (1,1,1,1);
 commit;

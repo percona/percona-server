@@ -24,12 +24,12 @@ insert into gap2 select * from gap1 where id1=1;
 insert into gap2 select * from gap1 where id1=1 and id2=1 and id3=1;
 
 # create table select
-create table t4 select * from gap1 where id1=1 and id2=1 and id3=1;
+eval create table t4 engine=$engine select * from gap1 where id1=1 and id2=1 and id3=1;
 drop table t4;
 --error ER_UNKNOWN_ERROR
-create table t4 select * from gap1;
+eval create table t4 engine=$engine select * from gap1;
 --error ER_UNKNOWN_ERROR
-create table t4 select * from gap1 where id1=1;
+eval create table t4 engine=$engine select * from gap1 where id1=1;
 
 # update join
 update gap1 join gap2 on gap1.id1 and gap1.id2=gap2.id2 set gap1.value=100 where gap2.id1=3
@@ -55,14 +55,14 @@ select * from gap1, gap2 limit 1 for update;
 select * from gap1 a, gap1 b limit 1 for update;
 
 # unique secondary key
-create table u1(
+eval create table u1(
  c1 int,
  c2 int,
  c3 int,
  c4 int,
  primary key (c1, c2, c3),
  unique key (c3, c1)
-);
+) engine=$engine;
 begin;
 insert into u1 values (1,1,1,1);
 commit;

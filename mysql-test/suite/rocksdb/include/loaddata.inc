@@ -136,7 +136,7 @@ if ($skip_unique_check == 1)
   # the complete ^^ query, including the path to the data file, which will
   # potentially be different on every run
   --replace_result $datadir <DATADIR>
-  --error ER_UNKNOWN_ERROR
+  --error ER_ON_DUPLICATE_DISABLED
   reap;
 }
 if ($skip_unique_check == 0)

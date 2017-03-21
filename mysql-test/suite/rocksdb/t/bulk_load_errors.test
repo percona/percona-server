@@ -1,0 +1,44 @@
+--source include/have_rocksdb.inc
+--source include/not_crashrep.inc
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.err
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE
+--replace_result $SEARCH_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=RocksDB;
+
+# Make sure we get an error with out of order keys during bulk load
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(10);
+INSERT INTO t1 VALUES(11);
+--error ER_KEYS_OUT_OF_ORDER
+INSERT INTO t1 VALUES(9);
+SET rocksdb_bulk_load=0;
+
+# Make sure only 10 and 11 got into the table
+SELECT * FROM t1;
+
+# Make sure we get an error with overlapping data
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(20);
+INSERT INTO t1 VALUES(21);
+
+# This last crashes the server (intentionally) because we can't return any
+# error information from a SET <variable>=<value>
+--source include/expect_crash.inc
+--error 2013 # CR_SERVER_LOST
+SET rocksdb_bulk_load=0;
+
+# Make sure the error exists in the .err log and then restart the server
+--let SEARCH_PATTERN=RocksDB: Error 207 finalizing last SST file while setting bulk loading variable
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+--remove_file $SEARCH_FILE
+
+DROP TABLE t1;

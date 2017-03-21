@@ -49,7 +49,7 @@ int Rdb_index_merge::init() {
     inplace index creation.
   */
   if (merge_file_create()) {
-    return HA_ERR_INTERNAL_ERROR;
+    return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
 
   /*
@@ -134,13 +134,13 @@ int Rdb_index_merge::add(const rocksdb::Slice &key, const rocksdb::Slice &val) {
       // NO_LINT_DEBUG
       sql_print_error("Sort buffer size is too small to process merge. "
                       "Please set merge buffer size to a higher value.");
-      return HA_ERR_INTERNAL_ERROR;
+      return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
 
     if (merge_buf_write()) {
       // NO_LINT_DEBUG
       sql_print_error("Error writing sort buffer to disk.");
-      return HA_ERR_INTERNAL_ERROR;
+      return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
   }
 
@@ -201,7 +201,7 @@ int Rdb_index_merge::merge_buf_write() {
               SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR) {
     // NO_LINT_DEBUG
     sql_print_error("Error seeking to location in merge file on disk.");
-    return HA_ERR_INTERNAL_ERROR;
+    return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
 
   /*
@@ -214,7 +214,7 @@ int Rdb_index_merge::merge_buf_write() {
       mysql_file_sync(m_merge_file.fd, MYF(MY_WME))) {
     // NO_LINT_DEBUG
     sql_print_error("Error writing sorted merge buffer to disk.");
-    return HA_ERR_INTERNAL_ERROR;
+    return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
 
   /* Increment merge file offset to track number of merge buffers written */
@@ -238,7 +238,7 @@ int Rdb_index_merge::merge_heap_prepare() {
     be written to disk. Write them out now.
   */
   if (!m_offset_tree.empty() && merge_buf_write()) {
-    return HA_ERR_INTERNAL_ERROR;
+    return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
   }
 
   DBUG_ASSERT(m_merge_file.num_sort_buffers > 0);
@@ -265,7 +265,7 @@ int Rdb_index_merge::merge_heap_prepare() {
         entry->prepare(m_merge_file.fd, i * m_merge_buf_size, chunk_size);
 
     if (total_size == (size_t)-1) {
-      return HA_ERR_INTERNAL_ERROR;
+      return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
 
     /* Can reach this condition if an index was added on table w/ no rows */
@@ -277,7 +277,7 @@ int Rdb_index_merge::merge_heap_prepare() {
     if (entry->read_rec(&entry->key, &entry->val)) {
       // NO_LINT_DEBUG
       sql_print_error("Chunk size is too small to process merge.");
-      return HA_ERR_INTERNAL_ERROR;
+      return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
 
     m_merge_min_heap.push(std::move(entry));
@@ -393,12 +393,12 @@ int Rdb_index_merge::merge_heap_pop_and_get_next(rocksdb::Slice *const key,
   */
   if (entry->read_rec(&entry->key, &entry->val)) {
     if (entry->read_next_chunk_from_disk(m_merge_file.fd)) {
-      return HA_ERR_INTERNAL_ERROR;
+      return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
 
     /* Try reading record again, should never fail. */
     if (entry->read_rec(&entry->key, &entry->val)) {
-      return HA_ERR_INTERNAL_ERROR;
+      return HA_ERR_ROCKSDB_MERGE_FILE_ERR;
     }
   }
 

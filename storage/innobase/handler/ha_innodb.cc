@@ -776,6 +776,37 @@ innodb_tmpdir_validate(
 	return(0);
 }
 
+/** Empty free list algorithm.
+Checks if buffer pool is big enough to enable backoff algorithm.
+InnoDB empty free list algorithm backoff requires free pages
+from LRU for the best performance.
+buf_LRU_buf_pool_running_out cancels query if 1/4 of
+buffer pool belongs to LRU or freelist.
+At the same time buf_flush_LRU_list_batch
+keeps up to BUF_LRU_MIN_LEN in LRU.
+In order to avoid deadlock backoff requires buffer pool
+to be at least 4*BUF_LRU_MIN_LEN,
+but flush peformance is bad because of trashing
+and additional BUF_LRU_MIN_LEN pages are requested.
+@param[in]	algorithm	desired algorithm from srv_empty_free_list_t
+@param[in]	new_buf_pool_sz	requested buffer pool size
+@return	true if it's possible to enable backoff. */
+static
+bool
+innodb_empty_free_list_algorithm_allowed(
+	srv_empty_free_list_t	algorithm,
+	long long new_buf_pool_sz = 0)
+{
+	if (!new_buf_pool_sz)
+		new_buf_pool_sz = srv_buf_pool_size;
+
+	long long buf_pool_pages = new_buf_pool_sz / srv_page_size
+				/ srv_buf_pool_instances;
+
+	return(buf_pool_pages >= BUF_LRU_MIN_LEN * (4 + 1)
+			|| algorithm != SRV_EMPTY_FREE_LIST_BACKOFF);
+}
+
 /******************************************************************//**
 Maps a MySQL trx isolation level code to the InnoDB isolation level code
 @return	InnoDB isolation level */
@@ -1382,28 +1413,6 @@ innobase_drop_zip_dict(
 	const char*	name,	/*!< in: zip dictionary name */
 	ulint*		name_len);
 				/*!< in/out: zip dictionary name length */
-
-/*************************************************************//**
-Checks if buffer pool is big enough to enable backoff algorithm.
-InnoDB empty free list algorithm backoff requires free pages
-from LRU for the best performance.
-buf_LRU_buf_pool_running_out cancels query if 1/4 of 
-buffer pool belongs to LRU or freelist.
-At the same time buf_flush_LRU_list_batch
-keeps up to BUF_LRU_MIN_LEN in LRU.
-In order to avoid deadlock baclkoff requires buffer pool
-to be at least 4*BUF_LRU_MIN_LEN,
-but flush peformance is bad because of trashing
-and additional BUF_LRU_MIN_LEN pages are requested.
-@return	true if it's possible to enable backoff. */
-static
-bool
-innodb_empty_free_list_algorithm_backoff_allowed(
-	srv_empty_free_list_t
-			algorithm,		/*!< in: desired algorithm
-						from srv_empty_free_list_t */
-	long long	buf_pool_pages);	/*!< in: total number
-						of pages inside buffer pool */
 
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
@@ -4233,21 +4242,6 @@ innobase_change_buffering_inited_ok:
 
 	innobase_commit_concurrency_init_default();
 
-	/* Do not enable backoff algorithm for small buffer pool. */
-	if (!innodb_empty_free_list_algorithm_backoff_allowed(
-			static_cast<srv_empty_free_list_t>(
-				srv_empty_free_list_algorithm),
-			innobase_buffer_pool_size / srv_page_size)) {
-		sql_print_information(
-				"InnoDB: innodb_empty_free_list_algorithm "
-				"has been changed to legacy "
-				"because of small buffer pool size. "
-				"In order to use backoff, "
-				"increase buffer pool at least up to 20MB.\n");
-			srv_empty_free_list_algorithm
-				= SRV_EMPTY_FREE_LIST_LEGACY;
-	}
-
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
 	int	count;
@@ -4312,6 +4306,19 @@ innobase_change_buffering_inited_ok:
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innobase_init_abort());
+	}
+
+	/* Do not enable backoff algorithm for small buffer pool. */
+	if (!innodb_empty_free_list_algorithm_allowed(
+				static_cast<srv_empty_free_list_t>(
+					srv_empty_free_list_algorithm))) {
+		sql_print_information(
+				"InnoDB: innodb_empty_free_list_algorithm "
+				"has been changed to legacy "
+				"because of small buffer pool size. "
+				"In order to use backoff, "
+				"increase buffer pool at least up to 20MB.\n");
+		srv_empty_free_list_algorithm = SRV_EMPTY_FREE_LIST_LEGACY;
 	}
 
 	/* Create mutex to protect encryption master_key_id. */
@@ -20347,32 +20354,6 @@ innodb_status_output_update(
 }
 
 /*************************************************************//**
-Empty free list algorithm.
-Checks if buffer pool is big enough to enable backoff algorithm.
-InnoDB empty free list algorithm backoff requires free pages
-from LRU for the best performance.
-buf_LRU_buf_pool_running_out cancels query if 1/4 of 
-buffer pool belongs to LRU or freelist.
-At the same time buf_flush_LRU_list_batch
-keeps up to BUF_LRU_MIN_LEN in LRU.
-In order to avoid deadlock baclkoff requires buffer pool
-to be at least 4*BUF_LRU_MIN_LEN,
-but flush peformance is bad because of trashing
-and additional BUF_LRU_MIN_LEN pages are requested.
-@return	true if it's possible to enable backoff. */
-static
-bool
-innodb_empty_free_list_algorithm_backoff_allowed(
-	srv_empty_free_list_t	algorithm,	/*!< in: desired algorithm
-						from srv_empty_free_list_t */
-	long long		buf_pool_pages)	/*!< in: total number
-						of pages inside buffer pool */
-{
-	return(buf_pool_pages >= BUF_LRU_MIN_LEN * (4 + 1)
-			|| algorithm != SRV_EMPTY_FREE_LIST_BACKOFF);
-}
-
-/*************************************************************//**
 Empty free list algorithm. This function is registered as
 a callback with MySQL. 
 @return	0 for valid algorithm */
@@ -20413,13 +20394,11 @@ innodb_srv_empty_free_list_algorithm_validate(
 		return(1);
 
 	algorithm = static_cast<srv_empty_free_list_t>(algo);
-	if (!innodb_empty_free_list_algorithm_backoff_allowed(
-				algorithm,
-				innobase_buffer_pool_size / srv_page_size)) {
+	if (!innodb_empty_free_list_algorithm_allowed(algorithm)) {
 		sql_print_warning(
 				"InnoDB: innodb_empty_free_list_algorithm "
 				"= 'backoff' requires at least"
-				" 20MB buffer pool.\n");
+				" 20MB buffer pool instances.\n");
 		return(1);
 	}
 
@@ -22632,6 +22611,19 @@ innodb_buffer_pool_size_validate(
 				    "Cannot update innodb_buffer_pool_size"
 				    " to less than 1GB if"
 				    " innodb_buffer_pool_instances > 1.");
+		return(1);
+	}
+
+	if (!innodb_empty_free_list_algorithm_allowed(
+				static_cast<srv_empty_free_list_t>(
+					srv_empty_free_list_algorithm),
+				intbuf)) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size"
+				    " to less than 20MB per instance"
+				    " innodb_empty_free_list_algorithm"
+				    " = backoff.");
 		return(1);
 	}
 

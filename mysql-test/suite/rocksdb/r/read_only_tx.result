@@ -17,7 +17,7 @@ SELECT * FROM t1;
 id	value
 1	1
 INSERT INTO t1 values (2, 2);
-ERROR HY000: Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT SNAPSHOT.
+ERROR HY000: Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT.
 ROLLBACK;
 SELECT * FROM t1;
 id	value

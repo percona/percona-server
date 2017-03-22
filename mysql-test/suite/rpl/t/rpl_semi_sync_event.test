@@ -98,6 +98,9 @@ disable_warnings;
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 
 connection master;
+--let $status_var= Rpl_semi_sync_master_clients
+--let $status_var_value= 0
+--source include/wait_for_status_var.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_warnings;
 

@@ -249,7 +249,7 @@ latex_logo = 'percona-logo.jpg'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
-latex_use_parts = True
+latex_toplevel_sectioning = 'part'
 
 latex_elements = {
   'classoptions': ',oneside',

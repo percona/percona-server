@@ -142,7 +142,7 @@ class PSschemaObject(ObjectDescription):
 
         indextext = self.get_index_text(name)
         if indextext:
-            self.indexnode['entries'].append(('single', indextext, name, ''))
+            self.indexnode['entries'].append(('single', indextext, name, '', None))
 
 
 class PSconfigObject(ObjectDescription):
@@ -194,7 +194,7 @@ class PSconfigObject(ObjectDescription):
 
         indextext = self.get_index_text(name)
         if indextext:
-            self.indexnode['entries'].append(('single', indextext, name, ''))
+            self.indexnode['entries'].append(('single', indextext, name, '', None))
 
 
 class PSTable(PSschemaObject):
@@ -296,7 +296,7 @@ class PSReleaseNotes(Directive):
             ret.append(targetnode)
             indextext = _('%s (release notes)') % rnname
             inode = addnodes.index(entries=[('single', indextext,
-                                             'module-' + rnname, '')])
+                                             'module-' + rnname, '', None)])
             ret.append(inode)
         return ret
 

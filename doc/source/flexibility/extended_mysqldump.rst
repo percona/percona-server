@@ -36,6 +36,16 @@ implemented. This feature tells ``mysqldump`` to take the backup by
 descending primary key order (``PRIMARY KEY DESC``) which can be useful if
 storage engine is using reverse order column for a primary key.
 
+RocksDB support
+===============
+
+:command:`mysqldump` will now detect when MyRocks is installed and available
+by seeing if there is a session variable named
+:variable:`rocksdb_skip_fill_cache` and setting it to ``1`` if it exists.
+
+:command:`mysqldump` will now automatically enable session variable
+:variable:`rocksdb_bulk_load` if it is supported by target server.
+
 Version Specific Information
 ============================
 

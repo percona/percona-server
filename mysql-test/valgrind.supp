@@ -879,6 +879,15 @@
    fun:memalign
    fun:tls_get_addr_tail
 }
+
+{
+   tls_variables_2
+   Memcheck:Leak
+   fun:memalign
+   fun:allocate_and_init
+   fun:tls_get_addr_tail
+}
+
 #supress warnings from openssl
 
 {

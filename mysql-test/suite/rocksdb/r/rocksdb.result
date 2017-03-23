@@ -931,6 +931,7 @@ rocksdb_error_if_exists	OFF
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_flush_memtable_on_analyze	ON
 rocksdb_force_compute_memtable_stats	ON
+rocksdb_force_flush_memtable_and_lzero_now	OFF
 rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
 rocksdb_hash_index_allow_collision	ON
@@ -980,6 +981,7 @@ rocksdb_table_stats_sampling_pct	10
 rocksdb_tmpdir	
 rocksdb_trace_sst_api	OFF
 rocksdb_unsafe_for_binlog	OFF
+rocksdb_update_cf_options	
 rocksdb_use_adaptive_mutex	OFF
 rocksdb_use_direct_reads	OFF
 rocksdb_use_direct_writes	OFF

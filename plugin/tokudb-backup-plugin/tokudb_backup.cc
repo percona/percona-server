@@ -135,19 +135,15 @@ static MYSQL_SYSVAR_STR(version, tokudb_backup_version,
     "version of the tokutek backup library",
     NULL, NULL, NULL);
 
-static MYSQL_THDVAR_ULONG(last_error,
+static MYSQL_THDVAR_INT(last_error,
     PLUGIN_VAR_THDLOCAL,
     "error from the last backup. 0 is success",
-    NULL, NULL, 0, 0, ~0ULL, 1);
-
-static void tokudb_backup_update_last_error_str(THD* thd,
-                                                struct st_mysql_sys_var* var,
-                                                void* var_ptr, const void* save);
+    NULL, NULL, 0, 0, 0, 1);
 
 static MYSQL_THDVAR_STR(last_error_string,
-    PLUGIN_VAR_THDLOCAL,
+    PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
     "error string from the last backup",
-    NULL, tokudb_backup_update_last_error_str, NULL);
+    NULL, NULL, NULL);
 
 static MYSQL_THDVAR_STR(exclude,
     PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
@@ -254,15 +250,11 @@ static int tokudb_backup_progress_fun(float progress, const char *progress_strin
     return 0;
 }
 
-static void tokudb_backup_set_error(THD *thd, int error, const char *error_string) {
-    THDVAR(thd, last_error) = error;
-    char *old_error_string = THDVAR(thd, last_error_string);
-    if (error_string)
-        THDVAR(thd, last_error_string) = my_strdup(error_string, MYF(MY_FAE));
-    else
-        THDVAR(thd, last_error_string) = NULL;
-    if (old_error_string)
-        my_free(old_error_string);
+static void tokudb_backup_set_error(THD *thd,
+                                    int error,
+                                    const char *error_string) {
+    THDVAR_SET(thd, last_error, &error);
+    THDVAR_SET(thd, last_error_string, error_string);
 }
 
 static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
@@ -272,13 +264,6 @@ static void tokudb_backup_set_error_string(THD *thd, int error, const char *erro
     assert(0 < r && (size_t)r <= n);
     tokudb_backup_set_error(thd, error, error_string);
     my_free(error_string);
-}
-
-static void tokudb_backup_update_last_error_str(THD* thd,
-                                                struct st_mysql_sys_var* var,
-                                                void* var_ptr, const void* save) {
-    tokudb_backup_set_error(thd, THDVAR(thd, last_error), ((LEX_STRING*)save)->str);
-    *((char**)var_ptr) = THDVAR(thd, last_error_string);
 }
 
 struct tokudb_backup_error_extra {

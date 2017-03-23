@@ -42,6 +42,8 @@ class THD;
   @retval ER_COMPRESSION_DICTIONARY_EXISTS        Dictionary with such name
                                                   already exists
   @retval ER_READ_ONLY_MODE                       Forbidden in read-only mode
+  @retval ER_ILLEGAL_HA                           Forbidden when fake
+                                                  changes enabled
   @retval ER_UNKNOWN_ERROR                        Unknown error
 */
 int mysql_create_zip_dict(THD* thd, const char* name, ulong name_len,
@@ -65,6 +67,8 @@ int mysql_create_zip_dict(THD* thd, const char* name, ulong name_len,
                                                    use
   @retval ER_READ_ONLY_MODE                        Forbidden in read-only
                                                    mode
+  @retval ER_ILLEGAL_HA                            Forbidden when fake
+                                                   changes enabled
   @retval ER_UNKNOWN_ERROR                         Unknown error
 */
 int mysql_drop_zip_dict(THD* thd, const char* name, ulong name_len,

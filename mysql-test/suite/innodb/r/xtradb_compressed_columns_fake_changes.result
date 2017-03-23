@@ -1,0 +1,10 @@
+CREATE COMPRESSION_DICTIONARY numbers1('one' 'two' 'three');
+SET @saved_innodb_fake_changes = @@global.innodb_fake_changes;
+SET GLOBAL innodb_fake_changes = 1;
+CREATE COMPRESSION_DICTIONARY numbers2('four' 'five' 'six');
+ERROR HY000: Table storage engine for 'numbers2' doesn't have this option
+DROP COMPRESSION_DICTIONARY numbers1;
+ERROR HY000: Table storage engine for 'numbers1' doesn't have this option
+SET GLOBAL innodb_fake_changes = 0;
+DROP COMPRESSION_DICTIONARY numbers1;
+SET GLOBAL innodb_fake_changes = @saved_innodb_fake_changes;

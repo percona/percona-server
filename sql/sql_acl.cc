@@ -5912,7 +5912,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, tl= tables;
-       i < number  && tl != first_not_own_table;
+       tl != 0 && i < number  && tl != first_not_own_table;
        tl= tl->next_global, i++)
   {
     /*

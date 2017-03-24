@@ -1517,9 +1517,6 @@ rocksdb_compaction_key_drop_obsolete	#
 rocksdb_compaction_key_drop_user	#
 rocksdb_flush_write_bytes	#
 rocksdb_getupdatessince_calls	#
-rocksdb_l0_num_files_stall_micros	#
-rocksdb_l0_slowdown_micros	#
-rocksdb_memtable_compaction_micros	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
 rocksdb_no_file_closes	#
@@ -1547,6 +1544,7 @@ rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
 rocksdb_rate_limit_delay_millis	#
 rocksdb_snapshot_conflict_errors	#
+rocksdb_stall_micros	#
 rocksdb_wal_bytes	#
 rocksdb_wal_group_syncs	#
 rocksdb_wal_synced	#
@@ -1587,9 +1585,6 @@ rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
 rocksdb_getupdatessince_calls
-rocksdb_l0_num_files_stall_micros
-rocksdb_l0_slowdown_micros
-rocksdb_memtable_compaction_micros
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1617,6 +1612,7 @@ rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
 rocksdb_rate_limit_delay_millis
 rocksdb_snapshot_conflict_errors
+rocksdb_stall_micros
 rocksdb_wal_bytes
 rocksdb_wal_group_syncs
 rocksdb_wal_synced
@@ -1659,9 +1655,6 @@ rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
 rocksdb_getupdatessince_calls
-rocksdb_l0_num_files_stall_micros
-rocksdb_l0_slowdown_micros
-rocksdb_memtable_compaction_micros
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1689,6 +1682,7 @@ rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
 rocksdb_rate_limit_delay_millis
 rocksdb_snapshot_conflict_errors
+rocksdb_stall_micros
 rocksdb_wal_bytes
 rocksdb_wal_group_syncs
 rocksdb_wal_synced

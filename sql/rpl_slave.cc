@@ -2745,7 +2745,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
     }
     if ((mi->master_gtid_mode > gtid_mode + 1 ||
         gtid_mode > mi->master_gtid_mode + 1) &&
-        !gtid_deployment_step)
+        !opt_gtid_deployment_step)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                  "The slave IO thread stops because the master has "

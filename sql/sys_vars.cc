@@ -5205,10 +5205,8 @@ static bool fix_gtid_deployment_step(sys_var *self, THD *thd, enum_var_type type
   bool new_gtid_deployment_step= gtid_deployment_step;
   bool result= true;
 
-  if (gtid_deployment_step == FALSE ||
-      gtid_deployment_step == opt_gtid_deployment_step)
+  if (gtid_deployment_step == opt_gtid_deployment_step)
   {
-    opt_gtid_deployment_step= gtid_deployment_step;
     DBUG_RETURN(false);
   }
 

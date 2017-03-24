@@ -11,7 +11,7 @@ and from the :doc:`Percona Software Repositories </installation>`).
 
 Based on `MySQL 5.7.17
 <http://dev.mysql.com/doc/relnotes/mysql/5.7/en/news-5-7-17.html>`_, including
-all the bug fixes in it, |Percona Server| 5.7.17-11 is the current GA release
+all the bug fixes in it, |Percona Server| 5.7.17-12 is the current GA release
 in the |Percona Server| 5.7 series. All of |Percona|'s software is open-source
 and free, all the details of the release can be found in the `5.7.17-12
 milestone at

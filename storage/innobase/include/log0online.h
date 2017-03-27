@@ -159,6 +159,8 @@ struct log_online_bitmap_file_range_struct {
 /** Struct for an iterator through all bits of changed pages bitmap blocks */
 struct log_bitmap_iterator_struct
 {
+	ib_uint64_t			max_lsn;	/*!< End LSN of the
+							range */
 	ibool				failed;		/*!< Has the iteration
 							stopped prematurely */
 	log_online_bitmap_file_range_t	in_files;	/*!< The bitmap files

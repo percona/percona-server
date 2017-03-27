@@ -30,6 +30,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "sql_base.h"
 
 #include <vector>
+#include <string>
 
 namespace tokudb {
 

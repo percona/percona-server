@@ -5771,6 +5771,11 @@ int mysqld_main(int argc, char **argv)
   if (init_common_variables())
     unireg_abort(1);        // Will do exit
 
+  /*
+    Setting this as early as possible
+  */
+  opt_gtid_deployment_step= gtid_deployment_step;
+
   my_init_signals();
 
   size_t guardize= 0;

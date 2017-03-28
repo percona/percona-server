@@ -787,22 +787,34 @@ static void write_header(FILE *sql_file, char *db_name)
             "/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\n",
             path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
             compatible_mode_normal_str);
+
+    // This is specifically to allow MyRocks to bulk load a dump faster
+    // We have no interest in anything earlier than 5.7 and 17 being the
+    // current release. 5.7.8 and after can only use P_S for session_variables
+    // and never I_S. So we first check that P_S is present and the
+    // session_variables table exists. If no, we simply skip the optimization
+    // assuming that MyRocks isn't present either. If it is, ohh well, bulk
+    // loader will not be invoked.
     fprintf(sql_file,
-            "/*!50112 SELECT COUNT(*) INTO @is_rocksdb_supported FROM"
-            " INFORMATION_SCHEMA.SESSION_VARIABLES WHERE"
-            " VARIABLE_NAME='rocksdb_bulk_load' */;\n"
-            "/*!50112 SET @save_old_rocksdb_bulk_load ="
-            " IF (@is_rocksdb_supported,"
-            " 'SET @old_rocksdb_bulk_load = @@rocksdb_bulk_load',"
-            " 'SET @dummy_old_rocksdb_bulk_load = 0') */;\n"
-            "/*!50112 PREPARE s FROM @save_old_rocksdb_bulk_load */;\n"
-            "/*!50112 EXECUTE s */;\n"
-            "/*!50112 SET @enable_bulk_load = IF (@is_rocksdb_supported,"
-            " 'SET SESSION rocksdb_bulk_load = 1',"
-            " 'SET @dummy_rocksdb_bulk_load = 0') */;\n"
-            "/*!50112 PREPARE s FROM @enable_bulk_load */;\n"
-            "/*!50112 EXECUTE s */;\n"
-            "/*!50112 DEALLOCATE PREPARE s */;\n");
+            "/*!50717 SET @rocksdb_bulk_load_var_name='rocksdb_bulk_load' */;\n"
+            "/*!50717 SELECT COUNT(*) INTO @rocksdb_has_p_s_session_variables"
+            " FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA ="
+            " 'performance_schema' AND TABLE_NAME = 'session_variables'"
+            " */;\n"
+            "/*!50717 SET @rocksdb_get_is_supported = IF"
+            " (@rocksdb_has_p_s_session_variables, 'SELECT COUNT(*) INTO"
+            " @rocksdb_is_supported FROM performance_schema.session_variables"
+            " WHERE VARIABLE_NAME=?', 'SELECT 0') */;\n"
+            "/*!50717 PREPARE s FROM @rocksdb_get_is_supported */;\n"
+            "/*!50717 EXECUTE s USING @rocksdb_bulk_load_var_name */;\n"
+            "/*!50717 DEALLOCATE PREPARE s */;\n"
+            "/*!50717 SET @rocksdb_enable_bulk_load = IF"
+            " (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = 1',"
+            " 'SET @rocksdb_dummy_bulk_load = 0') */;\n"
+            "/*!50717 PREPARE s FROM @rocksdb_enable_bulk_load */;\n"
+            "/*!50717 EXECUTE s */;\n"
+            "/*!50717 DEALLOCATE PREPARE s */;\n");
+
 
     check_io(sql_file);
   }
@@ -6883,19 +6895,35 @@ static my_bool has_session_variables_like(MYSQL *mysql_con, const char *var_name
   MYSQL_RES  *res;
   MYSQL_ROW  row;
   char       *val= 0;
-  char buf[32], query[256];
-  my_bool has_var= FALSE;
+  char       buf[32], query[256];
+  my_bool    has_var= FALSE;
+  my_bool    has_table= FALSE;
 
   my_snprintf(query, sizeof(query), "SELECT COUNT(*) FROM"
-              " INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE"
-              " %s", quote_for_like(var_name, buf));
+              " INFORMATION_SCHEMA.TABLES WHERE table_schema ="
+              " 'performance_schema' AND table_name = 'session_variables'");
   if (mysql_query_with_error_report(mysql_con, &res, query))
     return FALSE;
 
   row = mysql_fetch_row(res);
   val = row ? (char*)row[0] : NULL;
-  has_var = val && strcmp(val, "0") != 0;
+  has_table = val && strcmp(val, "0") != 0;
   mysql_free_result(res);
+
+  if (has_table)
+  {
+    my_snprintf(query, sizeof(query), "SELECT COUNT(*) FROM"
+                " performance_schema.session_variables WHERE VARIABLE_NAME LIKE"
+                " %s", quote_for_like(var_name, buf));
+    if (mysql_query_with_error_report(mysql_con, &res, query))
+      return FALSE;
+
+    row = mysql_fetch_row(res);
+    val = row ? (char*)row[0] : NULL;
+    has_var = val && strcmp(val, "0") != 0;
+    mysql_free_result(res);
+  }
+
   return has_var;
 }
 

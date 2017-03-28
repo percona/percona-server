@@ -27,6 +27,8 @@
 #
 source include/have_log_bin.inc;
 
+--source include/count_sessions.inc
+
 RESET MASTER;
 
 --disable_query_log
@@ -92,6 +94,10 @@ exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved35583 | $MYSQL;
 select * from foo;
 
 # clean up
+disconnect master;
+disconnect master1;
+
+connection default;
 drop table foo;
 
 #################################################################
@@ -167,3 +173,5 @@ RESET MASTER;
 # assertion: assert that when replaying the binary log will succeed,
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL
+
+--source include/wait_until_count_sessions.inc

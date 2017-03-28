@@ -948,7 +948,7 @@ rocksdb_max_background_flushes	1
 rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	18446744073709551615
 rocksdb_max_open_files	4294967295
-rocksdb_max_row_locks	1073741824
+rocksdb_max_row_locks	1048576
 rocksdb_max_subcompactions	1
 rocksdb_max_total_wal_size	0
 rocksdb_merge_buf_size	67108864
@@ -1380,7 +1380,7 @@ insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
 update t1 set a=a+10;
-ERROR HY000: Got error 204 'Number of locks held reached @@rocksdb_max_row_locks.' from ROCKSDB
+ERROR HY000: Status error 10 received from RocksDB: Operation aborted: Failed to acquire lock due to max_num_locks limit
 DROP TABLE t1;
 # 
 # Test AUTO_INCREMENT behavior problem,

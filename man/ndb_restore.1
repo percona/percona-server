@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/06/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "07/06/2016" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "11/26/2016" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_restore \- restore a MySQL Cluster backup
+ndb_restore \- restore an NDB Cluster backup
 .SH "SYNOPSIS"
 .HP \w'\fBndb_restore\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndb_restore \fR\fB\fIoptions\fR\fR
@@ -43,7 +43,7 @@ directory\&. This program reads the files created as a result of the backup and 
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&18.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&18.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .if n \{\
 .sp
 .\}
@@ -59,20 +59,20 @@ Section\ \&18.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a B
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&18.5.8, \(lqMySQL Cluster Single User Mode\(rq, for more information\&.
+Section\ \&18.5.8, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
-The following table includes options that are specific to the MySQL Cluster native backup restoration program
-\fBndb_restore\fR\&. Additional descriptions follow the table\&. For options common to most MySQL Cluster programs (including
+The following table includes options that are specific to the NDB Cluster native backup restoration program
+\fBndb_restore\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
 \fBndb_restore\fR), see
-Options Common to MySQL Cluster Programs(1)\&.
+Options Common to NDB Cluster Programs(1)\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.82.\ \& This table describes command\-line options for the ndb_restore program
+.B Table\ \&18.84.\ \& This table describes command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 .
@@ -92,7 +92,7 @@ ndb_restore [\-c \fIconnection_string\fR] \-n \fInode_id\fR \-b \fIbackup_id\fR 
 .RE
 .\}
 .PP
-Normally, when restoring from a MySQL Cluster backup,
+Normally, when restoring from an NDB Cluster backup,
 \fBndb_restore\fR
 requires at a minimum the
 \fB\-\-nodeid\fR
@@ -109,7 +109,7 @@ The
 option is used to specify a connection string which tells
 ndb_restore
 where to locate the cluster management server\&. (See
-Section\ \&18.3.3.3, \(lqMySQL Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
+Section\ \&18.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -127,7 +127,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&18.3.3.7, \(lqDefining SQL and Other API Nodes in a MySQL Cluster\(rq)\&.
+Section\ \&18.3.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
 .PP
 You can verify that
 \fBndb_restore\fR
@@ -151,17 +151,348 @@ The
 \fB\-\-nodeid\fR
 or
 \fB\-n\fR
-is used to specify the node ID of the data node on which the backup should be restored\&.
+is used to specify the node ID of the data node on which the backup was taken\&.
 .PP
-The first time you run the
-\fBndb_restore\fR
-restoration program, you also need to restore the metadata\&. In other words, you must re\-create the database tables\(emthis can be done by running it with the
-\fB\-\-restore_meta\fR
-(\fB\-m\fR) option\&. Restoring the metdata need be done only on a single data node; this is sufficient to restore it to the entire cluster\&. Note that the cluster should have an empty database when starting to restore a backup\&. (In other words, you should start
-\fBndbd\fR
-with
+When restoring to a cluster with different number of data nodes from that where the backup was taken, this information helps identify the correct set or sets of files to be restored to a given node\&. (In such cases, multiple files usually need to be restored to a single data node\&.) The next few paragraphs provide an example\&.
+.PP
+\fBRestore to a different number of data nodes\fR. You can restore to a cluster having fewer data nodes than the original provided that the larger number of nodes is an even multiple of the smaller number\&. In the following example, we use a backup taken on a cluster having four data nodes to a cluster having two data nodes\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+The management server for the original cluster is on host
+host10\&. The original cluster has four data nodes, with the node IDs and host names shown in the following extract from the management server\*(Aqs
+config\&.ini
+file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[ndbd]
+NodeId=2
+HostName=host2
+[ndbd]
+NodeId=4
+HostName=host4
+[ndbd]
+NodeId=6
+HostName=host6
+[ndbd]
+NodeId=8
+HostName=host8
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+We assume that each data node was originally started with
+\fBndbmtd\fR
+\fB\-\-ndb\-connectstring=host10\fR
+or the equivalent\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Perform a backup in the normal manner\&. See
+Section\ \&18.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+The files created by the backup on each data node are listed here, where
+\fIN\fR
+is the node ID and
+\fIB\fR
+is the backup ID\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-\fIB\fR\-0\&.\fIN\fR\&.Data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-\fIB\fR\&.\fIN\fR\&.ctl
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-\fIB\fR\&.\fIN\fR\&.log
+.RE
+.sp
+These files are found under
+BackupDataDir/BACKUP/BACKUP\-\fIB\fR, on each data node\&. For the rest of this example, we assume that the backup ID is 1\&.
+.sp
+Have all of these files available for later copying to the new data nodes (where they can be accessed on the data node\*(Aqs local file system by
+\fBndb_restore\fR)\&. It is simplest to copy them all to a single location; we assume that this is what you have done\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+The management server for the target cluster is on host
+host20, and the target has two data nodes, with the node IDs and host names shown, from the management server
+config\&.ini
+file on
+host20:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[ndbd]
+NodeId=3
+hostname=host3
+[ndbd]
+NodeId=5
+hostname=host5
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Each of the data node processes on
+host3
+and
+host5
+should be started with
+\fBndbmtd\fR
+\fB\-c host20\fR
 \fB\-\-initial\fR
-prior to performing the restore\&.)
+or the equivalent, so that the new (target) cluster starts with clean data node file systems\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
+Copy two different sets of two backup files to each of the target data nodes\&. For this example, copy the backup files from nodes 2 and 6 from the original cluster to node 3 in the target cluster\&. These files are listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\-0\&.2\&.Data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.2\&.ctl
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.2\&.log
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\-0\&.6\&.Data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.6\&.ctl
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.6\&.log
+.RE
+.sp
+Then copy the backup files from nodes 4 and 8 to node 5; these files are shown in the following list:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\-0\&.4\&.Data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.4\&.ctl
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.4\&.log
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\-0\&.8\&.Data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.8\&.ctl
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.8\&.log
+.RE
+.sp
+For the remainder of this example, we assume that the respective backup files have been saved to the directory
+/BACKUP\-1
+on each of nodes 3 and 5\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 6.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  6." 4.2
+.\}
+On each of the two target data nodes, you must restore from both sets of backups\&. First, restore the backups from nodes 2 and 6 to node 3 by invoking
+\fBndb_restore\fR
+on
+host3
+as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-c host20 \fR\fB\fB\-\-nodeid=2\fR\fR\fB \fR\fB\fB\-\-backupid=1\fR\fR\fB \fR\fB\fB\-\-restore_data\fR\fR\fB \fR\fB\fB\-\-backup_path=/BACKUP\-1\fR\fR
+shell> \fBndb_restore \-c host20 \-\-nodeid=4 \-\-backupid=1 \-\-restore_data \-\-backup_path=/BACKUP\-1\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Then restore the backups from nodes 4 and 8 to node 5 by invoking
+\fBndb_restore\fR
+on
+host5, like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_restore \-c host20 \-\-nodeid=6 \-\-backupid=1 \-\-restore_data \-\-backup_path=/BACKUP\-1\fR
+shell> \fBndb_restore \-c host20 \-\-nodeid=8 \-\-backupid=1 \-\-restore_data \-\-backup_path=/BACKUP\-1\fR
+.fi
+.if n \{\
+.RE
+.\}
+.RE
 .PP
 It is possible to restore data without restoring table metadata\&. The default behavior when doing this is for
 \fBndb_restore\fR
@@ -285,13 +616,13 @@ option (short form
 \fB\-A\fR) when restoring the table data\&. Attribute promotion does not occur if this option is not used; instead, the restore operation fails with an error\&.
 .RE
 .PP
-Prior to MySQL Cluster NDB 7\&.2\&.14, conversions between character data types and
+Prior to NDB 7\&.2\&.14, conversions between character data types and
 TEXT
 or
 BLOB
 were not handled correctly (Bug #17325051)\&.
 .PP
-Prior to MySQL Cluster NDB 7\&.2\&.18, demotion of
+Prior to NDB 7\&.2\&.18, demotion of
 TEXT
 to
 TINYTEXT
@@ -317,7 +648,7 @@ in the same invocation of
 .PP
 Converting between
 TEXT
-columns using different character sets is not supported\&. Beginning with MySQL Cluster NDB 7\&.2\&.18, it is expressly disallowed (Bug #18875137)\&.
+columns using different character sets is not supported\&. Beginning with NDB 7\&.2\&.18, it is expressly disallowed (Bug #18875137)\&.
 .PP
 When performing conversions of character or binary types to
 TEXT
@@ -413,7 +744,7 @@ The
 option is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&18.5.3.2, \(lqUsing The MySQL Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&18.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -433,14 +764,14 @@ When restoring cluster backups, you must be sure to restore all data nodes from 
 .PP
 \fB\-\-restore_epoch\fR
 (short form:
-\fB\-e\fR) adds (or restores) epoch information to the cluster replication status table\&. This is useful for starting replication on a MySQL Cluster replication slave\&. When this option is used, the row in the
+\fB\-e\fR) adds (or restores) epoch information to the cluster replication status table\&. This is useful for starting replication on an NDB Cluster replication slave\&. When this option is used, the row in the
 mysql\&.ndb_apply_status
 having
 0
 in the
 id
 column is updated if it already exists; such a row is inserted if it does not already exist\&. (See
-Section\ \&18.6.9, \(lqMySQL Cluster Backups With MySQL Cluster Replication\(rq\&.)
+Section\ \&18.6.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
 .PP
 \fB\-\-restore_data\fR
 .PP
@@ -456,19 +787,45 @@ This option causes
 \fBndb_restore\fR
 to print
 NDB
-table metadata\&. Generally, you need only use this option when restoring the first data node of a cluster; additional data nodes can obtain the metadata from the first one\&.
+table metadata\&.
+.PP
+The first time you run the
+\fBndb_restore\fR
+restoration program, you also need to restore the metadata\&. In other words, you must re\-create the database tables\(emthis can be done by running it with the
+\fB\-\-restore_meta\fR
+(\fB\-m\fR) option\&. Restoring the metadata need be done only on a single data node; this is sufficient to restore it to the entire cluster\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+The cluster should have an empty database when starting to restore a backup\&. (In other words, you should start
+\fBndbd\fR
+with
+\fB\-\-initial\fR
+prior to performing the restore\&.)
+.sp .5v
+.RE
 .PP
 \fB\-\-restore\-privilege\-tables\fR
 .PP
 \fBndb_restore\fR
-does not by default restore distributed MySQL privilege tables (MySQL Cluster NDB 7\&.2\&.0 and later)\&. This option causes
+does not by default restore distributed MySQL privilege tables (NDB 7\&.2\&.0 and later)\&. This option causes
 \fBndb_restore\fR
 to restore the privilege tables\&.
 .PP
 This works only if the privilege tables were converted to
 NDB
 before the backup was taken\&. For more information, see
-Section\ \&18.5.14, \(lqDistributed MySQL Privileges for MySQL Cluster\(rq\&.
+Section\ \&18.5.14, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
 .PP
 \fB\-\-backup_path\fR
 .PP
@@ -495,7 +852,7 @@ and
 must be run twice\(emonce for each database node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&18.2.7, \(lqUpgrading and Downgrading MySQL Cluster NDB 7.2\(rq, for more information\&.
+Section\ \&18.2.7, \(lqUpgrading and Downgrading NDB Cluster 7.2\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -509,14 +866,14 @@ Section\ \&18.2.7, \(lqUpgrading and Downgrading MySQL Cluster NDB 7.2\(rq, for 
 .ps -1
 .br
 .PP
-It is not possible to restore a backup made from a newer version of MySQL Cluster using an older version of
+It is not possible to restore a backup made from a newer version of NDB Cluster using an older version of
 \fBndb_restore\fR\&. You can restore a backup made from a newer version of MySQL to an older cluster, but you must use a copy of
 \fBndb_restore\fR
-from the newer MySQL Cluster version to do so\&.
+from the newer NDB Cluster version to do so\&.
 .PP
-For example, to restore a cluster backup taken from a cluster running MySQL Cluster NDB 7\&.2\&.5 to a cluster running MySQL Cluster NDB 7\&.1\&.21, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB 7\&.2\&.5 to a cluster running NDB 7\&.1\&.21, you must use the
 \fBndb_restore\fR
-that comes with the MySQL Cluster NDB 7\&.2\&.5 distribution\&.
+that comes with the NDB 7\&.2\&.5 distribution\&.
 .sp .5v
 .RE
 .PP
@@ -554,7 +911,7 @@ stdout\&.
 TEXT
 and
 BLOB
-column values are always truncated\&. In MySQL Cluster NDB 7\&.2\&.18 and earlier, such values are truncated to the first 240 bytes in the output; in MySQL Cluster NDB 7\&.2\&.19 and later, they are truncated to 256 bytes\&. (Bug #14571512, Bug #65467) This cannot currently be overridden when using
+column values are always truncated\&. In NDB 7\&.2\&.18 and earlier, such values are truncated to the first 240 bytes in the output; in NDB 7\&.2\&.19 and later, they are truncated to 256 bytes\&. (Bug #14571512, Bug #65467) This cannot currently be overridden when using
 \fB\-\-print_data\fR\&.
 .PP
 Several additional options are available for use with the
@@ -858,7 +1215,7 @@ or any of the
 options is in effect performing a dry run\&. Including one or more of these options causes any output to be redirected to
 stdout; in such cases,
 \fBndb_restore\fR
-makes no attempt to restore data or metadata to a MySQL Cluster\&.
+makes no attempt to restore data or metadata to an NDB Cluster\&.
 .sp .5v
 .RE
 .PP
@@ -890,8 +1247,8 @@ to their binary logs\&.
 .PP
 This option stops
 \fBndb_restore\fR
-from restoring any MySQL Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&18.5.12, \(lqMySQL Cluster Disk Data Tables\(rq, for more information about these\&.
+from restoring any NDB Cluster Disk Data objects, such as tablespaces and log file groups; see
+Section\ \&18.5.12, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
 .PP
 \fB\-\-parallelism=#\fR,
 \fB\-p\fR
@@ -1024,7 +1381,7 @@ The following table shows several invocations of
 \fBndb_restore\fR
 using
 \fB\-\-include\-*\fR
-options (other options possibly required have been omitted for clarity), and the effects these have on restoring from a MySQL Cluster backup:
+options (other options possibly required have been omitted for clarity), and the effects these have on restoring from an NDB Cluster backup:
 .TS
 allbox tab(:);
 lB lB.
@@ -1170,7 +1527,7 @@ This table shows several invocations of
 \fBndb_restore\fR
 usng
 \fB\-\-exclude\-*\fR
-options (other options possibly required have been omitted for clarity), and the effects these options have on restoring from a MySQL Cluster backup:
+options (other options possibly required have been omitted for clarity), and the effects these options have on restoring from an NDB Cluster backup:
 .TS
 allbox tab(:);
 lB lB.
@@ -1370,7 +1727,7 @@ T}
 .TE
 .sp 1
 .PP
-Beginning with MySQL Cluster NDB 7\&.2\&.17, it is also possible to restore only selected tables columns using this option, which causes
+Beginning with NDB 7\&.2\&.17, it is also possible to restore only selected tables columns using this option, which causes
 \fBndb_restore\fR
 to ignore any tables from the backup that are not found in the target database\&.
 .PP
@@ -1409,7 +1766,7 @@ backup\&. The number of threads used for building ordered indexes by
 \fBndb_restore\fR
 with this option is controlled by the
 BuildIndexThreads
-data node configuration parameter (MySQL Cluster NDB 6\&.3\&.30 and later; MySQL Cluster NDB 7\&.0\&.11 and later)\&.
+data node configuration parameter (NDB 6\&.3\&.30 and later; NDB 7\&.0\&.11 and later)\&.
 .PP
 It is necessary to use this option only for the first run of
 \fBndb_restore\fR; this causes all ordered indexes to be rebuilt without using
@@ -1424,7 +1781,7 @@ data node configuration parameter; this parameter has no effect on dropping and 
 Rebuilding of unique indexes uses disk write bandwidth for redo logging and local checkpointing\&. An insufficient amount of this bandwith can lead to redo buffer overload or log overload errors\&. In such cases you can run
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
-again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporarary errors\&. You can repeat execution of
+again; the process resumes at the point where the error occurred\&. You can also do this when you have encountered temporary errors\&. You can repeat execution of
 \fBndb_restore\fR
 \fB\-\-rebuild\-indexes\fR
 indefinitely; you may be able to stop such errors by reducing the value of
@@ -1469,7 +1826,7 @@ This option causes
 \fBndb_restore\fR
 to ignore any schema objects it does not recognize while reading a native
 NDB
-backup\&. This can be used for restoring a backup made from a cluster running MySQL Cluster NDB 7\&.2 to a cluster running MySQL Cluster NDB 7\&.1\&.
+backup\&. This can be used for restoring a backup made from a cluster running NDB Cluster 7\&.2 to a cluster running NDB Cluster 7\&.1\&.
 .PP
 \fB\-\-rewrite\-database=\fR\fB\fIold_dbname\fR\fR\fB,\fR\fB\fInew_dbname\fR\fR
 .TS
@@ -1610,7 +1967,7 @@ by default\&.
 .PP
 The
 \fB\-\-exclude\-intermediate\-sql\-tables\fR
-option was introduced in MySQL Cluster NDB 7\&.2\&.17\&. (Bug #17882305)
+option was introduced in NDB 7\&.2\&.17\&. (Bug #17882305)
 .PP
 \fBError reporting\fR. \fBndb_restore\fR
 reports both temporary and permanent errors\&. In the case of temporary errors, it may able to recover from them, and reports
@@ -1631,10 +1988,10 @@ in such cases\&.
 .PP
 After using
 \fBndb_restore\fR
-to initialize a MySQL Cluster for use in circular replication, binary logs on the SQL node acting as the replication slave are not automatically created, and you must cause them to be created manually\&. To cause the binary logs to be created, issue a
+to initialize an NDB Cluster for use in circular replication, binary logs on the SQL node acting as the replication slave are not automatically created, and you must cause them to be created manually\&. To cause the binary logs to be created, issue a
 SHOW TABLES
 statement on that SQL node before running
-START SLAVE\&. This is a known issue in MySQL Cluster\&.
+START SLAVE\&. This is a known issue in NDB Cluster\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"

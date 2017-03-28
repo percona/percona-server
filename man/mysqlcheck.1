@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/06/2016
+.\"      Date: 11/26/2016
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "07/06/2016" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "11/26/2016" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -233,7 +233,7 @@ option and naming all the databases on the command line, except that the
 INFORMATION_SCHEMA
 and
 performace_schema
-databases are not dumped\&. They can be dumped by explicitly naming them with the
+databases are not checked\&. They can be checked by explicitly naming them with the
 \fB\-\-databases\fR
 option\&.
 .RE
@@ -387,16 +387,6 @@ Compress all information sent between the client and the server if both support 
 Process all tables in the named databases\&. Normally,
 \fBmysqlcheck\fR
 treats the first name argument on the command line as a database name and any following names as table names\&. With this option, it treats all name arguments as database names\&.
-.sp
-This option may be used to dump the
-INFORMATION_SCHEMA
-and
-performace_schema
-databases, which normally are not dumped even with the
-\fB\-\-all\-databases\fR
-option\&. (Also use the
-\fB\-\-skip\-lock\-tables\fR
-option\&.)
 .RE
 .sp
 .RS 4

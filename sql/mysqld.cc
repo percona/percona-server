@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -595,6 +595,7 @@ uint mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
+char secure_file_real_path[FN_REFLEN];
 
 DATE_TIME_FORMAT global_date_format, global_datetime_format, global_time_format;
 Time_zone *default_tz;
@@ -3535,9 +3536,24 @@ static int init_common_variables()
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server=	 default_charset_info;
   global_system_variables.collation_database=	 default_charset_info;
-  global_system_variables.collation_connection=  default_charset_info;
-  global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+
+  if (is_supported_parser_charset(default_charset_info))
+  {
+    global_system_variables.collation_connection= default_charset_info;
+    global_system_variables.character_set_results= default_charset_info;
+    global_system_variables.character_set_client= default_charset_info;
+  }
+  else
+  {
+    sql_print_information("'%s' can not be used as client character set. "
+                          "'%s' will be used as default client character set.",
+                          default_charset_info->csname,
+                          my_charset_latin1.csname);
+    global_system_variables.collation_connection= &my_charset_latin1;
+    global_system_variables.character_set_results= &my_charset_latin1;
+    global_system_variables.character_set_client= &my_charset_latin1;
+  }
+
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
@@ -3564,6 +3580,22 @@ static int init_common_variables()
     sql_print_warning("Although a path was specified for the "
                       "--log-slow-queries option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
+
+  if (opt_logname &&
+      !is_valid_log_name(opt_logname, strlen(opt_logname)))
+  {
+    sql_print_error("Invalid value for --general_log_file: %s",
+                    opt_logname);
+    return 1;
+  }
+
+  if (opt_slow_logname &&
+      !is_valid_log_name(opt_slow_logname, strlen(opt_slow_logname)))
+  {
+    sql_print_error("Invalid value for --slow_query_log_file: %s",
+                    opt_slow_logname);
+    return 1;
+  }
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
@@ -7545,14 +7577,14 @@ mysqld_get_one_option(int optid,
   case OPT_SECURE_FILE_PRIV:
     if (argument == NULL)
     {
-      my_free(opt_secure_file_priv);
       opt_secure_file_priv_noarg= TRUE;
-      opt_secure_file_priv= my_strdup("ON", MYF(0));
+      opt_secure_file_priv= const_cast<char *>("ON");
     }
     else
     {
       opt_secure_file_priv_noarg= FALSE;
     }
+    break;
   }
   return 0;
 }
@@ -7907,14 +7939,17 @@ bool is_secure_file_path(char *path)
     return FALSE;
 
   /*
-    All paths are secure if opt_secure_file_path is 0
+    All paths are secure if opt_secure_file_priv is 0
   */
-  if (!opt_secure_file_priv)
+  if (!opt_secure_file_priv[0])
     return TRUE;
 
   opt_secure_file_priv_len= strlen(opt_secure_file_priv);
 
   if (strlen(path) >= FN_REFLEN)
+    return FALSE;
+
+  if (!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
     return FALSE;
 
   if (my_realpath(buff1, path, 0))
@@ -7949,9 +7984,192 @@ bool is_secure_file_path(char *path)
 }
 
 
+/**
+  check_secure_file_priv_path : Checks path specified through
+  --secure-file-priv and raises warning in following cases:
+  1. If path is empty string or NULL and mysqld is not running
+     with --bootstrap mode.
+  2. If path can access data directory
+  3. If path points to a directory which is accessible by
+     all OS users (non-Windows build only)
+
+  It throws error in following cases:
+
+  1. If path normalization fails
+  2. If it can not get stats of the directory
+
+  @params NONE
+
+  Assumptions :
+  1. Data directory path has been normalized
+  2. opt_secure_file_priv has been normalized unless it is set
+     to "NULL".
+
+  @returns Status of validation
+    @retval true : Validation is successful with/without warnings
+    @retval false : Validation failed. Error is raised.
+*/
+
+bool check_secure_file_priv_path()
+{
+  char datadir_buffer[FN_REFLEN+1]={0};
+  char plugindir_buffer[FN_REFLEN+1]={0};
+  char whichdir[20]= {0};
+  size_t opt_plugindir_len= 0;
+  size_t opt_datadir_len= 0;
+  size_t opt_secure_file_priv_len= 0;
+  bool warn= false;
+  bool case_insensitive_fs;
+#ifndef _WIN32
+  MY_STAT dir_stat;
+#endif
+
+  if (!opt_secure_file_priv[0])
+  {
+    if (opt_bootstrap)
+    {
+      /*
+        Do not impose --secure-file-priv restriction
+        in --bootstrap mode
+      */
+      sql_print_information("Ignoring --secure-file-priv value as server is "
+                            "running with --bootstrap.");
+    }
+    else
+    {
+      sql_print_warning("Insecure configuration for --secure-file-priv: "
+                        "Current value does not restrict location of generated "
+                        "files. Consider setting it to a valid, "
+                        "non-empty path.");
+    }
+    return true;
+  }
+
+  if (opt_secure_file_priv_noarg)
+  {
+    sql_print_information("--secure-file-priv is used without argument. "
+                          "Operations related to importing and exporting "
+                          "data are disabled");
+    return true;
+  }
+
+  /*
+    Setting --secure-file-priv to NULL would disable
+    reading/writing from/to file
+  */
+  if(!my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
+  {
+    sql_print_information("--secure-file-priv is set to NULL. "
+                          "Operations related to importing and exporting "
+                          "data are disabled");
+    return true;
+  }
+
+  /*
+    Check if --secure-file-priv can access data directory
+  */
+  opt_secure_file_priv_len= strlen(opt_secure_file_priv);
+
+  /*
+    Adds dir seperator at the end.
+    This is required in subsequent comparison
+  */
+  convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);
+  opt_datadir_len= strlen(datadir_buffer);
+
+  case_insensitive_fs=
+    (test_if_case_insensitive(datadir_buffer) == 1);
+
+  if (!case_insensitive_fs)
+  {
+    if (!strncmp(datadir_buffer, opt_secure_file_priv,
+          opt_datadir_len < opt_secure_file_priv_len ?
+          opt_datadir_len : opt_secure_file_priv_len))
+    {
+      warn= true;
+      strcpy(whichdir, "Data directory");
+    }
+  }
+  else
+  {
+    if (!files_charset_info->coll->strnncoll(files_charset_info,
+          (uchar *) datadir_buffer,
+          opt_datadir_len,
+          (uchar *) opt_secure_file_priv,
+          opt_secure_file_priv_len,
+          TRUE))
+    {
+      warn= true;
+      strcpy(whichdir, "Data directory");
+    }
+  }
+
+  /*
+    Don't bother comparing --secure-file-priv with --plugin-dir
+    if we already have a match against --datadir or
+    --plugin-dir is not pointing to a valid directory.
+  */
+  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0))
+  {
+    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
+    opt_plugindir_len= strlen(plugindir_buffer);
+
+    if (!case_insensitive_fs)
+    {
+      if (!strncmp(plugindir_buffer, opt_secure_file_priv,
+          opt_plugindir_len < opt_secure_file_priv_len ?
+          opt_plugindir_len : opt_secure_file_priv_len))
+      {
+        warn= true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
+    else
+    {
+      if (!files_charset_info->coll->strnncoll(files_charset_info,
+          (uchar *) plugindir_buffer,
+          opt_plugindir_len,
+          (uchar *) opt_secure_file_priv,
+          opt_secure_file_priv_len,
+          TRUE))
+      {
+        warn= true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
+  }
+
+
+  if (warn)
+    sql_print_warning("Insecure configuration for --secure-file-priv: "
+                      "%s is accessible through "
+                      "--secure-file-priv. Consider choosing a different "
+                      "directory.", whichdir);
+
+#ifndef _WIN32
+  /*
+     Check for --secure-file-priv directory's permission
+  */
+  if (!(my_stat(opt_secure_file_priv, &dir_stat, MYF(0))))
+  {
+    sql_print_error("Failed to get stat for directory pointed out "
+                    "by --secure-file-priv");
+    return false;
+  }
+
+  if (dir_stat.st_mode & S_IRWXO)
+    sql_print_warning("Insecure configuration for --secure-file-priv: "
+                      "Location is accessible to all OS users. "
+                      "Consider choosing a different directory.");
+#endif
+  return true;
+}
+
+
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
+  bool secure_file_priv_nonempty= false;
   convert_dirname(mysql_home,mysql_home,NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
@@ -8009,29 +8227,57 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
    */
-  if (opt_secure_file_priv && !opt_secure_file_priv_noarg)
+  if (opt_bootstrap)
+    opt_secure_file_priv= EMPTY_STR.str;
+  secure_file_priv_nonempty=
+    !opt_secure_file_priv_noarg && opt_secure_file_priv[0];
+
+  if (secure_file_priv_nonempty && strlen(opt_secure_file_priv) > FN_REFLEN)
   {
-    if (*opt_secure_file_priv == 0)
-    {
-      my_free(opt_secure_file_priv);
-      opt_secure_file_priv= 0;
-    }
-    else
-    {
-      if (strlen(opt_secure_file_priv) >= FN_REFLEN)
-        opt_secure_file_priv[FN_REFLEN-1]= '\0';
-      if (my_realpath(buff, opt_secure_file_priv, 0))
-      {
-        sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
-        return 1;
-      }
-      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
-      convert_dirname(secure_file_real_path, buff, NullS);
-      my_free(opt_secure_file_priv);
-      opt_secure_file_priv= secure_file_real_path;
-    }
+    sql_print_warning("Value for --secure-file-priv is longer than maximum "
+                      "limit of %d", FN_REFLEN-1);
+    return 1;
   }
-  
+
+  memset(buff, 0, sizeof(buff));
+  if (secure_file_priv_nonempty &&
+      my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
+  {
+    int retval= my_realpath(buff, opt_secure_file_priv, MYF(MY_WME));
+    if (!retval)
+    {
+      convert_dirname(secure_file_real_path, buff, NullS);
+#ifdef WIN32
+      MY_DIR *dir= my_dir(secure_file_real_path, MYF(MY_DONT_SORT+MY_WME));
+      if (!dir)
+      {
+        retval= 1;
+      }
+      else
+      {
+        my_dirend(dir);
+      }
+#endif
+    }
+
+    if (retval)
+    {
+      char err_buffer[FN_REFLEN];
+      my_snprintf(err_buffer, FN_REFLEN-1,
+                  "Failed to access directory for --secure-file-priv."
+                  " Please make sure that directory exists and is "
+                  "accessible by MySQL Server. Supplied value : %s",
+                  opt_secure_file_priv);
+      err_buffer[FN_REFLEN-1]='\0';
+      sql_print_error("%s", err_buffer);
+      return 1;
+    }
+    opt_secure_file_priv= secure_file_real_path;
+  }
+
+  if (!check_secure_file_priv_path())
+    return 1;
+
   return 0;
 }
 
@@ -8472,3 +8718,33 @@ void init_server_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
+/* Detecting if being compiled with -fsanitize=address option */
+
+/* GCC has __SANITIZE_ADDRESS__ macro defined to 1 in this case */
+#ifdef __GNUC__
+  #if __SANITIZE_ADDRESS__ == 1
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/* Clang exposes __has_feature(address_sanitizer) */
+#ifdef __clang__
+  #if __has_feature(address_sanitizer)
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/*
+  As some MTR test cases check OOM, it is necessary to instruct address
+  sanitizer to not terminate the process when an allocation of a very
+  large memory block is requested and return NULL as expected. This can
+  be done by setting 'allocator_may_return_null' ASan option to 1.
+*/
+#ifdef UNDER_ADDRESS_SANITIZER
+
+extern "C" const char *__asan_default_options()
+{
+  return "allocator_may_return_null=1";
+}
+
+#endif

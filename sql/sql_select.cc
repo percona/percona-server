@@ -8203,6 +8203,9 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
 
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, NULL))
+    return cond;                          // Fatal error flag is set!
+
   if (cond->type() == Item::COND_ITEM)
   {
     List<Item> eq_list;
@@ -10289,6 +10292,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::REF_ITEM:
   case Item::NULL_ITEM:
   case Item::VARBIN_ITEM:
+  case Item::PARAM_ITEM:
     if (make_copy_field)
     {
       DBUG_ASSERT(((Item_result_field*)item)->result_field);

@@ -964,7 +964,7 @@ Command	Sleep
 Time MASKED
 State	
 Info	
-Rows_sent	0
+Rows_sent	1
 Rows_examined	0
 Rows_read	0
 ---- 2. ----
@@ -997,7 +997,7 @@ Command	Sleep
 Time MASKED
 State	
 Info	
-Rows_sent	0
+Rows_sent	1
 Rows_examined	0
 Rows_read	0
 ---- 2. ----

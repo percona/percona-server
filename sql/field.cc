@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1130,12 +1130,15 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    bmove_upp((uchar*) value->ptr()+field_length,
-              (uchar*) value->ptr()+value->length(),
-	      value->length());
-    bfill((uchar*) value->ptr(),diff,'0');
-    value->length(field_length);
-    (void) value->c_ptr_quick();		// Avoid warnings in purify
+    const bool error= value->realloc(field_length);
+    if (!error)
+    {
+      bmove_upp((uchar*) value->ptr()+field_length,
+                (uchar*) value->ptr()+value->length(),
+	        value->length());
+      bfill((uchar*) value->ptr(),diff,'0');
+      value->length(field_length);
+    }
   }
 }
 

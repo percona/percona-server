@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -421,6 +421,7 @@ static int increment_count_by_name(const char *name, const char *role_name,
       return 1; // Out of memory
     }
   }
+  user_stats->concurrent_connections++;
   user_stats->total_connections++;
   if (thd->net.vio &&  thd->net.vio->type == VIO_TYPE_SSL)
     user_stats->total_ssl_connections++;
@@ -542,6 +543,11 @@ static void update_global_user_stats_with_user(THD* thd,
   user_stats->lost_connections+=     thd->diff_lost_connections;
   user_stats->access_denied_errors+= thd->diff_access_denied_errors;
   user_stats->empty_queries+=        thd->diff_empty_queries;
+
+  if (thd->diff_disconnects && thd->diff_denied_connections == 0) {
+    DBUG_ASSERT(user_stats->concurrent_connections > 0);
+    user_stats->concurrent_connections-=  thd->diff_disconnects;
+  }
 }
 
 static void update_global_thread_stats_with_thread(THD* thd,
@@ -966,6 +972,14 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
                      global_system_variables.character_set_client->name,
                      cs->name))
   {
+    if (!is_supported_parser_charset(
+         global_system_variables.character_set_client))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               global_system_variables.character_set_client->csname);
+      return true;
+    }
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -1210,6 +1224,12 @@ void end_connection(THD *thd)
     of someone else.
   */
   release_user_connection(thd);
+
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(false);
+    thd->diff_disconnects= 1;
+    update_global_user_stats(thd, false, time(NULL));
+  }
 
   if (thd->killed || (net->error && net->vio != 0))
   {

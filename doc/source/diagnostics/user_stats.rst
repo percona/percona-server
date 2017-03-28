@@ -169,7 +169,7 @@ Example: ::
 
   :column THREAD_ID: Thread ID
   :column TOTAL_CONNECTIONS: The number of connections created from this thread.
-  :column CONCURRENT_CONNECTIONS: The number of concurrent connections from this thread.
+  :column CONCURRENT_CONNECTIONS: Always zero, will be removed in a future version.
   :column CONNECTED_TIME: The cumulative number of seconds elapsed while there were connections from this thread.
   :column BUSY_TIME: The cumulative number of seconds there was activity from this thread.
   :column CPU_TIME: The cumulative CPU time elapsed while servicing this thread.

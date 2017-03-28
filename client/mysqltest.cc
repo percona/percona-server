@@ -4727,7 +4727,13 @@ static int my_kill(int pid, int sig)
   CloseHandle(proc);
   return 1;
 #else
-  return kill(pid, sig);
+  int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
 #endif
 }
 
@@ -4819,10 +4825,11 @@ void do_shutdown_server(struct st_command *command)
   DBUG_PRINT("info", ("Killing server, pid: %d", pid));
   if (orig_timeout != 0)
   {
-    log_msg("shutdown_server timeout %ld exceeded, SIGKILL sent to the server",
-            orig_timeout);
+    log_msg("shutdown_server timeout %ld exceeded, "
+            "SIGABRT sent to the server PID %d",
+            orig_timeout, pid);
   }
-  (void)my_kill(pid, 9);
+  (void)my_kill(pid, (orig_timeout != 0) ? SIGABRT : SIGKILL);
 
   DBUG_VOID_RETURN;
 

@@ -906,8 +906,8 @@ int Rdb_key_def::unpack_field(
     not all indexes support this
 
   @return
-    UNPACK_SUCCESS - Ok
-    UNPACK_FAILURE - Data format error.
+    HA_EXIT_SUCCESS    OK
+    other              HA_ERR error code
 */
 
 int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,

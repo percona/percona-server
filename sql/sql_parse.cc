@@ -5618,6 +5618,7 @@ void THD::reset_for_next_command()
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
+  DBUG_ASSERT(!thd->query_cache_tls.first_query_block);
   thd->free_list= 0;
   /*
     Those two lines below are theoretically unneeded as

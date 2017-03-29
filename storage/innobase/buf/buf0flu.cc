@@ -3570,7 +3570,8 @@ buf_lru_manager_adapt_sleep_time(
 	ulint*			lru_sleep_time)
 {
 	const ulint free_len = UT_LIST_GET_LEN(buf_pool->free);
-	const ulint max_free_len = srv_LRU_scan_depth;
+	const ulint max_free_len = std::min(
+			UT_LIST_GET_LEN(buf_pool->LRU), srv_LRU_scan_depth);
 
 	if (free_len < max_free_len / 100 && lru_n_flushed) {
 
@@ -3582,7 +3583,7 @@ buf_lru_manager_adapt_sleep_time(
 
 		/* Free list filled more than 20% or no pages flushed in the
 		previous batch, sleep a bit more */
-		*lru_sleep_time += 50;
+		*lru_sleep_time += 1;
 		if (*lru_sleep_time > srv_cleaner_max_lru_time)
 			*lru_sleep_time = srv_cleaner_max_lru_time;
 	} else if (free_len < max_free_len / 20 && *lru_sleep_time >= 50) {

@@ -82,7 +82,7 @@ public:
     store_timestamp_called= true;
   }
 
-  ~Mock_field_timestamp() { delete table; }
+  ~Mock_field_timestamp() { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif // MOCK_FIELD_TIMESTAMP_H

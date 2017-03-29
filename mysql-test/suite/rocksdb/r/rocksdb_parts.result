@@ -5,7 +5,11 @@ drop table if exists t1,t2;
 #
 CREATE TABLE t1 (pk INT PRIMARY KEY, f1 INT, f2 INT, KEY(f2)) ENGINE=RocksDB 
 PARTITION BY HASH(pk) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 6, NULL), (2, NULL, 1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (pk INT PRIMARY KEY, f1 INT) ENGINE=RocksDB;
 INSERT INTO t2 VALUES (1, 1), (2, 1);
 SELECT f1 FROM t1 WHERE f2 = ( SELECT f1 FROM t2 WHERE pk = 2 );
@@ -24,13 +28,17 @@ INDEX (a),
 INDEX (b),
 INDEX (c)
 ) ENGINE=RocksDB PARTITION BY key (id) partitions 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (id, b) VALUES (28, 3);
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Warning	1364	Field 'c' doesn't have a default value
 UPDATE t1 SET id=8 WHERE c < 8 LIMIT 1;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+test.t1	check	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 # 
 #  Issue #105, another testcase
@@ -41,13 +49,19 @@ col1 int,
 col2 int,
 key (col1) comment 'rev:cf_issue105'
 ) engine=rocksdb partition by hash(pk) partitions 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,10,10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (2,10,10);
 insert into t1 values (11,20,20);
 insert into t1 values (12,20,20);
 explain select * from t1 force index(col1) where col1=10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	col1	col1	5	const	2000	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ref	col1	col1	5	const	2000	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` FORCE INDEX (`col1`) where (`test`.`t1`.`col1` = 10)
 select * from t1 force index(col1) where col1=10;
 pk	col1	col2
 2	10	10
@@ -66,14 +80,20 @@ col1 int,
 col2 int,
 key (col1)
 ) engine=rocksdb partition by hash(pk) partitions 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (1,10,10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values (2,10,10);
 insert into t1 values (11,20,20);
 insert into t1 values (12,20,20);
 # The following must use "Using index"
 explain select pk from t1 force index(col1) where col1=10;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	col1	col1	5	const	2000	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1	ref	col1	col1	5	const	2000	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` FORCE INDEX (`col1`) where (`test`.`t1`.`col1` = 10)
 drop table t1;
 #
 # Issue #214: subqueries cause crash
@@ -82,9 +102,13 @@ create TABLE t1(a int,b int,c int,primary key(a,b))
 partition by list (b*a) (partition x1 values in (1) tablespace ts1,
 partition x2 values in (3,11,5,7) tablespace ts2,
 partition x3 values in (16,8,5+19,70-43) tablespace ts3);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 create table t2(b binary(2));
 set session optimizer_switch=5;
 insert into t1(a,b) values(1,7);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select a from t1 where a in (select a from t1 where a in (select b from t2));
 a
 drop table t1, t2;
@@ -92,12 +116,18 @@ drop table t1, t2;
 # Issue #260: altering name to invalid value leaves table unaccessible
 #
 CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES(1,'a');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 RENAME TABLE t1 TO db3.t3;
 ERROR HY000: Error on rename of './test/t1' to './db3/t3' (errno: 122 - Internal (unspecified) error in handler)
 SELECT * FROM t1;
 c1	c2
 1	a
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW TABLES;
 Tables_in_test
 t1
@@ -105,6 +135,8 @@ RENAME TABLE t1 TO test.t3;
 SELECT * FROM t3;
 c1	c2
 1	a
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t3', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW TABLES;
 Tables_in_test
 t3
@@ -115,6 +147,8 @@ USE db3;
 SELECT * FROM t2;
 c1	c2
 1	a
+Warnings:
+Warning	1287	The partition engine, used by table 'db3.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW TABLES;
 Tables_in_db3
 t2

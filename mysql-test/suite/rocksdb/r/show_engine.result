@@ -7,6 +7,8 @@ CREATE TABLE t2 (j INT, PRIMARY KEY (j) COMMENT 'rev:cf_t2') ENGINE = ROCKSDB;
 CREATE TABLE t3 (k INT, PRIMARY KEY (k) COMMENT 'cf_t1') ENGINE = ROCKSDB;
 CREATE TABLE t4 (l INT, PRIMARY KEY (l) COMMENT 'cf_t4') ENGINE = ROCKSDB
 PARTITION BY KEY(l) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW ENGINE rocksdb STATUS;
 Type	Name	Status
 DBSTATS	rocksdb	#
@@ -25,6 +27,8 @@ SELECT COUNT(*) FROM t2;
 COUNT(*)
 4
 INSERT INTO t4 VALUES (1), (2), (3), (4), (5);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t4', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t4;
 COUNT(*)
 5
@@ -381,36 +385,3 @@ DROP TABLE t4;
 SHOW ENGINE rocksdb MUTEX;
 Type	Name	Status
 SHOW ENGINE ALL MUTEX;
-SHOW ENGINE rocksdb TRANSACTION STATUS;
-Type	Name	Status
-SNAPSHOTS	rocksdb	
-============================================================
-TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
-============================================================
----------
-SNAPSHOTS
----------
-LIST OF SNAPSHOTS FOR EACH SESSION:
------------------------------------------
-END OF ROCKSDB TRANSACTION MONITOR OUTPUT
-=========================================
-
-START TRANSACTION WITH CONSISTENT SNAPSHOT;
-SHOW ENGINE rocksdb TRANSACTION STATUS;
-Type	Name	Status
-SNAPSHOTS	rocksdb	
-============================================================
-TIMESTAMP ROCKSDB TRANSACTION MONITOR OUTPUT
-============================================================
----------
-SNAPSHOTS
----------
-LIST OF SNAPSHOTS FOR EACH SESSION:
----SNAPSHOT, ACTIVE NUM sec
-MySQL thread id TID, OS thread handle PTR
-lock count 0, write count 0
------------------------------------------
-END OF ROCKSDB TRANSACTION MONITOR OUTPUT
-=========================================
-
-ROLLBACK;

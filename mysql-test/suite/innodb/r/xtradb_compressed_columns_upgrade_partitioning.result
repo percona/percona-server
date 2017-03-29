@@ -1,0 +1,376 @@
+CALL mtr.add_suppression("InnoDB: Page \\[page id: space=[0-9]+, page number=[0-9]+\\] log sequence number [0-9]+ is in the future! Current system log sequence number [0-9]+\\.");
+CALL mtr.add_suppression("InnoDB: Your database may be corrupt or you may have copied the InnoDB tablespace but not the InnoDB log files. Please refer to http://dev\\.mysql\\.com/doc/refman/5\\.7/en/forcing-innodb-recovery\\.html for information about forcing recovery\\.");
+SET GLOBAL innodb_file_format = Antelope;
+CREATE COMPRESSION_DICTIONARY numbers ('one' 'two' 'three');
+CREATE TABLE t5635_par(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ROW_FORMAT=COMPACT ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+CREATE TABLE t5635_subpar(
+id INT,
+a BLOB COLUMN_FORMAT COMPRESSED,
+b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+) ROW_FORMAT=COMPACT ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id)
+SUBPARTITIONS 2 (
+PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB
+);
+SHOW CREATE TABLE t5635_par;
+Table	Create Table
+t5635_par	CREATE TABLE `t5635_par` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SHOW CREATE TABLE t5635_subpar;
+Table	Create Table
+t5635_subpar	CREATE TABLE `t5635_subpar` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+/*!50100 PARTITION BY RANGE (id)
+SUBPARTITION BY HASH (id)
+SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+# restart
+SHOW CREATE TABLE t5635_par;
+Table	Create Table
+t5635_par	CREATE TABLE `t5635_par` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t5635_par', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW CREATE TABLE t5635_subpar;
+Table	Create Table
+t5635_subpar	CREATE TABLE `t5635_subpar` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (id)
+SUBPARTITION BY HASH (id)
+SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t5635_subpar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+CREATE TABLE tmp AS SELECT * FROM t5635_par;
+DELETE FROM t5635_par;
+INSERT INTO t5635_par SELECT * FROM tmp;
+DROP TABLE tmp;
+CREATE TABLE tmp AS SELECT * FROM t5635_subpar;
+DELETE FROM t5635_subpar;
+INSERT INTO t5635_subpar SELECT * FROM tmp;
+DROP TABLE tmp;
+[t5635_par][p0] checking data consistency just after upgrade
+include/assert.inc [[t5635_par][p0] initial number of records must be 2]
+include/assert.inc [[t5635_par][p0] initial short record must not be corrupted]
+include/assert.inc [[t5635_par][p0] initial long record must not be corrupted]
+[t5635_par][p0] inserting a new record
+INSERT INTO t5635_par VALUES (4 + 0 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_par][p0] number of records after insert must be 3]
+include/assert.inc [[t5635_par][p0] short record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p0] long record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p0] inserted record must not be corrupted]
+[t5635_par][p0] updating existing record
+UPDATE t5635_par SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_par][p0] number of records after update must be 3]
+include/assert.inc [[t5635_par][p0] short record after update must not be corrupted]
+include/assert.inc [[t5635_par][p0] long record after update must not be corrupted]
+include/assert.inc [[t5635_par][p0] updated record must not be corrupted]
+[t5635_par][p0] deleting existing record
+DELETE FROM t5635_par WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_par][p0] number of records after delete must be 2]
+include/assert.inc [[t5635_par][p0] short record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p0] long record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p0] deleted record must not exist]
+[t5635_par][p1] checking data consistency just after upgrade
+include/assert.inc [[t5635_par][p1] initial number of records must be 2]
+include/assert.inc [[t5635_par][p1] initial short record must not be corrupted]
+include/assert.inc [[t5635_par][p1] initial long record must not be corrupted]
+[t5635_par][p1] inserting a new record
+INSERT INTO t5635_par VALUES (4 + 128 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_par][p1] number of records after insert must be 3]
+include/assert.inc [[t5635_par][p1] short record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p1] long record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p1] inserted record must not be corrupted]
+[t5635_par][p1] updating existing record
+UPDATE t5635_par SET a = @a_long, b = @b_short WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_par][p1] number of records after update must be 3]
+include/assert.inc [[t5635_par][p1] short record after update must not be corrupted]
+include/assert.inc [[t5635_par][p1] long record after update must not be corrupted]
+include/assert.inc [[t5635_par][p1] updated record must not be corrupted]
+[t5635_par][p1] deleting existing record
+DELETE FROM t5635_par WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_par][p1] number of records after delete must be 2]
+include/assert.inc [[t5635_par][p1] short record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p1] long record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p1] deleted record must not exist]
+ALTER TABLE t5635_par UPGRADE PARTITIONING;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t5635_par', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW CREATE TABLE t5635_par;
+Table	Create Table
+t5635_par	CREATE TABLE `t5635_par` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+[t5635_par][p0] checking data consistency just after upgrade
+include/assert.inc [[t5635_par][p0] initial number of records must be 2]
+include/assert.inc [[t5635_par][p0] initial short record must not be corrupted]
+include/assert.inc [[t5635_par][p0] initial long record must not be corrupted]
+[t5635_par][p0] inserting a new record
+INSERT INTO t5635_par VALUES (4 + 0 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_par][p0] number of records after insert must be 3]
+include/assert.inc [[t5635_par][p0] short record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p0] long record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p0] inserted record must not be corrupted]
+[t5635_par][p0] updating existing record
+UPDATE t5635_par SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_par][p0] number of records after update must be 3]
+include/assert.inc [[t5635_par][p0] short record after update must not be corrupted]
+include/assert.inc [[t5635_par][p0] long record after update must not be corrupted]
+include/assert.inc [[t5635_par][p0] updated record must not be corrupted]
+[t5635_par][p0] deleting existing record
+DELETE FROM t5635_par WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_par][p0] number of records after delete must be 2]
+include/assert.inc [[t5635_par][p0] short record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p0] long record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p0] deleted record must not exist]
+[t5635_par][p1] checking data consistency just after upgrade
+include/assert.inc [[t5635_par][p1] initial number of records must be 2]
+include/assert.inc [[t5635_par][p1] initial short record must not be corrupted]
+include/assert.inc [[t5635_par][p1] initial long record must not be corrupted]
+[t5635_par][p1] inserting a new record
+INSERT INTO t5635_par VALUES (4 + 128 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_par][p1] number of records after insert must be 3]
+include/assert.inc [[t5635_par][p1] short record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p1] long record after insert must not be corrupted]
+include/assert.inc [[t5635_par][p1] inserted record must not be corrupted]
+[t5635_par][p1] updating existing record
+UPDATE t5635_par SET a = @a_long, b = @b_short WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_par][p1] number of records after update must be 3]
+include/assert.inc [[t5635_par][p1] short record after update must not be corrupted]
+include/assert.inc [[t5635_par][p1] long record after update must not be corrupted]
+include/assert.inc [[t5635_par][p1] updated record must not be corrupted]
+[t5635_par][p1] deleting existing record
+DELETE FROM t5635_par WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_par][p1] number of records after delete must be 2]
+include/assert.inc [[t5635_par][p1] short record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p1] long record after delete must not be corrupted]
+include/assert.inc [[t5635_par][p1] deleted record must not exist]
+[t5635_subpar][p0sp0] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p0sp0] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p0sp0] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] initial long record must not be corrupted]
+[t5635_subpar][p0sp0] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 0 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p0sp0] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p0sp0] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] inserted record must not be corrupted]
+[t5635_subpar][p0sp0] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_subpar][p0sp0] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p0sp0] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] updated record must not be corrupted]
+[t5635_subpar][p0sp0] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_subpar][p0sp0] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p0sp0] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] deleted record must not exist]
+[t5635_subpar][p0sp1] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p0sp1] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p0sp1] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] initial long record must not be corrupted]
+[t5635_subpar][p0sp1] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 0 + 1, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p0sp1] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p0sp1] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] inserted record must not be corrupted]
+[t5635_subpar][p0sp1] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 1;
+include/assert.inc [[t5635_subpar][p0sp1] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p0sp1] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] updated record must not be corrupted]
+[t5635_subpar][p0sp1] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 0 + 1;
+include/assert.inc [[t5635_subpar][p0sp1] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p0sp1] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] deleted record must not exist]
+[t5635_subpar][p1sp0] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p1sp0] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p1sp0] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] initial long record must not be corrupted]
+[t5635_subpar][p1sp0] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 128 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p1sp0] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p1sp0] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] inserted record must not be corrupted]
+[t5635_subpar][p1sp0] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_subpar][p1sp0] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p1sp0] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] updated record must not be corrupted]
+[t5635_subpar][p1sp0] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_subpar][p1sp0] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p1sp0] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] deleted record must not exist]
+[t5635_subpar][p1sp1] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p1sp1] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p1sp1] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] initial long record must not be corrupted]
+[t5635_subpar][p1sp1] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 128 + 1, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p1sp1] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p1sp1] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] inserted record must not be corrupted]
+[t5635_subpar][p1sp1] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 128 + 1;
+include/assert.inc [[t5635_subpar][p1sp1] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p1sp1] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] updated record must not be corrupted]
+[t5635_subpar][p1sp1] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 128 + 1;
+include/assert.inc [[t5635_subpar][p1sp1] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p1sp1] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] deleted record must not exist]
+ALTER TABLE t5635_subpar UPGRADE PARTITIONING;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t5635_subpar', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW CREATE TABLE t5635_subpar;
+Table	Create Table
+t5635_subpar	CREATE TABLE `t5635_subpar` (
+  `id` int(11) DEFAULT NULL,
+  `a` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
+  `b` blob /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (id)
+SUBPARTITION BY HASH (id)
+SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN (128) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+[t5635_subpar][p0sp0] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p0sp0] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p0sp0] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] initial long record must not be corrupted]
+[t5635_subpar][p0sp0] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 0 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p0sp0] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p0sp0] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] inserted record must not be corrupted]
+[t5635_subpar][p0sp0] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_subpar][p0sp0] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p0sp0] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] updated record must not be corrupted]
+[t5635_subpar][p0sp0] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 0 + 0;
+include/assert.inc [[t5635_subpar][p0sp0] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p0sp0] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp0] deleted record must not exist]
+[t5635_subpar][p0sp1] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p0sp1] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p0sp1] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] initial long record must not be corrupted]
+[t5635_subpar][p0sp1] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 0 + 1, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p0sp1] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p0sp1] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] inserted record must not be corrupted]
+[t5635_subpar][p0sp1] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 0 + 1;
+include/assert.inc [[t5635_subpar][p0sp1] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p0sp1] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] updated record must not be corrupted]
+[t5635_subpar][p0sp1] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 0 + 1;
+include/assert.inc [[t5635_subpar][p0sp1] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p0sp1] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p0sp1] deleted record must not exist]
+[t5635_subpar][p1sp0] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p1sp0] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p1sp0] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] initial long record must not be corrupted]
+[t5635_subpar][p1sp0] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 128 + 0, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p1sp0] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p1sp0] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] inserted record must not be corrupted]
+[t5635_subpar][p1sp0] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_subpar][p1sp0] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p1sp0] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] updated record must not be corrupted]
+[t5635_subpar][p1sp0] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 128 + 0;
+include/assert.inc [[t5635_subpar][p1sp0] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p1sp0] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp0] deleted record must not exist]
+[t5635_subpar][p1sp1] checking data consistency just after upgrade
+include/assert.inc [[t5635_subpar][p1sp1] initial number of records must be 2]
+include/assert.inc [[t5635_subpar][p1sp1] initial short record must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] initial long record must not be corrupted]
+[t5635_subpar][p1sp1] inserting a new record
+INSERT INTO t5635_subpar VALUES (4 + 128 + 1, @a_short, @b_long);
+include/assert.inc [[t5635_subpar][p1sp1] number of records after insert must be 3]
+include/assert.inc [[t5635_subpar][p1sp1] short record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] long record after insert must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] inserted record must not be corrupted]
+[t5635_subpar][p1sp1] updating existing record
+UPDATE t5635_subpar SET a = @a_long, b = @b_short WHERE id = 4 + 128 + 1;
+include/assert.inc [[t5635_subpar][p1sp1] number of records after update must be 3]
+include/assert.inc [[t5635_subpar][p1sp1] short record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] long record after update must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] updated record must not be corrupted]
+[t5635_subpar][p1sp1] deleting existing record
+DELETE FROM t5635_subpar WHERE id = 4 + 128 + 1;
+include/assert.inc [[t5635_subpar][p1sp1] number of records after delete must be 2]
+include/assert.inc [[t5635_subpar][p1sp1] short record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] long record after delete must not be corrupted]
+include/assert.inc [[t5635_subpar][p1sp1] deleted record must not exist]
+DROP TABLE t5635_par;
+DROP TABLE t5635_subpar;
+DROP COMPRESSION_DICTIONARY numbers;

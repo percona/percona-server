@@ -742,7 +742,7 @@ public:
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
 #ifndef DBUG_OFF
-  friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
+  friend int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
 #endif
   bool test_use_count(SEL_ARG *root);
   SEL_ARG *first();
@@ -781,6 +781,8 @@ public:
     {
       if (cur_selarg->next_key_part)
       {
+        DBUG_ASSERT(count >= 0
+                    || (long)cur_selarg->next_key_part->use_count >= count);
         cur_selarg->next_key_part->use_count+= count;
         cur_selarg->next_key_part->increment_use_count(count);
       }
@@ -8024,14 +8026,15 @@ static SEL_ARG *
 and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
              uint clone_flag)
 {
+  DBUG_ASSERT(key1->part < key2->part);
+
   SEL_ARG *next;
   ulong use_count=key1->use_count;
 
-  if (key1->elements != 1)
-  {
-    key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?
-    key2->increment_use_count((int) key1->elements-1);
-  }
+  DBUG_ASSERT(key1->elements > 0);
+  key2->use_count+= key1->elements;
+  key2->increment_use_count(key1->elements);
+
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
     // See todo for left/right pointers
@@ -9270,8 +9273,8 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 
 #ifndef DBUG_OFF
 	/* Test that the properties for a red-black tree hold */
-
-int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
+static
+int test_rb_subtree(const SEL_ARG *element, const SEL_ARG *parent)
 {
   int count_l,count_r;
 
@@ -9294,8 +9297,8 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
     sql_print_error("Wrong tree: Found right == left");
     return -1;
   }
-  count_l=test_rb_tree(element->left,element);
-  count_r=test_rb_tree(element->right,element);
+  count_l=test_rb_subtree(element->left,element);
+  count_r=test_rb_subtree(element->right,element);
   if (count_l >= 0 && count_r >= 0)
   {
     if (count_l == count_r)
@@ -9304,6 +9307,16 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 	    count_l,count_r);
   }
   return -1;					// Error, no more warnings
+}
+
+int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent)
+{
+  if (element->color == SEL_ARG::RED)
+  {
+    sql_print_error("Wrong tree: root node is red");
+    return -1;
+  }
+  return test_rb_subtree(element, parent);
 }
 #endif
 
@@ -11439,8 +11452,14 @@ int QUICK_SELECT_DESC::get_next()
       will use ha_index_prev() to read data, we need to let the
       handler know where to end the scan in order to avoid that the
       ICP implemention continues to read past the range boundary.
+
+      An addition for MyRocks:
+      MyRocks needs to know both start of the range and end of the range
+      in order to use its bloom filters. This is useful regardless of whether
+      ICP is usable (e.g. it is used for index-only scans which do not use
+      ICP). Because of that, we remove the following:
+      //  //  if (file->pushed_idx_cond)
     */
-    if (file->pushed_idx_cond)
     {
       if (!eqrange_all_keyparts)
       {

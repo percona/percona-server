@@ -134,8 +134,6 @@ using std::max;
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
-// Uses the THD to update the global stats by user name and client IP
-void update_global_user_stats(THD* thd, bool create_user, time_t now);
 
 const LEX_STRING command_name[]={
   { C_STRING_WITH_LEN("Sleep") },
@@ -2447,7 +2445,7 @@ static bool lock_tables_for_backup(THD *thd)
   @return FALSE in case of success, TRUE in case of error.
 */
 
-static bool lock_binlog_for_backup(THD *thd)
+bool lock_binlog_for_backup(THD *thd)
 {
   DBUG_ENTER("lock_binlog_for_backup");
 

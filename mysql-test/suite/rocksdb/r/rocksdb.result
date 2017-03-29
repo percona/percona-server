@@ -20,12 +20,12 @@ key(a)
 insert into t1 values
 (1,1,1), (2,2,2), (3,3,3), (4,4,4);
 set @var1=(select variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where variable_name='rocksdb_number_keys_written');
 # Do an update that doesn't change the key 'a'.
 update t1 set b=3334341 where a=2;
 set @var2=(select variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where variable_name='rocksdb_number_keys_written');
 # The following should produce 1
 select @var2 - @var1;
@@ -34,7 +34,7 @@ select @var2 - @var1;
 # Do an update that sets the key to the same value
 update t1 set a=pk where a=3;
 set @var3=(select variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where variable_name='rocksdb_number_keys_written');
 # We have 'updated' column to the same value, so the following must return 0:
 select @var3 - @var2;
@@ -862,10 +862,9 @@ rocksdb_advise_random_on_open	ON
 rocksdb_allow_concurrent_memtable_write	OFF
 rocksdb_allow_mmap_reads	OFF
 rocksdb_allow_mmap_writes	OFF
-rocksdb_allow_os_buffer	ON
 rocksdb_background_sync	OFF
 rocksdb_base_background_compactions	1
-rocksdb_block_cache_size	8388608
+rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
 rocksdb_block_size	4096
 rocksdb_block_size_deviation	10
@@ -887,11 +886,12 @@ rocksdb_create_if_missing	ON
 rocksdb_create_missing_column_families	OFF
 rocksdb_datadir	./.rocksdb
 rocksdb_db_write_buffer_size	0
+rocksdb_deadlock_detect	OFF
 rocksdb_debug_optimizer_no_zero_cardinality	ON
 rocksdb_default_cf_options	
 rocksdb_delete_obsolete_files_period_micros	21600000000
-rocksdb_disable_2pc	ON
 rocksdb_disabledatasync	OFF
+rocksdb_enable_2pc	ON
 rocksdb_enable_bulk_load_api	ON
 rocksdb_enable_thread_tracking	OFF
 rocksdb_enable_write_thread_adaptive_yield	OFF
@@ -924,7 +924,10 @@ rocksdb_override_cf_options
 rocksdb_paranoid_checks	ON
 rocksdb_pause_background_work	ON
 rocksdb_perf_context_level	0
+rocksdb_persistent_cache_path	
+rocksdb_persistent_cache_size	0
 rocksdb_pin_l0_filter_and_index_blocks_in_cache	ON
+rocksdb_print_snapshot_conflict_queries	OFF
 rocksdb_rate_limiter_bytes_per_sec	0
 rocksdb_read_free_rpl_tables	
 rocksdb_records_in_range	50
@@ -933,19 +936,22 @@ rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
 rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
-rocksdb_skip_unique_check	OFF
 rocksdb_skip_unique_check_tables	.*
 rocksdb_stats_dump_period_sec	600
-rocksdb_store_checksums	OFF
+rocksdb_store_row_debug_checksums	OFF
 rocksdb_strict_collation_check	OFF
 rocksdb_strict_collation_exceptions	
 rocksdb_table_cache_numshardbits	6
 rocksdb_table_stats_sampling_pct	10
+rocksdb_tmpdir	
+rocksdb_trace_sst_api	OFF
 rocksdb_unsafe_for_binlog	OFF
 rocksdb_use_adaptive_mutex	OFF
+rocksdb_use_direct_reads	OFF
+rocksdb_use_direct_writes	OFF
 rocksdb_use_fsync	OFF
 rocksdb_validate_tables	1
-rocksdb_verify_checksums	OFF
+rocksdb_verify_row_debug_checksums	OFF
 rocksdb_wal_bytes_per_sync	0
 rocksdb_wal_dir	
 rocksdb_wal_recovery_mode	2
@@ -985,7 +991,7 @@ insert into t49 values (1,10),(2,20);
 begin;
 update t49 set a = 100 where pk = 1;
 connect  con1,localhost,root,,;
-set rocksdb_lock_wait_timeout=5000;
+set rocksdb_lock_wait_timeout=60;
 set @var1= to_seconds(now());
 update t49 set a = 1000 where pk = 1;
 connect  con2,localhost,root,,;
@@ -993,9 +999,7 @@ kill query $con1_id;
 connection con1;
 ERROR 70100: Query execution was interrupted
 set @var2= to_seconds(now());
-"[Jay Edgar] I've updated this query to help determine why it is sometimes failing"
-"(t13541934).  If you get an error here (i.e. not 'passed') notify me."
-select if ((@var2 - @var1) < 1000, "passed", (@var2 - @var1)) as 'result';
+select if ((@var2 - @var1) < 60, "passed", (@var2 - @var1)) as 'result';
 result
 passed
 connection default;
@@ -1297,7 +1301,7 @@ insert into t1 select (@a:=@a+1), 1234 from information_schema.session_variables
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
 update t1 set a=a+10;
-ERROR HY000: Internal error: Operation aborted: Number of locks held by the transaction exceeded @@rocksdb_max_row_locks
+ERROR HY000: Got error 196 'Number of locks held reached @@rocksdb_max_row_locks.' from ROCKSDB
 DROP TABLE t1;
 # 
 # Test AUTO_INCREMENT behavior problem,
@@ -1465,9 +1469,9 @@ rocksdb_number_superversion_acquires	#
 rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
 rocksdb_rate_limit_delay_millis	#
-rocksdb_sequence_number	#
 rocksdb_snapshot_conflict_errors	#
 rocksdb_wal_bytes	#
+rocksdb_wal_group_syncs	#
 rocksdb_wal_synced	#
 rocksdb_write_other	#
 rocksdb_write_self	#
@@ -1537,9 +1541,9 @@ ROCKSDB_NUMBER_SUPERVERSION_ACQUIRES
 ROCKSDB_NUMBER_SUPERVERSION_CLEANUPS
 ROCKSDB_NUMBER_SUPERVERSION_RELEASES
 ROCKSDB_RATE_LIMIT_DELAY_MILLIS
-ROCKSDB_SEQUENCE_NUMBER
 ROCKSDB_SNAPSHOT_CONFLICT_ERRORS
 ROCKSDB_WAL_BYTES
+ROCKSDB_WAL_GROUP_SYNCS
 ROCKSDB_WAL_SYNCED
 ROCKSDB_WRITE_OTHER
 ROCKSDB_WRITE_SELF
@@ -1611,9 +1615,9 @@ ROCKSDB_NUMBER_SUPERVERSION_ACQUIRES
 ROCKSDB_NUMBER_SUPERVERSION_CLEANUPS
 ROCKSDB_NUMBER_SUPERVERSION_RELEASES
 ROCKSDB_RATE_LIMIT_DELAY_MILLIS
-ROCKSDB_SEQUENCE_NUMBER
 ROCKSDB_SNAPSHOT_CONFLICT_ERRORS
 ROCKSDB_WAL_BYTES
+ROCKSDB_WAL_GROUP_SYNCS
 ROCKSDB_WAL_SYNCED
 ROCKSDB_WRITE_OTHER
 ROCKSDB_WRITE_SELF
@@ -1780,12 +1784,12 @@ select * from t1 where id1=30 and value1=30 for update;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	#	Using where
 set @var1=(select variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where variable_name='rocksdb_number_keys_read');
 select * from t1 where id1=3 and value1=3 for update;
 id1	id2	value1	value2
 set @var2=(select variable_value 
-from information_schema.global_status 
+from performance_schema.global_status 
 where variable_name='rocksdb_number_keys_read');
 # The following must return true (before the fix, the difference was 70):
 select if((@var2 - @var1) < 30, 1, @var2-@var1);
@@ -2228,7 +2232,7 @@ DROP DATABASE test_db;
 # Issue #143: Split rocksdb_bulk_load option into two
 #
 CREATE TABLE t1 (id int primary key, value int) engine=RocksDB;
-SET rocksdb_skip_unique_check=1;
+SET unique_checks=0;
 INSERT INTO t1 VALUES(1, 1);
 INSERT INTO t1 VALUES(1, 2);
 INSERT INTO t1 VALUES(1, 3);
@@ -2240,7 +2244,7 @@ INSERT INTO t1 VALUES(5, 5) ON DUPLICATE KEY UPDATE value=value+1;
 ERROR HY000: When unique checking is disabled in MyRocks, INSERT,UPDATE,LOAD statements with clauses that update or replace the key (i.e. INSERT ON DUPLICATE KEY UPDATE, REPLACE) are not allowed. Query: INSERT INTO t1 VALUES(5, 5) ON DUPLICATE KEY UPDATE value=value+1
 TRUNCATE TABLE t1;
 SET @save_rocksdb_bulk_load_size= @@rocksdb_bulk_load_size;
-SET rocksdb_skip_unique_check=0;
+SET unique_checks=1;
 SET rocksdb_commit_in_the_middle=1;
 SET rocksdb_bulk_load_size=10;
 BEGIN;
@@ -2453,4 +2457,24 @@ a
 10
 11
 DROP TABLE t1;
+#
+# Issue #411: Setting rocksdb_commit_in_the_middle commits transaction
+# without releasing iterator
+#
+CREATE TABLE t1 (id1 bigint(20),
+id2 bigint(20),
+id3 bigint(20),
+PRIMARY KEY (id1, id2, id3))
+DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (id1 bigint(20),
+id2 bigint(20),
+PRIMARY KEY (id1, id2))
+DEFAULT CHARSET=latin1;
+set rocksdb_commit_in_the_middle=1;
+SET @save_rocksdb_bulk_load_size= @@rocksdb_bulk_load_size;
+set rocksdb_bulk_load_size = 100;
+DELETE t2, t1 FROM t2 LEFT JOIN t1 ON t2.id2 = t1.id2 AND t2.id1 = t1.id1 WHERE t2.id1 = 0;
+SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
+SET rocksdb_commit_in_the_middle=0;
+DROP TABLE t1, t2;
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = @ORIG_PAUSE_BACKGROUND_WORK;

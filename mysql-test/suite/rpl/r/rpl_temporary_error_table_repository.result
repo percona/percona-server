@@ -24,7 +24,6 @@ include/start_slave.inc
 ### Specified retry number is expected ###
 ### Timeout error is expected ###
 include/wait_for_slave_sql_error.inc [errno=1205]
-[connection slave]
 SET @@GLOBAL.slave_transaction_retries = 1;
 include/start_slave.inc
 ### Specified retry number is expected ###

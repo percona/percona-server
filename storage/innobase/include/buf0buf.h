@@ -700,8 +700,8 @@ buf_page_get_newest_modification(
 					page frame */
 /********************************************************************//**
 Increments the modify clock of a frame by 1. The caller must (1) own the
-buf_pool->LRU_list_mutex and block bufferfix count has to be zero, (2) or own
-an x-lock on the block, (3) or the block must belong to an intrinsic table. */
+buffer page mutex and block bufferfix count has to be zero, (2) or own an
+x-lock on the block, (3) or the block must belong to an intrinsic table. */
 UNIV_INLINE
 void
 buf_block_modify_clock_inc(

@@ -22,8 +22,7 @@
 #include "./rdb_utils.h"
 
 // Internal MySQL APIs not exposed in any header.
-extern "C"
-{
+extern "C" {
 void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
                     const PSI_stage_info *stage, PSI_stage_info *old_stage);
 void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage);
@@ -33,26 +32,28 @@ using namespace rocksdb;
 
 namespace myrocks {
 
-static
-PSI_stage_info stage_waiting_on_row_lock2= { 0, "Waiting for row lock", 0};
+static PSI_stage_info stage_waiting_on_row_lock2 = {0, "Waiting for row lock",
+                                                    0};
 
-static const int64_t MICROSECS= 1000*1000;
+static const int64_t ONE_SECOND_IN_MICROSECS = 1000 * 1000;
 // A timeout as long as one full non-leap year worth of microseconds is as
 // good as infinite timeout.
-static const int64_t BIG_TIMEOUT= MICROSECS * 60 * 60 * 24 * 7 * 365;
+static const int64_t ONE_YEAR_IN_MICROSECS =
+    ONE_SECOND_IN_MICROSECS * 60 * 60 * 24 * 365;
 
-Rdb_cond_var::Rdb_cond_var() {
-  mysql_cond_init(0, &m_cond, nullptr);
+#ifdef HAVE_PSI_INTERFACE
+Rdb_cond_var::Rdb_cond_var(PSI_memory_key psi_key) {
+  mysql_cond_init(psi_key, &m_cond);
 }
+#else
+Rdb_cond_var::Rdb_cond_var() { mysql_cond_init(PSI_NOT_INSTRUMENTED, &m_cond); }
+#endif
 
-Rdb_cond_var::~Rdb_cond_var() {
-  mysql_cond_destroy(&m_cond);
+Rdb_cond_var::~Rdb_cond_var() { mysql_cond_destroy(&m_cond); }
+
+Status Rdb_cond_var::Wait(const std::shared_ptr<TransactionDBMutex> mutex_arg) {
+  return WaitFor(mutex_arg, ONE_YEAR_IN_MICROSECS);
 }
-
-Status Rdb_cond_var::Wait(std::shared_ptr<TransactionDBMutex> mutex_arg) {
-  return WaitFor(mutex_arg, BIG_TIMEOUT);
-}
-
 
 /*
   @brief
@@ -69,27 +70,25 @@ Status Rdb_cond_var::Wait(std::shared_ptr<TransactionDBMutex> mutex_arg) {
 */
 
 Status
-Rdb_cond_var::WaitFor(std::shared_ptr<TransactionDBMutex> mutex_arg,
-                      int64_t timeout_micros)
-{
-  auto *mutex_obj= reinterpret_cast<Rdb_mutex*>(mutex_arg.get());
+Rdb_cond_var::WaitFor(const std::shared_ptr<TransactionDBMutex> mutex_arg,
+                      int64_t timeout_micros) {
+  auto *mutex_obj = reinterpret_cast<Rdb_mutex *>(mutex_arg.get());
   DBUG_ASSERT(mutex_obj != nullptr);
 
-  mysql_mutex_t * const mutex_ptr= &mutex_obj->m_mutex;
+  mysql_mutex_t *const mutex_ptr = &mutex_obj->m_mutex;
 
-  int res= 0;
+  int res = 0;
   struct timespec wait_timeout;
 
   if (timeout_micros < 0)
-    timeout_micros= BIG_TIMEOUT;
-  set_timespec_nsec(wait_timeout, timeout_micros*1000);
+    timeout_micros = ONE_YEAR_IN_MICROSECS;
+  set_timespec_nsec(&wait_timeout, timeout_micros * 1000);
 
 #ifndef STANDALONE_UNITTEST
   PSI_stage_info old_stage;
   mysql_mutex_assert_owner(mutex_ptr);
 
-  if (current_thd && mutex_obj->m_old_stage_info.count(current_thd) == 0)
-  {
+  if (current_thd && mutex_obj->m_old_stage_info.count(current_thd) == 0) {
     my_core::thd_enter_cond(current_thd, &m_cond, mutex_ptr,
                             &stage_waiting_on_row_lock2, &old_stage);
     /*
@@ -105,15 +104,14 @@ Rdb_cond_var::WaitFor(std::shared_ptr<TransactionDBMutex> mutex_arg,
   }
 
 #endif
-  bool killed= false;
+  bool killed = false;
 
-  do
-  {
-    res= mysql_cond_timedwait(&m_cond, mutex_ptr, &wait_timeout);
+  do {
+    res = mysql_cond_timedwait(&m_cond, mutex_ptr, &wait_timeout);
 
 #ifndef STANDALONE_UNITTEST
     if (current_thd)
-      killed= my_core::thd_killed(current_thd);
+      killed = my_core::thd_killed(current_thd);
 #endif
   } while (!killed && res == EINTR);
 
@@ -122,7 +120,6 @@ Rdb_cond_var::WaitFor(std::shared_ptr<TransactionDBMutex> mutex_arg,
   else
     return Status::OK();
 }
-
 
 /*
 
@@ -154,32 +151,21 @@ Rdb_cond_var::WaitFor(std::shared_ptr<TransactionDBMutex> mutex_arg,
   None of this looks like a problem for our use case.
 */
 
-void Rdb_cond_var::Notify()
-{
-  mysql_cond_signal(&m_cond);
-}
-
+void Rdb_cond_var::Notify() { mysql_cond_signal(&m_cond); }
 
 /*
   @note
     This is called without holding the mutex that's used for waiting on the
     condition. See ::Notify().
 */
-void Rdb_cond_var::NotifyAll()
-{
-  mysql_cond_broadcast(&m_cond);
-}
+void Rdb_cond_var::NotifyAll() { mysql_cond_broadcast(&m_cond); }
 
-
-Rdb_mutex::Rdb_mutex()
-{
+Rdb_mutex::Rdb_mutex() {
   mysql_mutex_init(0 /* Don't register in P_S. */, &m_mutex,
                    MY_MUTEX_INIT_FAST);
 }
 
-Rdb_mutex::~Rdb_mutex() {
-    mysql_mutex_destroy(&m_mutex);
-}
+Rdb_mutex::~Rdb_mutex() { mysql_mutex_destroy(&m_mutex); }
 
 Status Rdb_mutex::Lock() {
   mysql_mutex_lock(&m_mutex);
@@ -192,8 +178,7 @@ Status Rdb_mutex::Lock() {
 // If implementing a custom version of this class, the implementation may
 // choose to ignore the timeout.
 // Return OK on success, or other Status on failure.
-Status Rdb_mutex::TryLockFor(int64_t timeout_time __attribute__((__unused__)))
-{
+Status Rdb_mutex::TryLockFor(int64_t timeout_time __attribute__((__unused__))) {
   /*
     Note: PThreads API has pthread_mutex_timedlock(), but mysql's
     mysql_mutex_* wrappers do not wrap that function.
@@ -202,10 +187,8 @@ Status Rdb_mutex::TryLockFor(int64_t timeout_time __attribute__((__unused__)))
   return Status::OK();
 }
 
-
 #ifndef STANDALONE_UNITTEST
-void Rdb_mutex::set_unlock_action(PSI_stage_info *old_stage_arg)
-{
+void Rdb_mutex::set_unlock_action(const PSI_stage_info *const old_stage_arg) {
   DBUG_ASSERT(old_stage_arg != nullptr);
 
   mysql_mutex_assert_owner(&m_mutex);
@@ -219,11 +202,13 @@ void Rdb_mutex::set_unlock_action(PSI_stage_info *old_stage_arg)
 // Unlock Mutex that was successfully locked by Lock() or TryLockUntil()
 void Rdb_mutex::UnLock() {
 #ifndef STANDALONE_UNITTEST
-  if (m_old_stage_info.count(current_thd) > 0)
-  {
-    std::shared_ptr<PSI_stage_info> old_stage = m_old_stage_info[current_thd];
+  if (m_old_stage_info.count(current_thd) > 0) {
+    const std::shared_ptr<PSI_stage_info> old_stage =
+        m_old_stage_info[current_thd];
     m_old_stage_info.erase(current_thd);
     /* The following will call mysql_mutex_unlock */
+    /* GOL - not in 5.7, see commentary in sql_class.h */
+    mysql_mutex_unlock(&m_mutex);
     my_core::thd_exit_cond(current_thd, old_stage.get());
     return;
   }
@@ -231,4 +216,4 @@ void Rdb_mutex::UnLock() {
   mysql_mutex_unlock(&m_mutex);
 }
 
-}  // namespace myrocks
+} // namespace myrocks

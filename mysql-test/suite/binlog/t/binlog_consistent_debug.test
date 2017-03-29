@@ -1,0 +1,116 @@
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+--source include/have_perfschema.inc
+
+--echo #
+--echo # Debug build tests for consistent binlog snapshot
+--echo #
+
+RESET MASTER;
+
+--echo #
+--echo # Bug 1646100: Server becomes unresponsive during flushing after loading
+--echo # big files through LOAD DATA INFILE
+--echo #
+
+SET @saved_sync_binlog = @@sync_binlog;
+SET GLOBAL sync_binlog = 1;
+
+CREATE TABLE t1 (a INT);
+
+--source include/count_sessions.inc
+
+--connect(con1,localhost,root,,)
+--echo # connection con1
+
+BEGIN;
+INSERT INTO t1 VALUES (0);
+
+SET DEBUG_SYNC="before_sync_binlog_file SIGNAL commit_ready WAIT_FOR finish_commit";
+
+send COMMIT;
+
+--connection default
+--echo # connection default
+
+SET DEBUG_SYNC="now WAIT_FOR commit_ready";
+
+--replace_result 569 POSITION 590 POSITION
+SHOW STATUS LIKE 'binlog_snapshot_%';
+
+SET DEBUG_SYNC="now SIGNAL finish_commit";
+
+--connection con1
+--echo # connection con1
+reap;
+
+--disconnect con1
+--connection default
+--echo # connection default
+
+DROP TABLE t1;
+
+SET GLOBAL sync_binlog = @saved_sync_binlog;
+
+--echo #
+--echo # Bug 1657128: Deadlock by concurrent SHOW BINLOGS,
+--echo # performance_schema.global_status query, and binlog purge
+--echo #
+
+FLUSH LOGS;
+
+--connect(con1,localhost,root,,)
+--echo # connection con1
+
+SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";
+
+--send PURGE BINARY LOGS BEFORE '9999-12-31'
+
+--connect(con2,localhost,root,,)
+--echo # connection con2
+
+SET DEBUG_SYNC="materialize_session_status_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
+
+--send SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'Binlog_snapshot_%';
+
+--connect(con3,localhost,root,,)
+--echo # connection con3
+
+SET DEBUG_SYNC="show_binlogs_after_lock_log_before_lock_index SIGNAL show_ready WAIT_FOR finish_show";
+
+--send SHOW BINARY LOGS
+
+--connection default
+--echo # connection default
+
+SET DEBUG_SYNC="now WAIT_FOR purge_ready";
+SET DEBUG_SYNC="now WAIT_FOR pfs_ready";
+SET DEBUG_SYNC="now WAIT_FOR show_ready";
+
+SET DEBUG_SYNC="now SIGNAL finish_purge";
+SET DEBUG_SYNC="now SIGNAL finish_pfs";
+SET DEBUG_SYNC="now SIGNAL finish_show";
+
+--connection con1
+--echo # connection con1
+reap;
+--disconnect con1
+
+--connection con2
+--echo # connection con2
+--replace_result 154 POSITION
+reap;
+--disconnect con2
+
+--connection con3
+--echo # connection con3
+--disable_result_log
+reap;
+--enable_result_log
+--disconnect con3
+
+--connection default
+--echo # connection default
+
+--source include/wait_until_count_sessions.inc

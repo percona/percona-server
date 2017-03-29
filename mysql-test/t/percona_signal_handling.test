@@ -1,11 +1,9 @@
-# A regression testcase for:
-# - bug 1060136: verifies that the server is not killed on SIGSTOP;
-# - bug 805805: verifies that the connection to the server is not killed on SIGSTOP/SIGCONT.
+--source include/not_embedded.inc
 --source include/not_windows.inc
+--source include/one_thread_per_connection.inc
 
-let $mysqld_pid_file=`SELECT @@GLOBAL.pid_file`;
+--echo #
+--echo # Test server signal handling with one-thread-per-connection handler
+--echo #
 
-exec kill -STOP `cat $mysqld_pid_file`;
-exec kill -CONT `cat $mysqld_pid_file`;
-
-SELECT 2+2;
+--source include/percona_signal_handling.inc

@@ -4352,7 +4352,8 @@ void THD::clear_slow_extended()
   tmp_tables_disk_used=         0;
   tmp_tables_size=              0;
   innodb_was_used=              false;
-  innodb_trx_id=                0;
+  if (!(server_status & SERVER_STATUS_IN_TRANS))
+    innodb_trx_id=                0;
   innodb_io_reads=              0;
   innodb_io_read=               0;
   innodb_io_reads_wait_timer=   0;
@@ -4508,6 +4509,7 @@ void THD::inc_status_created_tmp_disk_tables()
 void THD::inc_status_created_tmp_tables()
 {
   status_var.created_tmp_tables++;
+  query_plan_flags|= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif

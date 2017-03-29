@@ -41,6 +41,8 @@ SELECT 1;
 --source include/log_stop.inc
 
 --echo log_slow_verbosity='microtime,innodb,query_plan':
+--let log_slow_verbosity_expected_matches= 2
+--let log_slow_verbosity_innodb_expected_matches= 0
 --source include/percona_slow_log_verbosity_grep.inc
 
 #

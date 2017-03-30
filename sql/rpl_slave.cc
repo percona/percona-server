@@ -6148,10 +6148,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 
   if (!*mts_inited)
     return;
-  else if (rli->slave_parallel_workers == 0)
-    goto end;
 
-  if (thd->killed == THD::NOT_KILLED)
+  if (rli->slave_parallel_workers != 0 && thd->killed == THD::NOT_KILLED)
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
 
   for (i= rli->workers.elements - 1; i >= 0; i--)
@@ -6161,7 +6159,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
-  if (log_warnings > 1)
+  if (rli->slave_parallel_workers != 0 && log_warnings > 1)
     sql_print_information("Total MTS session statistics: "
                           "events processed = %llu; "
                           "worker queues filled over overrun level = %lu; "
@@ -6175,7 +6173,6 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
 
-end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;

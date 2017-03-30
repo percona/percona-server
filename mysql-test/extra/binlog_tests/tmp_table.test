@@ -27,6 +27,8 @@
 #
 source include/have_log_bin.inc;
 
+--source include/count_sessions.inc
+
 RESET MASTER;
 
 --disable_query_log
@@ -93,6 +95,10 @@ remove_file $MYSQLD_DATADIR/master-bin.saved35583;
 select * from foo;
 
 # clean up
+disconnect master;
+disconnect master1;
+
+connection default;
 drop table foo;
 
 #################################################################
@@ -169,3 +175,5 @@ RESET MASTER;
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL
 remove_file $MYSQLD_DATADIR/master-bin.saved51226;
+
+--source include/wait_until_count_sessions.inc

@@ -87,9 +87,13 @@ CREATE TABLE t1 (
 a INT PRIMARY KEY,
 b VARCHAR(30) CHARACTER SET UTF8MB4,
 INDEX b_idx (b(3))) ENGINE=InnoDB;
-INSERT INTO t1 VALUES(1, "aa");
-INSERT INTO t1 VALUES(2, "ccc");
-INSERT INTO t1 VALUES(3, "až");
+INSERT INTO t1 VALUES
+# Records with byte representations shorter than the prefix length in chars
+(1, "aa"),
+# Records which may or may not fit into the index prefix, determined by
+# character counting
+(2, "ccc"),
+(3, "až");
 # MB charset record obviously shorter than the prefix
 SELECT * FROM t1 WHERE b = "aa";
 a	b
@@ -117,9 +121,13 @@ CREATE TABLE t1 (
 a INT PRIMARY KEY,
 b VARCHAR(30) CHARACTER SET UTF16,
 INDEX b_idx (b(3))) ENGINE=InnoDB;
-INSERT INTO t1 VALUES(1, "a");
-INSERT INTO t1 VALUES(2, "ccc");
-INSERT INTO t1 VALUES(3, "až");
+INSERT INTO t1 VALUES
+# Records with byte representations shorter than the prefix length in chars
+(1, "a"),
+# Records which may or may not fit into the index prefix, determined by
+#character counting
+(2, "ccc"),
+(3, "až");
 # MB charset record obviously shorter than the prefix
 SELECT * FROM t1 WHERE b = "a";
 a	b

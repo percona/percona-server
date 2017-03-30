@@ -16,17 +16,19 @@
 #pragma once
 
 /* C++ standard header files */
+#include <chrono>
 #include <string>
 #include <regex>
 
 /* MySQL header files */
 #include "./sql_string.h"
+#include "./sql_regex.h"
 
 /* RocksDB header files */
 #include "rocksdb/slice.h"
 
 #ifdef HAVE_JEMALLOC
-  #include <jemalloc/jemalloc.h>
+#include <jemalloc/jemalloc.h>
 #endif
 
 namespace myrocks {
@@ -38,7 +40,7 @@ namespace myrocks {
 
 #ifndef interface
 #define interface struct
-#endif  // interface
+#endif // interface
 
 /*
   Introduce C-style pseudo-namespaces, a handy way to make code more readble
@@ -56,7 +58,7 @@ namespace myrocks {
 // to non-obvious MySQL functions, like the ones that do not start with well
 // known prefixes: "my_", "sql_", and "mysql_".
 #define my_core
-#endif  // my_core
+#endif // my_core
 
 /*
   The intent behind a SHIP_ASSERT() macro is to have a mechanism for validating
@@ -100,18 +102,50 @@ namespace myrocks {
   a and b must be both true or both false.
 */
 #ifndef DBUG_ASSERT_IFF
-#define DBUG_ASSERT_IFF(a, b) \
+#define DBUG_ASSERT_IFF(a, b)                                                  \
   DBUG_ASSERT(static_cast<bool>(a) == static_cast<bool>(b))
 #endif
+
+/*
+  Intent behind this macro is to avoid manually typing the function name every
+  time we want to add the debugging statement and use the compiler for this
+  work. This avoids typical refactoring problems when one renames a function,
+  but the tracing message doesn't get updated.
+
+  We could use __func__ or __FUNCTION__ macros, but __PRETTY_FUNCTION__
+  contains the signature of the function as well as its bare name and provides
+  therefore more context when interpreting the logs.
+*/
+#define DBUG_ENTER_FUNC() DBUG_ENTER(__PRETTY_FUNCTION__)
+
+/*
+  Error handling pattern used across MySQL abides by the following rules: "All
+  functions that can report an error (usually an allocation error), should
+  return 0/FALSE/false on success, 1/TRUE/true on failure."
+
+  https://dev.mysql.com/doc/internals/en/additional-suggestions.html has more
+  details.
+
+  To increase the comprehension and readability of MyRocks codebase we'll use
+  constants similar to ones from C standard (EXIT_SUCCESS and EXIT_FAILURE) to
+  make sure that both failure and success paths are clearly identifiable. The
+  definitions of FALSE and TRUE come from <my_global.h>.
+*/
+#define HA_EXIT_SUCCESS FALSE
+#define HA_EXIT_FAILURE TRUE
+
+/*
+  Generic constant.
+*/
+const size_t RDB_MAX_HEXDUMP_LEN = 1000;
 
 /*
   Helper function to get an NULL terminated uchar* out of a given MySQL String.
 */
 
-inline uchar* rdb_mysql_str_to_uchar_str(my_core::String *str)
-{
+inline uchar *rdb_mysql_str_to_uchar_str(my_core::String *str) {
   DBUG_ASSERT(str != nullptr);
-  return reinterpret_cast<uchar*>(str->c_ptr());
+  return reinterpret_cast<uchar *>(str->c_ptr());
 }
 
 /*
@@ -119,9 +153,16 @@ inline uchar* rdb_mysql_str_to_uchar_str(my_core::String *str)
   given STL string.
 */
 
-inline const uchar* rdb_std_str_to_uchar_ptr(const std::string &str)
-{
-  return reinterpret_cast<const uchar*>(str.data());
+inline const uchar *rdb_std_str_to_uchar_ptr(const std::string &str) {
+  return reinterpret_cast<const uchar *>(str.data());
+}
+
+/*
+  Helper function to convert seconds to milliseconds.
+*/
+
+constexpr int rdb_convert_sec_to_ms(int sec) {
+  return std::chrono::milliseconds(std::chrono::seconds(sec)).count();
 }
 
 /*
@@ -129,10 +170,9 @@ inline const uchar* rdb_std_str_to_uchar_ptr(const std::string &str)
   given RocksDB item.
 */
 
-inline const uchar* rdb_slice_to_uchar_ptr(const rocksdb::Slice *item)
-{
+inline const uchar *rdb_slice_to_uchar_ptr(const rocksdb::Slice *item) {
   DBUG_ASSERT(item != nullptr);
-  return reinterpret_cast<const uchar*>(item->data());
+  return reinterpret_cast<const uchar *>(item->data());
 }
 
 /*
@@ -141,12 +181,11 @@ inline const uchar* rdb_slice_to_uchar_ptr(const rocksdb::Slice *item)
   scenario for cases where it has been verified that this intervention has
   noticeable benefits.
 */
-inline int purge_all_jemalloc_arenas()
-{
+inline int purge_all_jemalloc_arenas() {
 #ifdef HAVE_JEMALLOC
   unsigned narenas = 0;
   size_t sz = sizeof(unsigned);
-  char name[25] = { 0 };
+  char name[25] = {0};
 
   // Get the number of arenas first. Please see `jemalloc` documentation for
   // all the various options.
@@ -173,94 +212,42 @@ inline int purge_all_jemalloc_arenas()
   Helper functions to parse strings.
 */
 
-const char* rdb_skip_spaces(struct charset_info_st* cs, const char *str)
-  __attribute__((__nonnull__, __warn_unused_result__));
+const char *rdb_skip_spaces(const struct charset_info_st *const cs,
+                            const char *str)
+    __attribute__((__nonnull__, __warn_unused_result__));
 
-bool rdb_compare_strings_ic(const char *str1, const char *str2)
-  __attribute__((__nonnull__, __warn_unused_result__));
+bool rdb_compare_strings_ic(const char *const str1, const char *const str2)
+    __attribute__((__nonnull__, __warn_unused_result__));
 
-const char* rdb_find_in_string(const char *str, const char *pattern,
-                               bool *succeeded)
-  __attribute__((__nonnull__, __warn_unused_result__));
+const char *rdb_find_in_string(const char *str, const char *pattern,
+                               bool *const succeeded)
+    __attribute__((__nonnull__, __warn_unused_result__));
 
-const char* rdb_check_next_token(struct charset_info_st* cs, const char *str,
-                                 const char *pattern, bool *succeeded)
-  __attribute__((__nonnull__, __warn_unused_result__));
+const char *rdb_check_next_token(const struct charset_info_st *const cs,
+                                 const char *str, const char *const pattern,
+                                 bool *const succeeded)
+    __attribute__((__nonnull__, __warn_unused_result__));
 
-const char* rdb_parse_id(struct charset_info_st* cs, const char *str,
-                         std::string *id)
-  __attribute__((__nonnull__(1, 2), __warn_unused_result__));
+const char *rdb_parse_id(const struct charset_info_st *const cs,
+                         const char *str, std::string *const id)
+    __attribute__((__nonnull__(1, 2), __warn_unused_result__));
 
-const char* rdb_skip_id(struct charset_info_st* cs, const char *str)
-  __attribute__((__nonnull__, __warn_unused_result__));
+const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
+    __attribute__((__nonnull__, __warn_unused_result__));
 
 /*
   Helper functions to populate strings.
 */
 
-std::string rdb_hexdump(const char *data, std::size_t data_len,
-                        std::size_t maxsize = 0)
-  __attribute__((__nonnull__));
+std::string rdb_hexdump(const char *data, const std::size_t data_len,
+                        const std::size_t maxsize = 0)
+    __attribute__((__nonnull__));
 
 /*
   Helper function to see if a database exists
  */
-bool rdb_database_exists(const std::string& db_name);
+bool rdb_database_exists(const std::string &db_name);
 
-
-/*
-  Helper class imported from webscale and needed by MyRocks.
-  Used to handle system options that are lists of regex expressions.
-*/
-class Regex_list_handler
-{
- private:
-#if defined(HAVE_PSI_INTERFACE)
-  const PSI_rwlock_key& m_key;
-#endif
-
-  char m_delimiter;
-  std::string m_bad_pattern_str;
-  std::unique_ptr<std::regex> m_pattern;
-
-  mutable mysql_rwlock_t m_rwlock;
-
-  Regex_list_handler(const Regex_list_handler& other)= delete;
-  Regex_list_handler& operator=(const Regex_list_handler& other)= delete;
-
- public:
-#if defined(HAVE_PSI_INTERFACE)
-  Regex_list_handler(const PSI_rwlock_key& key,
-                     char delimiter= ',') :
-    m_key(key),
-#else
-  Regex_list_handler(char delimiter= ',') :
-#endif
-    m_delimiter(delimiter),
-    m_bad_pattern_str("")
-  {
-    mysql_rwlock_init(key, &m_rwlock);
-  }
-
-  ~Regex_list_handler()
-  {
-    mysql_rwlock_destroy(&m_rwlock);
-  }
-
-  // Set the list of patterns
-  bool set_patterns(const std::string& patterns);
-
-  // See if a string matches at least one pattern
-  bool matches(const std::string& str) const;
-
-  // See the list of bad patterns
-  const std::string& bad_pattern() const
-  {
-    return m_bad_pattern_str;
-  }
-};
-
-void warn_about_bad_patterns(const Regex_list_handler* regex_list_handler,
-                             const char *name);
+void warn_about_bad_patterns(const Regex &regex, const char *name);
 
 }  // namespace myrocks

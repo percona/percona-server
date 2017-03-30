@@ -167,9 +167,9 @@ Compression is set on a per-table basis and is controlled by setting row format 
    column_b INT NOT NULL) ENGINE=TokuDB
    ROW_FORMAT=row_format;
 
-If no row format is specified in a ``CREATE TABLE``, the table is compressed using whichever row format is specified in the session variable ``tokudb_row_format``. If no row format is set nor is ``tokudb_row_format``, the zlib compressor is used.
+If no row format is specified in a ``CREATE TABLE``, the table is compressed using whichever row format is specified in the session variable :variable:`tokudb_row_format`. If no row format is set nor is :variable:`tokudb_row_format`, the zlib compressor is used.
 
-``row_format`` and ``tokudb_row_format`` variables accept the following values:
+:variable:`row_format` and :variable:`tokudb_row_format` variables accept the following values:
 
 * ``TOKUDB_DEFAULT``: This sets the compression to the default behavior. As of TokuDB 7.1.0, the default behavior is to compress using the zlib library. In the future this behavior may change.
 

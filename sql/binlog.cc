@@ -83,6 +83,11 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
 static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
                                             THD *from_thd);
 
+// The last published global binlog position
+static char binlog_global_snapshot_file[FN_REFLEN];
+static ulonglong binlog_global_snapshot_position;
+
+// Binlog position variables for SHOW STATUS
 static char binlog_snapshot_file[FN_REFLEN];
 static ulonglong binlog_snapshot_position;
 
@@ -5711,6 +5716,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
   {
     error= new_file_without_locking(NULL);
     *check_purge= true;
+    publish_coordinates_for_global_status();
   }
   DBUG_RETURN(error);
 }
@@ -7486,6 +7492,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     handle_binlog_flush_or_sync_error(thd, false /* need_lock_log */);
   }
 
+  publish_coordinates_for_global_status();
+
   /*
     Stage #2: Syncing binary log file to disk
   */
@@ -7731,41 +7739,24 @@ err1:
 */
 static void set_binlog_snapshot_file(const char *src)
 {
+  mysql_mutex_assert_owner(&LOCK_status);
+
   int dir_len = dirname_length(src);
   strmake(binlog_snapshot_file, src + dir_len,
           sizeof(binlog_snapshot_file) - 1);
 }
 
-/*
-  Copy out current values of status variables, for SHOW STATUS or
-  information_schema.global_status.
 
-  This is called only under LOCK_status, so we can fill in a static array.
-*/
-void MYSQL_BIN_LOG::set_status_variables(THD *thd)
+/** Copy the current binlog coordinates to the variables used for the
+not-in-consistent-snapshot case of SHOW STATUS */
+void MYSQL_BIN_LOG::publish_coordinates_for_global_status(void) const
 {
-  binlog_cache_mngr *cache_mngr;
+  mysql_mutex_assert_owner(&LOCK_log);
 
-  if (thd && opt_bin_log)
-    cache_mngr= (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
-  else
-    cache_mngr= 0;
-
-  bool have_snapshot= (cache_mngr &&
-                       cache_mngr->binlog_info.log_file_name[0] != '\0');
-  mysql_mutex_lock(&LOCK_log);
-  if (!have_snapshot)
-  {
-    set_binlog_snapshot_file(log_file_name);
-    binlog_snapshot_position= my_b_tell(&log_file);
-  }
-  mysql_mutex_unlock(&LOCK_log);
-
-  if (have_snapshot)
-  {
-    set_binlog_snapshot_file(cache_mngr->binlog_info.log_file_name);
-    binlog_snapshot_position= cache_mngr->binlog_info.pos;
-  }
+  mysql_mutex_lock(&LOCK_status);
+  strcpy(binlog_global_snapshot_file, log_file_name);
+  binlog_global_snapshot_position= my_b_tell(&log_file);
+  mysql_mutex_unlock(&LOCK_status);
 }
 
 
@@ -8490,8 +8481,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     uint non_replicated_tables_count= 0;
 #ifndef DBUG_OFF
-    DBUG_PRINT("debug", ("prelocked_mode: %s",
-                         get_locked_tables_mode_name(locked_tables_mode)));
+    {
+      DBUG_PRINT("debug", ("prelocked_mode: %s",
+                           get_locked_tables_mode_name(locked_tables_mode)));
+    }
 #endif
 
     if (variables.binlog_format != BINLOG_FORMAT_ROW && tables)
@@ -9840,8 +9833,26 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
 
 static int show_binlog_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
-  if (mysql_bin_log.is_open())
-    mysql_bin_log.set_status_variables(thd);
+  mysql_mutex_assert_owner(&LOCK_status);
+
+  const binlog_cache_mngr *cache_mngr
+    = (thd && opt_bin_log)
+    ? static_cast<binlog_cache_mngr *>(thd_get_ha_data(thd, binlog_hton))
+    : NULL;
+
+  const bool have_snapshot= (cache_mngr &&
+                       cache_mngr->binlog_info.log_file_name[0] != '\0');
+
+  if (have_snapshot)
+  {
+    set_binlog_snapshot_file(cache_mngr->binlog_info.log_file_name);
+    binlog_snapshot_position= cache_mngr->binlog_info.pos;
+  }
+  else if (mysql_bin_log.is_open())
+  {
+    set_binlog_snapshot_file(binlog_global_snapshot_file);
+    binlog_snapshot_position= binlog_global_snapshot_position;
+  }
   else
   {
     binlog_snapshot_file[0]= '\0';

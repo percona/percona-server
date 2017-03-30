@@ -812,6 +812,12 @@ enum handler_create_zip_dict_result
   HA_CREATE_ZIP_DICT_NAME_TOO_LONG,  /*!< zip dict name is too long */
   HA_CREATE_ZIP_DICT_DATA_TOO_LONG,  /*!< zip dict data is too long */
   HA_CREATE_ZIP_DICT_READ_ONLY,      /*!< cannot create in read-only mode */
+  HA_CREATE_ZIP_DICT_FAKE_CHANGES,   /*!< fake changes enabled */
+  HA_CREATE_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
+  HA_CREATE_ZIP_DICT_OUT_OF_FILE_SPACE,
+                                     /*!< out of disk space */
+  HA_CREATE_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS,
+                                     /*!< too many concurrent transactions */
   HA_CREATE_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
                                           creation */
 };
@@ -824,6 +830,12 @@ enum handler_drop_zip_dict_result
                                         exist */
   HA_DROP_ZIP_DICT_IS_REFERENCED,  /*!< zip dict is in use */
   HA_DROP_ZIP_DICT_READ_ONLY,      /*!< cannot drop in read-only mode */
+  HA_DROP_ZIP_DICT_FAKE_CHANGES,   /*!< fake changes enabled */
+  HA_DROP_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
+  HA_DROP_ZIP_DICT_OUT_OF_FILE_SPACE,
+                                   /*!< out of disk space */
+  HA_DROP_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS,
+                                   /*!< too many concurrent transactions */
   HA_DROP_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
                                         removal */
 };
@@ -1109,6 +1121,11 @@ struct handlerton
   Engine supports secondary clustered keys.
 */
 #define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 13)
+
+/**
+  Engine supports compressed columns.
+*/
+#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 14)
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -3435,8 +3452,11 @@ public:
     compression dictionary info (name and data).
     If the handler does not support compression dictionaries
     this method should be left empty (not overloaded).
+
+    @param    part_name    Full table name (including partition part).
+                           Optional.
   */
-  virtual void update_field_defs_with_zip_dict_info() { }
+  virtual void update_field_defs_with_zip_dict_info(const char* part_name) {}
 
 public:
   /* Read-free replication interface */

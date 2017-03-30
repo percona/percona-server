@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+sync_block : percona disabled because the test is fundamentally unstable https://bugs.launchpad.net/percona-server/+bug/1662163

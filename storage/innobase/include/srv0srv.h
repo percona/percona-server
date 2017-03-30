@@ -418,6 +418,7 @@ extern unsigned long long	srv_stats_transient_sample_pages;
 extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
 extern my_bool			srv_stats_auto_recalc;
+extern my_bool			srv_stats_include_delete_marked;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -586,6 +587,11 @@ extern ulong srv_sync_array_size;
 extern my_bool srv_print_all_deadlocks;
 
 extern my_bool	srv_cmp_per_index_enabled;
+
+/** Number of times secondary index lookup triggered cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads_avoided;
 
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
@@ -1084,6 +1090,9 @@ struct export_var_t{
 #endif /* UNIV_DEBUG */
 	ulint innodb_column_compressed;		/*!< srv_column_compressed */
 	ulint innodb_column_decompressed;	/*!< srv_column_decompressed */
+
+	ulint innodb_sec_rec_cluster_reads;	/*!< srv_sec_rec_cluster_reads */
+	ulint innodb_sec_rec_cluster_reads_avoided; /*!< srv_sec_rec_cluster_reads_avoided */
 };
 
 /** Thread slot in the thread table.  */
@@ -1124,5 +1133,13 @@ struct srv_slot_t{
 # define srv_start_raw_disk_in_use		0
 # define srv_file_per_table			1
 #endif /* !UNIV_HOTBACKUP */
+
+#ifndef DBUG_OFF
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+extern bool	srv_debug_monitor_printed;
+#else
+#define	srv_debug_monitor_printed	false
+#endif
 
 #endif

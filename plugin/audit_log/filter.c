@@ -306,6 +306,9 @@ my_bool audit_log_check_account_included(const char *user, size_t user_length,
 
   account_init(&acc, user, user_length, host, host_length);
 
+  if (acc.length == 0)
+    return FALSE;
+
   mysql_rwlock_rdlock(&LOCK_account_list);
 
   res= my_hash_search(&include_accounts,
@@ -325,6 +328,9 @@ my_bool audit_log_check_account_excluded(const char *user, size_t user_length,
   my_bool res;
 
   account_init(&acc, user, user_length, host, host_length);
+
+  if (acc.length == 0)
+    return FALSE;
 
   mysql_rwlock_rdlock(&LOCK_account_list);
 
@@ -360,17 +366,15 @@ void audit_log_set_exclude_commands(const char *val)
 */
 my_bool audit_log_check_command_included(const char *name, size_t length)
 {
-  command cmd;
   my_bool res;
 
-  command_init(&cmd, name, length);
+  if (length == 0)
+    return FALSE;
 
   mysql_rwlock_rdlock(&LOCK_command_list);
-
-  res= my_hash_search(&include_commands,
-                      (const uchar*) cmd.name, cmd.length) != NULL;
-
+  res= my_hash_search(&include_commands, (const uchar*) name, length) != NULL;
   mysql_rwlock_unlock(&LOCK_command_list);
+
   return res;
 }
 
@@ -379,15 +383,14 @@ my_bool audit_log_check_command_included(const char *name, size_t length)
 */
 my_bool audit_log_check_command_excluded(const char *name, size_t length)
 {
-  command cmd;
   my_bool res;
 
-  command_init(&cmd, name, length);
+  if (length == 0)
+    return FALSE;
 
   mysql_rwlock_rdlock(&LOCK_command_list);
-
-  res= my_hash_search(&exclude_commands,
-                      (const uchar*) cmd.name, cmd.length) != NULL;
+  res= my_hash_search(&exclude_commands, (const uchar*) name, length) != NULL;
   mysql_rwlock_unlock(&LOCK_command_list);
+
   return res;
 }

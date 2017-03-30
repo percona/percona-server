@@ -3,11 +3,7 @@
 #
 --source include/have_debug.inc
 --source include/have_innodb.inc
---source include/count_sessions.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--source include/not_embedded.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
@@ -122,8 +118,6 @@ disconnect con2;
 DROP TABLE t2;
 RESET CHANGED_PAGE_BITMAPS;
 
---source include/wait_until_count_sessions.inc
-
 --echo 4th restart
 --let $restart_parameters=
 --source include/restart_mysqld.inc
@@ -178,11 +172,79 @@ reap;
 --disconnect con2
 --connection default
 
+--echo # 5th restart
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug 1658055: Log tracking initialisation does not find the last good
+--echo # bitmap data correctly
+--echo #
+
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB STATS_PERSISTENT=0;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+
+--echo # 6th restart
+--let $restart_parameters= restart:-#d,bitmap_page_2_write_error
+--source include/restart_mysqld.inc
+
+# Generate log data that is larger than the log capacity
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+
+# Make sure the above is fully tracked
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+# Pause the log tracker
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+
+# Prepare two pages of bitmap data
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+
+# Resume the log tracker so it crashes after writing one page
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+
+# Reboot to re-track the missing data
+--echo # 7th restart
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--let $assert_text= There should not be a hole in the tracked LSN range
+--let $assert_cond= COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES
+--source include/assert.inc
+
 DROP TABLE t1, t2;
 
 RESET CHANGED_PAGE_BITMAPS;
 
---echo 6th restart
+--echo 8th restart
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 
@@ -193,7 +255,7 @@ RESET CHANGED_PAGE_BITMAPS;
 
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 
---echo 7th restart
+--echo 9th restart
 --let $restart_parameters= restart:-#d,bitmap_page_write_error
 --source include/restart_mysqld.inc
 
@@ -221,7 +283,7 @@ reap;
 disconnect con2;
 connection default;
 
---echo 8th restart
+--echo 10th restart
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 

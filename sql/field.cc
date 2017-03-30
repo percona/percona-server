@@ -1165,12 +1165,15 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    bmove_upp((uchar*) value->ptr()+field_length,
-              (uchar*) value->ptr()+value->length(),
-	      value->length());
-    memset(const_cast<char*>(value->ptr()), '0', diff);
-    value->length(field_length);
-    (void) value->c_ptr_quick();		// Avoid warnings in purify
+   const bool error= value->realloc(field_length);
+   if (!error)
+   {
+     bmove_upp((uchar*) value->ptr()+field_length,
+               (uchar*) value->ptr()+value->length(),
+	       value->length());
+     memset(const_cast<char*>(value->ptr()), '0', diff);
+     value->length(field_length);
+   }
   }
 }
 
@@ -8112,7 +8115,7 @@ void Field_blob::make_sort_key(uchar *to,uint length)
   uchar *blob;
   uint blob_length=get_length();
 
-  if (!blob_length)
+  if (!blob_length && field_charset->pad_char == 0)
     memset(to, 0, length);
   else
   {
@@ -8125,19 +8128,20 @@ void Field_blob::make_sort_key(uchar *to,uint length)
       */
       length-= packlength;
       pos= to+length;
+      uint key_length= MY_MIN(blob_length, length);
 
       switch (packlength) {
       case 1:
-        *pos= (char) blob_length;
+        *pos= (char) key_length;
         break;
       case 2:
-        mi_int2store(pos, blob_length);
+        mi_int2store(pos, key_length);
         break;
       case 3:
-        mi_int3store(pos, blob_length);
+        mi_int3store(pos, key_length);
         break;
       case 4:
-        mi_int4store(pos, blob_length);
+        mi_int4store(pos, key_length);
         break;
       }
     }

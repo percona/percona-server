@@ -3,6 +3,10 @@
 --source include/have_utf16.inc
 --source include/have_utf32.inc
 
+--let $out_file= $MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
+--let $restart_parameters=restart:--log-error=$out_file
+--source include/restart_mysqld.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -374,7 +378,9 @@ DROP TABLE t1;
 --echo # Bug#14197426 PARSE ERRORS IN LOADABLE UCA / LDML COLLATIONS ARE SILENTLY IGNORED
 --echo #
 
---let $out_file= $MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
 --let OUTF= $out_file
 # Error messages are not seen in error log in embedded version
 --let EMBEDDED=`SELECT version() LIKE '%embedded%'`
@@ -389,3 +395,4 @@ perl;
   print "Occurances : $count_error\n";
   close(FILE);
 EOF
+--remove_file $out_file

@@ -22,6 +22,7 @@
 class THD;
 typedef struct st_lex_user LEX_USER;
 typedef struct user_conn USER_CONN;
+typedef struct user_resources USER_RESOURCES;
 
 void init_max_user_conn(void);
 void free_max_user_conn(void);
@@ -49,5 +50,6 @@ void end_connection(THD *thd);
 int get_or_create_user_conn(THD *thd, const char *user,
                             const char *host, const USER_RESOURCES *mqh);
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc);
-
+// Uses the THD to update the global stats by user name and client IP
+void update_global_user_stats(THD* thd, bool create_user, time_t now);
 #endif /* SQL_CONNECT_INCLUDED */

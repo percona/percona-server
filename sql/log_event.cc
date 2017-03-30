@@ -59,6 +59,9 @@ slave_ignored_err_throttle(window_size,
 #include "rpl_utility.h"
 
 #include "sql_digest.h"
+#ifndef EMBEDDED_LIBRARY
+#include "sql_connect.h" //update_global_user_stats
+#endif
 
 using std::min;
 using std::max;
@@ -6984,10 +6987,12 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->backup_binlog_lock.release_protection(thd);
 
     if (rli->is_parallel_exec())
+    {
+      time_t ts= when.tv_sec + static_cast<time_t>(exec_time);
       rli->reset_notified_checkpoint(0,
-                                     server_id ? when.tv_sec + (time_t) exec_time : 0,
+                                     server_id ? &ts : NULL,
                                      true/*need_data_lock=true*/);
-
+    }
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
@@ -11557,6 +11562,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= (this->*do_apply_row_ptr)(rli);
 
+      if (!error)
+        thd->updated_row_count++;
+
       if (handle_idempotent_and_ignored_errors(rli, &error))
         break;
 
@@ -11564,6 +11572,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       do_post_row_operations(rli, error);
 
     } while (!error && (m_curr_row != m_rows_end));
+
+    if (unlikely(opt_userstat))
+    {
+      thd->update_stats(false);
+#ifndef EMBEDDED_LIBRARY
+      update_global_user_stats(thd, true, time(NULL));
+#endif
+    }
 
 AFTER_MAIN_EXEC_ROW_LOOP:
 

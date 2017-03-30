@@ -640,21 +640,26 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 
 extern "C"
 void thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
-                    const PSI_stage_info *stage, PSI_stage_info *old_stage)
+                    const PSI_stage_info *stage, PSI_stage_info *old_stage,
+                    const char *src_function, const char *src_file,
+                    int src_line)
 {
   if (!thd)
     thd= current_thd;
 
-  return thd->ENTER_COND(cond, mutex, stage, old_stage);
+  return thd->enter_cond(cond, mutex, stage, old_stage,
+                         src_function, src_file, src_line);
 }
 
 extern "C"
-void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage)
+void thd_exit_cond(MYSQL_THD thd, const PSI_stage_info *stage,
+                   const char *src_function, const char *src_file,
+		   int src_line)
 {
   if (!thd)
     thd= current_thd;
 
-  thd->EXIT_COND(stage);
+  thd->exit_cond(stage, src_function, src_file, src_line);
   return;
 }
 
@@ -4736,7 +4741,8 @@ void THD::clear_slow_extended()
   tmp_tables_disk_used=         0;
   tmp_tables_size=              0;
   innodb_was_used=              FALSE;
-  innodb_trx_id=                0;
+  if (!(server_status & SERVER_STATUS_IN_TRANS))
+    innodb_trx_id= 0;
   innodb_io_reads=              0;
   innodb_io_read=               0;
   innodb_io_reads_wait_timer=   0;
@@ -4895,6 +4901,7 @@ void THD::inc_status_created_tmp_disk_tables()
 void THD::inc_status_created_tmp_tables()
 {
   status_var_increment(status_var.created_tmp_tables);
+  query_plan_flags|= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif

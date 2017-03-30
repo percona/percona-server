@@ -87,7 +87,7 @@ Flexibility Improvements
    flexibility/log_warnings_suppress
    flexibility/improved_memory_engine
    flexibility/max_binlog_files
-   flexibility/mysqldump_ignore_create_error
+   flexibility/extended_mysqldump
    flexibility/extended_select_into_outfile
    flexibility/per_query_variable_statement
    flexibility/extended_mysqlbinlog
@@ -170,6 +170,7 @@ TokuDB
    tokudb/tokudb_file_management
    tokudb/tokudb_background_analyze_table
    tokudb/tokudb_variables
+   tokudb/tokudb_status_variables
    tokudb/tokudb_troubleshooting
    tokudb/toku_backup
    tokudb/tokudb_faq

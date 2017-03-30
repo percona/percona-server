@@ -1,0 +1,2 @@
+--replicate-do-table=test.t1
+--replicate-do-table=test.t2

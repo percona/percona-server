@@ -1,0 +1,12 @@
+--source include/have_innodb.inc
+--source include/have_partition.inc
+
+--let $number_of_steps = 13
+--let $partitioning = simple
+
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc
+
+--let $number_of_steps = 14
+--let $partitioning = sub
+
+--source suite/innodb/include/xtradb_compressed_columns_ibd_sizes.inc

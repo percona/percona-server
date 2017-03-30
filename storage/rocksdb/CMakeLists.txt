@@ -11,6 +11,11 @@ IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
 ENDIF()
 
+CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
+IF(HAVE_SCHED_GETCPU)
+  ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1)
+ENDIF()
+
 ## adds a compiler flag if the compiler supports it
 INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCXXCompilerFlag)
@@ -36,11 +41,12 @@ STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
 )
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
-  -DZLIB -DPERCONA_SERVER)
+  -DZLIB)
 
 SET(ROCKSDB_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
@@ -115,19 +121,18 @@ IF(WITH_EMBEDDED_SERVER)
   ADD_SUBDIRECTORY(unittest)
 ENDIF()
 
-IF (WITH_ROCKSDB_SE_STORAGE_ENGINE)
-  # TODO: read this file list from src.mk:TOOL_SOURCES
-  SET(ROCKSDB_TOOL_SOURCES
-    ${CMAKE_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
-    ${CMAKE_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
-    ${CMAKE_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
-  )
-  MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(sst_dump rocksdb)
+# TODO: read this file list from src.mk:TOOL_SOURCES
+SET(ROCKSDB_TOOL_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_tool.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb_cmd.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump_tool.cc
+  ${ROCKSDB_LIB_SOURCES}
+)
+MYSQL_ADD_EXECUTABLE(sst_dump ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/sst_dump.cc ${ROCKSDB_TOOL_SOURCES})
+TARGET_LINK_LIBRARIES(sst_dump ${rocksdb_static_libs})
 
-  MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(ldb rocksdb)
+MYSQL_ADD_EXECUTABLE(ldb ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/tools/ldb.cc ${ROCKSDB_TOOL_SOURCES})
+TARGET_LINK_LIBRARIES(ldb ${rocksdb_static_libs})
 
-  MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_SOURCE_DIR}/storage/rocksdb/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
-  TARGET_LINK_LIBRARIES(mysql_ldb rocksdb)
-ENDIF()
+MYSQL_ADD_EXECUTABLE(mysql_ldb ${CMAKE_CURRENT_SOURCE_DIR}/tools/mysql_ldb.cc ${ROCKSDB_TOOL_SOURCES})
+TARGET_LINK_LIBRARIES(mysql_ldb ${rocksdb_static_libs})

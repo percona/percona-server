@@ -970,6 +970,10 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_x_lock_spin_rounds,	  SHOW_LONGLONG},
   {"x_lock_spin_waits",
   (char*) &export_vars.innodb_x_lock_spin_waits,	  SHOW_LONGLONG},
+  {"secondary_index_triggered_cluster_reads",
+  (char*) &export_vars.innodb_sec_rec_cluster_reads,	  SHOW_LONG},
+  {"secondary_index_triggered_cluster_reads_avoided",
+  (char*) &export_vars.innodb_sec_rec_cluster_reads_avoided, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -3446,7 +3450,8 @@ innobase_init(
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
 	innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-		HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_FOREIGN_KEYS;
+		HTON_SUPPORTS_ONLINE_BACKUPS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_COMPRESSED_COLUMNS;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
@@ -4160,6 +4165,10 @@ innobase_create_zip_dict(
 	if (UNIV_UNLIKELY(high_level_read_only)) {
 		DBUG_RETURN(HA_CREATE_ZIP_DICT_READ_ONLY);
 	}
+	
+	if (UNIV_UNLIKELY(THDVAR(NULL, fake_changes))) {
+		DBUG_RETURN(HA_CREATE_ZIP_DICT_FAKE_CHANGES);
+	}
 
 	if (UNIV_UNLIKELY(*name_len > ZIP_DICT_MAX_NAME_LENGTH)) {
 		*name_len = ZIP_DICT_MAX_NAME_LENGTH;
@@ -4177,6 +4186,15 @@ innobase_create_zip_dict(
 			break;
 		case DB_DUPLICATE_KEY:
 			result = HA_CREATE_ZIP_DICT_ALREADY_EXISTS;
+			break;
+		case DB_OUT_OF_MEMORY:
+			result = HA_CREATE_ZIP_DICT_OUT_OF_MEMORY;
+			break;
+		case DB_OUT_OF_FILE_SPACE:
+			result = HA_CREATE_ZIP_DICT_OUT_OF_FILE_SPACE;
+			break;
+		case DB_TOO_MANY_CONCURRENT_TRXS:
+			result = HA_CREATE_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS;
 			break;
 		default:
 			ut_ad(0);
@@ -4204,6 +4222,10 @@ innobase_drop_zip_dict(
 		DBUG_RETURN(HA_DROP_ZIP_DICT_READ_ONLY);
 	}
 
+	if (UNIV_UNLIKELY(THDVAR(NULL, fake_changes))) {
+		DBUG_RETURN(HA_DROP_ZIP_DICT_FAKE_CHANGES);
+	}
+
 	switch (dict_drop_zip_dict(name, *name_len)) {
 		case DB_SUCCESS:
 			result = HA_DROP_ZIP_DICT_OK;
@@ -4213,6 +4235,15 @@ innobase_drop_zip_dict(
 			break;
 		case DB_ROW_IS_REFERENCED:
 			result = HA_DROP_ZIP_DICT_IS_REFERENCED;
+			break;
+		case DB_OUT_OF_MEMORY:
+			result = HA_DROP_ZIP_DICT_OUT_OF_MEMORY;
+			break;
+		case DB_OUT_OF_FILE_SPACE:
+			result = HA_DROP_ZIP_DICT_OUT_OF_FILE_SPACE;
+			break;
+		case DB_TOO_MANY_CONCURRENT_TRXS:
+			result = HA_DROP_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS;
 			break;
 		default:
 			ut_ad(0);
@@ -7181,9 +7212,31 @@ build_template_field(
 	ut_a(templ->clust_rec_field_no != ULINT_UNDEFINED);
 
 	if (dict_index_is_clust(index)) {
+		templ->rec_field_is_prefix = false;
 		templ->rec_field_no = templ->clust_rec_field_no;
+		templ->rec_prefix_field_no = ULINT_UNDEFINED;
 	} else {
-		templ->rec_field_no = dict_index_get_nth_col_pos(index, i);
+		/* If we're in a secondary index, keep track of the original
+		index position even if this is just a prefix index; we will use
+		this later to avoid a cluster index lookup in some cases.*/
+
+		templ->rec_field_no = dict_index_get_nth_col_pos(index, i,
+						&templ->rec_prefix_field_no);
+		templ->rec_field_is_prefix
+			= (templ->rec_field_no == ULINT_UNDEFINED)
+			  && (templ->rec_prefix_field_no != ULINT_UNDEFINED);
+#ifdef UNIV_DEBUG
+		if (templ->rec_prefix_field_no != ULINT_UNDEFINED)
+		{
+			const dict_field_t* field = dict_index_get_nth_field(
+				index,
+				templ->rec_prefix_field_no);
+			ut_ad(templ->rec_field_is_prefix
+			      == (field->prefix_len != 0));
+		} else {
+			ut_ad(!templ->rec_field_is_prefix);
+		}
+#endif
 	}
 
 	if (field->real_maybe_null()) {
@@ -7373,7 +7426,8 @@ ha_innobase::build_template(
 				} else {
 					templ->icp_rec_field_no
 						= dict_index_get_nth_col_pos(
-							prebuilt->index, i);
+							prebuilt->index, i,
+							NULL);
 				}
 
 				if (dict_index_is_clust(prebuilt->index)) {
@@ -7403,7 +7457,7 @@ ha_innobase::build_template(
 
 				templ->icp_rec_field_no
 					= dict_index_get_nth_col_or_prefix_pos(
-						prebuilt->index, i, TRUE);
+						prebuilt->index, i, TRUE, NULL);
 				ut_ad(templ->icp_rec_field_no
 				      != ULINT_UNDEFINED);
 
@@ -14616,6 +14670,37 @@ ha_innobase::get_auto_increment(
 	ulonglong	col_max_value = innobase_get_int_col_max_value(
 		table->next_number_field);
 
+	/** The following logic is needed to avoid duplicate key error
+	for autoincrement column.
+
+	(1) InnoDB gives the current autoincrement value with respect
+	to increment and offset value.
+
+	(2) Basically it does compute_next_insert_id() logic inside InnoDB
+	to avoid the current auto increment value changed by handler layer.
+
+	(3) It is restricted only for insert operations. */
+
+	if (increment > 1 && thd_sql_command(user_thd) != SQLCOM_ALTER_TABLE
+	    && autoinc < col_max_value) {
+
+		ulonglong	prev_auto_inc = autoinc;
+
+		autoinc = ((autoinc - 1) + increment - offset)/ increment;
+
+		autoinc = autoinc * increment + offset;
+
+		/* If autoinc exceeds the col_max_value then reset
+		to old autoinc value. Because in case of non-strict
+		sql mode, boundary value is not considered as error. */
+
+		if (autoinc >= col_max_value) {
+			autoinc = prev_auto_inc;
+		}
+
+		ut_ad(autoinc > 0);
+	}
+
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -15270,16 +15355,21 @@ and SYS_ZIP_DICT_COLS for all columns marked with
 COLUMN_FORMAT_TYPE_COMPRESSED flag and updates
 zip_dict_name / zip_dict_data for those which have associated
 compression dictionaries.
+
+@param part_name Full table name (including partition part).
+		 Must be non-NULL only if called from ha_partition.
 */
 UNIV_INTERN
 void
-ha_innobase::update_field_defs_with_zip_dict_info()
+ha_innobase::update_field_defs_with_zip_dict_info(const char *part_name)
 {
 	DBUG_ENTER("update_field_defs_with_zip_dict_info");
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	char norm_name[FN_REFLEN];
-	normalize_table_name(norm_name, table_share->normalized_path.str);
+	normalize_table_name(norm_name,
+		part_name != 0 ? part_name :
+			table_share->normalized_path.str);
 
 	dict_table_t* ib_table = dict_table_open_on_name(
 		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
@@ -16656,15 +16746,17 @@ innodb_buffer_pool_evict_uncompressed(void)
 			ut_ad(block->page.in_LRU_list);
 
 			mutex_enter(&block->mutex);
-			if (!buf_LRU_free_page(&block->page, false)) {
-				mutex_exit(&block->mutex);
-				all_evicted = false;
-			} else {
-				mutex_exit(&block->mutex);
-				mutex_enter(&buf_pool->LRU_list_mutex);
-			}
+			all_evicted = buf_LRU_free_page(&block->page, false);
+			mutex_exit(&block->mutex);
 
-			block = prev_block;
+			if (all_evicted) {
+
+				mutex_enter(&buf_pool->LRU_list_mutex);
+				block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+			} else {
+
+				block = prev_block;
+			}
 		}
 
 		mutex_exit(&buf_pool->LRU_list_mutex);
@@ -17632,6 +17724,12 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Enable InnoDB doublewrite buffer (enabled by default). "
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(stats_include_delete_marked,
+  srv_stats_include_delete_marked,
+  PLUGIN_VAR_OPCMDARG,
+  "Scan delete marked records for persistent stat",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(use_atomic_writes, innobase_use_atomic_writes,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -18675,6 +18773,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(stats_include_delete_marked),
   MYSQL_SYSVAR(api_enable_binlog),
   MYSQL_SYSVAR(api_enable_mdl),
   MYSQL_SYSVAR(api_disable_rowlock),

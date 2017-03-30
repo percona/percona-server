@@ -84,6 +84,9 @@ INSERT INTO T1 VALUES (REPEAT('C', 255));
 
 --source include/restart_mysqld.inc
 
+SELECT VARIABLE_VALUE INTO @start_max_trx_id FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+       WHERE VARIABLE_NAME = 'Innodb_max_trx_id';
+
 --disable_query_log
 --echo log record interval start LSN should remain constant after workload
 eval SELECT MIN(START_LSN)=$r1_start AS should_be_1 FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
@@ -322,6 +325,27 @@ SET GLOBAL INNODB_MAX_CHANGED_PAGES = 5;
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 
 eval SET GLOBAL INNODB_MAX_CHANGED_PAGES = $old_max_changed_pages;
+
+# Verify that InnoDB did not write anything during the above tests, breaking them
+# (specifically the assumption that COUNT(*) == 0 WHERE START_LSN|END_LSN > @max_end_lsn)
+
+SELECT VARIABLE_VALUE INTO @end_max_trx_id FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+       WHERE VARIABLE_NAME = 'Innodb_max_trx_id';
+
+--let $assert_text= Maximum InnoDB transaction ID should not have moved during RO workload
+--let $assert_cond= @end_max_trx_id = @start_max_trx_id
+--let $assert_debug= SELECT @start_max_trx_id, @end_max_trx_id
+--source include/assert.inc
+
+--let $assert_text= No bitmap data must exist with START_LSN > @max_end_lsn
+--let $assert_cond= COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE START_LSN > @max_end_lsn
+--let $assert_debug= SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE START_LSN > @max_end_lsn;
+--source include/assert.inc
+
+--let $assert_text= No bitmap data must exist with END_LSN > @max_end_lsn
+--let $assert_cond= COUNT(*) = 0 FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE END_LSN > @max_end_lsn
+--let $assert_debug= SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE END_LSN > @max_end_lsn;
+--source include/assert.inc
 
 #
 # Test that I_S.INNODB_CHANGED_PAGES can be queried with the log tracking disabled

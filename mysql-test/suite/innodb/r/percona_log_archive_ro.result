@@ -1,2 +1,0 @@
-SET GLOBAL innodb_log_archive=ON;
-SET GLOBAL innodb_log_archive=OFF;

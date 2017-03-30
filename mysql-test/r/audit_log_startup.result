@@ -1,0 +1,12 @@
+call mtr.add_suppression("Plugin 'audit_log' init function returned error.");
+call mtr.add_suppression("Plugin 'audit_log' registration as a AUDIT failed.");
+SET GLOBAL audit_log_exclude_accounts='info@localhost';
+SET GLOBAL audit_log_include_accounts='info@localhost';
+SET GLOBAL audit_log_exclude_commands='insert';
+SET GLOBAL audit_log_include_commands='insert';
+SHOW VARIABLES LIKE 'audit_log%';
+Variable_name	Value
+SHOW VARIABLES LIKE 'audit_log%';
+Variable_name	Value
+SHOW VARIABLES LIKE 'audit_log%';
+Variable_name	Value

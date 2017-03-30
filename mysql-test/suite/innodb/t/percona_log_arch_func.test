@@ -17,3 +17,13 @@ if ($archived_logs_count == 0)
 
 --source ../include/percona_log_archiving_cleanup.inc
 
+--echo #
+--echo # Bug 1484432: Setting innodb_log_archive crashes --innodb-read-only server
+--echo #
+
+--source include/restart_readonly_mysqld.inc
+
+SET GLOBAL innodb_log_archive=ON;
+SET GLOBAL innodb_log_archive=OFF;
+
+--source include/restart_mysqld.inc

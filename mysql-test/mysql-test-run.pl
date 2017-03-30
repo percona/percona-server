@@ -165,10 +165,10 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
 my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,"
-  ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,jp,stress,"
-  ."engines/iuds,engines/funcs,query_response_time,innodb_stress,"
-  ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
-  ."tokudb.rpl";
+  ."innodb_zip,perfschema,funcs_1,funcs_2,opt_trace,parts,auth_sec,"
+  ."connection_control,jp,stress,engines/iuds,engines/funcs,"
+  ."query_response_time,innodb_stress,tokudb.add_index,tokudb.alter_table,"
+  ."tokudb,tokudb.bugs,tokudb.parts,tokudb.rpl";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -2561,6 +2561,16 @@ sub environment_setup {
                    "$path_client_bindir/innochecksum",
                    "$basedir/extra/innochecksum");
   $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
+
+  # ----------------------------------------------------
+  # sst_dump
+  # ----------------------------------------------------
+  my $exe_sst_dump=
+    mtr_exe_maybe_exists(
+           vs_config_dirs('storage/rocksdb', 'sst_dump'),
+           "$path_client_bindir/sst_dump",
+           "$basedir/storage/rocksdb/sst_dump");
+  $ENV{'MYSQL_SST_DUMP'}= native_path($exe_sst_dump);
 
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk

@@ -25,6 +25,8 @@ log record interval end LSN should have advanced after workload
 should_be_1
 1
 INSERT INTO T1 VALUES (REPEAT('C', 255));
+SELECT VARIABLE_VALUE INTO @start_max_trx_id FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME = 'Innodb_max_trx_id';
 log record interval start LSN should remain constant after workload
 should_be_1
 1
@@ -216,6 +218,11 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 COUNT(*)
 5
 SET GLOBAL INNODB_MAX_CHANGED_PAGES = 1000000;
+SELECT VARIABLE_VALUE INTO @end_max_trx_id FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+WHERE VARIABLE_NAME = 'Innodb_max_trx_id';
+include/assert.inc [Maximum InnoDB transaction ID should not have moved during RO workload]
+include/assert.inc [No bitmap data must exist with START_LSN > @max_end_lsn]
+include/assert.inc [No bitmap data must exist with END_LSN > @max_end_lsn]
 CREATE TABLE ICP_COPY (
 space_id INT(11) NOT NULL,
 page_id INT(11) NOT NULL,

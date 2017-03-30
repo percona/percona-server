@@ -332,4 +332,41 @@ SET SESSION log_slow_verbosity=default;
 
 DROP TABLE t1, t2, t3, t4;
 
+--echo #
+--echo # Bug#1592694 Query plan temp flag set is missed in
+--echo # create_duplicate_weedout_tmp_table
+--echo #
+
+create table t1 (
+  a int not null,
+  b int, primary key (a)
+) ENGINE=InnoDB;
+create table t2 (
+  a int not null
+) ENGINE=InnoDB;
+insert into t1 values (1,10), (2,20), (3,30),  (4,40);
+insert into t2 values (2), (2), (3), (4), (5); #2 as a duplicate to weed-out
+
+SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off';
+
+SET SESSION long_query_time=0;
+SET SESSION min_examined_row_limit=0;
+SET SESSION log_slow_verbosity='microtime,query_plan';
+
+SET SESSION log_slow_filter='tmp_table';
+
+--let log_file=percona_slow_query_log.bug1592694.slog
+--source include/log_start.inc
+
+select t1.a from t1 where t1.a in (select a from t2);
+
+--source include/log_stop.inc
+--let grep_pattern = ^#.*Tmp_table: Yes  Tmp_table_on_disk: No\$
+--let log_expected_matches= 1
+--source include/log_grep.inc
+
+DROP TABLE t1, t2;
+
+--echo # End of test for bug#1592694.
+
 --source include/log_cleanup.inc

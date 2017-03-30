@@ -889,7 +889,6 @@ void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
   mysql_mutex_assert_owner(&LOCK_thread_count);
-  DBUG_ASSERT(!shutdown_in_progress);
   const bool have_thread=
     global_thread_list->find(thd) != global_thread_list->end();
   if (!have_thread)
@@ -5629,6 +5628,7 @@ int mysqld_main(int argc, char **argv)
   orig_argc= argc;
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
+  my_defaults_read_login_file= FALSE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
     return 1;
   my_getopt_use_args_separator= FALSE;
@@ -10791,3 +10791,33 @@ void init_server_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
+/* Detecting if being compiled with -fsanitize=address option */
+
+/* GCC has __SANITIZE_ADDRESS__ macro defined to 1 in this case */
+#ifdef __GNUC__
+  #if __SANITIZE_ADDRESS__ == 1
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/* Clang exposes __has_feature(address_sanitizer) */
+#ifdef __clang__
+  #if __has_feature(address_sanitizer)
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/*
+  As some MTR test cases check OOM, it is necessary to instruct address
+  sanitizer to not terminate the process when an allocation of a very
+  large memory block is requested and return NULL as expected. This can
+  be done by setting 'allocator_may_return_null' ASan option to 1.
+*/
+#ifdef UNDER_ADDRESS_SANITIZER
+
+extern "C" const char *__asan_default_options()
+{
+  return "allocator_may_return_null=1";
+}
+
+#endif

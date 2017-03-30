@@ -1,0 +1,21 @@
+--source include/have_ssl_communication.inc
+
+--echo #
+--echo # Bug 75311: Error for SSL cipher is unhelpful
+--echo #
+
+--source include/count_sessions.inc
+
+--connect(con1,localhost,root,,,,,SSL)
+
+SHOW STATUS LIKE 'Ssl_cipher_list';
+
+--disconnect con1
+--connection default
+
+# The first error string is returned by YaSSL, the second one by OpenSSL
+--replace_result "Failed to set ciphers to use" ERROR "error:14077410:SSL routines:SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure" ERROR
+--error 1
+--exec $MYSQL -uroot --ssl-mode=REQUIRED --ssl-cipher='AES128-SHA256' -e "SHOW STATUS LIKE 'Ssl_cipher'" 2>&1
+
+--source include/wait_until_count_sessions.inc

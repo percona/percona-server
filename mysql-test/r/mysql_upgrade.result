@@ -507,6 +507,8 @@ DROP USER B20023823_16hash@localhost;
 #
 Run mysql_upgrade with unauthorized access
 Warning: Using a password on the command line interface can be insecure.
+mysql_upgrade: running mysql with query "show variables like 'datadir'" returned 1
+mysql_upgrade: running mysql with query "show variables like 'version'" returned 1
 Error: Failed while fetching Server version! Could be due to unauthorized access.
 FATAL ERROR: Upgrade failed
 

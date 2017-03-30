@@ -214,6 +214,7 @@ int threadpool_add_connection(THD *thd)
 
   if (!setup_connection_thread_globals(thd))
   {
+    lex_start(thd);
     bool rc= login_connection(thd);
     MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
     if (!rc)

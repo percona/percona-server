@@ -11,6 +11,8 @@ create table prefixinno (
        index fake_id_bigfield_prefix (fake_id, bigfield(32))
 ) engine=innodb;
 
+# The inserts should happen in the same transaction so that secondary index page
+# max trx id does not advance, circumventing the optimisation.
 insert into prefixinno values (1, 1001, repeat('a', 1)),
                               (8, 1008, repeat('b', 8)),
                               (24, 1024, repeat('c', 24)),
@@ -80,13 +82,15 @@ CREATE TABLE t1 (
        b VARCHAR(30) CHARACTER SET UTF8MB4,
        INDEX b_idx (b(3))) ENGINE=InnoDB;
 
-# Records with byte representations shorter than the prefix length in chars
-INSERT INTO t1 VALUES(1, "aa");
-
-# Records which may or may not fit into the index prefix, determined by character
-# counting
-INSERT INTO t1 VALUES(2, "ccc");
-INSERT INTO t1 VALUES(3, "až");
+# The inserts should happen in the same transaction so that secondary index page
+# max trx id does not advance, circumventing the optimisation.
+INSERT INTO t1 VALUES
+       # Records with byte representations shorter than the prefix length in chars
+       (1, "aa"),
+       # Records which may or may not fit into the index prefix, determined by
+       # character counting
+       (2, "ccc"),
+       (3, "až");
 
 --let $prefix_index_check_title= MB charset record obviously shorter than the prefix
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "aa"
@@ -118,13 +122,15 @@ CREATE TABLE t1 (
        b VARCHAR(30) CHARACTER SET UTF16,
        INDEX b_idx (b(3))) ENGINE=InnoDB;
 
-# Records with byte representations shorter than the prefix length in chars
-INSERT INTO t1 VALUES(1, "a");
-
-# Records which may or may not fit into the index prefix, determined by character
-# counting
-INSERT INTO t1 VALUES(2, "ccc");
-INSERT INTO t1 VALUES(3, "až");
+# The inserts should happen in the same transaction so that secondary index page
+# max trx id does not advance, circumventing the optimisation.
+INSERT INTO t1 VALUES
+       # Records with byte representations shorter than the prefix length in chars
+       (1, "a"),
+       # Records which may or may not fit into the index prefix, determined by
+       #character counting
+       (2, "ccc"),
+       (3, "až");
 
 --let $prefix_index_check_title= MB charset record obviously shorter than the prefix
 --let $prefix_index_check_query= SELECT * FROM t1 WHERE b = "a"

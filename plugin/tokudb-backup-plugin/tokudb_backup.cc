@@ -361,7 +361,7 @@ static bool tokudb_backup_stop_slave_sql_thread(THD *thd) {
         {
             Master_info *mi = it->second;
             if (mi && mi->inited && mi->host[0]) {
-                bool temp_tables_warning;
+                bool temp_tables_warning = false;
                 have_slave = true;
                 result = !stop_slave(thd, mi, 0, 0, &temp_tables_warning);
                 if (!result)
@@ -384,6 +384,8 @@ static bool tokudb_backup_start_slave_sql_thread(THD *thd) {
     bool have_slave = false;
 
     thd->lex->slave_thd_opt = SLAVE_SQL;
+    thd->lex->slave_connection.user = NULL;
+    thd->lex->slave_connection.password = NULL;
 
     {
         scoped_lock_wrapper<Multisource_info_lockable>
@@ -490,10 +492,10 @@ static void tokudb_backup_before_stop_capt_fun(void *arg) {
         if (!tokudb_backup_wait_for_safe_slave(
                 thd,tokudb_backup_safe_slave_timeout)) {
             sql_print_error("TokuDB Hotbackup: safe slave option error");
+            return;
         }
     }
-    else
-        (void)lock_binlog_for_backup(thd);
+    (void)lock_binlog_for_backup(thd);
     if (!plugin_foreach(NULL,
                         tokudb_backup_flush_log_plugin_callback,
                         MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -550,6 +552,7 @@ std::string tokudb_backup_get_executed_gtids_set() {
         (void)sql_gtid_set->to_string(&sql_gtid_set_buffer);
     }
     result.assign(sql_gtid_set_buffer);
+    my_free(sql_gtid_set_buffer);
     result.erase(std::remove(result.begin(), result.end(),'\n'), result.end());
     return result;
 };
@@ -557,7 +560,6 @@ std::string tokudb_backup_get_executed_gtids_set() {
 static void tokudb_backup_get_master_infos(
     THD *thd,
     std::vector<tokudb_backup_master_info> *master_info_channels) {
-
     std::string executed_gtid_set;
     Master_info *mi;
 
@@ -626,7 +628,7 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
         sql_print_error("TokuDB Hotbackup: "
                         "master and slave info can't be saved "
                         "because slave sql thread can't be stopped\n");
-        return;
+        goto exit;
     }
 
     tokudb_backup_get_master_infos(thd, master_info_channels);
@@ -640,10 +642,12 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
                                        NULL, NULL, NULL);
             sql_print_error("TokuDB Hotbackup: "
                             "slave sql thread can't be started\n");
-            return;
+            goto exit;
         }
     }
-    else if (thd->backup_binlog_lock.is_acquired()) {
+
+exit:
+    if (thd->backup_binlog_lock.is_acquired()) {
         thd->backup_binlog_lock.release(thd);
     }
 }

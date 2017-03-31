@@ -52,7 +52,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_size);
 #   Check if Value can set                                         #
 ####################################################################
 
-SET @@GLOBAL.innodb_buffer_pool_size=10485760;
+SET @@GLOBAL.innodb_buffer_pool_size=20971520;
 --echo Expected succeeded
 --source include/wait_condition.inc
 

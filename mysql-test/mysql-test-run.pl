@@ -3877,6 +3877,14 @@ sub resfile_report_test ($) {
   resfile_test_info("start_time", isotime time);
 }
 
+sub error_logs_to_comment {
+  my $tinfo= shift;
+  foreach my $mysqld (mysqlds())
+  {
+    $tinfo->{comment}.= "\nServer " . $mysqld->{proc} . " log: ".
+      get_log_from_proc($mysqld->{proc}, $tinfo->{name});
+  }
+}
 
 #
 # Run a single test case
@@ -4178,12 +4186,7 @@ sub run_testcase ($) {
 	  goto SRVDIED;
 	}
 
-        foreach my $mysqld (mysqlds())
-        {
-          $tinfo->{comment}.=
-            "\nServer " . $mysqld->{proc} . " log: ".
-            get_log_from_proc($mysqld->{proc}, $tinfo->{name});
-        }
+        error_logs_to_comment($tinfo);
 
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
@@ -4278,6 +4281,7 @@ sub run_testcase ($) {
 	   "== $log_file_name == \n".
 	     mtr_lastlinesfromfile($log_file_name, 500)."\n";
       }
+      error_logs_to_comment($tinfo);
       $tinfo->{'timeout'}= testcase_timeout($tinfo); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
 

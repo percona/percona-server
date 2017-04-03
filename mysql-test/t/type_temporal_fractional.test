@@ -6555,9 +6555,12 @@ CREATE TABLE t1 (
   KEY col_timestamp_6_key (col_timestamp_6_key))
   ENGINE=MEMORY DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES (current_timestamp(5),current_timestamp(6),current_time(6));
-SELECT col_datetime_5 AS c1 FROM t1
+let $assert_cond= COUNT(col_datetime_5) = 0 FROM t1
 WHERE col_time_2_not_null = GREATEST(CURRENT_DATE(),col_timestamp_6_key)
 ORDER BY 1;
+let $assert_text= No rows should be returned;
+let $assert_debug= SELECT * FROM t1;
+--source include/assert.inc
 DROP TABLE t1;
 
 #

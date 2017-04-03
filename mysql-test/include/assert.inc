@@ -11,6 +11,7 @@
 # [--let $extra_debug_info= some text]
 # [--let $extra_debug_eval= expression parsable by include/eval.inc]
 # [--let $rpl_debug= 1]
+# [--let $assert_debug= SHOW SLAVE STATUS]
 # --source include/assert.inc
 #
 # Parameters:

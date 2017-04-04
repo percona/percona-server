@@ -309,7 +309,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
   @retval true   Transaction was already logged.
   @retval false  Transaction must be executed.
 */
-static inline bool is_already_logged_transaction(const THD *thd)
+bool is_already_logged_transaction(const THD *thd)
 {
   DBUG_ENTER("is_already_logged_transaction");
 

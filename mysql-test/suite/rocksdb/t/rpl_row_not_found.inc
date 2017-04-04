@@ -1,12 +1,14 @@
+# Facebook MySQL has slave_exec_mode=SEMI_STRICT which allows a slave to
+# 'absorb' or ignore key not found errors. Percona Server does not.
+# This test has been modified to only test that the slave SQL thread stops on
+# error as it should when running with the default slave_exec_mode=STRICT
 --source include/have_rocksdb.inc
---source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/master-slave.inc
 
-connection master;
---disable_warnings
-drop table if exists t1;
---enable_warnings
+connection slave;
+call mtr.add_suppression("Slave SQL: Worker.*failed executing transaction");
 
 connection master;
 
@@ -23,19 +25,7 @@ create table t2 (
 ) engine=rocksdb;
 insert into t2 select a,a,a,a from t1;
 create table t3 like t2;
-insert into t3 select * from t2;
-
-
-# For GitHub issue#166
-# Slave is suspended at ha_rocksdb::read_range_first() -> index_read_map_impl()
-# -> ha_rocksdb::get_row_by_rowid() -- which is after creating an iterator,
-# Seek(), Next() (getting pk=1)
-# and before GetForUpdate() and before creating a snapshot.
-# Deletes remove pk=2 and pk=3, then resumes update on slave.
-# The update resumes with GetForUpdate(pk=1),
-# index_next() -> secondary_index_read() -> get_row_by_rowid(pk=2)
-# then doesn't find a row.
-# The slave should not stop with error (Can't find a record).
+set statement tx_isolation='READ-COMMITTED' for insert into t3 select * from t2;
 
 --source include/sync_slave_sql_with_master.inc
 
@@ -56,37 +46,20 @@ delete from t2 where pk=2;
 delete from t2 where pk=3;
 set debug_sync= 'now SIGNAL signal.rocksdb.get_row_by_rowid_let_running';
 
-connection master;
---source include/sync_slave_sql_with_master.inc
-connection slave;
-select * from t2 where pk < 5;
+# Error is found as expected.
+# Do NOT show slave sql error as it will contain test specific binlog coords
+let $show_slave_sql_error = 0;
+--source include/wait_for_slave_sql_error.inc
 
-# For GitHub issue#162 (result file must be updated after fixing #162)
-connection slave;
-set global debug= 'd,dbug.rocksdb.get_row_by_rowid';
---source include/stop_slave.inc
+# fix up the table so we can easily let slave to continue
+set sql_log_bin=0;
+insert into t2 select a,a,a,a from t1 where a in (2,3);
 --source include/start_slave.inc
 
 connection master;
-update t3 set col1=100 where kp1 between 1 and 4 and mod(kp2,2)=0;
-
-connection slave;
-call mtr.add_suppression("Deadlock found when trying to get lock");
-set debug_sync= 'now WAIT_FOR Reached';
-eval set global debug = '$old_debug';
-set sql_log_bin=0;
-delete from t3 where pk=2;
-delete from t3 where pk=3;
-set debug_sync= 'now SIGNAL signal.rocksdb.get_row_by_rowid_let_running';
-
-connection master;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
-# col1 for pk=4 should be 100
-select * from t3 where pk < 5;
 
 # Cleanup
 connection master;
 drop table t0, t1, t2, t3;
 --source include/rpl_end.inc
-

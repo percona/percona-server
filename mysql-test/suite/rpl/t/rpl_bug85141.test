@@ -1,0 +1,128 @@
+#
+# Bug #85141 "Write/fsync amplification w/ duplicate GTIDs"
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_innodb.inc
+--source include/have_gtid.inc
+--source include/have_perfschema.inc
+
+--echo #
+--echo # Setting up MSR server topology
+--echo #
+--echo # server_1(A) -------------- server_3(C)
+--echo #            \              /
+--echo #             - server_2(B)-
+--echo #
+--let $rpl_multi_source = 1
+--let $rpl_topology = 1->2,2->3,1->3
+--source include/rpl_init.inc
+
+--echo #
+--echo # Step 1: stopping slave on server_2(B)
+--echo #
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--source include/stop_slave.inc
+
+--echo #
+--echo # Step 2: setting up profiling for 'slave_relay_log_info' on server_3(C)
+--echo #
+--let $rpl_connection_name = server_3
+--source include/rpl_connection.inc
+INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_relay_log_info', 'YES', 'YES');
+INSERT INTO performance_schema.setup_objects VALUES ('TABLE', 'mysql', 'slave_master_info', 'YES', 'YES');
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--echo #
+--echo # Step 3: creating a table and inserting a few records on server_1(A)
+--echo #
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (f1 INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1), (2), (3);
+START TRANSACTION;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3);
+COMMIT;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+--echo #
+--echo # Step 4: syncing server_3(C) with server_1(A) and capturing initial value of IO waits
+--echo #
+--let $rpl_channel_name = channel_1
+--let $sync_slave_connection = server_3
+--source include/sync_slave_sql_with_master.inc
+--echo # t1 records on server_3(C) after syncing with server_1(A) must match
+--let $rpl_diff_statement = SELECT * FROM t1 ORDER BY f1
+--let $rpl_diff_servers = 3,1
+--let $rpl_skip_sync = 1
+--source include/rpl_diff.inc
+
+--let $initial_slave_relay_log_info_waits = `SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = 'mysql' AND object_name = 'slave_relay_log_info'`
+--let $initial_slave_master_info = `SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = 'mysql' AND object_name = 'slave_master_info'`
+
+--echo #
+--echo # Step 5: starting slave on server_2(B) and syncing server_2(B) with server_1(A)
+--echo #
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--source include/start_slave.inc
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+--let $rpl_channel_name = channel_1
+--let $sync_slave_connection = server_2
+--source include/sync_slave_sql_with_master.inc
+--echo # t1 records on server_2(B) after syncing with server_1(A) must match
+--let $rpl_diff_statement = SELECT * FROM t1 ORDER BY f1
+--let $rpl_diff_servers = 2,1
+--let $rpl_skip_sync = 1
+--source include/rpl_diff.inc
+
+--echo #
+--echo # Step 6: syncing server_3(C) with server_2(B)
+--echo #
+--let $rpl_channel_name = channel_2
+--let $sync_slave_connection = server_3
+--source include/sync_slave_sql_with_master.inc
+--echo # t1 records on server_3(C) after syncing with server_2(B) must match
+--let $rpl_diff_statement = SELECT * FROM t1 ORDER BY f1
+--let $rpl_diff_servers = 3,2,1
+--let $rpl_skip_sync = 1
+--source include/rpl_diff.inc
+--let $assert_text = number of IO waits for "slave_relay_log_info" must not change
+--let $assert_cond = count_star = $initial_slave_relay_log_info_waits FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = "mysql" AND object_name = "slave_relay_log_info"
+--source include/assert.inc
+--let $assert_text = number of IO waits for "slave_master_info" must not change
+--let $assert_cond = count_star = $initial_slave_master_info FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema = "mysql" AND object_name = "slave_master_info"
+--source include/assert.inc
+
+--echo #
+--echo # Cleaning up and final syncing
+--echo #
+--let $rpl_connection_name = server_1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_channel_name = channel_1
+--let $sync_slave_connection = server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_channel_name = channel_2
+--let $sync_slave_connection = server_3
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_connection_name = server_2
+--source include/rpl_connection.inc
+--let $rpl_channel_name = channel_1
+--let $sync_slave_connection = server_3
+--source include/sync_slave_sql_with_master.inc
+
+DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_relay_log_info';
+DELETE FROM performance_schema.setup_objects WHERE object_type = 'TABLE' AND object_schema = 'mysql' AND object_name = 'slave_master_info';
+
+--let $rpl_skip_sync = 1
+--source include/rpl_end.inc

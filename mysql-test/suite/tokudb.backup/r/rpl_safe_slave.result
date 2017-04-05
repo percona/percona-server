@@ -9,6 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CREATE TEMPORARY TABLE t1 (a INT);
 include/sync_slave_sql_with_master.inc
 ### Setup debug_sync points and prepare for slave backup
+SET SESSION debug="+d,debug_sync_abort_on_timeout";
 SHOW STATUS LIKE 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	1
@@ -20,6 +21,7 @@ SET DEBUG_SYNC= 'tokudb_backup_wait_for_temp_tables_loop_end SIGNAL ttle WAIT_FO
 SET GLOBAL tokudb_backup_safe_slave=ON;
 SET GLOBAL tokudb_backup_safe_slave_timeout=30;
 ### Start slave backup
+SET SESSION debug="+d,debug_sync_abort_on_timeout";
 ### Wait for safe slave function to start
 SET DEBUG_SYNC = "now WAIT_FOR sse";
 SHOW STATUS LIKE 'Slave_open_temp_tables';

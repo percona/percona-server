@@ -1,8 +1,4 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
 
 ##
 ## test adding index inplace
@@ -170,7 +166,6 @@ DROP TABLE t1;
 # test failure in prepare phase (due to collation)
 CREATE TABLE t1 (a INT, b TEXT);
 
---error 1105
 ALTER TABLE t1 ADD KEY kb(b(10));
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 DROP TABLE t1;
@@ -341,5 +336,3 @@ while ($i <= $max) {
 #SHOW TABLE STATUS WHERE name LIKE 't1';
 
 DROP TABLE t1;
-
-

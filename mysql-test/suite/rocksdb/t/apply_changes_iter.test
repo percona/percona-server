@@ -1,12 +1,7 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # Tests the Apply_changes_iter class for walking forward and backwards
 # with data in both the transaction class and in the rocksdb storage layer
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
 
 CREATE TABLE t1 (
   pk INT NOT NULL PRIMARY KEY,

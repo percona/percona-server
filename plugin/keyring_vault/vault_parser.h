@@ -4,6 +4,7 @@
 #include "my_global.h"
 #include "i_vault_parser.h"
 #include "logger.h"
+#include "vault_memory.h"
 
 namespace keyring
 {
@@ -15,23 +16,24 @@ public:
     : logger(logger)
   {}
 
-  my_bool parse_keys(std::string *payload, Vault_keys_list *keys);
-  my_bool parse_key_data(std::string *payload, IKey *key);
-  my_bool parse_key_signature(const std::string *key_signature, std::string key_parameters[2]);
-  my_bool parse_errors(std::string *payload, std::string *errors);
+  bool parse_keys(const Secure_string &payload, Vault_keys_list *keys);
+  bool parse_key_data(const Secure_string &payload, IKey *key);
+  bool parse_key_signature(const Secure_string &base64_key_signature, Secure_string key_parameters[2]);
+  bool parse_errors(const Secure_string &payload, Secure_string *errors);
 
-protected:
-  my_bool retrieve_tag_value(std::string *payload, std::string *tag, char opening_bracket,
-                             char closing_bracket, std::string *value);
-  my_bool retrieve_list(std::string *payload, std::string list_name, std::string *list);
-  my_bool retrieve_map(std::string *payload, std::string map_name, std::string *map);
-  my_bool retrieve_tokens_from_list(std::string *list, std::vector<std::string> *tokens);
-  my_bool retrieve_value_from_map(std::string *map, std::string key, std::string *value);
+private:
+  bool retrieve_tag_value(const Secure_string &payload, const Secure_string &tag, const char opening_bracket,
+                          const char closing_bracket, Secure_string *value);
+  bool retrieve_list(const Secure_string &payload, const Secure_string &list_name, Secure_string *list);
+  bool retrieve_map(const Secure_string &payload, const Secure_string &map_name, Secure_string *map);
+  bool retrieve_tokens_from_list(const Secure_string &list, std::vector<Secure_string> *tokens);
+  bool retrieve_value_from_map(const Secure_string &map, const Secure_string &key,
+                               Secure_string *value);
+
 
   ILogger *logger;
 };
 
-} //namespace keyring
+} // namespace keyring
 
-#endif //MYSQL_VAULT_PARSER_H
-
+#endif // MYSQL_VAULT_PARSER_H

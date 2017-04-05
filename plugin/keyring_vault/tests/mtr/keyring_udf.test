@@ -7,6 +7,8 @@ call mtr.add_suppression("Error while generating key: key_id cannot be empty");
 call mtr.add_suppression("Error while storing key: invalid key_type");
 call mtr.add_suppression("Error while storing key: key_id cannot be empty");
 
+let server_uuid = query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
+
 --echo # Check what happens when we have not yet loaded keyring_udf or keyring_vault
 --source include/keyring_udf_missing_plugin.inc
 

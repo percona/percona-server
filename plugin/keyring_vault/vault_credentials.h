@@ -3,13 +3,13 @@
 
 #include <my_global.h>
 #include <map>
-#include <string>
 #include "vault_memory.h"
+#include "vault_secure_string.h"
 
 namespace keyring
 {
-  typedef std::basic_string<char, std::char_traits<char>, Secure_allocator<char> > Secure_string;
   typedef std::map<Secure_string, Secure_string> Vault_credentials;
-} //namespace keyring
+  const Secure_string& get_credential(const Vault_credentials &credentials, const Secure_string &key);
+} // namespace keyring
 
-#endif //MYSQL_VAULT_CREDENTIALS
+#endif // MYSQL_VAULT_CREDENTIALS

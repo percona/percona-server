@@ -7,13 +7,17 @@
 
 namespace keyring
 {
-#if !defined(HAVE_STDCXX11) && !defined(WIN32)
+#if !defined(HAVE_MEMSET_S)
   inline void memset_s(void *dest, size_t dest_max, int c, size_t n)
   {
+#if defined(WIN32)
+    SecureZeroMemory(dest, n);
+#else
     volatile unsigned char *p = reinterpret_cast<unsigned char*>(dest);
     while (dest_max-- && n--) {
       *p++ = c;
     }
+#endif
   } 
 #endif
 
@@ -34,14 +38,12 @@ namespace keyring
 
     void deallocate(T *p, size_t n)
     {
-#if defined(WIN32)
-      SecureZeroMemory(p, n);
-#else
       memset_s(p, n, 0, n);
-#endif      
       my_free(p);
     }
   };
-} //namespace keyring
 
-#endif //MYSQL_VAULT_MEMORY
+  typedef std::basic_string<char, std::char_traits<char>, Secure_allocator<char> > Secure_string;
+} // namespace keyring
+
+#endif // MYSQL_VAULT_MEMORY

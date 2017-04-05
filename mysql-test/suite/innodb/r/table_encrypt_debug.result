@@ -5,8 +5,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-# Starting server with keyring plugin restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH 
 CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SHOW CREATE TABLE tde_db.t1;
 Table	Create Table

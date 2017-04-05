@@ -102,4 +102,15 @@ DROP TABLE t1,t2,t3,t4;
 
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
+
+--let $KEYRING_CONF_FILE=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf
+--connection master
+--source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--connection slave
+--source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--let $KEYRING_CONF_FILE=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf
+--connection master
+--source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--connection slave
+--source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
 # End:

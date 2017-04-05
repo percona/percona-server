@@ -26,6 +26,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
 
+# restart:<hidden args>
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
 ERROR HY000: Function 'keyring_vault' already exists
 
@@ -110,6 +111,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 SELECT * FROM t12;
 c1	c2
 2	ccccchfc
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 PLUGIN_NAME	keyring_vault

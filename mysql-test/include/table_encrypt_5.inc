@@ -7,7 +7,7 @@
 # - restart without keyring options(encrypt table not accessible , rest are)
 # - restart without keyring option but explicilty load plugin (access all)
 # - restart with keyring option but using new key_file_data
-# (old encrypt table not accessible , rest are. New encrypt
+# (old encrypt table not accessible , rest are. New encrypt 
 # table creation possible)
 #
 #------------------------------------------------------------------------------
@@ -30,13 +30,14 @@ call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
 call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
+call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
---echo # Starting server with keyring plugin
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
---replace_regex /\.dll/.so/
+
+--echo # Starting server with keyring plugin  
+--let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
 #------------------------------------------------------------------------------
@@ -128,14 +129,14 @@ call tde_db.init_setup();
 --echo # plugin already installed error 
 --replace_regex /\.dll/.so/
 --error 1125
-eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-SELECT @@global.keyring_vault_config;
+eval $INSTALL_KEYRING_STATEMENT;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 --echo # Uninstall is possible when server started with --early-plugin-load
-UNINSTALL PLUGIN keyring_vault;
+eval UNINSTALL PLUGIN $KEYRING_PLUGIN_NAME;
 --echo # variable not accessible after uninstall
 --error 1193
-SELECT @@global.keyring_vault_config;
+eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 
 --echo # Select non encrypt table : Pass 
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
@@ -173,20 +174,21 @@ CREATE TABLE tde_db.t_non_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 ;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_3;
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
+eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 
 --echo #-----------------------------------------------------------------------
 --echo # Test 1 : Restart with same keyring option , all tables accesible
---echo # restart with --early-plugin-load
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--echo # restart with --early-plugin-load 
+--let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
+
+eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
---echo # restart with same --early-plugin-load and keyring_vault_config option
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--echo # restart with same --early-plugin-load and keyring_file_data option
+--let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 # All tables accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -259,18 +261,18 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_
 
 
 --echo #-----------------------------------------------------------------------
---echo # Test 2 : Restart without keyring option - old encrypt table not
+--echo # Test 2 : Restart without keyring option - old encrypt table not 
 --echo # accessible but rest are.
 --echo # restart with --early-plugin-load to load initial data
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+
+--let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
+eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
---echo # restart without --early-plugin-load and keyring_vault_config
+--echo # restart without --early-plugin-load and keyring_file_data
 let $restart_parameters = restart: ;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
 --source include/restart_mysqld.inc
 
 --echo # encrypt table not accessible
@@ -324,10 +326,10 @@ DROP DATABASE tde_db;
 
 #------------------------------------------------------------------------------
 --echo # Initial setup
---echo # Starting server with keyring plugin
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
---replace_regex /\.dll/.so/
+--echo # Starting server with keyring plugin 
+
+--let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
 --disable_warnings
@@ -344,11 +346,11 @@ begin
    /*  Create encrypt table with encryption */
    CREATE TABLE tde_db.t_encrypt(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                        c3 CHAR(255) Default 'No text',
-                       c4 JSON ,
+                       c4 JSON , 
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
                        c7 POINT NOT NULL,
-                       spatial INDEX idx2 (c7)
+                       spatial INDEX idx2 (c7)    
                        ) ENCRYPTION="Y"  ENGINE = InnoDB;
 
    /*  Create NON encrypt table with encryption */
@@ -400,12 +402,12 @@ begin
    /*  insert into encrypt table 2 */
    INSERT INTO tde_db.t_encrypt_2(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
    SELECT '/*  select tde_db.t_encrypt_2 */';
-   SELECT COUNT(*) FROM tde_db.t_encrypt_2;
+   SELECT COUNT(*) FROM tde_db.t_encrypt_2; 
    SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt_2 LIMIT 10;
    /* insert into NON encrypt table 2 */
    INSERT INTO tde_db.t_non_encrypt_2(c2,c3,c4,c7) SELECT c2,c3,c4,c7 FROM tde_db.t_encrypt;
    SELECT '/*  select tde_db.t_non_encrypt_2 */';
-   SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
+   SELECT COUNT(*) FROM tde_db.t_non_encrypt_2; 
    SELECT c2 ,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_non_encrypt_2 LIMIT 10;
 end|
 DELIMITER ;|
@@ -414,27 +416,26 @@ DELIMITER ;|
 --echo # Test 3 : Restart without keyring option but load plugin using command
 --echo # Access all tables
 --echo #-----------------------------------------------------------------------
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-SELECT @@global.keyring_vault_config;
+eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 --echo # init tables
 call tde_db.init_setup();
---echo # restart without --early-plugin-load and keyring_vault_config
+--echo # restart without --early-plugin-load and keyring_file_data
 --echo # AND explicitly install plugin to access old table
-let $restart_parameters = restart: --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc
 
 --echo # Install keyring plugin
 --replace_regex /\.dll/.so/
 --disable_warnings
-eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
+eval $INSTALL_KEYRING_STATEMENT;
 --enable_warnings
---echo # Set keyring_vault_config as old file so as to access old tables
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval SET @@global.keyring_vault_config='$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-SELECT @@global.keyring_vault_config;
+--echo # Set keyring_file_data as old file so as to access old tables
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval $SET_KEYRING_VARIABLE_TO_KEYRING1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 
 # All tables accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -505,7 +506,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2 , tde_db.t_encrypt_4;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_4;
 
-UNINSTALL PLUGIN keyring_vault;
+eval UNINSTALL PLUGIN $KEYRING_PLUGIN_NAME;
 
 
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
@@ -527,15 +528,15 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --echo # And creation of new encrypt,non encrypt table is also posible
 #------------------------------------------------------------------------------
 --echo # restart with --early-plugin-load to load initial data
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING1_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
-SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
+eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
 --echo # init tables
 call tde_db.init_setup();
---echo # restart with with different keyring_vault_config file
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--echo # restart with with different keyring_file_data file
+--let $restart_parameters="$KEYRING2_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 
 --echo # encrypt table not accessible
@@ -574,7 +575,7 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
---echo # old encrypt table not accessible
+--echo # old encrypt table not accessible 
 --error ER_CANNOT_FIND_KEY_IN_KEYRING,1146
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING,1146
@@ -582,9 +583,9 @@ SELECT COUNT(*) FROM tde_db.t_encrypt_2;
 --echo # NON encrypt old table are accessible
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
 SELECT COUNT(*) FROM tde_db.t_non_encrypt_2;
---echo # new encrypt table accessible
+--echo # new encrypt table accessible 
 SELECT COUNT(*) FROM tde_db.t_encrypt_4;
---echo # new NON encrypt table accessible
+--echo # new NON encrypt table accessible 
 SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 
 

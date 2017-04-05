@@ -6,11 +6,14 @@
 #include "vault_keyring.cc"
 #include "keyring_impl.cc"
 #include "mock_logger.h"
+#include "uuid.h"
 
 namespace keyring__api_unittest
 {
   using ::testing::StrEq;
   using namespace keyring;
+
+  static std::string uuid = generate_uuid();
 
   class Keyring_vault_api_test : public ::testing::Test
   {
@@ -54,15 +57,15 @@ namespace keyring__api_unittest
     std::string sample_key_data;
     char *plugin_name;
     char *keyring_filename;
-    st_plugin_int plugin_info; //for Logger initialization
+    st_plugin_int plugin_info; // for Logger initialization
   };
 
   std::string Keyring_vault_api_test::correct_token;
 
   void Keyring_vault_api_test::keyring_init_with_mock_logger()
   {
-    ASSERT_TRUE(keyring_vault_init(&plugin_info) == FALSE);
-    //use MockLogger instead of Logger
+    ASSERT_FALSE(keyring_vault_init(&plugin_info));
+    // use MockLogger instead of Logger
     logger.reset(new Mock_logger());
   }
 
@@ -73,13 +76,13 @@ namespace keyring__api_unittest
 
   TEST_F(Keyring_vault_api_test, StoreFetchRemove)
   {
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", "Robert", sample_key_data.c_str(),
+                              sample_key_data.length()));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, "Robert", &key,
+                              &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, sample_key_data.length());
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -87,34 +90,33 @@ namespace keyring__api_unittest
     key_type= NULL;
     my_free(key);
     key= NULL;
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
-    //make sure the key was removed - fetch it
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
+    // make sure the key was removed - fetch it
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     ASSERT_TRUE(key == NULL);
   }
 
   TEST_F(Keyring_vault_api_test, CheckIfInmemoryKeyIsNOTXORed)
   {
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), 0);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", "Robert", sample_key_data.c_str(),
+                              sample_key_data.length()));
 
-    Vault_key key_id("Robert_key", NULL, "Robert",NULL,0);
-    IKey* fetched_key= keys->fetch_key(&key_id);
+    Vault_key key_id((uuid+"Robert_key").c_str(), NULL, "Robert",NULL,0);
+    IKey* fetched_key = keys->fetch_key(&key_id);
     ASSERT_TRUE(fetched_key != NULL);
-    std::string expected_key_signature= "10_Robert_key6_Robert";
+    std::string expected_key_signature = get_key_signature(uuid, "Robert_key", "Robert");
     EXPECT_STREQ(fetched_key->get_key_signature()->c_str(), expected_key_signature.c_str());
     EXPECT_EQ(fetched_key->get_key_signature()->length(), expected_key_signature.length());
-    uchar* key_data_fetched= fetched_key->get_key_data();
-    size_t key_data_fetched_size= fetched_key->get_key_data_size();
+    uchar* key_data_fetched = fetched_key->get_key_data();
+    size_t key_data_fetched_size = fetched_key->get_key_data_size();
     EXPECT_STREQ("AES", fetched_key->get_key_type()->c_str());
-
     ASSERT_TRUE(memcmp(sample_key_data.c_str(), key_data_fetched, key_data_fetched_size) == 0);
     ASSERT_TRUE(sample_key_data.length() == key_data_fetched_size);
     my_free(fetched_key->release_key_data());
 
-    //clean up
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
+    // clean up
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
   }
 
   TEST_F(Keyring_vault_api_test, FetchNotExisting)
@@ -122,27 +124,27 @@ namespace keyring__api_unittest
     char *key_type= NULL;
     void *key= NULL;
     size_t key_len= 0;
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     ASSERT_TRUE(key == NULL);
   }
 
   TEST_F(Keyring_vault_api_test, RemoveNotExisting)
   {
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), TRUE);
+    EXPECT_TRUE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
   }
 
   TEST_F(Keyring_vault_api_test, StoreFetchNotExisting)
   {
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", "Robert", sample_key_data.c_str(),
+                                 sample_key_data.length()));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_EQ(mysql_key_fetch("NotExisting", &key_type, "Robert", &key, &key_len), 0);
+    EXPECT_FALSE(mysql_key_fetch("NotExisting", &key_type, "Robert", &key, &key_len));
     ASSERT_TRUE(key == NULL);
 
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
   }
 
   TEST_F(Keyring_vault_api_test, StoreStoreStoreFetchRemove)
@@ -150,17 +152,17 @@ namespace keyring__api_unittest
     std::string key_data1("Robi1");
     std::string key_data2("Robi2");
 
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
-    EXPECT_EQ(mysql_key_store("Robert_key1", "AES", "Robert", key_data1.c_str(),
-                              key_data1.length()), FALSE);
-    EXPECT_EQ(mysql_key_store("Robert_key2", "AES", "Robert", key_data2.c_str(),
-                              key_data2.length()), FALSE);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", "Robert", sample_key_data.c_str(),
+                                 sample_key_data.length()));
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key1").c_str(), "AES", "Robert", key_data1.c_str(),
+                                 key_data1.length()));
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key2").c_str(), "AES", "Robert", key_data2.c_str(),
+                                 key_data2.length()));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_EQ(mysql_key_fetch("Robert_key1", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key1").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, key_data1.length());
     ASSERT_TRUE(memcmp((char *)key, key_data1.c_str(), key_len) == 0);
@@ -168,81 +170,82 @@ namespace keyring__api_unittest
     key_type= NULL;
     my_free(key);
     key= NULL;
-    EXPECT_EQ(mysql_key_remove("Robert_key2", "Robert"), FALSE);
-    //make sure the key was removed - fetch it
-    EXPECT_EQ(mysql_key_fetch("Robert_key2", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key2").c_str(), "Robert"));
+    // make sure the key was removed - fetch it
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key2").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     ASSERT_TRUE(key == NULL);
 
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
-    EXPECT_EQ(mysql_key_remove("Robert_key1", "Robert"), FALSE);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key1").c_str(), "Robert"));
   }
 
   TEST_F(Keyring_vault_api_test, StoreValidTypes)
   {
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
-    EXPECT_EQ(mysql_key_store("Robert_key3", "RSA", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
-    EXPECT_EQ(mysql_key_store("Robert_key4", "DSA", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
-    //clean up
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
-    EXPECT_EQ(mysql_key_remove("Robert_key3", "Robert"), FALSE);
-    EXPECT_EQ(mysql_key_remove("Robert_key4", "Robert"), FALSE);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", "Robert", sample_key_data.c_str(),
+                                 sample_key_data.length()));
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key3").c_str(), "RSA", "Robert", sample_key_data.c_str(),
+                                 sample_key_data.length()));
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key4").c_str(), "DSA", "Robert", sample_key_data.c_str(),
+                                 sample_key_data.length()));
+    // clean up
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key3").c_str(), "Robert"));
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key4").c_str(), "Robert"));
 
   }
 
   TEST_F(Keyring_vault_api_test, StoreInvalidType)
   {
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: invalid key_type")));
-    EXPECT_EQ(mysql_key_store("Robert_key", "YYY", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), TRUE);
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())),
+                log(MY_ERROR_LEVEL, StrEq("Error while storing key: invalid key_type")));
+    EXPECT_TRUE(mysql_key_store((uuid+"Robert_key").c_str(), "YYY", "Robert", sample_key_data.c_str(),
+                                sample_key_data.length()));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     ASSERT_TRUE(key == NULL);
   }
 
   TEST_F(Keyring_vault_api_test, StoreTwiceTheSameDifferentTypes)
   {
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), FALSE);
-    EXPECT_EQ(mysql_key_store("Robert_key", "RSA", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length()), TRUE);
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", "Robert", sample_key_data.c_str(),
+                                 sample_key_data.length()));
+    EXPECT_TRUE(mysql_key_store((uuid+"Robert_key").c_str(), "RSA", "Robert", sample_key_data.c_str(),
+                                sample_key_data.length()));
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
   }
 
   TEST_F(Keyring_vault_api_test, KeyGenerate)
   {
-    EXPECT_EQ(mysql_key_generate("Robert_key", "AES", "Robert", 128), FALSE);
+    EXPECT_FALSE(mysql_key_generate((uuid+"Robert_key").c_str(), "AES", "Robert", 128));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
-                              &key_len), FALSE);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, (size_t)128);
-    //Try accessing the last byte of key
-    char ch= ((char*)key)[key_len-1];
-    //Just to get rid of unused variable compiler error
+    // Try accessing the last byte of key
+    volatile char ch= ((char*)key)[key_len-1];
+    // Just to get rid of unused variable compiler error
     (void)ch;
     my_free(key);
     my_free(key_type);
-    EXPECT_EQ(mysql_key_remove("Robert_key", "Robert"), FALSE);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), "Robert"));
   }
 
   TEST_F(Keyring_vault_api_test, NullUser)
   {
-    EXPECT_EQ(mysql_key_store("Robert_key", "AES", NULL, sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 0);
+    EXPECT_FALSE(mysql_key_store((uuid+"Robert_key").c_str(), "AES", NULL, sample_key_data.c_str(),
+                                 sample_key_data.length() + 1));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, NULL, &key,
-                              &key_len), 0);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, NULL, &key,
+                              &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, sample_key_data.length()+1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -250,12 +253,12 @@ namespace keyring__api_unittest
     key_type= NULL;
     my_free(key);
     key= NULL;
-    EXPECT_EQ(mysql_key_store("Robert_key", "RSA", NULL, sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 1);
-    EXPECT_EQ(mysql_key_store("Kamil_key", "AES", NULL, sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 0);
-    EXPECT_EQ(mysql_key_fetch("Kamil_key", &key_type, NULL, &key,
-                              &key_len), 0);
+    EXPECT_TRUE(mysql_key_store((uuid+"Robert_key").c_str(), "RSA", NULL, sample_key_data.c_str(),
+                                sample_key_data.length() + 1));
+    EXPECT_FALSE(mysql_key_store((uuid+"Kamil_key").c_str(), "AES", NULL, sample_key_data.c_str(),
+                                 sample_key_data.length() + 1));
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Kamil_key").c_str(), &key_type, NULL, &key,
+                                 &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, sample_key_data.length()+1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -263,10 +266,10 @@ namespace keyring__api_unittest
     key_type= NULL;
     my_free(key);
     key= NULL;
-    EXPECT_EQ(mysql_key_store("Artur_key", "AES", "Artur", sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 0);
-    EXPECT_EQ(mysql_key_fetch("Artur_key", &key_type, "Artur", &key,
-                              &key_len), 0);
+    EXPECT_FALSE(mysql_key_store((uuid+"Artur_key").c_str(), "AES", "Artur", sample_key_data.c_str(),
+                                 sample_key_data.length() + 1));
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Artur_key").c_str(), &key_type, "Artur", &key,
+                                 &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, sample_key_data.length()+1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -274,12 +277,12 @@ namespace keyring__api_unittest
     key_type= NULL;
     my_free(key);
     key= NULL;
-    EXPECT_EQ(mysql_key_remove("Robert_key", NULL) , 0);
-    EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
-                              &key_len), 0);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Robert_key").c_str(), NULL));
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Robert_key").c_str(), &key_type, "Robert", &key,
+                                 &key_len));
     ASSERT_TRUE(key == NULL);
-    EXPECT_EQ(mysql_key_fetch("Artur_key", &key_type, "Artur", &key,
-                              &key_len), 0);
+    EXPECT_FALSE(mysql_key_fetch((uuid+"Artur_key").c_str(), &key_type, "Artur", &key,
+                                 &key_len));
     EXPECT_STREQ("AES", key_type);
     EXPECT_EQ(key_len, sample_key_data.length()+1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
@@ -288,52 +291,52 @@ namespace keyring__api_unittest
     my_free(key);
     key= NULL;
     
-    EXPECT_EQ(mysql_key_remove("Kamil_key", NULL) , 0);
-    EXPECT_EQ(mysql_key_remove("Artur_key", "Artur") , 0);
+    EXPECT_FALSE(mysql_key_remove((uuid+"Kamil_key").c_str(), NULL));
+    EXPECT_FALSE(mysql_key_remove((uuid+"Artur_key").c_str(), "Artur"));
   }
 
   TEST_F(Keyring_vault_api_test, NullKeyId)
   {
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_store(NULL, "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_store(NULL, "AES", NULL, sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_store("", "AES", "Robert", sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_store("", "AES", NULL, sample_key_data.c_str(),
-                              sample_key_data.length() + 1), 1);
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_store(NULL, "AES", "Robert", sample_key_data.c_str(),
+                                sample_key_data.length() + 1));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_store(NULL, "AES", NULL, sample_key_data.c_str(),
+                                sample_key_data.length() + 1));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_store("", "AES", "Robert", sample_key_data.c_str(),
+                                sample_key_data.length() + 1));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while storing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_store("", "AES", NULL, sample_key_data.c_str(),
+                                sample_key_data.length() + 1));
     char *key_type;
     size_t key_len;
     void *key;
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_fetch(NULL, &key_type, "Robert", &key, &key_len), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_fetch(NULL, &key_type, NULL, &key, &key_len), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_fetch("", &key_type, "Robert", &key, &key_len), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_fetch("", &key_type, NULL, &key, &key_len), 1);
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_fetch(NULL, &key_type, "Robert", &key, &key_len));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_fetch(NULL, &key_type, NULL, &key, &key_len));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_fetch("", &key_type, "Robert", &key, &key_len));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while fetching key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_fetch("", &key_type, NULL, &key, &key_len));
 
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_remove(NULL, "Robert") , 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_remove(NULL, NULL) , 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_remove("", "Robert") , 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_remove("", NULL) , 1);
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_remove(NULL, "Robert") );
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_remove(NULL, NULL) );
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_remove("", "Robert") );
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while removing key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_remove("", NULL) );
 
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_generate(NULL, "AES", "Robert", 128), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_generate(NULL, "AES", NULL, 128), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_generate("", "AES", "Robert", 128), 1);
-    EXPECT_CALL(*((Mock_logger *)logger.get()), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
-    EXPECT_EQ(mysql_key_generate("", "AES", NULL, 128), 1);
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_generate(NULL, "AES", "Robert", 128));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_generate(NULL, "AES", NULL, 128));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_generate("", "AES", "Robert", 128));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
+    EXPECT_TRUE(mysql_key_generate("", "AES", NULL, 128));
   }
 }

@@ -1,33 +1,27 @@
-CHECK_CXX_COMPILER_FLAG(-std=c++11 HAVE_STDCXX11)
+INCLUDE(CheckFunctionExists)
+INCLUDE(curl)
 
-IF (NOT WITH_CURL_INCLUDE)
-    message("Not building keyring_vault, WITH_CURL_INCLUDE not specified")
+SET(CMAKE_EXTRA_INCLUDE_FILES string.h)
+CHECK_FUNCTION_EXISTS(memset_s HAVE_MEMSET_S)
+SET(CMAKE_EXTRA_INCLUDE_FILES)
+
+MACRO (CHECK_IF_LIB_FOUND lib_name project_name)
+  SET (lib_found_variable_name "${lib_name}_FOUND")
+  IF (NOT DEFINED ${lib_found_variable_name} OR NOT ${${lib_found_variable_name}})
+    message("Not building ${project_name}, could not find library: ${lib_name}")
     RETURN()
-ENDIF()
+  ENDIF()
+ENDMACRO()
 
-IF (NOT WITH_CURL_LIB)
-    message("Not building keyring_vault, WITH_CURL_LIB not specified")
-    RETURN()
-ENDIF()
-
-FIND_LIBRARY(CURL_LIBRARY
-        NAMES curl
-        HINTS ${WITH_CURL_LIB})
-
-IF (NOT CURL_LIBRARY)
-    message("Not building keyring_vault, could not find curl library")
-    RETURN()
-ENDIF()
-
-CHECK_INCLUDE_FILE_CXX(${WITH_CURL_INCLUDE}/curl.h HAVE_CURL_HEADERS)
+FIND_CURL()
+CHECK_IF_LIB_FOUND(CURL "keyring_vault")
 
 INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR})
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_INCLUDE_DIR})
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/plugin/keyring/common
-  ${WITH_CURL_INCLUDE})
+  ${CURL_INCLUDE_DIRS})
 
 MYSQL_ADD_PLUGIN(keyring_vault
                  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
@@ -35,13 +29,15 @@ MYSQL_ADD_PLUGIN(keyring_vault
                  ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_impl.cc
                  vault_io.cc
                  vault_key.cc
+                 vault_base64.cc
                  vault_parser.cc
                  vault_keys_list.cc
                  vault_keys_container.cc
                  vault_curl.cc
                  vault_credentials_parser.cc
+                 vault_credentials.cc
                  vault_keyring.cc
-                 LINK_LIBRARIES  ${CURL_LIBRARY} ${SSL_LIBRARIES}
+                 LINK_LIBRARIES  ${CURL_LIBRARIES}
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_vault")
 

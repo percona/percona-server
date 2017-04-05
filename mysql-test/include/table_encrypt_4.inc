@@ -5,13 +5,9 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf $KEYRING_VAULT_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
 
 
 --disable_query_log
@@ -96,11 +92,9 @@ if($source_db != $dest_db) {
 	eval DROP TABLE $dest_db.t1;
 }
 
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf $KEYRING_VAULT_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
 
 --source include/wait_until_connected_again.inc
 --disable_reconnect

@@ -1,7 +1,5 @@
 #include <my_global.h>
 #include <mysql/plugin_keyring.h>
-#include <openssl/err.h>
-#include <openssl/ssl.h>
 #include "keyring.h"
 #include "vault_keys_container.h"
 #include "vault_parser.h"
@@ -15,6 +13,23 @@ using keyring::Vault_keys_container;
 using keyring::Vault_curl;
 using keyring::Logger;
 
+static void handle_std_bad_alloc_exception(const std::string &message_prefix)
+{
+  DBUG_ASSERT(0);
+  std::string error_message = message_prefix + " due to memory allocation failure";
+  if (logger != NULL)
+    logger->log(MY_ERROR_LEVEL, error_message.c_str());
+}
+
+static void handle_unknown_exception(const std::string &message_prefix)
+{
+  DBUG_ASSERT(0);
+  std::string error_message = message_prefix + " due to internal "
+                                "exception inside the keyring_vault plugin";
+  if (logger != NULL)
+    logger->log(MY_ERROR_LEVEL, error_message.c_str());
+}
+
 int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
                             void *save, st_mysql_value *value)
@@ -26,24 +41,32 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
 
   (*(const char **) save)= NULL;
   keyring_filename= value->val_str(value, buff, &len);
+  if (keyring_filename == NULL)
+    return 1;
   mysql_rwlock_wrlock(&LOCK_keyring);
 
   try
   {
-    IVault_curl *vault_curl = new Vault_curl(logger.get());
-    IVault_parser *vault_parser = new Vault_parser(logger.get());
-    IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl, vault_parser));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
+    boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
+    IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl.release(), vault_parser.release()));
     if (new_keys->init(keyring_io, keyring_filename))
     {
       mysql_rwlock_unlock(&LOCK_keyring);
       return 1;
     }
-    *reinterpret_cast<IKeys_container **>(save)= new_keys.get();
-    new_keys.release();
+    *reinterpret_cast<IKeys_container **>(save)= new_keys.release();
     mysql_rwlock_unlock(&LOCK_keyring);
+  }
+  catch (const std::bad_alloc &e)
+  {
+    handle_std_bad_alloc_exception("Cannot set keyring_vault_config_file");
+    mysql_rwlock_unlock(&LOCK_keyring);
+    return TRUE;
   }
   catch (...)
   {
+    handle_unknown_exception("Cannot set keyring_vault_config_file");
     mysql_rwlock_unlock(&LOCK_keyring);
     return 1;
   }
@@ -73,19 +96,15 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
 #ifdef HAVE_PSI_INTERFACE
     keyring_init_psi_keys();
 #endif
-    SSL_library_init();
-    OpenSSL_add_all_algorithms();
-    SSL_load_error_strings();
-    curl_global_init(CURL_GLOBAL_NOTHING);
-
     if (init_keyring_locks())
       return TRUE;
 
     logger.reset(new Logger(plugin_info));
     keys.reset(new Vault_keys_container(logger.get()));
-    IVault_curl *vault_curl = new Vault_curl(logger.get());
-    IVault_parser *vault_parser = new Vault_parser(logger.get());
-    IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl, vault_parser);
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
+    boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
+    IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl.release(),
+                                          vault_parser.release());
     if (keys->init(keyring_io, keyring_vault_config_file))
     {
       is_keys_container_initialized = FALSE;
@@ -99,24 +118,20 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
     is_keys_container_initialized = TRUE;
     return FALSE;
   }
+  catch (const std::bad_alloc &e)
+  {
+    handle_std_bad_alloc_exception("keyring_vault initialization failure");
+    return TRUE;
+  }
   catch (...)
   {
-    if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "keyring_vault initialization failure due to internal"
-                                  " exception inside the plugin");
+    handle_unknown_exception("keyring_vault initialization failure");
     return TRUE;
   }
 }
 
 int keyring_vault_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
-  //not taking a lock here as the calls to keyring_deinit are serialized by
-  //the plugin framework
-  ERR_remove_thread_state(NULL);
-  ERR_remove_state(0);
-  ERR_free_strings();
-  EVP_cleanup();
-
   keys.reset();
   logger.reset();
   keyring_file_data.reset();
@@ -155,16 +170,22 @@ my_bool mysql_key_generate(const char *key_id, const char *key_type,
     if (key.get() == NULL)
       return TRUE;
     memset(key.get(), 0, key_len);
-    if (is_keys_container_initialized == FALSE || check_key_for_writting(key_candidate.get(), "generating") ||
+    if (!is_keys_container_initialized || check_key_for_writting(key_candidate.get(), "generating") ||
         my_rand_buffer(key.get(), key_len))
       return TRUE;
 
-    return mysql_key_store(key_id, key_type, user_id, key.get(), key_len) == TRUE;
+    return mysql_key_store(key_id, key_type, user_id, key.get(), key_len);
+  }
+  catch (const std::bad_alloc &e)
+  {
+    handle_std_bad_alloc_exception("Failed to generate a key");
+    return TRUE;
   }
   catch (...)
   {
-    if (logger != NULL)
-      logger->log(MY_ERROR_LEVEL, "Failed to generate a key due to internal exception inside keyring_file plugin");
+    //We want to make sure that no exception leaves keyring_vault plugin and goes into the server.
+    //That is why there are try..catch blocks in all keyring_vault service methods.
+    handle_unknown_exception("Failed to generate a key");
     return TRUE;
   }
 }
@@ -184,8 +205,8 @@ mysql_declare_plugin(keyring_vault)
   MYSQL_KEYRING_PLUGIN,                                   /*   type                            */
   &keyring_descriptor,                                    /*   descriptor                      */
   "keyring_vault",                                        /*   name                            */
-  "Oracle Corporation",                                   /*   author                          */
-  "store/fetch authentication data to/from a flat file",  /*   description                     */
+  "Percona",                                              /*   author                          */
+  "store/fetch authentication data to/from Vault server", /*   description                     */
   PLUGIN_LICENSE_GPL,
   keyring_vault_init,                                     /*   init function (when loaded)     */
   keyring_vault_deinit,                                   /*   deinit function (when unloaded) */

@@ -23,21 +23,20 @@ namespace keyring
       optional_value.insert("vault_ca");
     }
 
-    my_bool parse(std::string *file_url, Vault_credentials *vault_credentials);
+    bool parse(const std::string &file_url, Vault_credentials *vault_credentials);
 
-  protected:
+  private:
     void reset_vault_credentials(Vault_credentials *vault_credentials);
 
-    my_bool parse_line(uint line_number, Secure_string *line, Vault_credentials *vault_credentials);
-    Secure_string* get_value_for_option(Secure_string *option, Vault_credentials *vault_credentials);
+    bool parse_line(uint line_number, const Secure_string& line, Vault_credentials *vault_credentials);
 
-    my_bool is_valid_option(Secure_string *option);
+    bool is_valid_option(const Secure_string &option);
     Vault_credentials vault_credentials_in_progress;
     std::set<Secure_string> optional_value;
 
     ILogger *logger;
   };
 
-} //namespace keyring
+} // namespace keyring
 
-#endif //MYSQL_VAULT_CREDENTIALS_PARSER_H
+#endif // MYSQL_VAULT_CREDENTIALS_PARSER_H

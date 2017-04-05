@@ -21,7 +21,7 @@ namespace keyring
       return NULL;
 
     if(fetched_key->get_key_type()->empty() &&
-       vault_io->retrieve_key_type_and_data(fetched_key)) //key is fetched for the first time
+       vault_io->retrieve_key_type_and_data(fetched_key)) // key is fetched for the first time
       return NULL;
 
     return Keys_container::fetch_key(key);
@@ -31,4 +31,4 @@ namespace keyring
   {
     return FALSE;
   }
-} //namespace keyring
+} // namespace keyring

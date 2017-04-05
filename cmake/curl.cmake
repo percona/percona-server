@@ -1,0 +1,18 @@
+MACRO (FIND_CURL)
+  IF (NOT WITH_CURL)
+    INCLUDE(FindCURL)
+  ELSE()
+    FIND_LIBRARY(CURL_LIBRARIES
+                 curl
+                 PATHS ${WITH_CURL}/lib
+                 NO_DEFAULT_PATH)
+    CHECK_INCLUDE_FILE_CXX(${WITH_CURL}/include/curl/curl.h HAVE_CURL_HEADERS)
+    IF (CURL_LIBRARIES AND HAVE_CURL_HEADERS)
+      SET(CURL_FOUND TRUE)
+      SET(CURL_INCLUDE_DIRS ${WITH_CURL}/include)
+    ELSE()  
+      SET(CURL_FOUND FALSE)
+    ENDIF()
+  ENDIF()
+ENDMACRO()  
+

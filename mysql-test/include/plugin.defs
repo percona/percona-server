@@ -47,7 +47,6 @@ ha_partition       storage/partition  PARTITION_PLUGIN  partition
 mypluglib          plugin/fulltext    SIMPLE_PARSER
 libpluginmecab     plugin/fulltext    MECAB
 keyring_file       plugin/keyring     KEYRING_PLUGIN keyring_file
-keyring_vault      plugin/keyring_vault      KEYRING_VAULT_PLUGIN keyring_vault
 keyring_udf        plugin/keyring_udf KEYRING_UDF keyring_udf
 adt_null           plugin/audit_null  AUDIT_NULL
 test_security_context  plugin/audit_null  TEST_SECURITY_CONTEXT  test_security_context

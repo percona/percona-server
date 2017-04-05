@@ -1,3 +1,4 @@
+
 #------------------------------------------------------------------------------
 ## InnoDB transparent tablespace data encryption
 ## This test case will test basic recovery from know DBUG_SUICIDE point .
@@ -39,12 +40,13 @@ USE tde_db;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
-
---echo # Starting server with keyring plugin restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT ;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
---replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- send_shutdown
+-- source include/wait_until_disconnected.inc
+--exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
 
 ##### Set crash ib_crash_during_decrypt_page
 CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -64,7 +66,7 @@ INSERT INTO tde_db.t1 VALUES(9, "jjjjj");
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,ib_crash_during_rotation_for_encryption";
 # Execute the statement that causes the crash
 CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -90,7 +92,7 @@ SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t2;
 
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,ib_crash_during_create_for_encryption";
 # Execute the statement that causes the crash
 --error 2013
@@ -105,9 +107,11 @@ SELECT * FROM tde_db.t1 ORDER BY c1 ;
 --error 1146
 SELECT * FROM tde_db.t2;
 
+
+
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 FLUSH TABLE tde_db.t1 FOR EXPORT;
 --copy_file $MYSQLD_DATADIR/tde_db/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
 --copy_file $MYSQLD_DATADIR/tde_db/t1.cfp $MYSQLD_DATADIR/t1.cfp_back
@@ -139,3 +143,4 @@ DROP TABLE tde_db.t1;
 # Cleanup
 #DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
+

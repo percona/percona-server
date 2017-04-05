@@ -3,12 +3,13 @@
 #include <fstream>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 namespace keyring
 {
   struct Is_not_space
   {
-    my_bool operator()(char c)
+    bool operator()(char c)
     {
       return !std::isspace(c);
     }
@@ -39,18 +40,18 @@ namespace keyring
       iter->second.clear();
   }
 
-  my_bool Vault_credentials_parser::is_valid_option(Secure_string *option)
+  bool Vault_credentials_parser::is_valid_option(const Secure_string &option)
   {
-    return vault_credentials_in_progress.count(*option);
+    return vault_credentials_in_progress.count(option);
   }
 
-  my_bool Vault_credentials_parser::parse_line(uint line_number, Secure_string *line, Vault_credentials *vault_credentials)
+  bool Vault_credentials_parser::parse_line(uint line_number, const Secure_string& line, Vault_credentials *vault_credentials)
   {
-    if (line->empty())
+    if (line.empty())
       return FALSE;
 
-    size_t eq_sign_pos = line->find('=');
-    std::stringstream err_ss;
+    size_t eq_sign_pos = line.find('=');
+    std::ostringstream err_ss;
 
     if (eq_sign_pos == std::string::npos)
     {
@@ -59,10 +60,10 @@ namespace keyring
       logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
       return TRUE;
     }
-    Secure_string option = line->substr(0, eq_sign_pos);
+    Secure_string option = line.substr(0, eq_sign_pos);
     trim(&option); 
 
-    if (is_valid_option(&option) == false)
+    if (!is_valid_option(option))
     {
       err_ss << "Could not parse credential file. Unknown option \"" << option << "\" in line: ";
       err_ss << line_number << '.';
@@ -70,14 +71,14 @@ namespace keyring
     }
     Secure_string *value = &(*vault_credentials)[option];
 
-    if (value->empty() == false) //repeated option in file
+    if (!value->empty()) // repeated option in file
     {
       err_ss << "Could not parse credential file. Seems that value for option " << option;
       err_ss << " has been specified more than once in line: " << line_number << '.';
       logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
       return TRUE;
     }
-    *value = line->substr(eq_sign_pos + 1, line->size() - (eq_sign_pos + 1)); 
+    *value = line.substr(eq_sign_pos + 1, line.size() - (eq_sign_pos + 1)); 
     trim(value);
 
     if (value->empty())
@@ -91,11 +92,11 @@ namespace keyring
     return FALSE;
   }
 
-  my_bool Vault_credentials_parser::parse(std::string *file_url, Vault_credentials *vault_credentials)
+  bool Vault_credentials_parser::parse(const std::string &file_url, Vault_credentials *vault_credentials)
   {
     reset_vault_credentials(&vault_credentials_in_progress);
 
-    std::ifstream credentials_file(file_url->c_str());
+    std::ifstream credentials_file(file_url.c_str());
     if (!credentials_file)
     {
       logger->log(MY_ERROR_LEVEL, "Could not open file with credentials.");
@@ -103,19 +104,19 @@ namespace keyring
     }
     uint line_number = 1;
     Secure_string line;
-    while(getline(credentials_file, line).fail() == false)
-      if(parse_line(line_number, &line, &vault_credentials_in_progress))
+    while (!getline(credentials_file, line).fail())
+      if (parse_line(line_number, line, &vault_credentials_in_progress))
       {
         line_number++;
         return TRUE;
       }
 
-    for(Vault_credentials::const_iterator iter = vault_credentials_in_progress.begin();
-        iter != vault_credentials_in_progress.end(); ++iter)
+    for (Vault_credentials::const_iterator iter = vault_credentials_in_progress.begin();
+         iter != vault_credentials_in_progress.end(); ++iter)
     {
       if (iter->second.empty() && optional_value.count(iter->first) == 0)
       {
-        std::stringstream err_ss;
+        std::ostringstream err_ss;
         err_ss << "Could not read " << iter->first << " from the configuration file.";
         logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
         return TRUE;
@@ -124,4 +125,4 @@ namespace keyring
     *vault_credentials = vault_credentials_in_progress;
     return FALSE;
   }
-} //namespace keyring
+} // namespace keyring

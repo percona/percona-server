@@ -74,5 +74,7 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 
 # Cleanup
 DROP TABLE t1;
+--let $KEYRING_CONF_FILE=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf
+--source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
 --echo
 --echo #End:

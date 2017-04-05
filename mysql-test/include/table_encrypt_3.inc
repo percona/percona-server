@@ -9,6 +9,7 @@
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
+call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -16,7 +17,7 @@ let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 # InnoDB transparent encrypted tablespace:
 # 1) Try creating encrypt table without loading keying plugin
 # 2) Run , ALTER INSTANCE ROTATE INNODB MASTER KEY , when plugin is not loaded
-# 3) Try , UNINSTALL PLUGIN keyring_vault , when plugin is not loaded
+# 3) Try , UNINSTALL PLUGIN keyring_file , when plugin is not loaded
 --echo # Create encrypt table before loading keyring plugin
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -28,17 +29,15 @@ DROP TABLE IF EXISTS t_encrypt;
 CREATE TABLE t_encrypt(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 # Uninstall keyring plugin whuch is not loaded yet
 --error ER_SP_DOES_NOT_EXIST
-UNINSTALL PLUGIN keyring_vault;
+eval UNINSTALL PLUGIN $KEYRING_PLUGIN_NAME;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 --echo # Starting server with keyring plugin
 # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
---replace_regex /\.dll/.so/
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
-
 
 #------------------------------------------------------------------------------
 # InnoDB transparent encrypted tablespace:
@@ -92,13 +91,9 @@ connection default;
 SELECT c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- send_shutdown
--- source include/wait_until_disconnected.inc
---exec echo "restart:--early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
 
 SELECT c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 
@@ -151,8 +146,8 @@ SELECT COUNT(*) FROM tde_db.t_encrypt_1;
 
 # Restart to confirm the encryption info can be retrieved properly.
 --echo # Starting server with keyring plugin  restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT  c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -254,8 +249,8 @@ DELIMITER ;|
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=DYNAMIC ");
 
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -264,8 +259,8 @@ SELECT COUNT(*) FROM tde_db.t_encrypt;
 
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPACT ");
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -274,8 +269,8 @@ SELECT COUNT(*) FROM tde_db.t_encrypt;
 
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=REDUNDANT ");
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -284,8 +279,8 @@ SELECT COUNT(*) FROM tde_db.t_encrypt;
 
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPRESSED " );
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
@@ -294,13 +289,16 @@ SELECT COUNT(*) FROM tde_db.t_encrypt;
 
 call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=4 ");
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt(c3,c4,c7) SELECT c3,c4,c7 FROM tde_db.t_encrypt;
 SELECT COUNT(*) FROM tde_db.t_encrypt;
+
+#call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=8 ");
+#call tde_db.row_format_t_encrypt(" ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=16 ");
 
 --echo # Create partition table
 DROP TABLE tde_db.t_encrypt;
@@ -325,8 +323,8 @@ SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
 SHOW CREATE TABLE tde_db.t_encrypt;
 
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,c4,c5,c6 FROM tde_db.t_encrypt LIMIT 10;
 
@@ -502,8 +500,8 @@ SELECT c2,right(c3,20),c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt WHERE c2%200 = 
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt WHERE c2%200 = 0;
 
 --echo # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT c2,right(c3,20),c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
 SELECT c2,right(c3,20),c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -578,10 +576,10 @@ connection default;
 # Restart to confirm the encryption info can be retrieved properly.
 --echo # Starting server with keyring plugin
 # restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
- SELECT  c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
+SELECT  c1,c2,right(c3, 20) FROM tde_db.t_encrypt LIMIT 10;
 
 DROP TABLE tde_db.t_encrypt;
 #
@@ -734,8 +732,8 @@ SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt ORDER BY c2 DESC LIMIT 10;
 
 
 --echo # Starting server with keyring plugin
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 SELECT c2,RIGHT(c3,20),c4 FROM tde_db.t_encrypt LIMIT 10;
@@ -747,11 +745,9 @@ DROP DATABASE tde_db;
 --echo # Bug#24404091 FAILING ASSERTION: !SRV_READ_ONLY_MODE ||
 --echo # M_IMPL.M_LOG_MODE == MTR_LOG_NO_REDO
 --echo #
-let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --loose-keyring_vault_config=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf $KEYRING_VAULT_PLUGIN_OPT --innodb_read_only=1;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_VAULT_PLUGIN_OPT --plugin-dir=KEYRING_VAULT_PLUGIN_PATH $KEYRING_VAULT_PLUGIN keyring_vault.so
---replace_regex /.dll/.so/
+--let $restart_parameters="$KEYRING_RESTART_PARAM --innodb_read_only=1"
+--let $restart_hide_args= 1
 --source include/restart_mysqld.inc
-
 --error ER_INNODB_READ_ONLY
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 

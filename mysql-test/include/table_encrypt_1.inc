@@ -1,3 +1,14 @@
+# InnoDB transparent tablespace data encryption
+# This test case will test basic encryption support features.
+
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_innodb_max_16k.inc
+--source include/have_debug.inc
+
+# Create a table with encryption, should fail since keyring is not
+# loaded
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `\.\.*`\.`\.\.*` in the cache.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
@@ -6,39 +17,58 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace 
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+
+--disable_warnings
 DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
-@@innodb_file_per_table
-0
+# Test create encrypted table when inndb_file_per_table is 0,
+# Should fail, since we don't support create table in shared tablespace.
+--error ER_TABLESPACE_CANNOT_ENCRYPT
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: This tablespace can't be encrypted.
+
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
-@@innodb_file_per_table
-1
+
+# Test create encrypted table in system tablespace,
+# Should fail, since it's a shared tablespace.
+--error ER_TABLESPACE_CANNOT_ENCRYPT
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
-ERROR HY000: This tablespace can't be encrypted.
+
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
 DROP TABLE t1;
+
+# Test create temporary encrypted table,
+# Should fail, since temporary table is in shared tablespace.
+--error ER_TABLESPACE_CANNOT_ENCRYPT
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-ERROR HY000: This tablespace can't be encrypted.
+
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 DROP TABLE t1;
+
+# Test create encrypted table with incorrect option.
+--error ER_INVALID_ENCRYPTION_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
-ERROR HY000: Invalid encryption option.
+
+# Create a table with encryption
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
 SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL,
-  `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -55,35 +85,36 @@ INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
 INSERT INTO t1 select * from t1;
+
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1	c2
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-# restart
+
+--disable_query_log
+SET DEBUG='+d,os_block_cache_busy';
+--enable_query_log
+
+# Restart without key ring to check the encrypted table can't be open.
+--let $restart_parameters=
+-- source include/restart_mysqld.inc
+
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+
+# Restart to confirm the encryption info can be retrieved properly.
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+
+--disable_query_log
+SET DEBUG='-d,os_block_cache_busy';
+--enable_query_log
+
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1	c2
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
-0	aaaaa
+
 DROP TABLE t1;
+
+# Crash/recovery test.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -94,114 +125,92 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-# Kill the server
+
+# Restart to confirm the encryption info can be retrieved properly.
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1	c2
-0	aaaaa
-1	bbbbb
-2	ccccc
-3	ddddd
-4	eeeee
-5	fffff
-6	ggggg
-7	hhhhh
-8	iiiii
-9	jjjjj
+
+# Test alter table.
+# We don't support inplace alter
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+
+# Don't support move it to shared tablespace
+--error ER_TABLESPACE_CANNOT_ENCRYPT
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
-ERROR HY000: This tablespace can't be encrypted.
+
+# We only support copy alter
 ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
+
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1	c2
-0	aaaaa
-1	bbbbb
-2	ccccc
-3	ddddd
-4	eeeee
-5	fffff
-6	ggggg
-7	hhhhh
-8	iiiii
-9	jjjjj
+
 DROP TABLE t1;
+
 CREATE TABLE t1 (c1 int) ENCRYPTION='N';
+
+--error ER_INVALID_ENCRYPTION_OPTION
 ALTER TABLE t1 ENCRYPTION='P',algorithm=copy;
-ERROR HY000: Invalid encryption option.
+
 ALTER TABLE t1 ADD KEY k1 (c1) ,algorithm=inplace;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ENCRYPTION='Y',algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+
 drop table t1;
+
+# Test compression + encryption.
+--disable_warnings
 CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "ZLIB" ENCRYPTION = "Y" ENGINE = InnoDB;
+let COMPR_ZIP_WARN= `SHOW WARNINGS`;
+--enable_warnings
+
 INSERT INTO t1 VALUES(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
 SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 COMPRESSION='ZLIB' ENCRYPTION='Y'
+
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
+
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
+
+# Restart to confirm the encryption info can be retrieved properly.
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+
 SELECT * FROM t1 ORDER BY c1;
-c1
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
+
 DROP TABLE t1;
+
+# Test old compression + encryption.
 CREATE TABLE t1(c1 int null)  ENCRYPTION='Y' ROW_FORMAT=compressed;
+
 INSERT INTO t1 VALUES(0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
 SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
+
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-c1
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
+
+# Restart to confirm the encryption info can be retrieved properly.
+--let $restart_parameters="$KEYRING_RESTART_PARAM"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+
 SELECT * FROM t1 ORDER BY c1;
-c1
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
+
 DROP TABLE t1;
+
+# Test encryption for rtree.
+--disable_warnings
 CREATE TABLE t1(c1 INT PRIMARY KEY, g geometry not null, spatial index(g)) ENCRYPTION = "Y" ENGINE = InnoDB;
+--enable_warnings
+
 INSERT INTO t1 VALUES(0, POINT(0, 0));
 INSERT INTO t1 VALUES(1, POINT(1, 1));
 INSERT INTO t1 VALUES(2, POINT(2, 2));
@@ -212,45 +221,35 @@ INSERT INTO t1 VALUES(6, POINT(6, 6));
 INSERT INTO t1 VALUES(7, POINT(7, 7));
 INSERT INTO t1 VALUES(8, POINT(8, 8));
 INSERT INTO t1 VALUES(9, POINT(9, 9));
+
 SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` int(11) NOT NULL,
-  `g` geometry NOT NULL,
-  PRIMARY KEY (`c1`),
-  SPATIAL KEY `g` (`g`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+
 FLUSH TABLES t1 WITH READ LOCK;
 UNLOCK TABLES;
+
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
-c1	ST_AsText(g)
-0	POINT(0 0)
-1	POINT(1 1)
-2	POINT(2 2)
-3	POINT(3 3)
-4	POINT(4 4)
-5	POINT(5 5)
-6	POINT(6 6)
-7	POINT(7 7)
-8	POINT(8 8)
-9	POINT(9 9)
+
+# Restart to confirm the encryption info can be retrieved properly.
+--let $restart_parameters="$KEYRING_RESTART_PARAM --innodb_strict_mode=OFF"
+--let $restart_hide_args= 1
+--source include/restart_mysqld.inc
+
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
-c1	ST_AsText(g)
-0	POINT(0 0)
-1	POINT(1 1)
-2	POINT(2 2)
-3	POINT(3 3)
-4	POINT(4 4)
-5	POINT(5 5)
-6	POINT(6 6)
-7	POINT(7 7)
-8	POINT(8 8)
-9	POINT(9 9)
+
 DROP TABLE t1;
+
+# Test alter table when file per table is OFF and strict mode = 0.
 SET GLOBAL innodb_file_per_table=OFF;
+
 CREATE TABLE t1 (c1 int);
+
+--disable_warnings
 ALTER TABLE t1 COMPRESSION='zlib';
+--enable_warnings
+
+--error ER_TABLESPACE_CANNOT_ENCRYPT
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
-ERROR HY000: This tablespace can't be encrypted.
-SET GLOBAL innodb_file_per_table=1;
+
+# Cleanup
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;

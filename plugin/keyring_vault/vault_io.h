@@ -2,6 +2,7 @@
 #define MYSQL_VAULT_IO_H
 
 #include <my_global.h>
+#include <boost/core/noncopyable.hpp>
 #include <logger.h>
 #include "i_vault_io.h"
 #include "vault_parser.h"
@@ -10,7 +11,7 @@
 
 namespace keyring {
 
-class Vault_io : public IVault_io
+class Vault_io : public IVault_io, private boost::noncopyable
 {
 public:
   Vault_io(ILogger *logger, IVault_curl *vault_curl,
@@ -27,7 +28,7 @@ public:
   virtual my_bool init(std::string *keyring_storage_url);
   virtual my_bool flush_to_backup(ISerialized_object *serialized_object)
   {
-    return FALSE; //we do not have backup storage in vault
+    return FALSE; // we do not have backup storage in vault
   }
   virtual my_bool flush_to_storage(ISerialized_object *serialized_object);
 
@@ -38,10 +39,11 @@ public:
     return FALSE;
   }
 
-protected:
-  my_bool write_key(IKey *key);
-  my_bool delete_key(IKey *key);
-  std::string get_errors_from_response(std::string *json_response);
+private:
+  bool write_key(const Vault_key &key);
+  bool delete_key(const Vault_key &key);
+
+  Secure_string get_errors_from_response(const Secure_string &json_response);
 
   ILogger *logger;
   IVault_curl *vault_curl;
@@ -49,6 +51,6 @@ protected:
   Vault_key_serializer vault_key_serializer;
 };
 
-} //namespace keyring
+} // namespace keyring
 
-#endif //MYSQL_VAULT_IO_H
+#endif // MYSQL_VAULT_IO_H

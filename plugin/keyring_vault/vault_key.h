@@ -17,22 +17,29 @@ struct Vault_key : public Key, public ISerialized_object
   Vault_key(const Vault_key &vault_key)
     : Key(vault_key.key_id.c_str(), vault_key.key_type.c_str(),
           vault_key.user_id.c_str(), vault_key.key.get(), vault_key.key_len)
+    , was_key_retrieved(FALSE)
   {
     this->key_operation = vault_key.key_operation;
-    this->was_key_retrieved = FALSE;
   }
   Vault_key()
   {}
+ 
+  using Key::get_key_data;
+  uchar* get_key_data() const;
+  using Key::get_key_data_size;
+  size_t get_key_data_size() const;
+  using Key::get_key_type;
+  const std::string* get_key_type() const;
 
   virtual my_bool get_next_key(IKey **key);
   virtual my_bool has_next_key();
   virtual void create_key_signature() const;
-  void xor_data();
+  virtual void xor_data();
 
 protected:
-  my_bool was_key_retrieved;
+  bool was_key_retrieved;
 };
 
-} //namespace keyring
+} // namespace keyring
 
-#endif //MYSQL_VAULT_KEY_H
+#endif // MYSQL_VAULT_KEY_H

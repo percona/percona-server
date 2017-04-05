@@ -21,6 +21,6 @@ public:
   }
 };
 
-} //namespace keyring
+} // namespace keyring
 
-#endif //MYSQL_VAULT_KEY_SERIALIZER_H
+#endif // MYSQL_VAULT_KEY_SERIALIZER_H

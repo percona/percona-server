@@ -14,6 +14,6 @@ public:
   virtual ~IVault_io() {}
 };
 
-} //namespace keyring
+} // namespace keyring
 
-#endif //I_VAULTIO_INCLUDED
+#endif // I_VAULTIO_INCLUDED

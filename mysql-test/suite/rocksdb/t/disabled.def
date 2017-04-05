@@ -25,7 +25,6 @@ locking_issues : https://jira.percona.com/browse/MYR-15
 rocksdb : https://jira.percona.com/browse/MYR-15
 rocksdb_cf_reverse : https://jira.percona.com/browse/MYR-15
 rocksdb_range : https://jira.percona.com/browse/MYR-15
-rpl_statement_not_found :  https://jira.percona.com/browse/MYR-15
 select :  https://jira.percona.com/browse/MYR-15
 select_for_update :  https://jira.percona.com/browse/MYR-15
 select_lock_in_share_mode :  https://jira.percona.com/browse/MYR-15

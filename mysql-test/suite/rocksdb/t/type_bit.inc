@@ -2,10 +2,6 @@
 # BIT column type
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 # Valid values
 
 eval CREATE TABLE t1 (
@@ -19,8 +15,10 @@ eval CREATE TABLE t1 (
 SHOW COLUMNS IN t1;
 
 ALTER TABLE t1 DROP COLUMN d;
+--error ER_INVALID_FIELD_SIZE
 eval ALTER TABLE t1 ADD COLUMN d BIT(0) $extra_col_opts;
 SHOW COLUMNS IN t1;
+eval ALTER TABLE t1 ADD COLUMN d BIT(1) $extra_col_opts;
 
 INSERT INTO t1 (a,b,c,d) VALUES (0,POW(2,20)-1,b'1111111111111111111111111111111111111111111111111111111111111111',1);
 SELECT BIN(a), HEX(b), c+0 FROM t1 WHERE d>0;
@@ -49,5 +47,3 @@ DROP TABLE t1;
 
 --error ER_TOO_BIG_DISPLAYWIDTH
 eval CREATE TABLE t1 (pk INT PRIMARY KEY, a BIT(65) $extra_col_opts) ENGINE=rocksdb;
-
-

@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS t1;
+call mtr.add_suppression("simulating bitmap write error in log_online_write_bitmap_page");
 call mtr.add_suppression("InnoDB: Error: log tracking bitmap write failed, stopping log tracking thread!");
 1st restart
 RESET CHANGED_PAGE_BITMAPS;
@@ -44,6 +45,7 @@ SET DEBUG_SYNC="RESET";
 DROP TABLE t2;
 RESET CHANGED_PAGE_BITMAPS;
 4th restart
+5th restart
 SET DEBUG_SYNC="i_s_innodb_changed_pages_range_ready SIGNAL ready WAIT_FOR finish";
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
 SET DEBUG_SYNC="now WAIT_FOR ready";
@@ -58,3 +60,23 @@ SET @@GLOBAL.innodb_track_changed_pages=TRUE;
 SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
 SET DEBUG_SYNC="now SIGNAL finish";
 DROP TABLE t1, t2;
+RESET CHANGED_PAGE_BITMAPS;
+6th restart
+#
+# Bug 1651656: Server crash if a changed page bitmap error occurs concurrently with
+# executing FLUSH CHANGED_PAGE_BITMAPS
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+7th restart
+# connection con2
+SET DEBUG_SYNC="log_online_follow_redo_log SIGNAL flush_ready WAIT_FOR finish_flush";
+FLUSH CHANGED_PAGE_BITMAPS;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR flush_ready";
+INSERT INTO t1 VALUES (1);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+SET DEBUG_SYNC="now SIGNAL finish_flush";
+# connection con2
+8th restart
+DROP TABLE t1;

@@ -1,0 +1,4 @@
+--source include/have_binlog_format_statement.inc
+
+let $slave_sql_errno = convert_error(ER_MTS_INCONSISTENT_DATA);
+--source rpl_row_not_found.inc

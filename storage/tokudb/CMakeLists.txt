@@ -1,33 +1,80 @@
-# PerconaFT only supports x86-64 and cmake-2.8.9+
-IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" AND
-    NOT CMAKE_VERSION VERSION_LESS "2.8.9")
-CHECK_CXX_SOURCE_COMPILES(
+# Copyright (c) 2017, Percona and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+# cmake include to wrap if compiler supports std cxx11 and alters compiler flags
+# On return, HAVE_STDCXX11 will be set
+
+# by default TokuDB is attempted to build, if environment is unsupported,
+# TokuDB is gently skipped
+IF (NOT DEFINED WITH_TOKUDB)
+  IF (WITHOUT_TOKUDB OR WITHOUT_TOKUDB_STORAGE_ENGINE)
+    SET (WITH_TOKUDB 0)
+  ELSE ()
+    SET (WITH_TOKUDB 1)
+  ENDIF ()
+ENDIF ()
+
+IF (NOT WITH_TOKUDB)
+  MESSAGE (STATUS "Not building with TokuDB storage engine, you must specify -DWITH_TOKUDB=1|ON|FORCE to cmake in order to build with TokuDB.")
+  RETURN ()
+ELSE ()
+  MESSAGE (STATUS "Building with TokuDB storage engine = " ${WITH_TOKUDB})
+  IF (WITH_TOKUDB STREQUAL "FORCE")
+    SET (TOKUDB_STATUS_MODE FATAL_ERROR)
+  ELSE ()
+    SET (TOKUDB_STATUS_MODE WARNING)
+  ENDIF ()
+ENDIF ()
+
+# check platform support, no 32 bit
+IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+  MESSAGE (${TOKUDB_STATUS_MODE} "x86_64 is only platform supported. ${CMAKE_SYSTEM_PROCESSOR} found. Not building TokuDB")
+  RETURN ()
+ENDIF ()
+
+# check compiler version, 4.8.0 is minimal accepted
+IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
+    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.2"))
+  MESSAGE (${TOKUDB_STATUS_MODE} "GCC >= 4.7.2 required. ${CMAKE_CXX_COMPILER_VERSION} found. Not building TokuDB")
+  RETURN ()
+ENDIF ()
+
+# check that compiler supports cxx11 and set options
+INCLUDE (check_stdcxx11)
+IF (!HAVE_STDCXX11)
+  MESSAGE (${TOKUDB_STATUS_MODE} "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does. Not building TokuDB")
+  RETURN ()
+ENDIF ()
+
+# PerconaFT only supports cmake-2.8.9+
+IF (CMAKE_VERSION VERSION_LESS "2.8.9")
+  MESSAGE (${TOKUDB_STATUS_MODE} "cmake >= 2.8.9 required. ${CMAKE_VERSION} found. Not building TokuDB")
+  RETURN ()
+ENDIF ()
+
+CHECK_CXX_SOURCE_COMPILES (
 "
 struct a {int b; int c; };
 struct a d = { .b=1, .c=2 };
 int main() { return 0; }
 " TOKUDB_OK)
-ENDIF()
 
-IF(NOT TOKUDB_OK OR WITHOUT_TOKUDB OR WITHOUT_TOKUDB_STORAGE_ENGINE)
-  RETURN()
-ENDIF()
-
-## adds a compiler flag if the compiler supports it
-include(CheckCCompilerFlag)
-include(CheckCXXCompilerFlag)
-
-# pick language dialect
-check_cxx_compiler_flag(-std=c++11 HAVE_STDCXX11)
-if (HAVE_STDCXX11)
-  string(REPLACE "-std=gnu++03" "" COMMON_CXX_FLAGS ${COMMON_CXX_FLAGS})
-  string(REPLACE "-std=gnu++03" "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-  string(REPLACE "-std=gnu++03" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-  set(CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
-else ()
-  message(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does.")
-endif ()
-
+IF (NOT TOKUDB_OK)
+  MESSAGE (${TOKUDB_STATUS_MODE} "Test compile failed. Not building TokuDB")
+  RETURN ()
+ENDIF ()
 
 SET(BUILD_TESTING OFF CACHE BOOL "")
 SET(USE_VALGRIND OFF CACHE BOOL "")
@@ -54,35 +101,7 @@ IF(DEFINED TOKUDB_NOPATCH_CONFIG)
     ADD_DEFINITIONS("-DTOKUDB_NOPATCH_CONFIG=${TOKUDB_NOPATCH_CONFIG}")
 ENDIF()
 
-macro(set_cflags_if_supported)
-  foreach(flag ${ARGN})
-    string(REGEX REPLACE "-" "_" temp_flag ${flag})
-    check_c_compiler_flag(${flag} HAVE_C_${temp_flag})
-    if (HAVE_C_${temp_flag})
-      set(CMAKE_C_FLAGS "${flag} ${CMAKE_C_FLAGS}")
-    endif ()
-    check_cxx_compiler_flag(${flag} HAVE_CXX_${temp_flag})
-    if (HAVE_CXX_${temp_flag})
-      set(CMAKE_CXX_FLAGS "${flag} ${CMAKE_CXX_FLAGS}")
-    endif ()
-  endforeach(flag)
-endmacro(set_cflags_if_supported)
-
-macro(append_cflags_if_supported)
-  foreach(flag ${ARGN})
-    string(REGEX REPLACE "-" "_" temp_flag ${flag})
-    check_c_compiler_flag(${flag} HAVE_C_${temp_flag})
-    if (HAVE_C_${temp_flag})
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
-    endif ()
-    check_cxx_compiler_flag(${flag} HAVE_CXX_${temp_flag})
-    if (HAVE_CXX_${temp_flag})
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-    endif ()
-  endforeach(flag)
-endmacro(append_cflags_if_supported)
-
-set_cflags_if_supported(-Wno-missing-field-initializers)
+prepend_cflags_if_supported(-Wno-missing-field-initializers)
 append_cflags_if_supported(-Wno-vla)
 
 IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PerconaFT/")

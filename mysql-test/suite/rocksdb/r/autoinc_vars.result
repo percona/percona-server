@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 #---------------------------
 # auto_increment_offset
 #---------------------------

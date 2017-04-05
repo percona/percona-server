@@ -1,12 +1,9 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/big_test.inc
+--source include/have_rocksdb.inc
 
 # Create a table with a primary key and one secondary key as well as one
 # more column
-CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30)) COLLATE 'latin1_bin';
+CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30)) ENGINE=ROCKSDB COLLATE 'latin1_bin';
 
 --let $file = `SELECT CONCAT(@@datadir, "test_loadfile.txt")`
 

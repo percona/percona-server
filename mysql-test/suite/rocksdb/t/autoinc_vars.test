@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # auto-increment-offset and auto-increment-increment
@@ -12,10 +12,6 @@
 # When/if the bug is fixed, 
 # the result will need to be updated
 ############################################
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 --echo #---------------------------
 --echo # auto_increment_offset
@@ -61,5 +57,3 @@ INSERT INTO t1 (a) VALUES (NULL);
 SELECT LAST_INSERT_ID();
 SELECT a FROM t1 ORDER BY a;
 DROP TABLE t1;
-
-

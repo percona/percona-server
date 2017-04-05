@@ -1,1 +1,1 @@
---rocksdb_default_cf_options=compression_per_level=kZSTDNotFinalCompression;compression_opts=-14:4:0
+--loose-rocksdb_default_cf_options=compression_per_level=kZSTDNotFinalCompression;compression_opts=-14:4:0

@@ -1,1 +1,1 @@
---rocksdb_debug_optimizer_n_rows=10
+--loose-rocksdb_debug_optimizer_n_rows=10

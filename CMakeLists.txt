@@ -208,6 +208,7 @@ INCLUDE(plugin)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
+INCLUDE(prepend_append_cflags_if_supported)
 
 # Handle options
 IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)

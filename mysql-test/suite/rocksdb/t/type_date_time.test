@@ -4,5 +4,6 @@
 # Date and time column types
 # (DATE, DATETIME, TIMESTAMP, TIME, YEAR)
 #
-
---source type_date_time.inc
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+--source suite/rocksdb/include/type_date_time.inc

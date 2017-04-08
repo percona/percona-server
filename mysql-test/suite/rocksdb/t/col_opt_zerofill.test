@@ -1,16 +1,18 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # ZEROFILL column attribute 
 #
 
-let $extra_col_opts = ZEROFILL;
+--let $extra_col_opts = ZEROFILL
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 1
 
 --echo ########################
 --echo # Fixed point columns (NUMERIC, DECIMAL)
 --echo ########################
 
---source type_fixed.inc
+--source suite/rocksdb/include/type_fixed.inc
 
 CREATE TABLE t1 (
   a DECIMAL ZEROFILL,
@@ -28,7 +30,7 @@ DROP TABLE t1;
 --echo # Floating point columns (FLOAT, DOUBLE)
 --echo ########################
 
---source type_float.inc
+--source suite/rocksdb/include/type_float.inc
 
 CREATE TABLE t1 (
   a DOUBLE ZEROFILL,
@@ -46,7 +48,7 @@ DROP TABLE t1;
 --echo # INT columns
 --echo ########################
 
---source type_int.inc
+--source suite/rocksdb/include/type_int.inc
 
 CREATE TABLE t1 (
   t TINYINT ZEROFILL,
@@ -64,4 +66,4 @@ SELECT t,s,m,i,b FROM t1;
 DROP TABLE t1;
 
 --let $extra_col_opts =
-
+--let $extra_col_opts_err =

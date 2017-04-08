@@ -1,8 +1,4 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
+--source include/have_rocksdb.inc
 
 #
 # VARCHAR column types
@@ -12,12 +8,14 @@ drop table if exists t1,t2;
 --echo # A basic test whether endspace-aware variable length encoding 
 --echo # works when in PK
 --echo #
-create table t1 ( pk varchar(10) primary key, col1 int not null) ;
+create table t1 ( pk varchar(10) primary key, col1 int not null) engine=rocksdb;
 insert into t1 values ('a', 1);
 select * from t1;
 drop table t1;
 
---source type_varchar.inc
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+--source suite/rocksdb/include/type_varchar.inc
 
 
 --echo #
@@ -25,19 +23,19 @@ drop table t1;
 --echo #
 
 --let $character_set_collate=CHARACTER SET latin1 COLLATE latin1_bin
---source type_varchar_endspace.inc
+--source suite/rocksdb/include/type_varchar_endspace.inc
 
 --let $character_set_collate=CHARACTER SET utf8 COLLATE utf8_bin
---source type_varchar_endspace.inc
+--source suite/rocksdb/include/type_varchar_endspace.inc
 
 --let $character_set_collate=CHARACTER SET ucs2 COLLATE ucs2_bin
---source type_varchar_endspace.inc
+--source suite/rocksdb/include/type_varchar_endspace.inc
 
 --let $character_set_collate=CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
---source type_varchar_endspace.inc
+--source suite/rocksdb/include/type_varchar_endspace.inc
 
 --let $character_set_collate=CHARACTER SET utf16 COLLATE utf16_bin
---source type_varchar_endspace.inc
+--source suite/rocksdb/include/type_varchar_endspace.inc
 
 create table t1 (
   pk int primary key,
@@ -54,9 +52,9 @@ select pk, hex(col1), col2 from t1 ignore index(col1) order by col1;
 drop table t1;
 
 # Issue #306 - Do not store trailing spaces for prefixed keys.
-create table t (id int primary key, email varchar(100), KEY email_i (email(30)));
+create table t (id int primary key, email varchar(100), KEY email_i (email(30))) engine=rocksdb;
 insert into t values (1, 'abcabcabcabcabcabcabcabcabcabcabc  ');
---replace_column 10 #
+--replace_column 10 # 11 #
 explain select 'email_i' as index_name, count(*) AS count from t force index(email_i);
 select 'email_i' as index_name, count(*) AS count from t force index(email_i);
 drop table t;
@@ -65,9 +63,9 @@ set @save_rocksdb_checksums_pct = @@global.rocksdb_checksums_pct;
 set @save_rocksdb_verify_row_debug_checksums = @@session.rocksdb_verify_row_debug_checksums;
 set global rocksdb_checksums_pct = 100;
 set session rocksdb_verify_row_debug_checksums = on;
-create table t (id int primary key, email varchar(100), KEY email_i (email(30)));
+create table t (id int primary key, email varchar(100), KEY email_i (email(30))) engine=rocksdb;
 insert into t values (1, 'a');
---replace_column 10 #
+--replace_column 10 # 11 #
 explain select 'email_i' as index_name, count(*) AS count from t force index(email_i);
 select 'email_i' as index_name, count(*) AS count from t force index(email_i);
 drop table t;

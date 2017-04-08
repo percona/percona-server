@@ -1,8 +1,8 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # BOOLEAN column type
 #
-
---source type_bool.inc
-
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+--source suite/rocksdb/include/type_bool.inc

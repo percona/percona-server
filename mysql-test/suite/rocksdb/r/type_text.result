@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 pk INT AUTO_INCREMENT PRIMARY KEY,
 t TEXT ,
@@ -38,6 +37,13 @@ LENGTH(t)	LENGTH(t0)	LENGTH(t1)	LENGTH(t300)	LENGTH(tm)	LENGTH(t70k)	LENGTH(t17m
 65535	65535	255	65535	65535	1048576	1048576	255	1048576	1048576
 INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
 ( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+ERROR 22001: Data too long for column 't' at row 1
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
+( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
 Warnings:
 Warning	1265	Data truncated for column 't' at row 1
 Warning	1265	Data truncated for column 't0' at row 1
@@ -45,6 +51,9 @@ Warning	1265	Data truncated for column 't1' at row 1
 Warning	1265	Data truncated for column 't300' at row 1
 Warning	1265	Data truncated for column 'tm' at row 1
 Warning	1265	Data truncated for column 'tt' at row 1
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k), LENGTH(t17m), LENGTH(tt), LENGTH(m), LENGTH(l) FROM t1;
 LENGTH(t)	LENGTH(t0)	LENGTH(t1)	LENGTH(t300)	LENGTH(tm)	LENGTH(t70k)	LENGTH(t17m)	LENGTH(tt)	LENGTH(m)	LENGTH(l)
 0	0	0	0	0	0	0	0	0	0

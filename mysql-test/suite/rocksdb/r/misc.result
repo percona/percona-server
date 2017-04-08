@@ -22,6 +22,38 @@ user(),
 'utf8_general_ci',
 'utf8_general_ci',
 'select 1');
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'modified' at row 1
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO mysql.event (
+db,
+name,
+body,
+definer,
+interval_value,
+interval_field,
+originator,
+character_set_client,
+collation_connection,
+db_collation,
+body_utf8)
+values (
+database(),
+"ev1",
+"select 1",
+user(),
+100,
+"SECOND_MICROSECOND",
+1,
+'utf8',
+'utf8_general_ci',
+'utf8_general_ci',
+'select 1');
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW EVENTS;
 ERROR 42000: This version of MySQL doesn't yet support 'MICROSECOND'
 DROP EVENT ev1;

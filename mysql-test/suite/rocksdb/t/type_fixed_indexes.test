@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Fixed point columns with indexes
@@ -6,11 +6,6 @@
 
 SET @ORIG_PAUSE_BACKGROUND_WORK = @@ROCKSDB_PAUSE_BACKGROUND_WORK;
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = 1;
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 
 CREATE TABLE t1 (
   d1 DECIMAL(10,2) PRIMARY KEY,
@@ -21,6 +16,8 @@ CREATE TABLE t1 (
 
 SHOW INDEX IN t1;
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO t1 (d1,d2,n1,n2) VALUES 
 (10.22,60.12345,123456,14.3456),
 (10.0,60.12345,123456,14),
@@ -29,6 +26,19 @@ INSERT INTO t1 (d1,d2,n1,n2) VALUES
 (0,0,0,0),
 (4540424564.23,3343303441.0,12,13),
 (15,17,23,100000);
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (d1,d2,n1,n2) VALUES 
+(10.22,60.12345,123456,14.3456),
+(10.0,60.12345,123456,14),
+(11.14,15,123456,13),
+(100,100,1,2),
+(0,0,0,0),
+(4540424564.23,3343303441.0,12,13),
+(15,17,23,100000);
+set session sql_mode=@orig_sql_mode;
 
 --replace_column 10 #
 EXPLAIN SELECT d1 FROM t1 ORDER BY d1 DESC;
@@ -54,6 +64,8 @@ CREATE TABLE t1 (
 
 SHOW INDEX IN t1;
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO t1 (d1,d2,n1,n2,pk) VALUES
 (10.22,60.12345,123456,14.3456,1),
 (10.0,60.12345,123456,14,2),
@@ -62,6 +74,20 @@ INSERT INTO t1 (d1,d2,n1,n2,pk) VALUES
 (0,0,0,0,5),
 (4540424564.23,3343303441.0,12,13,6),
 (15,17,23,100000,7);
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (d1,d2,n1,n2,pk) VALUES
+(10.22,60.12345,123456,14.3456,1),
+(10.0,60.12345,123456,14,2),
+(11.14,15,123456,13,3),
+(100,100,1,2,4),
+(0,0,0,0,5),
+(4540424564.23,3343303441.0,12,13,6),
+(15,17,23,100000,7);
+set session sql_mode=@orig_sql_mode;
+
 
 --replace_column 10 #
 EXPLAIN SELECT DISTINCT n1+n2 FROM t1;
@@ -83,6 +109,8 @@ CREATE TABLE t1 (
 
 SHOW INDEX IN t1;
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO t1 (d1,d2,n1,n2,pk) VALUES
 (10.22,60.12345,123456,14.3456,1),
 (10.0,60.12345,123456,14,2),
@@ -91,6 +119,19 @@ INSERT INTO t1 (d1,d2,n1,n2,pk) VALUES
 (0,0,0,0,5),
 (4540424564.23,3343303441.0,12,13,6),
 (15,17,23,100000,7);
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (d1,d2,n1,n2,pk) VALUES
+(10.22,60.12345,123456,14.3456,1),
+(10.0,60.12345,123456,14,2),
+(11.14,15,123456,13,3),
+(100,100,1,2,4),
+(0,0,0,0,5),
+(4540424564.23,3343303441.0,12,13,6),
+(15,17,23,100000,7);
+set session sql_mode=@orig_sql_mode;
 
 --replace_column 10 #
 EXPLAIN SELECT d2, COUNT(*) FROM t1 GROUP BY d2;

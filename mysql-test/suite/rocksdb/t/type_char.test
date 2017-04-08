@@ -1,19 +1,32 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # CHAR column types
 #
-
---source type_char.inc
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+--source suite/rocksdb/include/type_char.inc
 
 # Issue #226
-CREATE TABLE t1(c1 CHAR(0) NOT NULL);
+CREATE TABLE t1(c1 CHAR(0) NOT NULL) engine=rocksdb;
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_DATA_TOO_LONG
 INSERT INTO t1 VALUES('a');
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 VALUES('a');
+set session sql_mode=@orig_sql_mode;
+
 SELECT * FROM t1;
 DROP TABLE t1;
 
 # Issue #259
-CREATE TABLE t1(a char(10) character set utf8 collate utf8_bin primary key);
+CREATE TABLE t1(a char(10) character set utf8 collate utf8_bin primary key) engine=rocksdb;
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
-SELECT * FROM t1 LIMIT 1 UNION SELECT * FROM t1;
+# 5.7 this query is invalid and can not be executed. Nature of the bug being
+# testd is such that LIMIT is irrelevant to the result, so removed it.
+# SELECT * FROM t1 LIMIT 1 UNION SELECT * FROM t1;
+SELECT * FROM t1 UNION SELECT * FROM t1;
 DROP TABLE t1;

@@ -1,6 +1,5 @@
 SET @ORIG_PAUSE_BACKGROUND_WORK = @@ROCKSDB_PAUSE_BACKGROUND_WORK;
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = 1;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia'),
 b SET('test1','test2','test3','test4','test5'),
@@ -17,8 +16,24 @@ INSERT INTO t1 (a,b,c) VALUES
 ('Antarctica','test3','34,44'),
 ('Asia','test5','50'),
 ('Europe,S.America','test1,','39');
+ERROR 01000: Data truncated for column 'b' at row 7
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 (a,b,c) VALUES 
+('','test2,test3','01,34,44,23'),
+('',5,2),
+('N.America,Asia','test4,test2',''),
+('Africa,Europe,Asia','test2,test3','01'),
+('Antarctica','test3','34,44'),
+('Asia','test5','50'),
+('Europe,S.America','test1,','39');
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 7
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 EXPLAIN SELECT c FROM t1 ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	2	NULL	#	100.00	Using index
@@ -71,8 +86,24 @@ INSERT INTO t1 (a,b,c,pk) VALUES
 ('Antarctica','test3','34,44',5),
 ('Asia','test5','50',6),
 ('Europe,S.America','test1,','39',7);
+ERROR 01000: Data truncated for column 'b' at row 7
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 (a,b,c,pk) VALUES
+('','test2,test3','01,34,44,23',1),
+('',5,2,2),
+('N.America,Asia','test4,test2','',3),
+('Africa,Europe,Asia','test2,test3','01',4),
+('Antarctica','test3','34,44',5),
+('Asia','test5','50',6),
+('Europe,S.America','test1,','39',7);
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 7
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 EXPLAIN SELECT a FROM t1 WHERE FIND_IN_SET('Europe',a) > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where

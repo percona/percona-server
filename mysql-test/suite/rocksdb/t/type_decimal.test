@@ -1,9 +1,5 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 --source include/have_debug.inc
-
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
 
 --echo #
 --echo # Check that DECIMAL datatype supports 'index-only' scans and is decoded correctly.
@@ -17,7 +13,7 @@ create table t1 (
   col2 decimal (2,1) unsigned,
   filler varchar(100),
   key key1(col1, col2)
-)engine=rocksdb;
+) engine=rocksdb;
 insert into t1 values 
 (1,-9.1, 0.7, 'filler'),
 (2,-8.2, 1.6, 'filler'),
@@ -25,11 +21,14 @@ insert into t1 values
 (4, 1.4, 3.4, 'filler'),
 (5, 2.5, 4.3, 'filler'),
 (6, 3.3, 5.3, 'filler');
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t1 select pk+100, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+200, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+1000, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+10000, 9.0, 9.0, 'extra-data' from t1;
 insert into t1 select pk+100000, 9.0, 9.0, 'extra-data' from t1;
+set session tx_isolation=@orig_tx_iso;
 analyze table t1;
 
 --echo # The following can't use index-only:
@@ -65,7 +64,7 @@ create table t1 (
   col2 decimal (12,6) unsigned,
   filler varchar(100),
   key key1(col1, col2)
-)engine=rocksdb;
+) engine=rocksdb;
 insert into t1 values 
 (1,-900.001, 000.007, 'filler'),
 (2,-700.002, 100.006, 'filler'),
@@ -73,11 +72,14 @@ insert into t1 values
 (4, 100.004, 300.004, 'filler'),
 (5, 200.005, 400.003, 'filler'),
 (6, 300.003, 500.003, 'filler');
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t1 select pk+100, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+200, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+1000, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+10000, col1+20000, col2+20000, 'extra-data' from t1;
 insert into t1 select pk+100000, col1+20000, col2+20000, 'extra-data' from t1;
+set session tx_isolation=@orig_tx_iso;
 analyze table t1;
 
 --replace_column 10 #
@@ -85,4 +87,3 @@ explain
 select col1, col2 from t1 force index(key1) where col1 between -800 and 800;
 select col1, col2 from t1 force index(key1) where col1 between -800 and 800;
 drop table t1;
-

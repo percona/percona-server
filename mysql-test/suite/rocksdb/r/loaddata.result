@@ -1,6 +1,5 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
-LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1 
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 FIELDS TERMINATED BY ',' (a,b);
 SELECT a,b FROM t1;
 a	b
@@ -44,10 +43,23 @@ a	b
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 FIELDS TERMINATED BY ';'
   OPTIONALLY ENCLOSED BY ''''
-  LINES STARTING BY 'prefix:' 
-IGNORE 2 LINES (a,b);
+  LINES STARTING BY 'prefix:'
+  IGNORE 2 LINES (a,b);
+ERROR 01000: Row 2 was truncated; it contained more data than there were input columns
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
+FIELDS TERMINATED BY ';'
+  OPTIONALLY ENCLOSED BY ''''
+  LINES STARTING BY 'prefix:'
+  IGNORE 2 LINES (a,b);
 Warnings:
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -65,11 +77,21 @@ a	b
 5	loaded
 7	test
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
+ERROR 01000: Row 1 doesn't contain data for all columns
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
 Warning	1261	Row 3 doesn't contain data for all columns
+Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -84,18 +106,27 @@ a	b
 2	bar
 3	
 3	
-3	
+3	NULL
 4	abc
 4	abc
 4	abc
 5	loaded
 7	test
 LOAD DATA INFILE '<DATADIR>/se_replacedata.dat' REPLACE INTO TABLE t1;
+ERROR 01000: Row 1 doesn't contain data for all columns
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+LOAD DATA INFILE '<DATADIR>/se_replacedata.dat' REPLACE INTO TABLE t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
 Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -112,7 +143,7 @@ a	b
 2	bbb
 3	
 3	
-3	
+3	NULL
 3	ccc
 4	abc
 4	abc
@@ -122,9 +153,8 @@ a	b
 7	test
 DROP TABLE t1;
 set session unique_checks=0;
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
-LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1 
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 FIELDS TERMINATED BY ',' (a,b);
 SELECT a,b FROM t1;
 a	b
@@ -168,10 +198,23 @@ a	b
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 FIELDS TERMINATED BY ';'
   OPTIONALLY ENCLOSED BY ''''
-  LINES STARTING BY 'prefix:' 
-IGNORE 2 LINES (a,b);
+  LINES STARTING BY 'prefix:'
+  IGNORE 2 LINES (a,b);
+ERROR 01000: Row 2 was truncated; it contained more data than there were input columns
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
+FIELDS TERMINATED BY ';'
+  OPTIONALLY ENCLOSED BY ''''
+  LINES STARTING BY 'prefix:'
+  IGNORE 2 LINES (a,b);
 Warnings:
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -189,11 +232,21 @@ a	b
 5	loaded
 7	test
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
+ERROR 01000: Row 1 doesn't contain data for all columns
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
 Warning	1261	Row 3 doesn't contain data for all columns
+Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -208,7 +261,7 @@ a	b
 2	bar
 3	
 3	
-3	
+3	NULL
 4	abc
 4	abc
 4	abc
@@ -230,7 +283,7 @@ a	b
 2	bar
 3	
 3	
-3	
+3	NULL
 4	abc
 4	abc
 4	abc

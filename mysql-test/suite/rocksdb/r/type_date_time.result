@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 d DATE ,
 dt DATETIME ,
@@ -23,12 +22,32 @@ INSERT INTO t1 (d,dt,ts,t,y,y4,pk) VALUES
 ('9999-12-31', '9999-12-31 23:59:59', FROM_UNIXTIME(2147483647), '838:59:59', '2155', '2155', '2012-12-12 12:12:13'),
 ('0000-00-00', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '00:00:00', '0', '0', '2012-12-12 12:12:14'),
 (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm),YEAR(@tm),'2012-12-12 12:12:15');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'd' at row 3
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 (d,dt,ts,t,y,y4,pk) VALUES
+('1000-01-01', '1000-01-01 00:00:00', FROM_UNIXTIME(1), '-838:59:59', '1901', '1901', '2012-12-12 12:12:12'),
+('9999-12-31', '9999-12-31 23:59:59', FROM_UNIXTIME(2147483647), '838:59:59', '2155', '2155', '2012-12-12 12:12:13'),
+('0000-00-00', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '00:00:00', '0', '0', '2012-12-12 12:12:14'),
+(DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm),YEAR(@tm),'2012-12-12 12:12:15');
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT d,dt,ts,t,y,y4 FROM t1;
 d	dt	ts	t	y	y4
 0000-00-00	0000-00-00 00:00:00	0000-00-00 00:00:00	00:00:00	2000	2000
 1000-01-01	1000-01-01 00:00:00	1970-01-01 03:00:01	-838:59:59	1901	1901
 2012-04-09	2012-04-09 05:27:00	2012-04-09 05:27:00	05:27:00	2012	2012
 9999-12-31	9999-12-31 23:59:59	2038-01-19 06:14:07	838:59:59	2155	2155
+INSERT INTO t1 (d,dt,ts,t,y,y4,pk) VALUES
+('999-13-32', '999-11-31 00:00:00', '0', '-839:00:00', '1900', '1900', '2012-12-12 12:12:16');
+ERROR 22007: Incorrect date value: '999-13-32' for column 'd' at row 1
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (d,dt,ts,t,y,y4,pk) VALUES
 ('999-13-32', '999-11-31 00:00:00', '0', '-839:00:00', '1900', '1900', '2012-12-12 12:12:16');
 Warnings:
@@ -38,6 +57,9 @@ Warning	1264	Out of range value for column 'ts' at row 1
 Warning	1264	Out of range value for column 't' at row 1
 Warning	1264	Out of range value for column 'y' at row 1
 Warning	1264	Out of range value for column 'y4' at row 1
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT d,dt,ts,t,y,y4 FROM t1;
 d	dt	ts	t	y	y4
 1000-01-01	1000-01-01 00:00:00	1970-01-01 03:00:01	-838:59:59	1901	1901

@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Different statements not related to an engine,
@@ -8,6 +8,8 @@
 
 # hits get_error_message(int, String*) 
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_TRUNCATED_WRONG_VALUE 
 INSERT INTO mysql.event (
   db,
   name,
@@ -33,6 +35,35 @@ values (
   'utf8_general_ci',
   'select 1');
 
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO mysql.event (
+  db,
+  name,
+  body,
+  definer,
+  interval_value,
+  interval_field,
+  originator,
+  character_set_client,
+  collation_connection,
+  db_collation,
+  body_utf8)
+values (
+  database(),
+  "ev1",
+  "select 1",
+  user(),
+  100,
+  "SECOND_MICROSECOND",
+  1,
+  'utf8',
+  'utf8_general_ci',
+  'utf8_general_ci',
+  'select 1');
+set session sql_mode=@orig_sql_mode;
+
 --error ER_NOT_SUPPORTED_YET
 SHOW EVENTS;
 DROP EVENT ev1;
@@ -41,5 +72,3 @@ DROP EVENT ev1;
 --sorted_result
 SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ORDER BY TABLE_NAME;
-
-

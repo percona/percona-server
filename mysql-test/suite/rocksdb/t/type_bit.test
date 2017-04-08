@@ -3,6 +3,6 @@
 #
 # BIT column type
 #
-
---source type_bit.inc
-
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+--source suite/rocksdb/include/type_bit.inc

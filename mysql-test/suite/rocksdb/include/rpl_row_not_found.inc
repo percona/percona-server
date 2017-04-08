@@ -9,8 +9,8 @@
 --source include/master-slave.inc
 
 connection slave;
-call mtr.add_suppression("Slave SQL: Worker.*failed executing transaction");
-
+call mtr.add_suppression("Slave SQL for channel '': Worker.*failed executing transaction");
+call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.");
 connection master;
 
 create table t0 (a int) engine=myisam;

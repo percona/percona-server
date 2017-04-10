@@ -2,9 +2,9 @@
 # BLOB column types
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+# $extra_col_opts is set by a calling test
+# $extra_col_opts_ddl_err is set by a calling test
+# $extra_col_opts_dml_err is set by a calling test
 
 eval CREATE TABLE t1 (
   pk INT AUTO_INCREMENT PRIMARY KEY,
@@ -22,7 +22,7 @@ eval CREATE TABLE t1 (
 
 SHOW COLUMNS IN t1;
 
-# Valid values 
+# Valid values
 # (cannot get MAX for all columns due to max_allowed_packet limitations)
 
 INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
@@ -36,8 +36,17 @@ SELECT LENGTH(b), LENGTH(b0), LENGTH(b1), LENGTH(b300), LENGTH(bm), LENGTH(b70k)
 
 # Invalid values (produce warnings, except for mediumblob and longblob columns for which the values are within limits)
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_DATA_TOO_LONG
 INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
 ( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
+( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+set session sql_mode=@orig_sql_mode;
 
 --sorted_result
 SELECT LENGTH(b), LENGTH(b0), LENGTH(b1), LENGTH(b300), LENGTH(bm), LENGTH(b70k), LENGTH(b17m), LENGTH(t), LENGTH(m), LENGTH(l) FROM t1;
@@ -46,4 +55,3 @@ SELECT LENGTH(b), LENGTH(b0), LENGTH(b1), LENGTH(b300), LENGTH(bm), LENGTH(b70k)
 ALTER TABLE t1 ADD COLUMN bbb BLOB(4294967296);
 
 DROP TABLE t1;
-

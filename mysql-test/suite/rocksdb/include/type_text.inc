@@ -2,9 +2,9 @@
 # TEXT column types
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+# $extra_col_opts is set by a calling test
+# $extra_col_opts_ddl_err is set by a calling test
+# $extra_col_opts_dml_err is set by a calling test
 
 eval CREATE TABLE t1 (
   pk INT AUTO_INCREMENT PRIMARY KEY,
@@ -22,7 +22,7 @@ eval CREATE TABLE t1 (
 
 SHOW COLUMNS IN t1;
 
-# Valid values 
+# Valid values
 # (cannot get MAX for all columns due to max_allowed_packet limitations)
 
 INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
@@ -36,8 +36,17 @@ SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k)
 
 # Invalid values (produce warnings, except for mediumtext and longtext columns for which the values are within limits)
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_DATA_TOO_LONG
 INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
 ( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (t,t0,t1,t300,tm,t70k,t17m,tt,m,l) VALUES
+( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
+set session sql_mode=@orig_sql_mode;
 
 --sorted_result
 SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k), LENGTH(t17m), LENGTH(tt), LENGTH(m), LENGTH(l) FROM t1;
@@ -46,4 +55,3 @@ SELECT LENGTH(t), LENGTH(t0), LENGTH(t1), LENGTH(t300), LENGTH(tm), LENGTH(t70k)
 eval ALTER TABLE t1 ADD COLUMN ttt TEXT(4294967296) $extra_col_opts;
 
 DROP TABLE t1;
-

@@ -1,7 +1,7 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 let $skip_unique_check = 0;
---source loaddata.inc
+--source suite/rocksdb/include/loaddata.inc
 let $skip_unique_check = 1;
 set session unique_checks=0;
---source loaddata.inc
+--source suite/rocksdb/include/loaddata.inc

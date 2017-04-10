@@ -1,25 +1,60 @@
 #
-# VARCHAR column types
+# VARBINARY column types
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
+# $extra_col_opts is set by a calling test
+# $extra_col_opts_ddl_err is set by a calling test
+# $extra_col_opts_dml_err is set by a calling test
 
-eval CREATE TABLE t1 (
-  v0 VARCHAR(0) $extra_col_opts,
-  v1 VARCHAR(1) $extra_col_opts,
-  v64 VARCHAR(64) $extra_col_opts,
-  v65000 VARCHAR(65000) $extra_col_opts,
-  PRIMARY KEY (v64)
-) ENGINE=rocksdb;
+if ($extra_col_opts_ddl_err == 0)
+{
+  eval CREATE TABLE t1 (
+    v0 VARBINARY(0) $extra_col_opts,
+    v1 VARBINARY(1) $extra_col_opts,
+    v64 VARBINARY(64) $extra_col_opts,
+    v65000 VARBINARY(65000) $extra_col_opts,
+    PRIMARY KEY (v64)
+  ) ENGINE=rocksdb;
+  eval CREATE TABLE t2 (
+    v VARBINARY(65532) $extra_col_opts,
+    PRIMARY KEY(v(255))
+  ) ENGINE=rocksdb;
+}
+if ($extra_col_opts_ddl_err == 1)
+{
+  # 5.7 uses strict mode by default, so this will now return an error
+  --error ER_PRIMARY_CANT_HAVE_NULL
+  eval CREATE TABLE t1 (
+    v0 VARBINARY(0) $extra_col_opts,
+    v1 VARBINARY(1) $extra_col_opts,
+    v64 VARBINARY(64) $extra_col_opts,
+    v65000 VARBINARY(65000) $extra_col_opts,
+    PRIMARY KEY (v64)
+  ) ENGINE=rocksdb;
+  --error ER_PRIMARY_CANT_HAVE_NULL
+  eval CREATE TABLE t2 (
+    v VARBINARY(65532) $extra_col_opts,
+    PRIMARY KEY(v(255))
+  ) ENGINE=rocksdb;
 
+  # 5.7 _requires_ a not NULL PK and can't mimick 5.6 behavior, so we are
+  # adding in a fake key to satisfy and allow the test to resume
+  eval CREATE TABLE t1 (
+    v0 VARBINARY(0) $extra_col_opts,
+    v1 VARBINARY(1) $extra_col_opts,
+    v64 VARBINARY(64) $extra_col_opts,
+    v65000 VARBINARY(65000) $extra_col_opts,
+    fake_key INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (fake_key)
+  ) ENGINE=rocksdb;
+  eval CREATE TABLE t2 (
+    v VARBINARY(65524) $extra_col_opts,
+    fake_key INT NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (fake_key)
+  ) ENGINE=rocksdb;
+}
 SHOW COLUMNS IN t1;
-
-CREATE TABLE t2 (v VARCHAR(65532), PRIMARY KEY (v(255))) ENGINE=rocksdb;
 SHOW COLUMNS IN t2;
-
-# Valid values 
 
 INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','','','');
 INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','y','Once there, double check that an article doesn\'t already exist','Here is a list of recommended books on MariaDB and MySQL. We\'ve provided links to Amazon.com here for convenience, but they can be found at many other bookstores, both online and off.
@@ -38,14 +73,14 @@ INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','y','Once there, double check that 
       * MariaDB Crash Course by Ben Forta
             o First MariaDB book!
             o For people who want to learn SQL and the basics of MariaDB.
-            o Now shipping. Purchase at Amazon.com or your favorite bookseller. 
+            o Now shipping. Purchase at Amazon.com or your favorite bookseller.
 
       * SQL-99 Complete, Really by Peter Gulutzan & Trudy Pelzer.
             o Everything you wanted to know about the SQL 99 standard. Excellent reference book!
-            o Free to read in the Knowledgebase! 
+            o Free to read in the Knowledgebase!
 
       * MySQL (4th Edition) by Paul DuBois
-            o The \'default\' book to read if you wont to learn to use MySQL / MariaDB. 
+            o The \'default\' book to read if you wont to learn to use MySQL / MariaDB.
 
       * MySQL Cookbook by Paul DuBois
             o A lot of examples of how to use MySQL. As with all of Paul\'s books, it\'s worth its weight in gold and even enjoyable reading for such a \'dry\' subject. 
@@ -60,18 +95,46 @@ INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('','y','Once there, double check that 
             o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. ');
 
 --sorted_result
-SELECT v0,v1,v64,v65000 FROM t1;
+SELECT HEX(v0), HEX(v1), HEX(v64), HEX(v65000) FROM t1;
 
 # Invalid values
 
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_DATA_TOO_LONG
 INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (v0,v1,v64,v65000) VALUES ('y', 'yy', REPEAT('c',65), REPEAT('abcdefghi ',6501));
+set session sql_mode=@orig_sql_mode;
+
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_DATA_TOO_LONG
 INSERT INTO t1 (v0,v1,v64,v65000) SELECT v65000, v65000, CONCAT('a',v65000), CONCAT(v65000,v1) FROM t1;
 
---sorted_result
-SELECT v0, v1, v64, LENGTH(v65000) FROM t1;
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (v0,v1,v64,v65000) SELECT v65000, v65000, CONCAT('a',v65000), CONCAT(v65000,v1) FROM t1;
+set session sql_mode=@orig_sql_mode;
+set session tx_isolation=@orig_tx_iso;
 
-eval ALTER TABLE t1 ADD COLUMN v65536 VARCHAR(65536) $extra_col_opts;
+--sorted_result
+SELECT HEX(v0), HEX(v1), HEX(v64), LENGTH(HEX(v65000)) FROM t1;
+
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_TOO_BIG_FIELDLENGTH
+eval ALTER TABLE t1 ADD COLUMN v65536 VARBINARY(65536) $extra_col_opts;
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+eval ALTER TABLE t1 ADD COLUMN v65536 VARBINARY(65536) $extra_col_opts;
+set session sql_mode=@orig_sql_mode;
+
 SHOW COLUMNS IN t1;
 
 DROP TABLE t1, t2;
-

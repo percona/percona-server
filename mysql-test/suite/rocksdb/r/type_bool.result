@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 pk INT AUTO_INCREMENT PRIMARY KEY,
 b1 BOOL ,
@@ -44,9 +43,18 @@ SELECT b1,b2 FROM t1 WHERE b2 = FALSE;
 b1	b2
 0	0
 INSERT INTO t1 (b1,b2) VALUES ('a','b');
+ERROR HY000: Incorrect integer value: 'a' for column 'b1' at row 1
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 (b1,b2) VALUES ('a','b');
 Warnings:
 Warning	1366	Incorrect integer value: 'a' for column 'b1' at row 1
 Warning	1366	Incorrect integer value: 'b' for column 'b2' at row 1
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2
@@ -55,9 +63,18 @@ b1	b2
 1	1
 2	3
 INSERT INTO t1 (b1,b2) VALUES (128,-129);
+ERROR 22003: Out of range value for column 'b1' at row 1
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t1 (b1,b2) VALUES (128,-129);
 Warnings:
 Warning	1264	Out of range value for column 'b1' at row 1
 Warning	1264	Out of range value for column 'b2' at row 1
+set session sql_mode=@orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2

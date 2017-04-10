@@ -20,7 +20,7 @@
 
 set session transaction isolation level read committed;
 
---source index.inc
+--source suite/rocksdb/include/index.inc
 
 --echo #
 --echo # Issue #376: MyRocks: ORDER BY optimizer is unable to use the index extension

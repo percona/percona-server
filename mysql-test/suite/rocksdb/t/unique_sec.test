@@ -1,7 +1,7 @@
 --source include/have_rocksdb_as_default.inc
 
 let ddl= $MYSQL_TMP_DIR/unique_sec.sql;
---exec sed s/##CF##//g suite/rocksdb/t/unique_sec.inc > $ddl
+--exec sed s/##CF##//g suite/rocksdb/include/unique_sec.inc > $ddl
 --source $ddl
 
 --echo #

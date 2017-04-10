@@ -1,1 +1,1 @@
---source bloomfilter.inc
+--source suite/rocksdb/include/bloomfilter.inc

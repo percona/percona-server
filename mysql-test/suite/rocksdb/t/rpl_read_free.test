@@ -10,7 +10,7 @@ drop table if exists t1;
 
 # initialization/insert
 connection master;
---source init_stats_procedure.inc
+--source suite/rocksdb/include/init_stats_procedure.inc
 
 create table t1 (id int primary key, value int);
 insert into t1 values (1,1), (2,2), (3,3), (4,4);
@@ -296,7 +296,7 @@ select i1 from u3 where i1=100;
 # cleanup
 connection master;
 drop table t1, t2, t3, u2, u3;
---source drop_stats_procedure.inc
+--source suite/rocksdb/include/drop_stats_procedure.inc
 
 --source include/rpl_end.inc
 

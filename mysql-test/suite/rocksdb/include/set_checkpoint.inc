@@ -1,7 +1,7 @@
 # Usage:
 # let $checkpoint = <value to set the checkpoint>;
 # let $succeeds = <1 if checkpoint creation should succeed, 0 otherwise>;
-# --source set_checkpoint.inc
+# --source suite/rocksdb/include/set_checkpoint.inc
 
 
 if ($succeeds)

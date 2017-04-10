@@ -2,5 +2,5 @@
 
 let $trx_isolation = SERIALIZABLE;
 
---source consistent_snapshot.inc
+--source suite/rocksdb/include/consistent_snapshot.inc
 

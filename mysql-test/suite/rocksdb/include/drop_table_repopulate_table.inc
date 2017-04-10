@@ -1,7 +1,7 @@
 # Usage:
 # let $max = <count>;
 # let $table = <table name>;
-# --source drop_table_repopulate_table.inc
+# --source suite/rocksdb/include/drop_table_repopulate_table.inc
 #
 eval DELETE FROM $table;
 

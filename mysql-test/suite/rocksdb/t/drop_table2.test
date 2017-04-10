@@ -46,30 +46,30 @@ CREATE TABLE t4 (
 # Populate tables
 let $max = 1000;
 let $table = t1;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 let $table = t2;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 let $table = t3;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 let $table = t4;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 
 
 # Restart the server before t2's indices are deleted
 --source include/restart_mysqld.inc
 
 let $table = t1;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 let $table = t4;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 
 
 # Insert enough data to trigger compactions that eliminate t2 and t3
 let $max = 50000;
 let $table = t1;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 let $table = t4;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 
 
 # Restart the server before t4's indices are deleted
@@ -85,7 +85,7 @@ CREATE TABLE t5 (
 
 let $max = 1000;
 let $table = t5;
---source drop_table_repopulate_table.inc
+--source suite/rocksdb/include/drop_table_repopulate_table.inc
 
 let $output= $MYSQLTEST_VARDIR/tmp/size_output;
 

@@ -319,10 +319,11 @@ add_mysqld_ld_preload() {
   lib_to_add="$1"
   lib_to_add=$(readlink -f $lib_to_add)
   log_notice "Adding '$lib_to_add' to LD_PRELOAD for mysqld"
+  real_basedir=$(readlink -f ${MY_BASEDIR_VERSION})
 
   # Check if the library is in the reduced number of standard system directories
   case "$lib_to_add" in
-    /usr/lib64/* | /usr/lib/* | ${MY_BASEDIR_VERSION}/lib/*)
+    /usr/lib64/* | /usr/lib/* | ${MY_BASEDIR_VERSION}/lib/* | ${real_basedir}/lib/*)
       ;;
     *)
       log_error "ld_preload libraries can only be loaded from system directories (/usr/lib64, /usr/lib, ${MY_BASEDIR_VERSION}/lib)"

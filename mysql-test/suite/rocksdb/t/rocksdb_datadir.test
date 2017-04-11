@@ -1,8 +1,13 @@
 --source include/have_rocksdb.inc
 
+if (!$ROCKSDB_LOAD_PATH) {
+  --skip rocksdb.rocksdb_datadir requires that \$ROCKSDB_PLUGIN_LOAD_PATH is set.
+}
+
 let $ddir = $MYSQLTEST_VARDIR/.rocksdb_datadir.test.install.db;
 let $rdb_ddir = $MYSQLTEST_VARDIR/.rocksdb_datadir.test;
 let $sql_file = $MYSQLTEST_VARDIR/rocksdb_datadir.sql;
+let $rdb_plugin_load = $ROCKSDB_LOAD_PATH;
 
 --write_file $sql_file
 DROP DATABASE IF EXISTS mysqltest;
@@ -19,7 +24,7 @@ EOF
 mkdir $ddir;
 
 # Launch mysqld with non-standard rocksdb_datadir
-exec $MYSQLD_BOOTSTRAP_CMD --plugin-load=rocksdb=ha_rocksdb.so --datadir=$ddir --rocksdb_datadir=$rdb_ddir < $sql_file;
+exec $MYSQLD_BOOTSTRAP_CMD "$rdb_plugin_load" --datadir=$ddir --rocksdb_datadir=$rdb_ddir < $sql_file;
 
 --echo Check for the number of MANIFEST files
 exec ls $rdb_ddir/MANIFEST-0000* | wc -l;

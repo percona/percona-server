@@ -1,0 +1,24 @@
+!include ../my.cnf
+
+[mysqld.1]
+log-slave-updates
+gtid-mode=ON
+enforce-gtid-consistency
+
+[mysqld.2]
+master-info-repository=TABLE
+relay-log-info-repository=TABLE
+log-slave-updates
+gtid-mode=ON
+enforce-gtid-consistency
+
+[mysqld.3]
+master-info-repository=TABLE
+relay-log-info-repository=TABLE
+log-slave-updates
+gtid-mode=ON
+enforce-gtid-consistency
+
+[ENV]
+SERVER_MYPORT_3=        @mysqld.3.port
+SERVER_MYSOCK_3=        @mysqld.3.socket

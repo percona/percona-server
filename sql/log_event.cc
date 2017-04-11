@@ -7029,6 +7029,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
   if (common_header->log_pos) // 3.23 binlogs don't have log_posx
     rli_ptr->set_group_master_log_pos(common_header->log_pos);
 
+  const bool already_logged_transaction= is_already_logged_transaction(thd);
   /*
     rli repository being transactional means replication is crash safe.
     Positions are written into transactional tables ahead of commit and the
@@ -7036,7 +7037,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
     XA transactional does not actually commit so has to defer its flush_info().
    */
   if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
-      rli_ptr->is_transactional())
+      rli_ptr->is_transactional() && !already_logged_transaction)
   {
     if ((error= rli_ptr->flush_info(true)))
       goto err;
@@ -7127,7 +7128,7 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
       Where as for non transactional rli repository the positions are flushed
       only on succesful commit.
      */
-    if (!rli_ptr->is_transactional())
+    if (!rli_ptr->is_transactional() && !already_logged_transaction)
       rli_ptr->flush_info(false);
   }
 err:

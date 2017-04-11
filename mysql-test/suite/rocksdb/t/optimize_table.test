@@ -4,5 +4,5 @@
 # OPTIMIZE TABLE statements
 #
 
---source optimize_table.inc
+--source suite/rocksdb/include/optimize_table.inc
 

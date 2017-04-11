@@ -8,5 +8,5 @@
 # the storage engine does not support CHECK.
 #
 
---source check_table.inc
+--source suite/rocksdb/include/check_table.inc
 

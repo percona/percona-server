@@ -2,4 +2,4 @@
 
 -- let $truncate_table = 1
 -- let $drop_table = 0
--- source drop_table3.inc
+-- source suite/rocksdb/include/drop_table3.inc

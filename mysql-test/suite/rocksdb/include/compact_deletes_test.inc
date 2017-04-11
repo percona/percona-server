@@ -2,7 +2,7 @@
 # let $window = <window size>;
 # let $deletes = <number of deletes per window>;
 # let $file_size = <min size of the file>;
-# --source compact_deletes_test.inc
+# --source suite/rocksdb/include/compact_deletes_test.inc
 #
 
 let $save_rocksdb_compaction_sequential_deletes_window = `SELECT @@rocksdb_compaction_sequential_deletes_window`;

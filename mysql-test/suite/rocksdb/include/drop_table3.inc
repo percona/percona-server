@@ -22,7 +22,7 @@ CREATE TABLE t1 (
 # Populate tables
 let $max = 50000;
 let $table = t1;
---source drop_table3_repopulate_table.inc
+--source suite/rocksdb/include/drop_table3_repopulate_table.inc
 
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_compact_read_bytes';
 if ($truncate_table)

@@ -22,7 +22,7 @@ connection con1;
 create table test (id int primary key, value int) engine=rocksdb;
 
 ### Prevents Aborted Reads (G1a)
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test;
@@ -37,7 +37,7 @@ commit;
 
 
 ### Prevents Intermediate Reads (G1b)
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 update test set value = 101 where id = 1;
@@ -52,7 +52,7 @@ commit;
 
 
 ### Prevents Circular Information Flow (G1c)
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 update test set value = 11 where id = 1;
@@ -69,7 +69,7 @@ commit;
 
 
 ### prevents Observed Transaction Vanishes (OTV)
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 update test set value = 11 where id = 1;
@@ -94,7 +94,7 @@ commit;
 
 
 ### Predicate-Many-Preceders (PMP) -- RC does not prevent, RR prevents
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where value = 30;
@@ -107,7 +107,7 @@ connection con1;
 select * from test where value % 3 = 0;
 commit;
 
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 connection con1;
 update test set value = value + 10;
 connection con2;
@@ -134,7 +134,7 @@ commit;
 
 
 ### Lost Update (P4) -- RC does not prevent, RR prevents
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where id = 1;
@@ -162,7 +162,7 @@ commit;
 
 
 ### Read Skew (G-single) -- RC does not prevent, RR prevents
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where id = 1;
@@ -177,7 +177,7 @@ select * from test where id = 2; # RC shows 18, RR shows 20
 commit;
 
 # test using predicate dependencies
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where value % 5 = 0;
@@ -190,7 +190,7 @@ select * from test where value % 3 = 0;
 commit;
 
 # on a write predicate
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where id = 1;
@@ -214,7 +214,7 @@ commit;
 
 
 ### Write Skew (G2-item) -- Neither RC/RR prevents
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where id in (1,2);
@@ -230,7 +230,7 @@ connection con2;
 commit;
 
 ### Anti-Dependency Cycles (G2) -- Neither RC/RR prevents
---source hermitage_init.inc
+--source suite/rocksdb/include/hermitage_init.inc
 
 connection con1;
 select * from test where value % 3 = 0;

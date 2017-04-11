@@ -8,7 +8,7 @@
 
 # test CREATE
 CREATE TABLE t1 (a INT, b CHAR(8)) ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 ## test ALTER
@@ -28,7 +28,7 @@ DROP TABLE t1;
 ## test creating a table with primary and then dropping that key
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
 ALTER TABLE t1 DROP COLUMN pk;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 # test CHECK TABLE

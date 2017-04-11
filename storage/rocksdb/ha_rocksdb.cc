@@ -3664,7 +3664,6 @@ bool ha_rocksdb::init_with_fields() {
 void ha_rocksdb::convert_record_to_storage_format(
     const rocksdb::Slice &pk_packed_slice,
     Rdb_string_writer *const pk_unpack_info, rocksdb::Slice *const packed_rec) {
-  DBUG_ASSERT_IMP(m_maybe_unpack_info, pk_unpack_info);
   m_storage_record.length(0);
 
   /* All NULL bits are initially 0 */

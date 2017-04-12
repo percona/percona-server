@@ -7376,6 +7376,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     case Item_func::SP_CROSSES_FUNC:
     case Item_func::SP_WITHIN_FUNC:
     case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_COVERS_FUNC:
     case Item_func::SP_OVERLAPS_FUNC:
       break;
     default:
@@ -7630,6 +7631,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     break;
 
   case Item_func::SP_CONTAINS_FUNC:
+  case Item_func::SP_COVERS_FUNC:
     /*
       Adjust the rkey_func_flag as it's assumed and observed that both
       MyISAM and Innodb implement this function in reverse order.

@@ -334,13 +334,16 @@ typedef struct _gl_index_id_s {
   }
 } GL_INDEX_ID;
 
-enum operation_type {
+enum operation_type : int {
   ROWS_DELETED = 0,
   ROWS_INSERTED,
   ROWS_READ,
   ROWS_UPDATED,
+  ROWS_EXPIRED,
   ROWS_MAX
 };
+
+enum query_type : int { QUERIES_POINT = 0, QUERIES_RANGE, QUERIES_MAX };
 
 #if defined(HAVE_SCHED_GETCPU)
 #define RDB_INDEXER get_sched_indexer_t
@@ -355,6 +358,8 @@ struct st_global_stats {
   // system_rows_ stats are only for system
   // tables. They are not counted in rows_* stats.
   ib_counter_t<ulonglong, 64, RDB_INDEXER> system_rows[ROWS_MAX];
+
+  ib_counter_t<ulonglong, 64, RDB_INDEXER> queries[QUERIES_MAX];
 };
 
 /* Struct used for exporting status to MySQL */
@@ -363,11 +368,21 @@ struct st_export_stats {
   ulonglong rows_inserted;
   ulonglong rows_read;
   ulonglong rows_updated;
+  ulonglong rows_expired;
 
   ulonglong system_rows_deleted;
   ulonglong system_rows_inserted;
   ulonglong system_rows_read;
   ulonglong system_rows_updated;
+
+  ulonglong queries_point;
+  ulonglong queries_range;
+};
+
+/* Struct used for exporting RocksDB memory status */
+struct st_memory_stats {
+  ulonglong memtable_total;
+  ulonglong memtable_unflushed;
 };
 
 } // namespace myrocks

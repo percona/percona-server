@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_client_test\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/25/2016
+.\"      Date: 03/14/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CLIENT_TEST" "1" "11/25/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL_CLIENT_TEST" "1" "03/14/2017" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,8 +43,11 @@ The
 program is used for testing aspects of the MySQL client API that cannot be tested using
 \fBmysqltest\fR
 and its test language\&.
+\fBmysql_client_test\fR
+is run as part of the test suite\&.
+.PP
 \fBmysql_client_test_embedded\fR
-is similar but used for testing the embedded server\&. Both programs are run as part of the test suite\&.
+is similar but is used for testing the embedded server\&. This program is available only prior to MySQL 8\&.0\&.
 .PP
 The source code for the programs can be found in in
 tests/mysql_client_test\&.c
@@ -303,7 +306,7 @@ mysql\-test/var\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -4,11 +4,14 @@ col1 int not null,
 col2 int not null, 
 key(col1)
 ) engine=rocksdb;
-create table ten(a int primary key);
+create table ten(a int primary key) engine=rocksdb;
 insert into ten values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-create table one_k(a int primary key);
+create table one_k(a int primary key) engine=rocksdb;
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into one_k select A.a + B.a* 10 + C.a * 100 from ten A, ten B, ten C;
 insert into t1 select a,a,a from one_k;
+set session tx_isolation=@orig_tx_iso;
 # Start the transaction, get the snapshot
 begin;
 select * from t1 where col1<10;
@@ -28,5 +31,5 @@ begin;
 update t1 set col2=123456 where pk=0;
 commit;
 update t1 set col2=col2+1 where col1 < 10 limit 5;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update t1 set col2=col2+1 where col1 < 10 limit 5
 drop table t1, ten, one_k;

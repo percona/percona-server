@@ -1,3 +1,4 @@
+set session tx_isolation='READ-COMMITTED';
 create table t0 (a int) engine=myisam;
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (
@@ -35,8 +36,10 @@ pk	a	b
 19	19	19
 explain 
 select a from t1 order by a limit 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	a	4	NULL	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	4	NULL	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 5
 select a from t1 order by a limit 5;
 a
 0
@@ -46,8 +49,10 @@ a
 4
 explain 
 select b from t1 order by b limit 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	4	NULL	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	b	4	NULL	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` limit 5
 select a from t1 order by a limit 5;
 a
 0
@@ -57,8 +62,10 @@ a
 4
 explain 
 select a from t1 order by a desc limit 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	a	4	NULL	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	4	NULL	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` desc limit 5
 select a from t1 order by a desc limit 5;
 a
 19
@@ -68,8 +75,10 @@ a
 15
 explain 
 select b from t1 order by b desc limit 5;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	4	NULL	#	Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	b	4	NULL	#	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` order by `test`.`t1`.`b` desc limit 5
 select b from t1 order by b desc limit 5;
 b
 19

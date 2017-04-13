@@ -17,10 +17,6 @@
 --echo -   updated should not be locked unless rocksdb_lock_scanned_rows is on
 --echo -----------------------------------------------------------------------
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
-
 SELECT @@global.rocksdb_lock_scanned_rows;
 
 if ($lock_scanned_rows)
@@ -30,8 +26,8 @@ if ($lock_scanned_rows)
   SET GLOBAL rocksdb_lock_scanned_rows=ON;
 }
 
-CREATE TABLE t1(id INT PRIMARY KEY, value INT);
-CREATE TABLE t2(id INT PRIMARY KEY, value INT);
+CREATE TABLE t1(id INT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
+CREATE TABLE t2(id INT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
 INSERT INTO t2 VALUES (1,1), (2,2), (3,3), (4,4), (5,5);
 
@@ -69,6 +65,10 @@ if ($lock_scanned_rows == 0)
   UPDATE t1 JOIN t2 ON t1.id = t2.id SET t1.value=t1.value+100 WHERE t2.id=3;
 
   connection con2;
+  if ($isolation_level == "REPEATABLE READ")
+  {
+    --error ER_UNKNOWN_ERROR
+  }
   UPDATE t2 SET value=value+100;
   SELECT * FROM t2;
 }

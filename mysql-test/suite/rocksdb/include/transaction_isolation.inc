@@ -13,10 +13,6 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 connect (con1,localhost,root,,);
 eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
 connect (con2,localhost,root,,);
@@ -33,7 +29,6 @@ SELECT a FROM t1; # First snapshot
 connection con2;
 
 BEGIN;
---error 0,ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 (a) VALUES(1); 
 
 connection con1;
@@ -41,14 +36,16 @@ connection con1;
 SELECT a FROM t1; # Second snapshot
 
 connection con2;
---error 0,ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 (a) VALUES (2); 
 
 connection con1;
 --sorted_result
 SELECT a FROM t1; # Third snapshot
 
---error 0,ER_LOCK_WAIT_TIMEOUT
+if ($trx_isolation == "REPEATABLE READ")
+{
+  --error ER_UNKNOWN_ERROR
+}
 INSERT INTO t1 (a) SELECT a+100 FROM t1; 
 
 --sorted_result
@@ -70,7 +67,10 @@ SELECT a FROM t1; # Inside the transaction
 # The test will have a 'logical' result for repeatable read, even although
 # we currently don't have an engine which works this way.
 
---error 0,ER_LOCK_WAIT_TIMEOUT
+if ($trx_isolation == "REPEATABLE READ")
+{
+  --error ER_UNKNOWN_ERROR
+}
 INSERT INTO t1 (a) SELECT a+200 FROM t1; 
 
 --sorted_result
@@ -98,7 +98,6 @@ SELECT a from t2;
 INSERT INTO t2 (a) VALUES (1), (3); # failure
 
 connection con2;
---error 0,ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t2 (a) VALUES (2);
 COMMIT;
 
@@ -133,7 +132,10 @@ INSERT INTO t3 (pk) VALUES(1) ON DUPLICATE KEY UPDATE count=count+1;
 COMMIT;
 
 connection con1;
---error 0,ER_LOCK_DEADLOCK
+if ($trx_isolation == "REPEATABLE READ")
+{
+  --error ER_LOCK_DEADLOCK
+}
 INSERT INTO t3 (pk) VALUES(1) ON DUPLICATE KEY UPDATE count=count+1;
 COMMIT;
 
@@ -147,4 +149,3 @@ disconnect con2;
 DROP TABLE t3;
 
 --source include/wait_until_count_sessions.inc
-

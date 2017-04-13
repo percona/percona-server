@@ -6,10 +6,6 @@
 ### See full test cases here:
 ### https://github.com/ept/hermitage/blob/master/mysql.md
 
---disable_warnings
-DROP TABLE IF EXISTS test;
---enable_warnings
-
 connect (con1,localhost,root,,);
 eval SET SESSION TRANSACTION ISOLATION LEVEL $trx_isolation;
 connect (con2,localhost,root,,);
@@ -109,6 +105,11 @@ commit;
 
 --source suite/rocksdb/include/hermitage_init.inc
 connection con1;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
+if ($trx_isolation == "REPEATABLE READ")
+{
+  --error ER_UNKNOWN_ERROR
+}
 update test set value = value + 10;
 connection con2;
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_snapshot_conflict_errors';
@@ -123,12 +124,12 @@ if ($trx_isolation == "READ COMMITTED")
   # RC: Returns 2 => 30
   select * from test;
 }
+# MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
 if ($trx_isolation == "REPEATABLE READ")
 {
-  --error ER_LOCK_DEADLOCK
+  --error ER_UNKNOWN_ERROR
   reap;
   select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_snapshot_conflict_errors';
-
 }
 commit;
 
@@ -182,6 +183,12 @@ commit;
 connection con1;
 select * from test where value % 5 = 0;
 connection con2;
+
+# MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
+if ($trx_isolation == "REPEATABLE READ")
+{
+  --error ER_UNKNOWN_ERROR
+}
 update test set value = 12 where value = 10;
 commit;
 connection con1;
@@ -205,9 +212,10 @@ if ($trx_isolation == "READ COMMITTED")
   delete from test where value = 20; # doesn't delete anything
   select * from test where id = 2; # shows 2 => 18
 }
+# MyRocks does not support gap locks in REPEATABLE-READ mode, expect error
 if ($trx_isolation == "REPEATABLE READ")
 {
-  --error ER_LOCK_DEADLOCK
+  --error ER_UNKNOWN_ERROR
   delete from test where value = 20;
 }
 commit;

@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS test;
 connect  con1,localhost,root,,;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 connect  con2,localhost,root,,;
@@ -325,7 +324,6 @@ drop table test;
 disconnect con1;
 disconnect con2;
 disconnect con3;
-DROP TABLE IF EXISTS test;
 connect  con1,localhost,root,,;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 connect  con2,localhost,root,,;
@@ -473,6 +471,7 @@ connection con3;
 begin;
 connection con1;
 update test set value = value + 10;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update test set value = value + 10
 connection con2;
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_snapshot_conflict_errors';
 select * from test;
@@ -483,10 +482,10 @@ delete from test where value = 20;
 connection con1;
 commit;
 connection con2;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: delete from test where value = 20
 select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_snapshot_conflict_errors';
 variable_value-@a
-1
+0
 commit;
 connection con1;
 truncate table test;
@@ -555,6 +554,7 @@ id	value
 2	20
 connection con2;
 update test set value = 12 where value = 10;
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: update test set value = 12 where value = 10
 commit;
 connection con1;
 select * from test where value % 3 = 0;
@@ -582,7 +582,7 @@ update test set value = 18 where id = 2;
 commit;
 connection con1;
 delete from test where value = 20;
-ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ERROR HY000: Using Gap Lock without full unique key in multi-table or multi-statement transactions is not allowed. You need to either rewrite queries to use all unique key columns in WHERE equal conditions, or rewrite to single-table, single-statement transaction.  Query: delete from test where value = 20
 commit;
 connection con1;
 truncate table test;

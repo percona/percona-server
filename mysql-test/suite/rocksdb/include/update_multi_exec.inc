@@ -24,4 +24,3 @@ SELECT c,d FROM t2;
 
 # Cleanup
 DROP TABLE t1, t2;
-

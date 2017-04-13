@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 let $isolation_level = REPEATABLE READ;
 --source suite/rocksdb/include/locking_issues_case1_1.inc
@@ -39,14 +39,20 @@ let $isolation_level = REPEATABLE READ;
 let $isolation_level = READ COMMITTED;
 --source suite/rocksdb/include/locking_issues_case4.inc
 
-let $isolation_level = REPEATABLE READ;
---source suite/rocksdb/include/locking_issues_case5.inc
+# MyRocks does not support gap locks in REPEATABLE-READ mode
+# this sub test then effectively tests nothing so do not do it until
+# we have gap locking functionality present
+#let $isolation_level = REPEATABLE READ;
+#--source suite/rocksdb/include/locking_issues_case5.inc
 
 let $isolation_level = READ COMMITTED;
 --source suite/rocksdb/include/locking_issues_case5.inc
 
-let $isolation_level = REPEATABLE READ;
---source suite/rocksdb/include/locking_issues_case6.inc
+# MyRocks does not support gap locks in REPEATABLE-READ mode
+# this sub test then effectively tests nothing so do not do it until
+# we have gap locking functionality present
+#let $isolation_level = REPEATABLE READ;
+#--source suite/rocksdb/include/locking_issues_case6.inc
 
 let $isolation_level = READ COMMITTED;
 --source suite/rocksdb/include/locking_issues_case6.inc

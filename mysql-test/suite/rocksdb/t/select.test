@@ -1,17 +1,17 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Basic SELECT statements
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this test
+# does not require RR ISO to complete, so lets alter the ISO to RC
+set session tx_isolation='READ-COMMITTED';
 
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (100,'foobar'),(1,'z'),(200,'bar');
 
-CREATE TABLE t2 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t2 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t2 (a,b) SELECT a, b FROM t1;
 INSERT INTO t1 (a,b) SELECT a, b FROM t2;
 
@@ -199,4 +199,3 @@ SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION ALL SELECT a,b FROM t1;
 
 # Cleanup
 DROP TABLE t1, t2;
-

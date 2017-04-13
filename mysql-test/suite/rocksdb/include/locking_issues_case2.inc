@@ -18,10 +18,6 @@
 --echo -   rocksdb_lock_scanned_rows is on
 --echo -----------------------------------------------------------------------
 
---disable_warnings
-DROP TABLE IF EXISTS t0;
---enable_warnings
-
 SELECT @@global.rocksdb_lock_scanned_rows;
 
 if ($lock_scanned_rows)
@@ -31,7 +27,7 @@ if ($lock_scanned_rows)
   SET GLOBAL rocksdb_lock_scanned_rows=ON;
 }
 
-CREATE TABLE t0(id INT PRIMARY KEY, value INT);
+CREATE TABLE t0(id INT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
 INSERT INTO t0 VALUES (1,0), (2,1), (3,0), (4,0), (5,1);
 
 connect (con1,localhost,root,,);
@@ -49,16 +45,28 @@ if ($lock_scanned_rows == 1)
 {
   connection con1;
   # This is expected to leave locks on all the rows in t0
+  # if in READ COMMITED, REPEATABLEREAD is a gap lock violation
+  if ($isolation_level == "REPEATABLE READ")
+  {
+    --error ER_UNKNOWN_ERROR
+  }
   SELECT * FROM t0 WHERE value > 0 FOR UPDATE;
 
   connection con2;
-  --error ER_LOCK_WAIT_TIMEOUT
+  if ($isolation_level == "READ COMMITTED")
+  {
+    --error ER_LOCK_WAIT_TIMEOUT
+  }
   UPDATE t0 SET VALUE=10 WHERE id=1;
 }
 
 if ($lock_scanned_rows == 0)
 {
   connection con1;
+  if ($isolation_level == "REPEATABLE READ")
+  {
+    --error ER_UNKNOWN_ERROR
+  }
   # This is expected to release locks on rows with value=0
   SELECT * FROM t0 WHERE value > 0 FOR UPDATE;
 
@@ -66,12 +74,19 @@ if ($lock_scanned_rows == 0)
   # This should succeed as con1 should have released the lock on row (1,0)
   UPDATE t0 SET VALUE=10 WHERE id=1;
 
-  # This should fail because lock on row (5,1) is still held.
-  --error ER_LOCK_WAIT_TIMEOUT
+  if ($isolation_level == "READ COMMITTED")
+  {
+    # This should fail because lock on row (5,1) is still held.
+    --error ER_LOCK_WAIT_TIMEOUT
+  }
   UPDATE t0 SET VALUE=10 WHERE id=5;
 
   connection con1;
   # Do another operation
+  if ($isolation_level == "REPEATABLE READ")
+  {
+    --error ER_LOCK_WAIT_TIMEOUT
+  }
   UPDATE t0 SET value=100 WHERE id in (4,5) and value>0;
 
   connection con2;

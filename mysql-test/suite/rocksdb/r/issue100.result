@@ -1,3 +1,4 @@
+set session tx_isolation='READ-COMMITTED';
 create table t1 (
 id int, 
 value int, 

@@ -1,5 +1,5 @@
-DROP TABLE IF EXISTS t1,t2;
-CREATE TABLE t1 (a INT, b CHAR(8), PRIMARY KEY (a)) ENGINE=rocksdb;
+set session tx_isolation='READ-COMMITTED';
+CREATE TABLE t1 (a INT, b CHAR(8), PRIMARY KEY (a)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 DELETE QUICK FROM t1 WHERE a = 1 OR b > 'foo';
 SELECT a,b FROM t1;
@@ -8,7 +8,7 @@ a	b
 3	c
 4	d
 5	e
-CREATE TABLE t2 (c CHAR(8), d INT, PRIMARY KEY (c)) ENGINE=rocksdb;
+CREATE TABLE t2 (c CHAR(8), d INT, PRIMARY KEY (c)) ENGINE=ROCKSDB;
 INSERT INTO t2 (c,d) SELECT b, a FROM t1;
 SELECT c,d FROM t2;
 c	d

@@ -1497,6 +1497,8 @@ rocksdb_system_rows_deleted	#
 rocksdb_system_rows_inserted	#
 rocksdb_system_rows_read	#
 rocksdb_system_rows_updated	#
+rocksdb_memtable_total	#
+rocksdb_memtable_unflushed	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_data_hit	#
 rocksdb_block_cache_data_miss	#
@@ -1566,6 +1568,8 @@ rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
 rocksdb_system_rows_updated
+rocksdb_memtable_total
+rocksdb_memtable_unflushed
 rocksdb_block_cache_add
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
@@ -1637,6 +1641,8 @@ rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
 rocksdb_system_rows_updated
+rocksdb_memtable_total
+rocksdb_memtable_unflushed
 rocksdb_block_cache_add
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss

@@ -1,9 +1,8 @@
---source include/master-slave.inc
+--source include/have_rocksdb.inc
 --source include/have_binlog_format_row.inc
+--source include/master-slave.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--source include/count_sessions.inc
 
 --echo # Establish connection con1 (user=root)
 connect (con1,localhost,root,,);
@@ -34,14 +33,13 @@ eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_
 
 --echo # Switch to connection con1
 connection con1;
-CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1);
 
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
---error ER_UNKNOWN_ERROR
+# This now behaves slightly different in Percona Server,
+# it should print Warning 138 to error log but allow txn to start
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
---error ER_UNKNOWN_ERROR
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
 ROLLBACK;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
@@ -50,14 +48,13 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 --disable_result_log
 let $x=1000;
 while ($x) {
-  START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
   dec $x;
 }
 --enable_query_log
 --enable_result_log
 
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
 
 --echo # Switch to connection con2
 connection con2;
@@ -78,19 +75,21 @@ DROP TABLE t1;
 
 --echo # Switch to connection con1
 connection con1;
-CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1);
 
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
+# Percona Server CONSISTENT SNAPSHOT behaves like upstream in that it does not
+# record/print binlog position as a result, so we can ignore output from these
+# and then need to go get binlog position on our own.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
 
-let $binlog_pos = query_get_value(START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT, Position, 1);
+LOCK BINLOG FOR BACKUP;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+let $binlog_pos = query_get_value(SHOW MASTER STATUS, Position, 1);
+UNLOCK BINLOG;
 
 --echo # Switch to connection con2
 connection con2;
@@ -111,7 +110,14 @@ COMMIT;
 sync_slave_with_master slave;
 
 CREATE TABLE t1_backup LIKE t1;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# the test does not require RR ISO to complete, so lets temporarily alter the
+# ISO to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
+set session tx_isolation=@orig_tx_iso;
+
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -121,7 +127,7 @@ eval LOAD DATA INFILE '$outfile' INTO TABLE t1;
 SELECT * FROM t1;
 
 --replace_result $MASTER_MYPORT MASTER_PORT $binlog_pos binlog_pos
-eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root",master_log_file="master-bin.000001",master_log_pos=$binlog_pos;
+eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$MASTER_MYPORT,master_user="root",master_log_file="master-bin.000001",master_log_pos=$binlog_pos,master_auto_position=0;
 --source include/start_slave.inc
 
 connection master;
@@ -141,7 +147,7 @@ DROP TABLE t1;
 
 --echo # Switch to connection con1
 connection con1;
-CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1);
 
 --echo # async queries from con2
@@ -155,7 +161,10 @@ send INSERT INTO t1 VALUES(21);
 --echo # Switch to connection con1
 connection con1;
 
-let $binlog_pos = query_get_value(START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT, Position, 1);
+LOCK BINLOG FOR BACKUP;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+let $binlog_pos = query_get_value(SHOW MASTER STATUS, Position, 1);
+UNLOCK BINLOG;
 
 --echo # Switch to connection con4
 connection con4;
@@ -181,7 +190,14 @@ reap;
 sync_slave_with_master slave;
 
 CREATE TABLE t1_backup LIKE t1;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# the test does not require RR ISO to complete, so lets temporarily alter the
+# ISO to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
+set session tx_isolation=@orig_tx_iso;
+
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -214,19 +230,18 @@ DROP TABLE t1;
 
 --echo # Switch to connection con1
 connection con1;
-CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1);
 
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
--- replace_regex /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/UUID/
-START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
 
-let $gtid_executed = query_get_value(START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT, Gtid_executed, 1);
+LOCK BINLOG FOR BACKUP;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+let $gtid_executed = query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1);
+UNLOCK BINLOG;
 
 --echo # Switch to connection con2
 connection con2;
@@ -247,7 +262,14 @@ COMMIT;
 sync_slave_with_master slave;
 
 CREATE TABLE t1_backup LIKE t1;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# the test does not require RR ISO to complete, so lets temporarily alter the
+# ISO to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
+set session tx_isolation=@orig_tx_iso;
+
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -279,7 +301,7 @@ DROP TABLE t1;
 
 --echo # Switch to connection con1
 connection con1;
-CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1);
 
 --echo # async queries from con2
@@ -293,7 +315,10 @@ send INSERT INTO t1 VALUES(21);
 --echo # Switch to connection con1
 connection con1;
 
-let $gtid_executed = query_get_value(START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT, Gtid_executed, 1);
+LOCK BINLOG FOR BACKUP;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+let $gtid_executed = query_get_value(SHOW MASTER STATUS, Executed_Gtid_Set, 1);
+UNLOCK BINLOG;
 
 --echo # Switch to connection con4
 connection con4;
@@ -319,7 +344,14 @@ reap;
 sync_slave_with_master slave;
 
 CREATE TABLE t1_backup LIKE t1;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# the test does not require RR ISO to complete, so lets temporarily alter the
+# ISO to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 INSERT INTO t1_backup SELECT * FROM t1;
+set session tx_isolation=@orig_tx_iso;
+
 --source include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -369,5 +401,7 @@ sync_slave_with_master slave;
 --source include/stop_slave.inc
 CHANGE MASTER to master_auto_position=0;
 --source include/start_slave.inc
+
+--source include/wait_until_count_sessions.inc
 
 --source include/rpl_end.inc

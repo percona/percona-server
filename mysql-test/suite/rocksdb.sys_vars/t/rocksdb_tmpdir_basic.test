@@ -35,4 +35,3 @@ set global rocksdb_tmpdir=1e1;
 
 SET @@global.rocksdb_tmpdir = @start_global_value;
 SELECT @@global.rocksdb_tmpdir;
-

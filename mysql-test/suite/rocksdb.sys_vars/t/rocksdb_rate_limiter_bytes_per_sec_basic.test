@@ -1,4 +1,5 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
+--source include/have_myisam.inc
 
 # Attempt to set the value - this should generate a warning as we can't set it to or from 0
 SET @@global.rocksdb_rate_limiter_bytes_per_sec = 10000;

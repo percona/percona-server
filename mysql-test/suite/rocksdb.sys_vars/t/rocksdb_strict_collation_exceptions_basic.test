@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # We cannot use the rocskdb_sys_var.inc script as some of the strings we set
 # need to be quoted and that doesn't work with this script.  Run through

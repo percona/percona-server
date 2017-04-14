@@ -1,14 +1,10 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
 
 ##
 ## test cardinality for analyze statements after flushing table
 ##
 
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 INSERT INTO t1 (b) VALUES (1);
 INSERT INTO t1 (b) VALUES (2);
@@ -29,7 +25,7 @@ DROP TABLE t1;
 ## test data length for show table status statements for tables with few rows
 ##
 
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 INSERT INTO t1 (b) VALUES (1);
 INSERT INTO t1 (b) VALUES (2);

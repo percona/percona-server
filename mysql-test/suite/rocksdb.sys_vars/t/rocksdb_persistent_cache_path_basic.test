@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 --source include/have_myisam.inc
 
 CREATE TABLE valid_values (value varchar(255)) ENGINE=myisam;

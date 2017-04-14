@@ -1,8 +1,4 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
 
 set session rocksdb_merge_buf_size=250;
 set session rocksdb_merge_combine_read_size=1000;

@@ -42,18 +42,19 @@ insert into t1 values (0, 'ab', 'a-b');
 insert into t1 values (1, 'a ', 'a-space');
 insert into t1 values (2, 'a',  'a');
 insert into t1 values (3, 'a  \t', 'a-tab');
+analyze table t1;
 
 --echo # Must show 'using index' for latin1_bin and utf8_bin:
 --replace_column 10 # 11 #
 explain
-select col1, hex(col1) from t1;
-select col1, hex(col1) from t1;
+select col1, hex(col1) from t1 order by col1;
+select col1, hex(col1) from t1 order by col1;
 
 --echo # Must show 'using index' for latin1_bin and utf8_bin:
 --replace_column 5 # 7 # 8 # 10 # 11 #
 explain
-select col1, hex(col1) from t1 where col1 < 'b';
-select col1, hex(col1) from t1 where col1 < 'b';
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
+select col1, hex(col1) from t1 where col1 < 'b' order by col1;
 
 delete from t1;
 insert into t1 values(10, '', 'empty');
@@ -66,18 +67,18 @@ insert into t1 values(21, repeat(' ', 9), '9x-space');
 insert into t1 values(22, repeat(' ',17), '17x-space');
 insert into t1 values(23, repeat(' ',18), '18x-space');
 
---replace_column 5 # 10 # 11 #
+--replace_column 5 # 7 # 8 # 10 # 11 #
 explain
-select pk, col1, hex(col1), length(col1) from t1;
-select pk, col1, hex(col1), length(col1) from t1;
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
+select pk, col1, hex(col1), length(col1) from t1 order by col1;
 drop table t1;
 
 create table t1 (pk int primary key, a varchar(512), key(a)) engine=rocksdb;
 insert into t1 values (1, concat('a', repeat(' ', 300)));
 insert into t1 values (2, concat('b', repeat(' ', 300)));
 
-select pk,length(a) from t1 force index(a) where a < 'zz';
-select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz';
-select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz';
+select pk,length(a) from t1 force index(a) where a < 'zz' order by pk;
+select pk,length(a),rtrim(a) from t1 force index(a) where a < 'zz' order by pk;
+select pk,length(a),rtrim(a) from t1 ignore index(a) where a < 'zz' order by pk;
 
 drop table t1;

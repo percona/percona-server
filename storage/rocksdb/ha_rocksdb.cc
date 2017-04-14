@@ -3308,6 +3308,17 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  for (const auto &cf_handle : cf_manager.get_all_cf()) {
+    uint flags;
+    if (!dict_manager.get_cf_flags(cf_handle->GetID(), &flags)) {
+      const std::unique_ptr<rocksdb::WriteBatch> wb = dict_manager.begin();
+      rocksdb::WriteBatch *const batch = wb.get();
+      dict_manager.add_cf_flags(batch, cf_handle->GetID(), 0);
+      dict_manager.commit(batch);
+    }
+  }
+
+
   Rdb_sst_info::init(rdb);
 
   /*

@@ -1,5 +1,4 @@
-drop table if exists t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -30,7 +29,7 @@ SHOW INDEXES FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	a	A	3	NULL	NULL		LSMTREE		
 DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

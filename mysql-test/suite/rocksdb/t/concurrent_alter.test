@@ -1,12 +1,8 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Generate concurrent requests to alter a table using mysqlslap
 #
-
---disable_warnings
-DROP DATABASE IF EXISTS mysqlslap;
---enable_warnings
 
 CREATE DATABASE mysqlslap;
 
@@ -30,5 +26,7 @@ EOF
 --exec bash $MYSQL_TMP_DIR/concurrent_alter.sh
 
 SHOW CREATE TABLE a1;
+
+--remove_file $MYSQL_TMP_DIR/concurrent_alter.sh
 
 DROP DATABASE mysqlslap;

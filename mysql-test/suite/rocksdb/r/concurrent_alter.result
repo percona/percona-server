@@ -1,4 +1,3 @@
-DROP DATABASE IF EXISTS mysqlslap;
 CREATE DATABASE mysqlslap;
 use mysqlslap;
 CREATE TABLE a1 (a int, b int) ENGINE=ROCKSDB;

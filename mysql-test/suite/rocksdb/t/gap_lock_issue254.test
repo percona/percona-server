@@ -1,8 +1,8 @@
 -- source include/have_binlog_format_row.inc
--- source include/have_rocksdb_as_default.inc
+-- source include/have_rocksdb.inc
 
 # For issue#254
-create table t (id int primary key, value int);
+create table t (id int primary key, value int) engine=rocksdb;
 begin;
 update t set value=100 where id in (1, 2);
 commit;
@@ -11,4 +11,3 @@ begin;
 select * from t for update;
 commit;
 drop table t;
-

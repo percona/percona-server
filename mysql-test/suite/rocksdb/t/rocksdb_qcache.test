@@ -1,12 +1,14 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # Important:
 # The test needs to be run with --mysqld=--query-cache-type=1
 
--- source include/have_query_cache.inc
+--source include/have_query_cache.inc
+--source include/count_sessions.inc
+
 --enable_connect_log
 
-create table t1 (pk int primary key, c char(8)) engine=RocksDB;
+create table t1 (pk int primary key, c char(8)) engine=rocksdb;
 insert into t1 values (1,'new'),(2,'new');
 
 select * from t1;
@@ -28,3 +30,7 @@ show status like 'Qcache_not_cached';
 show global status like 'Qcache_hits';
 
 drop table t1;
+
+--disconnect con1
+
+--source include/wait_until_count_sessions.inc

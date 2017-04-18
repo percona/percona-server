@@ -1,13 +1,9 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Information Schema DDL
 #
 
---disable_warnings
-DROP TABLE IF EXISTS is_ddl_t1;
-DROP TABLE IF EXISTS is_ddl_t2;
---enable_warnings
 
 CREATE TABLE is_ddl_t1 (i INT, j INT, k INT, l INT,
                         PRIMARY KEY (i), KEY (j), KEY (k, l) COMMENT 'kl_cf')

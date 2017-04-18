@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Check whether ROW_FORMAT option 
@@ -9,15 +9,10 @@
 #       that it's accepted
 # 
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=rocksdb ROW_FORMAT=FIXED;
+CREATE TABLE t1 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=ROCKSDB ROW_FORMAT=FIXED;
 SHOW CREATE TABLE t1;
 
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
-

@@ -1,8 +1,4 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--source include/have_rocksdb.inc
 
 # Create the table and insert some keys
 CREATE TABLE t1 (i INT, PRIMARY KEY (i) COMMENT 'cf_t1') ENGINE = ROCKSDB;

@@ -1,11 +1,6 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
+--source include/master-slave.inc
 
-source include/master-slave.inc;
-
-connection master;
---disable_warnings
-drop table if exists t1;
---enable_warnings
 
 connection master;
 
@@ -44,4 +39,3 @@ connection master;
 drop table t1;
 
 --source include/rpl_end.inc
-

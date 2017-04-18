@@ -1,4 +1,5 @@
-source include/have_rocksdb_as_default.inc;
+source include/have_rocksdb.inc;
+
 create table t1 (a int primary key) engine=rocksdb;
 
 -- echo Verify rocksdb_rows_inserted

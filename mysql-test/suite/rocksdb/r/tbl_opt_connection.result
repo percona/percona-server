@@ -1,10 +1,9 @@
-DROP TABLE IF EXISTS t1;
 CREATE DATABASE test_remote;
 CREATE SERVER test_connection FOREIGN DATA WRAPPER mysql
 OPTIONS (USER 'root', HOST 'localhost', DATABASE 'test_remote');
 CREATE SERVER test_connection2 FOREIGN DATA WRAPPER mysql
 OPTIONS (USER 'root', HOST 'localhost', DATABASE 'test_remote');
-CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=rocksdb CONNECTION='test_connection';
+CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=ROCKSDB CONNECTION='test_connection';
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

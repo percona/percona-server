@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Check whether INSERT_METHOD option 
@@ -9,15 +9,10 @@
 #       that it's accepted (and apparently ignored)
 # 
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=rocksdb INSERT_METHOD=FIRST;
+CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=ROCKSDB INSERT_METHOD=FIRST;
 SHOW CREATE TABLE t1;
 
 ALTER TABLE t1 INSERT_METHOD=NO;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
-

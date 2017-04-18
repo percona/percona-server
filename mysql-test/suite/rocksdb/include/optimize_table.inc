@@ -1,8 +1,5 @@
 let $datadir = `SELECT @@datadir`;
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6;
---enable_warnings
 create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t2 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t3 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
@@ -24,13 +21,8 @@ while ($t <= 6) {
 --enable_query_log
 
 # Disable auto compaction so that effects of optimize table are stable
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
--- exec echo "restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--let $restart_parameters=restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000
+--source include/restart_mysqld.inc
 
 select count(*) from t1;
 select count(*) from t2;
@@ -76,3 +68,6 @@ DROP TABLE t4;
 DROP TABLE t5;
 DROP TABLE t6;
 --remove_file $MYSQL_TMP_DIR/sst_size.dat
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

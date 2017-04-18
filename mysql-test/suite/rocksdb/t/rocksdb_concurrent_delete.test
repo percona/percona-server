@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 --source include/have_debug_sync.inc
 
 # This validates the fix for Issue #144.  The problem was that with more

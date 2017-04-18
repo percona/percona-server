@@ -1,7 +1,7 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # only SingleDelete increases
-CREATE TABLE t1 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=RocksDB;
+CREATE TABLE t1 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES (1,1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 select variable_value into @d from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
@@ -19,7 +19,7 @@ select case when variable_value-@d < 10 then 'true' else 'false' end from perfor
 
 
 # both SingleDelete and Delete increases
-CREATE TABLE t2 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=RocksDB;
+CREATE TABLE t2 (id INT, value int, PRIMARY KEY (id), INDEX (value)) ENGINE=ROCKSDB;
 INSERT INTO t2 VALUES (1,1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 select variable_value into @d from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
@@ -36,7 +36,7 @@ select case when variable_value-@s > 5 and variable_value-@s < 100 then 'true' e
 select case when variable_value-@d > 9000 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 
 # only Delete increases
-CREATE TABLE t3 (id INT, value int, PRIMARY KEY (id)) ENGINE=RocksDB;
+CREATE TABLE t3 (id INT, value int, PRIMARY KEY (id)) ENGINE=ROCKSDB;
 INSERT INTO t3 VALUES (1,1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 select variable_value into @d from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
@@ -53,7 +53,7 @@ select case when variable_value-@s = 0 then 'true' else 'false' end from perform
 select case when variable_value-@d > 9000 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 
 # only SingleDelete increases
-CREATE TABLE t4 (id INT, PRIMARY KEY (id)) ENGINE=RocksDB;
+CREATE TABLE t4 (id INT, PRIMARY KEY (id)) ENGINE=ROCKSDB;
 INSERT INTO t4 VALUES (1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 select variable_value into @d from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
@@ -70,7 +70,7 @@ select case when variable_value-@s > 5 and variable_value-@s < 100 then 'true' e
 select case when variable_value-@d < 10 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';
 
 # only SingleDelete increases
-CREATE TABLE t5 (id1 INT, id2 INT, PRIMARY KEY (id1, id2), INDEX(id2)) ENGINE=RocksDB;
+CREATE TABLE t5 (id1 INT, id2 INT, PRIMARY KEY (id1, id2), INDEX(id2)) ENGINE=ROCKSDB;
 INSERT INTO t5 VALUES (1, 1);
 select variable_value into @s from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_singledelete';
 select variable_value into @d from performance_schema.global_status where variable_name='rocksdb_number_sst_entry_delete';

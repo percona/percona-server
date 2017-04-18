@@ -1,8 +1,3 @@
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
-DROP TABLE IF EXISTS t3;
-DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
 set global rocksdb_compact_cf = 'cf1';
 set global rocksdb_compact_cf = 'rev:cf2';
 set global rocksdb_signal_drop_index_thread = 1;
@@ -12,25 +7,25 @@ a int not null,
 b int not null,
 primary key (a,b) comment 'cf1',
 key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 CREATE TABLE t2 (
 a int not null,
 b int not null,
 primary key (a,b) comment 'cf1',
 key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 CREATE TABLE t3 (
 a int not null,
 b int not null,
 primary key (a,b) comment 'cf1',
 key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 CREATE TABLE t4 (
 a int not null,
 b int not null,
 primary key (a,b) comment 'cf1',
 key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 DELETE FROM t1;
 DELETE FROM t2;
 DELETE FROM t3;
@@ -46,7 +41,7 @@ a int not null,
 b int not null,
 primary key (a,b) comment 'cf1',
 key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 DELETE FROM t5;
 drop table t1;
 drop table t2;

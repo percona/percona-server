@@ -5,9 +5,6 @@
 # 
 select * from information_schema.engines where engine = 'rocksdb';
 
---disable_warnings
-drop table if exists t0,t1,t2,t3;
---enable_warnings
 create table t0 (a int) engine=myisam;
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
@@ -151,4 +148,3 @@ query_vertical call get_read_stats();
 drop table t4;
 drop procedure save_read_stats;
 drop procedure get_read_stats;
-

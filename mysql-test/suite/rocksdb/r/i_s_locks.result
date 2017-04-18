@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
 set session transaction isolation level read committed;
 create table t1 (a int, primary key(a) comment 'lock_into_cf1') engine=rocksdb;
 insert into t1 values (1);

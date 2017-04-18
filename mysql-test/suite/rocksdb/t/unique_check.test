@@ -1,5 +1,6 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 --source include/have_debug_sync.inc
+--source include/count_sessions.inc
 
 # For GitHub issue#167 -- Unique key check doesn't work
 
@@ -7,11 +8,6 @@ connect (con1, localhost, root,,);
 connect (con2, localhost, root,,);
 connect (con3, localhost, root,,);
 connection default;
-
---disable_warnings
-set debug_sync='RESET';
-drop table if exists t1;
---enable_warnings
 
 create table t1 (id int, value int, primary key (id)) engine=rocksdb;
 create table t2 (id int, id2 int, value int, primary key (id), unique key (id2)) engine=rocksdb;
@@ -143,3 +139,4 @@ disconnect con1;
 disconnect con2;
 disconnect con3;
 drop table t1, t2;
+--source include/wait_until_count_sessions.inc

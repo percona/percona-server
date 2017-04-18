@@ -1,15 +1,13 @@
---source include/have_rocksdb_as_default.inc
---disable_warnings
-DROP TABLE IF EXISTS t;
---enable_warnings
-CREATE TABLE t(id int primary key) engine=rocksdb;
+--source include/have_rocksdb.inc
+
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
 INSERT INTO t values (1), (2), (3); 
 --error ER_TABLE_EXISTS_ERROR 
-CREATE TABLE t(id int primary key) engine=rocksdb;
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
 FLUSH TABLES;
 --exec mv $MYSQLTEST_VARDIR/mysqld.1/data/test/t.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t.frm.tmp
 --error ER_UNKNOWN_ERROR 
-CREATE TABLE t(id int primary key) engine=rocksdb;
+CREATE TABLE t(id int primary key) engine=ROCKSDB;
 --exec mv $MYSQLTEST_VARDIR/mysqld.1/data/test/t.frm.tmp $MYSQLTEST_VARDIR/mysqld.1/data/test/t.frm
 FLUSH TABLES;
 SELECT * FROM t;

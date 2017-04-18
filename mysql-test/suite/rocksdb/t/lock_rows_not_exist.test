@@ -1,20 +1,16 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 --enable_connect_log
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
 #1. Using all primary key columns, with equal conditions
 connection con1;
-CREATE TABLE t (id1 int, id2 int, id3 int, value int, PRIMARY KEY (id1, id2, id3)) ENGINE=RocksDB;
+CREATE TABLE t (id1 int, id2 int, id3 int, value int, PRIMARY KEY (id1, id2, id3)) ENGINE=ROCKSDB;
 
 #1.1 SELECT FOR UPDATE
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;

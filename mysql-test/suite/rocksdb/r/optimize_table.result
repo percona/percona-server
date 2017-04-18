@@ -1,10 +1,10 @@
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6;
 create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t2 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t3 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 create table t4 (id int, value int, value2 varchar(200), primary key (id) comment 'rev:cf_i', index(value) comment 'rev:cf_i') engine=rocksdb;
 create table t5 (id int, value int, value2 varchar(200), primary key (id) comment 'rev:cf_i', index(value) comment 'rev:cf_i') engine=rocksdb;
 create table t6 (id int, value int, value2 varchar(200), primary key (id) comment 'rev:cf_i', index(value) comment 'rev:cf_i') engine=rocksdb;
+# restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000
 select count(*) from t1;
 count(*)
 10000
@@ -79,3 +79,4 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLE t5;
 DROP TABLE t6;
+# restart

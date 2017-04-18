@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # For Issue#117 MyRocks does merge sort with small data sets
 
@@ -14,7 +14,7 @@ while ($i < 30) {
     `b` int(11) DEFAULT NULL,
     `c` varchar(36) COLLATE latin1_bin NOT NULL,
     PRIMARY KEY (`c`)
-  );
+  ) ENGINE=ROCKSDB;
   let $j = 0;
   while ($j < 200) {
     eval insert into ti_nk values ($j, $j, md5($j));

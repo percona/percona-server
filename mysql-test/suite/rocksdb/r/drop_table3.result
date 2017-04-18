@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 set global rocksdb_compact_cf = 'cf1';
 set global rocksdb_compact_cf = 'rev:cf2';
 set global rocksdb_signal_drop_index_thread = 1;
@@ -9,7 +8,7 @@ b int not null,
 c varchar(500) not null,
 primary key (a,b) comment 'cf1',
 key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 DELETE FROM t1;
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_compact_read_bytes';
 drop table t1;

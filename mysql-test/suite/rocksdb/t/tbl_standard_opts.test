@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Standard options in CREATE and ALTER TABLE 
@@ -8,13 +8,9 @@
 #       that they are accepted
 # 
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 # Create table with standard options
 
-CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=rocksdb 
+CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=ROCKSDB
   DEFAULT CHARACTER SET = utf8
   COLLATE = utf8_general_ci
   COMMENT = 'standard table options'
@@ -39,4 +35,3 @@ ALTER TABLE t1 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
-  

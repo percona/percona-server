@@ -1,5 +1,4 @@
-drop table if exists t1;
-CREATE TABLE t1 (a INT, b INT AUTO_INCREMENT, KEY ka(a), KEY kb(a,b), PRIMARY KEY(b)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b INT AUTO_INCREMENT, KEY ka(a), KEY kb(a,b), PRIMARY KEY(b)) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -32,7 +31,7 @@ a	b
 3	2
 5	3
 DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, c INT, KEY kb(b), KEY kbc(b,c), KEY kc(c), PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, c INT, KEY kb(b), KEY kbc(b,c), KEY kc(c), PRIMARY KEY(a)) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -81,7 +80,7 @@ a	b	c
 3	5	6
 6	5	6
 DROP TABLE t1;
-CREATE TABLE t1 (a INT, b INT, c INT, KEY kb(b), KEY kbc(b,c), KEY kc(c), PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b INT, c INT, KEY kb(b), KEY kbc(b,c), KEY kc(c), PRIMARY KEY(a)) ENGINE=ROCKSDB;
 SHOW INDEX IN t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	a	A	0	NULL	NULL		LSMTREE		
@@ -102,7 +101,7 @@ ALTER TABLE t1 DROP INDEX kc, ALGORITHM=INPLACE;
 SHOW INDEX IN t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 DROP TABLE t1;
-CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, c INT, PRIMARY KEY(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT AUTO_INCREMENT, b INT, c INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
 ALTER TABLE t1 ADD UNIQUE INDEX kb(b);
 ALTER TABLE t1 ADD UNIQUE INDEX kbc(b,c);
 ALTER TABLE t1 ADD UNIQUE INDEX kc(c);
@@ -136,7 +135,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=ROCKSDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 DROP TABLE t1;
-CREATE TABLE IF NOT EXISTS t1 (col1 INT, col2 INT, col3 INT);
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT) ENGINE=ROCKSDB;
 INSERT INTO t1 (col1,col2,col3) VALUES (1,2,3);
 ALTER TABLE t1 ADD KEY idx ( col1, col2 );
 ANALYZE TABLE t1;
@@ -145,7 +144,7 @@ test.t1	analyze	status	OK
 ALTER TABLE t1 DROP COLUMN col2;
 ALTER TABLE t1 DROP COLUMN col3;
 DROP TABLE t1;
-CREATE TABLE IF NOT EXISTS t1 (col1 INT, col2 INT, col3 INT);
+CREATE TABLE t1 (col1 INT, col2 INT, col3 INT) ENGINE=ROCKSDB;
 INSERT INTO t1 (col1,col2,col3) VALUES (1,2,3);
 ALTER TABLE t1 ADD KEY idx ( col1, col2 );
 ANALYZE TABLE t1;

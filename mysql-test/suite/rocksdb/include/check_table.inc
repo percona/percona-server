@@ -6,10 +6,6 @@
 # the storage engine does not support CHECK.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
-
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
 
@@ -51,4 +47,3 @@ CHECK TABLE t1 EXTENDED;
 INSERT INTO t1 (a) VALUES (13345),(24456),(78302),(143028);
 CHECK TABLE t1 CHANGED;
 DROP TABLE t1;
-

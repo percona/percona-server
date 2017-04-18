@@ -1,17 +1,9 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # RocksDB Storage Engine tests
 #
 select ENGINE,COMMENT,TRANSACTIONS,XA,SAVEPOINTS from information_schema.engines where engine = 'rocksdb';
-
---disable_warnings
-drop table if exists t0,t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-drop table if exists t11,t12,t13,t14,t15,t16,t17,t18,t19,t20;
-drop table if exists t21,t22,t23,t24,t25,t26,t27,t28,t29;
-drop table if exists t30,t31,t32,t33,t34,t35,t36,t37,t38,t39;
-drop table if exists t40,t41,t42,t43,t44,t45,t46,t47,t48,t49;
---enable_warnings
 
 # Disable background compaction to prevent stats from affect explain output
 SET @ORIG_PAUSE_BACKGROUND_WORK = @@ROCKSDB_PAUSE_BACKGROUND_WORK;
@@ -460,8 +452,14 @@ drop table t21;
 CREATE TABLE t22 (a int primary key) ENGINE=RocksDB;
 INSERT INTO t22 VALUES (1),(2);
 CREATE TABLE t23 (b int primary key) ENGINE=RocksDB;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 INSERT INTO t23 SELECT * FROM t22;
 DELETE IGNORE t22.*, t23.* FROM t22, t23 WHERE b < a;
+set session tx_isolation=@orig_tx_iso;
 DROP TABLE t22,t23;
 
 --echo #
@@ -471,9 +469,15 @@ CREATE TABLE t24 (pk int primary key) ENGINE=RocksDB;
 INSERT INTO t24 VALUES (1),(2);
 
 CREATE TABLE t25 LIKE t24;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 INSERT INTO t25 SELECT * FROM t24;
 
 DELETE t25.* FROM t24, t25;
+set session tx_isolation=@orig_tx_iso;
 DROP TABLE t24,t25;
 
 --echo #
@@ -750,8 +754,8 @@ DROP TABLE t42;
 CREATE TABLE t43 (pk INT PRIMARY KEY, a INT, b CHAR(1), KEY(a)) ENGINE=RocksDB;
 INSERT INTO t43 VALUES (1,8,'g'),(2,9,'x');
 UPDATE t43 SET pk = 10 WHERE a = 8;
-REPLACE INTO t43 ( a ) VALUES ( 8 );
-REPLACE INTO t43 ( b ) VALUES ( 'y' );
+REPLACE INTO t43 ( pk, a ) VALUES ( 1, 8 );
+REPLACE INTO t43 ( pk, b ) VALUES ( 3, 'y' );
 SELECT * FROM t43 WHERE a = 8;
 DELETE FROM t43 WHERE a = 8;
 DROP TABLE t43;
@@ -825,6 +829,9 @@ send update t49 set a = 1000 where pk = 1;
 --connect (con2,localhost,root,,)
 --echo kill query \$con1_id;
 --disable_query_log
+# TODO : this is bad and will result in unstable tests
+# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
+#               actually test something specific
 # If we immeditely kill the query - internally the condition broadcast can
 # occur before the lock is waiting on the condition, thus the broadcast call
 # is lost.  Sleep 1 second to avoid this condition.
@@ -842,6 +849,7 @@ select if ((@var2 - @var1) < 60, "passed", (@var2 - @var1)) as 'result';
 
 --connection default
 --disconnect con1
+--disconnect con2
 
 commit;
 drop table t49;
@@ -969,6 +977,11 @@ DROP TABLE t1;
 --echo # 
 CREATE TABLE t1 (pk INT PRIMARY KEY, i INT, KEY(i)) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (1,1),(2,2);
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 BEGIN;
 UPDATE t1 SET i = 100;
 
@@ -979,6 +992,7 @@ DELETE IGNORE FROM t1 ORDER BY i;
 
 --connection default
 COMMIT;
+set session tx_isolation=@orig_tx_iso;
 DROP TABLE t1;
 
 --echo #
@@ -1033,11 +1047,17 @@ insert into t1 values ('old-val1'),('old-val2');
 create table t2 (pk varchar(12) primary key) engine=rocksdb;
 insert into t2 values ('new-val2'),('old-val1');
 
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 begin;
 insert into t1 values ('new-val1');
 --error ER_DUP_ENTRY
 insert into t1 select * from t2;
 commit;
+set session tx_isolation=@orig_tx_iso;
 
 select * from t1;
 drop table t1, t2;
@@ -1050,6 +1070,11 @@ CREATE TABLE t2 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=RocksDB;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=RocksDB;
 
 INSERT INTO t1 (pk) VALUES (NULL),(NULL);
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 BEGIN;
 INSERT INTO t2 (pk) VALUES (NULL),(NULL);
 INSERT INTO t1 (pk) VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
@@ -1060,13 +1085,15 @@ DELETE FROM t1 ORDER BY pk LIMIT 9;
 SELECT * FROM t1 ORDER BY pk LIMIT 9;
 --disable_info
 
+COMMIT;
 DROP TABLE t1,t2;
+set session tx_isolation=@orig_tx_iso;
 
 --echo #
 --echo # MDEV-4374: RocksDB: Valgrind warnings 'Use of uninitialised value' on 
 --echo #   inserting into a varchar column
 --echo #
-CREATE TABLE t1 (pk INT PRIMARY KEY, a VARCHAR(32)) ENGINE=RocksDB;
+CREATE TABLE t1 (pk INT PRIMARY KEY, a VARCHAR(32)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
 DROP TABLE t1;
 
@@ -1077,18 +1104,27 @@ DROP TABLE t1;
 
 --enable_connect_log
 
-create table t1 (pk int primary key, a int) engine=RocksDB;
+create table t1 (pk int primary key, a int) engine=rocksdb;
 insert into t1 values (1,10),(2,20);
 
 --let $con_id = `select connection_id()`
 
 set autocommit = 1;
---send
-update t1 set a = sleep(100) where pk = 1;
+# TODO : this is bad and will result in unstable tests
+# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
+#               actually test something specific
+--send update t1 set a = sleep(300) where pk = 1;
 
 --connect (con1,localhost,root,,)
 --echo kill query \$con_id;
 --disable_query_log
+# TODO : this is bad and will result in unstable tests
+# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
+#               actually test something specific
+# If we immeditely kill the query - internally the condition broadcast can
+# occur before the lock is waiting on the condition, thus the broadcast call
+# is lost.  Sleep 1 second to avoid this condition.
+--sleep 1
 eval kill query $con_id;
 --enable_query_log
 
@@ -1118,7 +1154,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1 (pk INT PRIMARY KEY, a int) ENGINE=RocksDB;
 set @a=-1;
-insert into t1 select (@a:=@a+1), 1234 from information_schema.session_variables limit 100;
+insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables limit 100;
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
 --error ER_GET_ERRMSG
@@ -1225,10 +1261,10 @@ drop table t0, t1;
 --replace_column 2 #
 show status like 'rocksdb%';
 
-select VARIABLE_NAME from INFORMATION_SCHEMA.global_status where VARIABLE_NAME LIKE 'rocksdb%';
+select VARIABLE_NAME from performance_schema.global_status where VARIABLE_NAME LIKE 'rocksdb%';
 --echo # RocksDB-SE's status variables are global internally 
 --echo #  but they are shown as both session and global, like InnoDB's status vars.
-select VARIABLE_NAME from INFORMATION_SCHEMA.session_status where VARIABLE_NAME LIKE 'rocksdb%';
+select VARIABLE_NAME from performance_schema.session_status where VARIABLE_NAME LIKE 'rocksdb%';
 
 
 --echo #
@@ -1464,7 +1500,13 @@ create table t2 (
   col1 int,
   key(kp1, kp2)
 ) engine=rocksdb;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
+set session tx_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1505,7 +1547,13 @@ create table t2 (
   col1 int,
   key(kp1, kp2)
 ) engine=rocksdb;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
+set session tx_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1548,7 +1596,13 @@ create table t2 (
   col1 int,
   key(kp1, kp2)
 ) engine=rocksdb;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
+set session tx_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1593,7 +1647,13 @@ create table t2 (
   col1 int,
   key(kp1, kp2)
 ) engine=rocksdb;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
+set session tx_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1637,7 +1697,13 @@ create table t2 (
   col1 int,
   key(kp1, kp2)
 ) engine=rocksdb;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
+set session tx_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1727,7 +1793,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Issue #99: UPDATE for table with VARCHAR pk gives "Can't find record" error
 --echo #
-create table t1(a int primary key);
+create table t1(a int primary key) engine=rocksdb;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t2 (
@@ -1735,9 +1801,15 @@ create table t2 (
   col1 int
 ) engine=rocksdb;
 
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 insert into t2
 select concat('v-', 100 + A.a*100 + B.a), 12345 from t1 A, t1 B;
 update t2 set a=concat('x-', a) where a between 'v-1002' and 'v-1004';
+set session tx_isolation=@orig_tx_iso;
 
 drop table t1,t2;
 
@@ -1754,15 +1826,17 @@ drop table t2;
 --echo # Issue #135: register transaction was not being called for statement
 --echo #
 --disable_warnings
-DROP DATABASE IF EXISTS test_db;
 --enable_warnings
 CREATE DATABASE test_db;
-CREATE TABLE test_db.t1(c1 INT PRIMARY KEY);
+CREATE TABLE test_db.t1(c1 INT PRIMARY KEY) ENGINE=ROCKSDB;
+INSERT INTO test_db.t1(c1) VALUES(0), (1), (2), (3);
 LOCK TABLES test_db.t1 READ;
 SET AUTOCOMMIT=0;
-SELECT c1 FROM test_db.t1;
+SELECT c1 FROM test_db.t1 WHERE c1=2;
 START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY;
 DROP DATABASE test_db;
+COMMIT;
+SET AUTOCOMMIT=1;
 
 --echo #
 --echo # Issue #143: Split rocksdb_bulk_load option into two
@@ -1788,7 +1862,13 @@ INSERT INTO t1 (id) VALUES(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 ROLLBACK;
 SELECT * FROM t1;
 INSERT INTO t1 (id) VALUES (11),(12),(13),(14),(15);
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 BEGIN;
+
 UPDATE t1 SET value=100;
 ROLLBACK;
 SELECT * FROM t1;
@@ -1796,6 +1876,7 @@ BEGIN;
 DELETE FROM t1;
 ROLLBACK;
 SELECT * FROM t1;
+set session tx_isolation=@orig_tx_iso;
 SET rocksdb_commit_in_the_middle=0;
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 DROP TABLE t1;
@@ -1805,7 +1886,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t2(id INT NOT NULL PRIMARY KEY, data INT) Engine=MEMORY;
 INSERT INTO t2 VALUES (100,NULL),(150,"long varchar"),(200,"varchar"),(250,"long long long varchar");
-create TABLE t1 (a int not null, b int not null, primary key(a,b));
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a,b)) ENGINE=ROCKSDB;
 INSERT INTO t1  VALUES (1,1);
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1 WHERE a > 4));
 DROP TABLE t1, t2;
@@ -1814,7 +1895,7 @@ DROP TABLE t1, t2;
 --echo # Issue #189 ha_rocksdb::load_auto_incr_value() creates implicit snapshot and doesn't release
 --echo #
 --connect (con1,localhost,root,,)
-create table r1 (id int auto_increment primary key, value int);
+create table r1 (id int auto_increment primary key, value int) engine=rocksdb;
 insert into r1 (id) values (null), (null), (null), (null), (null);
 connection con1;
 create table r2 like r1;
@@ -1831,7 +1912,7 @@ connection default;
 drop table r1, r2;
 
 # hidden primary key
-create table r1 (id int auto_increment, value int, index i(id));
+create table r1 (id int auto_increment, value int, index i(id)) engine=rocksdb;
 insert into r1 (id) values (null), (null), (null), (null), (null);
 connection con1;
 create table r2 like r1;
@@ -1852,7 +1933,7 @@ disconnect con1;
 --echo #
 --echo # Issue#211 Crash on LOCK TABLES + START TRANSACTION WITH CONSISTENT SNAPSHOT
 --echo #
-CREATE TABLE t1(c1 INT);
+CREATE TABLE t1(c1 INT) ENGINE=ROCKSDB;
 lock TABLE t1 read local;
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND()FROM'');
 set AUTOCOMMIT=0;
@@ -1861,16 +1942,37 @@ SELECT * FROM t1;
 COMMIT;
 UNLOCK TABLES;
 DROP TABLE t1;
+set AUTOCOMMIT=1;
 
 --echo #
 --echo # Issue#213 Crash on LOCK TABLES + partitions
 --echo #
 CREATE TABLE t1(a INT,b INT,KEY (b)) engine=rocksdb PARTITION BY HASH(a) PARTITIONS 2;
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO t1(a)VALUES (20010101101010.999949);
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1(a)VALUES (20010101101010.999949);
+set session sql_mode=@orig_sql_mode;
 lock tables t1 write,t1 as t0 write,t1 as t2 write;
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 SELECT a FROM t1 ORDER BY a;
+set session tx_isolation=@orig_tx_iso;
 truncate t1;
+# 5.7 uses strict mode by default, so this will now return an error
+--error ER_WARN_DATA_OUT_OF_RANGE
 INSERT INTO t1 VALUES(X'042000200020',X'042000200020'),(X'200400200020',X'200400200020');
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 VALUES(X'042000200020',X'042000200020'),(X'200400200020',X'200400200020');
+set session sql_mode=@orig_sql_mode;
 UNLOCK TABLES;
 DROP TABLE t1;
 
@@ -1885,7 +1987,7 @@ CREATE TABLE t1(
   c2 varchar(10) character set utf8 collate utf8_general_ci, 
   c3 INT, 
   INDEX idx(c1,c2)
-);
+) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES ('c1-val1','c2-val1',5);
 INSERT INTO t1 VALUES ('c1-val2','c2-val3',6);
 INSERT INTO t1 VALUES ('c1-val3','c2-val3',7);
@@ -1897,7 +1999,7 @@ drop table t1;
 --echo #
 --echo # Issue#267: MyRocks issue with no matching min/max row and count(*)
 --echo #
-CREATE TABLE t1(c1 INT UNSIGNED, c2 INT SIGNED, INDEX idx2(c2));
+CREATE TABLE t1(c1 INT UNSIGNED, c2 INT SIGNED, INDEX idx2(c2)) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1,null);
 INSERT INTO t1 VALUES(2,null);
 SELECT count(*) as total_rows, min(c2) as min_value FROM t1;
@@ -1913,13 +2015,15 @@ DROP TABLE t1;
 # the values as needed, so only 2 values will be used.  This means that the
 # SHOW TABLE STATUS in InnoDB will indicate that the next auto-increment
 # value is 4 while MyRocks will show it as 3.
-CREATE TABLE t1(a INT AUTO_INCREMENT KEY);
+CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(-1),(0);
+--replace_column 6 # 7 # 8 # 9 # 10 #
 SHOW TABLE STATUS LIKE 't1';
 SELECT * FROM t1;
 DROP TABLE t1;
-CREATE TABLE t1(a INT AUTO_INCREMENT KEY);
+CREATE TABLE t1(a INT AUTO_INCREMENT KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(0),(10),(0);
+--replace_column 6 # 7 # 8 # 9 # 10 #
 SHOW TABLE STATUS LIKE 't1';
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -1933,11 +2037,13 @@ CREATE TABLE t1 (id1 bigint(20),
                  id2 bigint(20),
                  id3 bigint(20),
                  PRIMARY KEY (id1, id2, id3))
+                 ENGINE=ROCKSDB
                  DEFAULT CHARSET=latin1;
 
 CREATE TABLE t2 (id1 bigint(20),
                  id2 bigint(20),
                  PRIMARY KEY (id1, id2))
+                 ENGINE=ROCKSDB
                  DEFAULT CHARSET=latin1;
 
 
@@ -1955,7 +2061,13 @@ while ($j)
 }
 --enable_query_log
 
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# test does not require RR ISO to complete, so lets temporarily alter the ISO
+# to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
 DELETE t2, t1 FROM t2 LEFT JOIN t1 ON t2.id2 = t1.id2 AND t2.id1 = t1.id1 WHERE t2.id1 = 0;
+set session tx_isolation=@orig_tx_iso;
 
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 SET rocksdb_commit_in_the_middle=0;

@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Basic DELETE statements.
@@ -7,11 +7,11 @@
 # DELETE IGNORE is covered in delete_ignore test
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
+# MyRocks does not support gap locks in REPEATABLE-READ mode, test does not
+# require RR ISO to complete, so lets alter the ISO to RC
+set session tx_isolation='READ-COMMITTED';
 
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (10000,'foobar'),(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 INSERT INTO t1 (a,b) SELECT a, b FROM t1;
 
@@ -32,7 +32,7 @@ SELECT a,b FROM t1;
 
 # Multi-table DELETE
 
-CREATE TABLE t2 (c CHAR(8), d INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t2 (c CHAR(8), d INT, pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t2 (c,d) SELECT b, a FROM t1;
 --sorted_result
 SELECT c,d FROM t2;
@@ -55,12 +55,11 @@ SELECT a,b FROM t1;
 
 DROP TABLE t1, t2;
 
-
 # 
 # Transactional DELETE
 #
 
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(10000,'foobar');
 INSERT INTO t1 (a,b) SELECT a, b FROM t1;
 
@@ -98,4 +97,3 @@ COMMIT;
 SELECT a,b FROM t1;
 
 DROP TABLE t1;
-

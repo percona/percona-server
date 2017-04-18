@@ -15,11 +15,7 @@
 --echo -   using $isolation_level transaction isolation level
 --echo -----------------------------------------------------------------------
 
---disable_warnings
-DROP TABLE IF EXISTS t0;
---enable_warnings
-
-CREATE TABLE t0(id INT AUTO_INCREMENT PRIMARY KEY, value INT);
+CREATE TABLE t0(id INT AUTO_INCREMENT PRIMARY KEY, value INT) ENGINE=ROCKSDB;
 
 # Insert 200,000 rows, breaking it up into inserts of 1000 rows at a time
 --echo Inserting 200,000 rows

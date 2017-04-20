@@ -147,7 +147,7 @@ set session long_query_time=1;
 select sleep(2);
 sleep(2)
 0
-select * from mysql.slow_log;
+select * from mysql.slow_log where sql_text="select sleep(2)";
 start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
 TIMESTAMP	USER_HOST	QUERY_TIME	00:00:00	1	0	mysql	0	0	1	QUERY	THREAD_ID
 set @@session.long_query_time = @saved_long_query_time;
@@ -229,7 +229,7 @@ TIMESTAMP	USER_HOST	THREAD_ID	1	Query	drop table bug16905
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	truncate table mysql.slow_log
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set session long_query_time=1
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select sleep(2)
-TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.slow_log where sql_text="select sleep(2)"
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set @@session.long_query_time = @saved_long_query_time
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	alter table mysql.general_log engine=myisam
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	alter table mysql.slow_log engine=myisam

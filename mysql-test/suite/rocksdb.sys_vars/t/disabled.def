@@ -1,0 +1,1 @@
+rocksdb_max_open_files_basic : MYR-123 - Percona Server prints signed int -1 as unsigned 4294967295

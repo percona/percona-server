@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS t1;
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 #
 # Bug#12696518/Bug#11766879/60106:DIFF BETWEEN # OF INDEXES IN MYSQL
 # VS INNODB, PARTITONING, ON INDEX CREATE

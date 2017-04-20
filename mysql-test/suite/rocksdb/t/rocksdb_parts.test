@@ -51,6 +51,7 @@ insert into t1 values (2,10,10);
 
 insert into t1 values (11,20,20);
 insert into t1 values (12,20,20);
+--replace_column 10 #
 explain select * from t1 force index(col1) where col1=10;
 select * from t1 force index(col1) where col1=10;
 select * from t1 use index () where col1=10;
@@ -72,6 +73,7 @@ insert into t1 values (2,10,10);
 insert into t1 values (11,20,20);
 insert into t1 values (12,20,20);
 --echo # The following must use "Using index"
+--replace_column 10 #
 explain select pk from t1 force index(col1) where col1=10;
 
 drop table t1;

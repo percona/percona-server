@@ -1,10 +1,5 @@
---source include/have_rocksdb_as_default.inc
-source include/master-slave.inc;
-
-connection master;
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
+--source include/master-slave.inc
 
 connection master;
 
@@ -54,4 +49,3 @@ drop table t1;
 set binlog_format=row;
 
 --source include/rpl_end.inc
-

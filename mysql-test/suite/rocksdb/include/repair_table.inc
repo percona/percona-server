@@ -6,13 +6,9 @@
 # the storage engine does not support REPAIR.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
-
-CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
-CREATE TABLE t2 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t2 (a INT, b CHAR(8) PRIMARY KEY) ENGINE=ROCKSDB;
 
 REPAIR TABLE t1;
 
@@ -33,6 +29,3 @@ REPAIR NO_WRITE_TO_BINLOG TABLE t1, t2 QUICK EXTENDED USE_FRM;
 FLUSH TABLE t1;
 
 DROP TABLE t1, t2;
-
-
-

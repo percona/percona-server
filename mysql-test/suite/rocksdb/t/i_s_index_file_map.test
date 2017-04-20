@@ -1,14 +1,8 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Information Schema index file map
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
-
 
 CREATE TABLE t1 (i INT PRIMARY KEY, j INT, INDEX(j)) ENGINE = ROCKSDB;
 CREATE TABLE t2 (k INT PRIMARY KEY, l INT REFERENCES t1.i) ENGINE = ROCKSDB;

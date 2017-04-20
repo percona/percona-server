@@ -1,15 +1,9 @@
---source include/have_rocksdb_as_default.inc
-
-source include/master-slave.inc;
-
-connection master;
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
+--source include/master-slave.inc
 
 connection master;
 
-create table t1 (id int primary key, value int);
+create table t1 (id int primary key, value int) engine=rocksdb;
 insert into t1 values (1,1), (2,2), (3,3);
 
 begin;
@@ -87,4 +81,3 @@ connection master;
 drop table t1;
 
 --source include/rpl_end.inc
-

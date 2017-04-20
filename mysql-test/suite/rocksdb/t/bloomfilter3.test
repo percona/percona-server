@@ -1,6 +1,7 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 --source include/restart_mysqld.inc
+
 CREATE TABLE `linktable` (
   `id1` bigint(20) unsigned NOT NULL DEFAULT '0',
   `id1_type` int(10) unsigned NOT NULL DEFAULT '0',
@@ -15,7 +16,7 @@ CREATE TABLE `linktable` (
   KEY `id1_type` (`id1`,`link_type`,`visibility`,`time`,`version`,`data`) COMMENT 'rev:cf_link_id1_type',
   KEY `id1_type2` (`id1`,`link_type`,`time`,`version`,`data`,`visibility`) COMMENT 'rev:cf_link_id1_type2',
   KEY `id1_type3` (`id1`,`visibility`,`time`,`version`,`data`,`link_type`) COMMENT 'rev:cf_link_id1_type3'
-) ENGINE=RocksDB DEFAULT COLLATE=latin1_bin;
+) ENGINE=ROCKSDB DEFAULT COLLATE=latin1_bin;
 
 --disable_query_log
 let $i = 1;
@@ -115,4 +116,3 @@ select case when variable_value-@c = 0 then 'true' else 'false' end from perform
 
 drop table t1;
 # Key length is 4 + 8 + 8 = 20
-

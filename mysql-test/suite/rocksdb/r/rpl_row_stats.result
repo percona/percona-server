@@ -3,7 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-drop table if exists t1;
 create procedure save_read_stats()
 begin
 select variable_value into @rr from performance_schema.global_status
@@ -25,7 +24,7 @@ select variable_value - @rd as rows_deleted from
 performance_schema.global_status
 where variable_name='rocksdb_rows_deleted';
 end//
-create table t1 (id int primary key, value int);
+create table t1 (id int primary key, value int) engine=rocksdb;
 insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5);
 include/sync_slave_sql_with_master.inc
 call save_read_stats();

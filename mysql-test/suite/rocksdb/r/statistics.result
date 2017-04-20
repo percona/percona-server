@@ -1,6 +1,3 @@
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
-DROP TABLE IF EXISTS t3;
 create table t1(
 id bigint not null primary key auto_increment,
 a varchar(255) not null,

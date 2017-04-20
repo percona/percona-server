@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Basic CREATE TABLE statements
@@ -10,19 +10,15 @@
 # because temporary tables are not supported
 #############################################
 
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
-
 # Simple create table with minimal table options
 # which are defined in have_engine.inc
 # (default empty) plus ENGINE=
 
-CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 SHOW CREATE TABLE t1;
 
 # IF NOT EXISTS
-CREATE TABLE IF NOT EXISTS t1 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE IF NOT EXISTS t1 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 
 # CREATE .. LIKE
 
@@ -30,7 +26,7 @@ CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 
 --error ER_ILLEGAL_HA_CREATE_OPTION 
-CREATE TEMPORARY TABLE t2 (a INT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TEMPORARY TABLE t2 (a INT PRIMARY KEY) ENGINE=ROCKSDB;
 
 --disable_parsing
 
@@ -51,7 +47,7 @@ DROP TABLE IF EXISTS t1;
 
 # Use the engine as default
 
-SET default_storage_engine = rocksdb;
+SET default_storage_engine = ROCKSDB;
 
 CREATE TABLE t1 (a INT PRIMARY KEY);
 SHOW CREATE TABLE t1;
@@ -189,4 +185,7 @@ CREATE TABLE t1(c1 INT,c2 INT,c3 INT,c4 INT,c5 INT,c6 INT,c7 INT,c8 INT,c9 INT,
     KEY (c428,c429,c430,c431,c432,c433,c434),
     KEY (c435,c436,c437,c438,c439,c440,c441),
     KEY (c442,c443,c444,c445,c446,c447,c448));
+
+SHOW CREATE TABLE t1;
+
 DROP TABLE t1;

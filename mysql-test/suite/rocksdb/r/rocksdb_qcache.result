@@ -1,4 +1,4 @@
-create table t1 (pk int primary key, c char(8)) engine=RocksDB;
+create table t1 (pk int primary key, c char(8)) engine=rocksdb;
 insert into t1 values (1,'new'),(2,'new');
 select * from t1;
 pk	c
@@ -35,3 +35,4 @@ show global status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	0
 drop table t1;
+disconnect con1;

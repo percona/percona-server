@@ -1,8 +1,4 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
+--source include/have_rocksdb.inc
 
 create table t1(
        id bigint not null primary key,
@@ -27,15 +23,11 @@ set rocksdb_bulk_load=0;
 select count(*), sum(id), sum(i1), sum(i2) from t1;
 
 # reload without load optimized config
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
--- exec echo "restart:--rocksdb_write_disable_wal=0 --rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--let $restart_parameters=restart:--rocksdb_write_disable_wal=0 --rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;
+--source include/restart_mysqld.inc
 
 select count(*), sum(id), sum(i1), sum(i2) from t1;
 
 drop table t1;
-
+--let $restart_parameters=
+--source include/restart_mysqld.inc

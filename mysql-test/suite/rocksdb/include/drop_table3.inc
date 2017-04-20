@@ -1,9 +1,5 @@
 --source include/have_rocksdb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 # Start from clean slate
 set global rocksdb_compact_cf = 'cf1';
 set global rocksdb_compact_cf = 'rev:cf2';
@@ -17,7 +13,7 @@ CREATE TABLE t1 (
   c varchar(500) not null,
   primary key (a,b) comment 'cf1',
   key (b) comment 'rev:cf2'
-) ENGINE=RocksDB;
+) ENGINE=ROCKSDB;
 
 # Populate tables
 let $max = 50000;

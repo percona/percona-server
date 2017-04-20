@@ -7,7 +7,7 @@ CREATE TABLE t1 (
 `time` int unsigned NOT NULL DEFAULT '0',
 `version` int unsigned NOT NULL DEFAULT '0',
 PRIMARY KEY (id1, link_type, visibility, id2) COMMENT 'rev:cf_link_pk'
-) ENGINE=RocksDB DEFAULT COLLATE=latin1_bin;
+) ENGINE=ROCKSDB DEFAULT COLLATE=latin1_bin;
 CREATE PROCEDURE select_test()
 BEGIN
 DECLARE id1_cond INT;

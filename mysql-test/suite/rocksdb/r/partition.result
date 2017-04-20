@@ -1,7 +1,3 @@
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS VAR_POP;
-DROP TABLE IF EXISTS TEMP0;
-DROP TABLE IF EXISTS VAR_SAMP;
 CREATE TABLE t1 (i INT, j INT, k INT, PRIMARY KEY (i)) ENGINE = ROCKSDB PARTITION BY KEY(i) PARTITIONS 4;
 Warnings:
 Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.

@@ -1,8 +1,4 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
 
 #
 # First set sampling rate to 100% and make sure that the baseline is
@@ -33,10 +29,6 @@ where table_schema = database() and table_name = 't1';
 let $t1_len = `select data_length from information_schema.tables where table_schema = database() and table_name = 't1'`;
 
 drop table t1;
-
---disable_warnings
-drop table if exists t2;
---enable_warnings
 
 #
 # Now, set the sampling rate to 10% and expect to see the same amount of
@@ -77,4 +69,3 @@ if ($diff < 6000) {
 drop table t2;
 
 SET GLOBAL ROCKSDB_TABLE_STATS_SAMPLING_PCT = @ORIG_PCT;
-

@@ -37,7 +37,7 @@ eval CREATE TABLE t1 (a INT,
   b CHAR(8),
   pk INT PRIMARY KEY,
   KEY $using_index_type (a)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW KEYS IN t1;
@@ -47,7 +47,7 @@ eval CREATE TABLE t1 (a INT,
   b CHAR(8),
   pk INT PRIMARY KEY,
   KEY a_b $using_index_type (a,b) COMMENT 'a_b index'
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW KEYS IN t1;
@@ -58,7 +58,7 @@ eval CREATE TABLE t1 (a INT,
   pk INT PRIMARY KEY,
   KEY $using_index_type (a),
   KEY $using_index_type (b)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW KEYS IN t1;
@@ -70,7 +70,7 @@ eval CREATE TABLE t1 (a INT,
   b CHAR(8),
   pk INT PRIMARY KEY,
   UNIQUE INDEX $using_index_type (a)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW KEYS IN t1;
@@ -88,7 +88,7 @@ DROP TABLE t1;
 # ALTER TABLE
 #
 
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (100,'z');
 
 eval ALTER TABLE t1 ADD KEY (a) $using_index_type COMMENT 'simple index on a';
@@ -103,7 +103,7 @@ eval CREATE TABLE t1 (a INT,
   b CHAR(8),
   pk INT AUTO_INCREMENT PRIMARY KEY,
   UNIQUE INDEX $using_index_type (a)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW KEYS IN t1;
@@ -118,4 +118,3 @@ eval ALTER TABLE t1 ADD UNIQUE INDEX a(a) $using_index_type;
 DROP TABLE t1;
 
 --enable_parsing
-

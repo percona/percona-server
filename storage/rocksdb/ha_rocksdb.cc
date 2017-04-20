@@ -434,6 +434,7 @@ static my_bool rocksdb_collect_sst_properties = 1;
 static my_bool rocksdb_force_flush_memtable_now_var = 0;
 static my_bool rocksdb_force_flush_memtable_and_lzero_now_var = 0;
 static my_bool rocksdb_enable_ttl = 1;
+static my_bool rocksdb_reset_stats = 0;
 static uint64_t rocksdb_number_stat_computes = 0;
 static uint32_t rocksdb_seconds_between_stat_computes = 3600;
 static long long rocksdb_compaction_sequential_deletes = 0l;
@@ -487,6 +488,28 @@ static void rocksdb_set_rocksdb_info_log_level(
   rocksdb_info_log_level = *static_cast<const uint64_t *>(save);
   rocksdb_db_options->info_log->SetInfoLogLevel(
       static_cast<const rocksdb::InfoLogLevel>(rocksdb_info_log_level));
+  RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
+}
+
+static void rocksdb_set_reset_stats(
+    my_core::THD *const /* unused */,
+    my_core::st_mysql_sys_var *const /* unused */,
+    void *const var_ptr, const void *const save) {
+  DBUG_ASSERT(save != nullptr);
+  DBUG_ASSERT(rdb != nullptr);
+
+  RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
+
+  *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
+
+  if (rocksdb_reset_stats) {
+    rocksdb::Status s = rdb->ResetStats();
+
+    // RocksDB will always return success. Let's document this assumption here
+    // as well so that we'll get immediately notified when contract changes.
+    DBUG_ASSERT(s == rocksdb::Status::OK());
+  }
+
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
@@ -1107,6 +1130,11 @@ static MYSQL_SYSVAR_BOOL(
                          "during compaction.",
                          nullptr, rocksdb_set_enable_ttl, TRUE);
 
+static MYSQL_SYSVAR_BOOL(
+    reset_stats, rocksdb_reset_stats, PLUGIN_VAR_RQCMDARG,
+    "Reset the RocksDB internal statistics without restarting the DB.", nullptr,
+    rocksdb_set_reset_stats, FALSE);
+
 static MYSQL_SYSVAR_BOOL(strict_collation_check, rocksdb_strict_collation_check,
                          PLUGIN_VAR_RQCMDARG,
                          "Enforce case sensitive collation for MyRocks indexes",
@@ -1344,6 +1372,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(force_flush_memtable_now),
     MYSQL_SYSVAR(force_flush_memtable_and_lzero_now),
     MYSQL_SYSVAR(enable_ttl),
+    MYSQL_SYSVAR(reset_stats),
     MYSQL_SYSVAR(flush_memtable_on_analyze),
     MYSQL_SYSVAR(seconds_between_stat_computes),
 

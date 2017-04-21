@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/25/2016
+.\"      Date: 03/14/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "11/25/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "03/14/2017" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -435,6 +435,14 @@ BIG_TEST
 is set to 1\&.
 .sp
 This is typically done for tests that take very long to run, or that use very much resources, so that they are not suitable for running as part of a normal test suite run\&.
+.sp
+If both
+\fB\-\-big\-test\fR
+and
+\fB\-\-only\-big\-tests\fR
+are given,
+\fB\-\-only\-big\-tests\fR
+is ignored\&.
 .RE
 .sp
 .RS 4
@@ -533,6 +541,24 @@ Instructs
 \fBvalgrind\fR
 to use
 \fBcallgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-charset\-for\-testdb=\fR\fB\fIcharset_name\fR\fR
+.sp
+Specify the default character set for the
+test
+database\&. The default value is
+latin1\&.
+.sp
+This option was added in MySQL 8\&.0\&.1\&.
 .RE
 .sp
 .RS 4
@@ -858,7 +884,7 @@ prefix is used so that
 does not fail if Debug Sync is not compiled in\&.
 .sp
 For information about using the Debug Sync facility for testing, see
-Section\ \&4.14, \(lqThread Synchronization in Test Cases\(rq\&.
+Section\ \&4.15, \(lqThread Synchronization in Test Cases\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1019,7 +1045,7 @@ option is available from MySQL 5\&.7\&.
 .sp
 Use a version of
 \fBmysqltest\fR
-built with the embedded server\&.
+built with the embedded server\&. This option was removed in MySQL 8\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1072,7 +1098,13 @@ It is also possible to supply more than one
 .sp
 Run
 EXPLAIN EXTENDED
-on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&.
+on all
+SELECT,
+INSERT,
+REPLACE,
+UPDATE, and
+DELETE
+statements\&.
 .RE
 .sp
 .RS 4
@@ -1617,6 +1649,28 @@ Running of unit tests was enabled from MySQL 5\&.5\&.11\&.
 \fB\-\-nowarnings\fR
 .sp
 Do not look for and report errors and warning in the server logs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-only\-big\-tests\fR
+.sp
+This option causes only big tests to run\&. Normal (non\-big) tests are skipped\&. If both
+\fB\-\-big\-test\fR
+and
+\fB\-\-only\-big\-tests\fR
+are given,
+\fB\-\-only\-big\-tests\fR
+is ignored\&.
+.sp
+\fB\-\-only\-big\-tests\fR
+was added in MySQL 8\&.0\&.1\&.
 .RE
 .sp
 .RS 4
@@ -2224,9 +2278,22 @@ Specify the maximum test suite runtime in minutes\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-summary\-file=\fR\fB\fIfile_name\fR\fR
+\fB\-\-summary\-report=\fR\fB\fIfile_name\fR\fR
 .sp
 Generate a plain text version of the test summary only and write it to the file named as the option argument\&. The file is suitable for sending by email\&. This option was added in MySQL 8\&.0\&.1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-test\-progress\fR
+.sp
+Display the percentage of tests remaining\&. This option was added in MySQL 5\&.7\&.19\&.
 .RE
 .sp
 .RS 4
@@ -2616,7 +2683,7 @@ The hostname resolves to 127\&.0\&.0\&.1 and not to the actual IP address\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

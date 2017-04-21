@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "11/26/2016" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "03/17/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -169,7 +169,12 @@ The path to the data directory\&.
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The name of an option file to be read in addition to the usual option files\&. This must be the first option on the command line if it is used\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
+Read this option file in addition to the usual option files\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
+\fIfile_name\fR
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
+.sp
+For additional information about this option, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -182,7 +187,12 @@ The name of an option file to be read in addition to the usual option files\&. T
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
 .sp
-The name of an option file to be read instead of the usual option files\&. This must be the first option on the command line if it is used\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
+\fIfile_name\fR
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
+.sp
+For additional information about this option, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -388,7 +398,7 @@ cannot find the server, use the
 \fB\-\-ledir\fR
 option to indicate the path name to the directory where the server is located\&.
 .sp
-As of MySQL 5\&.6\&.33, this option can be given only on the command line and not in an option file\&.
+As of MySQL 5\&.6\&.33, this option is accepted only on the command line, not in option files\&.
 .RE
 .sp
 .RS 4
@@ -421,7 +431,7 @@ in the
 ledir
 directory\&.
 .sp
-As of MySQL 5\&.6\&.33, this option can be given only on the command line and not in an option file\&.
+As of MySQL 5\&.6\&.33, this option is accepted only on the command line, not in option files\&.
 .RE
 .sp
 .RS 4
@@ -449,7 +459,12 @@ program to set the server\*(Aqs scheduling priority to the given value\&.
 .\}
 \fB\-\-no\-defaults\fR
 .sp
-Do not read any option files\&. This must be the first option on the command line if it is used\&.
+Do not read any option files\&. If program startup fails due to reading unknown options from an option file,
+\fB\-\-no\-defaults\fR
+can be used to prevent them from being read\&. This must be the first option on the command line if it is used\&.
+.sp
+For additional information about this option, see
+Section\ \&4.2.7, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -832,7 +847,7 @@ stderr\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

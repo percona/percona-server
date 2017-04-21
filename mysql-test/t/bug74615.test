@@ -1,5 +1,6 @@
 # Test for MySQL bug 74615: GRANT crashes server if mysql.user table is malformed
 call mtr.add_suppression("Did not write failed");
+call mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
 
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 
@@ -37,7 +38,7 @@ x509_issuer BLOB,x509_subject BLOB,max_questions int unsigned,max_updates int un
 max_connections int unsigned,max_user_connections int unsigned,
 PRIMARY KEY Host (Host,User)) engine=MyISAM COLLATE utf8_bin comment='Users and global privileges';
 
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 grant select on test.* to''@'santa.claus.ipv4.example.com';
 
 DROP TABLE mysql.user;

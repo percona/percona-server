@@ -56,9 +56,6 @@ NULL	NULL
 SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_flush=ON;
 SET GLOBAL audit_log_include_accounts= '';
-SELECT 'skip this';
-skip this
-skip this
 SELECT 'user1';
 user1
 user1
@@ -77,13 +74,7 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
-SELECT 'skip this';
-skip this
-skip this
 SET GLOBAL audit_log_include_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%,veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooongusername@veryveryveryveryveryveryveryveryveryveryveryveryveryveryveryloooooooooooooonghostname';
-SELECT 'skip this';
-skip this
-skip this
 SELECT 'user1';
 user1
 user1
@@ -102,13 +93,7 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
-SELECT 'skip this';
-skip this
-skip this
 SET GLOBAL audit_log_include_accounts= NULL;
-SELECT 'skip this';
-skip this
-skip this
 SELECT 'user1';
 user1
 user1
@@ -127,13 +112,7 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
-SELECT 'skip this';
-skip this
-skip this
 SET GLOBAL audit_log_exclude_accounts= 'user1@localhost,, user22@127.0.0.1,admin@%';
-SELECT 'skip this';
-skip this
-skip this
 SELECT 'user1';
 user1
 user1
@@ -152,9 +131,6 @@ admin
 SELECT 'us,er1';
 us,er1
 us,er1
-SELECT 'skip this';
-skip this
-skip this
 SET GLOBAL audit_log_exclude_accounts= NULL;
 set global audit_log_flush= ON;
 ===================================================================

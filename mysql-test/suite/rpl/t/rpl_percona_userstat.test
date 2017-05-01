@@ -74,3 +74,6 @@ SET GLOBAL userstat=@master_userstat_saved;
 DROP TABLE t1, t2;
 DROP TABLE t3;
 --source include/rpl_end.inc
+
+connection slave;
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=();

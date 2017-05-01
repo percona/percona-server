@@ -18,15 +18,9 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 UNINSTALL PLUGIN audit_log;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
-SELECT 'skip this';
-skip this
-skip this
 SELECT * FROM t;
 a
 db2
-SELECT 'skip this';
-skip this
-skip this
 INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 SELECT * FROM t;
 a

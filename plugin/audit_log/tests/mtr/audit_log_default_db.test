@@ -31,39 +31,42 @@ GRANT ALL PRIVILEGES ON ąžąžąžą.* TO 'user2'@'%';
 
 # truncate audit log
 UNINSTALL PLUGIN audit_log;
-SELECT 'skip this';
 --remove_file $log_file
 
 connect (test,localhost,user1,111,db2,);
 connection test;
 SELECT * FROM t;
-SELECT 'skip this';
 
+--source include/count_sessions.inc
 connect (root,localhost,root,,,);
 connection root;
 INSTALL PLUGIN audit_log SONAME 'audit_log.so';
 disconnect root;
---source include/wait_until_disconnected.inc
 connection test;
+--source include/wait_until_count_sessions.inc
 
 SELECT * FROM t;
 use 	`db1`;
 --error ER_DBACCESS_DENIED_ERROR
 change_user user2,111,db1,do_not_reconnect_on_fail;
 disconnect test;
---source include/wait_until_disconnected.inc
+connection default;
+--source include/wait_until_count_sessions.inc
 --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 --error ER_DBACCESS_DENIED_ERROR
 connect (test,localhost,user2,111,db1,);
---source include/wait_until_disconnected.inc
+connection default;
+--source include/wait_until_count_sessions.inc
 --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 --error ER_ACCESS_DENIED_ERROR
 connect (test,localhost,user2,112,db2,);
---source include/wait_until_disconnected.inc
+connection default;
+--source include/wait_until_count_sessions.inc
 --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 --error ER_ACCESS_DENIED_ERROR
 connect (test,localhost,user3,111,db2,);
---source include/wait_until_disconnected.inc
+connection default;
+--source include/wait_until_count_sessions.inc
 connect (test,localhost,user2,111,db2,);
 connection test;
 set names utf8;
@@ -79,11 +82,9 @@ SELECT * FROM t;
 use ąžąžąžą;
 SELECT * FROM t;
 disconnect test;
---source include/wait_until_disconnected.inc
-
 connection default;
 
---source include/count_sessions.inc
+--source include/wait_until_count_sessions.inc
 --exec $MYSQL --user=user1 --password=111 test -e "use db1; SELECT * FROM t;"
 --source include/wait_until_count_sessions.inc
 

@@ -511,7 +511,7 @@ if [ -e /etc/my.cnf ]; then
 else
     MYCNF_PACKAGE='mariadb-libs'
 fi
-if [ $MYCNF_PACKAGE = 'mariadb-libs' -o $MYCNF_PACKAGE = 'mysql-libs' ]
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]
 then
   rm -f /etc/my.cnf
 fi

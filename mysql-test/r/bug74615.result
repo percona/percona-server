@@ -1,4 +1,5 @@
 call mtr.add_suppression("Did not write failed");
+call mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 CREATE TABLE mysql.user(Host char binary DEFAULT'',User char binary DEFAULT'',
 Password char collate latin1_bin DEFAULT'',Select_priv enum('N','Y')COLLATE utf8_general_ci DEFAULT'N',
@@ -38,7 +39,7 @@ SET SESSION sql_mode='';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 grant select on test.* to''@'santa.claus.ipv4.example.com';
-ERROR 42S22: Unknown column 'plugin' in 'mysql.user'
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 39. The table is probably corrupted
 SET SESSION sql_mode=@old_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

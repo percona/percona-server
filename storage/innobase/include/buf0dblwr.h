@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -65,7 +65,7 @@ recovery, this function loads the pages from double write buffer into memory.
 MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 buf_dblwr_init_or_load_pages(
-	os_file_t	file,
+	pfs_os_file_t	file,
 	const char*	path);
 
 /** Process and remove the double write buffer pages for all tablespaces. */
@@ -198,7 +198,7 @@ enum { MAX_DBLWR_SHARDS = MAX_BUFFER_POOLS * 2 };
 class parallel_dblwr_t {
 public:
 	/** Parallel doublewrite buffer file handle */
-	os_file_t		file;
+	pfs_os_file_t		file;
 	/** Path to the parallel doublewrite buffer */
 	char*			path;
 	/** Individual parallel doublewrite partitions */
@@ -210,10 +210,11 @@ public:
 	/** Default constructor for the parallel doublewrite instance */
 	parallel_dblwr_t(void)
 		:
-		file(OS_FILE_CLOSED),
 		path(NULL),
 		recovery_buf_unaligned(NULL)
-	{ }
+	{
+		file.set_closed();
+	}
 };
 
 /** The parallel doublewrite buffer */

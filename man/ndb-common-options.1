@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO ND" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "OPTIONS COMMON TO ND" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.105.\ \& This table describes command\-line options common to all MySQL Cluster programs
+.B Table\ \&21.105.\ \& This table describes command\-line options common to all MySQL Cluster programs
 .TS
 allbox tab(:);
 .
@@ -113,12 +113,12 @@ allbox tab(:);
 .sp 1
 .PP
 For options specific to individual NDB Cluster programs, see
-Section\ \&19.4, \(lqNDB Cluster Programs\(rq\&.
+Section\ \&21.4, \(lqNDB Cluster Programs\(rq\&.
 .PP
 See
-Section\ \&19.3.3.8.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
+Section\ \&21.3.3.8.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
 \fBmysqld\fR
-options relating to NDB Cluster \&.
+options relating to NDB Cluster\&.
 .sp
 .RS 4
 .ie n \{\
@@ -239,7 +239,7 @@ shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186
 .\}
 .sp
 For more information, see
-Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
 .RE
 .sp
 .RS 4
@@ -542,7 +542,7 @@ T}
 .sp 1
 Sets this node\*(Aqs NDB Cluster node ID\&.
 \fIThe range of permitted values depends on the node\*(Aqs type (data, management, or API) and the NDB Cluster software version\fR\&. See
-Section\ \&19.1.6.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
+Section\ \&21.1.6.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -601,15 +601,15 @@ T}:T{
 T}
 .TE
 .sp 1
-Prints the NDB Cluster version number of the executable\&. The version number is relevant because not all versions can be used together, and the NDB Cluster startup process verifies that the versions of the binaries being used can co\-exist in the same cluster\&. This is also important when performing an online (rolling) software upgrade or downgrade of NDB Cluster \&.
+Prints the NDB Cluster version number of the executable\&. The version number is relevant because not all versions can be used together, and the NDB Cluster startup process verifies that the versions of the binaries being used can co\-exist in the same cluster\&. This is also important when performing an online (rolling) software upgrade or downgrade of NDB Cluster\&.
 .sp
 See
-Section\ \&19.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
+Section\ \&21.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

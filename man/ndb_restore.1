@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ directory\&. This program reads the files created as a result of the backup and 
 must be executed once for each of the backup files that were created by the
 START BACKUP
 command used to create the backup (see
-Section\ \&19.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
+Section\ \&21.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq)\&. This is equal to the number of data nodes in the cluster at the time that the backup was created\&.
 .if n \{\
 .sp
 .\}
@@ -59,7 +59,7 @@ Section\ \&19.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 .PP
 Before using
 \fBndb_restore\fR, it is recommended that the cluster be running in single user mode, unless you are restoring multiple data nodes in parallel\&. See
-Section\ \&19.5.8, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
+Section\ \&21.5.8, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
@@ -72,7 +72,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.98.\ \& This table describes command\-line options for the ndb_restore program
+.B Table\ \&21.98.\ \& This table describes command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 .
@@ -114,7 +114,7 @@ The
 option is used to specify a connection string which tells
 ndb_restore
 where to locate the cluster management server\&. (See
-Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information on connection strings\&.) If this option is not used, then
 \fBndb_restore\fR
 attempts to connect to a management server on
 localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
@@ -132,7 +132,7 @@ or
 section in
 config\&.ini
 that is not being used for a MySQL server or other application for this reason (see
-Section\ \&19.3.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
+Section\ \&21.3.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
 .PP
 You can verify that
 \fBndb_restore\fR
@@ -211,7 +211,7 @@ or the equivalent\&.
 .IP "  2." 4.2
 .\}
 Perform a backup in the normal manner\&. See
-Section\ \&19.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
+Section\ \&21.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq, for information about how to do this\&.
 .RE
 .sp
 .RS 4
@@ -737,7 +737,7 @@ The
 option is used to specify the ID or sequence number of the backup, and is the same number shown by the management client in the
 Backup \fIbackup_id\fR completed
 message displayed upon completion of a backup\&. (See
-Section\ \&19.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
+Section\ \&21.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Backup\(rq\&.)
 .if n \{\
 .sp
 .\}
@@ -764,7 +764,7 @@ having
 in the
 id
 column is updated if it already exists; such a row is inserted if it does not already exist\&. (See
-Section\ \&19.6.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
+Section\ \&21.6.9, \(lqNDB Cluster Backups With NDB Cluster Replication\(rq\&.)
 .PP
 \fB\-\-restore_data\fR
 .PP
@@ -818,7 +818,7 @@ to restore the privilege tables\&.
 This works only if the privilege tables were converted to
 NDB
 before the backup was taken\&. For more information, see
-Section\ \&19.5.15, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
+Section\ \&21.5.15, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
 .PP
 \fB\-\-backup_path\fR
 .PP
@@ -845,7 +845,7 @@ and
 must be run twice\(emonce for each database node in the cluster where the backup was taken\&. However,
 \fBndb_restore\fR
 cannot always restore backups made from a cluster running one version of MySQL to a cluster running a different MySQL version\&. See
-Section\ \&19.2.8, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
+Section\ \&21.2.8, \(lqUpgrading and Downgrading NDB Cluster\(rq, for more information\&.
 .if n \{\
 .sp
 .\}
@@ -864,9 +864,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .PP
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.5 to a cluster running NDB Cluster 7\&.4\&.14, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.7 to a cluster running NDB Cluster 7\&.4\&.16, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.5 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.7 distribution\&.
 .sp .5v
 .RE
 .PP
@@ -1208,7 +1208,7 @@ or any of the
 options is in effect performing a dry run\&. Including one or more of these options causes any output to be redirected to
 stdout; in such cases,
 \fBndb_restore\fR
-makes no attempt to restore data or metadata to an NDB Cluster \&.
+makes no attempt to restore data or metadata to an NDB Cluster\&.
 .sp .5v
 .RE
 .PP
@@ -1254,7 +1254,7 @@ to their binary logs\&.
 This option stops
 \fBndb_restore\fR
 from restoring any NDB Cluster Disk Data objects, such as tablespaces and log file groups; see
-Section\ \&19.5.13, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
+Section\ \&21.5.13, \(lqNDB Cluster Disk Data Tables\(rq, for more information about these\&.
 .PP
 \fB\-\-parallelism=#\fR,
 \fB\-p\fR
@@ -1980,13 +1980,13 @@ After using
 to initialize an NDB Cluster for use in circular replication, binary logs on the SQL node acting as the replication slave are not automatically created, and you must cause them to be created manually\&. To cause the binary logs to be created, issue a
 SHOW TABLES
 statement on that SQL node before running
-START SLAVE\&. This is a known issue in NDB Cluster \&.
+START SLAVE\&. This is a known issue in NDB Cluster\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndbmtd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBMTD\FR" "8" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBMTD\FR" "8" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -54,7 +54,7 @@ Command\-line options and configuration parameters used with
 also apply to
 \fBndbmtd\fR\&. For more information about these options and parameters, see
 \fBndbd\fR(8), and
-Section\ \&19.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq, respectively\&.
+Section\ \&21.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq, respectively\&.
 .PP
 \fBndbmtd\fR
 is also file system\-compatible with
@@ -169,7 +169,7 @@ The
 \fBndbd\fR
 exit codes and messages that are generated when a data node process shuts down prematurely are also used by
 \fBndbmtd\fR\&. See
-\m[blue]\fBndbd Error Messages\fR\m[]\&\s-2\u[1]\d\s+2, for a listing of these\&.
+\m[blue]\fBData Node Error Messages\fR\m[]\&\s-2\u[1]\d\s+2, for a listing of these\&.
 .if n \{\
 .sp
 .\}
@@ -187,13 +187,13 @@ It is possible to use
 \fBndbd\fR
 and
 \fBndbmtd\fR
-concurrently on different data nodes in the same NDB Cluster \&. However, such configurations have not been tested extensively; thus, we cannot recommend doing so in a production setting at this time\&.
+concurrently on different data nodes in the same NDB Cluster\&. However, such configurations have not been tested extensively; thus, we cannot recommend doing so in a production setting at this time\&.
 .sp .5v
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -203,9 +203,9 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-ndbd Error Messages
+Data Node Error Messages
 .RS 4
-\%http://dev.mysql.com/doc/ndbapi/en/ndbd-error-messages.html
+\%http://dev.mysql.com/doc/ndb-internals/en/ndb-node-error-messages.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

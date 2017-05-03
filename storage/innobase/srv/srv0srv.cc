@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 
@@ -76,6 +76,10 @@ Created 10/8/1995 Heikki Tuuri
 #include "handler.h"
 #include "ha_innodb.h"
 
+
+#ifndef UNIV_PFS_THREAD
+#define create_thd(x,y,z,PFS_KEY)	create_thd(x,y,z,PFS_NOT_INSTRUMENTED.m_value)
+#endif /* UNIV_PFS_THREAD */
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -2845,7 +2849,7 @@ DECLARE_THREAD(srv_worker_thread)(
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 	my_thread_init();
-	THD *thd= create_thd(false, true, true, srv_worker_thread_key);
+	THD *thd= create_thd(false, true, true, srv_worker_thread_key.m_value);
 
 	srv_purge_tids[tid_i] = os_thread_get_tid();
 	os_thread_set_priority(srv_purge_tids[tid_i],
@@ -3117,7 +3121,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 						required by os_thread_create */
 {
 	my_thread_init();
-	THD *thd= create_thd(false, true, true, srv_purge_thread_key);
+	THD *thd= create_thd(false, true, true, srv_purge_thread_key.m_value);
 	srv_slot_t*	slot;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
@@ -3356,4 +3360,20 @@ srv_fatal_error()
 	srv_shutdown_all_bg_threads();
 
 	exit(3);
+}
+
+/** Check whether given space id is undo tablespace id
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+srv_is_undo_tablespace(
+	ulint	space_id)
+{
+	if (srv_undo_space_id_start == 0) {
+		return(false);
+	}
+
+	return(space_id >= srv_undo_space_id_start
+	       && space_id < (srv_undo_space_id_start
+			      + srv_undo_tablespaces_open));
 }

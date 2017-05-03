@@ -3018,17 +3018,17 @@ buf_flush_page_cleaner_set_priority(
 #endif /* UNIV_LINUX */
 
 #ifdef UNIV_DEBUG
-/** Loop used to disable page cleaner threads. */
+/** Loop used to disable page cleaner and LRU manager threads. */
 static
 void
 buf_flush_page_cleaner_disabled_loop(void)
 {
-	ut_ad(page_cleaner != NULL);
-
 	if (!innodb_page_cleaner_disabled_debug) {
 		/* We return to avoid entering and exiting mutex. */
 		return;
 	}
+
+	ut_ad(page_cleaner != NULL);
 
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_disabled_debug++;
@@ -3059,8 +3059,8 @@ buf_flush_page_cleaner_disabled_loop(void)
 	mutex_exit(&page_cleaner->mutex);
 }
 
-/** Disables page cleaner threads (coordinator and workers).
-It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+/** Disables page cleaner threads (coordinator and workers) and LRU manager
+threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]	thd		thread handle
 @param[in]	var		pointer to system variable
 @param[out]	var_ptr		where the formal string goes
@@ -3083,7 +3083,7 @@ buf_flush_page_cleaner_disabled_debug_update(
 
 		innodb_page_cleaner_disabled_debug = false;
 
-		/* Enable page cleaner threads. */
+		/* Enable page cleaner and LRU manager threads. */
 		while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 			mutex_enter(&page_cleaner->mutex);
 			const ulint n = page_cleaner->n_disabled_debug;
@@ -3117,10 +3117,12 @@ buf_flush_page_cleaner_disabled_debug_update(
 		mutex_enter(&page_cleaner->mutex);
 
 		ut_ad(page_cleaner->n_disabled_debug
-		      <= srv_n_page_cleaners);
+		      <= (srv_n_page_cleaners
+			  + buf_lru_manager_running_threads));
 
 		if (page_cleaner->n_disabled_debug
-		    == srv_n_page_cleaners) {
+		    == (srv_n_page_cleaners
+			+ buf_lru_manager_running_threads)) {
 
 			mutex_exit(&page_cleaner->mutex);
 			break;
@@ -3646,6 +3648,8 @@ DECLARE_THREAD(buf_lru_manager)(
 	phase to provide free pages for the master and purge threads.  */
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
 	       || srv_shutdown_state == SRV_SHUTDOWN_CLEANUP) {
+
+		ut_d(buf_flush_page_cleaner_disabled_loop());
 
 		buf_lru_manager_sleep_if_needed(next_loop_time);
 

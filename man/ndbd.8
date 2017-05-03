@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -37,7 +37,7 @@ ndbd \- the NDB Cluster data node daemon
 \fBndbd\fR
 is the process that is used to handle all the data in tables using the NDB Cluster storage engine\&. This is the process that empowers a data node to accomplish distributed transaction handling, node recovery, checkpointing to disk, online backup, and related tasks\&.
 .PP
-In an NDB Cluster , a set of
+In an NDB Cluster, a set of
 \fBndbd\fR
 processes cooperate in handling data\&. These processes can execute on the same computer (host) or on different computers\&. The correspondences between data nodes and Cluster hosts is completely configurable\&.
 .PP
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.85.\ \& This table describes command\-line options for the ndbd program
+.B Table\ \&21.85.\ \& This table describes command\-line options for the ndbd program
 .TS
 allbox tab(:);
 .
@@ -408,7 +408,7 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 NDB Cluster Disk Data files (see
-Section\ \&19.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&21.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .RE
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -582,7 +582,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&19.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -807,7 +807,7 @@ Determines the time to wait between attempts to contact a management server when
 \fB\-\-connect\-retries\fR
 option)\&. The default is 5 seconds\&.
 .sp
-This option is deprecated, and is subject to removal in a future release of NDB Cluster \&. Use
+This option is deprecated, and is subject to removal in a future release of NDB Cluster\&. Use
 \fB\-\-connect\-retry\-delay\fR
 instead\&.
 .RE
@@ -863,7 +863,7 @@ option)\&. The default is 5 seconds\&.
 .sp
 This option takes the place of the
 \fB\-\-connect\-delay\fR
-option, which is now deprecated and subject to removal in a future release of NDB Cluster \&.
+option, which is now deprecated and subject to removal in a future release of NDB Cluster\&.
 .RE
 .PP
 \fBndbd\fR
@@ -915,7 +915,7 @@ TraceFile: ndb_2_trace\&.log\&.2
 Listings of possible
 \fBndbd\fR
 exit codes and messages generated when a data node process shuts down prematurely can be found in
-\m[blue]\fBndbd Error Messages\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBData Node Error Messages\fR\m[]\&\s-2\u[1]\d\s+2\&.
 .if n \{\
 .sp
 .\}
@@ -1029,10 +1029,10 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
 Options Common to NDB Cluster Programs(1), describes other command\-line options which can be used with
 \fBndbd\fR\&. For information about data node configuration parameters, see
-Section\ \&19.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
+Section\ \&21.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1056,11 +1056,11 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 5\&.7 in a production setting\&. See
-Section\ \&19.1.6, \(lqKnown Limitations of NDB Cluster\(rq\&.
+Section\ \&21.1.6, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -1070,9 +1070,9 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-ndbd Error Messages
+Data Node Error Messages
 .RS 4
-\%http://dev.mysql.com/doc/ndbapi/en/ndbd-error-messages.html
+\%http://dev.mysql.com/doc/ndb-internals/en/ndb-node-error-messages.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

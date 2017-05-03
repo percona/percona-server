@@ -492,3 +492,20 @@ cf_name
 notsharedcf
 DROP TABLE t1;
 DROP TABLE t2;
+CREATE TABLE t1 (
+a INT NOT NULL,
+PRIMARY KEY (a) COMMENT 'p1_cfname=foo;'
+) ENGINE=ROCKSDB
+PARTITION BY LIST COLUMNS(a)
+(PARTITION p1 VALUES IN (1) ENGINE = ROCKSDB);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 values (1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+TRUNCATE TABLE t1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1;
+a
+DROP TABLE t1;

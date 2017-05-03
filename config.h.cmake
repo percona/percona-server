@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -119,8 +119,8 @@
 
 /* Readline */
 #cmakedefine HAVE_HIST_ENTRY 1
+#cmakedefine USE_NEW_XLINE_INTERFACE 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
-#cmakedefine USE_NEW_READLINE_INTERFACE 1
 #cmakedefine HAVE_READLINE_HISTORY_H 1
 
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1

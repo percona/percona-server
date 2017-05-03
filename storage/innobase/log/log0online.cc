@@ -564,9 +564,9 @@ log_online_rotate_bitmap_file(
 	lsn_t	next_file_start_lsn)	/*!<in: the start LSN name
 					part */
 {
-	if (log_bmp_sys->out.file != os_file_invalid) {
+	if (!os_file_is_invalid(log_bmp_sys->out.file)) {
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = os_file_invalid;
+		os_file_mark_invalid(&log_bmp_sys->out.file);
 	}
 	log_bmp_sys->out_seq_num++;
 	log_online_make_bitmap_name(next_file_start_lsn);
@@ -795,9 +795,9 @@ log_online_read_shutdown(void)
 
 	ib_rbt_node_t *free_list_node = log_bmp_sys->page_free_list;
 
-	if (log_bmp_sys->out.file != os_file_invalid) {
+	if (!os_file_is_invalid(log_bmp_sys->out.file)) {
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = os_file_invalid;
+		os_file_mark_invalid(&log_bmp_sys->out.file);
 	}
 
 	rbt_free(log_bmp_sys->modified_pages);
@@ -1171,10 +1171,8 @@ log_online_write_bitmap_page(
 		return FALSE;
 	}
 
-#ifdef UNIV_LINUX
-	posix_fadvise(log_bmp_sys->out.file, log_bmp_sys->out.offset,
-		      MODIFIED_PAGE_BLOCK_SIZE, POSIX_FADV_DONTNEED);
-#endif
+	os_file_advise(log_bmp_sys->out.file, log_bmp_sys->out.offset,
+		       MODIFIED_PAGE_BLOCK_SIZE, OS_FILE_ADVISE_DONTNEED);
 
 	log_bmp_sys->out.offset += MODIFIED_PAGE_BLOCK_SIZE;
 	return TRUE;
@@ -1565,10 +1563,8 @@ log_online_open_bitmap_file_read_only(
 	bitmap_file->size = os_file_get_size(bitmap_file->file);
 	bitmap_file->offset = 0;
 
-#ifdef UNIV_LINUX
-	posix_fadvise(bitmap_file->file, 0, 0, POSIX_FADV_SEQUENTIAL);
-	posix_fadvise(bitmap_file->file, 0, 0, POSIX_FADV_NOREUSE);
-#endif
+	os_file_advise(bitmap_file->file, 0, 0, OS_FILE_ADVISE_SEQUENTIAL);
+	os_file_advise(bitmap_file->file, 0, 0, OS_FILE_ADVISE_NOREUSE);
 
 	return TRUE;
 }
@@ -1654,7 +1650,7 @@ log_online_bitmap_iterator_init(
 		/* Empty range */
 		i->in_files.count = 0;
 		i->in_files.files = NULL;
-		i->in.file = os_file_invalid;
+		os_file_mark_invalid(&i->in.file);
 		i->page = NULL;
 		i->failed = FALSE;
 		return TRUE;
@@ -1672,7 +1668,7 @@ log_online_bitmap_iterator_init(
 	if (i->in_files.count == 0) {
 
 		/* Empty range */
-		i->in.file = os_file_invalid;
+		os_file_mark_invalid(&i->in.file);
 		i->page = NULL;
 		i->failed = FALSE;
 		return TRUE;
@@ -1711,10 +1707,10 @@ log_online_bitmap_iterator_release(
 {
 	ut_a(i);
 
-	if (i->in.file != os_file_invalid) {
+	if (!os_file_is_invalid(i->in.file)) {
 
 		os_file_close(i->in.file);
-		i->in.file = os_file_invalid;
+		os_file_mark_invalid(&i->in.file);
 	}
 	if (i->in_files.files) {
 
@@ -1768,8 +1764,9 @@ log_online_bitmap_iterator_next(
 
 			/* Advance file */
 			i->in_i++;
-			success = os_file_close_no_error_handling(i->in.file);
-			i->in.file = os_file_invalid;
+			success = os_file_close_no_error_handling(
+				i->in.file);
+			os_file_mark_invalid(&i->in.file);
 			if (UNIV_UNLIKELY(!success)) {
 
 				os_file_get_last_error(TRUE);
@@ -1878,7 +1875,7 @@ log_online_purge_changed_page_bitmaps(
 		/* If we have to delete the current output file, close it
 		first. */
 		os_file_close(log_bmp_sys->out.file);
-		log_bmp_sys->out.file = os_file_invalid;
+		os_file_mark_invalid(&log_bmp_sys->out.file);
 	}
 
 	for (i = 0; i < bitmap_files.count; i++) {

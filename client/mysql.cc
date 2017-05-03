@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1489,7 +1489,8 @@ sig_handler handle_kill_signal(int sig)
                  "program_name", "mysql");
   if (!mysql_connect_ssl_check(kill_mysql, current_host, current_user,
                                opt_password, "", opt_mysql_port,
-                               opt_mysql_unix_port, 0, opt_ssl_required))
+                               opt_mysql_unix_port, 0,
+                               opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
     goto err;
@@ -2675,7 +2676,7 @@ C_MODE_END
   if not.
 */
 
-#if defined(USE_NEW_READLINE_INTERFACE) 
+#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int);
 extern "C" char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
@@ -2757,7 +2758,7 @@ static int not_in_history(const char *line)
 }
 
 
-#if defined(USE_NEW_READLINE_INTERFACE)
+#if defined(USE_NEW_XLINE_INTERFACE)
 static int fake_magic_space(int, int)
 #else
 static int fake_magic_space(const char *, int)
@@ -2774,7 +2775,7 @@ static void initialize_readline (char *name)
   rl_readline_name = name;
 
   /* Tell the completer that we want a crack first. */
-#if defined(USE_NEW_READLINE_INTERFACE)
+#if defined(USE_NEW_XLINE_INTERFACE)
   rl_attempted_completion_function= (rl_completion_func_t*)&new_mysql_completion;
   rl_completion_entry_function= (rl_compentry_func_t*)&no_completion;
 
@@ -2804,7 +2805,7 @@ static char **new_mysql_completion(const char *text,
                                    int end MY_ATTRIBUTE((unused)))
 {
   if (!status.batch && !quick)
-#if defined(USE_NEW_READLINE_INTERFACE)
+#if defined(USE_NEW_XLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
     return completion_matches((char *)text, (CPFunction *)new_command_generator);
@@ -4868,7 +4869,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (!mysql_connect_ssl_check(&mysql, host, user, password,
                                database, opt_mysql_port, opt_mysql_unix_port,
                                connect_flag | CLIENT_MULTI_STATEMENTS,
-                               opt_ssl_required))
+                               opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&

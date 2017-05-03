@@ -6988,11 +6988,13 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
 
     if (rli->is_parallel_exec())
     {
+      bool real_event= server_id && !is_artificial_event();
       time_t ts= when.tv_sec + static_cast<time_t>(exec_time);
       rli->reset_notified_checkpoint(0,
-                                     server_id ? &ts : NULL,
+                                     real_event ? &ts : NULL,
                                      true/*need_data_lock=true*/);
     }
+
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.

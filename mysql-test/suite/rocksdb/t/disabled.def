@@ -1,6 +1,4 @@
 compression_zstd : MYR-28 - Percona Server requires compilation with zstd
-cons_snapshot_read_committed : MYR-124 - Percona Server with MyRocks has different behavior of STWCS
-cons_snapshot_repeatable_read : MYR-124 - Percona Server with MyRocks has different behavior of STWCS
 cons_snapshot_serializable : MyRocks does not yet support ISO serializable
 level_read_uncommitted : MyRocks does not yet suppore ISO read uncommitted
 level_serializable : MyRocks does not yet support ISO serializable

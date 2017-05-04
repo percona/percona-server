@@ -2,10 +2,17 @@
 
 . /usr/share/debconf/confmodule
 
+MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2)
+if [ -z "$MYSQLDATA" ];
+then
+    MYSQLDATA=/var/lib/mysql
+fi
+MYSQLFILES=/var/lib/mysql-files
+
 take_upstart_job_backup () {
-	if [ -e "/etc/init/mysql.conf" ] && [ -d "/var/lib/mysql" ];
+	if [ -e "/etc/init/mysql.conf" ] && [ -d "$MYSQLDATA" ];
 	then
-		mv /etc/init/mysql.conf /var/lib/mysql/.mysql.conf.backup
+		mv /etc/init/mysql.conf $MYSQLDATA/.mysql.conf.backup
 	fi
 }
 
@@ -17,8 +24,6 @@ case "$1" in
 
 		set -e
 
-		MYSQLDATA=/var/lib/mysql
-		MYSQLFILES=/var/lib/mysql-files
 
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
 		then

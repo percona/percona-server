@@ -23,7 +23,7 @@ INSERT INTO t1 VALUES(1);
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 Warnings:
-Warning	138	Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
+Warning	138	RocksDB: Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine. Snapshot has not been taken.
 Warning	138	InnoDB: WITH CONSISTENT SNAPSHOT was ignored because this phrase can only be used with REPEATABLE READ isolation level.
 ROLLBACK;
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;

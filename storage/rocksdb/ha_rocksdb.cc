@@ -2863,10 +2863,10 @@ static int rocksdb_start_tx_and_assign_read_view(
     tx->acquire_snapshot(true);
   } else {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                        "Only REPEATABLE READ isolation level is supported "
-                        "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
-                        "in RocksDB Storage Engine. Snapshot has not been "
-                        "taken.");
+                        "RocksDB: Only REPEATABLE READ isolation level is "
+                        "supported for START TRANSACTION WITH CONSISTENT "
+                        "SNAPSHOT in RocksDB Storage Engine. Snapshot has not "
+                        "been taken.");
   }
   return HA_EXIT_SUCCESS;
 }

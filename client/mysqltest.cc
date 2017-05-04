@@ -4159,7 +4159,13 @@ void do_perl(struct st_command *command)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
 
-    str_to_file(temp_file_path, ds_script.str, ds_script.length);
+    /* Compatibility for Perl 5.24 and newer. */
+    static DYNAMIC_STRING script;
+    init_dynamic_string(&script, "push @INC, \".\";\n", 1024, 1024);
+    dynstr_append_mem(&script, ds_script.str, ds_script.length);
+
+    str_to_file(temp_file_path, script.str, script.length);
+    dynstr_free(&script);
 
     /* Format the "perl <filename>" command */
     my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);

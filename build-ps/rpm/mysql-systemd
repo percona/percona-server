@@ -55,11 +55,14 @@ install_db () {
 
     # If log file is not specified it's put into datadir by default
     if [ ! -z $log ]; then
-        [ -e $log ] || touch $log
-        chmod 0640 $log
-        chown mysql:mysql $log || exit 1
+        if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
+            case $(basename "$log") in
+                mysql*.log) install /dev/null -m0640 -o mysql -g mysql "$log" ;;
+                *) ;;
+            esac
+        fi
         if [ -x /usr/sbin/restorecon ]; then
-            /usr/sbin/restorecon $log
+           [ -e "$log" ] && /usr/sbin/restorecon $log
         fi
     fi
 

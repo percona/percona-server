@@ -172,8 +172,410 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+static const
+TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
+  {
+    { C_STRING_WITH_LEN("Host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Password") },
+    { C_STRING_WITH_LEN("char(41)") },
+    { C_STRING_WITH_LEN("latin1") }
+  },
+  {
+    { C_STRING_WITH_LEN("Select_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Insert_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Update_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Delete_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Create_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Drop_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Reload_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Shutdown_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Process_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("File_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Grant_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("References_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Index_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Alter_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Show_db_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Super_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Create_tmp_table_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Lock_tables_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Execute_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Repl_slave_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Repl_client_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Create_view_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Show_view_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Create_routine_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Alter_routine_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Create_user_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Event_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Trigger_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Create_tablespace_priv") },
+    { C_STRING_WITH_LEN("enum('N','Y')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("ssl_type") },
+    { C_STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("ssl_cipher") },
+    { C_STRING_WITH_LEN("blob") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("x509_issuer") },
+    { C_STRING_WITH_LEN("blob") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("x509_subject") },
+    { C_STRING_WITH_LEN("blob") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("max_questions") },
+    { C_STRING_WITH_LEN("int(11)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("max_updates") },
+    { C_STRING_WITH_LEN("int(11)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("max_connections") },
+    { C_STRING_WITH_LEN("int(11)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("max_user_connections") },
+    { C_STRING_WITH_LEN("int(11)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("plugin") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("authentication_string") },
+    { C_STRING_WITH_LEN("text") },
+    {NULL, 0}
+  }
+};
+
+static const
+TABLE_FIELD_TYPE mysql_proxies_priv_table_fields[MYSQL_PROXIES_PRIV_FIELD_COUNT] = {
+  {
+    { C_STRING_WITH_LEN("Host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Proxied_host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Proxied_user") },
+    { C_STRING_WITH_LEN("char(16)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("With_grant") },
+    { C_STRING_WITH_LEN("tinyint(1)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Grantor") },
+    { C_STRING_WITH_LEN("char(77)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Timestamp") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  }
+};
+
+static const
+TABLE_FIELD_TYPE mysql_procs_priv_table_fields[MYSQL_PROCS_PRIV_FIELD_COUNT] = {
+  {
+    { C_STRING_WITH_LEN("Host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Routine_name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Routine_type") },
+    { C_STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Grantor") },
+    { C_STRING_WITH_LEN("char(77)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Proc_priv") },
+    { C_STRING_WITH_LEN("set('Execute','Alter Routine','Grant')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Timestamp") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  }
+};
+
+static const
+TABLE_FIELD_TYPE mysql_columns_priv_table_fields[MYSQL_COLUMNS_PRIV_FIELD_COUNT] = {
+  {
+    { C_STRING_WITH_LEN("Host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Table_name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Column_name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Timestamp") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Column_priv") },
+    { C_STRING_WITH_LEN("set('Select','Insert','Update','References')") },
+    { C_STRING_WITH_LEN("utf8") }
+  }
+};
+
+static const
+TABLE_FIELD_TYPE mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] = {
+  {
+    { C_STRING_WITH_LEN("Host") },
+    { C_STRING_WITH_LEN("char(60)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Db") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("User") },
+    { C_STRING_WITH_LEN("char(16)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Table_name") },
+    { C_STRING_WITH_LEN("char(64)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Grantor") },
+    { C_STRING_WITH_LEN("char(77)") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Timestamp") },
+    { C_STRING_WITH_LEN("timestamp") },
+    {NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("Table_priv") },
+    { C_STRING_WITH_LEN("set('Select','Insert','Update','Delete','Create',"
+                        "'Drop','Grant','References','Index','Alter',"
+                        "'Create View','Show view','Trigger')") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("Column_priv") },
+    { C_STRING_WITH_LEN("set('Select','Insert','Update','References')") },
+    { C_STRING_WITH_LEN("utf8") }
+  }
+};
+
+
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
+
+const TABLE_FIELD_DEF
+  mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
+
+const TABLE_FIELD_DEF
+  mysql_proxies_priv_table_def= {MYSQL_PROXIES_PRIV_FIELD_COUNT,
+                                 mysql_proxies_priv_table_fields};
+
+const TABLE_FIELD_DEF
+  mysql_procs_priv_table_def= {MYSQL_PROCS_PRIV_FIELD_COUNT,
+                               mysql_procs_priv_table_fields};
+
+const TABLE_FIELD_DEF
+  mysql_columns_priv_table_def= {MYSQL_COLUMNS_PRIV_FIELD_COUNT,
+                                 mysql_columns_priv_table_fields};
+
+const TABLE_FIELD_DEF
+  mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
+                                mysql_tables_priv_table_fields};
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -523,6 +925,36 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
   return (uchar*) entry->key;
 }
 
+/**
+  Class to validate the flawlessness of ACL table
+  before performing ACL operations.
+*/
+class Acl_table_intact : public Table_check_intact
+{
+protected:
+  void report_error(uint code, const char *fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    error_log_print(ERROR_LEVEL, fmt, args);
+    va_end(args);
+    if (code)
+    {
+      va_start(args, fmt);
+      if (code == ER_CANNOT_LOAD_FROM_TABLE)
+      {
+        char *table_name;
+        va_arg(args, char *);
+        table_name= va_arg(args, char *);
+        my_error(code, MYF(0), table_name);
+      }
+      else
+        my_printv_error(code, ER(code), MYF(0), args);
+      va_end(args);
+    }
+  }
+};
+
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
                         1 + USERNAME_LENGTH + 1)
@@ -552,6 +984,7 @@ static bool update_user_table(THD *thd, TABLE *table,
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
+
 /*
  Enumeration of various ACL's and Hashes used in handle_grant_struct()
 */
@@ -2120,6 +2553,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 {
   TABLE_LIST tables;
   TABLE *table;
+  Acl_table_intact table_intact;
   /* Buffer should be extended when password length is extended. */
   char buff[512];
   ulong query_length;
@@ -2154,6 +2588,9 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
 #endif
   if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+    DBUG_RETURN(1);
+
+  if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(1);
 
   /*
@@ -2524,9 +2961,13 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
+  Acl_table_intact table_intact;
   DBUG_ENTER("replace_user_table");
 
   mysql_mutex_assert_owner(&acl_cache->lock);
+
+  if (table_intact.check(table, &mysql_user_table_def))
+    goto end;
 
   if (acl_is_utility_user(combo.user.str, combo.host.str, NULL))
   {
@@ -2793,6 +3234,7 @@ static int replace_db_table(TABLE *table, const char *db,
   int error;
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
+  Acl_table_intact table_intact;
   DBUG_ENTER("replace_db_table");
 
   if (!initialized)
@@ -2800,6 +3242,9 @@ static int replace_db_table(TABLE *table, const char *db,
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
+
+  if (table_intact.check(table, &mysql_db_table_def))
+    DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
@@ -2941,6 +3386,7 @@ replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   uchar user_key[MAX_KEY_LENGTH];
   ACL_PROXY_USER new_grant;
   char grantor[USER_HOST_BUFF_SIZE];
+  Acl_table_intact table_intact;
 
   DBUG_ENTER("replace_proxies_priv_table");
 
@@ -2949,6 +3395,9 @@ replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
+
+  if (table_intact.check(table, &mysql_proxies_priv_table_def))
+    DBUG_RETURN(-1);
 
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(user->host.str,user->user.str, FALSE))
@@ -3353,8 +3802,12 @@ static int replace_column_table(GRANT_TABLE *g_t,
   int result=0;
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
-  KEY_PART_INFO *key_part= table->key_info->key_part;
+  KEY_PART_INFO *key_part;
+  Acl_table_intact table_intact;
   DBUG_ENTER("replace_column_table");
+
+  if (table_intact.check(table, &mysql_columns_priv_table_def))
+    DBUG_RETURN(-1);
 
   table->use_all_columns();
   table->field[0]->store(combo.host.str,combo.host.length,
@@ -3367,6 +3820,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
                          system_charset_info);
 
   /* Get length of 4 first key parts */
+  key_part= table->key_info->key_part;
   key_prefix_length= (key_part[0].store_length + key_part[1].store_length +
                       key_part[2].store_length + key_part[3].store_length);
   key_copy(key, table->record[0], table->key_info, key_prefix_length);
@@ -3568,7 +4022,11 @@ static int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   int error=0;
   ulong store_table_rights, store_col_rights;
   uchar user_key[MAX_KEY_LENGTH];
+  Acl_table_intact table_intact;
   DBUG_ENTER("replace_table_table");
+
+  if (table_intact.check(table, &mysql_tables_priv_table_def))
+    DBUG_RETURN(-1);
 
   get_grantor(thd, grantor);
   /*
@@ -3692,6 +4150,7 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   int old_row_exists= 1;
   int error=0;
   ulong store_proc_rights;
+  Acl_table_intact table_intact;
   DBUG_ENTER("replace_routine_table");
 
   if (!initialized)
@@ -3699,6 +4158,9 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
+
+  if (table_intact.check(table, &mysql_procs_priv_table_def))
+    DBUG_RETURN(-1);
 
   get_grantor(thd, grantor);
   /*
@@ -4863,7 +5325,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, tl= tables;
-       i < number  && tl != first_not_own_table;
+       tl != 0 && i < number  && tl != first_not_own_table;
        tl= tl->next_global, i++)
   {
     /*
@@ -6642,6 +7104,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   int result= 0;
   int found;
   int ret;
+  Acl_table_intact table_intact;
   DBUG_ENTER("handle_grant_data");
 
   /* Handle special utility user */
@@ -6661,6 +7124,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
   }
   /* Handle user table. */
+  if (table_intact.check(tables[0].table, &mysql_user_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 0, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch the in-memory array. */
@@ -6685,6 +7154,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle db table. */
+  if (table_intact.check(tables[1].table, &mysql_db_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 1, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch the in-memory array. */
@@ -6709,6 +7184,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle stored routines table. */
+  if (table_intact.check(tables[4].table, &mysql_procs_priv_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch in-memory array. */
@@ -6749,6 +7230,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   }
 
   /* Handle tables table. */
+  if (table_intact.check(tables[2].table, &mysql_tables_priv_table_def))
+  {
+    result= -1;
+    goto end;
+  }
+
   if ((found= handle_grant_table(tables, 2, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch columns and in-memory array. */
@@ -6765,6 +7252,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
 
     /* Handle columns table. */
+    if (table_intact.check(tables[3].table, &mysql_columns_priv_table_def))
+    {
+      result= -1;
+      goto end;
+    }
+
     if ((found= handle_grant_table(tables, 3, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
@@ -6785,6 +7278,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   /* Handle proxies_priv table. */
   if (tables[5].table)
   {
+    if (table_intact.check(tables[5].table, &mysql_proxies_priv_table_def))
+    {
+      result= -1;
+      goto end;
+    }
+
     if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
@@ -9087,7 +9586,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   {
     mpvio->client_capabilities= uint4korr(end);
     mpvio->max_client_packet_length= 0xfffff;
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
     if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
     goto skip_to_ssl;
@@ -9124,7 +9626,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       Old clients didn't have their own charset. Instead the assumption
       was that they used what ever the server used.
     */
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
   }
   DBUG_EXECUTE_IF("host_error_charset",
                   {

@@ -4733,7 +4733,13 @@ static int my_kill(int pid, int sig)
   CloseHandle(proc);
   return 1;
 #else
-  return kill(pid, sig);
+  int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
 #endif
 }
 
@@ -4825,10 +4831,11 @@ void do_shutdown_server(struct st_command *command)
   DBUG_PRINT("info", ("Killing server, pid: %d", pid));
   if (orig_timeout != 0)
   {
-    log_msg("shutdown_server timeout %ld exceeded, SIGKILL sent to the server",
-            orig_timeout);
+    log_msg("shutdown_server timeout %ld exceeded, "
+            "SIGABRT sent to the server PID %d",
+            orig_timeout, pid);
   }
-  (void)my_kill(pid, 9);
+  (void)my_kill(pid, (orig_timeout != 0) ? SIGABRT : SIGKILL);
 
   DBUG_VOID_RETURN;
 
@@ -5300,7 +5307,7 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
               host, port, sock, user, name, failed_attempts);
   while(!mysql_connect_ssl_check(mysql, host,user, pass, db, port, sock,
                                  CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS,
-                                 opt_ssl_required))
+                                 opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       Connect failed
@@ -5402,7 +5409,7 @@ int connect_n_handle_errors(struct st_command *command,
   
   while (!mysql_connect_ssl_check(con, host, user, pass, db, port,
                                   sock ? sock: 0, CLIENT_MULTI_STATEMENTS,
-                                  opt_ssl_required))
+                                  opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       If we have used up all our connections check whether this

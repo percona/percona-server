@@ -7,6 +7,7 @@
 # Test that we cannot have more simultaneous connections than
 # --thread-pool-size on the standard port, but _can_ have additional
 # connections on the extra port.
+call mtr.add_suppression("Threadpool could not create additional thread to handle queries");
 
 # First set two connections running, and check that extra connection
 # on normal port fails due to --thread-pool-max_threads=2

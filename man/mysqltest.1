@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqltest\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/06/2016
+.\"      Date: 03/14/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQLTEST\FR" "1" "07/06/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQLTEST\FR" "1" "03/14/2017" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -49,7 +49,7 @@ rather than invoking it directly\&.
 \fBmysqltest_embedded\fR
 is similar but is built with support for the
 libmysqld
-embedded server\&.
+embedded server\&. This program is available only prior to MySQL 8\&.0\&.
 .PP
 Features of
 \fBmysqltest\fR:
@@ -613,7 +613,7 @@ updates the given file by writing the actual test results to it\&.
 Pass the argument as an argument to the embedded server\&. For example,
 \fB\-\-server\-arg=\-\-tmpdir=/tmp\fR
 or
-\fB\-\-server\-arg=\-\-core\fR\&. Up to 64 arguments can be given\&.
+\fB\-\-server\-arg=\-\-core\fR\&. Up to 64 arguments can be given\&. This option was removed in MySQL 8\&.0\&.
 .RE
 .sp
 .RS 4
@@ -627,7 +627,7 @@ or
 \fB\-\-server\-file=\fR\fB\fIfile_name\fR\fR,
 \fB\-F \fR\fB\fIfile_name\fR\fR
 .sp
-Read arguments for the embedded server from the given file\&. The file should contain one argument per line\&.
+Read arguments for the embedded server from the given file\&. The file should contain one argument per line\&. This option was removed in MySQL 8\&.0\&.
 .RE
 .sp
 .RS 4
@@ -826,7 +826,7 @@ If enabled, this option causes
 to immediately display the output from executed programs to
 stdout\&.
 .sp
-This option was added in MySQL 5\&.8\&.0\&.
+This option was added in MySQL 8\&.0\&.0\&.
 .RE
 .sp
 .RS 4
@@ -888,7 +888,7 @@ statement is wrapped inside a view\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -900,7 +900,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 The SHA-256 Authentication Plugin
 .RS 4
-\%http://dev.mysql.com/doc/refman/5.7/en/sha256-authentication-plugin.html
+\%http://dev.mysql.com/doc/refman/8.0/en/sha256-authentication-plugin.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

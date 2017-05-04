@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlshow\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/06/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSHOW\FR" "1" "07/06/2016" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLSHOW\FR" "1" "03/17/2017" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -95,23 +95,23 @@ If no column is given, all matching columns and column types in the table are sh
 .PP
 The output displays only the names of those databases, tables, or columns for which you have some privileges\&.
 .PP
-If the last argument contains shell or SQL wildcard characters (\(lq*\(rq,
-\(lq?\(rq,
-\(lq%\(rq, or
-\(lq_\(rq), only those names that are matched by the wildcard are shown\&. If a database name contains any underscores, those should be escaped with a backslash (some Unix shells require two) to get a list of the proper tables or columns\&.
-\(lq*\(rq
+If the last argument contains shell or SQL wildcard characters (*,
+?,
+%, or
+_), only those names that are matched by the wildcard are shown\&. If a database name contains any underscores, those should be escaped with a backslash (some Unix shells require two) to get a list of the proper tables or columns\&.
+*
 and
-\(lq?\(rq
+?
 characters are converted into SQL
-\(lq%\(rq
+%
 and
-\(lq_\(rq
+_
 wildcard characters\&. This might cause some confusion when you try to display the columns for a table with a
-\(lq_\(rq
+_
 in the name, because in this case,
 \fBmysqlshow\fR
 shows you only the table names that match the pattern\&. This is easily fixed by adding an extra
-\(lq%\(rq
+%
 last on the command line as a separate argument\&.
 .PP
 \fBmysqlshow\fR
@@ -617,7 +617,7 @@ Display version information and exit\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

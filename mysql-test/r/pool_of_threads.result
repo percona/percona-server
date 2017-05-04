@@ -2151,6 +2151,7 @@ Privat (Private Nutzung)	Mobilfunk
 Warnings:
 Warning	1052	Column 'kundentyp' in group statement is ambiguous
 drop table t1;
+call mtr.add_suppression("Threadpool could not create additional thread to handle queries");
 SELECT sleep(50000);
 SELECT sleep(50000);
 # -- Success: more than --thread_pool_max_threads normal connections not possible

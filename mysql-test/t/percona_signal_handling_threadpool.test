@@ -1,0 +1,9 @@
+--source include/not_embedded.inc
+--source include/not_windows.inc
+--source include/have_pool_of_threads.inc
+
+--echo #
+--echo # Test server signal handling with threadpool
+--echo #
+
+--source include/percona_signal_handling.inc

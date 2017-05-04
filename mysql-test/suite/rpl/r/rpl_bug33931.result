@@ -8,6 +8,7 @@ SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_
 start slave;
 include/wait_for_slave_sql_error.inc [errno=1593]
 Last_SQL_Error = 'Failed during slave thread initialization'
+include/wait_for_slave_io_to_stop.inc
 SET GLOBAL debug="";
 RESET SLAVE;
 include/rpl_end.inc

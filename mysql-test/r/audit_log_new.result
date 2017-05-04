@@ -83,4 +83,9 @@ drop user 'jeffrey'@'localhost';
 select '&;&&&""""<><<>>>>';
 &;&&&""""<><<>>>>
 &;&&&""""<><<>>>>
+select ' 	
+/"\\';
+/"\
+ 	
+/"\
 set global audit_log_flush= ON;

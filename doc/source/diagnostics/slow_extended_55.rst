@@ -292,7 +292,7 @@ If :variable:`slow_query_log_timestamp_precision` ``=microsecond``, entries to t
      :default: None
      :version 5.5.10-20.1: Introduced (renamed from :variable:`log_slow_timestamp_every`)
 
-Specifies which variables have global scope instead of local. Value is a "flag" variable - you can specify multiple values separated by commas
+Specifies which variables have global scope instead of local. For such variables, the global variable value is used in the current session, but without copying this value to the session value. Value is a "flag" variable - you can specify multiple values separated by commas:
 
   * ``none``:
     All variables use local scope

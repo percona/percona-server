@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -519,8 +519,8 @@ static my_bool sql_connect(MYSQL *mysql, uint wait)
   for (;;)
   {
     if (mysql_connect_ssl_check(mysql, host, user, opt_password, NullS,
-                                tcp_port, unix_port,
-                                CLIENT_REMEMBER_OPTIONS, opt_ssl_required))
+                                tcp_port, unix_port, CLIENT_REMEMBER_OPTIONS,
+                                opt_ssl_mode == SSL_MODE_REQUIRED))
     {
       mysql->reconnect= 1;
       if (info)
@@ -1438,8 +1438,10 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
 
   if (mysql_query(mysql, "SHOW VARIABLES LIKE 'pid_file'"))
   {
-    my_printf_error(0, "query failed; error: '%s'", error_flags,
-		    mysql_error(mysql));
+    my_printf_error(mysql_errno(mysql),
+                    "The query to get the server's pid file failed,"
+                    " error: '%s'. Continuing.", error_flags,
+                    mysql_error(mysql));
   }
   result = mysql_store_result(mysql);
   if (result)

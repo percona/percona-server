@@ -494,6 +494,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DWITH_PAM=ON \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_READLINE=ON
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags}
@@ -515,6 +516,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DWITH_PAM=ON \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_READLINE=ON
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags}
@@ -557,6 +559,8 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 install -d $RBR%{_libdir}/mysql/plugin
+install -d -m 0750 $RBR/var/lib/mysql-files
+
 
 # SElinux
 pushd ${MBD}/policy
@@ -849,18 +853,6 @@ fi
 
 if [ $1 -eq 1 ]; then
 # ----------------------------------------------------------------------
-# Create data directory if needed, check whether upgrade or install
-# ----------------------------------------------------------------------
-if [ ! -d $mysql_datadir ] ; then mkdir -m 755 $mysql_datadir; fi
-# echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
-if [ ! -d $mysql_datadir/mysql ] ; then
-	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
-else
-	# If the directory exists, we may assume it is an upgrade.
-	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
-fi
-
-# ----------------------------------------------------------------------
 # Create a MySQL user and group. Do not report any problems if it already
 # exists.
 # ----------------------------------------------------------------------
@@ -870,6 +862,20 @@ useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" \
 # The user may already exist, make sure it has the proper group nevertheless
 # (BUG#12823)
 usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
+
+# ----------------------------------------------------------------------
+# Create data directory if needed, check whether upgrade or install
+# ----------------------------------------------------------------------
+if [ ! -d $mysql_datadir ]; then
+    install -d -m 755 -o %{mysqld_user} -g %{mysqld_group} $mysql_datadir
+fi
+# echo "Analyzed: SERVER_TO_START=$SERVER_TO_START"
+if [ ! -d $mysql_datadir/mysql ] ; then
+	echo "MySQL RPM installation of version $NEW_VERSION" >> $STATUS_FILE
+else
+	# If the directory exists, we may assume it is an upgrade.
+	echo "MySQL RPM upgrade to version $NEW_VERSION" >> $STATUS_FILE
+fi
 
 # ----------------------------------------------------------------------
 # Initiate databases if needed
@@ -906,16 +912,6 @@ elif [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
 fi
 %endif
-
-# ----------------------------------------------------------------------
-# Upgrade databases if needed would go here - but it cannot be automated yet
-# ----------------------------------------------------------------------
-
-# ----------------------------------------------------------------------
-# Change permissions so that the user that will run the MySQL daemon
-# owns all database files.
-# ----------------------------------------------------------------------
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
 
 # ----------------------------------------------------------------------
 # Fix permissions for the permission database so that only the user
@@ -1232,6 +1228,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %endif
 
 %attr(755, root, root) %{_datadir}/percona-server/
+%dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 # ----------------------------------------------------------------------------
 %files -n Percona-Server-client%{product_suffix}

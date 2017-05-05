@@ -4,6 +4,9 @@
 # Executing GRANT PROXY statements after altering the definition of the
 # mysql.user system table could result in a server exit.
 #
+
+CALL mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
+
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 
 CREATE TABLE mysql.user(
@@ -29,7 +32,7 @@ CREATE TABLE t1(
   KEY(e)
 ) ENGINE=MyISAM;
 
---error ER_PASSWORD_NO_MATCH
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
 
 DROP TABLE t1;

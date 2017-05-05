@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -320,7 +320,34 @@ Display result set metadata\&.
 \fB\-\-comments\fR,
 \fB\-c\fR
 .sp
-Whether to preserve comments in statements sent to the server\&. The default is \-\-skip\-comments (discard comments), enable with \-\-comments (preserve comments)\&.
+Whether to preserve comments in statements sent to the server\&. The default is
+\fB\-\-skip\-comments\fR
+(discard comments), enable with
+\fB\-\-comments\fR
+(preserve comments)\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+As of MySQL 5\&.7\&.7, the
+\fBmysql\fR
+client always passes optimizer hints to the server, regardless of whether this option is given\&. To ensure that optimizer hints are not stripped if you are using an older version of the
+\fBmysql\fR
+client with a version of the server that understands optimizer hints, invoke
+\fBmysql\fR
+with the
+\fB\-\-comments\fR
+option\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -1826,8 +1853,8 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&25.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&21.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&27.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&23.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -2069,8 +2096,8 @@ Reset the connection to clear the session state\&. This command was added in MyS
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&25.8.7.3, \(lqmysql_change_user()\(rq) and see
-Section\ \&25.8.16, \(lqControlling Automatic Reconnection Behavior\(rq)\&.
+Section\ \&27.8.7.3, \(lqmysql_change_user()\(rq) and see
+Section\ \&27.8.16, \(lqControlling Automatic Reconnection Behavior\(rq)\&.
 .sp
 This example shows how
 resetconnection
@@ -3663,11 +3690,11 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&25.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&27.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

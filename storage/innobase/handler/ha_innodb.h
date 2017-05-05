@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -205,8 +205,10 @@ public:
 
 	void position(uchar *record);
 
+#ifdef WL6742
+	/* Removing WL6742 as part of Bug #23046302 */
 	virtual int records(ha_rows* num_rows);
-
+#endif
 	ha_rows records_in_range(
 		uint			inx,
 		key_range*		min_key,

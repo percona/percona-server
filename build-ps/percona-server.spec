@@ -599,7 +599,6 @@ fi
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
-%doc release/support-files/my-default.cnf
 %attr(644, root, root) %{_mandir}/man1/innochecksum.1*
 %attr(644, root, root) %{_mandir}/man1/my_print_defaults.1*
 %attr(644, root, root) %{_mandir}/man1/myisam_ftdump.1*
@@ -735,7 +734,6 @@ fi
 %attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_system_tables_data.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/percona-server/my-*.cnf
 %attr(644, root, root) %{_datadir}/percona-server/mysql-log-rotate
 %attr(644, root, root) %{_datadir}/percona-server/mysql_security_commands.sql
 %attr(644, root, root) %{_datadir}/percona-server/dictionary.txt

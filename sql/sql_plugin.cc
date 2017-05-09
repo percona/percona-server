@@ -1805,6 +1805,7 @@ void plugin_shutdown(void)
       {
         sql_print_warning("Plugin '%s' will be forced to shutdown",
                           plugins[i]->name.str);
+        DBUG_ASSERT(0);
         /*
           We are forcing deinit on plugins so we don't want to do a ref_count
           check until we have processed all the plugins.

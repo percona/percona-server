@@ -106,11 +106,10 @@ UNLOCK TABLES;
 # Now both workers have completed their tasks and no new tasks have arrived, thus
 # Seconds_Behind_Master should be equal to 0.
 
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
-source include/wait_for_mts_checkpoint.inc;
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
-                                                                             OR State = 'update';
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
+
+source include/wait_for_mts_checkpoint.inc;
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 let $assert_text= Seconds_Behind_Master must be 0;
@@ -163,14 +162,8 @@ source include/assert.inc;
 connection slave2;
 UNLOCK TABLES;
 
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
-                                                                             OR State = 'update';
---source include/wait_condition.inc
-
-# Now both workers have completed their tasks and no new tasks have arrived, thus
-# Seconds_Behind_Master should be equal to 0.
 
 source include/wait_for_mts_checkpoint.inc;
 
@@ -257,14 +250,10 @@ source include/assert.inc;
 connection slave3;
 UNLOCK TABLES;
 
-# Now all three workers have completed. Seconds_Behind_Master should be 0.
+# Now all four workers have completed. Seconds_Behind_Master should be 0.
 
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
+let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
-                                                                             OR State = 'update';
---source include/wait_condition.inc
-
 
 source include/wait_for_mts_checkpoint.inc;
 

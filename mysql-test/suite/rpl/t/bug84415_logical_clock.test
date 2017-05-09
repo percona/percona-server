@@ -87,10 +87,7 @@ UNLOCK TABLES;
 connection master;
 --source include/sync_slave_sql_with_master.inc
 
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
---source include/wait_condition.inc
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
-                                                                             OR State = 'update';
+let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
 
 source include/wait_for_mts_checkpoint.inc;
@@ -170,10 +167,7 @@ UNLOCK TABLES;
 --source include/sync_slave_sql_with_master.inc
 
 # All workers should be done by now.
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
---source include/wait_condition.inc
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
-                                                                             OR State = 'update';
+let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
 
 source include/wait_for_mts_checkpoint.inc;
@@ -319,10 +313,7 @@ connection slave2;
 UNLOCK TABLE;
 
 # Wait for all workers to be done
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock';
---source include/wait_condition.inc
-let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Executing event'
-                                                                             OR State = 'update';
+let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for an event from Coordinator';
 --source include/wait_condition.inc
 
 # All catched up Seconds_Behind_Master should be 0. Lets wait some more to see if it does not increase

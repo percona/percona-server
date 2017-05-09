@@ -17,8 +17,9 @@ Supported Releases:
 
  * 12.04LTS (precise)
  * 14.04LTS (trusty)
- * 15.10 (wily)
  * 16.04LTS (xenial)
+ * 16.10 (yakkety)
+ * 17.04 (zesty)
 
 Supported Platforms:
 

@@ -6655,14 +6655,24 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                  };);
 #endif
 
+#ifndef DBUG_OFF
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group. 
   */
-  DBUG_ASSERT(!rli->gaq->full() ||
-              ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-                rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
-               rli->checkpoint_seqno == rli->checkpoint_group));
+  const bool precondition= !rli->gaq->full() ||
+    ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
+      rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
+     rli->checkpoint_seqno == rli->checkpoint_group);
+  if (!precondition)
+  {
+    fprintf(stderr, "rli->gaq->full() = %d\n", rli->gaq->full());
+    fprintf(stderr, "rli->checkpoint_seqno = %u\n", rli->checkpoint_seqno);
+    fprintf(stderr, "rli->checkpoint_group = %u\n", rli->checkpoint_group);
+    fprintf(stderr, "rli->mts_group_status = %d\n", rli->mts_group_status);
+    DBUG_ASSERT(precondition);
+  }
+#endif
 
   /*
     Currently, the checkpoint routine is being called by the SQL Thread.

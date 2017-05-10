@@ -76,6 +76,7 @@ Performance Improvements
    performance/threadpool
    performance/page_cleaner_tuning
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
+   performance/prefix_index_queries_optimization
 
 Flexibility Improvements
 ========================

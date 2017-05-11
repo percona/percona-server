@@ -70,6 +70,7 @@ Performance Improvements
    performance/innodb_numa_support
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
+   performance/prefix_index_queries_optimization
 
 Flexibility Improvements
 ========================

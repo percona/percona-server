@@ -1,7 +1,4 @@
 RESET CHANGED_PAGE_BITMAPS;
-DROP TABLE IF EXISTS t1;
-DELETE FROM mysql.user WHERE USER='mysqltest_1';
-FLUSH PRIVILEGES;
 CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
 FLUSH CHANGED_PAGE_BITMAPS;
@@ -15,6 +12,7 @@ ib_modified_log_1
 RESET CHANGED_PAGE_BITMAPS;
 After 2nd RESET
 ib_modified_log_1
+INSERT INTO t1 VALUES (6);
 # restart
 After RESETs and restart:
 ib_modified_log_1

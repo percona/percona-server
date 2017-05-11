@@ -113,6 +113,34 @@ UNINSTALL PLUGIN test_sql_errors;
 --echo # Cleanup
 --echo ##########################################
 
+delimiter //;
+
+CREATE PROCEDURE kill_sleeping_threads()
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE thread_id INT;
+  DECLARE thread_id_curr CURSOR FOR SELECT ID FROM information_schema.processlist WHERE STATE = 'Sleep';
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+  OPEN thread_id_curr;
+
+  kill_sleeping_threads_loop: LOOP
+    FETCH thread_id_curr INTO thread_id;
+    IF done THEN
+      LEAVE kill_sleeping_threads_loop;
+    END IF;
+    KILL thread_id;
+  END LOOP;
+
+  CLOSE thread_id_curr;
+END//
+
+delimiter ;//
+CALL kill_sleeping_threads();
+DROP PROCEDURE kill_sleeping_threads;
+
+--source include/kill_and_restart_mysqld.inc
+
 --echo # Dropping the created tables
 DROP TABLE IF EXISTS t_int;
 DROP TABLE IF EXISTS t_bigint;

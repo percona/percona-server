@@ -20,7 +20,7 @@ Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-14>`_
 New Features
 ============
 
- |Percona Server| 5.6 packages are now available for Ubuntu 17.04 (*Zesty
+ |Percona Server| 5.7 packages are now available for Ubuntu 17.04 (*Zesty
  Zapus*).
 
  |Percona Server| now supports :ref:`prefix_index_queries_optimization`.

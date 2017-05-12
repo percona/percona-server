@@ -159,6 +159,15 @@ TokuDB
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
+MyRocks
+=======
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   myrocks/gap_locks_detection
+
 Reference
 =========
 

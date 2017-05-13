@@ -19,6 +19,7 @@
 # information
 
 source include/kill_query.inc;
+source include/sync_slave_sql_with_master.inc;
 
 # Release the debug lock if used, so that the statements in
 # rpl_diff.inc will not be blocked.

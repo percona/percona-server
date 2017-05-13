@@ -37,7 +37,7 @@ source include/master-slave.inc;
 # Use the DBUG_SYNC_POINT to make sure the thread running the DDL is
 # waiting before creating the query log event
 
-let $debug_lock= "debug_lock.before_query_log_event";
+#let $debug_lock= "debug_lock.before_query_log_event"; #uncomment this line to enable debug
 
 ######## INITIALIZATION ########
 

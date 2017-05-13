@@ -3851,6 +3851,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
 
   exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
 
+  DBUG_EXECUTE_IF("debug_lock_before_query_log_event",
+                  DBUG_SYNC_POINT("debug_lock.before_query_log_event", 10););
+
   /**
     @todo this means that if we have no catalog, then it is replicated
     as an existing catalog of length zero. is that safe? /sven

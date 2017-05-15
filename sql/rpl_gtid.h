@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -2779,7 +2779,7 @@ public:
     @retval true Failure: either timeout or thread was killed.  If
     thread was killed, the error has been generated.
    */
-  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, double timeout);
 #endif // ifndef MYSQL_CLIENT
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
@@ -3654,6 +3654,17 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec);
 #ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
+
+/**
+  Check if current transaction should be skipped, that is, if GTID_NEXT
+  was already logged.
+
+  @param  thd    The calling thread.
+
+  @retval true   Transaction was already logged.
+  @retval false  Transaction must be executed.
+*/
+bool is_already_logged_transaction(const THD *thd);
 
 /**
   Return sidno for a given sid, see Sid_map::add_sid() for details.

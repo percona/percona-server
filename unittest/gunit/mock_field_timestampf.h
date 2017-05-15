@@ -65,7 +65,7 @@ public:
     return Field_timestampf::store_timestamp_internal(tm);
   }
 
-  ~Mock_field_timestampf() { delete table; }
+  ~Mock_field_timestampf() { delete static_cast<Fake_TABLE *>(table); }
 };
 
 #endif // MOCK_FIELD_TIMESTAMPF_H

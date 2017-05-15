@@ -1,2 +1,1 @@
---rocksdb_strict_collation_check=ON
---rocksdb_strict_collation_exceptions='r1.lol'
+--loose-rocksdb_strict_collation_check=ON --loose-rocksdb_strict_collation_exceptions='r1.lol'

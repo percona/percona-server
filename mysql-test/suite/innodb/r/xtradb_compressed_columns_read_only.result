@@ -42,7 +42,8 @@ SELECT COUNT(*) = 1 AS number_of_rows_matches FROM t1 WHERE a = @json_value;
 number_of_rows_matches
 1
 # Restarting with --innodb-read-only.
-# restart:--innodb-read-only
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
 # Reading table data in read-only mode.
 SET @json_value = '[
   {

@@ -1,7 +1,13 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 let ddl= $MYSQL_TMP_DIR/unique_sec.sql;
---exec sed s/##CF##//g suite/rocksdb/t/unique_sec.inc > $ddl
+--exec sed s/##CF##//g suite/rocksdb/include/unique_sec.inc > $ddl
+
+# MyRocks does not support gap locks in REPEATABLE-READ mode, so run through
+# this sequence twice, one for each supported transaction level
+let $trx_isolation = READ COMMITTED;
+--source $ddl
+let $trx_isolation = REPEATABLE READ;
 --source $ddl
 
 --echo #

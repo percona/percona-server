@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
@@ -107,12 +107,6 @@ time_t	log_last_margine_warning_time;
 /* Margins for free space in the log buffer after a log entry is catenated */
 #define LOG_BUF_FLUSH_RATIO	2
 #define LOG_BUF_FLUSH_MARGIN	(LOG_BUF_WRITE_MARGIN + 4 * UNIV_PAGE_SIZE)
-
-/* Margin for the free space in the smallest log group, before a new query
-step which modifies the database, is started */
-
-#define LOG_CHECKPOINT_FREE_PER_THREAD	(4 * UNIV_PAGE_SIZE)
-#define LOG_CHECKPOINT_EXTRA_FREE	(8 * UNIV_PAGE_SIZE)
 
 /* This parameter controls asynchronous making of a new checkpoint; the value
 should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
@@ -2381,7 +2375,14 @@ loop:
 
 	lsn = log_sys->lsn;
 
-	const bool	is_last = (lsn == log_sys->last_checkpoint_lsn)
+	/** If innodb_force_recovery is set to 6 then log_sys doesn't
+	have recent checkpoint information. So last checkpoint lsn
+	will never be equal to current lsn. */
+	const bool      is_last =
+		((srv_force_recovery == SRV_FORCE_NO_LOG_REDO
+		  && lsn == log_sys->last_checkpoint_lsn
+		  + LOG_BLOCK_HDR_SIZE)
+		 || lsn == log_sys->last_checkpoint_lsn)
 		&& (!srv_track_changed_pages
 		    || tracked_lsn == log_sys->last_checkpoint_lsn);
 
@@ -2439,7 +2440,8 @@ loop:
 	ut_a(freed);
 
 	ut_a(lsn == log_sys->lsn);
-	ut_ad(lsn == log_sys->last_checkpoint_lsn);
+	ut_ad(srv_force_recovery >= SRV_FORCE_NO_LOG_REDO
+	      || lsn == log_sys->last_checkpoint_lsn);
 
 	if (lsn < srv_start_lsn) {
 		ib::error() << "Log sequence number at shutdown " << lsn

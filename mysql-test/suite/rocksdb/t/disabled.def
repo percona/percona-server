@@ -1,44 +1,7 @@
-compression_zstd : https://jira.percona.com/browse/MYR-28
-cons_snapshot_serializable : Consistent read does not work on serializable
-level_read_uncommitted : Not supported
-level_serializable: Not supported
-mysqlbinlog_gtid_skip_empty_trans_rocksdb : https://jira.percona.com/browse/MYR-25
-read_only_tx : https://jira.percona.com/browse/MYR-16
-slow_query_log : https://jira.percona.com/browse/MYR-26
-
-col_opt_null : https://jira.percona.com/browse/MYR-15
-col_opt_not_null : https://jira.percona.com/browse/MYR-15
-col_opt_unsigned : https://jira.percona.com/browse/MYR-15
-col_opt_zerofill : https://jira.percona.com/browse/MYR-15
-delete :  https://jira.percona.com/browse/MYR-15
-delete_ignore :  https://jira.percona.com/browse/MYR-15
-delete_quick :  https://jira.percona.com/browse/MYR-15
-hermitage :  https://jira.percona.com/browse/MYR-15
-insert : https://jira.percona.com/browse/MYR-15
-issue100 : https://jira.percona.com/browse/MYR-15
-issue100_delete : https://jira.percona.com/browse/MYR-15
-issue111 : https://jira.percona.com/browse/MYR-15
-level_read_committed : https://jira.percona.com/browse/MYR-15
-level_repeatable_read : https://jira.percona.com/browse/MYR-15
-lock : https://jira.percona.com/browse/MYR-15
-locking_issues : https://jira.percona.com/browse/MYR-15
-rocksdb : https://jira.percona.com/browse/MYR-15
-rocksdb_cf_reverse : https://jira.percona.com/browse/MYR-15
-rocksdb_range : https://jira.percona.com/browse/MYR-15
-rpl_statement_not_found :  https://jira.percona.com/browse/MYR-15
-select :  https://jira.percona.com/browse/MYR-15
-select_for_update :  https://jira.percona.com/browse/MYR-15
-select_lock_in_share_mode :  https://jira.percona.com/browse/MYR-15
-transaction : https://jira.percona.com/browse/MYR-15
-type_binary : https://jira.percona.com/browse/MYR-15
-type_binary_indexes : https://jira.percona.com/browse/MYR-15
-type_char : https://jira.percona.com/browse/MYR-15
-type_decimal : https://jira.percona.com/browse/MYR-15
-type_int : https://jira.percona.com/browse/MYR-15
-type_varchar : https://jira.percona.com/browse/MYR-15
-type_varbinary : https://jira.percona.com/browse/MYR-15
-unique_sec : https://jira.percona.com/browse/MYR-15
-unique_sec_rev_cf : https://jira.percona.com/browse/MYR-15
-update : https://jira.percona.com/browse/MYR-15
-update_ignore : https://jira.percona.com/browse/MYR-15
-update_multi : https://jira.percona.com/browse/MYR-15
+compression_zstd : MYR-28 - Percona Server requires compilation with zstd
+cons_snapshot_serializable : MyRocks does not yet support ISO serializable
+level_read_uncommitted : MyRocks does not yet suppore ISO read uncommitted
+level_serializable : MyRocks does not yet support ISO serializable
+mysqlbinlog_gtid_skip_empty_trans_rocksdb : MYR-25 - Percona Server mysqlbinlog does not support filtering of empty transactions
+rpl_read_free : MYR-6 - Percona Server does not yet have uniform implementation of RFR between MyRocks and TokuDB
+slow_query_log : MYR-26 - Percona Server does not support --log-slow-extra

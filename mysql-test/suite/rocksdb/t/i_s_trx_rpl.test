@@ -1,7 +1,7 @@
+--source include/have_rocksdb.inc
 --source include/master-slave.inc
 
 --disable_warnings
-DROP TABLE IF EXISTS t1;
 connection slave;
 --source include/stop_slave.inc
 --enable_warnings

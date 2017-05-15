@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -429,9 +429,9 @@ static
 void
 buf_parallel_dblwr_close(void)
 {
-	if (parallel_dblwr_buf.file != OS_FILE_CLOSED) {
+	if (!parallel_dblwr_buf.file.is_closed()) {
 		os_file_close(parallel_dblwr_buf.file);
-		parallel_dblwr_buf.file = OS_FILE_CLOSED;
+		parallel_dblwr_buf.file.set_closed();
 	}
 }
 
@@ -450,7 +450,7 @@ recovery, this function loads the pages from double write buffer into memory.
 @return DB_SUCCESS or error code */
 dberr_t
 buf_dblwr_init_or_load_pages(
-	os_file_t	file,
+	pfs_os_file_t	file,
 	const char*	path)
 {
 	byte*		buf;
@@ -463,6 +463,13 @@ buf_dblwr_init_or_load_pages(
 	byte*		unaligned_read_buf;
 	ibool		reset_space_ids = FALSE;
 	recv_dblwr_t&	recv_dblwr = recv_sys->dblwr;
+
+	if (srv_read_only_mode) {
+
+		ib::info() << "Skipping doublewrite buffer processing due to "
+			"InnoDB running in read only mode";
+		return(DB_SUCCESS);
+	}
 
 	/* We do the file i/o past the buffer pool */
 
@@ -616,10 +623,13 @@ buf_dblwr_init_or_load_pages(
 	}
 
 	err = buf_parallel_dblwr_make_path();
-	if (err != DB_SUCCESS)
-		return(err);
+	if (err != DB_SUCCESS) {
 
-	ut_ad(parallel_dblwr_buf.file == OS_FILE_CLOSED);
+		ut_free(unaligned_read_buf);
+		return(err);
+	}
+
+	ut_ad(parallel_dblwr_buf.file.is_closed());
 	bool success;
 	parallel_dblwr_buf.file
 		= os_file_create_simple_no_error_handling(
@@ -756,6 +766,8 @@ buf_dblwr_process(void)
 	byte*		read_buf;
 	byte*		unaligned_read_buf;
 	recv_dblwr_t&	recv_dblwr	= recv_sys->dblwr;
+
+	ut_ad(!srv_read_only_mode);
 
 	unaligned_read_buf = static_cast<byte*>(
 		ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
@@ -1496,7 +1508,7 @@ buf_parallel_dblwr_file_create(void)
 	if (err != DB_SUCCESS)
 		return(err);
 
-	ut_ad(parallel_dblwr_buf.file == OS_FILE_CLOSED);
+	ut_ad(parallel_dblwr_buf.file.is_closed());
 	ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);
 
 	/* Set O_SYNC if innodb_flush_method == O_DSYNC. */
@@ -1514,14 +1526,6 @@ buf_parallel_dblwr_file_create(void)
 			ib::error() << "A parallel doublewrite file "
 				    << parallel_dblwr_buf.path
 				    << " found on startup.";
-			if (srv_force_recovery == SRV_FORCE_NO_LOG_REDO) {
-				ib::error() << "Since --innodb-force-recovery "
-					"is set to 6, which skips doublewrite "
-					"buffer recovery, please move away "
-					"the file above and restore it before "
-					"attempting a lower forced recovery "
-					"setting";
-			}
 		}
 		return(DB_ERROR);
 	}
@@ -1550,8 +1554,7 @@ the disk file.
 dberr_t
 buf_parallel_dblwr_create(void)
 {
-	if (parallel_dblwr_buf.file != OS_FILE_CLOSED
-	    || srv_read_only_mode) {
+	if (!parallel_dblwr_buf.file.is_closed() || srv_read_only_mode) {
 
 		ut_ad(parallel_dblwr_buf.recovery_buf_unaligned == NULL);
 		return(DB_SUCCESS);

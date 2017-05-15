@@ -1,1 +1,1 @@
-$ROCKSDB_OPT $ROCKSDB_LOAD_ADD
+$ROCKSDB_OPT $ROCKSDB_LOAD_ADD --explicit-defaults-for-timestamp=1 --loose-rocksdb_lock_wait_timeout=1 --loose-rocksdb_strict_collation_check=0

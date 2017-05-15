@@ -109,4 +109,19 @@ INFORMATION_SCHEMA.USER_STATISTICS
 ;
 select_must_be_true_6	update_must_be_true_6	other_must_be_true_6	rows_must_be_true_6
 1	1	1	1
+# Bug lp:1659992 "Function over userstat tables cause mysql to crash"
+CREATE FUNCTION utility_get_global_variable(in_name VARCHAR(64)) RETURNS VARCHAR(1024) CHARSET utf8 DETERMINISTIC SQL SECURITY INVOKER
+BEGIN
+DECLARE var_value VARCHAR(1024);
+IF @@global.version LIKE '5.7.%' THEN
+SELECT v.variable_value FROM performance_schema.global_variables v WHERE v.variable_name = in_name INTO var_value;
+ELSE
+SELECT v.variable_value FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES v WHERE v.variable_name = in_name INTO var_value;
+END IF;
+RETURN var_value;
+END|
+SELECT *
+FROM INFORMATION_SCHEMA.TABLE_STATISTICS s
+WHERE utility_get_global_variable('userstat') = 'ON';
+DROP FUNCTION utility_get_global_variable;
 SET GLOBAL userstat= @userstat_old;

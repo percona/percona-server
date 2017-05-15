@@ -1,6 +1,5 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 let $trx_isolation = READ COMMITTED;
 
---source consistent_snapshot.inc
-
+--source suite/rocksdb/include/consistent_snapshot.inc

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -449,7 +449,7 @@ LOCK TABLES
 and
 UNLOCK TABLES
 statements\&. This results in faster inserts when the dump file is reloaded\&. See
-Section\ \&9.2.2.1, \(lqSpeed of INSERT Statements\(rq\&.
+Section\ \&9.2.4.1, \(lqOptimizing INSERT Statements\(rq\&.
 .sp
 This option does not work with parallelism because
 INSERT
@@ -1584,7 +1584,7 @@ DEFINER
 and
 SQL SECURITY
 values\&. See
-Section\ \&21.6, \(lqAccess Control for Stored Programs and Views\(rq\&.
+Section\ \&23.6, \(lqAccess Control for Stored Programs and Views\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2237,7 +2237,7 @@ shell> \fBmysqlpump mysql user db \&.\&.\&.\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

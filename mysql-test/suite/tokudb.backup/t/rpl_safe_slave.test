@@ -32,6 +32,7 @@ let $script=
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CALL mtr.add_suppression("Sending passwords in plain text without SSL/TLS is extremely insecure");
 --enable_query_log
 
 --echo ###

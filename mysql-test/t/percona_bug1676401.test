@@ -1,0 +1,32 @@
+# 1676401 : mysqldump using deprecated variable
+# INFORMATION_SCHEMA.SESSION_VARIABLES
+#
+# This test is to ensure that mysqldump can run against a post 5.7.5 server
+# running with show_compatibility_56 set both on and off withou error.
+
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+
+set @orig_show_compatibility_56=@@global.show_compatibility_56;
+
+set global show_compatibility_56 = 0;
+
+create table t1(a int auto_increment primary key not null) engine=innodb;
+insert into t1(a) values(null), (null), (null), (null), (null), (null);
+
+--exec $MYSQL_DUMP --skip-create-options --skip-comments test t1
+
+drop table t1;
+
+set global show_compatibility_56 = 1;
+
+create table t1(a int auto_increment primary key not null) engine=innodb;
+insert into t1(a) values(null), (null), (null), (null), (null), (null);
+
+--exec $MYSQL_DUMP --skip-create-options --skip-comments test t1
+
+drop table t1;
+
+set global show_compatibility_56 = @@global.show_compatibility_56;

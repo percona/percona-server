@@ -1,11 +1,6 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # Test insert ... on duplicate key update statements
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
 
 CREATE TABLE t1 (id1 INT, id2 INT, id3 INT,
                  PRIMARY KEY (id1, id2, id3),

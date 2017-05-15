@@ -89,19 +89,8 @@ USE information_schema;
 --echo 1 Prepare test.
 --echo   connection default (user=root)
 --echo ####################################################################################
-if (`SELECT COUNT(*) <> 1 FROM processlist`)
-{
-   --echo This test expects one connection to the server.
-   --echo Expectation: USER  HOST       DB                  COMMAND  STATE      INFO
-   --echo Expectation: root  localhost  information_schema  Query    executing  SELECT USER,HOST,DB,COMMAND,STATE,INFO FROM processlist ORDER BY ID
-   --echo But we found in the moment:
-   SELECT USER,HOST,DB,COMMAND,STATE,INFO FROM processlist ORDER BY ID;
-   --echo Maybe
-   --echo - the base configuration (no of parallel auxiliary sessions) of the server has changed
-   --echo - a parallel test intended for another server accidently connected to our current one
-   --echo We cannot proceed in this situation. Abort
-   exit;
-}
+--let $count_sessions= 1
+--source include/wait_until_count_sessions.inc
 
 --echo ####################################################################################
 --echo 1.1 Create two user

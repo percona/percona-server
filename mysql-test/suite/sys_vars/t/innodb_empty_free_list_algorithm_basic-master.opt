@@ -1,1 +1,1 @@
---innodb-buffer-pool-size=20M
+--innodb-buffer-pool-size=20M --innodb_buffer_pool_instances=1

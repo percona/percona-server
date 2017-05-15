@@ -1,8 +1,8 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # BINARY column types
 #
-
---source type_binary.inc
-
+--let $extra_col_opts_ddl_err = 0
+--let $extra_col_opts_dml_err = 0
+--source suite/rocksdb/include/type_binary.inc

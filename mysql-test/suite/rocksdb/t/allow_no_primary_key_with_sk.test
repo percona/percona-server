@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # This test checks some very basic capabilities
@@ -6,28 +6,24 @@
 # in myrocks.  Everything should work here as normal.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 ## test CREATE with SK
 CREATE TABLE t1 (a INT, b CHAR(8), KEY(a)) ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 ## test adding/dropping sk w/no pk
 CREATE TABLE t1 (a INT, b CHAR(8)) ENGINE=rocksdb;
 ALTER TABLE t1 ADD INDEX (b);
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 
 ALTER TABLE t1 DROP INDEX b;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 # test dropping pk w/ sk
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
 ALTER TABLE t1 DROP COLUMN pk;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 --echo #
@@ -40,17 +36,17 @@ DROP TABLE t1;
 # create table with multiple sk, make sure it still works
 # test CREATE with SK
 CREATE TABLE t1 (a INT, b CHAR(8), KEY(a), KEY(b)) ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 # test CREATE table with multi-part sk
 CREATE TABLE t1 (a INT, b CHAR(8), KEY(a, b)) ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 # test CREATE table with more than one sk
 CREATE TABLE t1 (a INT, b CHAR(8), KEY(a), KEY(b)) ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 # test check table with sk
@@ -114,7 +110,7 @@ DROP TABLE t1;
 ## secondary indexes live in reverse column families
 CREATE TABLE t1 (a INT, b CHAR(8), KEY ka(a) comment 'rev:cf1', KEY kb(b)
 comment 'rev:cf1', KEY kab(a,b) comment 'rev:cf2') ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 ## https://github.com/facebook/mysql-5.6/issues/209

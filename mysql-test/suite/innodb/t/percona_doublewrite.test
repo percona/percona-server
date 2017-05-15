@@ -129,19 +129,15 @@ call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
 SET GLOBAL innodb_fast_shutdown=2;
 --source include/shutdown_mysqld.inc
 
---error 1
---exec $MYSQLD_CMD --innodb_force_recovery=6 $args
---let SEARCH_PATTERN= please move away the file above
---source include/search_pattern_in_file.inc
---remove_file $SEARCH_FILE
+--echo # Test that --innodb_force_recovery=6 succeeds to start with the doublewrite file
+--let $restart_parameters=restart:--innodb-force-recovery=6
+--source include/start_mysqld.inc
 
 --echo # Test that --innodb_force_recovery=6 succeeds to start without the doublewrite file
---move_file $DOUBLEWRITE_FILE $DOUBLEWRITE_FILE2
+--source include/shutdown_mysqld.inc
 --let $restart_parameters=restart:--innodb-force-recovery=6
 --source include/start_mysqld.inc
 
 --echo # Cleanup
---source include/shutdown_mysqld.inc
---move_file $DOUBLEWRITE_FILE2 $DOUBLEWRITE_FILE
 --let $restart_parameters=
---source include/start_mysqld.inc
+--source include/restart_mysqld.inc

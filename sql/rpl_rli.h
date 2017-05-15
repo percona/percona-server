@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -504,10 +504,11 @@ public:
   int inc_group_relay_log_pos(ulonglong log_pos,
                               bool need_data_lock);
 
-  int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
-		   longlong timeout);
-  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
-  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set, longlong timeout);
+  int wait_for_pos(THD* thd, String* log_name, longlong log_pos,
+                   double timeout);
+  int wait_for_gtid_set(THD* thd, String* gtid, double timeout);
+  int wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
+                        double timeout);
 
   void close_temporary_tables();
 
@@ -840,7 +841,8 @@ public:
      Coordinator notifies Workers about this event. Coordinator and Workers
      maintain a bitmap of executed group that is reset with a new checkpoint. 
   */
-  void reset_notified_checkpoint(ulong, time_t, bool);
+  void reset_notified_checkpoint(ulong, const time_t *const new_ts,
+                                 bool);
 
   /**
      Called when gaps execution is ended so it is crash-safe

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1555,6 +1555,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
 /* PSI begin */
       thd->m_digest= & thd->m_digest_state;
+      thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                           com_statement_info[command].m_key,
@@ -3188,7 +3189,7 @@ case SQLCOM_PREPARE:
 
     if (((lex->create_info.used_fields & HA_CREATE_USED_DATADIR) != 0 ||
          (lex->create_info.used_fields & HA_CREATE_USED_INDEXDIR) != 0) &&
-        check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
     {
       res= 1;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "FILE");
@@ -3254,7 +3255,7 @@ case SQLCOM_PREPARE:
     {
       partition_info *part_info= thd->lex->part_info;
       if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
-          check_access(thd, FILE_ACL, NULL, NULL, NULL, FALSE, FALSE))
+          check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
       {
         res= -1;
         goto end_with_restore_list;
@@ -5618,6 +5619,7 @@ void THD::reset_for_next_command()
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
   DBUG_ASSERT(! thd->in_sub_stmt);
+  DBUG_ASSERT(!thd->query_cache_tls.first_query_block);
   thd->free_list= 0;
   /*
     Those two lines below are theoretically unneeded as

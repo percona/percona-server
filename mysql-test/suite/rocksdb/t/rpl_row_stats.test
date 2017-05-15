@@ -1,18 +1,12 @@
---source include/have_rocksdb_as_default.inc
-
-source include/master-slave.inc;
-
-connection master;
---disable_warnings
-drop table if exists t1;
---enable_warnings
+--source include/have_rocksdb.inc
+--source include/master-slave.inc
 
 # initialization/insert
 connection master;
 # creating save_read_stats() and get_read_stats() procedures
---source init_stats_procedure.inc
+--source suite/rocksdb/include/init_stats_procedure.inc
 
-create table t1 (id int primary key, value int);
+create table t1 (id int primary key, value int) engine=rocksdb;
 insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5);
 --source include/sync_slave_sql_with_master.inc
 
@@ -40,7 +34,6 @@ select * from t1;
 # cleanup
 connection master;
 drop table t1;
---source drop_stats_procedure.inc
+--source suite/rocksdb/include/drop_stats_procedure.inc
 
 --source include/rpl_end.inc
-

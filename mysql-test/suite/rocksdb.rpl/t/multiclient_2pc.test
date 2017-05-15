@@ -1,16 +1,12 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/big_test.inc
 
---exec echo > $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $search_file=$MYSQLTEST_VARDIR/tmp/rocksdb.multiclient_2pc.err
+--let $restart_parameters=restart:--log-error=$search_file
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-SET GLOBAL ROCKSDB_ENABLE_2PC = ON;
 create table t1 (a int primary key, b int, c varchar(255)) engine=rocksdb;
 
 connect (con1, localhost, root,,);
@@ -23,7 +19,7 @@ connect (con2, localhost, root,,);
 # has been recovered and commited
 connection con1;
 --echo 'con1'
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "$restart_parameters" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="d,crash_commit_after_log";
 SET DEBUG_SYNC='rocksdb.prepared SIGNAL parked WAIT_FOR go';
 --error 0,2013
@@ -33,9 +29,8 @@ connection con2;
 --echo 'con2'
 insert into t1 values (2, 1, "i_am_just_here_to_trigger_a_flush");
 
-# Disable 2PC and syncing for faster inserting of dummy rows
+# Disable syncing for faster inserting of dummy rows
 # These rows only purpose is to rotate the binlog
-SET GLOBAL ROCKSDB_ENABLE_2PC = ON;
 SET GLOBAL ROCKSDB_WRITE_SYNC = OFF;
 SET GLOBAL SYNC_BINLOG = 0;
 
@@ -48,9 +43,8 @@ while ($pk < 1000000) {
 }
 --enable_query_log
 
-# re-enable 2PC an syncing then write to trigger a flush
+# re-enable syncing then write to trigger a flush
 # before we trigger the crash to simulate full-durability
-SET GLOBAL ROCKSDB_ENABLE_2PC = ON;
 SET GLOBAL ROCKSDB_WRITE_SYNC = ON;
 SET GLOBAL SYNC_BINLOG = 1;
 
@@ -63,9 +57,14 @@ SET DEBUG_SYNC='now SIGNAL go';
 
 --exec sleep 60
 
---exec python suite/rocksdb/t/check_log_for_xa.py $MYSQLTEST_VARDIR/log/mysqld.1.err commit,prepare,rollback
+--exec python suite/rocksdb/t/check_log_for_xa.py $search_file commit,prepare,rollback
 
 select * from t1 where a=1;
 select count(*) from t1;
 
 drop table t1;
+
+# cleanup
+--let $search_file=
+--let $restart_parameters=
+--source include/restart_mysqld.inc

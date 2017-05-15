@@ -1,5 +1,3 @@
-set debug_sync='RESET';
-drop table if exists t1;
 create table t1 (id int, value int, primary key (id)) engine=rocksdb;
 create table t2 (id int, id2 int, value int, primary key (id), unique key (id2)) engine=rocksdb;
 begin;

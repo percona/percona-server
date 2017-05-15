@@ -55,7 +55,8 @@ int mysql_create_zip_dict(THD* thd, const char* name, ulong name_len,
   DBUG_ENTER("mysql_create_zip_dict");
   handlerton *hton= ha_default_handlerton(thd);
 
-  if (!hton->create_zip_dict)
+  if (!ha_check_storage_engine_flag(hton,
+    HTON_SUPPORTS_COMPRESSED_COLUMNS))
   {
     error= ER_ILLEGAL_HA_CREATE_OPTION;
     my_error(error, MYF(0),
@@ -153,7 +154,8 @@ int mysql_drop_zip_dict(THD* thd, const char* name, ulong name_len,
   DBUG_ENTER("mysql_drop_zip_dict");
   handlerton *hton= ha_default_handlerton(thd);
 
-  if (!hton->drop_zip_dict)
+  if (!ha_check_storage_engine_flag(hton,
+    HTON_SUPPORTS_COMPRESSED_COLUMNS))
   {
     error= ER_ILLEGAL_HA_CREATE_OPTION;
     my_error(error, MYF(0),

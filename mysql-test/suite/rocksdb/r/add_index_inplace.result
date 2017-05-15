@@ -1,4 +1,3 @@
-drop table if exists t1;
 CREATE TABLE t1 (a INT, b INT, KEY ka(a), KEY kab(a,b)) ENGINE=RocksDB;
 INSERT INTO t1 (a, b) VALUES (1, 5);
 INSERT INTO t1 (a, b) VALUES (2, 6);
@@ -247,12 +246,20 @@ a	b
 3	7
 DROP TABLE t1;
 CREATE TABLE t1 (i INT, j INT, k INT, PRIMARY KEY (i), KEY(j)) ENGINE = ROCKSDB PARTITION BY KEY(i) PARTITIONS 4;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ADD INDEX kij(i,j), ALGORITHM=INPLACE;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP INDEX kij ON t1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `i` int(11) NOT NULL DEFAULT '0',
+  `i` int(11) NOT NULL,
   `j` int(11) DEFAULT NULL,
   `k` int(11) DEFAULT NULL,
   PRIMARY KEY (`i`),
@@ -260,6 +267,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (i)
 PARTITIONS 4 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1 ORDER BY i LIMIT 10;
 i	j	k
 1	1	1
@@ -278,7 +287,6 @@ COUNT(*)
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b TEXT);
 ALTER TABLE t1 ADD KEY kb(b(10));
-ERROR HY000: Unsupported collation on string indexed column test.t1.b Use binary collation (binary, latin1_bin, utf8_bin).
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 DROP TABLE t1;
 set global rocksdb_bulk_load=1;
@@ -362,12 +370,14 @@ set global rocksdb_force_flush_memtable_now=1;
 ALTER TABLE t1 ADD INDEX kj(j), ALGORITHM=INPLACE;
 larger
 1
+# restart
 larger
 1
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 larger
 1
+# restart
 larger
 1
 Table	Op	Msg_type	Msg_text

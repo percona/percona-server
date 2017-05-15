@@ -1,8 +1,7 @@
-SET GLOBAL innodb_change_buffering=none;
-SET GLOBAL innodb_fast_shutdown=0;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0), (1);
-# restart:--innodb-read-only
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
 START TRANSACTION WITH CONSISTENT SNAPSHOT;
 SELECT * FROM t1;
 a

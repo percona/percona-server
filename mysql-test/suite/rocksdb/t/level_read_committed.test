@@ -1,6 +1,5 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 let $trx_isolation = READ COMMITTED;
 
---source transaction_isolation.inc
-
+--source suite/rocksdb/include/transaction_isolation.inc

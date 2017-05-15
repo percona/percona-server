@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # INSERT statements for tables with keys
@@ -10,11 +10,7 @@
 # unique indexes are not supported
 ##################################################
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, KEY(b)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, KEY(b)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
 INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
@@ -30,7 +26,7 @@ DROP TABLE t1;
 
 --disable_parsing
 
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, UNIQUE INDEX(a)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, UNIQUE INDEX(a)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
 INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
@@ -50,7 +46,7 @@ SELECT a,b FROM t1;
 
 DROP TABLE t1;
 
-CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, UNIQUE INDEX(a,b)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY, UNIQUE INDEX(a,b)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
 INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
@@ -72,7 +68,7 @@ DROP TABLE t1;
 --enable_parsing
 
 
-CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=rocksdb;
+CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(8)) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
 INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
@@ -90,4 +86,3 @@ INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE b = CONC
 SELECT a,b FROM t1;
 
 DROP TABLE t1;
-

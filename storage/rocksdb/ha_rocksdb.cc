@@ -362,7 +362,6 @@ static char *rocksdb_compact_cf_name;
 static char *rocksdb_checkpoint_name;
 static my_bool rocksdb_signal_drop_index_thread;
 static my_bool rocksdb_strict_collation_check = 1;
-static my_bool rocksdb_enable_2pc = 0;
 static char *rocksdb_strict_collation_exceptions;
 static my_bool rocksdb_collect_sst_properties = 1;
 static my_bool rocksdb_force_flush_memtable_now_var = 0;
@@ -1010,10 +1009,6 @@ static MYSQL_SYSVAR_BOOL(pause_background_work, rocksdb_pause_background_work,
                          "Disable all rocksdb background operations", nullptr,
                          rocksdb_set_pause_background_work, FALSE);
 
-static MYSQL_SYSVAR_BOOL(enable_2pc, rocksdb_enable_2pc, PLUGIN_VAR_RQCMDARG,
-                         "Enable two phase commit for MyRocks", nullptr,
-                         nullptr, TRUE);
-
 static MYSQL_SYSVAR_BOOL(strict_collation_check, rocksdb_strict_collation_check,
                          PLUGIN_VAR_RQCMDARG,
                          "Enforce case sensitive collation for MyRocks indexes",
@@ -1237,7 +1232,6 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(compact_cf),
     MYSQL_SYSVAR(signal_drop_index_thread),
     MYSQL_SYSVAR(pause_background_work),
-    MYSQL_SYSVAR(enable_2pc),
     MYSQL_SYSVAR(strict_collation_check),
     MYSQL_SYSVAR(strict_collation_exceptions),
     MYSQL_SYSVAR(collect_sst_properties),
@@ -1364,7 +1358,6 @@ protected:
   ulonglong m_lock_count = 0;
 
   bool m_is_delayed_snapshot = false;
-  bool m_is_two_phase = false;
 
   THD *m_thd = nullptr;
 
@@ -1748,8 +1741,6 @@ public:
   */
   bool is_tx_read_only() const { return m_tx_read_only; }
 
-  bool is_two_phase() const { return m_is_two_phase; }
-
   void set_tx_read_only(bool val) { m_tx_read_only = val; }
 
   explicit Rdb_transaction(THD *const thd)
@@ -1976,7 +1967,6 @@ public:
     write_opts.disableWAL = THDVAR(m_thd, write_disable_wal);
     write_opts.ignore_missing_column_families =
         THDVAR(m_thd, write_ignore_missing_column_families);
-    m_is_two_phase = rocksdb_enable_2pc;
 
     /*
       If m_rocksdb_reuse_tx is null this will create a new transaction object.
@@ -2332,7 +2322,6 @@ static std::string rdb_xid_to_string(const XID &src) {
 */
 static bool rocksdb_flush_wal(handlerton *const hton
                               __attribute__((__unused__)),
-// GOL : MYR-19
                               bool binlog_group_flush __attribute__((unused))) {
   DBUG_ASSERT(rdb != nullptr);
   rocksdb_wal_group_syncs++;
@@ -2356,27 +2345,13 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
   if (prepare_tx ||
       (!my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-    if (tx->is_two_phase()) {
-      if (thd->durability_property == HA_IGNORE_DURABILITY) {
-        tx->set_sync(false);
-      }
-      XID xid;
-      thd_get_xid(thd, reinterpret_cast<MYSQL_XID *>(&xid));
-      if (!tx->prepare(rdb_xid_to_string(xid))) {
-        return HA_EXIT_FAILURE;
-      }
-// GOL : MYR-19
-// https://github.com/percona/percona-server/pull/1399
-// https://github.com/facebook/mysql-5.6/commit/a869c56d361bb44f46c0efeb11a8f03561676247
-// https://bugs.mysql.com/bug.php?id=73202
-// https://github.com/facebook/mysql-5.6/issues/474
-//    if (thd->durability_property == HA_IGNORE_DURABILITY &&
-//        THDVAR(thd, write_sync)) {
-//      /**
-//        we set the log sequence as '1' just to trigger hton->flush_logs
-//      */
-//      thd_store_lsn(thd, 1, DB_TYPE_ROCKSDB);
-//    }
+    if (thd->durability_property == HA_IGNORE_DURABILITY) {
+      tx->set_sync(false);
+    }
+    XID xid;
+    thd_get_xid(thd, reinterpret_cast<MYSQL_XID *>(&xid));
+    if (!tx->prepare(rdb_xid_to_string(xid))) {
+      return HA_EXIT_FAILURE;
     }
 
     DEBUG_SYNC(thd, "rocksdb.prepared");
@@ -2888,10 +2863,10 @@ static int rocksdb_start_tx_and_assign_read_view(
     tx->acquire_snapshot(true);
   } else {
     push_warning_printf(thd, Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                        "Only REPEATABLE READ isolation level is supported "
-                        "for START TRANSACTION WITH CONSISTENT SNAPSHOT "
-                        "in RocksDB Storage Engine. Snapshot has not been "
-                        "taken.");
+                        "RocksDB: Only REPEATABLE READ isolation level is "
+                        "supported for START TRANSACTION WITH CONSISTENT "
+                        "SNAPSHOT in RocksDB Storage Engine. Snapshot has not "
+                        "been taken.");
   }
   return HA_EXIT_SUCCESS;
 }
@@ -3237,6 +3212,17 @@ static int rocksdb_init_func(void *const p) {
     rdb_open_tables.free_hash();
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
+
+  for (const auto &cf_handle : cf_manager.get_all_cf()) {
+    uint flags;
+    if (!dict_manager.get_cf_flags(cf_handle->GetID(), &flags)) {
+      const std::unique_ptr<rocksdb::WriteBatch> wb = dict_manager.begin();
+      rocksdb::WriteBatch *const batch = wb.get();
+      dict_manager.add_cf_flags(batch, cf_handle->GetID(), 0);
+      dict_manager.commit(batch);
+    }
+  }
+
 
   Rdb_sst_info::init(rdb);
 
@@ -3689,7 +3675,6 @@ bool ha_rocksdb::init_with_fields() {
 void ha_rocksdb::convert_record_to_storage_format(
     const rocksdb::Slice &pk_packed_slice,
     Rdb_string_writer *const pk_unpack_info, rocksdb::Slice *const packed_rec) {
-  DBUG_ASSERT_IMP(m_maybe_unpack_info, pk_unpack_info);
   m_storage_record.length(0);
 
   /* All NULL bits are initially 0 */

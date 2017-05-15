@@ -430,8 +430,8 @@ TEST_F(FieldTest, CopyFieldSet)
   // Copy_field DTOR is not invoked in all contexts, so we may leak memory.
   EXPECT_FALSE(cf->tmp.is_alloced());
 
-  delete f_to->table;
-  delete f_from->table;
+  delete static_cast<Fake_TABLE *>(f_to->table);
+  delete static_cast<Fake_TABLE *>(f_from->table);
 }
 
 

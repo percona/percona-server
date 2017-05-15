@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 CREATE TABLE mysql.user(
 Host CHAR BINARY DEFAULT '',
@@ -20,7 +21,7 @@ KEY(b),
 KEY(e)
 ) ENGINE=MyISAM;
 GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
-ERROR 42000: Can't find any matching row in the user table
+ERROR HY000: Column count of mysql.user is wrong. Expected 45, found 3. The table is probably corrupted
 DROP TABLE t1;
 DROP TABLE mysql.user;
 ALTER TABLE mysql.user_bak RENAME mysql.user;

@@ -17,11 +17,7 @@
 --echo -   using $isolation_level transaction isolation level
 --echo -----------------------------------------------------------------------
 
---disable_warnings
-DROP TABLE IF EXISTS t0;
---enable_warnings
-
-CREATE TABLE t0(id1 INT, id2 INT, value INT, PRIMARY KEY(id1, id2));
+CREATE TABLE t0(id1 INT, id2 INT, value INT, PRIMARY KEY(id1, id2)) ENGINE=ROCKSDB;
 INSERT INTO t0 VALUES (1,1,0), (3,3,0), (4,4,0), (6,6,0);
 
 connect (con1,localhost,root,,);

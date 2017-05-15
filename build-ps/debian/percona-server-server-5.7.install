@@ -104,7 +104,6 @@ usr/lib/mysql/plugin/debug/query_response_time.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/magic
-usr/share/mysql/my-default.cnf
 usr/share/mysql/mysql-log-rotate
 usr/share/mysql/mysql-systemd-start
 usr/share/mysql/mysqld_multi.server

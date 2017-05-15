@@ -2,6 +2,7 @@
 --source include/have_myisam.inc
 
 call mtr.add_suppression("Did not write failed");
+call mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
 
 ALTER TABLE mysql.user RENAME mysql.user_bak;
 
@@ -43,7 +44,7 @@ PRIMARY KEY Host (Host,User)) engine=MyISAM COLLATE utf8_bin comment='Users and 
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='';
 
---error ER_BAD_FIELD_ERROR
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
 grant select on test.* to''@'santa.claus.ipv4.example.com';
 
 SET SESSION sql_mode=@old_sql_mode;

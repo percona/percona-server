@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -380,9 +380,9 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
-# define PSI_KEY(n) {&n##_key, #n, 0}
+# define PSI_KEY(n) {&n##_key.m_value, #n, 0}
 /* All RWLOCK used in Innodb are SX-locks */
-# define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
+# define PSI_RWLOCK_KEY(n) {&n##_key.m_value, #n, PSI_RWLOCK_FLAG_SX}
 
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
@@ -425,6 +425,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(fts_delete_mutex),
 	PSI_KEY(fts_optimize_mutex),
 	PSI_KEY(fts_doc_id_mutex),
+	PSI_KEY(fts_pll_tokenize_mutex),
 	PSI_KEY(log_flush_order_mutex),
 	PSI_KEY(hash_table_mutex),
 	PSI_KEY(ibuf_bitmap_mutex),
@@ -433,7 +434,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(log_bmp_sys_mutex),
 	PSI_KEY(log_sys_mutex),
 	PSI_KEY(log_sys_write_mutex),
+	PSI_KEY(log_cmdq_mutex),
 	PSI_KEY(mutex_list_mutex),
+	PSI_KEY(page_cleaner_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
@@ -462,13 +465,17 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(srv_threads_mutex),
 #  ifndef PFS_SKIP_EVENT_MUTEX
 	PSI_KEY(event_mutex),
+	PSI_KEY(event_manager_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
 	PSI_KEY(rtr_active_mutex),
 	PSI_KEY(rtr_match_mutex),
 	PSI_KEY(rtr_path_mutex),
 	PSI_KEY(rtr_ssn_mutex),
 	PSI_KEY(trx_sys_mutex),
+	PSI_KEY(thread_mutex),
+	PSI_KEY(sync_array_mutex),
 	PSI_KEY(zip_pad_mutex),
+	PSI_KEY(row_drop_list_mutex),
 	PSI_KEY(master_key_id_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
@@ -776,6 +783,37 @@ innodb_tmpdir_validate(
 	return(0);
 }
 
+/** Empty free list algorithm.
+Checks if buffer pool is big enough to enable backoff algorithm.
+InnoDB empty free list algorithm backoff requires free pages
+from LRU for the best performance.
+buf_LRU_buf_pool_running_out cancels query if 1/4 of
+buffer pool belongs to LRU or freelist.
+At the same time buf_flush_LRU_list_batch
+keeps up to BUF_LRU_MIN_LEN in LRU.
+In order to avoid deadlock backoff requires buffer pool
+to be at least 4*BUF_LRU_MIN_LEN,
+but flush peformance is bad because of trashing
+and additional BUF_LRU_MIN_LEN pages are requested.
+@param[in]	algorithm	desired algorithm from srv_empty_free_list_t
+@param[in]	new_buf_pool_sz	requested buffer pool size
+@return	true if it's possible to enable backoff. */
+static
+bool
+innodb_empty_free_list_algorithm_allowed(
+	srv_empty_free_list_t	algorithm,
+	long long new_buf_pool_sz = 0)
+{
+	if (!new_buf_pool_sz)
+		new_buf_pool_sz = srv_buf_pool_size;
+
+	long long buf_pool_pages = new_buf_pool_sz / srv_page_size
+				/ srv_buf_pool_instances;
+
+	return(buf_pool_pages >= BUF_LRU_MIN_LEN * (4 + 1)
+			|| algorithm != SRV_EMPTY_FREE_LIST_BACKOFF);
+}
+
 /******************************************************************//**
 Maps a MySQL trx isolation level code to the InnoDB isolation level code
 @return	InnoDB isolation level */
@@ -1020,6 +1058,10 @@ static SHOW_VAR innodb_status_variables[]= {
   {"ahi_drop_lookups",
   (char*) &export_vars.innodb_ahi_drop_lookups,           SHOW_LONG, SHOW_SCOPE_GLOBAL},
 #endif /* UNIV_DEBUG */
+  {"secondary_index_triggered_cluster_reads",
+  (char*) &export_vars.innodb_sec_rec_cluster_reads,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"secondary_index_triggered_cluster_reads_avoided",
+  (char*) &export_vars.innodb_sec_rec_cluster_reads_avoided, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
@@ -1378,28 +1420,6 @@ innobase_drop_zip_dict(
 	const char*	name,	/*!< in: zip dictionary name */
 	ulint*		name_len);
 				/*!< in/out: zip dictionary name length */
-
-/*************************************************************//**
-Checks if buffer pool is big enough to enable backoff algorithm.
-InnoDB empty free list algorithm backoff requires free pages
-from LRU for the best performance.
-buf_LRU_buf_pool_running_out cancels query if 1/4 of 
-buffer pool belongs to LRU or freelist.
-At the same time buf_flush_LRU_list_batch
-keeps up to BUF_LRU_MIN_LEN in LRU.
-In order to avoid deadlock baclkoff requires buffer pool
-to be at least 4*BUF_LRU_MIN_LEN,
-but flush peformance is bad because of trashing
-and additional BUF_LRU_MIN_LEN pages are requested.
-@return	true if it's possible to enable backoff. */
-static
-bool
-innodb_empty_free_list_algorithm_backoff_allowed(
-	srv_empty_free_list_t
-			algorithm,		/*!< in: desired algorithm
-						from srv_empty_free_list_t */
-	long long	buf_pool_pages);	/*!< in: total number
-						of pages inside buffer pool */
 
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
@@ -3054,9 +3074,11 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_FULLTEXT
 			  | HA_CAN_FULLTEXT_EXT
 			  | HA_CAN_FULLTEXT_HINTS
+#ifdef WL6742
+			  | HA_HAS_RECORDS
+#endif
 			  | HA_CAN_EXPORT
 			  | HA_CAN_RTREEKEYS
-			  | HA_HAS_RECORDS
 			  | HA_NO_READ_LOCAL_LOCK
 			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
@@ -3795,7 +3817,8 @@ innobase_init(
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
-		HTON_SUPPORTS_ONLINE_BACKUPS;
+		HTON_SUPPORTS_ONLINE_BACKUPS |
+		HTON_SUPPORTS_COMPRESSED_COLUMNS;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
@@ -4228,50 +4251,85 @@ innobase_change_buffering_inited_ok:
 
 	innobase_commit_concurrency_init_default();
 
-	/* Do not enable backoff algorithm for small buffer pool. */
-	if (!innodb_empty_free_list_algorithm_backoff_allowed(
-			static_cast<srv_empty_free_list_t>(
-				srv_empty_free_list_algorithm),
-			innobase_buffer_pool_size / srv_page_size)) {
-		sql_print_information(
-				"InnoDB: innodb_empty_free_list_algorithm "
-				"has been changed to legacy "
-				"because of small buffer pool size. "
-				"In order to use backoff, "
-				"increase buffer pool at least up to 20MB.\n");
-			srv_empty_free_list_algorithm
-				= SRV_EMPTY_FREE_LIST_LEGACY;
-	}
-
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
 	int	count;
 
+# ifdef UNIV_DEBUG
+	/** Count of Performance Schema keys that have been registered. */
+	int	global_count = 0;
+# endif /* UNIV_DEBUG */
+
 	count = array_elements(all_pthread_mutexes);
 	mysql_mutex_register("innodb", all_pthread_mutexes, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 
 # ifdef UNIV_PFS_MUTEX
 	count = array_elements(all_innodb_mutexes);
 	mysql_mutex_register("innodb", all_innodb_mutexes, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_RWLOCK
 	count = array_elements(all_innodb_rwlocks);
 	mysql_rwlock_register("innodb", all_innodb_rwlocks, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_MUTEX */
+
 
 # ifdef UNIV_PFS_THREAD
 	count = array_elements(all_innodb_threads);
 	mysql_thread_register("innodb", all_innodb_threads, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_THREAD */
+
 
 # ifdef UNIV_PFS_IO
 	count = array_elements(all_innodb_files);
 	mysql_file_register("innodb", all_innodb_files, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+# endif /* UNIV_DEBUG */
+
 # endif /* UNIV_PFS_IO */
+
 
 	count = array_elements(all_innodb_conds);
 	mysql_cond_register("innodb", all_innodb_conds, count);
+
+# ifdef UNIV_DEBUG
+	global_count += count;
+
+	if (mysql_pfs_key_t::get_count() != global_count) {
+
+		ib::error() << "You have created new InnoDB PFS key(s) but "
+			    << mysql_pfs_key_t::get_count() - global_count
+			    << " key(s) is/are not registered with PFS. Please"
+			    << " register the keys in PFS arrays in"
+			    << " ha_innodb.cc.";
+
+		DBUG_RETURN(HA_ERR_INITIALIZATION);
+	}
+# endif /* UNIV_DEBUG */
+
 #endif /* HAVE_PSI_INTERFACE */
 
 	/* Set buffer pool size to default for fast startup when mysqld is
@@ -4309,6 +4367,19 @@ innobase_change_buffering_inited_ok:
 		DBUG_RETURN(innobase_init_abort());
 	}
 
+	/* Do not enable backoff algorithm for small buffer pool. */
+	if (!innodb_empty_free_list_algorithm_allowed(
+				static_cast<srv_empty_free_list_t>(
+					srv_empty_free_list_algorithm))) {
+		sql_print_information(
+				"InnoDB: innodb_empty_free_list_algorithm "
+				"has been changed to legacy "
+				"because of small buffer pool size. "
+				"In order to use backoff, "
+				"increase buffer pool at least up to 20MB.\n");
+		srv_empty_free_list_algorithm = SRV_EMPTY_FREE_LIST_LEGACY;
+	}
+
 	/* Create mutex to protect encryption master_key_id. */
 	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
 
@@ -4321,12 +4392,12 @@ innobase_change_buffering_inited_ok:
 	ibuf_max_size_update(srv_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
-	mysql_mutex_init(innobase_share_mutex_key,
+	mysql_mutex_init(innobase_share_mutex_key.m_value,
 			 &innobase_share_mutex,
 			 MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(commit_cond_mutex_key,
+	mysql_mutex_init(commit_cond_mutex_key.m_value,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_cond_init(commit_cond_key, &commit_cond);
+	mysql_cond_init(commit_cond_key.m_value, &commit_cond);
 
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -6609,6 +6680,7 @@ ha_innobase::open(
 	ut_ad(m_prebuilt->default_rec);
 
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0 */
 	m_primary_key = table->s->primary_key;
@@ -7449,21 +7521,52 @@ build_template_field(
 		templ->clust_rec_field_no = dict_col_get_clust_pos(
 						col, clust_index);
 		ut_a(templ->clust_rec_field_no != ULINT_UNDEFINED);
+		templ->rec_prefix_field_no = ULINT_UNDEFINED;
 
 		if (dict_index_is_clust(index)) {
+			templ->rec_field_is_prefix = false;
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
-			templ->rec_field_no = dict_index_get_nth_col_pos(
-						index, i);
+			/* If we're in a secondary index, keep track of the
+			original index position even if this is just a prefix
+			non-geometry index; we will use this later to avoid a
+			cluster index lookup in some cases.*/
+
+			templ->rec_field_no
+				= dict_index_get_nth_col_pos(
+					index, i,
+					(field->type() == MYSQL_TYPE_GEOMETRY)
+					? NULL : &templ->rec_prefix_field_no);
+			templ->rec_field_is_prefix
+				= (templ->rec_field_no == ULINT_UNDEFINED)
+				&& (templ->rec_prefix_field_no
+				    != ULINT_UNDEFINED);
+#ifdef UNIV_DEBUG
+			if (templ->rec_prefix_field_no != ULINT_UNDEFINED)
+			{
+				const dict_field_t* field
+					= dict_index_get_nth_field(
+						index,
+						templ->rec_prefix_field_no);
+				ut_ad(templ->rec_field_is_prefix
+				      == (field->prefix_len != 0));
+			} else {
+				ut_ad(!templ->rec_field_is_prefix);
+			}
+#endif
 		}
 	} else {
 		templ->clust_rec_field_no = v_no;
+		// Prefix optimisation on generated column indexes is not
+		// currently supported
+		templ->rec_field_is_prefix = false;
+		templ->rec_prefix_field_no = ULINT_UNDEFINED;
 		if (dict_index_is_clust(index)) {
 			templ->rec_field_no = templ->clust_rec_field_no;
 		} else {
 			templ->rec_field_no
 				= dict_index_get_nth_col_or_prefix_pos(
-					index, v_no, FALSE, true);
+					index, v_no, false, true, NULL);
 		}
 		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
@@ -7690,7 +7793,7 @@ ha_innobase::build_template(
 					templ->icp_rec_field_no
 						= dict_index_get_nth_col_pos(
 							m_prebuilt->index,
-							i - num_v);
+							i - num_v, NULL);
 				}
 
 				if (dict_index_is_clust(m_prebuilt->index)) {
@@ -7721,7 +7824,7 @@ ha_innobase::build_template(
 				templ->icp_rec_field_no
 					= dict_index_get_nth_col_or_prefix_pos(
 						m_prebuilt->index, i - num_v,
-						true, false);
+						true, false, NULL);
 				ut_ad(templ->icp_rec_field_no
 				      != ULINT_UNDEFINED);
 
@@ -13193,7 +13296,8 @@ ha_innobase::delete_table(
 			index->last_ins_cur->release();
 			index->last_sel_cur->release();
 		}
-	} else if (srv_read_only_mode) {
+	} else if (srv_read_only_mode
+		   ||  srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -14009,7 +14113,14 @@ ha_innobase::rename_table(
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
+
+
+#ifdef WL6742
+
 /*********************************************************************//**
+
+Removing WL6742  as part of Bug23046302
+
 Returns the exact number of records that this client can see using this
 handler object.
 @return Error code in case something goes wrong.
@@ -14116,6 +14227,7 @@ ha_innobase::records(
 	*num_rows= n_rows;
 	DBUG_RETURN(0);
 }
+#endif
 
 /*********************************************************************//**
 Estimates the number of index records in a range.
@@ -14700,9 +14812,12 @@ ha_innobase::info_low(
 		HA_STATUS_TIME flag set, while the left join optimizer does not
 		set that flag, we add one to a zero value if the flag is not
 		set. That way SHOW TABLE STATUS will show the best estimate,
-		while the optimizer never sees the table empty. */
+		while the optimizer never sees the table empty.
+		However, if it is internal temporary table used by optimizer,
+		the count should be accurate */
 
-		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
+		if (n_rows == 0 && !(flag & HA_STATUS_TIME)
+                  && table_share->table_category != TABLE_CATEGORY_TEMPORARY) {
 			n_rows++;
 		}
 
@@ -15340,7 +15455,7 @@ ha_innobase::check(
 			ret = row_count_rtree_recs(m_prebuilt, &n_rows);
 		} else {
 			ret = row_scan_index_for_mysql(
-				m_prebuilt, index, true, &n_rows);
+				m_prebuilt, index, &n_rows);
 		}
 
 		DBUG_EXECUTE_IF(
@@ -20311,32 +20426,6 @@ innodb_status_output_update(
 }
 
 /*************************************************************//**
-Empty free list algorithm.
-Checks if buffer pool is big enough to enable backoff algorithm.
-InnoDB empty free list algorithm backoff requires free pages
-from LRU for the best performance.
-buf_LRU_buf_pool_running_out cancels query if 1/4 of 
-buffer pool belongs to LRU or freelist.
-At the same time buf_flush_LRU_list_batch
-keeps up to BUF_LRU_MIN_LEN in LRU.
-In order to avoid deadlock baclkoff requires buffer pool
-to be at least 4*BUF_LRU_MIN_LEN,
-but flush peformance is bad because of trashing
-and additional BUF_LRU_MIN_LEN pages are requested.
-@return	true if it's possible to enable backoff. */
-static
-bool
-innodb_empty_free_list_algorithm_backoff_allowed(
-	srv_empty_free_list_t	algorithm,	/*!< in: desired algorithm
-						from srv_empty_free_list_t */
-	long long		buf_pool_pages)	/*!< in: total number
-						of pages inside buffer pool */
-{
-	return(buf_pool_pages >= BUF_LRU_MIN_LEN * (4 + 1)
-			|| algorithm != SRV_EMPTY_FREE_LIST_BACKOFF);
-}
-
-/*************************************************************//**
 Empty free list algorithm. This function is registered as
 a callback with MySQL. 
 @return	0 for valid algorithm */
@@ -20377,13 +20466,11 @@ innodb_srv_empty_free_list_algorithm_validate(
 		return(1);
 
 	algorithm = static_cast<srv_empty_free_list_t>(algo);
-	if (!innodb_empty_free_list_algorithm_backoff_allowed(
-				algorithm,
-				innobase_buffer_pool_size / srv_page_size)) {
+	if (!innodb_empty_free_list_algorithm_allowed(algorithm)) {
 		sql_print_warning(
 				"InnoDB: innodb_empty_free_list_algorithm "
 				"= 'backoff' requires at least"
-				" 20MB buffer pool.\n");
+				" 20MB buffer pool instances.\n");
 		return(1);
 	}
 
@@ -22152,7 +22239,8 @@ innobase_get_computed_value(
 			row_sel_field_store_in_mysql_format(
 				mysql_rec + templ->mysql_col_offset,
 				templ, index, templ->clust_rec_field_no,
-				(const byte*)data, len, prebuilt);
+				(const byte*)data, len, prebuilt,
+				ULINT_UNDEFINED);
 
 			if (templ->mysql_null_bit_mask) {
 				/* It is a nullable column with a
@@ -22596,6 +22684,19 @@ innodb_buffer_pool_size_validate(
 				    "Cannot update innodb_buffer_pool_size"
 				    " to less than 1GB if"
 				    " innodb_buffer_pool_instances > 1.");
+		return(1);
+	}
+
+	if (!innodb_empty_free_list_algorithm_allowed(
+				static_cast<srv_empty_free_list_t>(
+					srv_empty_free_list_algorithm),
+				intbuf)) {
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
+				    ER_WRONG_ARGUMENTS,
+				    "Cannot update innodb_buffer_pool_size"
+				    " to less than 20MB per instance"
+				    " innodb_empty_free_list_algorithm"
+				    " = backoff.");
 		return(1);
 	}
 

@@ -91,12 +91,8 @@ public:
     committed. In this case, the changes were not done on behalf of
     any user transaction and if not finished, there would be pending
     changes.
-
-    @return
-      @retval true  failed
-      @retval false success
   */
-  bool close_table(THD *thd, TABLE* table, Open_tables_backup *backup,
+  void close_table(THD *thd, TABLE* table, Open_tables_backup *backup,
                    bool error, bool need_commit);
   /**
     Creates a new thread in the bootstrap process or in the mysqld startup,

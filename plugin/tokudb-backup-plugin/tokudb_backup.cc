@@ -142,19 +142,15 @@ static MYSQL_SYSVAR_STR(version, tokudb_backup_version,
     "version of the tokutek backup library",
     NULL, NULL, NULL);
 
-static MYSQL_THDVAR_ULONG(last_error,
+static MYSQL_THDVAR_INT(last_error,
     PLUGIN_VAR_THDLOCAL,
     "error from the last backup. 0 is success",
-    NULL, NULL, 0, 0, ~0ULL, 1);
-
-static void tokudb_backup_update_last_error_str(THD* thd,
-                                                struct st_mysql_sys_var* var,
-                                                void* var_ptr, const void* save);
+    NULL, NULL, 0, 0, 0, 1);
 
 static MYSQL_THDVAR_STR(last_error_string,
-    PLUGIN_VAR_THDLOCAL,
+    PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
     "error string from the last backup",
-    NULL, tokudb_backup_update_last_error_str, NULL);
+    NULL, NULL, NULL);
 
 static MYSQL_THDVAR_STR(exclude,
     PLUGIN_VAR_THDLOCAL + PLUGIN_VAR_MEMALLOC,
@@ -270,16 +266,11 @@ static int tokudb_backup_progress_fun(float progress, const char *progress_strin
     return 0;
 }
 
-static void tokudb_backup_set_error(THD *thd, int error, const char *error_string) {
-    THDVAR(thd, last_error) = error;
-    char *old_error_string = THDVAR(thd, last_error_string);
-    if (error_string)
-        THDVAR(thd, last_error_string) =
-            my_strdup(tokudb_backup_mem_key, error_string, MYF(MY_FAE));
-    else
-        THDVAR(thd, last_error_string) = NULL;
-    if (old_error_string)
-        my_free(old_error_string);
+static void tokudb_backup_set_error(THD *thd,
+                                    int error,
+                                    const char *error_string) {
+    THDVAR_SET(thd, last_error, &error);
+    THDVAR_SET(thd, last_error_string, error_string);
 }
 
 static void tokudb_backup_set_error_string(THD *thd, int error, const char *error_fmt, const char *s1, const char *s2, const char *s3) {
@@ -297,13 +288,6 @@ static void tokudb_backup_set_error_string(THD *thd, int error, const char *erro
     assert(0 < r && (size_t)r <= n);
     tokudb_backup_set_error(thd, error, error_string);
     my_free(error_string);
-}
-
-static void tokudb_backup_update_last_error_str(THD* thd,
-                                                struct st_mysql_sys_var* var,
-                                                void* var_ptr, const void* save) {
-    tokudb_backup_set_error(thd, THDVAR(thd, last_error), ((LEX_STRING*)save)->str);
-    *((char**)var_ptr) = THDVAR(thd, last_error_string);
 }
 
 struct tokudb_backup_error_extra {
@@ -377,7 +361,7 @@ static bool tokudb_backup_stop_slave_sql_thread(THD *thd) {
         {
             Master_info *mi = it->second;
             if (mi && mi->inited && mi->host[0]) {
-                bool temp_tables_warning;
+                bool temp_tables_warning = false;
                 have_slave = true;
                 result = !stop_slave(thd, mi, 0, 0, &temp_tables_warning);
                 if (!result)
@@ -400,6 +384,8 @@ static bool tokudb_backup_start_slave_sql_thread(THD *thd) {
     bool have_slave = false;
 
     thd->lex->slave_thd_opt = SLAVE_SQL;
+    thd->lex->slave_connection.user = NULL;
+    thd->lex->slave_connection.password = NULL;
 
     {
         scoped_lock_wrapper<Multisource_info_lockable>
@@ -506,10 +492,10 @@ static void tokudb_backup_before_stop_capt_fun(void *arg) {
         if (!tokudb_backup_wait_for_safe_slave(
                 thd,tokudb_backup_safe_slave_timeout)) {
             sql_print_error("TokuDB Hotbackup: safe slave option error");
+            return;
         }
     }
-    else
-        (void)lock_binlog_for_backup(thd);
+    (void)lock_binlog_for_backup(thd);
     if (!plugin_foreach(NULL,
                         tokudb_backup_flush_log_plugin_callback,
                         MYSQL_STORAGE_ENGINE_PLUGIN,
@@ -566,6 +552,7 @@ std::string tokudb_backup_get_executed_gtids_set() {
         (void)sql_gtid_set->to_string(&sql_gtid_set_buffer);
     }
     result.assign(sql_gtid_set_buffer);
+    my_free(sql_gtid_set_buffer);
     result.erase(std::remove(result.begin(), result.end(),'\n'), result.end());
     return result;
 };
@@ -573,7 +560,6 @@ std::string tokudb_backup_get_executed_gtids_set() {
 static void tokudb_backup_get_master_infos(
     THD *thd,
     std::vector<tokudb_backup_master_info> *master_info_channels) {
-
     std::string executed_gtid_set;
     Master_info *mi;
 
@@ -642,7 +628,7 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
         sql_print_error("TokuDB Hotbackup: "
                         "master and slave info can't be saved "
                         "because slave sql thread can't be stopped\n");
-        return;
+        goto exit;
     }
 
     tokudb_backup_get_master_infos(thd, master_info_channels);
@@ -656,10 +642,12 @@ static void tokudb_backup_after_stop_capt_fun(void *arg) {
                                        NULL, NULL, NULL);
             sql_print_error("TokuDB Hotbackup: "
                             "slave sql thread can't be started\n");
-            return;
+            goto exit;
         }
     }
-    else if (thd->backup_binlog_lock.is_acquired()) {
+
+exit:
+    if (thd->backup_binlog_lock.is_acquired()) {
         thd->backup_binlog_lock.release(thd);
     }
 }

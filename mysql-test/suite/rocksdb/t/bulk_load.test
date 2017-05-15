@@ -1,20 +1,16 @@
---source include/have_rocksdb_as_default.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1, t2;
---enable_warnings
+--source include/have_rocksdb.inc
 
 # Create a table with a primary key and one secondary key as well as one
 # more column
-CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) COLLATE 'latin1_bin';
+CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) ENGINE=ROCKSDB COLLATE 'latin1_bin';
 
 # Create a second identical table to validate that bulk loading different
 # tables in the same session works
-CREATE TABLE t2(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) COLLATE 'latin1_bin';
+CREATE TABLE t2(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) ENGINE=ROCKSDB COLLATE 'latin1_bin';
 
 # Create a third table using partitions to validate that bulk loading works
 # across a partitioned table
-CREATE TABLE t3(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) COLLATE 'latin1_bin'
+CREATE TABLE t3(pk CHAR(5) PRIMARY KEY, a char(30), b char(30), key(a)) ENGINE=ROCKSDB COLLATE 'latin1_bin'
   PARTITION BY KEY() PARTITIONS 4;
 
 --let $file = `SELECT CONCAT(@@datadir, "test_loadfile.txt")`

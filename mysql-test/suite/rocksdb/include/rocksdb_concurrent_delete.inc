@@ -17,12 +17,7 @@ if ($order == 'DESC')
 connect (con, localhost, root,,);
 connection default;
 
---disable_warnings
-SET debug_sync='RESET';
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-eval CREATE TABLE t1 (pk INT PRIMARY KEY COMMENT $comment, a INT);
+eval CREATE TABLE t1 (pk INT PRIMARY KEY COMMENT $comment, a INT) ENGINE=ROCKSDB;
 INSERT INTO t1 VALUES(1,1), (2,2), (3,3);
 
 # This will cause the SELECT to block after finding the first row, but

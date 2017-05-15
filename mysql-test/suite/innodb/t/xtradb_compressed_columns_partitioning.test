@@ -2,6 +2,206 @@
 --source include/have_partition.inc
 
 #
+# Bug lp:1631954 "It is possible to create COMPRESSED columns in MyISAM tables via specifying partition engines"
+#
+
+# saving the value of current 'default_storage_engine'
+SET @saved_default_storage_engine = @@default_storage_engine;
+
+# creating a temporary table with combinations of 'default_storage_engine' /
+# table storage engine / partition storage engine and expected error
+# - 'handler_does_not_support' means 'ER_ILLEGAL_HA_CREATE_OPTION'
+# - 'mix_handlers' means 'ER_MIX_HANDLER_ERROR'
+# - empty value / NULL / non-existing record means no error is expected
+
+CREATE TEMPORARY TABLE expected_create_table_errors(
+  default_se VARCHAR(16) NOT NULL,
+  table_se VARCHAR(16) NOT NULL,
+  partition_se VARCHAR(16) NOT NULL,
+  error_code VARCHAR(32) NOT NULL
+);
+INSERT INTO expected_create_table_errors VALUES
+  ('MyISAM',       '',       '', 'handler_does_not_support'),
+  ('MyISAM',       '', 'MyISAM', 'handler_does_not_support'),
+  ('MyISAM', 'MyISAM',       '', 'handler_does_not_support'),
+  ('MyISAM', 'MyISAM', 'MyISAM', 'handler_does_not_support'),
+  ('MyISAM', 'MyISAM', 'InnoDB', 'mix_handlers'            ),
+  ('MyISAM', 'InnoDB', 'MyISAM', 'mix_handlers'            ),
+  ('InnoDB',       '', 'MyISAM', 'handler_does_not_support'),
+  ('InnoDB', 'MyISAM',       '', 'handler_does_not_support'),
+  ('InnoDB', 'MyISAM', 'MyISAM', 'handler_does_not_support'),
+  ('InnoDB', 'MyISAM', 'InnoDB', 'mix_handlers'            ),
+  ('InnoDB', 'InnoDB', 'MyISAM', 'mix_handlers'            )
+;
+
+# iterating over all possible combinations of
+# 'default_storage_engine' / table storage engine / partition storage engine
+# 2 * 3 * 3 = 18
+--let $combination_index = 0
+while($combination_index < 18)
+{
+  # extracting 'default_storage_engine' / table storage engine / partition storage engine
+  # from $combination_index
+  --disable_query_log
+  eval SET @partial_index = $combination_index;
+  --let $partition_engine = `SELECT CASE @partial_index % 3 WHEN 0 THEN '' WHEN 1 THEN 'MyISAM' ELSE 'InnoDB' END`
+  eval SET @partial_index = @partial_index DIV 3;
+  --let $table_engine = `SELECT CASE @partial_index % 3 WHEN 0 THEN '' WHEN 1 THEN 'MyISAM' ELSE 'InnoDB' END`
+  eval SET @partial_index = @partial_index DIV 3;
+  --let $default_engine = `SELECT IF(@partial_index % 2 = 0, 'MyISAM', 'InnoDB')`
+
+  # extracting $expected_error from the 'expected_create_table_errors' for the given
+  # ($default_engine, $table_engine, $partition_engine)
+  --let $expected_error = `SELECT error_code FROM expected_create_table_errors WHERE default_se = '$default_engine' AND table_se = '$table_engine' AND partition_se = '$partition_engine'`
+  --enable_query_log
+  --echo default: '$default_engine', table: '$table_engine', partition: '$partition_engine', error: '$expected_error'
+
+  # composing $create_table_statement using $table_engine and $partition_engine
+  --let $table_engine_spec =
+  if($table_engine)
+  {
+    --let $table_engine_spec = ENGINE=$table_engine
+  }
+
+  --let $partition_engine_spec =
+  if($partition_engine)
+  {
+    --let $partition_engine_spec = ENGINE=$partition_engine
+  }
+  eval SET default_storage_engine = $default_engine;
+  let $create_table_statement =
+    CREATE TABLE t1 (
+      id BIGINT UNSIGNED NOT NULL,
+      a VARCHAR(250) COLUMN_FORMAT COMPRESSED
+    ) $table_engine_spec
+    PARTITION BY RANGE (id) (
+      PARTITION p1 VALUES LESS THAN (100) $partition_engine_spec,
+      PARTITION p2 VALUES LESS THAN MAXVALUE $partition_engine_spec
+    );
+
+  # executing $create_table_statement optionally expecting $expected_error error
+  if($expected_error == 'handler_does_not_support')
+  {
+    --error ER_ILLEGAL_HA_CREATE_OPTION
+    eval $create_table_statement;
+  }
+  if($expected_error == 'mix_handlers')
+  {
+    --error ER_MIX_HANDLER_ERROR
+    eval $create_table_statement;
+  }
+  if(!$expected_error)
+  {
+    eval $create_table_statement;
+    SHOW CREATE TABLE t1;
+    DROP TABLE t1;
+  }
+
+  --inc $combination_index
+}
+
+# restoring original value of the 'default_storage_engine'
+SET default_storage_engine = @saved_default_storage_engine;
+
+#
+# Bug lp:1671492 "Unable to add compression columns to a partitioned table via 'ALTER TABLE'"
+#
+
+# creating a simple compression dictionary
+CREATE COMPRESSION_DICTIONARY numbers ('one' 'two' 'three');
+
+# creating a temporary table with combinations of original table storage engine /
+# storage storage specified in 'ALTER TABLE' statement and expected error
+# - 'handler_does_not_support' means 'ER_ILLEGAL_HA_CREATE_OPTION'
+# - empty value / NULL / non-existing record means no error is expected
+CREATE TEMPORARY TABLE expected_alter_table_errors(
+  original_se VARCHAR(16) NOT NULL,
+  alter_se VARCHAR(16) NOT NULL,
+  error_code VARCHAR(32) NOT NULL
+);
+INSERT INTO expected_alter_table_errors VALUES
+  ('MyISAM',       '', 'handler_does_not_support'),
+  ('MyISAM', 'MyISAM', 'handler_does_not_support'),
+  ('InnoDB', 'MyISAM', 'handler_does_not_support')
+;
+
+# iterating over all possible combinations of original table storage engine /
+# storage storage specified in 'ALTER TABLE' statement
+# 2 * 3 = 6
+--let $combination_index = 0
+while($combination_index < 6)
+{
+  # extracting original table storage engine / storage storage specified in 'ALTER TABLE'
+  # from $combination_index
+  --disable_query_log
+  eval SET @partial_index = $combination_index;
+  --let $alter_engine = `SELECT CASE @partial_index % 3 WHEN 0 THEN '' WHEN 1 THEN 'MyISAM' ELSE 'InnoDB' END`
+  eval SET @partial_index = @partial_index DIV 3;
+  --let $original_engine = `SELECT IF(@partial_index % 2 = 0, 'MyISAM', 'InnoDB')`
+
+  # extracting $expected_error from the 'expected_alter_table_errors' for the given
+  # ($original_engine, $alter_engine)
+  --let $expected_error = `SELECT error_code FROM expected_alter_table_errors WHERE original_se = '$original_engine' AND alter_se = '$alter_engine'`
+  --enable_query_log
+
+  # two inner iterations for different type of compressed columns (with and without compression dictionary)
+  --let $operation_index = 0
+  while($operation_index < 2)
+  {
+    # composing $column_spec defending on $operation_index
+    --let $column_spec = VARCHAR(250) COLUMN_FORMAT COMPRESSED
+    if($operation_index == 1)
+    {
+      --let $column_spec = $column_spec WITH COMPRESSION_DICTIONARY numbers
+    }
+    --echo original: '$original_engine', alter: '$alter_engine', operation: '$operation_index', error: '$expected_error'
+
+    # creating original table with $original_engine storage engine
+    --let $original_engine_spec =
+    if($original_engine)
+    {
+      --let $original_engine_spec = ENGINE=$original_engine
+    }
+    eval CREATE TABLE t1(
+      id BIGINT UNSIGNED NOT NULL,
+      a VARCHAR(250)
+    ) $original_engine_spec
+    PARTITION BY RANGE (id) (
+      PARTITION p1 VALUES LESS THAN (100),
+      PARTITION p2 VALUES LESS THAN MAXVALUE
+    );
+    SHOW CREATE TABLE t1;
+
+    # composing $alter_table_statement using $column_spec and $alter_engine
+    --let $alter_table_statement = ALTER TABLE t1 MODIFY a $column_spec
+    if($alter_engine)
+    {
+      --let $alter_table_statement = $alter_table_statement, ENGINE=$alter_engine
+    }
+
+    # executing $alter_table_statement optionally expecting $expected_error error
+    if($expected_error == 'handler_does_not_support')
+    {
+      --error ER_ILLEGAL_HA_CREATE_OPTION
+      eval $alter_table_statement;
+    }
+    if(!$expected_error)
+    {
+      eval $alter_table_statement;
+      SHOW CREATE TABLE t1;
+    }
+    DROP TABLE t1;
+
+    --inc $operation_index
+  }
+
+  --inc $combination_index
+}
+
+# cleanup
+DROP COMPRESSION_DICTIONARY numbers;
+
+#
 # Bug lp:1653104 "Compression dictionaries are not being used in partitioned tables"
 #
 CREATE COMPRESSION_DICTIONARY numbers ('one' 'two' 'three');

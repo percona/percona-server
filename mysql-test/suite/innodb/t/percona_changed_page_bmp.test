@@ -218,16 +218,13 @@ call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*"
 #
 # Test that --innodb-read-only works
 #
-SET GLOBAL innodb_fast_shutdown=0;
 --echo 10th restart
---let $restart_parameters= restart:--innodb-read-only
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 SELECT @@innodb_read_only;
 SELECT @@innodb_track_changed_pages;
 
 --echo 11th restart
---let $restart_parameters=
 --source include/restart_mysqld.inc
 
 #

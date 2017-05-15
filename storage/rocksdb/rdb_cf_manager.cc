@@ -209,6 +209,7 @@ Rdb_cf_manager::get_all_cf(void) const {
 
   mysql_mutex_lock(&m_mutex);
   for (auto it : m_cf_id_map) {
+    DBUG_ASSERT(it.second != nullptr);
     list.push_back(it.second);
   }
   mysql_mutex_unlock(&m_mutex);

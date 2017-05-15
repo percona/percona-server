@@ -1,21 +1,17 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 --source include/have_partition.inc
-
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
 
 --echo # Tests for MyRocks + partitioning
 
 --echo #
 --echo # MyRocks Issue #70: Server crashes in Rdb_key_def::get_primary_key_tuple
 --echo #
-CREATE TABLE t1 (pk INT PRIMARY KEY, f1 INT, f2 INT, KEY(f2)) ENGINE=RocksDB 
+CREATE TABLE t1 (pk INT PRIMARY KEY, f1 INT, f2 INT, KEY(f2)) ENGINE=ROCKSDB
 PARTITION BY HASH(pk) PARTITIONS 2;
 INSERT INTO t1 VALUES (1, 6, NULL), (2, NULL, 1);
 
-CREATE TABLE t2 (pk INT PRIMARY KEY, f1 INT) ENGINE=RocksDB;
+CREATE TABLE t2 (pk INT PRIMARY KEY, f1 INT) ENGINE=ROCKSDB;
 INSERT INTO t2 VALUES (1, 1), (2, 1);
 
 SELECT f1 FROM t1 WHERE f2 = ( SELECT f1 FROM t2 WHERE pk = 2 );
@@ -33,9 +29,9 @@ CREATE TABLE t1 (
  INDEX (a),
  INDEX (b),
  INDEX (c)
-) ENGINE=RocksDB PARTITION BY key (id) partitions 2;
+) ENGINE=ROCKSDB PARTITION BY key (id) partitions 2;
 
-INSERT INTO t1 (id, b) VALUES (28, 3);
+INSERT INTO t1 (id, b, c) VALUES (28, 3, 3);
 UPDATE t1 SET id=8 WHERE c < 8 LIMIT 1;
 check table t1;
 drop table t1;
@@ -55,6 +51,7 @@ insert into t1 values (2,10,10);
 
 insert into t1 values (11,20,20);
 insert into t1 values (12,20,20);
+--replace_column 10 #
 explain select * from t1 force index(col1) where col1=10;
 select * from t1 force index(col1) where col1=10;
 select * from t1 use index () where col1=10;
@@ -76,6 +73,7 @@ insert into t1 values (2,10,10);
 insert into t1 values (11,20,20);
 insert into t1 values (12,20,20);
 --echo # The following must use "Using index"
+--replace_column 10 #
 explain select pk from t1 force index(col1) where col1=10;
 
 drop table t1;
@@ -83,11 +81,11 @@ drop table t1;
 --echo #
 --echo # Issue #214: subqueries cause crash
 --echo #
-create TABLE t1(a int,b int,c int,primary key(a,b))
+create TABLE t1(a int,b int,c int,primary key(a,b)) engine=rocksdb
     partition by list (b*a) (partition x1 values in (1) tablespace ts1,
                              partition x2 values in (3,11,5,7) tablespace ts2,
                              partition x3 values in (16,8,5+19,70-43) tablespace ts3);
-create table t2(b binary(2));
+create table t2(b binary(2)) engine=rocksdb;
 set session optimizer_switch=5;
 insert into t1(a,b) values(1,7);
 select a from t1 where a in (select a from t1 where a in (select b from t2));
@@ -97,7 +95,7 @@ drop table t1, t2;
 --echo #
 --echo # Issue #260: altering name to invalid value leaves table unaccessible
 --echo #
-CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY HASH(c1) PARTITIONS 4;
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) ENGINE=ROCKSDB PARTITION BY HASH(c1) PARTITIONS 4;
 INSERT INTO t1 VALUES(1,'a');
 --error ER_ERROR_ON_RENAME
 RENAME TABLE t1 TO db3.t3;
@@ -118,4 +116,3 @@ SHOW TABLES;
 DROP TABLE t2;
 use test;
 DROP DATABASE db3;
-

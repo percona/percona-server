@@ -8,20 +8,16 @@ perl;
   print "===================================================================\n";
   open my $file, $ENV{'log_file'} . '.copy' or die "Can not open log: $!";
   while ($line = <$file>) {
-    if ($line =~ /skip this/) {
-      # skip this
-      next;
-    }
     if ($line =~ /SET NAMES/) {
       # change_user does automatic reconnect and messing up 'SET NAMES' around
       next;
     }
     if ($line =~ /Threads_connected/ || $line =~ /SELECT \d <= \d/) {
-      # part of waitwait_until_count_sessions.inc script
+      # part of wait_until_count_sessions.inc script
       next;
     }
     if ($line =~ /^"Audit"/) {
-      # skip opening log record
+      # skip opening log record and disconnect record
       next;
     }
     if ($line =~ /SELECT count\(\*\)=1 FROM t WHERE a=7/) {

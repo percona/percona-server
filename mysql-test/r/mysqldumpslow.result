@@ -1,0 +1,43 @@
+SET @old_log_output=          @@global.log_output;
+SET @old_slow_query_log=      @@global.slow_query_log;
+SET @old_slow_query_log_file= @@global.slow_query_log_file;
+SET GLOBAL slow_query_log_file= '.../log/slow_query_temp.log';
+SET GLOBAL log_output=       'FILE';
+SET GLOBAL slow_query_log=   'ON';
+SET SESSION long_query_time=  0;
+SHOW VARIABLES LIKE "%long_query_time%";
+Variable_name	Value
+long_query_time	0.000000
+SHOW VARIABLES LIKE "%long_query_time%";
+Variable_name	Value
+long_query_time	0.000000
+SHOW VARIABLES LIKE "%long_query_time%";
+Variable_name	Value
+long_query_time	0.000000
+SHOW VARIABLES LIKE "%long_query_time%";
+Variable_name	Value
+long_query_time	0.000000
+SHOW VARIABLES LIKE "%long_query_time%";
+Variable_name	Value
+long_query_time	0.000000
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1
+"Running mysqldumpslow on the slow-query-log"
+"mysqldumpslow.sh" is not currently compatible with Percona extended slow query
+log format. Please use "pt-query-digest" from Percona Toolkit instead
+(https://www.percona.com/doc/percona-toolkit/2.2/pt-query-digest.html).
+
+SET GLOBAL  log_output=         @old_log_output;
+SET GLOBAL  slow_query_log=     @old_slow_query_log;
+SET GLOBAL  slow_query_log_file=@old_slow_query_log_file;
+End of test!

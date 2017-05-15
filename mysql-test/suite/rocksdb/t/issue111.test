@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 connect (con2,localhost,root,,);
 connection default;
@@ -10,13 +10,22 @@ create table t1 (
   key(col1)
 ) engine=rocksdb;
 
-create table ten(a int primary key);
+create table ten(a int primary key) engine=rocksdb;
 insert into ten values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-create table one_k(a int primary key);
+create table one_k(a int primary key) engine=rocksdb;
+
+# MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
+# the test does not require RR ISO to complete, so lets temporarily alter the
+# ISO to RC
+set @orig_tx_iso=@@session.tx_isolation;
+set session tx_isolation='READ-COMMITTED';
+
 insert into one_k select A.a + B.a* 10 + C.a * 100 from ten A, ten B, ten C;
 
 insert into t1 select a,a,a from one_k;
+
+set session tx_isolation=@orig_tx_iso;
 
 --echo # Start the transaction, get the snapshot
 begin;
@@ -31,7 +40,11 @@ commit;
 
 connection default;
 
---error ER_LOCK_DEADLOCK
+# MyRocks does not support gap locks in REPEATABLE-READ mode
+# Upstream would have granted a ghost lock on the gaps and then encountered
+# a real row deadlock. Percona Server prevents the gap lock entirely
+# --error ER_LOCK_DEADLOCK
+--error ER_UNKNOWN_ERROR
 update t1 set col2=col2+1 where col1 < 10 limit 5;
 
 disconnect con2;

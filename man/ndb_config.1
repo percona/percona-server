@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.90.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&21.90.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 .
@@ -225,7 +225,7 @@ T}
 .TE
 .sp 1
 Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
 localhost:1186\&.
 .RE
 .sp
@@ -514,7 +514,7 @@ to print information relating only to parameters defined in an
 or
 [ndbd default]
 section of the cluster configuration file (see
-Section\ \&19.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
+Section\ \&21.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-connections\fR
@@ -567,9 +567,9 @@ information only\(emthat is, information about parameters found in the
 [shm], or
 [shm default]
 sections of the cluster configuration file (see
-Section\ \&19.3.3.9, \(lqNDB Cluster TCP/IP Connections\(rq,
-Section\ \&19.3.3.12, \(lqSCI Transport Connections in NDB Cluster\(rq, and
-Section\ \&19.3.3.11, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+Section\ \&21.3.3.9, \(lqNDB Cluster TCP/IP Connections\(rq,
+Section\ \&21.3.3.12, \(lqSCI Transport Connections in NDB Cluster\(rq, and
+Section\ \&21.3.3.11, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
 .sp
 This option is mutually exclusive with
 \fB\-\-nodes\fR
@@ -940,7 +940,7 @@ option\&. A portion of the resulting output is shown in this example:
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.16\-ndb\-7\&.5\&.5"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.18\-ndb\-7\&.5\&.7"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1280,7 +1280,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # CHECK TABLE statements
@@ -8,5 +8,5 @@
 # the storage engine does not support CHECK.
 #
 
---source check_table.inc
+--source suite/rocksdb/include/check_table.inc
 

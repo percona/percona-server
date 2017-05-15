@@ -1,14 +1,9 @@
 --source include/have_innodb.inc
 
-SET GLOBAL innodb_change_buffering=none;
-SET GLOBAL innodb_fast_shutdown=0;
-
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0), (1);
 
-let $restart_parameters = restart:--innodb-read-only;
---source include/restart_mysqld.inc
---source include/count_sessions.inc
+--source include/restart_innodb_read_only.inc
 
 --connect(con1,localhost,root,,)
 connection con1;
@@ -36,9 +31,7 @@ ROLLBACK;
 
 disconnect con1;
 connection default;
---source include/wait_until_count_sessions.inc
 
-let $restart_parameters =;
 --source include/restart_mysqld.inc
 
 DROP TABLE t1;

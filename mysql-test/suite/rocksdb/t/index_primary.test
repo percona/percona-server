@@ -1,16 +1,12 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # Basic syntax related to primary keys 
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 CREATE TABLE t1 (a INT PRIMARY KEY,
   b CHAR(8)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW KEYS IN t1;
@@ -24,12 +20,12 @@ DROP TABLE t1;
 --error ER_MULTIPLE_PRI_KEY
 CREATE TABLE t1 (a INT PRIMARY KEY,
   b CHAR(8) PRIMARY KEY
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 CREATE TABLE t1 (a INT,
   b CHAR(8),
   PRIMARY KEY (a,b)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW INDEX IN t1;
@@ -43,7 +39,7 @@ INSERT INTO t1 (a,b) VALUES (1,'b');
 CREATE TABLE t1 (a INT KEY,
   b CHAR(8),
   KEY (b)
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW INDEX IN t1;
@@ -51,7 +47,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a INT,
   b CHAR(8) PRIMARY KEY
-) ENGINE=rocksdb;
+) ENGINE=ROCKSDB;
 
 --replace_column 7 #
 SHOW INDEX IN t1;
@@ -61,4 +57,3 @@ ALTER TABLE t1 ADD CONSTRAINT PRIMARY KEY pk (a);
 --replace_column 7 #
 SHOW KEYS IN t1;
 DROP TABLE t1;
-

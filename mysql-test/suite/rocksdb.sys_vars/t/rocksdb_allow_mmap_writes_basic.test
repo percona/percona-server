@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 --let $sys_var=ROCKSDB_ALLOW_MMAP_WRITES
 --let $read_only=1

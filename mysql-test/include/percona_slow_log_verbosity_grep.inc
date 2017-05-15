@@ -1,11 +1,13 @@
 # Common extensions to the slow query log
 --let grep_pattern = ^# Schema: .+  Last_errno: \d+  Killed: \d+\$
+--let log_expected_matches = $log_slow_verbosity_expected_matches
 --source include/log_grep.inc
 --let grep_pattern = ^#.*Rows_affected: \d+\$
 --source include/log_grep.inc
 --let grep_pattern = ^# Bytes_sent: \d+.*\$
 --source include/log_grep.inc
 # InnoDB
+--let log_expected_matches = $log_slow_verbosity_innodb_expected_matches
 --let grep_pattern = ^# InnoDB_trx_id: \w+\$
 --source include/log_grep.inc
 # Query plan

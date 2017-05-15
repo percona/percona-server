@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # Index type BTREE
@@ -6,7 +6,6 @@
 
 let $index_type = BTREE;
 
---source index.inc
+--source suite/rocksdb/include/index.inc
 
 let $index_type =;
-

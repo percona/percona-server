@@ -2797,6 +2797,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     mysql_mutex_lock(&mi->data_lock);
     mi->clock_diff_with_master=
       (long) (time((time_t*) 0) - strtoul(master_row[0], 0, 10));
+    DBUG_EXECUTE_IF("dbug.mts.force_clock_diff_eq_0",
+      mi->clock_diff_with_master= 0;);
     mysql_mutex_unlock(&mi->data_lock);
   }
   else if (check_io_slave_killed(mi->info_thd, mi, NULL))
@@ -5167,9 +5169,14 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       If it is an artificial event, or a relay log event (IO thread generated
       event) or ev->when is set to 0, or a FD from master, or a heartbeat
       event with server_id '0' then  we don't update the last_master_timestamp.
+
+      In case of parallel execution last_master_timestamp is only updated when
+      an event is taken out of GAQ. Thus when last_master_timestamp is 0 we need
+      to initialize it with a timestamp from the first event to be executed in
+      parallel.
     */
-    if (!(rli->is_parallel_exec() ||
-          ev->is_artificial_event() || ev->is_relay_log_event() ||
+    if ((!rli->is_parallel_exec() || rli->last_master_timestamp == 0) &&
+         !(ev->is_artificial_event() || ev->is_relay_log_event() ||
           (ev->common_header->when.tv_sec == 0) ||
           ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
           ev->server_id == 0))
@@ -5267,6 +5274,16 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                         const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
                         DBUG_ASSERT(opt_debug_sync_timeout > 0);
                         DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+                      }
+                    };);
+      DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                    {
+                      if (ev->get_type_code() == binary_log::ROTATE_EVENT && ev->is_artificial_event())
+                      {
+                      const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act)));
                       }
                     };);
       /*
@@ -5624,9 +5641,14 @@ connected:
                     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
                     {
-                      /* Fake that thread started 3 mints ago */
+                      /* Fake that thread started 3 minutes ago */
                       thd->start_time.tv_sec-=180;
                     };);
+  DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
+                  {
+                    /* Fake that thread started 3 minutes ago */
+                    thd->start_time.tv_sec-=180;
+                  };);
   mysql_mutex_lock(&mi->run_lock);
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;
   mysql_mutex_unlock(&mi->run_lock);
@@ -6614,6 +6636,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   bool error= FALSE;
   struct timespec curr_clock;
   bool binlog_prot_acquired= false;
+  time_t ts=0;
 
   DBUG_ENTER("checkpoint_routine");
 
@@ -6623,6 +6646,13 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     if (!rli->gaq->count_done(rli))
       DBUG_RETURN(FALSE);
   }
+  DBUG_EXECUTE_IF("mts_checkpoint",
+                  {
+                    const char act[]=
+                      "now signal mts_checkpoint_start";
+                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
+                                                       STRING_WITH_LEN(act)));
+                 };);
 #endif
 
   /*
@@ -6768,8 +6798,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt is zero. This value means that the checkpoint information
     will be completely reset.
   */
-  rli->reset_notified_checkpoint(cnt, rli->gaq->lwm.ts, need_data_lock);
-
+  ts= rli->gaq->empty()
+    ? 0
+    : reinterpret_cast<Slave_job_group*>(rli->gaq->head_queue())->ts;
+  rli->reset_notified_checkpoint(cnt, &ts, need_data_lock);
   /* end-of "Coordinator::"commit_positions" */
 
 end:
@@ -6783,6 +6815,13 @@ end:
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
+  DBUG_EXECUTE_IF("mts_checkpoint",
+                  {
+                    const char act[]=
+                      "now signal mts_checkpoint_end";
+                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
 #endif
   set_timespec_nsec(&rli->last_clock, 0);
 
@@ -6853,6 +6892,8 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
 err:
   if (error && w)
   {
+    if (w->current_mts_submode)
+      delete w->current_mts_submode;
     delete w;
     /*
       Any failure after array inserted must follow with deletion
@@ -7065,10 +7106,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 
   if (!*mts_inited)
     return;
-  else if (rli->slave_parallel_workers == 0)
-    goto end;
 
-  if (thd->killed == THD::NOT_KILLED)
+  if (rli->slave_parallel_workers != 0 && thd->killed == THD::NOT_KILLED)
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
 
   while (!rli->workers.empty())
@@ -7103,7 +7142,6 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
 
-end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
@@ -9282,9 +9320,6 @@ static Log_event* next_event(Relay_log_info* rli)
             */
             (void) mts_checkpoint_routine(rli, period, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
             mysql_mutex_lock(log_lock);
-            // More to the empty relay-log all assigned events done so reset it.
-            if (rli->gaq->empty())
-              rli->last_master_timestamp= 0;
 
             if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
               period= 10000000ULL;

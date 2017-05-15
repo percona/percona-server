@@ -35,6 +35,8 @@ xb_doublewrite
 # Test that --innodb_force_recovery=6 fails to start with the doublewrite file present
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
 SET GLOBAL innodb_fast_shutdown=2;
+# Test that --innodb_force_recovery=6 succeeds to start with the doublewrite file
+# restart:--innodb-force-recovery=6
 # Test that --innodb_force_recovery=6 succeeds to start without the doublewrite file
 # restart:--innodb-force-recovery=6
 # Cleanup

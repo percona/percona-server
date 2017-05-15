@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (i1 INT, PRIMARY KEY (i1)) ENGINE = ROCKSDB;
 SET GLOBAL ROCKSDB_FORCE_FLUSH_MEMTABLE_NOW=1;
 set session debug= "+d,myrocks_simulate_negative_stats";

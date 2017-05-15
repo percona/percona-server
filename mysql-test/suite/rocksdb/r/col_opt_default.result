@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT PRIMARY KEY DEFAULT '0') ENGINE=rocksdb;
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra

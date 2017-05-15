@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, 2016, Percona Inc.
 
@@ -560,6 +560,11 @@ extern my_bool srv_print_all_deadlocks;
 
 extern my_bool	srv_cmp_per_index_enabled;
 
+/** Number of times secondary index lookup triggered cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern ulint	srv_sec_rec_cluster_reads_avoided;
+
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 
@@ -590,7 +595,7 @@ extern mysql_pfs_key_t	srv_log_tracking_thread_key;
 schema */
 #  define pfs_register_thread(key)			\
 do {								\
-	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key, NULL, 0);\
+	struct PSI_thread* psi = PSI_THREAD_CALL(new_thread)(key.m_value, NULL, 0);\
 	PSI_THREAD_CALL(set_thread_os_id)(psi);			\
 	PSI_THREAD_CALL(set_thread)(psi);			\
 } while (0)
@@ -971,6 +976,13 @@ MLOG_TRUNCATE REDO log record. */
 bool
 srv_was_tablespace_truncated(const fil_space_t* space);
 
+/** Check whether given space id is undo tablespace id
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+srv_is_undo_tablespace(
+	ulint	space_id);
+
 #ifdef UNIV_DEBUG
 /** Disables master thread. It's used by:
 	SET GLOBAL innodb_master_thread_disabled_debug = 1 (0).
@@ -1076,6 +1088,8 @@ struct export_var_t{
 						index lookups when freeing
 						file pages */
 #endif /* UNIV_DEBUG */
+	ulint innodb_sec_rec_cluster_reads;	/*!< srv_sec_rec_cluster_reads */
+	ulint innodb_sec_rec_cluster_reads_avoided; /*!< srv_sec_rec_cluster_reads_avoided */
 };
 
 /** Thread slot in the thread table.  */

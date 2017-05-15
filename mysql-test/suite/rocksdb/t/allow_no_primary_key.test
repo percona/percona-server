@@ -1,4 +1,4 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 #
 # This test checks some very basic capabilities
@@ -6,13 +6,9 @@
 # in myrocks.  Everything should work here as normal.
 #
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 # test CREATE
 CREATE TABLE t1 (a INT, b CHAR(8)) ENGINE=rocksdb;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 ## test ALTER
@@ -32,7 +28,7 @@ DROP TABLE t1;
 ## test creating a table with primary and then dropping that key
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=rocksdb;
 ALTER TABLE t1 DROP COLUMN pk;
---source no_primary_key_basic_ops.inc
+--source suite/rocksdb/include/no_primary_key_basic_ops.inc
 DROP TABLE t1;
 
 # test CHECK TABLE
@@ -42,10 +38,6 @@ DROP TABLE t1;
 # in which case rdiff will be needed. Or, the output might say that
 # the storage engine does not support CHECK.
 #
-
---disable_warnings
-DROP TABLE IF EXISTS t1,t2;
---enable_warnings
 
 CREATE TABLE t1 (a INT, b CHAR(8)) ENGINE=rocksdb;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');

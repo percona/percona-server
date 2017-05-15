@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2016
+.\"      Date: 03/17/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "11/26/2016" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&19.87.\ \& This table describes command\-line options for the ndb_mgmd program
+.B Table\ \&21.87.\ \& This table describes command\-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 .
@@ -60,7 +60,7 @@ allbox tab(:);
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-bind\-address=\fR\fB\fIhost\fR\fR\fB[:\fR\fB\fIport\fR\fR\fB]\fR
+\fB\-\-bind\-address=\fR\fB\fIhost\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -69,7 +69,7 @@ l l l s
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-bind\-address=ip_address
+\-\-bind\-address=host
 T}
 T{
 \fBPermitted Values\fR
@@ -85,12 +85,7 @@ T}:T{
 T}
 .TE
 .sp 1
-When specified, this option limits management server connections by management clients to clients at the specified host name or IP address (and possibly port, if this is also specified)\&. In such cases, a management client attempting to connect to the management server from any other address fails with the error
-Unable to setup port: \fIhost\fR:\fIport\fR!
-.sp
-If the
-\fIport\fR
-is not specified, the management client attempts to use port 1186\&.
+Causes the management server to bind to a specific network interface (host name or IP address)\&. This option has no default value\&.
 .RE
 .sp
 .RS 4
@@ -213,7 +208,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&19.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -372,7 +367,7 @@ option, or because the management server could not find any configuration cache\
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&19.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
+Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -530,7 +525,7 @@ T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&19.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
+Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -553,7 +548,7 @@ When a management server starts, it checks for another management server in the 
 ignores
 \fB\-\-initial\fR
 unless it is the only management server running\&. This behavior also has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&19.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&21.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 When used together with the
 \fB\-\-config\-file\fR
@@ -713,7 +708,7 @@ T}
 .TE
 .sp 1
 NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&19.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -732,7 +727,7 @@ When a management server starts, it checks for another management server in the 
 ignores
 \fB\-\-reload\fR
 unless it is the only management server running\&. This behavior also has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&19.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&21.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -858,7 +853,7 @@ shell> \fBndbd \-c 192\&.168\&.0\&.150,192\&.168\&.0\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as NDB Cluster SQL nodes connected to this cluster\&. See
-Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -892,7 +887,7 @@ management server, its configuration must match that of the management server th
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&19.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
 \fBndb_mgmd\fR(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
@@ -916,7 +911,7 @@ is the unique node identifier\&.
 .\}
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&19.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
+Section\ \&21.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -929,7 +924,7 @@ Section\ \&19.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up t
 .\}
 ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
-Section\ \&19.5, \(lqManagement of NDB Cluster\(rq\&.
+Section\ \&21.5, \(lqManagement of NDB Cluster\(rq\&.
 .sp
 By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where
@@ -1083,7 +1078,7 @@ option has no effect on non\-Windows platforms\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

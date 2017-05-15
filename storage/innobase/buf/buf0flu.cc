@@ -415,6 +415,7 @@ buf_flush_insert_into_flush_list(
 	buf_block_t*	block,		/*!< in/out: block which is modified */
 	lsn_t		lsn)		/*!< in: oldest modification */
 {
+	ut_ad(srv_shutdown_state != SRV_SHUTDOWN_FLUSH_PHASE);
 	ut_ad(log_flush_order_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
 
@@ -475,6 +476,7 @@ buf_flush_insert_sorted_into_flush_list(
 	buf_page_t*	prev_b;
 	buf_page_t*	b;
 
+	ut_ad(srv_shutdown_state != SRV_SHUTDOWN_FLUSH_PHASE);
 	ut_ad(log_flush_order_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
@@ -787,6 +789,7 @@ buf_flush_write_complete(
 	buf_page_set_io_fix(bpage, BUF_IO_NONE);
 
 	buf_pool->n_flush[flush_type]--;
+	ut_ad(buf_pool->n_flush[flush_type] != ULINT_MAX);
 
 	if (buf_pool->n_flush[flush_type] == 0
 	    && buf_pool->init_flush[flush_type] == FALSE) {
@@ -1194,6 +1197,7 @@ buf_flush_page(
 		}
 
 		++buf_pool->n_flush[flush_type];
+		ut_ad(buf_pool->n_flush[flush_type] != 0);
 
 		mutex_exit(&buf_pool->flush_state_mutex);
 
@@ -3014,17 +3018,17 @@ buf_flush_page_cleaner_set_priority(
 #endif /* UNIV_LINUX */
 
 #ifdef UNIV_DEBUG
-/** Loop used to disable page cleaner threads. */
+/** Loop used to disable page cleaner and LRU manager threads. */
 static
 void
 buf_flush_page_cleaner_disabled_loop(void)
 {
-	ut_ad(page_cleaner != NULL);
-
 	if (!innodb_page_cleaner_disabled_debug) {
 		/* We return to avoid entering and exiting mutex. */
 		return;
 	}
+
+	ut_ad(page_cleaner != NULL);
 
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_disabled_debug++;
@@ -3055,8 +3059,8 @@ buf_flush_page_cleaner_disabled_loop(void)
 	mutex_exit(&page_cleaner->mutex);
 }
 
-/** Disables page cleaner threads (coordinator and workers).
-It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
+/** Disables page cleaner threads (coordinator and workers) and LRU manager
+threads. It's used by: SET GLOBAL innodb_page_cleaner_disabled_debug = 1 (0).
 @param[in]	thd		thread handle
 @param[in]	var		pointer to system variable
 @param[out]	var_ptr		where the formal string goes
@@ -3079,7 +3083,7 @@ buf_flush_page_cleaner_disabled_debug_update(
 
 		innodb_page_cleaner_disabled_debug = false;
 
-		/* Enable page cleaner threads. */
+		/* Enable page cleaner and LRU manager threads. */
 		while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 			mutex_enter(&page_cleaner->mutex);
 			const ulint n = page_cleaner->n_disabled_debug;
@@ -3113,10 +3117,12 @@ buf_flush_page_cleaner_disabled_debug_update(
 		mutex_enter(&page_cleaner->mutex);
 
 		ut_ad(page_cleaner->n_disabled_debug
-		      <= srv_n_page_cleaners);
+		      <= (srv_n_page_cleaners
+			  + buf_lru_manager_running_threads));
 
 		if (page_cleaner->n_disabled_debug
-		    == srv_n_page_cleaners) {
+		    == (srv_n_page_cleaners
+			+ buf_lru_manager_running_threads)) {
 
 			mutex_exit(&page_cleaner->mutex);
 			break;
@@ -3570,7 +3576,8 @@ buf_lru_manager_adapt_sleep_time(
 	ulint*			lru_sleep_time)
 {
 	const ulint free_len = UT_LIST_GET_LEN(buf_pool->free);
-	const ulint max_free_len = srv_LRU_scan_depth;
+	const ulint max_free_len = std::min(
+			UT_LIST_GET_LEN(buf_pool->LRU), srv_LRU_scan_depth);
 
 	if (free_len < max_free_len / 100 && lru_n_flushed) {
 
@@ -3582,7 +3589,7 @@ buf_lru_manager_adapt_sleep_time(
 
 		/* Free list filled more than 20% or no pages flushed in the
 		previous batch, sleep a bit more */
-		*lru_sleep_time += 50;
+		*lru_sleep_time += 1;
 		if (*lru_sleep_time > srv_cleaner_max_lru_time)
 			*lru_sleep_time = srv_cleaner_max_lru_time;
 	} else if (free_len < max_free_len / 20 && *lru_sleep_time >= 50) {
@@ -3641,6 +3648,8 @@ DECLARE_THREAD(buf_lru_manager)(
 	phase to provide free pages for the master and purge threads.  */
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE
 	       || srv_shutdown_state == SRV_SHUTDOWN_CLEANUP) {
+
+		ut_d(buf_flush_page_cleaner_disabled_loop());
 
 		buf_lru_manager_sleep_if_needed(next_loop_time);
 

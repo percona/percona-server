@@ -1,10 +1,7 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 --source include/have_log_bin.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 create table t1 (id int primary key, value int, value2 varchar(200), index(value)) engine=rocksdb;
 
 --disable_query_log
@@ -19,13 +16,8 @@ while ($i <= 50000) {
 optimize table t1;
 
 #wiping block cache
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
--- exec echo "restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
+--let $restart_parameters=restart:--rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;disable_auto_compactions=true;level0_stop_writes_trigger=1000
+--source include/restart_mysqld.inc
 
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_block_cache_add';
 
@@ -41,3 +33,6 @@ select case when variable_value - @a > 100 then 'true' else 'false' end from per
 
 #cleanup
 DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

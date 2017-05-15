@@ -66,9 +66,9 @@ RESET CHANGED_PAGE_BITMAPS;
 call mtr.add_suppression("InnoDB: Error: page [0-9]* log sequence number [0-9]*");
 9th restart
 # restart
-SET GLOBAL innodb_fast_shutdown=0;
 10th restart
-# restart:--innodb-read-only
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
 SELECT @@innodb_read_only;
 @@innodb_read_only
 1

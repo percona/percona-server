@@ -1,8 +1,7 @@
---source include/have_rocksdb_as_default.inc
+--source include/have_rocksdb.inc
 
 # 
 # OPTIMIZE TABLE statements
 #
 
---source optimize_table.inc
-
+--source suite/rocksdb/include/optimize_table.inc

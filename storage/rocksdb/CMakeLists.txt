@@ -1,31 +1,49 @@
 # TODO: Copyrights
 
+# by default MyRocks is not built
+IF (NOT DEFINED WITH_ROCKSDB)
+  SET (WITH_ROCKSDB 0)
+ENDIF ()
+
 IF (NOT WITH_ROCKSDB)
-  MESSAGE(STATUS "Not building with MyRocks storage engine, you must specify -DWITH_ROCKSDB=1 to cmake in order to build with MyRocks.")
-  RETURN()
+  MESSAGE (STATUS "Not building with MyRocks storage engine, you must specify -DWITH_ROCKSDB=1|ON|FORCE to cmake in order to build with MyRocks.")
+  RETURN ()
 ELSE ()
-  MESSAGE(STATUS "Building with MyRocks storage engine")
+  MESSAGE (STATUS "Building with MyRocks storage engine = " ${WITH_ROCKSDB})
+  IF (WITH_ROCKSDB STREQUAL "FORCE")
+    SET (MYROCKS_STATUS_MODE FATAL_ERROR)
+  ELSE ()
+    SET (MYROCKS_STATUS_MODE WARNING)
+  ENDIF ()
+ENDIF ()
+
+# check platform support, no 32 bit
+IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+  MESSAGE (${MYROCKS_STATUS_MODE} "x86_64 is only platform supported. ${CMAKE_SYSTEM_PROCESSOR} found. Not building MyRocks")
+  RETURN ()
+ENDIF ()
+
+# check compiler version, 4.8.0 is minimal accepted
+IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
+    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.0"))
+  MESSAGE (${MYROCKS_STATUS_MODE} "GCC >= 4.8.0 required. ${CMAKE_CXX_COMPILER_VERSION} found. Not building MyRocks")
+  RETURN ()
+ENDIF ()
+
+# check that compiler supports cxx11 and set options
+INCLUDE (check_stdcxx11)
+IF (!HAVE_STDCXX11)
+  MESSAGE (${MYROCKS_STATUS_MODE} "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does. Not building MyRocks")
+  RETURN ()
 ENDIF ()
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
-ENDIF()
+ENDIF ()
 
 CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
 IF(HAVE_SCHED_GETCPU)
   ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1)
-ENDIF()
-
-## adds a compiler flag if the compiler supports it
-INCLUDE(CheckCCompilerFlag)
-INCLUDE(CheckCXXCompilerFlag)
-
-# pick language dialect
-check_cxx_compiler_flag(-std=c++11 HAVE_STDCXX11)
-IF (HAVE_STDCXX11)
-  SET(CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
-ELSE ()
-  MESSAGE(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does.")
 ENDIF()
 
 # get a list of rocksdb library source files

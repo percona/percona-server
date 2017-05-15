@@ -81,9 +81,12 @@ EOF
         fi
         cat <<EOF
 Usage: $0 [OPTIONS]
+ The following options may be given as the first argument:
   --no-defaults              Don't read the system defaults file
   --defaults-file=FILE       Use the specified defaults file
   --defaults-extra-file=FILE Also use defaults from the specified file
+
+ Other options:
   --ledir=DIRECTORY          Look for mysqld in the specified directory
   --open-files-limit=LIMIT   Limit the number of open files
   --core-file-size=LIMIT     Limit core files to the specified size
@@ -240,7 +243,12 @@ parse_arguments() {
     case "$arg" in
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION="$val" ;;
-      --datadir=*) DATADIR="$val" ;;
+      --datadir=*)
+        case $val in
+          /) DATADIR=$val ;;
+          *) DATADIR="`echo $val | sed 's;/*$;;'`" ;;
+        esac
+        ;;
       --pid-file=*) pid_file="$val" ;;
       --plugin-dir=*) PLUGIN_DIR="$val" ;;
       --user=*) user="$val"; SET_USER=1 ;;
@@ -319,10 +327,11 @@ add_mysqld_ld_preload() {
   lib_to_add="$1"
   lib_to_add=$(readlink -f $lib_to_add)
   log_notice "Adding '$lib_to_add' to LD_PRELOAD for mysqld"
+  real_basedir=$(readlink -f ${MY_BASEDIR_VERSION})
 
   # Check if the library is in the reduced number of standard system directories
   case "$lib_to_add" in
-    /usr/lib64/* | /usr/lib/* | ${MY_BASEDIR_VERSION}/lib/*)
+    /usr/lib64/* | /usr/lib/* | ${MY_BASEDIR_VERSION}/lib/* | ${real_basedir}/lib/*)
       ;;
     *)
       log_error "ld_preload libraries can only be loaded from system directories (/usr/lib64, /usr/lib, ${MY_BASEDIR_VERSION}/lib)"
@@ -440,62 +449,69 @@ set_malloc_lib() {
   add_mysqld_ld_preload "$malloc_lib"
 }
 
+find_basedir_from_cmdline () {
+  for arg in "$@"; do
+    case $arg in
+      --basedir=*)
+        MY_BASEDIR_VERSION="`echo "$arg" | sed -e 's;^--[^=]*=;;'`"
+        # Convert to full path
+        cd "$MY_BASEDIR_VERSION"
+        if [ $? -ne 0 ] ; then
+          log_error "--basedir set to '$MY_BASEDIR_VERSION', however could not access directory"
+          exit 1
+        fi
+        MY_BASEDIR_VERSION="`pwd`"
+        ;;
+    esac
+  done
+}
 
 #
 # First, try to find BASEDIR and ledir (where mysqld is)
 #
 
-if echo '@pkgdatadir@' | grep '^@prefix@' > /dev/null
-then
-  relpkgdata=`echo '@pkgdatadir@' | sed -e 's,^@prefix@,,' -e 's,^/,,' -e 's,^,./,'`
+oldpwd="`pwd`"
+
+# Args not parsed yet, check if --basedir was given on command line
+find_basedir_from_cmdline "$@"
+
+# --basedir is already overridden on command line
+if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION" ; then
+  # Search for mysqld and set ledir
+  for dir in @INSTALL_SBINDIR@ libexec sbin bin ; do
+    if test -x "$MY_BASEDIR_VERSION/$dir/mysqld" ; then
+      ledir="$MY_BASEDIR_VERSION/$dir"
+      break
+    fi
+  done
+
 else
-  # pkgdatadir is not relative to prefix
-  relpkgdata='@pkgdatadir@'
-fi
+  # Basedir should be parent dir of bindir, unless some non-standard
+  # layout is used
 
-case "$0" in
-  /*)
-  MY_PWD='@prefix@'
-  ;;
-  *)
-  MY_PWD=`dirname $0`
-  MY_PWD=`dirname $MY_PWD`
-  ;;
-esac
-# Check for the directories we would expect from a binary release install
-if test -n "$MY_BASEDIR_VERSION" -a -d "$MY_BASEDIR_VERSION"
-then
-  # BASEDIR is already overridden on command line.  Do not re-set.
-
-  # Use BASEDIR to discover le.
-  if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
-  then
-    ledir="$MY_BASEDIR_VERSION/libexec"
-  elif test -x "$MY_BASEDIR_VERSION/sbin/mysqld"
-  then
-    ledir="$MY_BASEDIR_VERSION/sbin"
-  else
-    ledir="$MY_BASEDIR_VERSION/bin"
+  cd "`dirname $0`"
+  if [ -h "$0" ] ; then
+    realpath="`ls -l  "$0" | awk '{print $NF}'`"
+    cd "`dirname "$realpath"`"
   fi
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/bin/mysqld"
-then
-  MY_BASEDIR_VERSION="$MY_PWD"		# Where bin, share and data are
-  ledir="$MY_PWD/bin"			# Where mysqld is
-# Check for the directories we would expect from a source install
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
-then
-  MY_BASEDIR_VERSION="$MY_PWD"		# Where libexec, share and var are
-  ledir="$MY_PWD/libexec"		# Where mysqld is
-elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/sbin/mysqld"
-then
-  MY_BASEDIR_VERSION="$MY_PWD"		# Where sbin, share and var are
-  ledir="$MY_PWD/sbin"			# Where mysqld is
-# Since we didn't find anything, used the compiled-in defaults
-else
-  MY_BASEDIR_VERSION='@prefix@'
-  ledir='@libexecdir@'
-fi
+  cd ..
+  MY_PWD="`pwd`"
 
+  # Search for mysqld and set ledir and BASEDIR
+  for dir in @INSTALL_SBINDIR@ libexec sbin bin ; do
+    if test -x "$MY_PWD/$dir/mysqld" ; then
+      MY_BASEDIR_VERSION="$MY_PWD"
+      ledir="$MY_BASEDIR_VERSION/$dir"
+      break
+    fi
+  done
+
+  # If we still didn't find anything, use the compiled-in defaults
+  if test -z "$MY_BASEDIR_VERSION" ; then
+    MY_BASEDIR_VERSION='@prefix@'
+    ledir='@libexecdir@'
+  fi
+fi
 
 #
 # Second, try to find the data directory
@@ -505,10 +521,6 @@ fi
 if test -d $MY_BASEDIR_VERSION/data/mysql
 then
   DATADIR=$MY_BASEDIR_VERSION/data
-# Next try where the source installs put it
-elif test -d $MY_BASEDIR_VERSION/var/mysql
-then
-  DATADIR=$MY_BASEDIR_VERSION/var
 # Or just give up and use our compiled-in default
 else
   DATADIR=@localstatedir@
@@ -523,21 +535,10 @@ export MYSQL_HOME
 
 # Get first arguments from the my.cnf file, groups [mysqld] and [mysqld_safe]
 # and then merge with the command line arguments
-if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults"
-then
+if test -x "$MY_BASEDIR_VERSION/bin/my_print_defaults" ; then
   print_defaults="$MY_BASEDIR_VERSION/bin/my_print_defaults"
-elif test -x `dirname $0`/my_print_defaults
-then
-  print_defaults="`dirname $0`/my_print_defaults"
-elif test -x ./bin/my_print_defaults
-then
-  print_defaults="./bin/my_print_defaults"
-elif test -x @bindir@/my_print_defaults
-then
+elif test -x "@bindir@/my_print_defaults" ; then
   print_defaults="@bindir@/my_print_defaults"
-elif test -x @bindir@/mysql_print_defaults
-then
-  print_defaults="@bindir@/mysql_print_defaults"
 else
   print_defaults="my_print_defaults"
 fi
@@ -547,6 +548,8 @@ append_arg_to_args () {
 }
 
 args=
+
+cd "$oldpwd"
 
 SET_USER=2
 parse_arguments `$print_defaults $defaults --loose-verbose mysqld server`
@@ -620,34 +623,6 @@ else
 fi
 plugin_dir="${plugin_dir}${PLUGIN_VARIANT}"
 
-# A pid file is created for the mysqld_safe process. This file protects the
-# server instance resources during race conditions.
-safe_pid="$DATADIR/mysqld_safe.pid"
-if test -f $safe_pid
-then
-  PID=`cat "$safe_pid"`
-  if @CHECK_PID@
-  then
-    if @FIND_PROC@
-    then
-      log_error "A mysqld_safe process already exists"
-      exit 1
-    fi
-  fi
-  if [ ! -h "$safe_pid" ]; then
-    rm -f "$safe_pid"
-  fi
-  if test -f "$safe_pid"
-  then
-    log_error "Fatal error: Can't remove the mysqld_safe pid file"
-    exit 1
-  fi
-fi
-
-# Insert pid proerply into the pid file.
-ps -e | grep  [m]ysqld_safe | awk '{print $1}' | sed -n 1p > $safe_pid
-# End of mysqld_safe pid(safe_pid) check.
-
 # Determine what logging facility to use
 
 # Ensure that 'logger' exists, if it's requested
@@ -657,9 +632,6 @@ then
   if [ $? -ne 0 ]
   then
     log_error "--syslog requested, but no 'logger' program found.  Please ensure that 'logger' is in your PATH, or do not specify the --syslog option to mysqld_safe."
-    if [ ! -h "$safe_pid" ]; then
-      rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-    fi
     exit 1
   fi
 fi
@@ -705,8 +677,6 @@ then
 
   append_arg_to_args "--log-error=$err_log"
 
-  # Log to err_log file
-  log_notice "Logging to '$err_log'."
   if [ $want_syslog -eq 1 ]
   then
     logging=both
@@ -718,7 +688,7 @@ fi
 logdir=`dirname "$err_log"`
 # Change the err log to the right user, if possible and it is in use
 if [ $logging = "file" -o $logging = "both" ]; then
-  if [ ! -f "$err_log" -a ! -h "$err_log" ]; then
+  if [ ! -e "$err_log" -a ! -h "$err_log" ]; then
     if test -w / -o "$USER" = "root"; then
       case $logdir in
         /var/log)
@@ -738,7 +708,7 @@ if [ $logging = "file" -o $logging = "both" ]; then
     fi
   fi
 
-  if [ -f "$err_log" ]; then        # Log to err_log file
+  if [ -f "$err_log" -o -p "$err_log" ]; then        # Log to err_log file
     log_notice "Logging to '$err_log'."
   elif [ "x$user" = "xroot" ]; then # running as root, mysqld can create log file; continue
     echo "Logging to '$err_log'." >&2
@@ -797,9 +767,6 @@ does not exist or is not executable. Please cd to the mysql installation
 directory and restart this script from there as follows:
 ./bin/mysqld_safe&
 See http://dev.mysql.com/doc/mysql/en/mysqld-safe.html for more information"
-  if [ ! -h "$safe_pid" ]; then
-    rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-  fi
   exit 1
 fi
 
@@ -898,25 +865,38 @@ then
     if @FIND_PROC@
     then    # The pid contains a mysqld process
       log_error "A mysqld process already exists"
-      if [ ! -h "$safe_pid" ]; then
-        rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-      fi
       exit 1
     fi
   fi
   if [ ! -h "$pid_file" ]; then
       rm -f "$pid_file"
-  fi
-  if test -f "$pid_file"
-  then
-    log_error "Fatal error: Can't remove the pid file:
-$pid_file
-Please remove it manually and start $0 again;
+      if test -f "$pid_file"; then
+        log_error "Fatal error: Can't remove the pid file:
+$pid_file.
+Please remove the file manually and start $0 again;
 mysqld daemon not started"
-    if [ ! -h "$safe_pid" ]; then
-      rm -f "$safe_pid"                 # Clean Up of mysqld_safe.pid file.
-    fi
-    exit 1
+        exit 1
+      fi
+  fi
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+      rm -f "$safe_mysql_unix_port"
+      if test -f "$safe_mysql_unix_port"; then
+        log_error "Fatal error: Can't remove the socket file:
+$safe_mysql_unix_port.
+Please remove the file manually and start $0 again;
+mysqld daemon not started"
+        exit 1
+      fi
+  fi
+  if [ ! -h "$pid_file.shutdown" ]; then
+      rm -f "$pid_file.shutdown"
+      if test -f "$pid_file.shutdown"; then
+        log_error "Fatal error: Can't remove the shutdown file:
+$pid_file.shutdown.
+Please remove the file manually and start $0 again;
+mysqld daemon not started"
+        exit 1
+      fi
   fi
 fi
 
@@ -1042,17 +1022,6 @@ have_sleep=1
 
 while true
 do
-  # Some extra safety
-  if [ ! -h "$safe_mysql_unix_port" ]; then
-    rm -f "$safe_mysql_unix_port"
-  fi
-  if [ ! -h "$pid_file" ]; then
-    rm -f "$pid_file"
-  fi
-  if [ ! -h "$pid_file.shutdown" ]; then
-     rm -f  "$pid_file.shutdown"
-  fi
-
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
@@ -1088,6 +1057,13 @@ do
   if test ! -f "$pid_file"		# This is removed if normal shutdown
   then
     break
+  else                                  # self's mysqld crashed or other's mysqld running
+    PID=`cat "$pid_file"`
+    if @CHECK_PID@
+    then                                # true when above pid belongs to a running mysqld process
+      log_error "A mysqld process with pid=$PID is already running. Aborting!!"
+      exit 1
+    fi
   fi
 
   if test -f "$pid_file.shutdown"	# created to signal that it must stop
@@ -1150,6 +1126,15 @@ do
       fi
       I=`expr $I + 1`
     done
+  fi
+  if [ ! -h "$pid_file" ]; then
+    rm -f "$pid_file"
+  fi
+  if [ ! -h "$safe_mysql_unix_port" ]; then
+    rm -f "$safe_mysql_unix_port"
+  fi
+  if [ ! -h "$pid_file.shutdown" ]; then
+    rm -f "$pid_file.shutdown"
   fi
   log_notice "mysqld restarted"
 done

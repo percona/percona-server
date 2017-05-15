@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -641,6 +641,7 @@ static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
+static const char* fix_identifier_with_newline(char*);
 
 
 /*
@@ -755,7 +756,7 @@ static void write_header(FILE *sql_file, char *db_name)
                   MACHINE_TYPE);
     print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
                   current_host ? current_host : "localhost",
-                  db_name ? db_name : "");
+                  db_name ? fix_identifier_with_newline(db_name) : "");
     print_comment(sql_file, 0,
                   "-- ------------------------------------------------------\n"
                  );
@@ -787,22 +788,34 @@ static void write_header(FILE *sql_file, char *db_name)
             "/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;\n",
             path?"":"NO_AUTO_VALUE_ON_ZERO",compatible_mode_normal_str[0]==0?"":",",
             compatible_mode_normal_str);
+
+    // This is specifically to allow MyRocks to bulk load a dump faster
+    // We have no interest in anything earlier than 5.7 and 17 being the
+    // current release. 5.7.8 and after can only use P_S for session_variables
+    // and never I_S. So we first check that P_S is present and the
+    // session_variables table exists. If no, we simply skip the optimization
+    // assuming that MyRocks isn't present either. If it is, ohh well, bulk
+    // loader will not be invoked.
     fprintf(sql_file,
-            "/*!50112 SELECT COUNT(*) INTO @is_rocksdb_supported FROM"
-            " INFORMATION_SCHEMA.SESSION_VARIABLES WHERE"
-            " VARIABLE_NAME='rocksdb_bulk_load' */;\n"
-            "/*!50112 SET @save_old_rocksdb_bulk_load ="
-            " IF (@is_rocksdb_supported,"
-            " 'SET @old_rocksdb_bulk_load = @@rocksdb_bulk_load',"
-            " 'SET @dummy_old_rocksdb_bulk_load = 0') */;\n"
-            "/*!50112 PREPARE s FROM @save_old_rocksdb_bulk_load */;\n"
-            "/*!50112 EXECUTE s */;\n"
-            "/*!50112 SET @enable_bulk_load = IF (@is_rocksdb_supported,"
-            " 'SET SESSION rocksdb_bulk_load = 1',"
-            " 'SET @dummy_rocksdb_bulk_load = 0') */;\n"
-            "/*!50112 PREPARE s FROM @enable_bulk_load */;\n"
-            "/*!50112 EXECUTE s */;\n"
-            "/*!50112 DEALLOCATE PREPARE s */;\n");
+            "/*!50717 SET @rocksdb_bulk_load_var_name='rocksdb_bulk_load' */;\n"
+            "/*!50717 SELECT COUNT(*) INTO @rocksdb_has_p_s_session_variables"
+            " FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA ="
+            " 'performance_schema' AND TABLE_NAME = 'session_variables'"
+            " */;\n"
+            "/*!50717 SET @rocksdb_get_is_supported = IF"
+            " (@rocksdb_has_p_s_session_variables, 'SELECT COUNT(*) INTO"
+            " @rocksdb_is_supported FROM performance_schema.session_variables"
+            " WHERE VARIABLE_NAME=?', 'SELECT 0') */;\n"
+            "/*!50717 PREPARE s FROM @rocksdb_get_is_supported */;\n"
+            "/*!50717 EXECUTE s USING @rocksdb_bulk_load_var_name */;\n"
+            "/*!50717 DEALLOCATE PREPARE s */;\n"
+            "/*!50717 SET @rocksdb_enable_bulk_load = IF"
+            " (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = 1',"
+            " 'SET @rocksdb_dummy_bulk_load = 0') */;\n"
+            "/*!50717 PREPARE s FROM @rocksdb_enable_bulk_load */;\n"
+            "/*!50717 EXECUTE s */;\n"
+            "/*!50717 DEALLOCATE PREPARE s */;\n");
+
 
     check_io(sql_file);
   }
@@ -2337,6 +2350,30 @@ static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
   print_xml_comment(sql_file, strlen(comment_buff), comment_buff);
 }
 
+/*
+ This function accepts object names and prefixes -- wherever \n
+ character is found.
+
+ @param[in]     object_name
+
+ @return
+    @retval fixed object name.
+*/
+
+static const char* fix_identifier_with_newline(char* object_name)
+{
+  static char buff[COMMENT_LENGTH]= {0};
+  char *ptr= buff;
+  memset(buff, 0, 255);
+  while(*object_name)
+  {
+    *ptr++ = *object_name;
+    if (*object_name == '\n')
+      ptr= my_stpcpy(ptr, "-- ");
+    object_name++;
+  }
+  return buff;
+}
 
 /*
  create_delimiter
@@ -2405,7 +2442,8 @@ static uint dump_events_for_db(char *db)
                                  db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping events for database '%s'\n--\n", db);
+                "\n--\n-- Dumping events for database '%s'\n--\n",
+                fix_identifier_with_newline(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2618,7 +2656,8 @@ static uint dump_routines_for_db(char *db)
                                  db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+                "\n--\n-- Dumping routines for database '%s'\n--\n",
+                fix_identifier_with_newline(db));
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2677,7 +2716,7 @@ static uint dump_routines_for_db(char *db)
                           query_buff);
             print_comment(sql_file, 1,
                           "-- does %s have permissions on mysql.proc?\n\n",
-                          current_user);
+                          fix_identifier_with_newline(current_user));
             maybe_die(EX_MYSQLERR,"%s has insufficent privileges to %s!", current_user, query_buff);
           }
           else if (strlen(row[2]))
@@ -3463,12 +3502,12 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
-                      "\n--\n-- Temporary view structure for view %s\n--\n\n",
-                      result_table);
+                      "\n--\n-- Temporary table structure for view %s\n--\n\n",
+                      fix_identifier_with_newline(result_table));
       else
         print_comment(sql_file, 0,
                       "\n--\n-- Table structure for table %s\n--\n\n",
-                      result_table);
+                      fix_identifier_with_newline(result_table));
 
       field= mysql_fetch_field_direct(result, 0);
       if (strcmp(field->name, "View") == 0)
@@ -3775,7 +3814,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
       print_comment(sql_file, 0,
                     "\n--\n-- Table structure for table %s\n--\n\n",
-                    result_table);
+                    fix_identifier_with_newline(result_table));
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
@@ -4556,14 +4595,15 @@ static void dump_table(char *table, char *db)
   {
     print_comment(md_result_file, 0,
                   "\n--\n-- Dumping data for table %s\n--\n",
-                  result_table);
+                  fix_identifier_with_newline(result_table));
     
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
     {
-      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n",
+        fix_identifier_with_newline(where));
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
@@ -4580,7 +4620,8 @@ static void dump_table(char *table, char *db)
     }
     if (order_by)
     {
-      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by);
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n",
+        fix_identifier_with_newline(order_by));
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
@@ -5426,7 +5467,8 @@ static int init_dumping(char *database, int init_func(char*))
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
 
       print_comment(md_result_file, 0,
-                    "\n--\n-- Current Database: %s\n--\n", qdatabase);
+                    "\n--\n-- Current Database: %s\n--\n",
+                    fix_identifier_with_newline(qdatabase));
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -6705,7 +6747,7 @@ static my_bool get_view_structure(char *table, char* db)
 
   print_comment(sql_file, 0,
                 "\n--\n-- Final view structure for view %s\n--\n\n",
-                result_table);
+                fix_identifier_with_newline(result_table));
 
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);
@@ -6883,19 +6925,35 @@ static my_bool has_session_variables_like(MYSQL *mysql_con, const char *var_name
   MYSQL_RES  *res;
   MYSQL_ROW  row;
   char       *val= 0;
-  char buf[32], query[256];
-  my_bool has_var= FALSE;
+  char       buf[32], query[256];
+  my_bool    has_var= FALSE;
+  my_bool    has_table= FALSE;
 
   my_snprintf(query, sizeof(query), "SELECT COUNT(*) FROM"
-              " INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME LIKE"
-              " %s", quote_for_like(var_name, buf));
+              " INFORMATION_SCHEMA.TABLES WHERE table_schema ="
+              " 'performance_schema' AND table_name = 'session_variables'");
   if (mysql_query_with_error_report(mysql_con, &res, query))
     return FALSE;
 
   row = mysql_fetch_row(res);
   val = row ? (char*)row[0] : NULL;
-  has_var = val && strcmp(val, "0") != 0;
+  has_table = val && strcmp(val, "0") != 0;
   mysql_free_result(res);
+
+  if (has_table)
+  {
+    my_snprintf(query, sizeof(query), "SELECT COUNT(*) FROM"
+                " performance_schema.session_variables WHERE VARIABLE_NAME LIKE"
+                " %s", quote_for_like(var_name, buf));
+    if (mysql_query_with_error_report(mysql_con, &res, query))
+      return FALSE;
+
+    row = mysql_fetch_row(res);
+    val = row ? (char*)row[0] : NULL;
+    has_var = val && strcmp(val, "0") != 0;
+    mysql_free_result(res);
+  }
+
   return has_var;
 }
 

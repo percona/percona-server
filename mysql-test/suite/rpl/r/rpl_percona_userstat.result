@@ -53,3 +53,4 @@ SET GLOBAL userstat=@master_userstat_saved;
 DROP TABLE t1, t2;
 DROP TABLE t3;
 include/rpl_end.inc
+CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=();

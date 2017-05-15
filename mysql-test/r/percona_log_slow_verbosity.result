@@ -39,12 +39,12 @@ SELECT 1;
 1
 [log_stop.inc] percona.slow_extended.log_slow_verbosity_1
 log_slow_verbosity='microtime,innodb,query_plan':
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Bytes_sent: \d+.*$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^#.*Rows_affected: \d+$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Bytes_sent: \d+.*$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# InnoDB_trx_id: \w+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_1 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
@@ -66,12 +66,12 @@ SET log_slow_verbosity='microtime';
 INSERT INTO t1 VALUE(1);
 [log_stop.inc] percona.slow_extended.log_slow_verbosity_2
 log_slow_verbosity='microtime':
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Bytes_sent: \d+.*$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^#.*Rows_affected: \d+$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Bytes_sent: \d+.*$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# InnoDB_trx_id: \w+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_2 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$
@@ -93,12 +93,12 @@ SET log_slow_verbosity='microtime,query_plan';
 INSERT INTO t1 VALUE(2);
 [log_stop.inc] percona.slow_extended.log_slow_verbosity_3
 log_slow_verbosity='query_plan':
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#.*Rows_affected: \d+$
-[log_grep.inc] lines:   2
-[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Bytes_sent: \d+.*$
-[log_grep.inc] lines:   2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Schema: .+  Last_errno: \d+  Killed: \d+$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^#.*Rows_affected: \d+$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
+[log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Bytes_sent: \d+.*$ expected_matches: 2
+[log_grep.inc] found expected match count: 2
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# InnoDB_trx_id: \w+$
 [log_grep.inc] lines:   0
 [log_grep.inc] file: percona.slow_extended.log_slow_verbosity_3 pattern: ^# Bytes_sent: \d+  Tmp_tables: \d+  Tmp_disk_tables: \d+  Tmp_table_sizes: \d+$

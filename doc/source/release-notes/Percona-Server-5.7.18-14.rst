@@ -23,13 +23,15 @@ New Features
  |Percona Server| 5.7 packages are now available for Ubuntu 17.04 (*Zesty
  Zapus*).
 
- |Percona Server| now supports :ref:`prefix_index_queries_optimization`.
+ |Percona Server| now supports :ref:`prefix_index_queries_optimization`. This
+ feature was ported from a Facebook |MySQL| patch.
 
- |Percona Server| has implemented support for :ref:`gap_locks_detection` from
- a Facebook |MySQL| patch.
+ |Percona Server| has implemented support for :ref:`gap_locks_detection` for
+ transactional storage engines, like *MyRocks*, that do not support gap locks.
+ This feature was ported from a Facebook |MySQL| patch. 
 
  :variable:`tokudb_dir_cmd` can now be used to :ref:`edit the TokuDB
- <editing_tokudb_files_with_tokudb_dir_cmd>` files.
+ <editing_tokudb_files_with_tokudb_dir_cmd>` directory map.
 
 Bugs Fixed
 ==========

@@ -22,7 +22,8 @@ within a directory that represents a single database. This feature is enabled
 by default.
 
 In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
-has been implemented that can be used to edit |TokuDB| files.
+has been implemented that can be used to edit the contents of the
+TokuDB/PerconaFT directory map.
 
 Moving TokuDB data files to a location outside of the default MySQL datadir
 ---------------------------------------------------------------------------
@@ -196,17 +197,17 @@ directory with a few steps:
 
 .. _editing_tokudb_files_with_tokudb_dir_cmd:
 
-Editing |TokuDB| files with :variable:`tokudb_dir_cmd` 
-------------------------------------------------------
+Editing |TokuDB| directory map with :variable:`tokudb_dir_cmd`
+--------------------------------------------------------------
 
-.. note:: 
+.. note::
 
   This feature is currently considered *Experimental*.
 
 In |Percona Server| :rn:`5.7.18-14` new :variable:`tokudb_dir_cmd` variable
-has been implemented that can be used to edit |TokuDB| files. **WARNING:** Use
-this variable only if you know what you're doing otherwise it **WILL** lead to
-data loss.
+has been implemented that can be used to edit the |TokuDB| directory map.
+**WARNING:** Use this variable only if you know what you're doing otherwise
+it **WILL** lead to data loss.
 
 This method can be used if any kind of system issue causes the loss of specific
 :file:`.tokudb` files for a given table, because the |TokuDB| tablespace file
@@ -262,7 +263,7 @@ System Variables
      :dyn: Yes
      :vartype: String
 
-This variable is used to send commands to edit |TokuDB| directory files. 
+This variable is used to send commands to edit |TokuDB| directory map.
 
 .. warning::
 

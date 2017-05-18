@@ -5761,10 +5761,21 @@ int ha_partition::partition_scan_set_up(uchar * buf, bool idx_read_flag)
     get_partition_set(table,buf,active_index,&m_start_key,&m_part_spec);
   else
   {
-    m_part_spec.start_part= 0;
-    m_part_spec.end_part= m_tot_parts - 1;
+    m_part_spec.start_part=
+      bitmap_get_first_set(&m_part_info->read_partitions);
+    m_part_spec.end_part= m_part_spec.start_part;
+
+    uint i= m_part_spec.end_part;
+    while (i != MY_BIT_NONE)
+    {
+      i= bitmap_get_next_set(&m_part_info->read_partitions, i);
+      if (i != MY_BIT_NONE)
+        m_part_spec.end_part= i;
+    }
   }
-  if (m_part_spec.start_part > m_part_spec.end_part)
+  if (m_part_spec.start_part == MY_BIT_NONE ||
+      m_part_spec.end_part == MY_BIT_NONE ||
+      m_part_spec.start_part > m_part_spec.end_part)
   {
     /*
       We discovered a partition set but the set was empty so we report

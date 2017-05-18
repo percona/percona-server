@@ -1,0 +1,1 @@
+--loose-rocksdb_strict_collation_check=off --transaction-isolation='READ-COMMITTED'

@@ -307,10 +307,14 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
   rocksdb_flush_all_memtables();
 
   const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
-  const rocksdb::CompactionOptions c_options = rocksdb::CompactionOptions();
+  rocksdb::CompactionOptions c_options = rocksdb::CompactionOptions();
+  rocksdb::ColumnFamilyMetaData metadata;
+  rocksdb::ColumnFamilyDescriptor cf_descr;
+
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
-    rocksdb::ColumnFamilyMetaData metadata;
     rdb->GetColumnFamilyMetaData(cf_handle, &metadata);
+    cf_handle->GetDescriptor(&cf_descr);
+    c_options.output_file_size_limit = cf_descr.options.target_file_size_base;
 
     DBUG_ASSERT(metadata.levels[0].level == 0);
     std::vector<std::string> file_names;
@@ -1541,6 +1545,12 @@ protected:
 public:
   int64_t m_snapshot_timestamp = 0;
   bool m_ddl_transaction;
+
+  /*
+    Tracks the number of tables in use through external_lock.
+    This should not be reset during start_tx().
+  */
+  int64_t m_n_mysql_tables_in_use = 0;
 
   /*
     for distinction between rdb_transaction_impl and rdb_writebatch_impl
@@ -8627,7 +8637,9 @@ int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
     Rdb_transaction *const tx = get_or_create_tx(thd);
 
     tx->io_perf_end_and_record(&m_io_perf);
-    if (!my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+    tx->m_n_mysql_tables_in_use--;
+    if (tx->m_n_mysql_tables_in_use == 0 &&
+        !my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
       /*
         Do like InnoDB: when we get here, it's time to commit a
         single-statement transaction.
@@ -8689,6 +8701,7 @@ int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
         tx->m_ddl_transaction = true;
       }
     }
+    tx->m_n_mysql_tables_in_use++;
     rocksdb_register_tx(rocksdb_hton, thd, tx);
     tx->io_perf_start(&m_io_perf);
   }
@@ -8936,7 +8949,6 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
   rocksdb::ReadOptions opts;
   opts.total_order_seek = true;
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
-  rocksdb::Iterator *const it = rdb->NewIterator(opts);
 
   char key_buf[MAX_KEY_LENGTH];
   uint key_len;
@@ -8948,6 +8960,9 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
   for (uint i = 0; i < tbl->m_key_count; i++) {
     const Rdb_key_def &kd = *tbl->m_key_descr_arr[i];
     kd.get_infimum_key(reinterpret_cast<uchar *>(key_buf), &key_len);
+    rocksdb::ColumnFamilyHandle *cf = kd.get_cf();
+
+    std::unique_ptr<rocksdb::Iterator> it(rdb->NewIterator(opts, cf));
 
     const rocksdb::Slice table_key(key_buf, key_len);
     it->Seek(table_key);
@@ -8956,20 +8971,22 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
       if (!kd.covers_key(key)) {
         break;
       }
+
       rocksdb::Status s;
-      if (can_use_single_delete(i))
-        s = rdb->SingleDelete(wo, key);
-      else
-        s = rdb->Delete(wo, key);
+      if (can_use_single_delete(i)) {
+        s = rdb->SingleDelete(wo, cf, key);
+      } else {
+        s = rdb->Delete(wo, cf, key);
+      }
+
       if (!s.ok()) {
-        delete it;
         return tx->set_status_error(table->in_use, s, *m_pk_descr, m_tbl_def);
       }
 
       it->Next();
     }
   }
-  delete it;
+
   return HA_EXIT_SUCCESS;
 }
 

@@ -10,7 +10,7 @@ source "${PERCONA_PREFIX}"/share/mysql/debian-start.inc.sh
 
 MYSQL="${PERCONA_PREFIX}/bin/mysql --defaults-file=/etc/mysql/debian.cnf"
 MYADMIN="${PERCONA_PREFIX}/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
-MYUPGRADE="${PERCONA_PREFIX}/bin/mysql_upgrade --defaults-extra-file=/etc/mysql/debian.cnf"
+MYUPGRADE="${PERCONA_PREFIX}/bin/mysql_upgrade --defaults-extra-file=/etc/mysql/debian.cnf --skip-write-binlog"
 MYCHECK="${PERCONA_PREFIX}/bin/mysqlcheck --defaults-file=/etc/mysql/debian.cnf"
 MYCHECK_SUBJECT="WARNING: mysqlcheck has found corrupt tables"
 MYCHECK_PARAMS="--all-databases --fast --silent"

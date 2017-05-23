@@ -33,6 +33,8 @@ namespace keyring
 
     T* allocate(size_t n)
     {
+      if (n == 0 || n > INT_MAX)
+        return NULL;
       return keyring_malloc<T*>(n*sizeof(T)); 
     }
 

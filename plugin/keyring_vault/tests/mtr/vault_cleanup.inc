@@ -61,7 +61,7 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
       my $decoded_key_sign = decode_base64($_);
       if ($decoded_key_sign =~ m/.*$server_uuid.*/)
       {
-        system(qq#curl -H "X-Vault-Token: $token" -X DELETE $vault_url/v1/$secret_mount_point/$_#);
+        system(qq#curl -H "X-Vault-Token: $token" -X DELETE $vault_url/v1/$secret_mount_point/$_ &#);
       }
     }
   }

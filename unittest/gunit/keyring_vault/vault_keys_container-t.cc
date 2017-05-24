@@ -73,7 +73,7 @@ namespace keyring__vault_keys_container_unittest
     EXPECT_FALSE(vault_keys_container->init(vault_io, credential_file_url));
     delete sample_key; // unused in this test
   }
-
+/*
   TEST_F(Vault_keys_container_test, InitWithFileWithInvalidToken)
   {
     std::remove("invalid_token.conf");
@@ -96,7 +96,7 @@ namespace keyring__vault_keys_container_unittest
     delete sample_key; // unused in this test
 
     std::remove("invalid_token.conf");
-  }
+  }*/
 
   TEST_F(Vault_keys_container_test, InitWithEmptyCredentialFile)
   {

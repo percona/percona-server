@@ -1,0 +1,19 @@
+CREATE DATABASE dump;
+CREATE USER 'dumper'@'localhost';
+GRANT ALL ON dump.* TO 'dumper'@'localhost';
+CREATE TABLE dump.t(a int primary key auto_increment);
+INSERT INTO dump.t VALUES(NULL), (NULL), (NULL), (NULL);
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='performance_schema' AND TABLE_NAME='session_variables';
+COUNT(*)
+0
+DROP TABLE dump.t;
+0
+0
+SELECT * FROM dump.t;
+a
+1
+2
+3
+4
+DROP DATABASE dump;
+DROP USER 'dumper'@'localhost';

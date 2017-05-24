@@ -32,7 +32,7 @@ SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('MySQL' IN BOOLEAN MODE) limit 1;
 id	title	body
-1	MySQL Tutorial	DBMS stands for DataBase ...
+6	MySQL Security	When configured properly, MySQL ...
 # Without optimization
 SET DEBUG = '+d,fts_union_limit_off';
 SELECT * FROM articles

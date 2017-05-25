@@ -28,6 +28,7 @@
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
 #include "sql_audit.h"
+#include "debug_sync.h"   // DEBUG_SYNC
 
 #include <algorithm>
 
@@ -397,6 +398,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   }
   else
   {
+    DEBUG_SYNC(thd, "sp_before_exec_core");
+
     rc= exec_core(thd, nextp);
     DBUG_PRINT("info",("exec_core returned: %d", rc));
   }
@@ -455,7 +458,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   bool reprepare_error=
-    rc && thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE;
+    rc && thd->is_error()
+    && thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE;
   bool is_create_table_select=
     thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
     thd->lex->select_lex.item_list.elements > 0;

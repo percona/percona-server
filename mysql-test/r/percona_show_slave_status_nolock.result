@@ -2,7 +2,6 @@ include/master-slave.inc
 [connection master]
 call mtr.add_suppression("Slave SQL: Request to stop slave SQL Thread received while applying a group that has non-transactional changes");
 include/rpl_connect.inc [creating slave_lock]
-include/rpl_connect.inc [creating slave_nolock]
 [master]
 CREATE TABLE t(id INT);
 [slave]
@@ -14,23 +13,8 @@ include/start_slave.inc
 INSERT INTO t VALUES(0);
 [slave]
 check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
-
-[slave_lock]
-SHOW SLAVE STATUS;
-SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
-SIGNAL after SHOW SLAVE STATUS is 'signal.after_show_slave_status'
-[slave]
-SET DEBUG_SYNC='now SIGNAL signal.empty';
-[slave_nolock]
 SHOW SLAVE STATUS NOLOCK;
-SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
-# should be 'signal.after_show_slave_status'
-SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
-[slave]
-SET DEBUG_SYNC='now SIGNAL signal.continue';
-[slave]
-SET DEBUG_SYNC='now SIGNAL signal.empty';
-
+SHOW SLAVE STATUS;
 [master]
 INSERT INTO t VALUES(1);
 [slave]
@@ -39,18 +23,11 @@ include/rpl_connect.inc [creating slave_stop]
 STOP SLAVE;
 [slave]
 check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
-
+SHOW SLAVE STATUS NOLOCK;
 [slave_lock]
 SHOW SLAVE STATUS;
 SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
-SIGNAL after SHOW SLAVE STATUS is 'signal.empty'
-[slave]
-SET DEBUG_SYNC='now SIGNAL signal.empty';
-[slave_nolock]
-SHOW SLAVE STATUS NOLOCK;
-SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
-# should be 'signal.after_show_slave_status'
-SIGNAL after SHOW SLAVE STATUS NOLOCK is 'signal.after_show_slave_status'
+SIGNAL after SHOW SLAVE STATUS is 'signal.after_show_slave_status'
 [slave]
 SET DEBUG_SYNC='now SIGNAL signal.continue';
 [slave]

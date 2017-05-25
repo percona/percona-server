@@ -9,10 +9,6 @@ call mtr.add_suppression("Slave SQL: Request to stop slave SQL Thread received w
 --let $rpl_server_number=2
 --source include/rpl_connect.inc
 
---let $rpl_connection_name=slave_nolock
---let $rpl_server_number=2
---source include/rpl_connect.inc
-
 --let $show_statement= SHOW PROCESSLIST
 --let $field= Info
 
@@ -37,7 +33,10 @@ connection slave;
 --source include/wait_show_condition.inc
 
 --echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - both should work fine
---source include/percona_show_slave_status_nolock.inc
+--disable_result_log
+SHOW SLAVE STATUS NOLOCK;
+SHOW SLAVE STATUS;
+--enable_result_log
 
 connection master;
 --echo [master]
@@ -62,7 +61,37 @@ connection slave;
 --source include/wait_show_condition.inc
 
 --echo check 'SHOW SLAVE STATUS' and 'SHOW SLAVE STATUS NOLOCK' - just NOLOCK version should works fine
---source include/percona_show_slave_status_nolock.inc
+--disable_result_log
+SHOW SLAVE STATUS NOLOCK;
+--enable_result_log
+connection slave_lock;
+--echo [slave_lock]
+send SHOW SLAVE STATUS;
+
+connection slave;
+--let $condition= 'SHOW SLAVE STATUS'
+--source include/wait_show_condition.inc
+
+--disable_warnings
+SET DEBUG_SYNC='now WAIT_FOR signal.after_show_slave_status TIMEOUT 1';
+--enable_warnings
+
+--let current=`SELECT SUBSTR(Variable_value FROM 22) FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name = 'DEBUG_SYNC'`
+--echo SIGNAL after SHOW SLAVE STATUS is $current
+
+connection slave;
+--echo [slave]
+SET DEBUG_SYNC='now SIGNAL signal.continue';
+
+connection slave_lock;
+--disable_result_log
+reap;
+--enable_result_log
+
+connection slave;
+--echo [slave]
+SET DEBUG_SYNC='now SIGNAL signal.empty';
+--echo
 
 connection slave_stop;
 --echo [slave_stop]

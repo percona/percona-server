@@ -811,7 +811,7 @@ static MYSQL_SYSVAR_INT(max_background_compactions,
                         "DBOptions::max_background_compactions for RocksDB",
                         nullptr, rocksdb_set_max_background_compactions,
                         rocksdb_db_options->max_background_compactions,
-                        /* min */ 1, /* max */ MAX_BACKGROUND_COMPACTIONS, 0);
+                        /* min */ -1, /* max */ MAX_BACKGROUND_COMPACTIONS, 0);
 
 static MYSQL_SYSVAR_INT(max_background_flushes,
                         rocksdb_db_options->max_background_flushes,
@@ -819,7 +819,7 @@ static MYSQL_SYSVAR_INT(max_background_flushes,
                         "DBOptions::max_background_flushes for RocksDB",
                         nullptr, nullptr,
                         rocksdb_db_options->max_background_flushes,
-                        /* min */ 1, /* max */ MAX_BACKGROUND_FLUSHES, 0);
+                        /* min */ -1, /* max */ MAX_BACKGROUND_FLUSHES, 0);
 
 static MYSQL_SYSVAR_UINT(max_subcompactions,
                          rocksdb_db_options->max_subcompactions,
@@ -3367,8 +3367,11 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  // sst_file_manager will move deleted rocksdb sst files to trash_dir
+  // to be deleted in a background thread.
+  std::string trash_dir = std::string(rocksdb_datadir) + "/trash";
   rocksdb_db_options->sst_file_manager.reset(
-      NewSstFileManager(rocksdb_db_options->env));
+      NewSstFileManager(rocksdb_db_options->env, myrocks_logger, trash_dir));
 
   rocksdb_db_options->sst_file_manager->SetDeleteRateBytesPerSecond(
       rocksdb_sst_mgr_rate_bytes_per_sec);

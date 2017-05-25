@@ -6,6 +6,7 @@
 #include "incorrect_vault_key.h"
 #include <string.h>
 #include <curl/curl.h>
+#include "generate_credential_file.h"
 #include "uuid.h"
 
 #if defined(HAVE_PSI_INTERFACE)
@@ -32,6 +33,7 @@ namespace keyring__vault_io_unittest
     virtual void SetUp()
     {
       credential_file_url = "./keyring_vault.conf";
+      ASSERT_FALSE(generate_credential_file(credential_file_url));
       logger= new Mock_logger();
       vault_curl = new Vault_curl(logger);
       vault_parser = new Vault_parser(logger);
@@ -48,7 +50,7 @@ namespace keyring__vault_io_unittest
     IVault_parser *vault_parser;
     std::string credential_file_url;
   };
-/*
+
   TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile)
   {
     std::string credential_file_name("./some_funny_name");
@@ -63,18 +65,10 @@ namespace keyring__vault_io_unittest
 
   TEST_F(Vault_io_test, InitWithInvalidToken)
   {
-    Vault_io vault_io(logger, vault_curl, vault_parser);
     std::string conf_with_invalid_token("./invalid_token.conf");
+    ASSERT_FALSE(generate_credential_file(conf_with_invalid_token, WITH_INVALID_TOKEN));
 
-    std::remove(conf_with_invalid_token.c_str());
-    std::ofstream my_file;
-    my_file.open(conf_with_invalid_token.c_str());
-    my_file << "vault_url = https://127.0.0.1:8600" << std::endl;
-    my_file << "secret_mount_point = secret" << std::endl;
-    my_file << "token = 123-123-123" << std::endl;
-    my_file << "vault_ca = /home/rob/vault_certs/vault_ca.crt";
-    my_file.close();
-
+    Vault_io vault_io(logger, vault_curl, vault_parser);
     EXPECT_FALSE(vault_io.init(&conf_with_invalid_token));
 
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
@@ -83,7 +77,6 @@ namespace keyring__vault_io_unittest
     ISerialized_object *serialized_keys= NULL;
     EXPECT_TRUE(vault_io.get_serialized_object(&serialized_keys));
   }
-*/
 
   TEST_F(Vault_io_test, GetSerializedObjectWithTwoKeys)
   {

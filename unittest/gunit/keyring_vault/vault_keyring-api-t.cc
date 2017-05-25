@@ -7,6 +7,7 @@
 #include "keyring_impl.cc"
 #include "mock_logger.h"
 #include "uuid.h"
+#include "generate_credential_file.h"
 
 namespace keyring__api_unittest
 {
@@ -35,6 +36,7 @@ namespace keyring__api_unittest
       strcpy(plugin_name, "FakeKeyring");
       keyring_filename= new char[strlen("./keyring_vault.conf")+1];
       strcpy(keyring_filename, "./keyring_vault.conf");
+      ASSERT_FALSE(generate_credential_file(std::string(keyring_filename)));
 
       plugin_info.name.str= plugin_name;
       plugin_info.name.length= strlen(plugin_name);

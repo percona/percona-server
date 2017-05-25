@@ -8,6 +8,7 @@
 #include <fstream>
 #include "i_serialized_object.h"
 #include "uuid.h"
+#include "generate_credential_file.h"
 
 #ifdef HAVE_PSI_INTERFACE
 namespace keyring
@@ -44,6 +45,7 @@ namespace keyring__vault_keys_container_unittest
       sample_key = new Vault_key((uuid+"Roberts_key").c_str(), "AES", "Robert", sample_key_data.c_str(), sample_key_data.length());
 
       credential_file_url = "./keyring_vault.conf";
+      ASSERT_FALSE(generate_credential_file(credential_file_url));
       logger = new Mock_logger();
       vault_keys_container = new Vault_keys_container(logger);
       vault_curl = new Vault_curl(logger);
@@ -73,17 +75,11 @@ namespace keyring__vault_keys_container_unittest
     EXPECT_FALSE(vault_keys_container->init(vault_io, credential_file_url));
     delete sample_key; // unused in this test
   }
-/*
+
   TEST_F(Vault_keys_container_test, InitWithFileWithInvalidToken)
   {
-    std::remove("invalid_token.conf");
-    std::ofstream myfile;
-    myfile.open("invalid_token.conf");
-    myfile << "vault_url = https://127.0.0.1:8600" << std::endl;
-    myfile << "secret_mount_point = secret" << std::endl;
-    myfile << "token = What-a-pretty-token" << std::endl;
-    myfile << "vault_ca = /home/rob/vault_certs/vault_ca.crt";
-    myfile.close();
+    std::string conf_with_invalid_token("./invalid_token.conf");
+    ASSERT_FALSE(generate_credential_file(conf_with_invalid_token, WITH_INVALID_TOKEN));
 
     IKeyring_io *vault_io = new Vault_io(logger, vault_curl, vault_parser);
 
@@ -96,7 +92,7 @@ namespace keyring__vault_keys_container_unittest
     delete sample_key; // unused in this test
 
     std::remove("invalid_token.conf");
-  }*/
+  }
 
   TEST_F(Vault_keys_container_test, InitWithEmptyCredentialFile)
   {

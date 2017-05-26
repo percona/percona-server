@@ -28,10 +28,11 @@ New Features
 
  |Percona Server| has implemented support for :ref:`gap_locks_detection` for
  transactional storage engines, like *MyRocks*, that do not support gap locks.
- This feature was ported from a Facebook |MySQL| patch. 
+ This feature was ported from a Facebook |MySQL| patch.
 
  :variable:`tokudb_dir_cmd` can now be used to :ref:`edit the TokuDB
- <editing_tokudb_files_with_tokudb_dir_cmd>` directory map.
+ <editing_tokudb_files_with_tokudb_dir_cmd>` directory map. This feature is
+ currently considered Experimental.
 
 Bugs Fixed
 ==========

@@ -17,6 +17,12 @@
 |:Fix Released: :rn:`5.7.18-14`                                                                               |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`85835` - server crash n-gram full text searching                                   |
+|:Launchpad bug: :bug:`1679025`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.7.18-15`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`85678` - field-t deletes Fake_TABLE objects through base TABLE pointer w/o ...     |
 |:Launchpad bug: :bug:`1677130`                                                                               |
 |:Upstream state: Closed                                                                                      |
@@ -261,6 +267,12 @@
 |:Launchpad bug: :bug:`1466414`                                                                               |
 |:Upstream state: Verified (checked on 2017-05-12)                                                            |
 |:Fix Released: :rn:`5.7.10-1`                                                                                |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`76418` - Server crashes when querying partitioning table MySQL_5.7.14              |
+|:Launchpad bug: :bug:`1657941`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.7.18-15`                                                                               |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`76142` - InnoDB tablespace import fails when importing table w/ different data ... |

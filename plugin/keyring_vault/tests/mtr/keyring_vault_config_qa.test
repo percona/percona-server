@@ -14,6 +14,8 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault. Vault has returned the following error\\(s\\): \\[\"permission denied\"\\]'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
 
+--source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
+
 # Installing keyring plugin.
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
@@ -21,17 +23,17 @@ eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 --echo
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval SET @@global.keyring_vault_config='$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@global.keyring_vault_config;
 # Creating table with encryption.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 # Setting keyring_vault_config value to file.
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval SET @@global.keyring_vault_config='$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@global.keyring_vault_config;
 
 # Invalid values
@@ -52,18 +54,19 @@ eval SET @@session.keyring_vault_config='$MYSQL_TMP_DIR/new_keyring_vault_config
 --error ER_GLOBAL_VARIABLE
 eval SET @@local.keyring_vault_config='$MYSQL_TMP_DIR/new_keyring_vault_config';
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_WRONG_VALUE_FOR_VAR
-eval SET @@global.keyring_vault_config='$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault_invalid_token.conf';
+eval SET @@global.keyring_vault_config='$KEYRING_INVALID_TOKEN_CONF_FILE';
 
-eval SET @@global.keyring_vault_config='$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@global.keyring_vault_config;
 
 # Setting keyring_vault_config value to dir.
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.keyring_vault_config='MYSQL_test_invalid/dir/';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@global.keyring_vault_config;
 --echo
 
@@ -74,7 +77,7 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 
 # Cleanup
 DROP TABLE t1;
---let $KEYRING_CONF_FILE=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault.conf
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
 --source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
 --echo
 --echo #End:

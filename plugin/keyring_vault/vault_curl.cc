@@ -59,7 +59,8 @@ static size_t write_response_memory(void *contents, size_t size, size_t nmemb, v
   return realsize;
 }
 
-int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
+int progress_callback(void *clientp, double dltotal, double dlnow, double ultotal, double ulnow)
+//int progress_callback(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
 {
   ulonglong curr_ping_time = my_timer_milliseconds();
 
@@ -157,7 +158,8 @@ bool Vault_curl::reset_curl_session()
       ) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL)) != CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback)) ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback)) ||
+      //(curl_res = curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback)) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L))
      )
   {

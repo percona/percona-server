@@ -101,6 +101,8 @@ use IO::Socket::INET;
 use IO::Select;
 use Subunit;
 
+push @INC, ".";
+
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
@@ -341,6 +343,12 @@ $| = 1; # Automatically flush STDOUT
 
 main();
 
+sub is_core_dump {
+  my $core_name= shift;
+  # Name beginning with core, not ending in .gz, or ending with .dmp on Windows
+  return (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
+          or (IS_WINDOWS and $core_name =~ /\.dmp$/));
+}
 
 sub main {
   # Default, verbosity on
@@ -547,6 +555,19 @@ sub main {
     mtr_print_line();
   }
 
+  if ($opt_ctest) {
+    find({ wanted => sub {
+             my $core_file= $File::Find::name;
+             my $core_name= basename($core_file);
+
+             if (is_core_dump($core_name)) {
+               mtr_report(" - found '$core_file'");
+
+               My::CoreDump->show($core_file, "", 1);
+             }
+       }}, $bindir);
+  }
+
   print_total_times($opt_parallel) if $opt_report_times;
 
   mtr_report_stats("Completed", $completed);
@@ -641,10 +662,7 @@ sub run_test_server ($$$) {
 			 my $core_file= $File::Find::name;
 			 my $core_name= basename($core_file);
 
-			 # Name beginning with core, not ending in .gz
-			 if (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
-			     or (IS_WINDOWS and $core_name =~ /\.dmp$/)){
-                                                       # Ending with .dmp
+                         if (is_core_dump($core_name)) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 

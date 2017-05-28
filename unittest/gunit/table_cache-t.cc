@@ -202,7 +202,7 @@ TEST_F(TableCacheBasicDeathTest, CacheCreateAndDestroy)
 
   // Cache should be not locked after creation
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
                             assert_string);
 #endif
   table_cache.destroy();
@@ -221,7 +221,7 @@ TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
 
 #ifdef SAFE_MUTEX
   // Cache should not be locked after creation
-  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
                             assert_string);
 #endif
 
@@ -232,7 +232,7 @@ TEST_F(TableCacheBasicDeathTest, CacheLockAndUnlock)
   // And get unlocked after we call its unlock() method
   table_cache.unlock();
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache.assert_owner(),
                             assert_string);
 #endif
 
@@ -273,9 +273,9 @@ TEST_F(TableCacheBasicDeathTest, ManagerCreateAndDestroy)
 
   // And not locked
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(cache_1->assert_owner(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(cache_1->assert_owner(),
                             assert_string);
-  EXPECT_DEATH_IF_SUPPORTED(cache_2->assert_owner(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(cache_2->assert_owner(),
                             assert_string);
 #endif
 
@@ -744,9 +744,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
 {
   // Nor caches nor LOCK_open should not be locked after initialization
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
                             assert_string);
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
                             assert_string);
 #endif
 
@@ -768,9 +768,9 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerLockAndUnlock)
   table_cache_manager.unlock_all_and_tdc();
 
 #ifdef SAFE_MUTEX
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all(),
                             assert_string);
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.assert_owner_all_and_tdc(),
                             assert_string);
 #endif
 }
@@ -814,7 +814,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   // to free all tables for share_1, while some tables
   // are in use.
 #ifndef DBUG_OFF
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
                                                            TDC_RT_REMOVE_ALL,
                                                            &share_1),
                             ".*Assertion.*is_empty.*");
@@ -848,7 +848,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable)
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
 #ifndef DBUG_OFF
-  EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
+  MY_EXPECT_DEATH_IF_SUPPORTED(table_cache_manager.free_table(thd_1,
                                                            TDC_RT_REMOVE_NOT_OWN,
                                                            &share_1),
                             ".*Assertion.*0.*");

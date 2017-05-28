@@ -170,7 +170,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem)
   info->set_which_da(Diagnostics_information::CURRENT_AREA);
   cmd= new (mem_root) Sql_cmd_get_diagnostics(info);
 
-  EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
+  MY_EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
@@ -474,7 +474,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DiePopDiagnosticsArea)
 {
   ::testing::FLAGS_gtest_death_test_style= "threadsafe";
 
-  EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
+  MY_EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 

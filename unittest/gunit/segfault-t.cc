@@ -44,9 +44,9 @@ protected:
 TEST_F(FatalSignalDeathTest, Abort)
 {
 #if defined(_WIN32)
-  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
-  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
 }
 
@@ -60,16 +60,16 @@ TEST_F(FatalSignalDeathTest, Segfault)
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+  MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
 #elif defined(__SANITIZE_ADDRESS__)
   /* AddressSanitizer */
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
   */
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal .*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 

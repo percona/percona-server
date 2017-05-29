@@ -10723,7 +10723,21 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(-1);
     }
     else if (state == GTID_STATEMENT_SKIP)
+    {
+      if (rli->rows_query_ev)
+      {
+        /*
+          thd->m_query_string now points to the data from
+          rli->rows_query_ev->m_rows_query
+          (see  Rows_query_log_event::do_apply_event()), don't let it point
+          to unallocated memory, reset query string first
+        */
+        thd->reset_query();
+        delete rli->rows_query_ev;
+        const_cast<Relay_log_info*>(rli)->rows_query_ev= NULL;
+      }
       DBUG_RETURN(0);
+    }
 
     /*
       The current statement is just about to begin and 

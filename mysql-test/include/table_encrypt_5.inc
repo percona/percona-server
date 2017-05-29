@@ -130,7 +130,7 @@ call tde_db.init_setup();
 --replace_regex /\.dll/.so/
 --error 1125
 eval $INSTALL_KEYRING_STATEMENT;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 --echo # Uninstall is possible when server started with --early-plugin-load
 eval UNINSTALL PLUGIN $KEYRING_PLUGIN_NAME;
@@ -417,7 +417,7 @@ DELIMITER ;|
 --echo # Access all tables
 --echo #-----------------------------------------------------------------------
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 --echo # init tables
 call tde_db.init_setup();
@@ -432,9 +432,9 @@ let $restart_parameters = restart: ;
 eval $INSTALL_KEYRING_STATEMENT;
 --enable_warnings
 --echo # Set keyring_file_data as old file so as to access old tables
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval $SET_KEYRING_VARIABLE_TO_KEYRING1;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval $SELECT_KEYRING_VARIABLE_STATEMENT;
 
 # All tables accessible

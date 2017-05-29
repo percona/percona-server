@@ -75,7 +75,7 @@ c1	c2
 2	ccccc
 CREATE TABLE t10(c1 INT, c2 char(20)) ENGINE = InnoDB;
 INSTALL PLUGIN keyring_vault SONAME 'keyring_vault.so';
-SET @@global.keyring_vault_config='MYSQL_TMP_DIR/keyring_vault2.conf';
+SET @@global.keyring_vault_config='MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf';
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 PLUGIN_NAME	keyring_vault
@@ -91,7 +91,7 @@ c1	c2
 1	bbbbb
 2	ccccc
 UNINSTALL PLUGIN keyring_vault;
-# restart: --early-plugin-load=keyring_vault=keyring_vault.so --keyring_vault_config=MYSQL_TMP_DIR/keyring_vault1.conf
+# restart: --early-plugin-load=keyring_vault=keyring_vault.so --keyring_vault_config=MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault1.conf
 SELECT * FROM t1;
 c1	c2
 0	aaaaa
@@ -102,7 +102,7 @@ c1	c2
 0	aaaaa
 1	bbbbb
 2	ccccc
-# restart: --early-plugin-load=keyring_vault=keyring_vault.so --keyring_vault_config=MYSQL_TMP_DIR/keyring_vault2.conf
+# restart: --early-plugin-load=keyring_vault=keyring_vault.so --keyring_vault_config=MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault2.conf
 SELECT * FROM t1;
 ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
 CREATE TABLE t12(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;

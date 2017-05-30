@@ -49,27 +49,27 @@ typedef InplaceVectorTest InplaceVectorDeathTest;
 TEST_F(InplaceVectorDeathTest, OutOfBoundsRead)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(some_integer= int_10[5],
+  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer= int_10[5],
                             ".*Assertion .*i < size.*");
 }
 
 TEST_F(InplaceVectorDeathTest, OutOfBoundsWrite)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
+  MY_EXPECT_DEATH_IF_SUPPORTED(int_10[5] = some_integer,
                             ".*Assertion .*i < size.*");
 }
 
 TEST_F(InplaceVectorDeathTest, EmptyBackRead)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(some_integer= int_10.back(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer= int_10.back(),
                             ".*Assertion .*size.*0.*");
 }
 TEST_F(InplaceVectorDeathTest, EmptyBackWrite)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42,
+  MY_EXPECT_DEATH_IF_SUPPORTED(int_10.back() = 42,
                             ".*Assertion .*size.*0.*");
 }
 

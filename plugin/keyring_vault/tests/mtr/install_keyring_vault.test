@@ -5,16 +5,16 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not 
 
 --source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_UNKNOWN_SYSTEM_VARIABLE
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
 #cleanup
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
 UNINSTALL PLUGIN keyring_vault;

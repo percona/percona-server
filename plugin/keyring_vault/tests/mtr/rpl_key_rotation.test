@@ -16,12 +16,12 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped")
 --source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
 
 --connection slave
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
 
 --connection master
 --echo [On Master]
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
 
 --echo
@@ -84,7 +84,7 @@ START SLAVE SQL_THREAD;
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
@@ -127,7 +127,7 @@ DROP TABLE t1,t2,t3,t4;
 
 #reset keyring_vault_config variable to null
 UNINSTALL PLUGIN keyring_vault;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
 --let $restart_parameters="restart:$KEYRING_VAULT_PLUGIN_LOAD $KEYRING_VAULT_PLUGIN_OPT"
 --source include/restart_mysqld.inc
 # End:

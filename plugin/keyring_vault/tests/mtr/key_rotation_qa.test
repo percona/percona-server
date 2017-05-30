@@ -96,7 +96,7 @@ CREATE TABLE t10(c1 INT, c2 char(20)) ENGINE = InnoDB;
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
@@ -116,7 +116,7 @@ UNINSTALL PLUGIN keyring_vault;
 # After restart encrypted table/s should be accessible
 # when using same Vault server.
 let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --keyring_vault_config=$KEYRING_CONF_FILE_1;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_PLUGIN keyring_vault.so
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so
 --source include/restart_mysqld.inc
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -124,7 +124,7 @@ SELECT * FROM t2;
 # After restart old encrypted tables will not be not accessible,
 # since we changed Vault we are connecting to
 let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --keyring_vault_config=$KEYRING_CONF_FILE_2;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_PLUGIN keyring_vault.so
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $KEYRING_PLUGIN keyring_vault.so
 --source include/restart_mysqld.inc
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1;

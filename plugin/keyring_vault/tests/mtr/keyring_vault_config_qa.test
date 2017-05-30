@@ -23,17 +23,17 @@ eval INSTALL PLUGIN keyring_vault SONAME '$KEYRING_VAULT_PLUGIN';
 query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
 FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 --echo
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 # Creating table with encryption.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 # Setting keyring_vault_config value to file.
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 
 # Invalid values
@@ -54,19 +54,19 @@ eval SET @@session.keyring_vault_config='$MYSQL_TMP_DIR/new_keyring_vault_config
 --error ER_GLOBAL_VARIABLE
 eval SET @@local.keyring_vault_config='$MYSQL_TMP_DIR/new_keyring_vault_config';
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_WRONG_VALUE_FOR_VAR
 eval SET @@global.keyring_vault_config='$KEYRING_INVALID_TOKEN_CONF_FILE';
 
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 
 # Setting keyring_vault_config value to dir.
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.keyring_vault_config='MYSQL_test_invalid/dir/';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SELECT @@global.keyring_vault_config;
 --echo
 

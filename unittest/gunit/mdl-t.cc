@@ -266,7 +266,7 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
                  MDL_TRANSACTION);
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
-  EXPECT_DEATH(m_mdl_context.destroy(),
+  MY_EXPECT_DEATH(m_mdl_context.destroy(),
                ".*Assertion.*MDL_TRANSACTION.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
@@ -1620,16 +1620,16 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
     "0123456789012345678901234567890123456789012345678901234567890123"
     "0123456789";
 
-  EXPECT_DEATH(MDL_key key0(MDL_key::TABLE, too_long_name, ""),
+  MY_EXPECT_DEATH(MDL_key key0(MDL_key::TABLE, too_long_name, ""),
                ".*Assertion.*strlen.*");
-  EXPECT_DEATH(MDL_key key1(MDL_key::TABLE, "", too_long_name),
+  MY_EXPECT_DEATH(MDL_key key1(MDL_key::TABLE, "", too_long_name),
                ".*Assertion.*strlen.*");
 
   MDL_key key2;
 
-  EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, too_long_name, ""),
+  MY_EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, too_long_name, ""),
                ".*Assertion.*strlen.*");
-  EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
+  MY_EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
                ".*Assertion.*strlen.*");
 
 }

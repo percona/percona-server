@@ -36,7 +36,7 @@ TEST(DebugTest, NoSuicide)
 TEST(DebugDeathTest, Suicide)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(DBUG_SUICIDE(), "");
+  MY_EXPECT_DEATH_IF_SUPPORTED(DBUG_SUICIDE(), "");
 }
 #endif
 
@@ -95,7 +95,7 @@ TEST(DebugPrintDeathTest, PrintEval)
     The DBUG_PRINT would be evaluated resulting in floating point exception
     killing the server.
   */
-  EXPECT_DEATH_IF_SUPPORTED(DBUG_PRINT("never",("%d",1/y)), "");
+  MY_EXPECT_DEATH_IF_SUPPORTED(DBUG_PRINT("never",("%d",1/y)), "");
   DBUG_SET("");
 }
 

@@ -16,6 +16,7 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include "thread_utils.h"
 
 #include "sql_array.h"
 
@@ -78,7 +79,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckRead)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   int_array= Int_array(c_array, 2);
-  EXPECT_DEATH_IF_SUPPORTED(some_integer= int_array[5],
+  MY_EXPECT_DEATH_IF_SUPPORTED(some_integer= int_array[5],
                             ".*Assertion .*n < m_size.*");
 }
 
@@ -86,7 +87,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckAssign)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   int_array= Int_array(c_array, 2);
-  EXPECT_DEATH_IF_SUPPORTED(int_array[5]= some_integer,
+  MY_EXPECT_DEATH_IF_SUPPORTED(int_array[5]= some_integer,
                             ".*Assertion .*n < m_size.*");
 }
 
@@ -95,7 +96,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckPopFront)
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   int_array= Int_array(c_array, 1);
   int_array.pop_front();
-  EXPECT_DEATH_IF_SUPPORTED(int_array.pop_front(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(int_array.pop_front(),
                             ".*Assertion .*m_size > 0.*");
 }
 
@@ -103,7 +104,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResize)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   int_array= Int_array(c_array, 1);
-  EXPECT_DEATH_IF_SUPPORTED(int_array.resize(2),
+  MY_EXPECT_DEATH_IF_SUPPORTED(int_array.resize(2),
                             ".*Assertion .*new_size <= m_size.*");
 }
 
@@ -113,7 +114,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign)
   int_array= Int_array(c_array, 2);
   int_array[1]= some_integer;
   int_array.resize(1);
-  EXPECT_DEATH_IF_SUPPORTED(int_array[1]= some_integer,
+  MY_EXPECT_DEATH_IF_SUPPORTED(int_array[1]= some_integer,
                             ".*Assertion .*n < m_size.*");
 }
 

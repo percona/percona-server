@@ -4,7 +4,7 @@
 
 --source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
 let $restart_parameters = restart: --early-plugin-load="keyring_vault=$KEYRING_VAULT_PLUGIN" --keyring_vault_config=$KEYRING_CONF_FILE_1 $KEYRING_VAULT_PLUGIN_OPT;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $KEYRING_PLUGIN keyring_vault.so $KEYRING_VAULT_PLUGIN_OPT KEYRING_VAULT_PLUGIN_OPT
 --source include/restart_mysqld.inc
 
 # Create encrypted table to be sure there is Innodb Master Key in keyring,

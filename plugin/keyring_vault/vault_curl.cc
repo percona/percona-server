@@ -176,6 +176,7 @@ bool Vault_curl::list_keys(Secure_string *response)
   long http_code = 0;
 
   Thd_wait_end_guard thd_wait_end_guard;
+  (void)thd_wait_end_guard; //silence unused variable error
 
   if (reset_curl_session() ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL, (vault_url + "?list=true").c_str())) != CURLE_OK ||
@@ -235,6 +236,7 @@ bool Vault_curl::write_key(const Vault_key &key, Secure_string *response)
     return true;
 
   Thd_wait_end_guard thd_wait_end_guard;
+  (void)thd_wait_end_guard; //silence unused variable error
   
   if (reset_curl_session() ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL,
@@ -257,6 +259,7 @@ bool Vault_curl::read_key(const Vault_key &key, Secure_string *response)
   CURLcode curl_res = CURLE_OK;
 
   Thd_wait_end_guard thd_wait_end_guard;
+  (void)thd_wait_end_guard; //silence unused variable error
 
   if (reset_curl_session() ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL,
@@ -278,6 +281,7 @@ bool Vault_curl::delete_key(const Vault_key &key, Secure_string *response)
   CURLcode curl_res = CURLE_OK;
 
   Thd_wait_end_guard thd_wait_end_guard;
+  (void)thd_wait_end_guard; //silence unused variable error
   
   if (reset_curl_session() ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL, key_url.c_str())) !=

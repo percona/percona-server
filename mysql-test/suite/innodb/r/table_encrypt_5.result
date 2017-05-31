@@ -18,6 +18,7 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not c
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 # Starting server with keyring plugin  
+# restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db. t_encrypt;
 CREATE DATABASE tde_db;
@@ -158,7 +159,7 @@ INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQL_TMP_DIR/mysecret_keyring
+MYSQLTEST_VARDIR/tmp/mysecret_keyring
 # Uninstall is possible when server started with --early-plugin-load
 UNINSTALL PLUGIN keyring_file;
 # variable not accessible after uninstall
@@ -231,6 +232,7 @@ PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 #-----------------------------------------------------------------------
 # Test 1 : Restart with same keyring option , all tables accesible
 # restart with --early-plugin-load 
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
@@ -297,6 +299,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart with same --early-plugin-load and keyring_file_data option
+# restart:<hidden args>
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
 64
@@ -467,6 +470,7 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_
 # Test 2 : Restart without keyring option - old encrypt table not 
 # accessible but rest are.
 # restart with --early-plugin-load to load initial data
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
@@ -581,6 +585,7 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4
 DROP DATABASE tde_db;
 # Initial setup
 # Starting server with keyring plugin 
+# restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
@@ -660,7 +665,7 @@ PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQL_TMP_DIR/mysecret_keyring
+MYSQLTEST_VARDIR/tmp/mysecret_keyring
 # init tables
 call tde_db.init_setup();
 /*  select tde_db.t_encrypt */
@@ -729,10 +734,10 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 # Install keyring plugin
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 # Set keyring_file_data as old file so as to access old tables
-SET @@global.keyring_file_data='MYSQL_TMP_DIR/mysecret_keyring';
+SET @@global.keyring_file_data='MYSQLTEST_VARDIR/tmp/mysecret_keyring';
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQL_TMP_DIR/mysecret_keyring
+MYSQLTEST_VARDIR/tmp/mysecret_keyring
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
 64
@@ -916,6 +921,7 @@ ERROR HY000: Can't find master key from keyring, please check keyring plugin is 
 # Old encrypt table not accessible , non encrypt tables accessible
 # And creation of new encrypt,non encrypt table is also posible
 # restart with --early-plugin-load to load initial data
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
@@ -982,6 +988,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart with with different keyring_file_data file
+# restart:<hidden args>
 # encrypt table not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.

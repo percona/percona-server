@@ -1,2 +1,2 @@
 --let $keyring_restart_param=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
---source table_encrypt_1.inc
+--source include/table_encrypt_1.inc

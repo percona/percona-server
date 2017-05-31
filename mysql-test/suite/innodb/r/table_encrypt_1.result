@@ -11,6 +11,7 @@ ERROR HY000: Can't find master key from keyring, please check keyring plugin is 
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
 ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+# restart:<hidden args>
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
@@ -70,6 +71,7 @@ c1	c2
 # restart
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+# restart:<hidden args>
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -94,7 +96,7 @@ INSERT INTO t1 VALUES(6, "ggggg");
 INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
-# Kill the server
+# restart:<hidden args>
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -154,6 +156,7 @@ c1
 7
 8
 9
+# restart:<hidden args>
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -188,6 +191,7 @@ c1
 7
 8
 9
+# restart:<hidden args>
 SELECT * FROM t1 ORDER BY c1;
 c1
 0
@@ -234,6 +238,7 @@ c1	ST_AsText(g)
 7	POINT(7 7)
 8	POINT(8 8)
 9	POINT(9 9)
+# restart:<hidden args>
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 c1	ST_AsText(g)
 0	POINT(0 0)

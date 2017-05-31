@@ -130,13 +130,13 @@ call tde_db.init_setup();
 --replace_regex /\.dll/.so/
 --error 1125
 eval $INSTALL_KEYRING_STATEMENT;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval $SELECT_KEYRING_VARIABLE_STATEMENT;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval $select_keyring_variable_statement;
 --echo # Uninstall is possible when server started with --early-plugin-load
 eval UNINSTALL PLUGIN $KEYRING_PLUGIN_NAME;
 --echo # variable not accessible after uninstall
 --error 1193
-eval $SELECT_KEYRING_VARIABLE_STATEMENT;
+eval $select_keyring_variable_statement;
 
 --echo # Select non encrypt table : Pass 
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
@@ -417,8 +417,8 @@ DELIMITER ;|
 --echo # Access all tables
 --echo #-----------------------------------------------------------------------
 eval SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='$KEYRING_PLUGIN_NAME';
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval $SELECT_KEYRING_VARIABLE_STATEMENT;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval $select_keyring_variable_statement;
 --echo # init tables
 call tde_db.init_setup();
 --echo # restart without --early-plugin-load and keyring_file_data
@@ -432,10 +432,10 @@ let $restart_parameters = restart: ;
 eval $INSTALL_KEYRING_STATEMENT;
 --enable_warnings
 --echo # Set keyring_file_data as old file so as to access old tables
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval $SET_KEYRING_VARIABLE_TO_KEYRING1;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval $SELECT_KEYRING_VARIABLE_STATEMENT;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval $set_keyring_variable_to_keyring1;
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval $select_keyring_variable_statement;
 
 # All tables accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;

@@ -75,11 +75,11 @@ INSTALL PLUGIN keyring_udf SONAME 'keyring_udf.so';
 # Check if keys are available after server restart
 create function keyring_key_store returns integer soname 'keyring_udf.so';
 create function keyring_key_generate returns integer soname 'keyring_udf.so';
-select keyring_key_generate('Rob_AES_128','AES',16);
-keyring_key_generate('Rob_AES_128','AES',16)
+select keyring_key_generate('key_id','AES',16);
+keyring_key_generate('key_id','AES',16)
 1
-select keyring_key_store('Rob_AES_128_store','AES',"0123456789012345");
-keyring_key_store('Rob_AES_128_store','AES',"0123456789012345")
+select keyring_key_store('key_id','AES',"0123456789012345");
+keyring_key_store('key_id','AES',"0123456789012345")
 1
 drop function keyring_key_generate;
 drop function keyring_key_store;
@@ -88,31 +88,31 @@ create function keyring_key_fetch returns string soname 'keyring_udf.so';
 create function keyring_key_type_fetch returns string soname 'keyring_udf.so';
 create function keyring_key_length_fetch returns integer soname 'keyring_udf.so';
 create function keyring_key_remove returns integer soname 'keyring_udf.so';
-select keyring_key_fetch('Rob_AES_128') into @x;
+select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 16
-select keyring_key_length_fetch('Rob_AES_128');
-keyring_key_length_fetch('Rob_AES_128')
+select keyring_key_length_fetch('key_id');
+keyring_key_length_fetch('key_id')
 16
-select keyring_key_type_fetch('Rob_AES_128');
-keyring_key_type_fetch('Rob_AES_128')
+select keyring_key_type_fetch('key_id');
+keyring_key_type_fetch('key_id')
 AES
-select keyring_key_remove('Rob_AES_128');
-keyring_key_remove('Rob_AES_128')
+select keyring_key_remove('key_id');
+keyring_key_remove('key_id')
 1
-select keyring_key_fetch('Rob_AES_128_store') into @x;
+select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 16
-select keyring_key_length_fetch('Rob_AES_128_store');
-keyring_key_length_fetch('Rob_AES_128_store')
+select keyring_key_length_fetch('key_id');
+keyring_key_length_fetch('key_id')
 16
-select keyring_key_type_fetch('Rob_AES_128_store');
-keyring_key_type_fetch('Rob_AES_128_store')
+select keyring_key_type_fetch('key_id');
+keyring_key_type_fetch('key_id')
 AES
-select keyring_key_remove('Rob_AES_128_store');
-keyring_key_remove('Rob_AES_128_store')
+select keyring_key_remove('key_id');
+keyring_key_remove('key_id')
 1
 drop function keyring_key_fetch;
 drop function keyring_key_type_fetch;
@@ -545,53 +545,53 @@ select keyring_key_remove('key_id');
 keyring_key_remove('key_id')
 1
 DROP USER 'user_execute_test'@'localhost';
-select keyring_key_generate('Rob_AES_512','AES',64);
-keyring_key_generate('Rob_AES_512','AES',64)
+select keyring_key_generate('key_id','AES',64);
+keyring_key_generate('key_id','AES',64)
 1
-set @x= keyring_key_fetch('Rob_AES_512');
+set @x= keyring_key_fetch('key_id');
 select LENGTH(@x);
 LENGTH(@x)
 64
-select keyring_key_type_fetch('Rob_AES_512');
-keyring_key_type_fetch('Rob_AES_512')
+select keyring_key_type_fetch('key_id');
+keyring_key_type_fetch('key_id')
 AES
-select keyring_key_length_fetch('Rob_AES_512');
-keyring_key_length_fetch('Rob_AES_512')
+select keyring_key_length_fetch('key_id');
+keyring_key_length_fetch('key_id')
 64
-select keyring_key_remove('Rob_AES_512');
-keyring_key_remove('Rob_AES_512')
+select keyring_key_remove('key_id');
+keyring_key_remove('key_id')
 1
-select keyring_key_store('Rob_AES_512','AES',"0123456789012345678901234567890123456789012345678901234567890123");
-keyring_key_store('Rob_AES_512','AES',"0123456789012345678901234567890123456789012345678901234567890123")
+select keyring_key_store('key_id','AES',"0123456789012345678901234567890123456789012345678901234567890123");
+keyring_key_store('key_id','AES',"0123456789012345678901234567890123456789012345678901234567890123")
 1
-set @x= keyring_key_fetch('Rob_AES_512');
+set @x= keyring_key_fetch('key_id');
 select LENGTH(@x);
 LENGTH(@x)
 64
-select keyring_key_type_fetch('Rob_AES_512');
-keyring_key_type_fetch('Rob_AES_512')
+select keyring_key_type_fetch('key_id');
+keyring_key_type_fetch('key_id')
 AES
-select keyring_key_length_fetch('Rob_AES_512');
-keyring_key_length_fetch('Rob_AES_512')
+select keyring_key_length_fetch('key_id');
+keyring_key_length_fetch('key_id')
 64
-select keyring_key_remove('Rob_AES_512');
-keyring_key_remove('Rob_AES_512')
+select keyring_key_remove('key_id');
+keyring_key_remove('key_id')
 1
-select keyring_key_generate('Rob_DSA_4096','DSA',512);
-keyring_key_generate('Rob_DSA_4096','DSA',512)
+select keyring_key_generate('key_id','DSA',512);
+keyring_key_generate('key_id','DSA',512)
 1
-set @x= keyring_key_fetch('Rob_DSA_4096');
+set @x= keyring_key_fetch('key_id');
 select LENGTH(@x);
 LENGTH(@x)
 512
-select keyring_key_type_fetch('Rob_DSA_4096');
-keyring_key_type_fetch('Rob_DSA_4096')
+select keyring_key_type_fetch('key_id');
+keyring_key_type_fetch('key_id')
 DSA
-select keyring_key_length_fetch('Rob_DSA_4096');
-keyring_key_length_fetch('Rob_DSA_4096')
+select keyring_key_length_fetch('key_id');
+keyring_key_length_fetch('key_id')
 512
-select keyring_key_remove('Rob_DSA_4096');
-keyring_key_remove('Rob_DSA_4096')
+select keyring_key_remove('key_id');
+keyring_key_remove('key_id')
 1
 UNINSTALL PLUGIN keyring_vault;
 # Test cases for keyring_udf loaded and keyring_vault plugin not loaded

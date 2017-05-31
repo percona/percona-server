@@ -45,8 +45,12 @@ eval create function keyring_key_store returns integer soname '$KEYRING_UDF';
 --replace_regex /\.dll/.so/
 eval create function keyring_key_generate returns integer soname '$KEYRING_UDF';
 
-select keyring_key_generate('Rob_AES_128','AES',16);
-select keyring_key_store('Rob_AES_128_store','AES',"0123456789012345");
+let key_id = `select CONCAT('Rob_AES_128', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','AES',16);
+let key_id = `select CONCAT('Rob_AES_128_store', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','AES',"0123456789012345");
 
 drop function keyring_key_generate;
 drop function keyring_key_store;
@@ -69,17 +73,27 @@ eval create function keyring_key_length_fetch returns integer soname '$KEYRING_U
 --replace_regex /\.dll/.so/
 eval create function keyring_key_remove returns integer soname '$KEYRING_UDF';
 
-select keyring_key_fetch('Rob_AES_128') into @x;
+let key_id = `select CONCAT('Rob_AES_128', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_length_fetch('Rob_AES_128');
-select keyring_key_type_fetch('Rob_AES_128');
-select keyring_key_remove('Rob_AES_128');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
-select keyring_key_fetch('Rob_AES_128_store') into @x;
+let key_id = `select CONCAT('Rob_AES_128_store', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
-select keyring_key_length_fetch('Rob_AES_128_store');
-select keyring_key_type_fetch('Rob_AES_128_store');
-select keyring_key_remove('Rob_AES_128_store');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 drop function keyring_key_fetch;
 drop function keyring_key_type_fetch;
@@ -91,26 +105,43 @@ drop function keyring_key_remove;
 
 # Tests that are not available in main keyring_udf_keyring_plugin_loaded
 # Generate AES_512
-select keyring_key_generate('Rob_AES_512','AES',64);
-set @x= keyring_key_fetch('Rob_AES_512');
-select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_512');
-select keyring_key_length_fetch('Rob_AES_512');
-select keyring_key_remove('Rob_AES_512');
+let key_id = `select CONCAT('Rob_AES_512', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','AES',64);
+--replace_result $key_id key_id
+eval set @x= keyring_key_fetch('$key_id');
+eval select LENGTH(@x);
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # Store AES_512
-select keyring_key_store('Rob_AES_512','AES',"0123456789012345678901234567890123456789012345678901234567890123");
-set @x= keyring_key_fetch('Rob_AES_512');
+--replace_result $key_id key_id
+eval select keyring_key_store('$key_id','AES',"0123456789012345678901234567890123456789012345678901234567890123");
+--replace_result $key_id key_id
+eval set @x= keyring_key_fetch('$key_id');
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_AES_512');
-select keyring_key_length_fetch('Rob_AES_512');
-select keyring_key_remove('Rob_AES_512');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 # Generate DES 512
-select keyring_key_generate('Rob_DSA_4096','DSA',512);
-set @x= keyring_key_fetch('Rob_DSA_4096');
+let key_id = `select CONCAT('Rob_DSA_4096', '$server_uuid')`;
+--replace_result $key_id key_id
+eval select keyring_key_generate('$key_id','DSA',512);
+--replace_result $key_id key_id
+eval set @x= keyring_key_fetch('$key_id');
 select LENGTH(@x);
-select keyring_key_type_fetch('Rob_DSA_4096');
-select keyring_key_length_fetch('Rob_DSA_4096');
-select keyring_key_remove('Rob_DSA_4096');
+--replace_result $key_id key_id
+eval select keyring_key_type_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_length_fetch('$key_id');
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 UNINSTALL PLUGIN keyring_vault;
 --echo # Test cases for keyring_udf loaded and keyring_vault plugin not loaded

@@ -14,6 +14,7 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
   my $token;
   my $vault_url;
   my $secret_mount_point;
+  my $vault_ca;
   my $CONF_FILE;
   open(CONF_FILE, "$keyring_conf_file") or die("Could not open configuration file.\n");
   while (my $row = <CONF_FILE>)
@@ -30,6 +31,10 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
     {
       $secret_mount_point=$1;
     }
+    elsif ($row =~ m/vault_ca[ ]*= [ ]*(.*)/)
+    {
+      $vault_ca=$1;
+    }
   }
   close(CONF_FILE);
   if ($token eq "" || $vault_url eq "" || $secret_mount_point eq "")
@@ -37,7 +42,7 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
     die("Could not read vault credentials from configuration file.\n");
   }
 
-  system(qq#curl -H "X-Vault-Token: $token" -X GET $vault_url/v1/$secret_mount_point/?list=true > $curl_output_file#);
+  system(qq#curl -H "X-Vault-Token: $token" --cacert $vault_ca -X GET $vault_url/v1/$secret_mount_point/?list=true > $curl_output_file#);
 
   my $CURL_OUTPUT_FILE;
   open(CURL_OUTPUT_FILE, "$curl_output_file") or die("Could not open file with output from curl.\n");
@@ -61,7 +66,7 @@ let SERVER_UUID= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
       my $decoded_key_sign = decode_base64($_);
       if ($decoded_key_sign =~ m/.*$server_uuid.*/)
       {
-        system(qq#curl -H "X-Vault-Token: $token" -X DELETE $vault_url/v1/$secret_mount_point/$_ &#);
+        system(qq#curl -H "X-Vault-Token: $token" --cacert $vault_ca -X DELETE $vault_url/v1/$secret_mount_point/$_ &#);
       }
     }
   }

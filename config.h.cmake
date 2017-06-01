@@ -335,6 +335,8 @@
 #cmakedefine HAVE_CHARSET_utf16 1
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
+#cmakedefine HAVE_X509_CHECK_HOST 1
+#cmakedefine HAVE_X509_CHECK_IP 1
 
 /*
  * Feature set

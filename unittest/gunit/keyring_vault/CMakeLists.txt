@@ -1,5 +1,7 @@
 INCLUDE(curl)
 
+RETURN()
+
 IF(NOT GMOCK_FOUND)
     RETURN()
 ENDIF()

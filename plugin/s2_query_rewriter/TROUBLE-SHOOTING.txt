@@ -1,0 +1,23 @@
+============================
+TROUBLE SHOOTING
+============================
+>> ERROR 1126 (HY000): Can't open shared library '/db/mysql/lib/plugin/s2_query_rewriter.so' (errno: 13 libgflags.so.2.1: cannot open shared object file: No such file or directory)
+   ==> yum install gflags-devel
+
+>> ERROR 1126 (HY000): Can't open shared library '/db/mysql/lib/plugin/s2_query_rewriter.so' (errno: 13 libs2.so: cannot open shared object file: No such file or directory)
+   ==> copy libs2.so /usr/lib64/
+
+>> ERROR 1126 (HY000): Can't open shared library '/db/mysql/lib/plugin/s2_query_rewriter.so' (errno: 13 /lib64/libs2.so: undefined symbol: _ZSt24__throw_out_of_range_fmtPKcz)
+   ==> clean all s2/*.o s2/*.so recursively, and rebuild s2 library (libs2.so)
+
+>> Data truncation: Out of range value for column 's2cellid' at row 1
+   ==>
+     -- // Warning
+     -- // s2cell UDF return SIGNED BIGINT (Because MySQL UDF doesn't support return type of UNSIGNED BIGINT)
+     -- // Normally, GPS locations located in korea are no problem (Because these are not affected sign bit of BIGINT, e.g. not so big)
+     -- // But sometimes, GPS of smartphone return invalid gps location,
+     -- // For this reason, you need to casting BIGINT to BIGINT UNSINGED for the safety
+     -- //     e.g.) SELECT cast(s2cell(40.6891242,-89.5900406) as unsigned);
+     com.mysql.jdbc.MysqlDataTruncation: Data truncation: Out of range value for column 's2cellid' at row 1
+     Data truncated for s2cellid : SELECT s2cell(40.6891242,-89.5900406);
+

@@ -170,7 +170,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem)
   info->set_which_da(Diagnostics_information::CURRENT_AREA);
   cmd= new (mem_root) Sql_cmd_get_diagnostics(info);
 
-  EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
+  MY_EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 

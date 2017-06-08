@@ -21,6 +21,7 @@
 
 #include "bounded_queue.h"
 #include "filesort_utils.h"
+#include "thread_utils.h"
 #include "my_sys.h"
 
 namespace bounded_queue_unittest {
@@ -160,7 +161,7 @@ TEST_F(BoundedQueueDeathTest, DieIfNotInitialized)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Test_element foo= 1;
-  EXPECT_DEATH_IF_SUPPORTED(m_queue.push(&foo),
+  MY_EXPECT_DEATH_IF_SUPPORTED(m_queue.push(&foo),
                             ".*Assertion .*is_initialized.*");
 }
 
@@ -173,7 +174,7 @@ TEST_F(BoundedQueueDeathTest, DieIfPoppingEmptyQueue)
                             m_key_size,
                             &test_keymaker, NULL, m_keys.key_ptrs));
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(m_queue.pop(),
+  MY_EXPECT_DEATH_IF_SUPPORTED(m_queue.pop(),
                             ".*Assertion .*elements > 0.*");
 }
 #endif  // !defined(DBUG_OFF)

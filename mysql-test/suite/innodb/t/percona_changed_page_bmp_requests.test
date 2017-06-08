@@ -7,15 +7,7 @@
 
 RESET CHANGED_PAGE_BITMAPS;
 
---source include/count_sessions.inc
-
 let $MYSQLD_DATADIR= `select @@datadir`;
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DELETE FROM mysql.user WHERE USER='mysqltest_1';
-FLUSH PRIVILEGES;
---enable_warnings
 
 CREATE TABLE t1 (x INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -48,6 +40,9 @@ RESET CHANGED_PAGE_BITMAPS;
 --echo After 2nd RESET
 --replace_regex /_[[:digit:]]+\.xdb$//
 list_files $MYSQLD_DATADIR ib_modified_log*;
+
+# Ensure that the bitmap file is not empty at shutdown
+INSERT INTO t1 VALUES (6);
 
 # Check that the file sequence after RESET starts with 1 again
 --source include/restart_mysqld.inc
@@ -122,8 +117,6 @@ PURGE CHANGED_PAGE_BITMAPS BEFORE 100000000;
 
 connection default;
 disconnect conn1;
-
---source include/wait_until_count_sessions.inc
 
 DROP USER mysqltest_1@localhost;
 

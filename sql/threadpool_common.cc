@@ -111,6 +111,7 @@ static bool thread_attach(THD* thd)
 extern PSI_statement_info stmt_info_new_packet;
 #endif
 
+#ifdef HAVE_PSI_INTERFACE
 static void threadpool_net_before_header_psi_noop(struct st_net * /* net */,
                                                   void * /* user_data */,
                                                   size_t /* count */)
@@ -158,6 +159,7 @@ static void threadpool_net_after_header_psi(struct st_net *net,
     thd->m_server_idle = false;
   }
 }
+#endif
 
 static void threadpool_init_net_server_extension(THD *thd)
 {

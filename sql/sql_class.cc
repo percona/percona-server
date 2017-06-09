@@ -4233,7 +4233,7 @@ void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
 {
   mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg, cs);
-  do_set_query_id(new_query_id);
+  query_id= new_query_id;
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
@@ -4242,19 +4242,8 @@ void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
 void THD::set_query_id(query_id_t new_query_id)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-  do_set_query_id(new_query_id);
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
-void THD::do_set_query_id(query_id_t new_query_id)
-{
-#ifndef DBUG_OFF
-  if (variables.query_exec_id != 0 &&
-      lex->sql_command != SQLCOM_SET_OPTION)
-  {
-    new_query_id= variables.query_exec_id;
-  }
-#endif /* DBUG_OFF */
   query_id= new_query_id;
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /** Assign a new value to thd->mysys_var.  */

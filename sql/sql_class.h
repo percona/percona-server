@@ -607,7 +607,6 @@ typedef struct system_variables
 #ifndef DBUG_OFF
   ulonglong query_exec_time;
   double    query_exec_time_double;
-  ulong     query_exec_id;
 #endif
   ulong log_slow_rate_limit;
   ulonglong log_slow_filter;

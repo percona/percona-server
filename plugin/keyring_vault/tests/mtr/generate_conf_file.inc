@@ -6,7 +6,6 @@ let MYSQL_TEST_DIR=$MYSQL_TEST_DIR;
 --perl
   use strict;
   my $mysql_test_dir= $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
-  #my $keyring_conf_template_file= "${mysql_test_dir}/std_data/keyring_vault_confs/keyring_vault_mtr_template.conf";
   my $keyring_conf_template_file= $ENV{KEYRING_CONF_TEMPLATE_FILE} or die "Need KEYRING_CONF_TEMPLATE_FILE";
   my $keyring_conf_file_to_generate= $ENV{'KEYRING_CONF_FILE_TO_GENERATE'} or die("KEYRING_CONF_FILE_TO_GENERATE not set\n");
   open CONF_FILE, ">", "$keyring_conf_file_to_generate" or die "Could not open configuration file: ${keyring_conf_file_to_generate}.\n";

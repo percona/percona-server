@@ -31,6 +31,7 @@ namespace keyring__vault_keys_container_unittest
   using ::testing::WithArgs;
   using ::testing::Invoke;
 
+  CURL *curl = NULL;
   static std::string uuid = generate_uuid();
 
   class Vault_keys_container_test : public ::testing::Test
@@ -41,6 +42,8 @@ namespace keyring__vault_keys_container_unittest
   protected:
     virtual void SetUp()
     {
+      curl = curl_easy_init();
+      ASSERT_TRUE(curl != NULL);
       sample_key_data = "Robi";
       sample_key = new Vault_key((uuid+"Roberts_key").c_str(), "AES", "Robert", sample_key_data.c_str(), sample_key_data.length());
 
@@ -48,13 +51,16 @@ namespace keyring__vault_keys_container_unittest
       ASSERT_FALSE(generate_credential_file(credential_file_url));
       logger = new Mock_logger();
       vault_keys_container = new Vault_keys_container(logger);
-      vault_curl = new Vault_curl(logger);
+      vault_curl = new Vault_curl(logger, curl);
       vault_parser = new Vault_parser(logger);
     }
     virtual void TearDown()
     {
       delete vault_keys_container;
       delete logger;
+      if (curl != NULL)
+        curl_easy_cleanup(curl);
+      curl_global_cleanup();
     }
 
   protected:

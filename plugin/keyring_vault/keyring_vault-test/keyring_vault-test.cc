@@ -5,6 +5,7 @@
 #include "../vault_keyring.cc"
 #include "vault_keys_container_ex.h"
 #include <set>
+#include "generate_credential_file.h"
 
 static bool random_keys = false;
 static bool verbose;
@@ -248,6 +249,9 @@ static bool keyring_vault_init_for_test()
   if (init_keyring_locks())
     return true;
 
+  if (init_curl())
+    return true;
+
   st_plugin_int plugin_info;
   plugin_info.name.str = const_cast<char*>("keyring_vault");
   plugin_info.name.length = strlen("keyring_vault");
@@ -256,7 +260,7 @@ static bool keyring_vault_init_for_test()
   // We are using Vault_keys_container_ex which allows removing all keys created in keyring
   // Its behaviour is exactly the same as Vault_keys_container
   keys.reset(new keyring::Vault_keys_container_ex(logger.get()));
-  boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
+  boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
   boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
   IKeyring_io *keyring_io = new Vault_io(logger.get(), vault_curl.release(),
                                         vault_parser.release());
@@ -276,7 +280,14 @@ int main(int argc, char **argv)
   unsigned long long i;
   void *tret;
 
-  const char* default_args[] = {"./keyring_vault.conf", "100", "10", "30", "10", "1000", "100", "20", "10", "0", "1"}; 
+  std::string credential_file_url = "./keyring_vault.conf";
+  if (generate_credential_file(credential_file_url))
+  {
+    std::cerr << "Could not generate default keyring configuration file"; 
+    return 1;
+  }
+
+  const char* default_args[] = {credential_file_url.c_str(), "100", "10", "30", "10", "200", "100", "20", "10", "0", "1"}; 
   bool argument_passed = argc == 12;
 
   if (!argument_passed)

@@ -1,5 +1,6 @@
 #include <string>
 #include <cstdio>
+#include <fstream>
 
 enum GENERATE_CREDENTIALS
 {

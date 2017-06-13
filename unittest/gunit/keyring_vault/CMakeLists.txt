@@ -1,13 +1,12 @@
 INCLUDE(curl)
 
-RETURN()
-
 IF(NOT GMOCK_FOUND)
     RETURN()
 ENDIF()
 
 FIND_CURL()
 CHECK_IF_LIB_FOUND(CURL "keyring_vault unit tests")
+CHECK_IF_CURL_DEPENDS_ON_RTMP("keyring_vault unit tests")
 
 INCLUDE_DIRECTORIES(
         ${GMOCK_INCLUDE_DIRS}

@@ -26,22 +26,28 @@ namespace keyring__vault_io_unittest
   using ::testing::SetArgPointee;
 
   static std::string uuid;
+  CURL *curl = NULL;
 
   class Vault_io_test : public ::testing::Test
   {
   protected:
     virtual void SetUp()
     {
+      curl = curl_easy_init();
+      ASSERT_TRUE(curl != NULL);
       credential_file_url = "./keyring_vault.conf";
       ASSERT_FALSE(generate_credential_file(credential_file_url));
       logger= new Mock_logger();
-      vault_curl = new Vault_curl(logger);
+      vault_curl = new Vault_curl(logger, curl);
       vault_parser = new Vault_parser(logger);
     }
 
     virtual void TearDown()
     {
       delete logger;
+      if (curl != NULL)
+        curl_easy_cleanup(curl);
+      curl_global_cleanup();
     }
 
   protected:
@@ -141,7 +147,7 @@ namespace keyring__vault_io_unittest
     // *****
 
     // Now fetch two keys with separate Vault_io
-    Vault_curl *vault_curl2 = new Vault_curl(logger);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, curl);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
     EXPECT_FALSE(vault_io_for_fetching.init(&credential_file_url));
@@ -196,7 +202,7 @@ namespace keyring__vault_io_unittest
     // *****
 
     // Now fetch two keys with separate Vault_io - incorrect key should have been ignored
-    Vault_curl *vault_curl2 = new Vault_curl(logger);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, curl);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
 
@@ -284,7 +290,7 @@ namespace keyring__vault_io_unittest
     key_to_remove.set_key_operation(REMOVE_KEY);
     EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
 
-    Vault_curl *vault_curl2 = new Vault_curl(logger);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, curl);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io2(logger, vault_curl2, vault_parser2);
     EXPECT_FALSE(vault_io2.init(&credential_file_url));

@@ -1,5 +1,8 @@
+CHECK_IF_CURL_DEPENDS_ON_RTMP("keyring_vault-test")
+
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/plugin/keyring_vault)
+  ${CMAKE_SOURCE_DIR}/plugin/keyring_vault
+  ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault)
 
 ADD_EXECUTABLE(keyring_vault-test
                ./keyring_vault-test.cc

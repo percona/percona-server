@@ -18,9 +18,9 @@ namespace keyring
 class Vault_curl : public IVault_curl, private boost::noncopyable
 {
 public:
-  Vault_curl(ILogger *logger)
+  Vault_curl(ILogger *logger, CURL *curl)
     : logger(logger)
-    , curl(NULL)	
+    , curl(curl)
     , list(NULL)
   {}
 
@@ -28,7 +28,6 @@ public:
   {
     if (list != NULL)
       curl_slist_free_all(list);
-    curl_easy_cleanup(curl);
   }
 
   bool init(const Vault_credentials &vault_credentials);

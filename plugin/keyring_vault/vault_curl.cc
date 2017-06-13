@@ -111,12 +111,6 @@ std::string Vault_curl::get_error_from_curl(CURLcode curl_code)
 
 bool Vault_curl::init(const Vault_credentials &vault_credentials)
 {
-  curl = curl_easy_init();
-  if (curl == NULL)
-  {
-    logger->log(MY_ERROR_LEVEL, "Could not create CURL session");
-    return true;
-  }
   this->token_header = "X-Vault-Token:" + get_credential(vault_credentials, "token");
   this->vault_url = get_credential(vault_credentials, "vault_url") + "/v1/" + get_credential(vault_credentials, "secret_mount_point");
   this->vault_ca = get_credential(vault_credentials, "vault_ca");
@@ -133,7 +127,20 @@ bool Vault_curl::init(const Vault_credentials &vault_credentials)
 bool Vault_curl::reset_curl_session()
 {
   CURLcode curl_res = CURLE_OK;
-  curl_easy_reset(curl);
+  if (unlikely(curl == NULL))
+  {
+    curl = curl_easy_init();
+    if (curl == NULL)
+    {
+      logger->log(MY_ERROR_LEVEL, "Could not create CURL session");
+      return true;
+    }
+    return false; 
+  }
+  else
+  {
+    curl_easy_reset(curl);
+  }
   read_data_ss.str("");
   read_data_ss.clear();
   curl_errbuf[0] = '\0';
@@ -172,7 +179,6 @@ bool Vault_curl::reset_curl_session()
 bool Vault_curl::list_keys(Secure_string *response)
 {
   CURLcode curl_res = CURLE_OK;
-  curl_easy_reset(curl);
   long http_code = 0;
 
   Thd_wait_end_guard thd_wait_end_guard;

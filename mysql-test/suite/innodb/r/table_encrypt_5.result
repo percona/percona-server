@@ -1,6 +1,6 @@
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
@@ -14,9 +14,6 @@ call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 # Starting server with keyring plugin  
 # restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
@@ -159,7 +156,7 @@ INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 ERROR HY000: Function 'keyring_file' already exists
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQLTEST_VARDIR/tmp/mysecret_keyring
+MYSQL_TMP_DIR/mysecret_keyring
 # Uninstall is possible when server started with --early-plugin-load
 UNINSTALL PLUGIN keyring_file;
 # variable not accessible after uninstall
@@ -665,7 +662,7 @@ PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQLTEST_VARDIR/tmp/mysecret_keyring
+MYSQL_TMP_DIR/mysecret_keyring
 # init tables
 call tde_db.init_setup();
 /*  select tde_db.t_encrypt */
@@ -734,10 +731,10 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 # Install keyring plugin
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 # Set keyring_file_data as old file so as to access old tables
-SET @@global.keyring_file_data='MYSQLTEST_VARDIR/tmp/mysecret_keyring';
+SET @@global.keyring_file_data='MYSQL_TMP_DIR/mysecret_keyring';
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
-MYSQLTEST_VARDIR/tmp/mysecret_keyring
+MYSQL_TMP_DIR/mysecret_keyring
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
 64

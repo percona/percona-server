@@ -2,7 +2,7 @@
 
 . /usr/share/debconf/confmodule
 
-MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2)
+MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2 | tail -n 1)
 if [ -z "$MYSQLDATA" ];
 then
     MYSQLDATA=/var/lib/mysql
@@ -47,7 +47,7 @@ EOF
 			else
 				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
 				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
-				while [ ! -e $(my_print_defaults mysqld | grep pid-file | cut -d= -f2) ]; do sleep 1; done
+				while [ ! -e $(my_print_defaults mysqld | grep pid-file | cut -d= -f2 | tail -n 1) ]; do sleep 1; done
 				mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
 				mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
 				mysqladmin shutdown

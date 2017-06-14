@@ -2,7 +2,7 @@
 #define MYSQL_VAULT_MEMORY
 
 #include <my_global.h>
-#include <string.h>
+//#include <string.h>
 #include "keyring_memory.h"
 
 namespace keyring
@@ -33,8 +33,10 @@ namespace keyring
 
     T* allocate(size_t n)
     {
-      if (n == 0 || n > INT_MAX)
+      if (n == 0)
         return NULL;
+      else if (n > INT_MAX)
+        throw std::bad_alloc();
       return keyring_malloc<T*>(n*sizeof(T)); 
     }
 
@@ -45,7 +47,7 @@ namespace keyring
     }
   };
 
-  typedef std::basic_string<char, std::char_traits<char>, Secure_allocator<char> > Secure_string;
+  //typedef std::basic_string<char, std::char_traits<char>, Secure_allocator<char> > Secure_string;
 } // namespace keyring
 
 #endif // MYSQL_VAULT_MEMORY

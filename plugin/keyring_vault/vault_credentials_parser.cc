@@ -4,35 +4,11 @@
 #include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <functional>
+#include "boost/algorithm/string/trim.hpp"
 
 namespace keyring
 {
-  struct Is_not_space
-  {
-    bool operator()(char c)
-    {
-      return !std::isspace(c);
-    }
-  };
-
-  static inline Secure_string* ltrim(Secure_string *s) {
-      s->erase(s->begin(), std::find_if(s->begin(), s->end(),
-              Is_not_space()));
-      return s;
-  }
-
-  // trim from end
-  static inline Secure_string* rtrim(Secure_string *s) {
-      s->erase(std::find_if(s->rbegin(), s->rend(),
-               Is_not_space()).base(), s->end());
-      return s;
-  }
-
-  // trim from both ends
-  static inline Secure_string* trim(Secure_string *s) {
-      return ltrim(rtrim(s));
-  }
-
   void Vault_credentials_parser::reset_vault_credentials(Vault_credentials *vault_credentials)
   {
     for(Vault_credentials::iterator iter = vault_credentials->begin();
@@ -42,13 +18,13 @@ namespace keyring
 
   bool Vault_credentials_parser::is_valid_option(const Secure_string &option)
   {
-    return vault_credentials_in_progress.count(option);
+    return vault_credentials_in_progress.count(option) != 0;
   }
 
   bool Vault_credentials_parser::parse_line(uint line_number, const Secure_string& line, Vault_credentials *vault_credentials)
   {
     if (line.empty())
-      return FALSE;
+      return false;
 
     size_t eq_sign_pos = line.find('=');
     std::ostringstream err_ss;
@@ -58,16 +34,16 @@ namespace keyring
       err_ss << "Could not parse credential file. Cannot find equal sign (=) in line: ";
       err_ss << line_number << '.';
       logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
-      return TRUE;
+      return true;
     }
     Secure_string option = line.substr(0, eq_sign_pos);
-    trim(&option); 
+    boost::trim(option); 
 
     if (!is_valid_option(option))
     {
       err_ss << "Could not parse credential file. Unknown option \"" << option << "\" in line: ";
       err_ss << line_number << '.';
-      return TRUE;
+      return true;
     }
     Secure_string *value = &(*vault_credentials)[option];
 
@@ -76,10 +52,10 @@ namespace keyring
       err_ss << "Could not parse credential file. Seems that value for option " << option;
       err_ss << " has been specified more than once in line: " << line_number << '.';
       logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
-      return TRUE;
+      return true;
     }
     *value = line.substr(eq_sign_pos + 1, line.size() - (eq_sign_pos + 1)); 
-    trim(value);
+    boost::trim(*value);
 
     if (value->empty())
     {
@@ -87,9 +63,9 @@ namespace keyring
       err_ss << "for option " << option << " in line: " << line_number << '.';
 
       logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
-      return TRUE;
+      return true;
     }
-    return FALSE;
+    return false;
   }
 
   bool Vault_credentials_parser::parse(const std::string &file_url, Vault_credentials *vault_credentials)
@@ -100,7 +76,7 @@ namespace keyring
     if (!credentials_file)
     {
       logger->log(MY_ERROR_LEVEL, "Could not open file with credentials.");
-      return TRUE;
+      return true;
     }
     uint line_number = 1;
     Secure_string line;
@@ -108,7 +84,7 @@ namespace keyring
       if (parse_line(line_number, line, &vault_credentials_in_progress))
       {
         line_number++;
-        return TRUE;
+        return true;
       }
 
     for (Vault_credentials::const_iterator iter = vault_credentials_in_progress.begin();
@@ -119,10 +95,10 @@ namespace keyring
         std::ostringstream err_ss;
         err_ss << "Could not read " << iter->first << " from the configuration file.";
         logger->log(MY_ERROR_LEVEL, err_ss.str().c_str());
-        return TRUE;
+        return true;
       }
     }
     *vault_credentials = vault_credentials_in_progress;
-    return FALSE;
+    return false;
   }
 } // namespace keyring

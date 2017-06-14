@@ -7172,6 +7172,7 @@ sub valgrind_exit_reports() {
 }
 
 sub run_ctest() {
+  $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   my $olddir= getcwd();
   chdir ($bindir) or die ("Could not chdir to $bindir");
   my $tinfo;

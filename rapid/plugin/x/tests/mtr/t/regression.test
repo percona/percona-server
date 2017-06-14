@@ -14,12 +14,12 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. faile
 # Test case for Bug #21472634 SHOW PROCESSLIST RETURNS DIFERENT RESULTS THAN IS QUERY WITH XPROTOCOL CONNECTN
 -->echo Bug #21472634
 -->stmtsql show processlist;
--->recvresult Id User Host db Command Time State Info Rows_sent Rows_examined
+-->recvresult Id User Host db Command State Info
 -->sql
 SELECT id,user,command,state FROM information_schema.processlist ORDER BY id;
 -->endsql
 EOF
---replace_regex /localhost:[0-9]*/localhost/ /[0-9]+	root(.+)Sleep	[0-9]+	/$PROC_1_ID	root\1Sleep	0	/ /[0-9]+	root(.+)Query	[0-9]+	/$PROC_2_ID	root\1Query	0	/ /Execute/Query/ /	[0-9]+	[0-9]+/	0	0/
+--replace_regex /localhost:[0-9]*/localhost/ /	[12]	/	0	/ /[0-9]+	root(.+)Sleep/$PROC_1_ID	root\1Sleep/ /[0-9]+	root(.+)Query/$PROC_2_ID	root\1Query/ /Execute/Query/ 
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression-ps.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-regression-ps.tmp
 

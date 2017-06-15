@@ -1,20 +1,26 @@
 .. _innodb_show_status:
 
-======================================
- Extended Show Engine |InnoDB| Status
-======================================
+====================================
+Extended Show Engine |InnoDB| Status
+====================================
 
-This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for a better readability and prints the amount of memory used by the internal hash tables. In addition, new variables are available to control the output.
+This feature reorganizes the output of ``SHOW ENGINE INNODB STATUS`` for
+better readability and prints the amount of memory used by the internal hash
+tables. In addition, new variables are available to control the output.
 
 This feature modified the ``SHOW ENGINE INNODB STATUS`` command as follows:
 
-  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information presented (bugfix for upstream bug :mysqlbug:`29126`):
+  * Added two variables to control ``SHOW ENGINE INNODB STATUS`` information
+    presented (bugfix for upstream bug :mysqlbug:`29126`):
 
     * :variable:`innodb_show_verbose_locks` - Whether to show records locked
 
-    * :variable:`innodb_show_locks_held` - Number of locks held to print for each |InnoDB| transaction
+    * :variable:`innodb_show_locks_held` - Number of locks held to print for
+      each |InnoDB| transaction
 
-  * Added extended information about |InnoDB| internal hash table sizes (in bytes) in the ``BUFFER POOL AND MEMORY`` section; also added buffer pool size in bytes.
+  * Added extended information about |InnoDB| internal hash table sizes (in
+    bytes) in the ``BUFFER POOL AND MEMORY`` section; also added buffer pool
+    size in bytes.
 
   * Added additional LOG section information.
 
@@ -46,7 +52,11 @@ System Variables
      :default: 0
      :range: 0 - 1
 
-Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default is 0, which means only the higher-level information about the lock (which table and index is locked, etc.) is printed. If set to 1, then traditional |InnoDB| behavior is enabled: the records that are locked are dumped to the output.
+Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default
+is ``0``, which means only the higher-level information about the lock (which
+table and index is locked, etc.) is printed. If set to ``1``, then traditional
+|InnoDB| behavior is enabled: the records that are locked are dumped to the
+output.
 
 .. variable:: innodb_show_locks_held
 
@@ -58,19 +68,25 @@ Specifies to show records locked in ``SHOW ENGINE INNODB STATUS``. The default i
      :default: 10
      :range: 0 - 1000
 
-Specifies the number of locks held to print for each |InnoDB| transaction in ``SHOW ENGINE INNODB STATUS``.
+Specifies the number of locks held to print for each |InnoDB| transaction in
+``SHOW ENGINE INNODB STATUS``.
 
 
 Status Variables
 ================
 
-The status variables here contain information available in the output of ``SHOW ENGINE INNODB STATUS``, organized by the sections ``SHOW ENGINE INNODB STATUS`` displays. If you are familiar with the output of ``SHOW ENGINE INNODB STATUS``, you will probably already recognize the information these variables contain.
+The status variables here contain information available in the output of ``SHOW
+ENGINE INNODB STATUS``, organized by the sections ``SHOW ENGINE INNODB STATUS``
+displays. If you are familiar with the output of ``SHOW ENGINE INNODB STATUS``,
+you will probably already recognize the information these variables contain.
 
 
 BACKGROUND THREAD
 -----------------
 
-The following variables contain information in the BACKGROUND THREAD section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: :: 
+The following variables contain information in the ``BACKGROUND THREAD``
+section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that
+output is: ::
 
   -----------------
   BACKGROUND THREAD
@@ -78,6 +94,15 @@ The following variables contain information in the BACKGROUND THREAD section of 
   srv_master_thread loops: 1 srv_active, 0 srv_shutdown, 11844 srv_idle
   srv_master_thread log flush and writes: 11844
 
+|InnoDB| has a master thread which performs background tasks depending on the
+server state, once per second. If the server is under workload, the master
+thread runs the following: performs background table drops; performs change
+buffer merge, adaptively; flushes the redo log to disk; evicts tables from the
+dictionary cache if needed to satisfy its size limit; makes a checkpoint. If
+the server is idle: performs background table drops, flushes and/or checkpoints
+the redo log if needed due to the checkpoint age; performs change buffer merge
+at full I/O capacity; evicts tables from the dictionary cache if
+needed; makes a checkpoint; and purges archived logs if needed.
 
 .. variable:: Innodb_master_thread_active_loops
 
@@ -85,11 +110,17 @@ The following variables contain information in the BACKGROUND THREAD section of 
      :vartype: Numeric
      :scope: Global
 
+This variable shows the number of times the above one-second loop was executed
+for active server states.
+
 .. variable:: Innodb_master_thread_idle_loops
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the number of times the above one-second loop was executed
+for idle server states.
 
 .. variable:: Innodb_background_log_sync
 
@@ -97,10 +128,14 @@ The following variables contain information in the BACKGROUND THREAD section of 
      :vartype: Numeric
      :scope: Global
 
+This variable shows the number of times the |InnoDB| master thread has written
+and flushed the redo log.
+
 SEMAPHORES
 ----------
 
-The following variables contain information in the SEMAPHORES section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the ``SEMAPHORES`` section of
+the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   ----------
   SEMAPHORES
@@ -167,7 +202,9 @@ The following variables contain information in the SEMAPHORES section of the out
 INSERT BUFFER AND ADAPTIVE HASH INDEX
 -------------------------------------
 
-The following variables contain information in the INSERT BUFFER AND ADAPTIVE HASH INDEX section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the ``INSERT BUFFER AND ADAPTIVE
+HASH INDEX`` section of the output from ``SHOW ENGINE INNODB STATUS``. An
+example of that output is: ::
 
   -------------------------------------
   INSERT BUFFER AND ADAPTIVE HASH INDEX
@@ -239,7 +276,8 @@ The following variables contain information in the INSERT BUFFER AND ADAPTIVE HA
 LOG
 ---
 
-The following variables contain information in the LOG section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the ``LOG`` section of the
+output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
 
   LOG
   ---
@@ -263,11 +301,16 @@ The following variables contain information in the LOG section of the output fro
      :vartype: Numeric
      :scope: Global
 
+This variable shows the current log sequence number.
+
 .. variable:: Innodb_lsn_flushed
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the current maximum LSN that has been written and flushed
+to disk.
 
 .. variable:: Innodb_lsn_last_checkpoint
 
@@ -275,11 +318,16 @@ The following variables contain information in the LOG section of the output fro
      :vartype: Numeric
      :scope: Global
 
+This variable shows the LSN of the latest completed checkpoint.
+
 .. variable:: Innodb_checkpoint_age
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the current |InnoDB| checkpoint age, i.e., the difference
+between the current LSN and the LSN of the last completed checkpoint.
 
 .. variable:: Innodb_checkpoint_max_age
 
@@ -287,10 +335,16 @@ The following variables contain information in the LOG section of the output fro
      :vartype: Numeric
      :scope: Global
 
+This variable shows the maximum allowed checkppoint age above which the redo
+log is close to full and a checkpoint must happen before any further redo log
+writes.
+
 BUFFER POOL AND MEMORY
 ----------------------
 
-The following variables contain information in the BUFFER POOL AND MEMORY section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the ``BUFFER POOL AND MEMORY``
+section of the output from ``SHOW ENGINE INNODB STATUS``. An example of that
+output is: ::
 
   ----------------------
   BUFFER POOL AND MEMORY
@@ -328,11 +382,16 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :vartype: Numeric
      :scope: Global
 
+This variable shows the current size, in bytes, of the adaptive hash index.
+
 .. variable:: Innodb_mem_dictionary
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the current size, in bytes, of the |InnoDB| in-memory data
+dictionary info.
 
 .. variable:: Innodb_mem_total
 
@@ -340,11 +399,18 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :vartype: Numeric
      :scope: Global
 
+This variable shows the total amount of memory, in bytes, |InnoDB| has
+allocated in the process heap memory.
+
 .. variable:: Innodb_buffer_pool_pages_LRU_flushed
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the total number of buffer pool pages which have been
+flushed from the LRU list, i.e., too old pages which had to be flushed in
+order to make buffer pool room to read in new data pages.
 
 .. variable:: Innodb_buffer_pool_pages_made_not_young
 
@@ -352,11 +418,19 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :vartype: Numeric
      :scope: Global
 
+This variable shows the number of times a buffer pool page was not marked as
+accessed recently in the LRU list because of :variable:`innodb_old_blocks_time`
+variable setting.
+
 .. variable:: Innodb_buffer_pool_pages_made_young
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the number of times a buffer pool page was moved to the
+young end of the LRU list due to its access, to prevent its eviction from the
+buffer pool.
 
 .. variable:: Innodb_buffer_pool_pages_old
 
@@ -364,13 +438,20 @@ The following variables contain information in the BUFFER POOL AND MEMORY sectio
      :vartype: Numeric
      :scope: Global
 
+This variable shows the total number of buffer pool pages which are considered
+to be old according to the `Making the Buffer Pool Scan Resistant manual page
+<https://dev.mysql.com/doc/refman/5.7/en/innodb-performance-midpoint_insertion.html>`_.
+
 .. variable:: Innodb_descriptors_memory
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
-This status variable shows the current size of the descriptors array (in bytes). The descriptor array is an |XtraDB| data structure that contains the information on currently running transactions.
+This status variable shows the current size of the descriptors array (in
+bytes). The descriptor array is an |XtraDB| data structure that contains the
+information on `currently running transactions
+<https://www.percona.com/blog/2013/04/12/trx-descriptors-mysql-performance-improvements-in-percona-server-5-5-30-30-2/>`_.
 
 .. variable:: Innodb_read_views_memory
 
@@ -378,12 +459,14 @@ This status variable shows the current size of the descriptors array (in bytes).
      :vartype: Numeric
      :scope: Global
 
-This status variable shows the total amount of memory allocated for the |InnoDB| read view (in bytes).
+This status variable shows the total amount of memory allocated for the
+|InnoDB| read views (in bytes).
 
 TRANSACTIONS
 ------------
 
-The following variables contain information in the TRANSACTIONS section of the output from ``SHOW INNODB STATUS``. An example of that output is: ::
+The following variables contain information in the ``TRANSACTIONS`` section of
+the output from ``SHOW INNODB STATUS``. An example of that output is: ::
 
   ------------
   TRANSACTIONS
@@ -405,11 +488,15 @@ The following variables contain information in the TRANSACTIONS section of the o
      :vartype: Numeric
      :scope: Global
 
+This variable shows the length of the |InnoDB| history list.
+
 .. variable:: Innodb_max_trx_id
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the next free transaction id number.
 
 .. variable:: Innodb_oldest_view_low_limit_trx_id
 
@@ -417,17 +504,27 @@ The following variables contain information in the TRANSACTIONS section of the o
      :vartype: Numeric
      :scope: Global
 
+This variable shows the highest transaction id, above which the current oldest
+open read view does not see any transaction changes. Zero if there is no open
+view.
+
 .. variable:: Innodb_purge_trx_id
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
 
+This variable shows the oldest transaction id whose records have not been
+purged yet.
+
 .. variable:: Innodb_purge_undo_no
 
      :version 5.6.11-60.3: Introduced.
      :vartype: Numeric
      :scope: Global
+
+This variable shows the number of undo log records for the oldest transactions
+that has not been purged yet.
 
 .. variable:: Innodb_current_row_locks
 
@@ -438,16 +535,18 @@ The following variables contain information in the TRANSACTIONS section of the o
 INFORMATION_SCHEMA Tables
 =========================
 
-The following table contains information about the oldest active transaction in the system.
+The following table contains information about the oldest active transaction in
+the system.
 
 .. table:: INFORMATION_SCHEMA.XTRADB_READ_VIEW
 
    :column READ_VIEW_UNDO_NUMBER:
-   :column READ_VIEW_LOW_LIMIT_TRX_NUMBER: This is the highest transactions number at the time the view was created. 
+   :column READ_VIEW_LOW_LIMIT_TRX_NUMBER: This is the highest transaction number at the time the view was created.
    :column READ_VIEW_UPPER_LIMIT_TRX_ID: This is the highest transactions ID at the time the view was created. This means that it should not see newer transactions with IDs bigger than or equal to that value.
    :column READ_VIEW_LOW_LIMIT_TRX_ID: This is the latest committed transaction ID at the time the oldest view was created. This means that it should see all transactions with IDs smaller than or equal to that value.
 
-The following table contains information about the memory usage for InnoDB/XtraDB hash tables.
+The following table contains information about the memory usage for
+InnoDB/XtraDB hash tables.
 
 .. table:: INFORMATION_SCHEMA.XTRADB_INTERNAL_HASH_TABLES
 

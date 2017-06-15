@@ -5,8 +5,7 @@ namespace keyring
 {
   my_bool Vault_keys_container::init(IKeyring_io* keyring_io, std::string keyring_storage_url)
   {
-    vault_io = dynamic_cast<IVault_io*>(keyring_io);
-    DBUG_ASSERT(vault_io != NULL);
+    DBUG_ASSERT(dynamic_cast<IVault_io*>(keyring_io) != NULL);
     return Keys_container::init(keyring_io, keyring_storage_url);
   }
 

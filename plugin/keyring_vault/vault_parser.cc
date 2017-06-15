@@ -11,10 +11,12 @@ namespace keyring
 bool Vault_parser::retrieve_tag_value(const Secure_string &payload, const Secure_string &tag, const char opening_bracket,
                                       const char closing_bracket, Secure_string *value)
 {
-  value->clear();
   size_t opening_bracket_pos, closing_bracket_pos, tag_pos = payload.find(tag);
   if (tag_pos == Secure_string::npos)
+  {
+    value->clear();
     return false;
+  }
 
   if ((opening_bracket_pos = (payload.find(opening_bracket, tag_pos))) == Secure_string::npos ||
       (closing_bracket_pos = (payload.find(closing_bracket, opening_bracket_pos))) == Secure_string::npos)
@@ -40,7 +42,7 @@ bool Vault_parser::retrieve_map(const Secure_string &payload, const Secure_strin
   return retrieve_tag_value(payload, map_name, '{', '}', map);
 }
 
-bool Vault_parser::retrieve_tokens_from_list(const Secure_string &list, std::vector<Secure_string> *tokens)
+bool Vault_parser::retrieve_tokens_from_list(const Secure_string &list, Tokens *tokens)
 {
   std::size_t token_start = 0, token_end = 0;
   while ((token_start = list.find('\"', token_end))
@@ -65,12 +67,13 @@ bool Vault_parser::retrieve_value_from_map(const Secure_string &map, const Secur
   size_t key_tag_pos = Secure_string::npos, value_start_pos = Secure_string::npos, 
          value_end_pos = Secure_string::npos;
   bool was_error = false;
+  const size_t start_tag_length = strlen(":\"");
 
   if ((key_tag_pos = map.find(key)) != Secure_string::npos &&
       (value_start_pos = map.find(":\"", key_tag_pos)) != Secure_string::npos &&
-      (value_end_pos = map.find("\"", value_start_pos + strlen(":\""))) != Secure_string::npos)
+      (value_end_pos = map.find("\"", value_start_pos + start_tag_length)) != Secure_string::npos)
   {
-    value_start_pos += strlen(":\"");
+    value_start_pos += start_tag_length;
     DBUG_ASSERT(value_end_pos > 0);
     value_end_pos--; // due to closing "
     *value = map.substr(value_start_pos, (value_end_pos-value_start_pos+1));
@@ -99,7 +102,7 @@ bool Vault_parser::parse_keys(const Secure_string &payload, Vault_keys_list *key
    * (...)"data":{"keys":["keysignature","keysignature"]}(...)
    * We need to retrieve keys signatures from it
    */
-  std::vector<Secure_string> key_tokens;
+  Tokens key_tokens;
   Secure_string keys_list;
   if (retrieve_list(payload, "keys", &keys_list) ||
       keys_list.empty() ||
@@ -108,22 +111,24 @@ bool Vault_parser::parse_keys(const Secure_string &payload, Vault_keys_list *key
     logger->log(MY_ERROR_LEVEL, "Could not parse keys tag with keys list from Vault.");
     return true;
   }
-  Secure_string key_parameters[2];
-  for(std::vector<Secure_string>::const_iterator iter = key_tokens.begin();
+  KeyParameters key_parameters;
+  for(Tokens::const_iterator iter = key_tokens.begin();
       iter != key_tokens.end(); ++iter)
   {
-    if (parse_key_signature(*iter, key_parameters))
+    if (parse_key_signature(*iter, &key_parameters))
     {
       logger->log(MY_WARNING_LEVEL, "Could not parse key's signature, skipping the key.");
       continue; // found incorrect key, skipping it
     }
-    keys->push_back(new Vault_key(key_parameters[0].c_str(), NULL,
-                                  key_parameters[1].c_str(), NULL, 0));
+    keys->push_back(new Vault_key(key_parameters.key_id.c_str(), NULL,
+                                  key_parameters.user_id.c_str(), NULL, 0));
   }
   return false;
 }
 
-bool Vault_parser::parse_key_signature(const Secure_string &base64_key_signature, Secure_string key_parameters[2])
+const Secure_string Vault_parser::digits("0123456789");
+
+bool Vault_parser::parse_key_signature(const Secure_string &base64_key_signature, KeyParameters *key_parameters)
 {
   // key_signature= lengthof(key_id)||_||key_id||lengthof(user_id)||_||user_id
   Secure_string key_signature;
@@ -133,7 +138,6 @@ bool Vault_parser::parse_key_signature(const Secure_string &base64_key_signature
     return true;
   }
   
-  static Secure_string digits("0123456789");
   size_t next_pos_to_start_from = 0;
   for (int i= 0; i < 2; ++i)
   {
@@ -145,7 +149,7 @@ bool Vault_parser::parse_key_signature(const Secure_string &base64_key_signature
     int key_l = atoi(key_id_length.c_str());
     if (key_l < 0 || key_l + key_id_pos > key_signature.length())
       return true;
-    key_parameters[i] = key_signature.substr(key_id_pos, key_l);
+    (*key_parameters)[i] = key_signature.substr(key_id_pos, key_l);
     next_pos_to_start_from= key_id_pos+key_l;
   }
   return false;

@@ -515,7 +515,7 @@ namespace keyring__vault_io_unittest
   public:
     MOCK_METHOD2(parse_keys, bool(const Secure_string &payload, Vault_keys_list *keys));
     MOCK_METHOD2(parse_key_data, bool(const Secure_string &payload, IKey *key));
-    MOCK_METHOD2(parse_key_signature, bool(const Secure_string &key_signature, Secure_string key_parameters[2]));
+    MOCK_METHOD2(parse_key_signature, bool(const Secure_string &key_signature, KeyParameters *key_parameters));
     MOCK_METHOD2(parse_errors, bool(const Secure_string &payload, Secure_string *errors));
   };
 

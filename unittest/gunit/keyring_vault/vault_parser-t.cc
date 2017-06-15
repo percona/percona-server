@@ -17,6 +17,7 @@ namespace keyring__vault_parser_unittest
   using namespace keyring;
 
   using ::testing::StrEq;
+  typedef keyring::IVault_parser::KeyParameters KeyParameters;
 
   class Vault_parser_test : public ::testing::Test
   {
@@ -42,8 +43,8 @@ namespace keyring__vault_parser_unittest
     EXPECT_FALSE(Vault_base64::encode(key_signature.c_str(), key_signature.length(),
                                       &encoded_key_signature, Vault_base64::SINGLE_LINE));
     Vault_parser vault_parser(logger);
-    Secure_string key_parameters[2];
-    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, key_parameters));
+    KeyParameters key_parameters;
+    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
     EXPECT_STREQ(key_parameters[0].c_str(), "key1");
     EXPECT_STREQ(key_parameters[1].c_str(), "rob");
   }
@@ -55,8 +56,8 @@ namespace keyring__vault_parser_unittest
     EXPECT_FALSE(Vault_base64::encode(key_signature.c_str(), key_signature.length(),
                                       &encoded_key_signature, Vault_base64::SINGLE_LINE));
     Vault_parser vault_parser(logger);
-    Secure_string key_parameters[2];
-    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, key_parameters));
+    KeyParameters key_parameters;
+    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
     EXPECT_STREQ(key_parameters[0].c_str(), "key1");
     EXPECT_STREQ(key_parameters[1].c_str(), "Robert");
   }
@@ -68,8 +69,8 @@ namespace keyring__vault_parser_unittest
     EXPECT_FALSE(Vault_base64::encode(key_signature.c_str(), key_signature.length(),
                                       &encoded_key_signature, Vault_base64::SINGLE_LINE));
     Vault_parser vault_parser(logger);
-    Secure_string key_parameters[2];
-    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, key_parameters));
+    KeyParameters key_parameters;
+    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
     EXPECT_STREQ(key_parameters[0].c_str(), "_key123");
     EXPECT_STREQ(key_parameters[1].c_str(), "Robert33");
   }
@@ -81,8 +82,8 @@ namespace keyring__vault_parser_unittest
     EXPECT_FALSE(Vault_base64::encode(key_signature.c_str(), key_signature.length(),
                                       &encoded_key_signature, Vault_base64::SINGLE_LINE));
     Vault_parser vault_parser(logger);
-    Secure_string key_parameters[2];
-    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, key_parameters));
+    KeyParameters key_parameters;
+    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
     EXPECT_STREQ(key_parameters[0].c_str(), "123key123");
     EXPECT_STREQ(key_parameters[1].c_str(), "12Robert33");
   }
@@ -95,8 +96,8 @@ namespace keyring__vault_parser_unittest
                                       &encoded_key_signature, Vault_base64::SINGLE_LINE));
 
     Vault_parser vault_parser(logger);
-    Secure_string key_parameters[2];
-    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, key_parameters));
+    KeyParameters key_parameters;
+    EXPECT_FALSE(vault_parser.parse_key_signature(encoded_key_signature, &key_parameters));
     EXPECT_STREQ(key_parameters[0].c_str(), "INNODBKey-3c40d1ab-1475-11e7-ae1c-9cb6d0d5dc99-1");
     EXPECT_STREQ(key_parameters[1].c_str(), "");
   }

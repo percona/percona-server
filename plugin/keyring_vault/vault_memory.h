@@ -2,7 +2,6 @@
 #define MYSQL_VAULT_MEMORY
 
 #include <my_global.h>
-//#include <string.h>
 #include "keyring_memory.h"
 
 namespace keyring
@@ -46,8 +45,6 @@ namespace keyring
       my_free(p);
     }
   };
-
-  //typedef std::basic_string<char, std::char_traits<char>, Secure_allocator<char> > Secure_string;
 } // namespace keyring
 
 #endif // MYSQL_VAULT_MEMORY

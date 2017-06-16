@@ -5032,13 +5032,6 @@ void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
 void THD::set_query_id(query_id_t new_query_id)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-#ifndef DBUG_OFF
-  if (variables.query_exec_id != 0 &&
-    lex->sql_command != SQLCOM_SET_OPTION)
-  {
-    new_query_id= variables.query_exec_id;
-  }
-#endif
   query_id= new_query_id;
   mysql_mutex_unlock(&LOCK_thd_data);
 }

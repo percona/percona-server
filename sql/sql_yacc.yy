@@ -14775,6 +14775,7 @@ set:
             lex->one_shot_set= 0;
             lex->autocommit= 0;
             lex->set_statement= true;
+            lex->option_type= OPT_SESSION;
             sp_head *sp= lex->sphead;
             if (sp && !sp->is_invoked())
             {

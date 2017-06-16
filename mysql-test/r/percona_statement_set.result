@@ -934,3 +934,39 @@ TESTDIR
 SELECT @@innodb_tmpdir;
 @@innodb_tmpdir
 TMPDIR
+#
+# Bug 1385352: SET STATEMENT does not work after SET GLOBAL / SHOW GLOBAL STATUS
+# and affects the global value
+#
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+Variable_name	Value
+Threads_connected	1
+SELECT @@GLOBAL.sql_mode;
+@@GLOBAL.sql_mode
+NO_ENGINE_SUBSTITUTION
+SELECT @@GLOBAL.auto_increment_offset;
+@@GLOBAL.auto_increment_offset
+1
+SET STATEMENT sql_mode = 'NO_AUTO_CREATE_USER', auto_increment_offset = 123 FOR
+SELECT @@SESSION.sql_mode, @@SESSION.auto_increment_offset;
+@@SESSION.sql_mode	@@SESSION.auto_increment_offset
+NO_AUTO_CREATE_USER	123
+SELECT @@GLOBAL.sql_mode;
+@@GLOBAL.sql_mode
+NO_ENGINE_SUBSTITUTION
+SELECT @@GLOBAL.auto_increment_offset;
+@@GLOBAL.auto_increment_offset
+1
+SET @saved_general_log = @@GLOBAL.general_log;
+SET GLOBAL general_log = 0;
+SET STATEMENT sql_mode='NO_AUTO_CREATE_USER', auto_increment_offset=123 FOR
+SELECT @@SESSION.sql_mode, @@SESSION.auto_increment_offset;
+@@SESSION.sql_mode	@@SESSION.auto_increment_offset
+NO_AUTO_CREATE_USER	123
+SELECT @@GLOBAL.sql_mode;
+@@GLOBAL.sql_mode
+NO_ENGINE_SUBSTITUTION
+SELECT @@GLOBAL.auto_increment_offset;
+@@GLOBAL.auto_increment_offset
+1
+SET GLOBAL general_log = @saved_general_log;

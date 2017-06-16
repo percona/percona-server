@@ -9,6 +9,8 @@
 #include "i_serialized_object.h"
 #include "uuid.h"
 #include "generate_credential_file.h"
+#include "test_utils.h"
+#include "vault_mount.h"
 
 #ifdef HAVE_PSI_INTERFACE
 namespace keyring
@@ -33,6 +35,8 @@ namespace keyring__vault_keys_container_unittest
 
   CURL *curl = NULL;
   static std::string uuid = generate_uuid();
+  static std::string credential_file_url = "./keyring_vault.conf";
+  ILogger *logger;
 
   class Vault_keys_container_test : public ::testing::Test
   {
@@ -42,14 +46,9 @@ namespace keyring__vault_keys_container_unittest
   protected:
     virtual void SetUp()
     {
-      curl = curl_easy_init();
-      ASSERT_TRUE(curl != NULL);
       sample_key_data = "Robi";
       sample_key = new Vault_key((uuid+"Roberts_key").c_str(), "AES", "Robert", sample_key_data.c_str(), sample_key_data.length());
 
-      credential_file_url = "./keyring_vault.conf";
-      ASSERT_FALSE(generate_credential_file(credential_file_url));
-      logger = new Mock_logger();
       vault_keys_container = new Vault_keys_container(logger);
       vault_curl = new Vault_curl(logger, curl);
       vault_parser = new Vault_parser(logger);
@@ -57,19 +56,13 @@ namespace keyring__vault_keys_container_unittest
     virtual void TearDown()
     {
       delete vault_keys_container;
-      delete logger;
-      if (curl != NULL)
-        curl_easy_cleanup(curl);
-      curl_global_cleanup();
     }
 
   protected:
     Vault_keys_container *vault_keys_container;
-    ILogger *logger;
     IVault_curl *vault_curl;
     IVault_parser *vault_parser;
     std::string correct_token;
-    std::string credential_file_url;
     bool credential_file_was_created;
     Vault_key *sample_key;
     std::string sample_key_data;
@@ -147,7 +140,7 @@ namespace keyring__vault_keys_container_unittest
   {
     IKeyring_io *keyring_io = new Vault_io(logger, vault_curl, vault_parser);
     EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
-    Key key_id((uuid+"Roberts_key").c_str(), NULL, "Robert",NULL,0);
+    keyring::Key key_id((uuid+"Roberts_key").c_str(), NULL, "Robert",NULL,0);
     IKey* fetched_key = vault_keys_container->fetch_key(&key_id);
     ASSERT_TRUE(fetched_key == NULL);
     delete sample_key; // unused in this test
@@ -157,7 +150,7 @@ namespace keyring__vault_keys_container_unittest
   {
     IKeyring_io *keyring_io = new Vault_io(logger, vault_curl, vault_parser);
     EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
-    Key key_id((uuid+"Roberts_key").c_str(), "AES", "Robert",NULL,0);
+    keyring::Key key_id((uuid+"Roberts_key").c_str(), "AES", "Robert",NULL,0);
     EXPECT_TRUE(vault_keys_container->remove_key(&key_id));
     delete sample_key; // unused in this test
   }
@@ -168,7 +161,7 @@ namespace keyring__vault_keys_container_unittest
     EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
     EXPECT_FALSE(vault_keys_container->store_key(sample_key));
     ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
-    Key key_id((uuid+"NotRoberts_key").c_str(), NULL, "NotRobert",NULL,0);
+    keyring::Key key_id((uuid+"NotRoberts_key").c_str(), NULL, "NotRobert",NULL,0);
     IKey* fetched_key = vault_keys_container->fetch_key(&key_id);
     ASSERT_TRUE(fetched_key == NULL);
     ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
@@ -183,7 +176,7 @@ namespace keyring__vault_keys_container_unittest
     EXPECT_FALSE(vault_keys_container->init(keyring_io, credential_file_url));
     EXPECT_FALSE(vault_keys_container->store_key(sample_key));
     ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
-    Key key_id((uuid+"NotRoberts_key").c_str(), "AES", "NotRobert",NULL,0);
+    keyring::Key key_id((uuid+"NotRoberts_key").c_str(), "AES", "NotRobert",NULL,0);
     // Failed to remove key
     ASSERT_TRUE(vault_keys_container->remove_key(&key_id));
     ASSERT_TRUE(vault_keys_container->get_number_of_keys() == 1);
@@ -786,3 +779,31 @@ namespace keyring__vault_keys_container_unittest
   }
 }
 
+int main(int argc, char **argv)
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
+  MY_INIT(argv[0]);
+  my_testing::setup_server_for_unit_tests();
+
+  //create unique secret mount point for this test suite
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+  keyring__vault_keys_container_unittest::curl = curl_easy_init();
+  DBUG_ASSERT(keyring__vault_keys_container_unittest::curl != NULL);
+  keyring__vault_keys_container_unittest::logger = new keyring::Mock_logger();
+  keyring::Vault_mount vault_mount(keyring__vault_keys_container_unittest::curl, keyring__vault_keys_container_unittest::logger);
+  generate_credential_file(keyring__vault_keys_container_unittest::credential_file_url, CORRECT, keyring__vault_keys_container_unittest::uuid);
+  DBUG_ASSERT(vault_mount.init(&keyring__vault_keys_container_unittest::credential_file_url, &keyring__vault_keys_container_unittest::uuid) == false);
+  DBUG_ASSERT(vault_mount.mount_secret_backend() == false);
+
+  int ret= RUN_ALL_TESTS();
+
+  //remove unique secret mount point
+  DBUG_ASSERT(vault_mount.unmount_secret_backend() == false);
+  curl_easy_cleanup(keyring__vault_keys_container_unittest::curl);
+  curl_global_cleanup();
+  delete keyring__vault_keys_container_unittest::logger;
+
+  my_testing::teardown_server_for_unit_tests();
+  return ret;
+}

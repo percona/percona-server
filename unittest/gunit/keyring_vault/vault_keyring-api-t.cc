@@ -8,6 +8,8 @@
 #include "mock_logger.h"
 #include "uuid.h"
 #include "generate_credential_file.h"
+#include "test_utils.h"
+#include "vault_mount.h"
 
 namespace keyring__api_unittest
 {
@@ -15,6 +17,7 @@ namespace keyring__api_unittest
   using namespace keyring;
 
   static std::string uuid = generate_uuid();
+  static char *keyring_filename;
 
   class Keyring_vault_api_test : public ::testing::Test
   {
@@ -24,7 +27,6 @@ namespace keyring__api_unittest
     ~Keyring_vault_api_test()
     {
       delete[] plugin_name;
-      delete[] keyring_filename;
     }
 
     static std::string correct_token;
@@ -34,9 +36,6 @@ namespace keyring__api_unittest
     {
       plugin_name= new char[strlen("FakeKeyring")+1];
       strcpy(plugin_name, "FakeKeyring");
-      keyring_filename= new char[strlen("./keyring_vault.conf")+1];
-      strcpy(keyring_filename, "./keyring_vault.conf");
-      ASSERT_FALSE(generate_credential_file(std::string(keyring_filename)));
 
       plugin_info.name.str= plugin_name;
       plugin_info.name.length= strlen(plugin_name);
@@ -58,7 +57,6 @@ namespace keyring__api_unittest
 
     std::string sample_key_data;
     char *plugin_name;
-    char *keyring_filename;
     st_plugin_int plugin_info; // for Logger initialization
   };
 
@@ -341,4 +339,38 @@ namespace keyring__api_unittest
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger.get())), log(MY_ERROR_LEVEL, StrEq("Error while generating key: key_id cannot be empty")));
     EXPECT_TRUE(mysql_key_generate("", "AES", NULL, 128));
   }
+}
+
+int main(int argc, char **argv)
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
+  MY_INIT(argv[0]);
+  my_testing::setup_server_for_unit_tests();
+
+  //create unique secret mount point for this test suite
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+  CURL *curl = curl_easy_init();
+  DBUG_ASSERT(curl != NULL);
+  ILogger *logger = new keyring::Mock_logger();
+  keyring::Vault_mount vault_mount(curl, logger);
+
+  keyring__api_unittest::keyring_filename= new char[strlen("./keyring_vault.conf")+1];
+  strcpy(keyring__api_unittest::keyring_filename, "./keyring_vault.conf");
+  std::string keyring_conf(keyring__api_unittest::keyring_filename);
+  generate_credential_file(keyring_conf, CORRECT, keyring__api_unittest::uuid);
+  DBUG_ASSERT(vault_mount.init(&keyring_conf, &keyring__api_unittest::uuid) == false);
+  DBUG_ASSERT(vault_mount.mount_secret_backend() == false);
+
+  int ret= RUN_ALL_TESTS();
+
+  //remove unique secret mount point
+  DBUG_ASSERT(vault_mount.unmount_secret_backend() == false);
+  curl_easy_cleanup(curl);
+  curl_global_cleanup();
+  delete logger;
+  delete[] keyring__api_unittest::keyring_filename;
+
+  my_testing::teardown_server_for_unit_tests();
+  return ret;
 }

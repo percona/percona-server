@@ -8,6 +8,7 @@
 #include <curl/curl.h>
 #include "generate_credential_file.h"
 #include "uuid.h"
+#include "vault_mount.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring
@@ -25,36 +26,24 @@ namespace keyring__vault_io_unittest
   using ::testing::_;
   using ::testing::SetArgPointee;
 
-  static std::string uuid;
+  static std::string uuid = generate_uuid();
   CURL *curl = NULL;
+  std::string credential_file_url = "./keyring_vault.conf";
+  ILogger *logger;
 
   class Vault_io_test : public ::testing::Test
   {
   protected:
     virtual void SetUp()
     {
-      curl = curl_easy_init();
       ASSERT_TRUE(curl != NULL);
-      credential_file_url = "./keyring_vault.conf";
-      ASSERT_FALSE(generate_credential_file(credential_file_url));
-      logger= new Mock_logger();
       vault_curl = new Vault_curl(logger, curl);
       vault_parser = new Vault_parser(logger);
     }
 
-    virtual void TearDown()
-    {
-      delete logger;
-      if (curl != NULL)
-        curl_easy_cleanup(curl);
-      curl_global_cleanup();
-    }
-
   protected:
-    ILogger *logger;
     IVault_curl *vault_curl;
     IVault_parser *vault_parser;
-    std::string credential_file_url;
   };
 
   TEST_F(Vault_io_test, InitWithNotExisitingCredentialFile)
@@ -610,10 +599,25 @@ namespace keyring__vault_io_unittest
 } // namespace keyring__file_io_unittest
 
 int main(int argc, char **argv) {
-  curl_global_init(CURL_GLOBAL_DEFAULT);
+
   ::testing::InitGoogleTest(&argc, argv);
-  keyring__vault_io_unittest::uuid = generate_uuid();
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+
+  //create unique secret mount point for this test suite
+  DBUG_ASSERT(generate_credential_file(keyring__vault_io_unittest::credential_file_url) == false);
+  keyring__vault_io_unittest::curl = curl_easy_init();
+  DBUG_ASSERT(keyring__vault_io_unittest::curl != NULL);
+  keyring__vault_io_unittest::logger = new keyring::Mock_logger();
+  keyring::Vault_mount vault_mount(keyring__vault_io_unittest::curl, keyring__vault_io_unittest::logger);
+  generate_credential_file(keyring__vault_io_unittest::credential_file_url, CORRECT, keyring__vault_io_unittest::uuid);
+  DBUG_ASSERT(vault_mount.init(&keyring__vault_io_unittest::credential_file_url, &keyring__vault_io_unittest::uuid) == false);
+  DBUG_ASSERT(vault_mount.mount_secret_backend() == false);
   int ret= RUN_ALL_TESTS();
+
+  //remove unique secret mount point
+  DBUG_ASSERT(vault_mount.unmount_secret_backend() == false);
+  curl_easy_cleanup(keyring__vault_io_unittest::curl);
   curl_global_cleanup();
+  delete keyring__vault_io_unittest::logger;
   return ret;
 }

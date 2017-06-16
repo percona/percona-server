@@ -42,6 +42,7 @@ FOREACH(test ${TESTS})
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_credentials_parser.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_container.cc
+            ${CMAKE_SOURCE_DIR}/unittest/gunit/keyring_vault/vault_mount.cc
             )
     IF(WIN32)
         LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)

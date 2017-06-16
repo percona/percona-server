@@ -5,10 +5,12 @@
 enum GENERATE_CREDENTIALS
 {
   CORRECT,
-  WITH_INVALID_TOKEN
+  WITH_INVALID_TOKEN,
 };
 
-static bool generate_credential_file(const std::string &credential_file_path, const GENERATE_CREDENTIALS generate_credetials = CORRECT)
+static bool generate_credential_file(const std::string &credential_file_path,
+                                     const GENERATE_CREDENTIALS generate_credetials = CORRECT,
+                                     const std::string secret_mount_point = "")
 {
   std::remove(credential_file_path.c_str());
   const char* mysql_test_dir(getenv("MYSQL_TEST_DIR"));
@@ -24,7 +26,9 @@ static bool generate_credential_file(const std::string &credential_file_path, co
   while (!getline(credentials_file_template, line).fail())
   {
     if (generate_credetials == WITH_INVALID_TOKEN && line.find("token") != std::string::npos)
-       line = "token = 123-123-123";
+      line = "token = 123-123-123";
+    if (secret_mount_point.empty() == false && line.find("secret_mount_point") != std::string::npos)
+      line = "secret_mount_point = " + secret_mount_point;
     size_t mysql_test_dir_var_pos = line.find("MYSQL_TEST_DIR");
     if (mysql_test_dir_var_pos != std::string::npos)
       line.replace(mysql_test_dir_var_pos, strlen("MYSQL_TEST_DIR"), mysql_test_dir);

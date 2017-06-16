@@ -34,6 +34,7 @@ private:
 
   ILogger *logger;
   const static Secure_string digits;
+  const static size_t start_tag_length;
 };
 
 } // namespace keyring

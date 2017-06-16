@@ -61,6 +61,9 @@ bool Vault_parser::retrieve_tokens_from_list(const Secure_string &list, Tokens *
   return false;
 }
 
+
+const size_t Vault_parser::start_tag_length = strlen(":\"");
+
 bool Vault_parser::retrieve_value_from_map(const Secure_string &map, const Secure_string &key,
                                            Secure_string *value)
 {

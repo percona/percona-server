@@ -26,6 +26,8 @@ if ($archived_logs_count == 0)
 let $count = `SELECT $archived_logs_count - $archived_logs_mid + 1`;
 
 --source ../include/percona_log_archiving_stat.inc
+--source $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
 
 if ($archived_logs_count != $count)
 {

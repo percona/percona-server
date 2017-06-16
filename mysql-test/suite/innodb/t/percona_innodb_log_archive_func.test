@@ -21,6 +21,8 @@ let $count = $archived_logs_count;
 SET GLOBAL innodb_log_archive = ON;
 
 --source ../include/percona_log_archiving_stat.inc
+--source $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
 
 if ($count != $archived_logs_count)
 {

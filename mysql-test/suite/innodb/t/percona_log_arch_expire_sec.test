@@ -7,6 +7,8 @@
 
 --source ../include/percona_log_archiving_setup.inc
 
+CREATE TEMPORARY TABLE log_arch_status(a TEXT) ENGINE=MyISAM;
+
 SET @save_log_arch_expire_sec = @@innodb_log_arch_expire_sec;
 SET GLOBAL innodb_log_arch_expire_sec = 1;
 
@@ -14,16 +16,39 @@ SET GLOBAL innodb_log_arch_expire_sec = 1;
 
 --source ../include/percona_log_archiving_workload.inc
 
-SELECT sleep(4);
+real_sleep 2;
 
---source ../include/percona_log_archiving_stat.inc
-
-if ($archived_logs_count > 1)
+let $mysqld_pid_file=`SELECT @@GLOBAL.pid_file`;
+let $wait_counter= 1000;
+while ($wait_counter)
 {
-  die Test failed. Archived logs have nod been purged.;
+  --source ../include/percona_log_archiving_stat.inc
+  --disable_query_log
+  eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp'
+       INTO TABLE log_arch_status
+       LINES TERMINATED BY ';';
+  --remove_file $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
+  SELECT SUBSTRING(a, LOCATE('=', a) + 2) INTO @archived_logs_count
+         FROM log_arch_status WHERE a LIKE '%let $archived_logs_count%';
+  TRUNCATE TABLE log_arch_status;
+  --enable_query_log
+
+  if (`SELECT @archived_logs_count > 1`)
+  {
+    real_sleep 0.1;
+    dec $wait_counter;
+  }
+  if (`SELECT @archived_logs_count <= 1`)
+  {
+    let $wait_counter= 0;
+  }
+}
+
+if (`SELECT @archived_logs_count > 1`)
+{
+  die Test failed. Archived logs have not been purged.;
 }
 
 SET GLOBAL innodb_log_arch_expire_sec = @save_log_arch_expire_sec;
 
 --source ../include/percona_log_archiving_cleanup.inc
-

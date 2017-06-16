@@ -45,5 +45,7 @@ insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
 insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
 
 --source percona_log_archiving_stat.inc
+--source $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
 
 let $LAST_ARCHIVED_LSN = $last_log_file_lsn;

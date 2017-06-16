@@ -16,12 +16,10 @@ insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
 insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
 insert into t values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13);
 insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
+CREATE TEMPORARY TABLE log_arch_status(a TEXT) ENGINE=MyISAM;
 SET @save_log_arch_expire_sec = @@innodb_log_arch_expire_sec;
 SET GLOBAL innodb_log_arch_expire_sec = 1;
 insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
 insert into t (a) select t1.a from t t1, t t2, t t3 LIMIT 40000;
-SELECT sleep(4);
-sleep(4)
-0
 SET GLOBAL innodb_log_arch_expire_sec = @save_log_arch_expire_sec;
 DROP TABLE t;

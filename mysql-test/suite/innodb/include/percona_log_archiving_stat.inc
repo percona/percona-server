@@ -1,5 +1,12 @@
 #
-# Collect information about archived log files
+# Collect information about archived log files. The information is returned in
+# $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp which can be directly sourced
+# in MTR once or several times if not in a loop. If it has to be processed in a
+# loop, other means (such SQL LOAD DATA INFILE) must be used due to
+# https://bugs.mysql.com/bug.php?id=85825 (re-reading changed MTR source files
+# is not safe in mysqltest).
+#
+# It is up to the caller to delete the file after processing it.
 #
 
 perl;
@@ -17,6 +24,9 @@ sub get_file_stat {
   my $filename = fn($filepath);
 
   my @array = stat($filepath);
+  if (!@array) {
+    return {};
+  }
   my $filemodifytime = $array[9];
   my @t = localtime $filemodifytime;
   my $modifytime = sprintf "%04u-%02u-%02u %02u:%02u:%02u",$t[5]+1900,$t[4]+1,$t[3],$t[2],$t[1],$t[0];
@@ -49,7 +59,10 @@ sub print_file_stat {
 my @files_stat = ();
 
 foreach my $file (@files) {
-  push(@files_stat, get_file_stat($file));
+  my $file_stat = get_file_stat($file);
+  if ($file_stat) {
+    push(@files_stat, $file_stat);
+  }
 }
 
 $count = scalar(@files_stat);
@@ -66,7 +79,3 @@ printf F ("let \$archived_logs_mid = %s;\n", $mid_n);
 close F;
 
 EOF
-
---source $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp
-remove_file $MYSQLTEST_VARDIR/tmp/percona_archived_logs.tmp;
-

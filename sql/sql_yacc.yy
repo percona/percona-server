@@ -13906,7 +13906,7 @@ set:
           FOR_SYM statement 
           {
             $$= NEW_PTN PT_set(@1, @2,
-              NEW_PTN PT_start_set_stmt_option_value_list(
+              NEW_PTN PT_start_option_value_list_type(OPT_SESSION,
                 NEW_PTN PT_start_option_value_list_following_option_type_eq($3,
                                                                             @3,
                                                                             $4)), true);

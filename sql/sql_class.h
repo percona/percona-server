@@ -546,7 +546,6 @@ typedef struct system_variables
 #ifndef DBUG_OFF
   ulonglong query_exec_time;
   double    query_exec_time_double;
-  ulong     query_exec_id;
 #endif
   ulong log_slow_rate_limit;
   ulonglong log_slow_filter;
@@ -3072,9 +3071,6 @@ public:
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
                         CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
-private:
-  void do_set_query_id(query_id_t new_query_id);
-public:
   void set_open_tables(TABLE *open_tables_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);

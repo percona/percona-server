@@ -1112,13 +1112,6 @@ static Sys_var_double Sys_query_exec_time(
        NO_CMD_LINE, VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0),
        NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(update_cached_query_exec_time));
-static Sys_var_ulong sys_query_exec_id(
-       "query_exec_id",
-       "Pretend queries take this query id. When 0 (the default) use the"
-       "actual query id. Used only for debugging.",
-       SESSION_VAR(query_exec_id),
-       NO_CMD_LINE, VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, IN_BINLOG);
 #endif
 
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)

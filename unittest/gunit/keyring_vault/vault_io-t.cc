@@ -603,6 +603,8 @@ int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   curl_global_init(CURL_GLOBAL_DEFAULT);
 
+  std::cout << "Main called" << std::endl;
+
   //create unique secret mount point for this test suite
   DBUG_ASSERT(generate_credential_file(keyring__vault_io_unittest::credential_file_url) == false);
   keyring__vault_io_unittest::curl = curl_easy_init();

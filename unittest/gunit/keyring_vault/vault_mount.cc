@@ -1,5 +1,6 @@
 #include "vault_mount.h"
 #include <iostream>
+#include <sstream>
 
 namespace keyring {
 

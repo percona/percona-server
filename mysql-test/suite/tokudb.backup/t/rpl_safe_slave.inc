@@ -60,9 +60,6 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 --disable_warnings
 SET DEBUG_SYNC = "now SIGNAL ttlss_continue";
 
---echo ## Reset debug_sync points
-SET DEBUG_SYNC = "RESET";
-
 --connection slave_2
 --echo ### Wait for backup finish
 --reap

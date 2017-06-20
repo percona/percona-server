@@ -603,21 +603,37 @@ int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   curl_global_init(CURL_GLOBAL_DEFAULT);
 
-  std::cout << "Main called" << std::endl;
-
   //create unique secret mount point for this test suite
-  DBUG_ASSERT(generate_credential_file(keyring__vault_io_unittest::credential_file_url) == false);
   keyring__vault_io_unittest::curl = curl_easy_init();
-  DBUG_ASSERT(keyring__vault_io_unittest::curl != NULL);
+  if (keyring__vault_io_unittest::curl == NULL)
+  {
+    std::cout << "Could not initialize CURL session" << std::endl;
+    return 1; 
+  }
   keyring__vault_io_unittest::logger = new keyring::Mock_logger();
   keyring::Vault_mount vault_mount(keyring__vault_io_unittest::curl, keyring__vault_io_unittest::logger);
-  generate_credential_file(keyring__vault_io_unittest::credential_file_url, CORRECT, keyring__vault_io_unittest::uuid);
-  DBUG_ASSERT(vault_mount.init(&keyring__vault_io_unittest::credential_file_url, &keyring__vault_io_unittest::uuid) == false);
-  DBUG_ASSERT(vault_mount.mount_secret_backend() == false);
+  if (generate_credential_file(keyring__vault_io_unittest::credential_file_url, CORRECT, keyring__vault_io_unittest::uuid))
+  {
+    std::cout << "Could not generate credential file" << std::endl;
+    return 2; 
+  }
+  if (vault_mount.init(&keyring__vault_io_unittest::credential_file_url, &keyring__vault_io_unittest::uuid))
+  {
+    std::cout << "Could not initialized Vault_mount" << std::endl;
+    return 3;
+  }
+  if (vault_mount.mount_secret_backend())
+  {
+    std::cout << "Could not mount secret backend" << std::endl;
+    return 4;
+  }
   int ret= RUN_ALL_TESTS();
-
+  
   //remove unique secret mount point
-  DBUG_ASSERT(vault_mount.unmount_secret_backend() == false);
+  if (vault_mount.unmount_secret_backend())
+  {
+    std::cout << "Could not unmount secret backend" << std::endl;
+  }
   curl_easy_cleanup(keyring__vault_io_unittest::curl);
   curl_global_cleanup();
   delete keyring__vault_io_unittest::logger;

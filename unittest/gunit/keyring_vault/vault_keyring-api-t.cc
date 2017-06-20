@@ -351,21 +351,40 @@ int main(int argc, char **argv)
   //create unique secret mount point for this test suite
   curl_global_init(CURL_GLOBAL_DEFAULT);
   CURL *curl = curl_easy_init();
-  DBUG_ASSERT(curl != NULL);
+  if (curl == NULL)
+  {
+    std::cout << "Could not initialize CURL session" << std::endl;
+    return 1; 
+  }
   ILogger *logger = new keyring::Mock_logger();
   keyring::Vault_mount vault_mount(curl, logger);
 
   keyring__api_unittest::keyring_filename= new char[strlen("./keyring_vault.conf")+1];
   strcpy(keyring__api_unittest::keyring_filename, "./keyring_vault.conf");
   std::string keyring_conf(keyring__api_unittest::keyring_filename);
-  generate_credential_file(keyring_conf, CORRECT, keyring__api_unittest::uuid);
-  DBUG_ASSERT(vault_mount.init(&keyring_conf, &keyring__api_unittest::uuid) == false);
-  DBUG_ASSERT(vault_mount.mount_secret_backend() == false);
+  if (generate_credential_file(keyring_conf, CORRECT, keyring__api_unittest::uuid))
+  {
+    std::cout << "Could not generate credential file" << std::endl;
+    return 2; 
+  }
+  if (vault_mount.init(&keyring_conf, &keyring__api_unittest::uuid))
+  {
+    std::cout << "Could not initialize Vault_mount" << std::endl;
+    return 3; 
+  }
+  if (vault_mount.mount_secret_backend())
+  {
+    std::cout << "Could not mount secret backend" << std::endl;
+    return 4;
+  }
 
   int ret= RUN_ALL_TESTS();
 
   //remove unique secret mount point
-  DBUG_ASSERT(vault_mount.unmount_secret_backend() == false);
+  if (vault_mount.unmount_secret_backend())
+  {
+    std::cout << "Could not unmount secret backend" << std::endl;
+  }
   curl_easy_cleanup(curl);
   curl_global_cleanup();
   delete logger;

@@ -1,31 +1,82 @@
 # TODO: Copyrights
 
+# by default MyRocks is not built
+IF (NOT DEFINED WITH_ROCKSDB)
+  IF (WITHOUT_ROCKSDB OR WITHOUT_ROCKSDB_STORAGE_ENGINE)
+    SET (WITH_ROCKSDB 0)
+  ELSE ()
+    SET (WITH_ROCKSDB 1)
+  ENDIF ()
+ENDIF ()
+
 IF (NOT WITH_ROCKSDB)
-  MESSAGE(STATUS "Not building with MyRocks storage engine, you must specify -DWITH_ROCKSDB=1 to cmake in order to build with MyRocks.")
-  RETURN()
+  MESSAGE (STATUS "Not building with MyRocks storage engine, you must specify -DWITH_ROCKSDB=1|ON|FORCE to cmake in order to build with MyRocks.")
+  RETURN ()
 ELSE ()
-  MESSAGE(STATUS "Building with MyRocks storage engine")
+  MESSAGE (STATUS "Building with MyRocks storage engine = " ${WITH_ROCKSDB})
+  IF (WITH_ROCKSDB STREQUAL "FORCE")
+    SET (MYROCKS_STATUS_MODE FATAL_ERROR)
+  ELSE ()
+    SET (MYROCKS_STATUS_MODE WARNING)
+  ENDIF ()
+ENDIF ()
+
+# check platform support, no 32 bit
+IF (NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+  MESSAGE (${MYROCKS_STATUS_MODE} "x86_64 is only platform supported. ${CMAKE_SYSTEM_PROCESSOR} found. Not building MyRocks")
+  RETURN ()
+ENDIF ()
+
+# check compiler version, 4.8.0 is minimal accepted
+IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
+    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8.0"))
+  MESSAGE (${MYROCKS_STATUS_MODE} "GCC >= 4.8.0 required. ${CMAKE_CXX_COMPILER_VERSION} found. Not building MyRocks")
+  RETURN ()
+ENDIF ()
+
+# check that compiler supports cxx11 and set options
+INCLUDE (check_stdcxx11)
+IF (!HAVE_STDCXX11)
+  MESSAGE (${MYROCKS_STATUS_MODE} "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does. Not building MyRocks")
+  RETURN ()
 ENDIF ()
 
 IF (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/Makefile")
   MESSAGE(SEND_ERROR "Missing Makefile in rocksdb directory. Try \"git submodule update\".")
-ENDIF()
+ENDIF ()
 
 CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
 IF(HAVE_SCHED_GETCPU)
   ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1)
 ENDIF()
 
-## adds a compiler flag if the compiler supports it
-INCLUDE(CheckCCompilerFlag)
-INCLUDE(CheckCXXCompilerFlag)
-
-# pick language dialect
-check_cxx_compiler_flag(-std=c++11 HAVE_STDCXX11)
-IF (HAVE_STDCXX11)
-  SET(CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+SET(CMAKE_REQUIRED_FLAGS ${CMAKE_CXX_FLAGS})
+INCLUDE(CheckCXXSourceCompiles)
+CHECK_CXX_SOURCE_COMPILES("
+#include <cstdint>
+#include <nmmintrin.h>
+int main() {
+  volatile uint32_t x = _mm_crc32_u32(0, 0);
+}
+" HAVE_SSE42)
+IF (HAVE_SSE42)
+  ADD_DEFINITIONS(-DHAVE_SSE42)
 ELSE ()
-  MESSAGE(FATAL_ERROR "${CMAKE_CXX_COMPILER} doesn't support -std=c++11, you need one that does.")
+  MESSAGE(${MYROCKS_STATUS_MODE} "No SSE42 support found. Not building MyRocks")
+ENDIF ()
+
+IF(UNIX)
+  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    ADD_DEFINITIONS(-DOS_LINUX)
+
+    CHECK_INCLUDE_FILES(linux/falloc.h HAVE_LINUX_FALLOC_H)
+    CHECK_FUNCTION_EXISTS(fallocate HAVE_FALLOCATE)
+
+    IF(HAVE_FALLOCATE AND HAVE_LINUX_FALLOC_H)
+      ADD_DEFINITIONS(-DROCKSDB_FALLOCATE_PRESENT)
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # get a list of rocksdb library source files
@@ -38,15 +89,45 @@ EXECUTE_PROCESS(
 # split the list into lines
 STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 
+# add bundled compression code
+SET(ROCKSDB_LIB_SOURCES
+  ${ROCKSDB_LIB_SOURCES}
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/pool.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/threading.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/xxhash.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/zstd_common.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/fse_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/huf_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
+)
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
 )
 
-ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
-  -DZLIB)
+ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4
+  -DZSTD)
+
+IF(WITH_FB_TSAN)
+  SET(PIC_EXT "_pic")
+ELSE()
+  SET(PIC_EXT "")
+ENDIF()
 
 SET(ROCKSDB_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
@@ -67,50 +148,6 @@ SET(ROCKSDB_SOURCES
   rdb_threads.cc rdb_threads.h
   ${ROCKSDB_LIB_SOURCES}
 )
-
-IF(WITH_FB_TSAN)
-  SET(PIC_EXT "_pic")
-ELSE()
-  SET(PIC_EXT "")
-ENDIF()
-
-SET(rocksdb_static_libs )
-IF (NOT "$ENV{WITH_SNAPPY}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_SNAPPY}/lib/libsnappy${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DSNAPPY)
-ELSE()
-# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
-# SET(rocksdb_static_libs ${rocksdb_static_libs} snappy)
-# MYR-28
-ENDIF()
-
-IF (NOT "$ENV{WITH_LZ4}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_LZ4}/lib/liblz4${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DLZ4)
-ELSE()
-# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
-#  SET(rocksdb_static_libs ${rocksdb_static_libs} lz4)
-# MYR-28
-ENDIF()
-
-IF (NOT "$ENV{WITH_BZ2}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_BZ2}/lib/libbz2${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DBZIP2)
-ELSE()
-# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
-#  SET(rocksdb_static_libs ${rocksdb_static_libs} bz2)
-# MYR-28
-ENDIF()
-
-# link ZSTD only if instructed
-IF (NOT "$ENV{WITH_ZSTD}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_ZSTD}/lib/libzstd${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DZSTD)
-ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt")
 

@@ -2,7 +2,6 @@
 Copyright and Licensing Information
 ===================================
 
-
 Documentation Licensing
 =======================
 

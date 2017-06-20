@@ -1867,7 +1867,8 @@ max value of (used - freed).
 
 .. variable:: Tokudb_MEMORY_MALLOCATOR_VERSION
 
-This variable shows the mallocator version detected by PerconaFT.
+This variable shows the version of the memory allocator library detected by
+PerconaFT.
 
 .. variable:: Tokudb_MEMORY_MMAP_THRESHOLD
 

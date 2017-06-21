@@ -2628,6 +2628,7 @@ int fill_schema_user_stats(THD* thd, TABLE_LIST* tables, COND* cond)
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
           DBUG_RETURN(1);
 
+  refresh_concurrent_conn_stats();
   // Iterates through all the global stats and sends them to the client.
   // Pattern matching on the client IP is supported.
 
@@ -2667,6 +2668,7 @@ int fill_schema_client_stats(THD* thd, TABLE_LIST* tables, COND* cond)
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
           DBUG_RETURN(1);
 
+  refresh_concurrent_conn_stats();
   // Iterates through all the global stats and sends them to the client.
   // Pattern matching on the client IP is supported.
 

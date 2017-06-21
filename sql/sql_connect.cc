@@ -421,7 +421,6 @@ static int increment_count_by_name(const char *name, const char *role_name,
       return 1; // Out of memory
     }
   }
-  user_stats->concurrent_connections++;
   user_stats->total_connections++;
   if (thd->net.vio &&  thd->net.vio->type == VIO_TYPE_SSL)
     user_stats->total_ssl_connections++;
@@ -543,11 +542,6 @@ static void update_global_user_stats_with_user(THD* thd,
   user_stats->lost_connections+=     thd->diff_lost_connections;
   user_stats->access_denied_errors+= thd->diff_access_denied_errors;
   user_stats->empty_queries+=        thd->diff_empty_queries;
-
-  if (thd->diff_disconnects && thd->diff_denied_connections == 0) {
-    DBUG_ASSERT(user_stats->concurrent_connections > 0);
-    user_stats->concurrent_connections-=  thd->diff_disconnects;
-  }
 }
 
 static void update_global_thread_stats_with_thread(THD* thd,
@@ -653,6 +647,54 @@ void update_global_user_stats(THD* thd, bool create_user, time_t now)
   thd->reset_diff_stats();
 
   mysql_mutex_unlock(&LOCK_global_user_client_stats);
+}
+
+static void clear_stats_concurrent_connections(HASH* stats)
+{
+  for (ulong idx= 0; idx < stats->records; idx++)
+  {
+    USER_STATS* const user_stats=
+      reinterpret_cast<USER_STATS*>(my_hash_element(stats, idx));
+    user_stats->concurrent_connections= 0;
+  }
+}
+
+static void inc_stats_concurrent_conn(HASH* stats,
+				      const char* user_string, int cnt)
+{
+  USER_STATS* const user_stats=
+    reinterpret_cast<USER_STATS*>(my_hash_search(stats,
+          reinterpret_cast<const uchar*>(user_string),
+          strlen(user_string)));
+  if (user_stats)
+    user_stats->concurrent_connections+= cnt;
+}
+
+/**
+  Update number of concurrent connections for user_stats and client_stats
+  based on account resource limits
+*/
+void refresh_concurrent_conn_stats()
+{
+  mysql_mutex_lock(&LOCK_user_conn);
+
+  mysql_mutex_lock(&LOCK_global_user_client_stats);
+  clear_stats_concurrent_connections(&global_user_stats);
+  clear_stats_concurrent_connections(&global_client_stats);
+  mysql_mutex_unlock(&LOCK_global_user_client_stats);
+
+  for (ulong idx= 0; idx < hash_user_connections.records; idx++)
+  {
+    const struct user_conn* const uc=
+      reinterpret_cast<struct user_conn*>(
+          my_hash_element(&hash_user_connections, idx));
+    mysql_mutex_lock(&LOCK_global_user_client_stats);
+    inc_stats_concurrent_conn(&global_user_stats, uc->user, uc->connections);
+    inc_stats_concurrent_conn(&global_client_stats, uc->host, uc->connections);
+    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+  }
+
+  mysql_mutex_unlock(&LOCK_user_conn);
 }
 
 /*
@@ -1224,12 +1266,6 @@ void end_connection(THD *thd)
     of someone else.
   */
   release_user_connection(thd);
-
-  if (unlikely(opt_userstat)) {
-    thd->update_stats(false);
-    thd->diff_disconnects= 1;
-    update_global_user_stats(thd, false, time(NULL));
-  }
 
   if (thd->killed || (net->error && net->vio != 0))
   {

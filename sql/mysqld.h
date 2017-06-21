@@ -516,6 +516,8 @@ void free_global_index_stats(void);
 void free_global_client_stats(void);
 void free_global_thread_stats(void);
 
+void refresh_concurrent_conn_stats();
+
 /*
   TODO: Replace this with an inline function.
  */

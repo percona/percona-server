@@ -5,54 +5,69 @@ Compressed columns with dictionaries
 ====================================
 
 In :rn:`5.7.17-11` |Percona Server| has been extended with a new per-column
-compression feature. It is a data type modifier, independent from user-level
-SQL and |InnoDB| data compression, that causes the data stored in the column to
-be compressed on writing to storage and decompressed on read. For all other
-purposes the data type is identical to the one without modifier, i.e. no new
-data types are created. Compression is done by using the ``zlib`` library.
+compression feature. It is a data type modifier, independent from user-level SQL
+and |InnoDB| data compression, that causes the data stored in the column to be
+compressed on writing to storage and decompressed on reading. For all other
+purposes, the data type is identical to the one without the modifier, i.e. no
+new data types are created. Compression is done by using the ``zlib`` library.
 
-Additionally it is possible to pre-define a set of strings for each compressed
-column to achieve a better compression ratio on a relatively small individual
+Additionally, it is possible to pre-define a set of strings for each compressed
+column to achieve a better compression ratio on relatively small individual
 data items.
 
 This feature provides:
 
 * a better compression ratio for text data which consist of a large number of
   predefined words (e.g. JSON or XML) using compression methods with static
-  dictionaries,
-* in contrast to |InnoDB| row compression method it provides a way to select
-  which columns in the table must be compressed.
-
+  dictionaries
+* a way to select columns in the table to compress (in contrast to the |InnoDB|
+  row compression method)
+  
 This feature is based on a patch provided by Weixiang Zhai.
 
 Specifications
 ==============
 
-The feature is limited to InnoDB/XtraDB storage engine and to:
+The feature is limited to InnoDB/XtraDB storage engine and to columns of the
+following data types:
 
-* ``BLOB`` (including ``TINYBLOB``, ``MEDIUMBLOB``, ``LONGBLOG``),
+* ``BLOB`` (including ``TINYBLOB``, ``MEDIUMBLOB``, ``LONGBLOG``)
 
-* ``TEXT`` (including ``LONGTEXT``),
+* ``TEXT`` (including ``TINYTEXT``, ``MEDUUMTEXT``, ``LONGTEXT``)
 
-* ``VARCHAR`` (including ``NATIONAL VARCHAR``), and
+* ``VARCHAR`` (including ``NATIONAL VARCHAR``)
 
-* ``VARBINARY`` columns.
+* ``VARBINARY``
+
+* ``JSON``
 
 The syntax to declare a compressed column is using an extension of an existing
 ``COLUMN_FORMAT`` modifier: ``COLUMN_FORMAT COMPRESSED``. If this modifier is
-applied on an unsupported column type or storage engine, an error is returned.
+applied to an unsupported column type or storage engine, an error is returned.
 
 The compression can be specified:
 
-* at the table create time:
+* when creating a table:
   ``CREATE TABLE ... (..., foo BLOB COLUMN_FORMAT COMPRESSED, ...);``
-
-* or a table can be modified to compress/decompress a column later:
+  
+* when altering a table and modifying a column to the compressed format:
   ``ALTER TABLE ... MODIFY [COLUMN] ... COLUMN_FORMAT COMPRESSED``, or
   ``ALTER TABLE ... CHANGE [COLUMN] ... COLUMN_FORMAT COMPRESSED``.
 
-To decompress a column, a ``COLUMN_FORMAT`` value any other than ``COMPRESSED``
-can be specified: ``FIXED``, ``DYNAMIC``, or ``DEFAULT``. If there is a column
+Unlike Oracle MySQL, compression is applicable to generated stored columns. Use
+this syntax extension as follows:
+
+.. code-block:: mysql
+
+  mysql> CREATE TABLE t1(
+	  id INT,
+	  a BLOB,
+	  b JSON COLUMN_FORMAT COMPRESSED,
+	  g BLOB GENERATED ALWAYS AS (a) STORED COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
+        ) ENGINE=InnoDB;
+
+To decompress a column, specify a value other than ``COMPRESSED`` to
+``COLUMN_FORMAT``: ``FIXED``, ``DYNAMIC``, or ``DEFAULT``. If there is a column
 compression/decompression request in an ``ALTER TABLE``, it is forced to the
 ``COPY`` algorithm.
 
@@ -62,11 +77,11 @@ Two new variables: :variable:`innodb_compressed_columns_zip_level` and
 Compression dictionary support
 ==============================
 
-To achieve better compression ration on relatively small individual data items,
-it is possible to pre-define compression dictionary, which is a set of strings
+To achieve a better compression ratio on relatively small individual data items,
+it is possible to pre-define a compression dictionary, which is a set of strings
 for each compressed column.
 
-Compression dictionaries can be represented as a list of words in a form of a
+Compression dictionaries can be represented as a list of words in the form of a
 string (comma or any other character can be used as a delimiter although not
 required). In other words, ``a,bb,ccc``, ``a bb ccc`` and ``abbccc`` will have
 the same effect. However, the latter is more space-efficient. Quote symbol
@@ -82,7 +97,7 @@ transactions.
 Example
 -------
 
-In order to use the compression dictionary you'll need first to create it. This
+In order to use the compression dictionary you need to create it. This
 can be done by running:
 
 .. code-block:: mysql
@@ -104,7 +119,7 @@ you should run:
            b BLOB COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY numbers
          ) ENGINE=InnoDB;
 
-Following example shows how to insert a sample of JSON data into the table:
+The following example shows how to insert a sample of JSON data into the table:
 
 .. code-block:: mysql
 

@@ -17,17 +17,17 @@ SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 0
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED table.
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED table.
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
 DROP TABLE t1;
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB: Unsupported encryption option for temporary tables.
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 DROP TABLE t1;
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
@@ -110,7 +110,7 @@ c1	c2
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED table.
 ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 c1	c2
@@ -251,7 +251,7 @@ SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
-ERROR HY000: This tablespace can't be encrypted.
+ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED table.
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t1 (id int unsigned NOT NULL auto_increment PRIMARY KEY, val varchar(20) NOT NULL) ENGINE=InnoDB;

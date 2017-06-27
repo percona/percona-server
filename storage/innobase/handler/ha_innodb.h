@@ -756,6 +756,9 @@ public:
 	/** Validate COMPRESSION option. */
 	bool create_option_compression_is_valid();
 
+	/** Validate ENCRYPTION option. */
+	bool create_option_encryption_is_valid() const;
+
 	/** Prepare to create a table. */
 	int prepare_create_table(const char* name);
 

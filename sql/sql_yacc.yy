@@ -4824,6 +4824,7 @@ tablespace_option:
         | ts_wait
         | opt_ts_comment
         | opt_ts_file_block_size
+        | opt_ts_encryption
         ;
 
 alter_tablespace_option_list:
@@ -5049,6 +5050,14 @@ opt_ts_file_block_size:
               MYSQL_YYABORT;
             }
             lex->alter_tablespace_info->file_block_size= $3;
+          }
+        ;
+
+opt_ts_encryption:
+          ENCRYPTION_SYM opt_equal TEXT_STRING_sys
+          {
+            Lex->alter_tablespace_info->encrypt= true;
+            Lex->alter_tablespace_info->encrypt_type= $3;
           }
         ;
 

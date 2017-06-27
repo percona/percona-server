@@ -44,7 +44,7 @@ SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 # Test create encrypted table when inndb_file_per_table is 0,
 # Should fail, since we don't support create table in shared tablespace.
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 SET GLOBAL innodb_file_per_table = 1;
@@ -52,7 +52,7 @@ SELECT @@innodb_file_per_table;
 
 # Test create encrypted table in system tablespace,
 # Should fail, since it's a shared tablespace.
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
 
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
@@ -60,7 +60,7 @@ DROP TABLE t1;
 
 # Test create temporary encrypted table,
 # Should fail, since temporary table is in shared tablespace.
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
 
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
@@ -149,7 +149,7 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
 
 # Don't support move it to shared tablespace
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
 
 # We only support copy alter
@@ -269,7 +269,7 @@ CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
 --enable_warnings
 
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 
 # Cleanup

@@ -70,37 +70,33 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   keyring_filename= value->val_str(value, buff, &len);
   if (keyring_filename == NULL)
     return 1;
-  mysql_rwlock_wrlock(&LOCK_keyring);
+  PolyLock_rwlock keyring_rwlock(&LOCK_keyring);
+  AutoWLock keyring_auto_wlokc(&keyring_rwlock);
 
   try
   {
     if (reset_curl())
     {
       logger->log(MY_ERROR_LEVEL, "Cannot set keyring_vault_config_file");
-      mysql_rwlock_unlock(&LOCK_keyring);
       return 1;
     }
     boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
-    IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl.release(), vault_parser.release()));
+    IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl.get(), vault_parser.get()));
+    vault_curl.release();
+    vault_parser.release();
     if (new_keys->init(keyring_io, keyring_filename))
-    {
-      mysql_rwlock_unlock(&LOCK_keyring);
       return 1;
-    }
     *reinterpret_cast<IKeys_container **>(save)= new_keys.release();
-    mysql_rwlock_unlock(&LOCK_keyring);
   }
   catch (const std::bad_alloc &e)
   {
     handle_std_bad_alloc_exception("Cannot set keyring_vault_config_file");
-    mysql_rwlock_unlock(&LOCK_keyring);
     return TRUE;
   }
   catch (...)
   {
     handle_unknown_exception("Cannot set keyring_vault_config_file");
-    mysql_rwlock_unlock(&LOCK_keyring);
     return 1;
   }
   return(0);
@@ -139,8 +135,10 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
     keys.reset(new Vault_keys_container(logger.get()));
     boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
-    IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl.release(),
-                                          vault_parser.release());
+    IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl.get(),
+                                          vault_parser.get());
+    vault_curl.release();
+    vault_parser.release();
     if (keys->init(keyring_io, keyring_vault_config_file))
     {
       is_keys_container_initialized = FALSE;

@@ -11,7 +11,8 @@ static std::string generate_uuid()
   return uuid_ss.str();
 }
 
-static std::string get_key_signature(std::string uuid, std::string key_id, std::string user)
+static std::string get_key_signature(const std::string &uuid, const std::string &key_id,
+                                     const std::string &user)
 {
   std::string id = uuid + key_id;
   std::ostringstream signature;

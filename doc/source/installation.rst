@@ -12,6 +12,7 @@ This page provides the information on how to you can install |Percona Server|. F
 * :ref:`installing_from_source_tarball`
 * :ref:`source_from_git`
 * :ref:`compile_from_source`
+* :ref:`docker_images`
 
 Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
@@ -30,6 +31,7 @@ Following guides describe the installation process for using the official Percon
 
    installation/apt_repo 
    installation/yum_repo 
+   installation/docker_images
 
 .. _installing_from_binary_tarball:
 

@@ -199,6 +199,9 @@ class parallel_dblwr_t {
 public:
 	/** Parallel doublewrite buffer file handle */
 	pfs_os_file_t		file;
+	/** Whether the doublewrite buffer file needs flushing after each
+	write */
+	bool			needs_flush;
 	/** Path to the parallel doublewrite buffer */
 	char*			path;
 	/** Individual parallel doublewrite partitions */

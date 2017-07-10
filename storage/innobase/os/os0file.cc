@@ -3706,9 +3706,8 @@ os_file_create_func(
 	} else if (!srv_read_only_mode
 		   && *success
 		   && srv_unix_file_flush_method == SRV_UNIX_ALL_O_DIRECT) {
-		/* Do fsync() on log and parallel doublewrite files
-		when setting O_DIRECT fails.
-		See log_io_complete() and buf_dblwr_flush_buffered_writes() */
+		/* Do fsync() on log and files when setting O_DIRECT fails.
+		See log_io_complete() */
 		if (!os_file_set_nocache(file.m_file, name, mode_str)) {
 			srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
 		}
@@ -6010,12 +6009,15 @@ os_file_handle_error_no_exit(
 @param[in]	file_name	file name, used in the diagnostic message
 @param[in]	name		"open" or "create"; used in the diagnostic
 				message
+@param[in]	failure_warning	if true (the default), the failure to disable
+caching is diagnosed at warning severity, and at note severity otherwise
 @return true if operation is success and false */
 bool
 os_file_set_nocache(
 	int		fd		MY_ATTRIBUTE((unused)),
 	const char*	file_name	MY_ATTRIBUTE((unused)),
-	const char*	operation_name	MY_ATTRIBUTE((unused)))
+	const char*	operation_name	MY_ATTRIBUTE((unused)),
+	bool		failure_warning MY_ATTRIBUTE((unused)))
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
@@ -6037,8 +6039,8 @@ os_file_set_nocache(
 			if (!warning_message_printed) {
 				warning_message_printed = true;
 # ifdef UNIV_LINUX
-				ib::warn()
-					<< "Failed to set O_DIRECT on file"
+				ib::warn_or_info(failure_warning)
+					<< "Failed to set O_DIRECT on file "
 					<< file_name << ";" << operation_name
 					<< ": " << strerror(errno_save) << ", "
 					<< "continuing anyway. O_DIRECT is "
@@ -6053,7 +6055,7 @@ os_file_set_nocache(
 # ifndef UNIV_LINUX
 short_warning:
 # endif
-			ib::warn()
+			ib::warn_or_info(failure_warning)
 				<< "Failed to set O_DIRECT on file "
 				<< file_name << "; " << operation_name
 				<< " : " << strerror(errno_save)

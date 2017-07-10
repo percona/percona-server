@@ -1901,7 +1901,7 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
 {
   SSL *ssl;
   X509 *server_cert= NULL;
-  char *cn= NULL;
+  const char *cn= NULL;
   int cn_loc= -1;
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;
@@ -1973,7 +1973,11 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     goto error;
   }
 
-  cn= (char *) ASN1_STRING_data(cn_asn1);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  cn= (const char *) ASN1_STRING_data(cn_asn1);
+#else
+  cn= (const char *) ASN1_STRING_get0_data(cn_asn1);
+#endif
 
   // There should not be any NULL embedded in the CN
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))

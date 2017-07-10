@@ -988,7 +988,7 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 typedef struct CRYPTO_dynlock_value
 {
   mysql_rwlock_t lock;
@@ -1665,7 +1665,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_connection_count);
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
@@ -2125,7 +2125,7 @@ void close_connection(THD *thd, uint sql_errno)
 
   thd->disconnect();
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   ERR_remove_state(0);
 #endif
 
@@ -3696,7 +3696,7 @@ static int init_thread_environment()
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
@@ -3749,7 +3749,8 @@ static int init_thread_environment()
 }
 
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) && \
+    (OPENSSL_VERSION_NUMBER < 0x10100000L)
 static unsigned long openssl_id_function()
 { 
   return (unsigned long) pthread_self();
@@ -3833,7 +3834,9 @@ static void init_ssl()
 					  opt_ssl_ca, opt_ssl_capath,
                                           opt_ssl_cipher, &error,
                                           ssl_ctx_flags);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_state(0);
+#endif
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {

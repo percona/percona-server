@@ -123,12 +123,18 @@ static DH *get_dh2048(void)
   DH *dh;
   if ((dh=DH_new()))
   {
-    dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
-    dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+    BIGNUM* p= BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
+    BIGNUM* g= BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    dh->p= p;
+    dh->g= g;
     if (! dh->p || ! dh->g)
+#else
+    if (!DH_set0_pqg(dh, p, NULL, g))
+#endif
     {
       DH_free(dh);
-      dh=0;
+      dh= NULL;
     }
   }
   return(dh);

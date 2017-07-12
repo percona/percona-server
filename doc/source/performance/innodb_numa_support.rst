@@ -44,10 +44,10 @@ Command-line Options for mysqld_safe
      :location: mysqld_safe
      :dyn: No
      :vartype: Boolean
-     :default: OFF
-     :range: ON/OFF
+     :default: ``0`` (OFF)
+     :range: ``0``/``1``
 
-When enabled this will flush and purge buffers/caches before starting the server to help ensure ``NUMA`` allocation fairness across nodes. This option is useful for establishing a consistent and predictable behavior for normal usage and/or benchmarking.
+When enabled (set to ``1``) this will flush and purge buffers/caches before starting the server to help ensure ``NUMA`` allocation fairness across nodes. This option is useful for establishing a consistent and predictable behavior for normal usage and/or benchmarking.
 
 .. variable:: numa_interleave
 
@@ -56,10 +56,10 @@ When enabled this will flush and purge buffers/caches before starting the server
      :location: mysqld_safe
      :dyn: No
      :vartype: Boolean
-     :default: OFF
-     :range: ON/OFF
+     :default: ``0`` (OFF)
+     :range: ``0``/``1``
 
-When this option is enabled, mysqld will run with its memory interleaved on all ``NUMA`` nodes by starting it with ``numactl --interleave=all``. In case there is just 1 CPU/node, allocations will be "interleaved" between that node. **NOTE:** This variable has been mapped to the upstream `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable in :rn:`5.6.27-75.0` and it will be removed in |Percona Server| 5.7. 
+When this option is enabled (set to ``1``), mysqld will run with its memory interleaved on all ``NUMA`` nodes by starting it with ``numactl --interleave=all``. In case there is just one CPU/node, allocations will be "interleaved" between that node. **NOTE:** This variable has been mapped to the upstream `innodb_numa_interleave <http://dev.mysql.com/doc/refman/5.6/en/innodb-parameters.html#sysvar_innodb_numa_interleave>`_ variable in :rn:`5.6.27-75.0` and it will be removed in |Percona Server| 5.7. 
 
 Other Reading
 =============

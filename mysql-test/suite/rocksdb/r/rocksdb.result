@@ -923,13 +923,15 @@ rocksdb_db_write_buffer_size	0
 rocksdb_deadlock_detect	OFF
 rocksdb_debug_optimizer_no_zero_cardinality	ON
 rocksdb_default_cf_options	
+rocksdb_delayed_write_rate	16777216
 rocksdb_delete_obsolete_files_period_micros	21600000000
-rocksdb_disabledatasync	OFF
 rocksdb_enable_bulk_load_api	ON
 rocksdb_enable_thread_tracking	OFF
 rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
+rocksdb_flush_log_at_trx_commit	1
 rocksdb_flush_memtable_on_analyze	ON
+rocksdb_force_compute_memtable_stats	ON
 rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
 rocksdb_hash_index_allow_collision	ON
@@ -986,18 +988,26 @@ rocksdb_validate_tables	1
 rocksdb_verify_row_debug_checksums	OFF
 rocksdb_wal_bytes_per_sync	0
 rocksdb_wal_dir	
-rocksdb_wal_recovery_mode	2
+rocksdb_wal_recovery_mode	1
 rocksdb_wal_size_limit_mb	0
 rocksdb_wal_ttl_seconds	0
 rocksdb_whole_key_filtering	ON
 rocksdb_write_disable_wal	OFF
 rocksdb_write_ignore_missing_column_families	OFF
-rocksdb_write_sync	OFF
 create table t47 (pk int primary key, col1 varchar(12)) engine=rocksdb;
 insert into t47 values (1, 'row1');
 insert into t47 values (2, 'row2');
 set rocksdb_bulk_load=1;
 insert into t47 values (3, 'row3'),(4, 'row4');
+set rocksdb_bulk_load=0;
+connect  con1,localhost,root,,;
+set rocksdb_bulk_load=1;
+insert into t47 values (10, 'row10'),(11, 'row11');
+connection default;
+set rocksdb_bulk_load=1;
+insert into t47 values (100, 'row100'),(101, 'row101');
+disconnect con1;
+connection default;
 set rocksdb_bulk_load=0;
 select * from t47;
 pk	col1
@@ -1005,6 +1015,10 @@ pk	col1
 2	row2
 3	row3
 4	row4
+10	row10
+11	row11
+100	row100
+101	row101
 drop table t47;
 #
 # Fix TRUNCATE over empty table (transaction is committed when it wasn't

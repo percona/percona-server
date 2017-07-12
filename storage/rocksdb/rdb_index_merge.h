@@ -68,14 +68,14 @@ public:
     ulonglong total_size;        /* total # of data bytes in chunk */
 
     void store_key_value(const rocksdb::Slice &key, const rocksdb::Slice &val)
-        __attribute__((__nonnull__));
+        MY_ATTRIBUTE((__nonnull__));
 
-    void store_slice(const rocksdb::Slice &slice) __attribute__((__nonnull__));
+    void store_slice(const rocksdb::Slice &slice) MY_ATTRIBUTE((__nonnull__));
 
-    size_t prepare(File fd, ulonglong f_offset) __attribute__((__nonnull__));
+    size_t prepare(File fd, ulonglong f_offset) MY_ATTRIBUTE((__nonnull__));
 
     int read_next_chunk_from_disk(File fd)
-        __attribute__((__nonnull__, __warn_unused_result__));
+        MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
     inline bool is_chunk_finished() const {
       return curr_offset + disk_curr_offset - disk_start_offset == total_size;
@@ -106,16 +106,16 @@ public:
     rocksdb::Slice val;
 
     size_t prepare(File fd, ulonglong f_offset, ulonglong chunk_size)
-        __attribute__((__nonnull__));
+        MY_ATTRIBUTE((__nonnull__));
 
     int read_next_chunk_from_disk(File fd)
-        __attribute__((__nonnull__, __warn_unused_result__));
+        MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
     int read_rec(rocksdb::Slice *const key, rocksdb::Slice *const val)
-        __attribute__((__nonnull__, __warn_unused_result__));
+        MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
     int read_slice(rocksdb::Slice *const slice, const uchar **block_ptr)
-        __attribute__((__nonnull__, __warn_unused_result__));
+        MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
     explicit merge_heap_entry(const rocksdb::Comparator *const comparator)
         : chunk_info(nullptr), block(nullptr), comparator(comparator) {}
@@ -176,13 +176,13 @@ private:
 
   static int merge_record_compare(const uchar *a_block, const uchar *b_block,
                                   const rocksdb::Comparator *const comparator)
-      __attribute__((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   void merge_read_rec(const uchar *const block, rocksdb::Slice *const key,
-                      rocksdb::Slice *const val) __attribute__((__nonnull__));
+                      rocksdb::Slice *const val) MY_ATTRIBUTE((__nonnull__));
 
   void read_slice(rocksdb::Slice *slice, const uchar *block_ptr)
-      __attribute__((__nonnull__));
+      MY_ATTRIBUTE((__nonnull__));
 
 public:
   Rdb_index_merge(const char *const tmpfile_path,
@@ -191,26 +191,26 @@ public:
                   const rocksdb::Comparator *const comparator);
   ~Rdb_index_merge();
 
-  int init() __attribute__((__nonnull__, __warn_unused_result__));
+  int init() MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
-  int merge_file_create() __attribute__((__nonnull__, __warn_unused_result__));
+  int merge_file_create() MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int add(const rocksdb::Slice &key, const rocksdb::Slice &val)
-      __attribute__((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
-  int merge_buf_write() __attribute__((__nonnull__, __warn_unused_result__));
+  int merge_buf_write() MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int next(rocksdb::Slice *const key, rocksdb::Slice *const val)
-      __attribute__((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
-  int merge_heap_prepare() __attribute__((__nonnull__, __warn_unused_result__));
+  int merge_heap_prepare() MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   void merge_heap_top(rocksdb::Slice *key, rocksdb::Slice *val)
-      __attribute__((__nonnull__));
+      MY_ATTRIBUTE((__nonnull__));
 
   int merge_heap_pop_and_get_next(rocksdb::Slice *const key,
                                   rocksdb::Slice *const val)
-      __attribute__((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   void merge_reset();
 };

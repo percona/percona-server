@@ -68,7 +68,7 @@ static ST_FIELD_INFO rdb_i_s_cfstats_fields_info[] = {
 static int rdb_i_s_cfstats_fill_table(my_core::THD *const thd,
                                       my_core::TABLE_LIST *const tables,
                                       my_core::Item *const cond
-                                      __attribute__((__unused__))) {
+                                      MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   bool ret;
@@ -159,7 +159,7 @@ static ST_FIELD_INFO rdb_i_s_dbstats_fields_info[] = {
 static int rdb_i_s_dbstats_fill_table(my_core::THD *const thd,
                                       my_core::TABLE_LIST *const tables,
                                       my_core::Item *const cond
-                                      __attribute__((__unused__))) {
+                                      MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   bool ret;
@@ -245,7 +245,7 @@ static ST_FIELD_INFO rdb_i_s_perf_context_fields_info[] = {
 static int rdb_i_s_perf_context_fill_table(my_core::THD *const thd,
                                            my_core::TABLE_LIST *const tables,
                                            my_core::Item *const cond
-                                           __attribute__((__unused__))) {
+                                           MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -260,7 +260,7 @@ static int rdb_i_s_perf_context_fill_table(my_core::THD *const thd,
     Rdb_perf_counters counters;
 
     if (rdb_normalize_tablename(it, &str)) {
-      return HA_ERR_INTERNAL_ERROR;
+      DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
     }
 
     if (rdb_split_normalized_tablename(str, &dbname, &tablename, &partname)) {
@@ -329,7 +329,7 @@ static ST_FIELD_INFO rdb_i_s_perf_context_global_fields_info[] = {
 
 static int rdb_i_s_perf_context_global_fill_table(
     my_core::THD *const thd, my_core::TABLE_LIST *const tables,
-    my_core::Item *const cond __attribute__((__unused__))) {
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -390,7 +390,7 @@ static ST_FIELD_INFO rdb_i_s_cfoptions_fields_info[] = {
 static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
                                         my_core::TABLE_LIST *const tables,
                                         my_core::Item *const cond
-                                        __attribute__((__unused__))) {
+                                        MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -452,8 +452,6 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
          opts.disable_auto_compactions ? "ON" : "OFF"},
         {"PURGE_REDUNDANT_KVS_WHILE_FLUSH",
          opts.purge_redundant_kvs_while_flush ? "ON" : "OFF"},
-        {"VERIFY_CHECKSUM_IN_COMPACTION",
-         opts.verify_checksums_in_compaction ? "ON" : "OFF"},
         {"MAX_SEQUENTIAL_SKIP_IN_ITERATIONS",
          std::to_string(opts.max_sequential_skip_in_iterations)},
         {"MEMTABLE_FACTORY", opts.memtable_factory == nullptr
@@ -468,8 +466,6 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
          std::to_string(opts.memtable_huge_page_size)},
         {"BLOOM_LOCALITY", std::to_string(opts.bloom_locality)},
         {"MAX_SUCCESSIVE_MERGES", std::to_string(opts.max_successive_merges)},
-        {"MIN_PARTIAL_MERGE_OPERANDS",
-         std::to_string(opts.min_partial_merge_operands)},
         {"OPTIMIZE_FILTERS_FOR_HITS",
          (opts.optimize_filters_for_hits ? "ON" : "OFF")},
     };
@@ -732,7 +728,7 @@ static int rdb_global_info_fill_row(my_core::THD *const thd,
 static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
                                           my_core::TABLE_LIST *const tables,
                                           my_core::Item *const cond
-                                          __attribute__((__unused__))) {
+                                          MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -811,11 +807,11 @@ static int rdb_i_s_global_info_fill_table(my_core::THD *const thd,
 static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
                                             my_core::TABLE_LIST *tables,
                                             my_core::Item *cond
-                                            __attribute__((__unused__))) {
+                                            MY_ATTRIBUTE((__unused__))) {
   DBUG_ASSERT(thd != nullptr);
   DBUG_ASSERT(tables != nullptr);
 
-  DBUG_ENTER("rdb_i_s_global_compact_stats_table");
+  DBUG_ENTER_FUNC();
 
   int ret = 0;
 
@@ -835,7 +831,7 @@ static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
       continue;
     }
     std::map<std::string, double> props;
-    bool bool_ret __attribute__((__unused__));
+    bool bool_ret MY_ATTRIBUTE((__unused__));
     bool_ret = rdb->GetMapProperty(cfh, "rocksdb.cfstats", &props);
     DBUG_ASSERT(bool_ret);
 
@@ -1029,7 +1025,7 @@ static int rdb_i_s_global_info_init(void *const p) {
 static int rdb_i_s_compact_stats_init(void *p) {
   my_core::ST_SCHEMA_TABLE *schema;
 
-  DBUG_ENTER("rdb_i_s_compact_stats_init");
+  DBUG_ENTER_FUNC();
   DBUG_ASSERT(p != nullptr);
 
   schema = reinterpret_cast<my_core::ST_SCHEMA_TABLE *>(p);
@@ -1067,7 +1063,8 @@ enum {
   ENTRY_DELETES,
   ENTRY_SINGLEDELETES,
   ENTRY_MERGES,
-  ENTRY_OTHERS
+  ENTRY_OTHERS,
+  DISTINCT_KEYS_PREFIX
 };
 } // namespace RDB_INDEX_FILE_MAP_FIELD
 
@@ -1090,13 +1087,15 @@ static ST_FIELD_INFO rdb_i_s_index_file_map_fields_info[] = {
                        MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("ENTRY_MERGES", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("ENTRY_OTHERS", sizeof(int64_t), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("DISTINCT_KEYS_PREFIX", MAX_REF_PARTS * 25,
+                       MYSQL_TYPE_STRING, 0),
     ROCKSDB_FIELD_INFO_END};
 
 /* Fill the information_schema.rocksdb_index_file_map virtual table */
 static int rdb_i_s_index_file_map_fill_table(my_core::THD *const thd,
                                              my_core::TABLE_LIST *const tables,
                                              my_core::Item *const cond
-                                             __attribute__((__unused__))) {
+                                             MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -1160,6 +1159,19 @@ static int rdb_i_s_index_file_map_fill_table(my_core::THD *const thd,
               it.m_entry_merges, true);
           field[RDB_INDEX_FILE_MAP_FIELD::ENTRY_OTHERS]->store(
               it.m_entry_others, true);
+          std::string distinct_keys_prefix;
+
+          for (size_t i = 0; i < it.m_distinct_keys_per_prefix.size(); i++) {
+            if (i > 0) {
+              distinct_keys_prefix += ",";
+            }
+            distinct_keys_prefix +=
+                std::to_string(it.m_distinct_keys_per_prefix[i]);
+          }
+
+          field[RDB_INDEX_FILE_MAP_FIELD::DISTINCT_KEYS_PREFIX]->store(
+              distinct_keys_prefix.data(), distinct_keys_prefix.size(),
+              system_charset_info);
 
           /* Tell MySQL about this row in the virtual table */
           ret = my_core::schema_table_store_record(thd, tables->table);
@@ -1209,7 +1221,7 @@ static ST_FIELD_INFO rdb_i_s_lock_info_fields_info[] = {
 static int rdb_i_s_lock_info_fill_table(my_core::THD *const thd,
                                         my_core::TABLE_LIST *const tables,
                                         my_core::Item *const cond
-                                        __attribute__((__unused__))) {
+                                        MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -1317,7 +1329,7 @@ static ST_FIELD_INFO rdb_i_s_trx_info_fields_info[] = {
 static int rdb_i_s_trx_info_fill_table(my_core::THD *const thd,
                                        my_core::TABLE_LIST *const tables,
                                        my_core::Item *const cond
-                                       __attribute__((__unused__))) {
+                                       MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
 
   DBUG_ASSERT(thd != nullptr);
@@ -1389,7 +1401,7 @@ static int rdb_i_s_trx_info_init(void *const p) {
   DBUG_RETURN(0);
 }
 
-static int rdb_i_s_deinit(void *p __attribute__((__unused__))) {
+static int rdb_i_s_deinit(void *p MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
   DBUG_RETURN(0);
 }

@@ -62,7 +62,7 @@ public:
 
   void get_cf_options(const std::string &cf_name,
                       rocksdb::ColumnFamilyOptions *const opts)
-      __attribute__((__nonnull__));
+      MY_ATTRIBUTE((__nonnull__));
 
 private:
   bool set_default(const std::string &default_config);

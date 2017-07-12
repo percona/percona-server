@@ -15,4 +15,3 @@ INSERT INTO invalid_values VALUES('\'aaa\'');
 
 DROP TABLE valid_values;
 DROP TABLE invalid_values;
-

@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source include/have_myisam.inc
 
 CREATE TABLE valid_values (value varchar(255)) ENGINE=myisam;
 INSERT INTO valid_values VALUES(100);
@@ -19,4 +20,3 @@ INSERT INTO invalid_values VALUES('\'484436\'');
 
 DROP TABLE valid_values;
 DROP TABLE invalid_values;
-

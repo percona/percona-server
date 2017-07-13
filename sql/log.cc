@@ -647,7 +647,7 @@ bool File_query_log::open()
     goto err;
   }
 
-  if (cur_log_ext == (ulong)-1)
+  if ((cur_log_ext == (ulong)-1) || max_slowlog_size == 0)
   {
     if (generate_new_log_name(log_file_name, &cur_log_ext, name, false))
       goto err;
@@ -2188,7 +2188,7 @@ int File_query_log::new_file()
 
   mysql_mutex_assert_owner(&LOCK_log);
 
-  if (cur_log_ext == (ulong)-1)
+  if ((cur_log_ext == (ulong)-1) || max_slowlog_size == 0)
   {
     strcpy(new_name, name);
     if ((error= generate_new_log_name(new_name, &cur_log_ext, name, false)))

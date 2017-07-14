@@ -1065,7 +1065,7 @@ sync_array_print_long_waits(
 
 		srv_print_innodb_monitor = TRUE;
 
-		lock_set_timeout_event();
+		os_event_set(srv_monitor_event);
 
 		os_thread_sleep(30000000);
 

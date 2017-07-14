@@ -120,10 +120,10 @@ int parse_config(const char *str, struct config_item *items, FILE *error) {
             switch (items[ii].datatype) {
             case DT_SIZE:
                {
-                  char *sfx = "kmgt";
+                  const char *sfx = "kmgt";
                   int multiplier = 1;
                   int m = 1;
-                  for (char *p = sfx; *p != '\0'; ++p) {
+                  for (const char *p = sfx; *p != '\0'; ++p) {
                      m *= 1024;
                      char *ptr = strchr(value, *p);
                      if (ptr == NULL) {

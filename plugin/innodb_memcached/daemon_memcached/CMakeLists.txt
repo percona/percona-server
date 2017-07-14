@@ -30,19 +30,19 @@ INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
-# If current CMAKE_C_FLAGS is with Werror, turn it off to compile successfully
-IF(CMAKE_C_FLAGS MATCHES "-Werror")
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-  # Turn -Wdeclaration-after-statement off to reduce the number of warnings
-  STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-ENDIF(CMAKE_C_FLAGS MATCHES "-Werror")
+# Remove "-Wdeclaration-after-statement" and "-Wvla" flags if exist to reduce the number of warnings
+STRING(REGEX REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+STRING(REGEX REPLACE "-Wvla" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
 # Set extra flags for the C compiler
 IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_C_FLAGS
-    "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
+  # Disable "-Wunused-parameter -Wsign-compare -Wmissing-field-initializers -Wunused-but-set-variable" flags
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -Wno-unused-parameter -Wno-sign-compare -Wno-missing-field-initializers -std=gnu99")
+  MY_CHECK_C_COMPILER_FLAG("-Wunused-but-set-variable" HAVE_UNUSET_BUT_SET_VARIABLE) # Requires GCC 4.5+
+  IF(HAVE_UNUSET_BUT_SET_VARIABLE)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-but-set-variable")
+  ENDIF()
 ENDIF()
-
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
 		include/memcached/config_parser.h

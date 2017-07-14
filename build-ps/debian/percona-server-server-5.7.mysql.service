@@ -10,11 +10,13 @@ After=network.target
 WantedBy=multi-user.target
 
 [Service]
+Type=forking
 User=mysql
 Group=mysql
 PermissionsStartOnly=true
+EnvironmentFile=-/etc/default/mysql
 ExecStartPre=/usr/share/mysql/mysql-systemd-start pre
-ExecStart=/usr/bin/mysqld_safe
+ExecStart=/usr/sbin/mysqld --daemonize --pid-file=/var/run/mysqld/mysqld.pid $MYSQLD_OPTS
 ExecStartPost=/usr/share/mysql/mysql-systemd-start post
 TimeoutSec=600
 Restart=on-failure

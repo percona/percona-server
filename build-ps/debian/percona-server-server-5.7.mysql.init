@@ -172,11 +172,13 @@ case "$1" in
 
 		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
 		verify_server start
-		if [ "$?" -eq 0 ];
+                retval=$?
+		if [ "$retval" -eq 0 ];
 		then
 			log_action_msg "Percona Server ${VERSION} is started"
 		else
 			log_action_msg "Percona Server ${VERSION} did not start. Please check logs for more details."
+                        exit $retval
 		fi
 	fi
 	;;
@@ -186,11 +188,13 @@ case "$1" in
 	then
 		killall -u mysql
 		verify_server stop
-		if [ "$?" -eq 0 ];
+                retval=$?
+		if [ "$retval" -eq 0 ];
 		then
 			log_action_msg "Percona Server ${VERSION} is stopped"
 		else
 			log_action_msg "Attempt to shutdown Percona Server ${VERSION} timed out"
+                        exit $retval
 		fi
 	else
 		log_action_msg "Percona Server ${VERSION} is already stopped"

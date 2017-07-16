@@ -35,8 +35,8 @@ cd /
 umask 077
 
 # In case server is taking more to start or stop increase the timeout in defaults file
-STARTTIMEOUT=900
-STOPTIMEOUT=300
+STARTTIMEOUT=120
+STOPTIMEOUT=600
 [ -e /etc/default/mysql ] && . /etc/default/mysql || true
 
 VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)

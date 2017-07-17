@@ -308,7 +308,7 @@ void vio_ssl_delete(Vio *vio)
     vio->ssl_arg= 0;
   }
 
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   ERR_remove_thread_state(0);
 #endif
 
@@ -382,7 +382,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
+    (OPENSSL_VERSION_NUMBER < 0x10100000L)
   int j, n;
 #endif
 
@@ -406,7 +407,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF) && \
+    (OPENSSL_VERSION_NUMBER < 0x10100000L)
+
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();

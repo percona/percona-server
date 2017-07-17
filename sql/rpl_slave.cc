@@ -6058,7 +6058,9 @@ err:
   mysql_mutex_unlock(&mi->run_lock);
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
   my_thread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -6288,7 +6290,9 @@ err:
   }
 
   my_thread_end();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -7648,7 +7652,9 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
   my_thread_exit(0);
   return 0;                             // Avoid compiler warnings
 }

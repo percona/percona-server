@@ -3466,15 +3466,25 @@ bool generate_new_log_name(char *new_name, ulong *new_ext,
                            const char *log_name, bool is_binlog)
 {
   fn_format(new_name, log_name, mysql_data_home, "", 4);
-  if (!fn_ext(log_name)[0] && (is_binlog || max_slowlog_size > 0))
+  if (!fn_ext(log_name)[0])
   {
-    ulong scratch;
-    if (find_uniq_filename(new_name, new_ext ? new_ext : &scratch, is_binlog))
+    if (is_binlog || max_slowlog_size > 0)
     {
-      my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                      MYF(ME_FATALERROR), log_name);
-      sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
-      return true;
+      ulong scratch;
+      if (find_uniq_filename(new_name, new_ext ? new_ext : &scratch,
+                             is_binlog))
+      {
+        my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                        MYF(ME_FATALERROR), log_name);
+        sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
+        return true;
+      }
+    }
+    else if (max_slowlog_size == 0 && new_ext)
+    {
+      /* For slow query log files, reset any extension counter in progress,
+      if max_slowlog_size has been reset back to zero, meaning no rotation */
+      *new_ext= (ulong)-1;
     }
   }
   return false;

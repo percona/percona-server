@@ -3628,7 +3628,7 @@ int warn_self_signed_ca()
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   CRYPTO_malloc_init();
 #endif
   ssl_start();
@@ -3655,7 +3655,9 @@ static int init_ssl()
 					  opt_ssl_cipher, &error,
                                           opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_state(0);
+#endif
     if (!ssl_acceptor_fd)
     {
       /*

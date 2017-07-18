@@ -3188,7 +3188,7 @@ err:
 
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   ERR_remove_state(0);
 #endif
   pthread_exit(0);

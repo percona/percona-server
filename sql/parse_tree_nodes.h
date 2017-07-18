@@ -2512,6 +2512,7 @@ class PT_update : public PT_statement
   PT_hint_list *opt_hints;
   thr_lock_type opt_low_priority;
   bool opt_ignore;
+  bool opt_force;
   PT_join_table_list *join_table_list;
   PT_item_list *column_list;
   PT_item_list *value_list;
@@ -2525,6 +2526,7 @@ public:
   PT_update(PT_hint_list *opt_hints_arg,
             thr_lock_type opt_low_priority_arg,
             bool opt_ignore_arg,
+            bool opt_force_arg,
             PT_join_table_list *join_table_list_arg,
             PT_item_list *column_list_arg,
             PT_item_list *value_list_arg,
@@ -2534,6 +2536,7 @@ public:
   : opt_hints(opt_hints_arg),
     opt_low_priority(opt_low_priority_arg),
     opt_ignore(opt_ignore_arg),
+    opt_force(opt_force_arg),
     join_table_list(join_table_list_arg),
     column_list(column_list_arg),
     value_list(value_list_arg),

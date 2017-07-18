@@ -108,7 +108,15 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv)
 {
-  EVP_CIPHER_CTX ctx;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX ctx_value;
+  EVP_CIPHER_CTX *ctx= &ctx_value;
+#else
+  EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
+  if (unlikely(!ctx))
+    return MY_AES_BAD_DATA;
+#endif
+
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
   /* The real key to be used for encryption */
@@ -117,29 +125,42 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
 
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
                   && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
+  {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    EVP_CIPHER_CTX_free(ctx);
+#endif
     return MY_AES_BAD_DATA;
+  }
 
-  if (!EVP_EncryptInit(&ctx, cipher, rkey, iv))
+  if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
     goto aes_error;                             /* Error */
-  if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
+  if (!EVP_CIPHER_CTX_set_padding(ctx, 1))
     goto aes_error;                             /* Error */
   if (source_length > 0) /* workaround for old OpenSSL versions */
   {
-    if (!EVP_EncryptUpdate(&ctx, dest, &u_len, source, source_length))
+    if (!EVP_EncryptUpdate(ctx, dest, &u_len, source, source_length))
       goto aes_error;                             /* Error */
   }
   else
     u_len= 0;
-  if (!EVP_EncryptFinal(&ctx, dest + u_len, &f_len))
+  if (!EVP_EncryptFinal(ctx, dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 
-  EVP_CIPHER_CTX_cleanup(&ctx);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_cleanup(ctx);
+#else
+  EVP_CIPHER_CTX_free(ctx);
+#endif
   return u_len + f_len;
 
 aes_error:
   /* need to explicitly clean up the error if we want to ignore it */
   ERR_clear_error();
-  EVP_CIPHER_CTX_cleanup(&ctx);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_cleanup(ctx);
+#else
+  EVP_CIPHER_CTX_free(ctx);
+#endif
   return MY_AES_BAD_DATA;
 }
 
@@ -149,8 +170,15 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX ctx_value;
+  EVP_CIPHER_CTX *ctx= &ctx_value;
+#else
+  EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
+  if (unlikely(!ctx))
+    return MY_AES_BAD_DATA;
+#endif
 
-  EVP_CIPHER_CTX ctx;
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
 
@@ -160,26 +188,39 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   my_aes_create_key(key, key_length, rkey, mode);
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
                   && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
+  {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+    EVP_CIPHER_CTX_free(ctx);
+#endif
     return MY_AES_BAD_DATA;
+  }
 
-  EVP_CIPHER_CTX_init(&ctx);
+  EVP_CIPHER_CTX_init(ctx);
 
-  if (!EVP_DecryptInit(&ctx, aes_evp_type(mode), rkey, iv))
+  if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                             /* Error */
-  if (!EVP_CIPHER_CTX_set_padding(&ctx, 1))
+  if (!EVP_CIPHER_CTX_set_padding(ctx, 1))
     goto aes_error;                             /* Error */
-  if (!EVP_DecryptUpdate(&ctx, dest, &u_len, source, source_length))
+  if (!EVP_DecryptUpdate(ctx, dest, &u_len, source, source_length))
     goto aes_error;                             /* Error */
-  if (!EVP_DecryptFinal_ex(&ctx, dest + u_len, &f_len))
+  if (!EVP_DecryptFinal_ex(ctx, dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 
-  EVP_CIPHER_CTX_cleanup(&ctx);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_cleanup(ctx);
+#else
+  EVP_CIPHER_CTX_free(ctx);
+#endif
   return u_len + f_len;
 
 aes_error:
   /* need to explicitly clean up the error if we want to ignore it */
   ERR_clear_error();
-  EVP_CIPHER_CTX_cleanup(&ctx);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX_cleanup(ctx);
+#else
+  EVP_CIPHER_CTX_free(ctx);
+#endif
   return MY_AES_BAD_DATA;
 }
 

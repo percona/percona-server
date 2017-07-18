@@ -569,6 +569,8 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
+#cmakedefine HAVE_X509_CHECK_HOST 1
+#cmakedefine HAVE_X509_CHECK_IP 1
 
 
 /*

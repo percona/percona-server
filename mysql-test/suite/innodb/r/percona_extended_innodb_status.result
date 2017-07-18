@@ -75,3 +75,9 @@ connection default
 SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_save;
 SET GLOBAL innodb_show_locks_held = @innodb_show_locks_held_save;
 DROP TABLE innodb_lock_monitor, t;
+#
+# Bug 1586262: "Buffer pool size, bytes" always 0 in InnoDB status
+#
+CREATE TEMPORARY TABLE t(a TEXT);
+include/assert.inc [Buffer pool size must be reported as 32M]
+DROP TEMPORARY TABLE t;

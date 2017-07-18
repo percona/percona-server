@@ -49,3 +49,21 @@ SET GLOBAL innodb_show_verbose_locks = @innodb_show_verbose_locks_save;
 SET GLOBAL innodb_show_locks_held = @innodb_show_locks_held_save;
 
 DROP TABLE innodb_lock_monitor, t;
+
+--echo #
+--echo # Bug 1586262: "Buffer pool size, bytes" always 0 in InnoDB status
+--echo #
+
+CREATE TEMPORARY TABLE t(a TEXT);
+
+--let $status = query_get_value(SHOW ENGINE INNODB STATUS, Status, 1)
+
+--disable_query_log
+eval INSERT INTO t VALUES("$status");
+--enable_query_log
+
+--let $assert_text= Buffer pool size must be reported as 32M
+--let $assert_cond= COUNT(*) = 1 FROM t WHERE a LIKE "%Buffer pool size, bytes 33538048%"
+--source include/assert.inc
+
+DROP TEMPORARY TABLE t;

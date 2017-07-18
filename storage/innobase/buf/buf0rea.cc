@@ -154,52 +154,6 @@ buf_read_page_low(
 	bpage = buf_page_init_for_read(err, mode, page_id, page_size, unzip);
 
 	if (bpage == NULL) {
-		/* bugfix: http://bugs.mysql.com/bug.php?id=43948 */
-		if (recv_recovery_is_on() && *err == DB_TABLESPACE_DELETED) {
-			/* hashed log recs must be treated here */
-			recv_addr_t*    recv_addr;
-
-			mutex_enter(&(recv_sys->mutex));
-
-			if (!recv_sys->apply_log_recs) {
-				mutex_exit(&(recv_sys->mutex));
-				goto not_to_recover;
-			}
-
-			/* recv_get_fil_addr_struct() */
-			recv_addr = (recv_addr_t*)
-				HASH_GET_FIRST(recv_sys->addr_hash,
-					       hash_calc_hash(
-						       ut_fold_ulint_pair(
-							       page_id.space(),
-							       page_id.page_no()),
-						recv_sys->addr_hash));
-			while (recv_addr) {
-				if ((recv_addr->space == page_id.space())
-				    && (recv_addr->page_no
-					== page_id.page_no())) {
-					break;
-				}
-				recv_addr = (recv_addr_t*)HASH_GET_NEXT(addr_hash, recv_addr);
-			}
-
-			if ((recv_addr == NULL)
-			    || (recv_addr->state == RECV_BEING_PROCESSED)
-			    || (recv_addr->state == RECV_PROCESSED)) {
-				mutex_exit(&(recv_sys->mutex));
-				goto not_to_recover;
-			}
-
-			ib::info() << " (cannot find space: "
-				   << page_id.space() << ")";
-			recv_addr->state = RECV_PROCESSED;
-
-			ut_a(recv_sys->n_addrs);
-			recv_sys->n_addrs--;
-
-			mutex_exit(&(recv_sys->mutex));
-		}
-not_to_recover:
 
 		return(0);
 	}
@@ -928,40 +882,7 @@ buf_read_recv_pages(
 	fil_space_t*		space	= fil_space_get(space_id);
 
 	if (space == NULL) {
-		/* the log records should be treated here same reason
-		for http://bugs.mysql.com/bug.php?id=43948 */
-
-		if (recv_recovery_is_on()) {
-			mutex_enter(&(recv_sys->mutex));
-
-			if (!recv_sys->apply_log_recs) {
-				mutex_exit(&(recv_sys->mutex));
-				goto not_to_recover;
-			}
-
-			for (i = 0; i < n_stored; i++) {
-
-				recv_addr_t* recv_addr
-					= recv_get_fil_addr_struct(space_id,
-								   page_nos[i]);
-
-				if ((recv_addr == NULL)
-				    || (recv_addr->state == RECV_BEING_PROCESSED)
-				    || (recv_addr->state == RECV_PROCESSED)) {
-					continue;
-				}
-
-				recv_addr->state = RECV_PROCESSED;
-
-				ut_a(recv_sys->n_addrs);
-				recv_sys->n_addrs--;
-			}
-
-			mutex_exit(&(recv_sys->mutex));
-
-			ib::info() << " (cannot find space: " << space << ")";
-		}
-not_to_recover:
+		/* The tablespace is missing: do nothing */
 		return;
 	}
 

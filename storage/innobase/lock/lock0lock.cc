@@ -6977,15 +6977,6 @@ lock_trx_lock_list_init(
 	UT_LIST_INIT(*lock_list, &lock_t::trx_locks);
 }
 
-/*******************************************************************//**
-Set the lock system timeout event. */
-void
-lock_set_timeout_event()
-/*====================*/
-{
-	os_event_set(lock_sys->timeout_event);
-}
-
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
 Check if the transaction holds any locks on the sys tables

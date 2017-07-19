@@ -646,6 +646,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysqldumpslow
+%attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump

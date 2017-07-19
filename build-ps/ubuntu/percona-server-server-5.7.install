@@ -11,6 +11,7 @@ usr/bin/mysql_upgrade
 usr/bin/mysqlbinlog
 usr/bin/mysqld_multi
 usr/bin/mysqld_safe
+usr/bin/ps_mysqld_helper
 usr/bin/perror
 usr/bin/replace
 usr/bin/resolveip

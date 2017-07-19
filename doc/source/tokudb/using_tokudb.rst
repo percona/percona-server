@@ -61,7 +61,7 @@ To define a secondary index as clustering, simply add the word ``CLUSTERING`` be
 
 .. code-block:: mysql
 
- CREATE TABLE table (
+ CREATE TABLE foo (
    column_a INT,
    column_b INT,
    column_c INT,
@@ -73,7 +73,7 @@ In the previous example, the primary table is indexed on *column_a*. Additionall
 .. code-block:: mysql
 
  SELECT column_c
-   FROM table
+   FROM foo
    WHERE column_b BETWEEN 10 AND 100;
 
 This index is sorted on *column_b*, making the ``WHERE`` clause fast, and includes *column_c*, which avoids lookups in the primary table to satisfy the query.
@@ -93,8 +93,8 @@ Hot index creation is invoked using the ``CREATE INDEX`` command after setting :
 
    mysql> SET tokudb_create_index_online=on;
    Query OK, 0 rows affected (0.00 sec)
- 
-   mysql> CREATE INDEX index ON table (field_name);
+
+   mysql> CREATE INDEX index ON foo (field_name);
 
 Alternatively, using the ``ALTER TABLE`` command for creating an index will create the index offline (with the table unavailable for inserts or queries), regardless of the value of :variable:`tokudb_create_index_online`. The only way to hot create an index is to use the ``CREATE INDEX`` command.
 

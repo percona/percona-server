@@ -173,7 +173,8 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,"
   ."group_replication,"
   ."query_response_time,audit_log,json,connection_control,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
-  ."tokudb.rpl";
+  ."tokudb.rpl,"
+  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose

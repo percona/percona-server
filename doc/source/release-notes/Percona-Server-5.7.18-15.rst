@@ -5,7 +5,7 @@
 ==========================
 
 Percona is glad to announce the GA (Generally Available) release of |Percona
-Server| 5.7.18-14 on May 26, 2017 (Downloads are available `here
+Server| 5.7.18-15 on May 26, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.18-15/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 

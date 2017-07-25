@@ -12,6 +12,7 @@ Supported Releases:
 
  * 7.0 (wheezy)
  * 8.0 (jessie)
+ * 9.0 (stretch)
 
 * Ubuntu:
 

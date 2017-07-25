@@ -18,7 +18,7 @@ The server error log registers attempts to access corrupted table pages.
 The :variable:`innodb_corrupt_table_action` variable
 may work in conjunction with the :variable:`innodb_force_recovery` variable
 which considerably reduces
-the effect of innodb subsystems
+the effect of |InnoDB| subsystems
 running in the background.
 
 If the :variable:`innodb_force_recovery` variable is set to a low value

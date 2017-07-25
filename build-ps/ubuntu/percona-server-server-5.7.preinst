@@ -43,9 +43,9 @@ case "$1" in
 
 		MYSQLDATA=/var/lib/mysql
 		MYSQLFILES=/var/lib/mysql-files
-		MYSQLKEYRING=/var/lib/mysql-keyring
 		MYSQLLOG=/var/log/mysql
 		MYSQLRUN=/var/run/mysqld
+		MYSQLKEYRING=/var/lib/mysql-keyring
 
 		if ! getent group mysql >/dev/null;
 		then

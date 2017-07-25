@@ -20,3 +20,4 @@ ExecStartPre=/usr/bin/ps_mysqld_helper
 ExecStart=/usr/sbin/mysqld --daemonize --pid-file=/var/run/mysqld/mysqld.pid $MYSQLD_OPTS
 TimeoutSec=600
 Restart=on-failure
+RestartPreventExitStatus=1

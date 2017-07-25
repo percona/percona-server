@@ -40,3 +40,5 @@ SELECT * FROM t1;
 SELECT * FROM t2;
 
 DROP TABLE t1, t2;
+
+--rmdir $MYSQL_TMP_DIR/$DB

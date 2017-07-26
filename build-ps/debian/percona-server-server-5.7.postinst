@@ -28,11 +28,11 @@ then
       if [ -r "$dir/libjemalloc.so.1" ]; then
         preload_exists=$(grep -c "LD_PRELOAD" /etc/default/mysql)
         thp_exists=$(grep -c "THP_SETTING" /etc/default/mysql)
-        if [ $preload_exists -gt 0 ]
+        if [ $preload_exists = 0 ]
         then
             echo "LD_PRELOAD=$dir/libjemalloc.so.1" >> /etc/default/mysql
         fi
-        if [ $thp_exists -gt 0 ]
+        if [ $thp_exists = 0 ]
         then
             echo "THP_SETTING=never" >> /etc/default/mysql
         fi

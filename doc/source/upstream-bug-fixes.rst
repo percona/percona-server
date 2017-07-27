@@ -5,6 +5,24 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`83814` - Add support for OpenSSL 1.1                                               |
+|:Launchpad bug: :bug:`1702903`                                                                               |
+|:Upstream state: Verified (checked on 2017-27-07)                                                            |
+|:Fix Released: :rn:`5.6.36-82.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`86260` - Assert on KILL'ing a stored routine invocation                            |
+|:Launchpad bug: :bug:`1689736`                                                                               |
+|:Upstream state: Verified (checked on 2017-27-07)                                                            |
+|:Fix Released: :rn:`5.6.36-82.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`68052` - SSL Certificate Subject ALT Names with IPs not respected with --ssl-ver...|
+|:Launchpad bug: :bug:`1673656`                                                                               |
+|:Upstream state: Verified (checked on 2017-27-07)                                                            |
+|:Fix Released: :rn:`5.6.36-82.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`85838` - rpl_diff.inc in 5.7 does not compare data from different servers          |
 |:Launchpad bug: :bug:`1680510`                                                                               |
 |:Upstream state: Verified (checked on 2017-05-11)                                                            |
@@ -93,6 +111,12 @@
 |:Launchpad bug: :bug:`1622034`                                                                               |
 |:Upstream state: Verified (checked on 2017-05-11)                                                            |
 |:Fix Released: :rn:`5.6.33-79.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`76418` - Server crashes when querying partitioning table MySQL_5.7.14              |
+|:Launchpad bug: :bug:`1657941`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.6.36-82.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69396` - Can't set query_cache_type to 0 when it is already 0                      |

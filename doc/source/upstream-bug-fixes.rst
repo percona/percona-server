@@ -5,12 +5,6 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
-|:Upstream bug: :mysqlbug:`86464` - INFORMATION_SCHEMA.TABLES missing performance_schema.session&global_var...|
-|:Launchpad bug: :bug:`1686603`                                                                               |
-|:Upstream state: Verified (checked on 2017-07-25)                                                            |                                                                                         |
-|:Fix Released: :rn:`5.7.18-16`                                                                               |
-|:Upstream fix: N/A                                                                                           | 
-+-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`86260` - Assert on KILL'ing a stored routine invocation                            |
 |:Launchpad bug: :bug:`1689736`                                                                               |
 |:Upstream state: Verified (checked on 2017-07-25)                                                            |
@@ -31,7 +25,7 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`85838` - rpl_diff.inc in 5.7 does not compare data from different servers          |
 |:Launchpad bug: :bug:`1680510`                                                                               |
-|:Upstream state: Closed                                                                                      |
+|:Upstream state: N/A                                                                                         |
 |:Fix Released: :rn:`5.7.18-14`                                                                               |
 |:Upstream fix: 5.7.17                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
@@ -123,7 +117,7 @@
 |:Launchpad bug: :bug:`1619622`                                                                               |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.15-9`                                                                                |
-|:Upstream fix: N/A                                                                                           |
+|:Upstream fix: 5.7.20                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`82935` - Cipher ECDHE-RSA-AES128-GCM-SHA256 listed in man/Ssl_cipher_list, not...  |
 |:Launchpad bug: :bug:`1622034`                                                                               |
@@ -147,7 +141,7 @@
 |:Launchpad bug: :bug:`1604462`                                                                               |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.14-7`                                                                                |
-|:Upstream fix: 5.7.13                                                                                        |
+|:Upstream fix: 5.7.19                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`82026` - Stack buffer overflow with --ssl-cipher=<more than 4K characters>         |
 |:Launchpad bug: :bug:`1596845`                                                                               |
@@ -177,7 +171,7 @@
 |:Launchpad bug: :bug:`1588845`                                                                               |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.13-6`                                                                                |
-|:Upstream fix: 5.5+                                                                                          |
+|:Upstream fix: 5.7.20                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`81675` - mysqlbinlog does not free the existing connection before opening new ...  |
 |:Launchpad bug: :bug:`1587840`                                                                               |
@@ -423,7 +417,7 @@
 |:Launchpad bug: :bug:`1205196`                                                                               |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.10-1`                                                                                |
-|:Upstream fix: N/A                                                                                           |
+|:Upstream fix: 5.7.20                                                                                        |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`69991` - MySQL client is broken without readline                                   |
 |:Launchpad bug: :bug:`1266386`                                                                               |

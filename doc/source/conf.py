@@ -137,12 +137,13 @@ rst_prolog = '''
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
 
-extlinks = {'bug': ('https://bugs.launchpad.net/percona-server/+bug/%s',
-                      '#'), 'mysqlbug': ('http://bugs.mysql.com/bug.php?id=%s',
-                      '#'), 'ftbug': ('https://tokutek.atlassian.net/browse/FT-%s', 
-                      '#'), 'tokubug': ('https://tokutek.atlassian.net/browse/DB-%s',
-                      '#'), 'bkpbug': ('https://tokutek.atlassian.net/browse/BACKUP-%s',
-                      '#')}
+extlinks = {'bug': ('https://bugs.launchpad.net/percona-server/+bug/%s', '#'),
+            'mysqlbug': ('http://bugs.mysql.com/bug.php?id=%s', '#'),
+            'ftbug': ('https://tokutek.atlassian.net/browse/FT-%s', '#'),
+            'tokubug': ('https://tokutek.atlassian.net/browse/DB-%s', '#'),
+            'bkpbug': ('https://tokutek.atlassian.net/browse/BACKUP-%s', '#'),
+            'tdbbug': ('https://jira.percona.com/browse/TDB-%s', '#')
+}
 
 
 # -- Options for HTML output ---------------------------------------------------

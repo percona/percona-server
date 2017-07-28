@@ -132,6 +132,8 @@ rst_prolog = '''
 
 .. |tar|  replace:: :program:`tar`
 
+.. |MyRocks| replace:: *MyRocks*
+
 '''
 
 # A list of ignored prefixes for module index sorting.

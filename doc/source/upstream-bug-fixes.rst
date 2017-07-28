@@ -25,9 +25,9 @@
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`85838` - rpl_diff.inc in 5.7 does not compare data from different servers          |
 |:Launchpad bug: :bug:`1680510`                                                                               |
-|:Upstream state: N/A                                                                                         |
+|:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.18-14`                                                                               |
-|:Upstream fix: 5.7.17                                                                                        |
+|:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`85835` - server crash n-gram full text searching                                   |
 |:Launchpad bug: :bug:`1679025`                                                                               |
@@ -87,6 +87,12 @@
 |:Launchpad bug: :bug:`1652852`                                                                               |
 |:Upstream state: Verified (checked on 2017-07-25)                                                            |
 |:Fix Released: :rn:`5.7.17-12`                                                                               |
+|:Upstream fix: N/A                                                                                           | 
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`83814` - Add support for OpenSSL 1.1                                               |
+|:Launchpad bug: :bug:`1702903`                                                                               |
+|:Upstream state: Verified (checked on 2017-07-25)                                                            |
+|:Fix Released: :rn:`5.7.18-16`                                                                               |
 |:Upstream fix: N/A                                                                                           | 
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`83648` - Assertion failure in thread x in file fts0que.cc line 3659                |

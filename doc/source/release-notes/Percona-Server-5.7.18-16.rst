@@ -20,16 +20,16 @@ Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-16>`_
 New Feature
 ===========
 
-.. Do we mention that x64 is the only supported platform.
-
 |Percona Server| is now available on Debian 9 (stretch). The support only covers
 the ``amd64`` architecture.
 
-|Percona Server| can now be built with support of SSL 1.1.
+|Percona Server| can now be built with support of OpenSSL 1.1.
+
+|MyRocks| storage engine has been merged into |Percona Server|.
 
 |TokuDB| enables to kill a query that is awaiting an FT locktree lock.
 
-|TokuDB| eables using the ``MySQL DEBUG_SYNC`` facility within |Percona FT|.
+|TokuDB| enables using the ``MySQL DEBUG_SYNC`` facility within |Percona FT|.
 
 Bugs Fixed
 ==========
@@ -49,30 +49,37 @@ to error log. Bug fixed :tdbbug:`23`.
 error output. Bug fixed :tdbbug:`24`.
 
 It was not possible to build |Percona Server| on Debian 9 (stretch) due to
-issues with openssl1.1. Bug fixed :bug:`1702903`.
+issues with OpenSSL 1.1. Bug fixed :bug:`1702903` (upstream :mysqlbug:`83814`). 
 
 Packaging was using the ``dpkg --verify`` command which is not available on
 wheezy/precise. Bug fixed :bug:`1694907`.
 
+Enabling and disabling the slow query log rotation spuriously added the version
+suffix to the next slow query log file name. Bug fixed :bug:`1704056`.
+
 With two client connections to a server (debug server build), the server could
 crash after one of the clients set the global option ``userstat`` and flushed
-the client statistics (``FLUSH CLIENT_STATICTICS``) and then both clients were
+the client statistics (``FLUSH CLIENT_STATISTICS``) and then both clients were
 closed. Bug fixed :bug:`1661488`.
 
 |Percona FT| did not pass cmake flags on to snappy cmake. Bug fixed
 :tdbbug:`41`.  The progress status for partitioned TokuDB table ALTERs was
 misleading. Bug fixed :tdbbug:`42`.
 
-When connecting to the Aurora cluster end point using SSL, SAN (Subject
-Alternative Name) certificates were ignored.  Bug fixed :bug:`1673656` (upstream
-:mysqlbug:`68052`).
+When a client application connecting to the Aurora cluster end point
+using SSL (``--ssl-verify-server-cert`` or
+``--ssl-mode=VERIFY_IDENTITY`` option), wildcard and :abbr:`SAN
+(Subject Alternative Name)` enabled SSL certificates were ignored. See
+also :ref:`compatibility-matrix`.  Note that the
+``--ssl-verify-server-cert`` option is deprecated in |Percona Server|
+5.7. Bug fixed :bug:`1673656` (upstream :mysqlbug:`68052`).
 
-Killing a stored procedure which contained a query with a view resulted in a
-debug assertion failure. Bug fixed :bug:`1689736` (upstream :mysqlbug:`86260`).
+Killing a stored procedure execution could result in an assert failure on a
+debug server build. Bug fixed :bug:`1689736` (upstream :mysqlbug:`86260`).
 
-The ``SET STATEMENT .. FOR`` statement did not work after ``SET GLOBAL`` or
-``SHOW GLOBAL STATUS`` commands and affected the global value. Bug fixed
-:bug:`1385352`.
+The ``SET STATEMENT .. FOR`` statement changed the global instead of the session
+value of a variable if the statement occurred immediately after the ``SET
+GLOBAL`` or ``SHOW GLOBAL STATUS`` command. Bug fixed :bug:`1385352`.
 
 When running ``SHOW ENGINE INNODB STATUS``, the ``Buffer pool size, bytes``
 entry contained **0**. BUg fixed :bug:`1586262`.
@@ -80,7 +87,7 @@ entry contained **0**. BUg fixed :bug:`1586262`.
 The synchronization between the LRU manager and page cleaner threads was not
 done at shutdown. Bug fixed :bug:`1689552`.
 
-Spurious ``lock_wait_timeout_thread wakeup`` in ``lock_wait_suspend_thread()``
+Spurious ``lock_wait_timeout_thread`` wakeup in ``lock_wait_suspend_thread()``
 could occur. Bug fixed :bug:`1704267` (upstream :mysqlbug:`72123`).
 
 Other bugs fixed:
@@ -88,7 +95,6 @@ Other bugs fixed:
 :tdbbug:`6`,
 :tdbbug:`44`,
 :tdbbug:`65`,
-:bug:`1704056`,     
 :bug:`1160986`,
 :bug:`1686934`,
 :bug:`1688319`,
@@ -101,3 +107,19 @@ Other bugs fixed:
 :bug:`1684601` (upstream :mysqlbug:`86016`).
 
 
+.. note:: Due to new package dependency,
+   Ubuntu/Debian users should use ``apt-get dist-upgrade``
+   or ``apt-get install percona-server-server-5.7`` to upgrade.
+
+.. _compatibility-matrix:
+
+Compatibility Matrix
+====================
+
+=======================  =======  ==================  ====================
+Feature                  YaSSL    OpenSSL < 1.0.2     OpenSSL >= 1.0.2
+=======================  =======  ==================  ====================
+'commonName' validation  Yes      Yes                 Yes         
+SAN validation           No       Yes                 Yes         
+Wildcards support        No       No                  Yes         
+=======================  =======  ==================  ====================

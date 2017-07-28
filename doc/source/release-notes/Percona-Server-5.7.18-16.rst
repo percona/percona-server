@@ -17,6 +17,10 @@ and free, all the details of the release can be found in the `5.7.18-16
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-16>`_
 
+Please note that RHEL 5, CentOS 5 and Ubuntu versions 12.04 and older are not
+supported in future releases of |Percona Server| and no further packages are
+added for these distributions.
+
 New Feature
 ===========
 

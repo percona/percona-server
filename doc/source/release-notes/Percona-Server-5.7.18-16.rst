@@ -17,6 +17,10 @@ and free, all the details of the release can be found in the `5.7.18-16
 milestone at
 Launchpad <https://launchpad.net/percona-server/+milestone/5.7.18-16>`_
 
+Please note that RHEL 5, CentOS 5 and Ubuntu versions 12.04 and older are not
+supported in future releases of |Percona Server| and no further packages are
+added for these distributions.
+
 New Feature
 ===========
 
@@ -87,8 +91,9 @@ entry contained **0**. BUg fixed :bug:`1586262`.
 The synchronization between the LRU manager and page cleaner threads was not
 done at shutdown. Bug fixed :bug:`1689552`.
 
-Spurious ``lock_wait_timeout_thread`` wakeup in ``lock_wait_suspend_thread()``
-could occur. Bug fixed :bug:`1704267` (upstream :mysqlbug:`72123`).
+Removed spurious ``lock_wait_timeout_thread`` wakeups, potentially reducing
+``lock_sys_wait_mutex`` contention. Patch by Inaam Rama merged from
+``WebScaleSQL``. Bug fixed :bug:`1704267` (upstream :mysqlbug:`72123`).
 
 Other bugs fixed:
 :bug:`1686603`,

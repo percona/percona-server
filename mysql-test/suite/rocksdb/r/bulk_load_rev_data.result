@@ -1,4 +1,4 @@
-Data will be ordered in ascending order
+Data will be ordered in descending order
 CREATE TABLE t1(
 pk CHAR(5),
 a char(30),

@@ -38,6 +38,7 @@
 /* RocksDB header files */
 #include "rocksdb/cache.h"
 #include "rocksdb/perf_context.h"
+#include "rocksdb/sst_file_manager.h"
 #include "rocksdb/statistics.h"
 #include "rocksdb/utilities/options_util.h"
 #include "rocksdb/utilities/transaction_db.h"
@@ -126,6 +127,34 @@ const char *const BG_THREAD_NAME = "myrocks-bg";
 const char *const INDEX_THREAD_NAME = "myrocks-index";
 
 /*
+  Separator between partition name and the qualifier. Sample usage:
+
+  - p0_cfname=foo
+  - p3_tts_col=bar
+*/
+constexpr char RDB_PER_PARTITION_QUALIFIER_NAME_SEP = '_';
+
+/*
+  Separator between qualifier name and value. Sample usage:
+
+  - p0_cfname=foo
+  - p3_tts_col=bar
+*/
+constexpr char RDB_PER_PARTITION_QUALIFIER_VALUE_SEP = '=';
+
+/*
+  Separator between multiple qualifier assignments. Sample usage:
+
+  - p0_cfname=foo;p1_cfname=bar;p2_cfname=baz
+*/
+constexpr char RDB_QUALIFIER_SEP = ';';
+
+/*
+  Qualifier name for a custom per partition column family.
+*/
+const char *const RDB_CF_NAME_QUALIFIER = "cfname";
+
+/*
   Default, minimal valid, and maximum valid sampling rate values when collecting
   statistics about table.
 */
@@ -158,6 +187,11 @@ const char *const INDEX_THREAD_NAME = "myrocks-index";
 
 #define DEFAULT_SUBCOMPACTIONS 1
 #define MAX_SUBCOMPACTIONS 64
+
+/*
+  Default value for rocksdb_sst_mgr_rate_bytes_per_sec = 64 MB.
+*/
+constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 64 * 1024 * 1024;
 
 /*
   Defines the field sizes for serializing XID object to a string representation.
@@ -458,14 +492,14 @@ class ha_rocksdb : public my_core::handler {
   void setup_iterator_for_rnd_scan();
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *const slice)
       MY_ATTRIBUTE((__nonnull__)) {
-    setup_scan_iterator(kd, slice, false, false, 0);
+    setup_scan_iterator(kd, slice, false, 0);
   }
   bool is_ascending(const Rdb_key_def &keydef,
                     enum ha_rkey_function find_flag) const
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *slice,
-                           const bool use_all_keys, const bool is_ascending,
-                           const uint eq_cond_len) MY_ATTRIBUTE((__nonnull__));
+                           const bool use_all_keys, const uint eq_cond_len)
+      MY_ATTRIBUTE((__nonnull__));
   void release_scan_iterator(void);
 
   rocksdb::Status
@@ -667,20 +701,18 @@ public:
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_blob_from_storage_format(my_core::Field_blob *const blob,
-                                       Rdb_string_reader *const   reader,
-                                       bool                       decode)
+                                       Rdb_string_reader *const reader,
+                                       bool decode)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_varchar_from_storage_format(
-                                my_core::Field_varstring *const field_var,
-                                Rdb_string_reader *const        reader,
-                                bool                            decode)
+      my_core::Field_varstring *const field_var,
+      Rdb_string_reader *const reader, bool decode)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
-  int convert_field_from_storage_format(my_core::Field *const    field,
+  int convert_field_from_storage_format(my_core::Field *const field,
                                         Rdb_string_reader *const reader,
-                                        bool                     decode,
-                                        uint                     len)
+                                        bool decode, uint len)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
@@ -696,6 +728,17 @@ public:
                                         Rdb_string_writer *const pk_unpack_info,
                                         rocksdb::Slice *const packed_rec)
       MY_ATTRIBUTE((__nonnull__));
+
+  static const std::string gen_cf_name_qualifier_for_partition(
+    const std::string &s);
+
+  static const std::vector<std::string> parse_into_tokens(const std::string &s,
+                                                          const char delim);
+
+  static const std::string generate_cf_name(const uint index,
+    const TABLE *const table_arg,
+    const Rdb_tbl_def *const tbl_def_arg,
+    bool *per_part_match_found);
 
   static const char *get_key_name(const uint index,
                                   const TABLE *const table_arg,
@@ -718,7 +761,6 @@ public:
   static bool is_pk(const uint index, const TABLE *table_arg,
                     const Rdb_tbl_def *tbl_def_arg)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-
   /** @brief
     unireg.cc will call max_supported_record_length(), max_supported_keys(),
     max_supported_key_parts(), uint max_supported_key_length()
@@ -843,6 +885,7 @@ private:
     rocksdb::ColumnFamilyHandle *cf_handle;
     bool is_reverse_cf;
     bool is_auto_cf;
+    bool is_per_partition_cf;
   };
 
   struct update_row_info {
@@ -962,10 +1005,8 @@ private:
   int read_before_key(const Rdb_key_def &kd, const bool &using_full_key,
                       const rocksdb::Slice &key_slice)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-  int read_after_key(const Rdb_key_def &kd, const bool &using_full_key,
-                     const rocksdb::Slice &key_slice)
+  int read_after_key(const Rdb_key_def &kd, const rocksdb::Slice &key_slice)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-
   int position_to_correct_key(
       const Rdb_key_def &kd, const enum ha_rkey_function &find_flag,
       const bool &full_key_match, const uchar *const key,
@@ -1050,7 +1091,7 @@ public:
 
   int check(THD *const thd, HA_CHECK_OPT *const check_opt) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  void remove_rows(Rdb_tbl_def *const tbl);
+  int remove_rows(Rdb_tbl_def *const tbl);
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));

@@ -39,10 +39,10 @@ Bugs Fixed
  of concurrent transactions.  These races manifested as transactions
  unnecessarily waiting for an available lock. Bug fixed :tdbbug:`3`.
 
- |Percona FT| could assert when opening a dictionary with no useful information
+ |TokuDB| could assert when opening a dictionary with no useful information
  to error log. Bug fixed :tdbbug:`23`.
 
- |Percona FT| could assert for various reasons deserializing nodes with no useful
+ |TokuDB| could assert for various reasons deserializing nodes with no useful
  error output. Bug fixed :tdbbug:`24`.
 
  |Percona Server| could crash when running a query over a partitioned table that
@@ -54,14 +54,17 @@ Bugs Fixed
  the client statistics (``FLUSH CLIENT_STATISTICS``) and then both clients were
  closed. Bug fixed :bug:`1661488`.
 
- |Percona FT| did not pass cmake flags on to snappy cmake. Bug fixed
+ |TokuDB| did not pass cmake flags on to snappy cmake. Bug fixed
  :tdbbug:`41`.  The progress status for partitioned TokuDB table ALTERs was
  misleading. Bug fixed :tdbbug:`42`.
 
- When a client application connecting to the Aurora cluster end point using SSL
- (``--ssl-verify-server-cert`` option), wildcard and :abbr:`SAN (Subject
- Alternative Name)` enabled SSL certificates were ignored.  Bug fixed
- :bug:`1673656` (upstream :mysqlbug:`68052`). See :ref:`compatibility-matrix`.
+ When a client application connecting to the Aurora cluster end point
+ using SSL (``--ssl-verify-server-cert`` or
+ ``--ssl-mode=VERIFY_IDENTITY`` option), wildcard and :abbr:`SAN
+ (Subject Alternative Name)` enabled SSL certificates were ignored. See
+ also :ref:`compatibility-matrix`.  Note that the
+ ``--ssl-verify-server-cert`` option is deprecated in |Percona Server|
+ 5.7. Bug fixed :bug:`1673656` (upstream :mysqlbug:`68052`).
 
  Killing a stored procedure execution could result in an assert failure on a
  debug server build. Bug fixed :bug:`1689736` (upstream :mysqlbug:`86260`).

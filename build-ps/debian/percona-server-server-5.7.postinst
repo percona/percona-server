@@ -2,7 +2,7 @@
 
 . /usr/share/debconf/confmodule
 
-MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2)
+MYSQLDATA=$(my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 if [ -z "$MYSQLDATA" ];
 then
     MYSQLDATA=/var/lib/mysql
@@ -16,6 +16,14 @@ take_upstart_job_backup () {
 	fi
 }
 
+check_exit_status() {
+        errcode=$1
+        if [ $errcode -gt 0 ];
+        then
+                exit $errcode
+        fi
+}
+
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
 TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb-5.7')
 if [ $TOKUDB = 1 ]
@@ -26,6 +34,10 @@ then
     dir=$(dirname $(readlink -f $path))
     for dir in "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
       if [ -r "$dir/libjemalloc.so.1" ]; then
+        preload_value=$(grep "LD_PRELOAD" /etc/default/mysql | awk -F'=' '{print $2}')
+        if [ "x$preload_value" = "x0" ]; then
+            sed -i 's/^LD_PRELOAD.*//' /etc/default/mysql
+        fi
         preload_exists=$(grep -c "LD_PRELOAD" /etc/default/mysql)
         thp_exists=$(grep -c "THP_SETTING" /etc/default/mysql)
         if [ $preload_exists = 0 ]

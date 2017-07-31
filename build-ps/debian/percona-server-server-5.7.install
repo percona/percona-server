@@ -11,6 +11,7 @@ usr/bin/mysql_upgrade
 usr/bin/mysqlbinlog
 usr/bin/mysqld_multi
 usr/bin/mysqld_safe
+usr/bin/ps_mysqld_helper
 usr/bin/perror
 usr/bin/replace
 usr/bin/resolveip
@@ -105,6 +106,7 @@ usr/lib/mysql/plugin/debug/query_response_time.so
 usr/share/mysql/dictionary.txt
 usr/share/mysql/magic
 usr/share/mysql/mysql-log-rotate
+usr/share/mysql/mysql-helpers
 usr/share/mysql/mysql-systemd-start
 usr/share/mysql/mysqld_multi.server
 # defaults file

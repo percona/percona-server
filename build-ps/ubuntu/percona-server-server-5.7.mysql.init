@@ -30,13 +30,14 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 . /lib/lsb/init-functions
+. /usr/share/mysql/mysql-helpers
 
 cd /
 umask 077
 
 # In case server is taking more to start or stop increase the timeout in defaults file
-STARTTIMEOUT=900
-STOPTIMEOUT=300
+STARTTIMEOUT=120
+STOPTIMEOUT=600
 [ -e /etc/default/mysql ] && . /etc/default/mysql || true
 
 VERSION=$(mysqld --version | grep mysqld | cut -d' ' -f4)
@@ -57,6 +58,14 @@ fix_thp_setting() {
 		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
 		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
 	fi
+}
+
+check_exit_status() {
+        errcode=$1
+        if [ $errcode > 0 ];
+        then
+                exit $errcode
+        fi
 }
 
 get_running () {
@@ -129,22 +138,27 @@ case "$1" in
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 		then
                         install -d -m 0750 -omysql -gmysql ${MYSQLDATA}
+                        check_exit_status $?
 		fi
 
 		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
 		then
                         install -d -m 0770 -omysql -gmysql ${MYSQLFILES}
+                        check_exit_status $?
 		fi
 
 		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
 		then
                         install -d -m 0750 -omysql -gmysql ${MYSQLKEYRING} 
+                        check_exit_status $?
 		fi
 
 		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ] && [ -d ${MYSQLKEYRING} ];
 		then
 			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
+                        check_exit_status $?
 			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
+                        check_exit_status $?
 			verify_server start no-newline
 			mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
 			mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
@@ -159,7 +173,9 @@ case "$1" in
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
 		then
                         install -d -m 0750 -omysql -gadm ${MYSQLLOG} 
+                        check_exit_status $?
                         install -m 0640 -omysql -gadm /dev/null ${MYSQLLOG}/error.log
+                        check_exit_status $?
 		fi
 
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
@@ -171,12 +187,15 @@ case "$1" in
 		fix_thp_setting
 
 		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
+                check_exit_status $?
 		verify_server start
-		if [ "$?" -eq 0 ];
+                retval=$?
+		if [ "$retval" -eq 0 ];
 		then
 			log_action_msg "Percona Server ${VERSION} is started"
 		else
 			log_action_msg "Percona Server ${VERSION} did not start. Please check logs for more details."
+                        exit $retval
 		fi
 	fi
 	;;
@@ -186,11 +205,13 @@ case "$1" in
 	then
 		killall -u mysql
 		verify_server stop
-		if [ "$?" -eq 0 ];
+                retval=$?
+		if [ "$retval" -eq 0 ];
 		then
 			log_action_msg "Percona Server ${VERSION} is stopped"
 		else
 			log_action_msg "Attempt to shutdown Percona Server ${VERSION} timed out"
+                        exit $retval
 		fi
 	else
 		log_action_msg "Percona Server ${VERSION} is already stopped"

@@ -5,7 +5,7 @@
 ============================
 
 Percona is glad to announce the release of |Percona Server| 5.6.36-82.1 on
-July 28, 2017 (Downloads are available `here
+August 1, 2017 (Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.6/Percona-Server-5.6.36-82.1/>`_
 and from the :doc:`Percona Software Repositories </installation>`).
 

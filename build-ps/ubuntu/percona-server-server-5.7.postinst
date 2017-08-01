@@ -1,6 +1,7 @@
 #!/bin/bash
 
 . /usr/share/debconf/confmodule
+. /usr/share/mysql/mysql-helpers
 
 MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2)
 if [ -z "$MYSQLDATA" ];
@@ -14,6 +15,14 @@ take_upstart_job_backup () {
 	then
 		mv /etc/init/mysql.conf $MYSQLDATA/.mysql.conf.backup
 	fi
+}
+
+check_exit_status() {
+        errcode=$1
+        if [ $errcode > 0 ];
+        then
+                exit $errcode
+        fi
 }
 
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
@@ -69,10 +78,13 @@ UPDATE user SET authentication_string=PASSWORD('${PASSWD}') WHERE user='root';
 EOF
 				PASSWD=""
 				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on --init-file=${SQL} 2>&1 > /dev/null"
+                                check_exit_status $?
 				rm -f ${SQL}
 			else
 				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
+                                check_exit_status $?
 				su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
+                                check_exit_status $?
 				while [ ! -e $(my_print_defaults mysqld | grep pid-file | cut -d= -f2) ]; do sleep 1; done
 				mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
 				mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"

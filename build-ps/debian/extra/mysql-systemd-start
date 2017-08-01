@@ -2,98 +2,37 @@
 
 # Scripts to run by Percona Server systemd service
 #
-# Needed argument: pre | post
+# Needed argument: pre
 #
 # pre mode  :  try to perform sanity check for configuration, log, data
-# post mode :  ping server until answer is received
 
-get_path () {
-	my_print_defaults mysqld | grep ${1} | cut -d= -f2 | tail -n 1
-}
-
-pinger () {
-	while /bin/true ; do
-		sleep 1
-		mysqladmin ping >/dev/null 2>&1 && break
-	done
-}
+# Include helper functions
+. /usr/share/mysql/mysql-helpers
 
 fix_thp_setting() {
-	THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2 | tail -n 1)
-	if [ ! -z "${THP_SETTING}" ]; then
-		# Set whatever option is specified in config file
-		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
-		echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
-	fi
+        THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2 | tail -n 1)
+        if [ ! -z "${THP_SETTING}" ]; then
+                # Set whatever option is specified in config file
+                echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+                echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+        fi
 }
 
 sanity () {
-	MYSQLRUN=/var/run/mysqld
-	MYSQLDATA=$(get_path datadir)
-        if [ -z ${MYSQLDATA} ];
-        then
-            MYSQLDATA=/var/lib/mysql
+# Make sure database and required directories exist
+        verify_ready $1
+        verify_database $1
+
+
+        if [ ! -r /etc/mysql/my.cnf ]; then
+                echo "Percona Server configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
+                exit 1
         fi
-	MYSQLFILES=/var/lib/mysql-files
-	MYSQLLOG=/var/log/mysql
-	MYSQLKEYRING=/var/lib/mysql-keyring
 
-	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
-	then
-                install -d -m 0750 -o mysql -g mysql ${MYSQLDATA}
-	fi
-
-	if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
-	then
-                install -d -m 0770 -o mysql -g mysql ${MYSQLFILES}
-	fi
-
-	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
-	then
-                install -d -m 0750 -o mysql -g mysql ${MYSQLKEYRING}
-	fi
-
-	if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
-	then
-                install -d -m 0750 -o mysql -g mysql ${MYSQLDATA}/mysql
-	fi
-
-	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
-	then
-		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
-		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"
-		pinger
-		mysql -e "INSTALL PLUGIN auth_socket SONAME 'auth_socket.so'"
-		mysql -e "USE mysql; UPDATE user SET plugin='auth_socket' WHERE user='root'"
-		mysqladmin shutdown
-	fi
-
-	if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
-	then
-		/usr/bin/mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
-	fi
-
-	if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
-	then
-                install -d -m 0750 -o mysql -g adm ${MYSQLLOG}
-		install -m 0640 -o mysql -g adm /dev/null ${MYSQLLOG}/error.log
-	fi
-
-	if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
-	then
-                install -d -m 0755 -o mysql -g mysql ${MYSQLRUN} 
-	fi
-
-	if [ ! -r /etc/mysql/my.cnf ]; then
-		echo "Percona Server configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
-		exit 1
-	fi
-
-	# Needed because of TokuDB
-	fix_thp_setting
+        # Needed because of TokuDB
+        fix_thp_setting
 }
 
 case $1 in
-	"pre")  sanity ;;
-	"post") pinger ;;
+        "pre")  sanity $2 ;;
 esac

@@ -1,0 +1,42 @@
+###################### percona_bug933969.test ########################
+# Bug #933969: mysqlbinlog doesn't accept stdin                      #
+#                                                                    #
+# The goal of this testcase is to test that mysqlbinlog handle       #
+# stdin correctly when stdin is pipe.                                #
+# i.e. "cat log | mysqlbinlog -" don't cause mysqlbinlog failure     #
+######################################################################
+-- source include/have_log_bin.inc
+-- source include/not_windows.inc
+-- source include/not_embedded.inc
+
+# deletes all the binary logs
+RESET MASTER;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# produce some statements for binlog
+
+CREATE TABLE t1 (word VARCHAR(20));
+
+INSERT INTO t1 VALUES ("hamite");
+INSERT INTO t1 VALUES ("hoho");
+INSERT INTO t1 VALUES ("znamenito");
+INSERT INTO t1 VALUES ("mrachny");
+INSERT INTO t1 VALUES ("mrak");
+INSERT INTO t1 VALUES ("zhut");
+INSERT INTO t1 VALUES ("parnisha");
+INSERT INTO t1 VALUES ("krrasota!");
+INSERT INTO t1 VALUES ("podumayesh");
+INSERT INTO t1 VALUES ("ogo!");
+
+FLUSH LOGS;
+
+# run mysqlbinlog and make sure it ends normally
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+--exec cat $MYSQLD_DATADIR/master-bin.000001 | $MYSQL_BINLOG - >/dev/null
+
+DROP TABLE t1;
+RESET MASTER;

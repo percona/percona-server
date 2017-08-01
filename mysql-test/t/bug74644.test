@@ -1,8 +1,14 @@
-# Test for bug 74644 (handle_fatal_signal (sig=11) in __memmove_ssse3_back from String::copy)
+#
+# Bug 1384568: EXPLAIN crashes server
+#
+--source include/have_myisam.inc
 
-CREATE TABLE t1 (a INT KEY, b TEXT);
+CREATE TABLE t(a INT KEY, b BLOB) ENGINE=MyISAM;
+# may not crash on debug or optimized builds but always crahes on ASAN builds
+SELECT * FROM t x WHERE (a, b) IN ((0, 0), (1,0));
+DROP TABLE t;
 
---error ER_BAD_FIELD_ERROR
-EXPLAIN EXTENDED SELECT * FROM t1 x, t1 y WHERE (x.a = 2 OR (x.a, x.b) IN ((0, 0), (5, 0), (4, 3))) AND y.a = x.d AND y.b = x.b;
-
-DROP TABLE t1;
+CREATE TABLE t(a INT KEY, b BLOB) ENGINE=MyISAM;
+# may not crash on debug or optimized builds but always crahes on ASAN builds
+EXPLAIN SELECT * FROM t x WHERE (a, b) IN ((0, 0), (1,0));
+DROP TABLE t;

@@ -1,3 +1,4 @@
+# restart:--log-error=MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
 drop table if exists t1;
 In the following tests we change the order of letter "b"
 making it equal to letter "a", and check that it works
@@ -1138,5 +1139,6 @@ DROP TABLE t1;
 #
 # Bug#14197426 PARSE ERRORS IN LOADABLE UCA / LDML COLLATIONS ARE SILENTLY IGNORED
 #
+# restart
 # Search for occurrences of [ERROR] Syntax error at '[strength tertiary]'
 Occurances : 1

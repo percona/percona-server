@@ -153,11 +153,13 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(20), c CHA
 --copy_file ./std_data/words2.dat $MYSQLTEST_VARDIR/tmp/words2.dat
 --replace_regex /\'.+\'/'FILE'/
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words.dat' INTO TABLE t1 (b)
+--remove_file $MYSQLTEST_VARDIR/tmp/words.dat
 SELECT COUNT(*) FROM t1;
 --source include/sync_slave_sql_with_master.inc
 --replace_regex /\'.+\'/'FILE2'/
 --error 1148
 --eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/words2.dat' INTO TABLE t1 (b)
+--remove_file $MYSQLTEST_VARDIR/tmp/words2.dat
 SELECT COUNT(*) FROM t1;
 
 SET @@global.local_infile=1;

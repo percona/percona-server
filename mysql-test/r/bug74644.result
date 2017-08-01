@@ -1,4 +1,11 @@
-CREATE TABLE t1 (a INT KEY, b TEXT);
-EXPLAIN EXTENDED SELECT * FROM t1 x, t1 y WHERE (x.a = 2 OR (x.a, x.b) IN ((0, 0), (5, 0), (4, 3))) AND y.a = x.d AND y.b = x.b;
-ERROR 42S22: Unknown column 'x.d' in 'where clause'
-DROP TABLE t1;
+CREATE TABLE t(a INT KEY, b BLOB) ENGINE=MyISAM;
+SELECT * FROM t x WHERE (a, b) IN ((0, 0), (1,0));
+a	b
+DROP TABLE t;
+CREATE TABLE t(a INT KEY, b BLOB) ENGINE=MyISAM;
+EXPLAIN SELECT * FROM t x WHERE (a, b) IN ((0, 0), (1,0));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b` from `test`.`t` `x` where ((NULL,NULL) in ((0,0),(1,0)))
+DROP TABLE t;

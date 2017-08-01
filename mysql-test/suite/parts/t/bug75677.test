@@ -1,4 +1,4 @@
-# Bug 75667. In certain cases, ALTER TABLE ... REBUILD PARTITION was not
+# Bug 75677. In certain cases, ALTER TABLE ... REBUILD PARTITION was not
 # handled correctly when executed on a locked table.
 --source include/have_partition.inc
 

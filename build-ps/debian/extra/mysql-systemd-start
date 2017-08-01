@@ -53,11 +53,6 @@ sanity () {
                 install -d -m 0750 -o mysql -g mysql ${MYSQLKEYRING}
 	fi
 
-	if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
-	then
-                install -d -m 0750 -o mysql -g mysql ${MYSQLDATA}/mysql
-	fi
-
 	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
 	then
 		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"

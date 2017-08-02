@@ -260,6 +260,7 @@ fi
         -DMYSQL_DATADIR="/usr/local/$PRODUCT_FULL/data" \
         -DCOMPILATION_COMMENT="$COMMENT" \
         -DWITH_PAM=ON \
+        -DWITH_ROCKSDB=ON \
         -DWITH_INNODB_MEMCACHED=ON \
         -DDOWNLOAD_BOOST=1 \
         -DWITH_SCALABILITY_METRICS=ON \

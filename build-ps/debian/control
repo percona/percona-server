@@ -43,6 +43,17 @@ Description: TokuDB engine plugin for Percona Server
  .
  This package includes the TokuDB plugin library.
 
+Package: percona-server-rocksdb-5.7
+Section: database
+Architecture: any
+Depends: percona-server-server-5.7 (= ${binary:Version})
+Description: MyRocks storage engine plugin for Percona Server
+ .
+ MyRocks is a storage engine for Percona Server which incorporates RocksDB
+ library optimized for fast storage and space efficiency.
+ .
+ This package includes the MyRocks/RocksDB plugin library.
+
 Package: libperconaserverclient20
 Architecture: any
 Section: libs

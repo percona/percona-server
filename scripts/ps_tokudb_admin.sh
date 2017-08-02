@@ -122,6 +122,7 @@ do
     FORCE_ENVFILE=1
     ;;
     --help )
+    printf "WARNING: This script is deprecated and will be removed in 8.0. You can use ps-admin script which has more functionality.\n\n"
     printf "This script is used for installing and uninstalling TokuDB plugin for Percona Server 5.7.\n"
     printf "It can also be used to install or uninstall the Percona TokuBackup plugin (requires mysql server restart).\n"
     printf "If transparent huge pages are enabled on the system it adds thp-setting=never option to my.cnf\n"
@@ -156,6 +157,8 @@ if [ $(id -u) -ne 0 ]; then
   echo "ERROR: This script must be run as root!" 1>&2
   exit 1
 fi
+
+printf "WARNING: This script is deprecated and will be removed in 8.0. You can use ps-admin script which has more functionality.\n\n"
 
 if [ $ENABLE = 1 -a $DISABLE = 1 ]; then
   printf "ERROR: Only --enable OR --disable can be specified - not both!\n"

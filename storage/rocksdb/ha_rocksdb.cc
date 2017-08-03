@@ -36,6 +36,7 @@
 #include "./debug_sync.h"
 #include "./my_bit.h"
 #include "./my_stacktrace.h"
+#include "./my_sys.h"
 #include "./sql_audit.h"
 #include "./sql_table.h"
 #include <mysql/psi/mysql_table.h>
@@ -426,6 +427,7 @@ static constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
 static constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
 static constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
 static constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
+static constexpr uint32_t RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME = 60 * 1000 * 1000;
 
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;
@@ -445,6 +447,8 @@ static uint64_t rocksdb_index_type =
 static uint32_t rocksdb_flush_log_at_trx_commit = 1;
 static uint32_t rocksdb_debug_optimizer_n_rows = 0;
 static my_bool rocksdb_force_compute_memtable_stats = TRUE;
+static uint32_t rocksdb_force_compute_memtable_stats_cachetime =
+    RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME;
 static my_bool rocksdb_debug_optimizer_no_zero_cardinality = TRUE;
 static uint32_t rocksdb_wal_recovery_mode =
     static_cast<uint32_t>(rocksdb::WALRecoveryMode::kAbsoluteConsistency);
@@ -1144,6 +1148,13 @@ static MYSQL_SYSVAR_BOOL(force_compute_memtable_stats,
     "Force to always compute memtable stats",
     nullptr, nullptr, TRUE);
 
+static MYSQL_SYSVAR_UINT(
+    force_compute_memtable_stats_cachetime,
+    rocksdb_force_compute_memtable_stats_cachetime, PLUGIN_VAR_RQCMDARG,
+    "Time in usecs to cache memtable estimates", nullptr, nullptr,
+    /* default */ RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME,
+    /* min */ 0, /* max */ INT_MAX, 0);
+
 static MYSQL_SYSVAR_BOOL(
     debug_optimizer_no_zero_cardinality,
     rocksdb_debug_optimizer_no_zero_cardinality, PLUGIN_VAR_RQCMDARG,
@@ -1455,6 +1466,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(force_index_records_in_range),
     MYSQL_SYSVAR(debug_optimizer_n_rows),
     MYSQL_SYSVAR(force_compute_memtable_stats),
+    MYSQL_SYSVAR(force_compute_memtable_stats_cachetime),
     MYSQL_SYSVAR(debug_optimizer_no_zero_cardinality),
 
     MYSQL_SYSVAR(compact_cf),
@@ -8714,13 +8726,37 @@ int ha_rocksdb::info(uint flag) {
         stats.data_file_length += sz;
       }
 
-      // Second, compute memtable stats
-      uint64_t memtableCount;
-      uint64_t memtableSize;
-      rdb->GetApproximateMemTableStats(m_pk_descr->get_cf(), r, &memtableCount,
-                                       &memtableSize);
-      stats.records += memtableCount;
-      stats.data_file_length += memtableSize;
+      // Second, compute memtable stats. This call is expensive, so cache
+      // values computed for some time.
+      uint64_t cachetime = rocksdb_force_compute_memtable_stats_cachetime;
+      uint64_t time = (cachetime == 0) ? 0 : my_micro_time();
+      if (cachetime == 0 ||
+          time > m_table_handler->m_mtcache_last_update + cachetime) {
+        uint64_t memtableCount;
+        uint64_t memtableSize;
+
+        rdb->GetApproximateMemTableStats(m_pk_descr->get_cf(), r,
+                                         &memtableCount, &memtableSize);
+
+        // Atomically update all of these fields at the same time
+        if (cachetime > 0) {
+          if (m_table_handler->m_mtcache_lock.fetch_add(
+                  1, std::memory_order_acquire) == 0) {
+            m_table_handler->m_mtcache_count = memtableCount;
+            m_table_handler->m_mtcache_size = memtableSize;
+            m_table_handler->m_mtcache_last_update = time;
+          }
+          m_table_handler->m_mtcache_lock.fetch_sub(1,
+                                                    std::memory_order_release);
+        }
+
+        stats.records += memtableCount;
+        stats.data_file_length += memtableSize;
+      } else {
+        // Cached data is still valid, so use it instead
+        stats.records += m_table_handler->m_mtcache_count;
+        stats.data_file_length += m_table_handler->m_mtcache_size;
+      }
 
       if (rocksdb_debug_optimizer_n_rows > 0)
         stats.records = rocksdb_debug_optimizer_n_rows;

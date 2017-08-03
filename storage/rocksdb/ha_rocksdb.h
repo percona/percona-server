@@ -301,6 +301,12 @@ struct Rdb_table_handler {
   /* Stores cumulative table statistics */
   my_io_perf_atomic_t m_io_perf_read;
   Rdb_atomic_perf_counters m_table_perf_context;
+
+  /* Stores cached memtable estimate statistics */
+  std::atomic_uint m_mtcache_lock;
+  uint64_t m_mtcache_count;
+  uint64_t m_mtcache_size;
+  uint64_t m_mtcache_last_update;
 };
 
 class Rdb_key_def;
@@ -368,7 +374,7 @@ struct st_global_stats {
 
   ib_counter_t<ulonglong, 64, RDB_INDEXER> queries[QUERIES_MAX];
 
-  ib_counter_t<ulonglong> covered_secondary_key_lookups;
+  ib_counter_t<ulonglong, 64, RDB_INDEXER> covered_secondary_key_lookups;
 };
 
 /* Struct used for exporting status to MySQL */

@@ -239,6 +239,12 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 #define ROCKSDB_SIZEOF_TTL_RECORD sizeof(longlong)
 
 /*
+  Maximum index prefix length in bytes.
+*/
+constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
+constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
+
+/*
   MyRocks specific error codes. NB! Please make sure that you will update
   HA_ERR_ROCKSDB_LAST when adding new ones.  Also update the strings in
   rdb_error_messages to include any new error messages.
@@ -843,11 +849,7 @@ public:
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint max_supported_key_part_length() const override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN(2048);
-  }
+  uint max_supported_key_part_length() const override;
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle

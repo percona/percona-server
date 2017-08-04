@@ -9,8 +9,8 @@ SET GLOBAL rocksdb_write_ignore_missing_column_families=true;
 
 create table aaa (id int primary key, i int) engine=rocksdb;
 
-SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
---exec sleep 30
+SET GLOBAL rocksdb_flush_log_at_trx_commit=1;
+--exec sleep 5
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 insert aaa(id, i) values(1,1);
 select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
@@ -19,22 +19,23 @@ select variable_value-@a from performance_schema.global_status where variable_na
 insert aaa(id, i) values(3,1);
 select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 
-SET GLOBAL rocksdb_flush_log_at_trx_commit=1;
+SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
+--exec sleep 5
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 insert aaa(id, i) values(4,1);
-select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
-insert aaa(id, i) values(5,1);
-select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
-insert aaa(id, i) values(6,1);
-select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
-
-SET GLOBAL rocksdb_flush_log_at_trx_commit=2;
-insert aaa(id, i) values(7,1);
 
 let $status_var=rocksdb_wal_synced;
-let $status_var_value=`select @a+4`;
+let $status_var_value=`select @a`;
 source include/wait_for_status_var.inc;
 
-truncate table aaa;
+SET GLOBAL rocksdb_flush_log_at_trx_commit=2;
+--exec sleep 5
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+insert aaa(id, i) values(5,1);
+
+let $status_var=rocksdb_wal_synced;
+let $status_var_value=`select @a+1`;
+source include/wait_for_status_var.inc;
 
 # Cleanup
 drop table aaa;

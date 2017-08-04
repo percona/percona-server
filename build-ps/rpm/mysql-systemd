@@ -55,7 +55,9 @@ install_db () {
 
     # If log file is not specified it's put into datadir by default
     if [ ! -z $log ]; then
-        install -m 0640 -omysql -gmysql /dev/null $log
+        if [ ! -f $log ]; then
+            install -m 0640 -omysql -gmysql /dev/null $log
+        fi
         if [ -x /usr/sbin/restorecon ]; then
             /usr/sbin/restorecon $log
         fi

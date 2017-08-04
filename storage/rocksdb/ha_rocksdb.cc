@@ -466,6 +466,7 @@ static uint32_t rocksdb_table_stats_sampling_pct = RDB_DEFAULT_TBL_STATS_SAMPLE_
 static my_bool rocksdb_enable_bulk_load_api = TRUE;
 static my_bool rpl_skip_tx_api_var = FALSE;
 static my_bool rocksdb_print_snapshot_conflict_queries = FALSE;
+static my_bool rocksdb_large_prefix = FALSE;
 
 std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
@@ -1304,6 +1305,12 @@ static MYSQL_SYSVAR_UINT(
     RDB_DEFAULT_TBL_STATS_SAMPLE_PCT, /* everything */ 0,
     /* max */ RDB_TBL_STATS_SAMPLE_PCT_MAX, 0);
 
+static MYSQL_SYSVAR_BOOL(
+    large_prefix, rocksdb_large_prefix, PLUGIN_VAR_RQCMDARG,
+    "Support large index prefix length of 3072 bytes. If off, the maximum "
+    "index prefix length is 767.",
+    nullptr, nullptr, FALSE);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
@@ -1429,6 +1436,8 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(validate_tables),
     MYSQL_SYSVAR(table_stats_sampling_pct),
+
+    MYSQL_SYSVAR(large_prefix),
     nullptr};
 
 static rocksdb::WriteOptions
@@ -5851,7 +5860,7 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
   DBUG_ASSERT(table_arg != nullptr);
   DBUG_ASSERT(create_info != nullptr);
 
-  if (create_info->data_file_name) {
+  if (unlikely(create_info->data_file_name)) {
     // DATA DIRECTORY is used to create tables under a specific location
     // outside the MySQL data directory. We don't support this for MyRocks.
     // The `rocksdb_datadir` setting should be used to configure RocksDB data
@@ -5859,9 +5868,27 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
     DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED);
   }
 
-  if (create_info->index_file_name) {
+  if (unlikely(create_info->index_file_name)) {
     // Similar check for INDEX DIRECTORY as well.
     DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED);
+  }
+
+  if (unlikely(create_info->encrypt_type.length)) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "ENCRYPTION for the RocksDB storage engine");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
+  if (unlikely(create_info->tablespace)) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "TABLESPACEs for the RocksDB storage engine");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
+  if (unlikely(create_info->compress.length)) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "InnoDB page COMPRESSION for the RocksDB storage engine");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   std::string str;
@@ -7398,6 +7425,12 @@ bool ha_rocksdb::is_pk(const uint index, const TABLE *const table_arg,
 
   return index == table_arg->s->primary_key ||
          is_hidden_pk(index, table_arg, tbl_def_arg);
+}
+
+uint ha_rocksdb::max_supported_key_part_length() const {
+  DBUG_ENTER_FUNC();
+  DBUG_RETURN(rocksdb_large_prefix ? MAX_INDEX_COL_LEN_LARGE
+                                   : MAX_INDEX_COL_LEN_SMALL);
 }
 
 const char *ha_rocksdb::get_key_name(const uint index,

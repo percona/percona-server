@@ -678,3 +678,25 @@ t1	CREATE TABLE `t1` (
   KEY `c442` (`c442`,`c443`,`c444`,`c445`,`c446`,`c447`,`c448`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT) ENCRYPTION='y' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='n' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='1' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='AES' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='867-5309' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=ROCKSDB;
+ERROR HY000: Table storage engine 'ROCKSDB' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+CREATE TABLE t1 (a INT) ENGINE=ROCKSDB TABLESPACE ts1;
+ERROR 42000: This version of MySQL doesn't yet support 'TABLESPACEs for the RocksDB storage engine'
+DROP TABLESPACE ts1 ENGINE=INNODB;
+CREATE TABLE t1 (a INT) COMPRESSION='ZLIB' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'InnoDB page COMPRESSION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) COMPRESSION='LZ4' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'InnoDB page COMPRESSION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) COMPRESSION='NONE' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'InnoDB page COMPRESSION for the RocksDB storage engine'

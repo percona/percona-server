@@ -168,7 +168,7 @@ Rdb_mutex::Rdb_mutex() {
 Rdb_mutex::~Rdb_mutex() { mysql_mutex_destroy(&m_mutex); }
 
 Status Rdb_mutex::Lock() {
-  mysql_mutex_lock(&m_mutex);
+  RDB_MUTEX_LOCK_CHECK(m_mutex);
   DBUG_ASSERT(m_old_stage_info.count(current_thd) == 0);
   return Status::OK();
 }
@@ -178,12 +178,12 @@ Status Rdb_mutex::Lock() {
 // If implementing a custom version of this class, the implementation may
 // choose to ignore the timeout.
 // Return OK on success, or other Status on failure.
-Status Rdb_mutex::TryLockFor(int64_t timeout_time __attribute__((__unused__))) {
+Status Rdb_mutex::TryLockFor(int64_t timeout_time MY_ATTRIBUTE((__unused__))) {
   /*
     Note: PThreads API has pthread_mutex_timedlock(), but mysql's
     mysql_mutex_* wrappers do not wrap that function.
   */
-  mysql_mutex_lock(&m_mutex);
+  RDB_MUTEX_LOCK_CHECK(m_mutex);
   return Status::OK();
 }
 
@@ -213,7 +213,7 @@ void Rdb_mutex::UnLock() {
     return;
   }
 #endif
-  mysql_mutex_unlock(&m_mutex);
+  RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 }
 
 } // namespace myrocks

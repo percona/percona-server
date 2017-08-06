@@ -923,4 +923,28 @@ SELECT @@innodb_tmpdir;
 --replace_result $MYSQL_TMP_DIR TMPDIR
 SELECT @@innodb_tmpdir;
 
+--echo #
+--echo # Bug 1385352: SET STATEMENT does not work after SET GLOBAL / SHOW GLOBAL STATUS
+--echo # and affects the global value
+--echo #
+
 --source include/wait_until_count_sessions.inc
+
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+
+SELECT @@GLOBAL.sql_mode;
+SELECT @@GLOBAL.auto_increment_offset;
+SET STATEMENT sql_mode = 'NO_AUTO_CREATE_USER', auto_increment_offset = 123 FOR
+    SELECT @@SESSION.sql_mode, @@SESSION.auto_increment_offset;
+SELECT @@GLOBAL.sql_mode;
+SELECT @@GLOBAL.auto_increment_offset;
+
+SET @saved_general_log = @@GLOBAL.general_log;
+SET GLOBAL general_log = 0;
+
+SET STATEMENT sql_mode='NO_AUTO_CREATE_USER', auto_increment_offset=123 FOR
+    SELECT @@SESSION.sql_mode, @@SESSION.auto_increment_offset;
+SELECT @@GLOBAL.sql_mode;
+SELECT @@GLOBAL.auto_increment_offset;
+
+SET GLOBAL general_log = @saved_general_log;

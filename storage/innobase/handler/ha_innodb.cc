@@ -20420,9 +20420,8 @@ innodb_status_output_update(
 	const void*			save)
 {
 	*static_cast<my_bool*>(var_ptr) = *static_cast<const my_bool*>(save);
-	/* The lock timeout monitor thread also takes care of this
-	output. */
-	os_event_set(lock_sys->timeout_event);
+	/* Wake up server monitor thread */
+	os_event_set(srv_monitor_event);
 }
 
 /*************************************************************//**

@@ -16,6 +16,32 @@ take_upstart_job_backup () {
 	fi
 }
 
+MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')
+TOKUDB=$(dpkg -l | grep -c 'percona-server-tokudb-5.7')
+if [ $TOKUDB = 1 ]
+then
+  path=$(dpkg-query -L `dpkg -l | grep libjemalloc | awk '{print $2}'` | grep libjemalloc.so.1)
+  if [ ! -z $path ]
+  then
+    dir=$(dirname $(readlink -f $path))
+    for dir in "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
+      if [ -r "$dir/libjemalloc.so.1" ]; then
+        preload_exists=$(grep -c "LD_PRELOAD" /etc/default/mysql)
+        thp_exists=$(grep -c "THP_SETTING" /etc/default/mysql)
+        if [ $preload_exists = 0 ]
+        then
+            echo "LD_PRELOAD=$dir/libjemalloc.so.1" >> /etc/default/mysql
+        fi
+        if [ $thp_exists = 0 ]
+        then
+            echo "THP_SETTING=never" >> /etc/default/mysql
+        fi
+        break
+      fi
+    done
+  fi
+fi
+
 case "$1" in
 	configure)
 

@@ -21,6 +21,8 @@
 #include <regex>
 
 /* MySQL header files */
+#include "../sql/log.h"
+#include "./my_stacktrace.h"
 #include "./sql_string.h"
 #include "./sql_regex.h"
 
@@ -135,6 +137,16 @@ namespace myrocks {
 #define HA_EXIT_FAILURE TRUE
 
 /*
+  Macros to better convey the intent behind checking the results from locking
+  and unlocking mutexes.
+*/
+#define RDB_MUTEX_LOCK_CHECK(m)                                                \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, true, mysql_mutex_lock(&m))
+#define RDB_MUTEX_UNLOCK_CHECK(m)                                              \
+  rdb_check_mutex_call_result(__PRETTY_FUNCTION__, false,                      \
+                              mysql_mutex_unlock(&m))
+
+/*
   Generic constant.
 */
 const size_t RDB_MAX_HEXDUMP_LEN = 1000;
@@ -209,31 +221,53 @@ inline int purge_all_jemalloc_arenas() {
 }
 
 /*
+  Helper function to check the result of locking or unlocking a mutex. We'll
+  intentionally abort in case of a failure because it's better to terminate
+  the process instead of continuing in an undefined state and corrupting data
+  as a result.
+*/
+inline void rdb_check_mutex_call_result(const char *function_name,
+                                        const bool attempt_lock,
+                                        const int result) {
+  if (unlikely(result)) {
+    /* NO_LINT_DEBUG */
+    sql_print_error("%s a mutex inside %s failed with an "
+                    "error code %d.",
+                    attempt_lock ? "Locking" : "Unlocking", function_name,
+                    result);
+
+    // This will hopefully result in a meaningful stack trace which we can use
+    // to efficiently debug the root cause.
+    abort_with_stack_traces();
+  }
+}
+
+/*
   Helper functions to parse strings.
 */
 
 const char *rdb_skip_spaces(const struct charset_info_st *const cs,
                             const char *str)
-    __attribute__((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
 bool rdb_compare_strings_ic(const char *const str1, const char *const str2)
-    __attribute__((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
 const char *rdb_find_in_string(const char *str, const char *pattern,
                                bool *const succeeded)
-    __attribute__((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
 const char *rdb_check_next_token(const struct charset_info_st *const cs,
                                  const char *str, const char *const pattern,
                                  bool *const succeeded)
-    __attribute__((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
 const char *rdb_parse_id(const struct charset_info_st *const cs,
                          const char *str, std::string *const id)
-    __attribute__((__nonnull__(1, 2), __warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__(1, 2), __warn_unused_result__));
 
 const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
-    __attribute__((__nonnull__, __warn_unused_result__));
+    MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
 /*
   Helper functions to populate strings.
@@ -241,7 +275,7 @@ const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
 
 std::string rdb_hexdump(const char *data, const std::size_t data_len,
                         const std::size_t maxsize = 0)
-    __attribute__((__nonnull__));
+    MY_ATTRIBUTE((__nonnull__));
 
 /*
   Helper function to see if a database exists

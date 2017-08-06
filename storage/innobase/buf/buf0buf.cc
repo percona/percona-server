@@ -6727,6 +6727,7 @@ buf_stats_aggregate_pool_info(
 	}
 
 	total_info->pool_size += pool_info->pool_size;
+	total_info->pool_size_bytes += pool_info->pool_size_bytes;
 	total_info->lru_len += pool_info->lru_len;
 	total_info->old_lru_len += pool_info->old_lru_len;
 	total_info->free_list_len += pool_info->free_list_len;
@@ -6785,6 +6786,8 @@ buf_stats_get_pool_info(
 	pool_info->pool_unique_id = pool_id;
 
 	pool_info->pool_size = buf_pool->curr_size;
+
+	pool_info->pool_size_bytes = buf_pool->curr_pool_size;
 
 	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 

@@ -506,7 +506,7 @@ fi
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
-    /bin/install -omysql -gmysql /dev/null /var/log/mysqld.log
+    /bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log
 fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
@@ -687,6 +687,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/mysqldumpslow
+%attr(755, root, root) %{_bindir}/ps_mysqld_helper
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump

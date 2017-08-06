@@ -349,7 +349,7 @@ void Rdb_tbl_prop_coll::read_stats_from_tbl_props(
   const auto &user_properties = table_props->user_collected_properties;
   const auto it2 = user_properties.find(std::string(INDEXSTATS_KEY));
   if (it2 != user_properties.end()) {
-    auto result __attribute__((__unused__)) =
+    auto result MY_ATTRIBUTE((__unused__)) =
         Rdb_index_stats::unmaterialize(it2->second, out_stats_vector);
     DBUG_ASSERT(result == 0);
   }
@@ -483,8 +483,15 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool &increment,
     m_entry_single_deletes += s.m_entry_single_deletes;
     m_entry_merges += s.m_entry_merges;
     m_entry_others += s.m_entry_others;
-    for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
-      m_distinct_keys_per_prefix[i] += s.m_distinct_keys_per_prefix[i];
+    if (s.m_distinct_keys_per_prefix.size() > 0) {
+      for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
+        m_distinct_keys_per_prefix[i] += s.m_distinct_keys_per_prefix[i];
+      }
+    } else {
+      for (i = 0; i < m_distinct_keys_per_prefix.size(); i++) {
+        m_distinct_keys_per_prefix[i] +=
+            s.m_rows >> (m_distinct_keys_per_prefix.size() - i - 1);
+      }
     }
   } else {
     m_rows -= s.m_rows;
@@ -495,8 +502,15 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool &increment,
     m_entry_single_deletes -= s.m_entry_single_deletes;
     m_entry_merges -= s.m_entry_merges;
     m_entry_others -= s.m_entry_others;
-    for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
-      m_distinct_keys_per_prefix[i] -= s.m_distinct_keys_per_prefix[i];
+    if (s.m_distinct_keys_per_prefix.size() > 0) {
+      for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
+        m_distinct_keys_per_prefix[i] -= s.m_distinct_keys_per_prefix[i];
+      }
+    } else {
+      for (i = 0; i < m_distinct_keys_per_prefix.size(); i++) {
+        m_distinct_keys_per_prefix[i] -=
+            s.m_rows >> (m_distinct_keys_per_prefix.size() - i - 1);
+      }
     }
   }
 }

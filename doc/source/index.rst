@@ -70,6 +70,7 @@ Performance Improvements
    performance/innodb_numa_support
    performance/threadpool
    performance/xtradb_performance_improvements_for_io-bound_highly-concurrent_workloads
+   performance/prefix_index_queries_optimization
 
 Flexibility Improvements
 ========================
@@ -157,6 +158,15 @@ TokuDB
    tokudb/toku_backup
    tokudb/tokudb_faq
    tokudb/removing_tokudb
+
+MyRocks
+=======
+
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   myrocks/gap_locks_detection
 
 Reference
 =========

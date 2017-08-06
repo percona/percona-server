@@ -797,7 +797,6 @@ static void write_header(FILE *sql_file, char *db_name)
     // assuming that MyRocks isn't present either. If it is, ohh well, bulk
     // loader will not be invoked.
     fprintf(sql_file,
-            "/*!50717 SET @rocksdb_bulk_load_var_name='rocksdb_bulk_load' */;\n"
             "/*!50717 SELECT COUNT(*) INTO @rocksdb_has_p_s_session_variables"
             " FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA ="
             " 'performance_schema' AND TABLE_NAME = 'session_variables'"
@@ -805,9 +804,9 @@ static void write_header(FILE *sql_file, char *db_name)
             "/*!50717 SET @rocksdb_get_is_supported = IF"
             " (@rocksdb_has_p_s_session_variables, 'SELECT COUNT(*) INTO"
             " @rocksdb_is_supported FROM performance_schema.session_variables"
-            " WHERE VARIABLE_NAME=?', 'SELECT 0') */;\n"
+            " WHERE VARIABLE_NAME=\\'rocksdb_bulk_load\\'', 'SELECT 0') */;\n"
             "/*!50717 PREPARE s FROM @rocksdb_get_is_supported */;\n"
-            "/*!50717 EXECUTE s USING @rocksdb_bulk_load_var_name */;\n"
+            "/*!50717 EXECUTE s */;\n"
             "/*!50717 DEALLOCATE PREPARE s */;\n"
             "/*!50717 SET @rocksdb_enable_bulk_load = IF"
             " (@rocksdb_is_supported, 'SET SESSION rocksdb_bulk_load = 1',"

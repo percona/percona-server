@@ -319,7 +319,7 @@ static bool tokudb_backup_check_slave_sql_thread_running(THD *thd) {
          ++it)
     {
         Master_info *mi= it->second;
-        if (mi != NULL && mi->inited && mi->host[0]) {
+        if (mi != NULL && mi->inited && mi->host && mi->host[0]) {
             have_slave = true;
             scoped_lock_wrapper<BasicLockableMysqlMutextT>
                 with_mi_data_locked_1(BasicLockableMysqlMutextT(
@@ -360,7 +360,7 @@ static bool tokudb_backup_stop_slave_sql_thread(THD *thd) {
              ++it)
         {
             Master_info *mi = it->second;
-            if (mi && mi->inited && mi->host[0]) {
+            if (mi && mi->inited && mi->host && mi->host[0]) {
                 bool temp_tables_warning = false;
                 have_slave = true;
                 result = !stop_slave(thd, mi, 0, 0, &temp_tables_warning);
@@ -399,7 +399,7 @@ static bool tokudb_backup_start_slave_sql_thread(THD *thd) {
              ++it)
         {
             Master_info *mi= it->second;
-            if (mi && mi->inited && mi->host[0]) {
+            if (mi && mi->inited && mi->host && mi->host[0]) {
                 have_slave = true;
                 result = !start_slave(thd,
                                       &thd->lex->slave_connection,
@@ -577,7 +577,7 @@ static void tokudb_backup_get_master_infos(
          ++it)
     {
         mi= it->second;
-        if (mi != NULL && mi->host[0])
+        if (mi != NULL && mi->host && mi->host[0])
             tokudb_backup_get_master_info(mi,
                                           executed_gtid_set,
                                           master_info_channels);

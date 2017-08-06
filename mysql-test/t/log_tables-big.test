@@ -9,7 +9,11 @@
 # Test sleeps for long times
 --source include/big_test.inc
 
+set @saved_log_output = @@global.log_output;
 set @@global.log_output = 'TABLE';
+truncate table mysql.slow_log;
+
+--source include/count_sessions.inc
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -38,4 +42,7 @@ connection default;
 disconnect con1;
 disconnect con2;
 
-set @@global.log_output=default;
+--source include/wait_until_count_sessions.inc
+
+set @@global.log_output = @saved_log_output;
+truncate table mysql.slow_log;

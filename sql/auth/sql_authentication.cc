@@ -3359,7 +3359,31 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
+#if OPENSSL_VERSION_NUMBER < 0x10100000
     RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+#else
+    BIGNUM *exponent_bn= BN_new();
+    if (exponent_bn == NULL)
+      return NULL;
+    if (BN_set_word(exponent_bn, m_exponent) == 0)
+    {
+      BN_free(exponent_bn);
+      return NULL;
+    }
+    RSA *rsa= RSA_new();
+    if(rsa == NULL)
+    {
+      BN_free(exponent_bn);
+      return NULL;
+    }
+    if(RSA_generate_key_ex(rsa, m_key_size, exponent_bn, NULL) == 0)
+    {
+      RSA_free(rsa);
+      BN_free(exponent_bn);
+      return NULL;
+    }
+    BN_free(exponent_bn);
+#endif
     return rsa; // pass ownership
   }
 

@@ -31,6 +31,7 @@
 #include "sql_audit.h"
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
+#include "debug_sync.h"   // DEBUG_SYNC
 
 #include <algorithm>
 #include <functional>
@@ -409,6 +410,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     }
     else
     {
+      DEBUG_SYNC(thd, "sp_before_exec_core");
+
       error= exec_core(thd, nextp);
       DBUG_PRINT("info",("exec_core returned: %d", error));
     }
@@ -468,7 +471,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   bool reprepare_error=
-    error && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
+    error && thd->is_error()
+    && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
   bool is_create_table_select=
     thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
     thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0;

@@ -319,8 +319,10 @@ extern "C" void *handle_connection(void *arg)
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->release_resources();
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     // Clean up errors now, before possibly waiting for a new connection.
     ERR_remove_state(0);
+#endif
 
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count(extra_port_connection);

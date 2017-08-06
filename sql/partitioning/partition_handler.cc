@@ -2992,12 +2992,20 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
                       &m_part_spec);
   else
   {
-    // TODO: set to get_first_used_part() instead!
-    m_part_spec.start_part= 0;
-    // TODO: Implement bitmap_get_last_set() and use that here!
-    m_part_spec.end_part= m_tot_parts - 1;
+    m_part_spec.start_part= m_part_info->get_first_used_partition();
+    m_part_spec.end_part= m_part_spec.start_part;
+
+    uint i= m_part_spec.end_part;
+    while (i != MY_BIT_NONE)
+    {
+      i= m_part_info->get_next_used_partition(i);
+      if (i != MY_BIT_NONE)
+        m_part_spec.end_part= i;
+    }
   }
-  if (m_part_spec.start_part > m_part_spec.end_part)
+  if (m_part_spec.start_part == MY_BIT_NONE ||
+      m_part_spec.end_part == MY_BIT_NONE ||
+      m_part_spec.start_part > m_part_spec.end_part)
   {
     /*
       We discovered a partition set but the set was empty so we report

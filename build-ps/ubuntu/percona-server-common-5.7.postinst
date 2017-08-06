@@ -2,36 +2,53 @@
 
 set -e
 
+print_message() {
+    echo " -------------"
+    echo "   *  The suggested mysql options and settings are in /etc/mysql/percona-server.conf.d/mysqld.cnf"
+    echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+    echo "   *  Once it is done please execute the following commands:"
+    echo " rm -rf /etc/mysql/my.cnf"
+    echo " update-alternatives --install /etc/mysql/my.cnf my.cnf \"/etc/mysql/percona-server.cnf\" 200"
+    echo " -------------"
+}
+
 case "$1" in
   configure)
-    # New packaging paradigm for my.cnf as of Dec-2014 for sharing mysql
-    # variants in Ubuntu. If the new mysql-common package does not provide
-    # the update-alternatives facility, fall back to creating a symlink
-#    if [ -f /usr/share/mysql-common/configure-symlinks ]
-#    then
-#      /usr/share/mysql-common/configure-symlinks install percona-server "/etc/mysql/percona-server.cnf"
-#    else
-#      echo "Notice: configure-symlinks trigger could not be called."
-#      echo "Please manually make /etc/mysql/my.cnf a symlink that points to percona-server.cnf."
-#    fi
-    PKG=$(dpkg -S /etc/mysql/my.cnf | cut -d: -f 1)
-    if [ "$PKG" = "mysql-common" ]; then
-        MODIFIED=$(dpkg --verify mysql-common | grep /etc/mysql/my.cnf | wc -l)
-        if [ $MODIFIED = 0 ]; then
-            rm -rf /etc/mysql/my.cnf
-        fi
-    fi
-    if [ ! -f /etc/mysql/my.cnf -o -L /etc/mysql/my.cnf ]
-    then
-      update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+    if [ ! -f /etc/mysql/my.cnf ]; then 
+        update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+        exit 0
     else
-      echo " -------------"
-      echo "   *  The suggested mysql options and settings are in /etc/mysql/percona-server.conf.d/mysqld.cnf"
-      echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-      echo "   *  Once it is done please execute the following commands:"
-      echo " rm -rf /etc/my.cnf"
-      echo " update-alternatives --install /etc/mysql/my.cnf my.cnf \"/etc/mysql/percona-server.cnf\" 200"
-      echo " -------------"
+        FILE=$(readlink -e /etc/mysql/my.cnf)
+        PKG=$(dpkg -S $FILE | cut -d: -f 1)
+        CONF_EXISTS=0 
+        if [ "$PKG" = "mysql-common" -o "$PKG" = "mariadb-common" ]; then
+            MODIFIED=$(debsums --all $PKG | grep $FILE | awk '{print $2}')
+            if [ $MODIFIED = "OK" ]; then
+                if [ "$PKG" = "mariadb-common" ]; then
+                    for DIR in $(grep 'includedir' $FILE | awk '{print $2}'); do
+                        if [ -d $DIR ]; then
+                            COUNT=$(ls $DIR | wc -l)
+                            if [ $COUNT > 0 ]; then
+                                CONF_EXISTS=1
+                            fi
+                        fi
+                    done
+                fi
+                if [ $CONF_EXISTS = 0 ]; then
+                    rm -rf /etc/mysql/my.cnf
+                    update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+                    exit 0
+                else
+                    print_message
+                    exit 0
+                fi
+            fi
+        fi
+        if [ ! -f /etc/mysql/my.cnf -o -L /etc/mysql/my.cnf ]; then
+            update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+        else
+            print_message
+        fi
     fi
   ;;  
 

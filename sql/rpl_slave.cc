@@ -3670,13 +3670,23 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_user(), &my_charset_bin);
   protocol->store((uint32) mi->port);
   protocol->store((uint32) mi->connect_retry);
-  protocol->store(mi->get_master_log_name(), &my_charset_bin);
+  const char * const master_log_file=
+    mi->get_master_log_name();
+  protocol->store(master_log_file, &my_charset_bin);
   protocol->store((ulonglong) mi->get_master_log_pos());
   protocol->store(mi->rli->get_group_relay_log_name() +
                   dirname_length(mi->rli->get_group_relay_log_name()),
                   &my_charset_bin);
   protocol->store((ulonglong) mi->rli->get_group_relay_log_pos());
-  protocol->store(mi->rli->get_group_master_log_name(), &my_charset_bin);
+  const char * const relay_master_log_file=
+    mi->rli->get_group_master_log_name();
+#ifndef DBUG_OFF
+  const size_t master_log_file_len= strlen(master_log_file);
+  const size_t relay_master_log_file_len= strlen(relay_master_log_file);
+#endif
+  DBUG_ASSERT((relay_master_log_file_len == master_log_file_len)
+              || !relay_master_log_file_len || !master_log_file_len);
+  protocol->store(relay_master_log_file, &my_charset_bin);
   protocol->store(mi->slave_running == MYSQL_SLAVE_RUN_CONNECT ?
                   "Yes" : (mi->slave_running == MYSQL_SLAVE_RUN_NOT_CONNECT ?
                            "Connecting" : "No"), &my_charset_bin);
@@ -6048,7 +6058,9 @@ err:
   mysql_mutex_unlock(&mi->run_lock);
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
   my_thread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -6278,7 +6290,9 @@ err:
   }
 
   my_thread_end();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -6655,14 +6669,24 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                  };);
 #endif
 
+#ifndef DBUG_OFF
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group. 
   */
-  DBUG_ASSERT(!rli->gaq->full() ||
-              ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-                rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
-               rli->checkpoint_seqno == rli->checkpoint_group));
+  const bool precondition= !rli->gaq->full() ||
+    ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
+      rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
+     rli->checkpoint_seqno == rli->checkpoint_group);
+  if (!precondition)
+  {
+    fprintf(stderr, "rli->gaq->full() = %d\n", rli->gaq->full());
+    fprintf(stderr, "rli->checkpoint_seqno = %u\n", rli->checkpoint_seqno);
+    fprintf(stderr, "rli->checkpoint_group = %u\n", rli->checkpoint_group);
+    fprintf(stderr, "rli->mts_group_status = %d\n", rli->mts_group_status);
+    DBUG_ASSERT(precondition);
+  }
+#endif
 
   /*
     Currently, the checkpoint routine is being called by the SQL Thread.
@@ -7628,7 +7652,9 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_state(0);
+#endif
   my_thread_exit(0);
   return 0;                             // Avoid compiler warnings
 }

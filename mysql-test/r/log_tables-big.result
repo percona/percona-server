@@ -1,4 +1,6 @@
+set @saved_log_output = @@global.log_output;
 set @@global.log_output = 'TABLE';
+truncate table mysql.slow_log;
 set session long_query_time=10;
 select get_lock('bug27638', 1);
 get_lock('bug27638', 1)
@@ -28,4 +30,5 @@ OK	select get_lock('bug27638', 101)
 select release_lock('bug27638');
 release_lock('bug27638')
 1
-set @@global.log_output=default;
+set @@global.log_output = @saved_log_output;
+truncate table mysql.slow_log;

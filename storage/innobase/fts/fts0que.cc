@@ -746,6 +746,9 @@ fts_query_union_doc_id(
 
 		query->total_size += SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t) + RANKING_WORDS_INIT_LEN;
+
+		if (query->limit != ULONG_UNDEFINED)
+			query->n_docs++;
 	}
 }
 
@@ -772,6 +775,9 @@ fts_query_remove_doc_id(
 		      SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
 		query->total_size -= SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t);
+
+		if (query->limit != ULONG_UNDEFINED)
+			query->n_docs--;
 	}
 }
 
@@ -892,6 +898,9 @@ fts_query_intersect_doc_id(
 
 			query->total_size += SIZEOF_RBT_NODE_ADD
 				+ sizeof(fts_ranking_t);
+
+			if (query->limit != ULONG_UNDEFINED)
+				query->n_docs++;
 		}
 	}
 }
@@ -3237,6 +3246,7 @@ fts_query_filter_doc_ids(
 
 	if (query->limit != ULONG_UNDEFINED
 	    && query->n_docs >= query->limit) {
+		ut_ad(0);
 		return(DB_SUCCESS);
 	}
 
@@ -3327,17 +3337,11 @@ fts_query_filter_doc_ids(
 			/* Add the word to the document's matched RB tree. */
 			fts_query_add_word_to_document(query, doc_id, word);
 		}
-
-		if (query->limit != ULONG_UNDEFINED
-		    && query->limit <= ++query->n_docs) {
-			goto func_exit;
-		}
 	}
 
 	/* Some sanity checks. */
 	ut_a(doc_id == node->last_doc_id);
 
-func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {

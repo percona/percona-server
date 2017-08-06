@@ -20,4 +20,3 @@ INSERT INTO invalid_values VALUES('\'484436\'');
 
 DROP TABLE valid_values;
 DROP TABLE invalid_values;
-

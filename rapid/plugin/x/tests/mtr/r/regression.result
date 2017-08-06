@@ -1,3 +1,4 @@
+install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
@@ -5,14 +6,14 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. faile
 # restart
 Bug #21472634
 RUN show processlist;
-Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
-$PROC_1_ID	root	localhost	test	Sleep	0		null	0	0
-$PROC_2_ID	root	localhost	null	Query	0	cleaning up	PLUGIN: show processlist	0	0
+Id	User	Host	db	Command		State	Info		
+$PROC_1_ID	root	localhost	test	Sleep		null
+$PROC_2_ID	root	localhost	null	Query	null	PLUGIN: show processlist
 0 rows affected
 RUN SELECT id,user,command,state FROM information_schema.processlist ORDER BY id
 id	user	command	state
-2	root	Sleep	
-4	root	Query	executing
+$PROC_1_ID	root	Sleep	
+$PROC_2_ID	root	Query	executing
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -405,3 +406,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+UNINSTALL PLUGIN mysqlx;

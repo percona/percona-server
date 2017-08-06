@@ -170,6 +170,7 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,"
   ."innodb_fts,innodb_zip,innodb_undo,innodb_stress,perfschema,funcs_1,"
   ."funcs_2,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,"
   ."test_service_sql_api,jp,stress,engines/iuds,engines/funcs,"
+  ."group_replication,"
   ."query_response_time,audit_log,json,connection_control,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl";
@@ -374,6 +375,15 @@ $| = 1; # Automatically flush STDOUT
 
 main();
 
+sub is_core_dump {
+  my $core_path= shift;
+  my $core_name= basename($core_path);
+  # Name beginning with core, not ending in .gz, not belonging to Boost,
+  # or ending with .dmp on Windows
+  return (($core_name =~ /^core/ and $core_name !~ /\.gz$/
+           and $core_path !~ /\/boost_/)
+          or (IS_WINDOWS and $core_name =~ /\.dmp$/));
+}
 
 sub main {
   # Default, verbosity on
@@ -615,6 +625,18 @@ sub main {
     mtr_print_line();
   }
 
+  if ($opt_ctest) {
+    find({ wanted => sub {
+             my $core_file= $File::Find::name;
+
+             if (is_core_dump($core_file)) {
+               mtr_report(" - found '$core_file'");
+
+               My::CoreDump->show($core_file, "", 1);
+             }
+       }}, $bindir);
+  }
+
   print_total_times($opt_parallel) if $opt_report_times;
 
   mtr_report_stats("Completed", $completed);
@@ -712,10 +734,7 @@ sub run_test_server ($$$) {
 			 my $core_file= $File::Find::name;
 			 my $core_name= basename($core_file);
 
-			 # Name beginning with core, not ending in .gz
-			 if (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
-			     or (IS_WINDOWS and $core_name =~ /\.dmp$/)){
-                                                       # Ending with .dmp
+                         if (is_core_dump($core_name)) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 

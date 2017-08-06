@@ -1254,10 +1254,11 @@ The following is a reference of table status statements:
  Number of failed calls to ``realloc()``.
 
 ``memory: number of bytes requested``:
- Total number of bytes requested from mallocator.
+ Total number of bytes requested from memory allocator library.
 
 ``memory: number of bytes freed``:
- Total number of mallocated bytes freed (used - freed = bytes in use).
+ Total number of bytes allocated from memory allocation library that have been
+ freed (used - freed = bytes in use).
 
 ``memory: largest attempted allocation size``:
  Largest number of bytes in a single successful ``malloc()`` operation.
@@ -1266,7 +1267,7 @@ The following is a reference of table status statements:
  Largest number of bytes in a single failed ``malloc()`` operation.
 
 ``memory: number of bytes used (requested + overhead)``:
- Total number of bytes allocated by mallocator.
+ Total number of bytes allocated by memory allocator library.
 
 ``memory: estimated maximum memory footprint``:
  Maximum memory footprint of the storage engine,

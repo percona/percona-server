@@ -1888,24 +1888,6 @@ public:
   }
 };
 
-class PT_start_set_stmt_option_value_list : public PT_start_option_value_list
-{
-  typedef PT_start_option_value_list super;
-
-  PT_start_option_value_list_following_option_type *list;
-
-public:
-  PT_start_set_stmt_option_value_list(
-    PT_start_option_value_list_following_option_type *list_arg)
-  : list(list_arg)
-  {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    return super::contextualize(pc) || list->contextualize(pc);
-  }
-};
-
 class PT_set : public Parse_tree_node
 {
   typedef Parse_tree_node super;

@@ -56,15 +56,45 @@ EXECUTE_PROCESS(
 # split the list into lines
 STRING(REGEX MATCHALL "[^\n]+" ROCKSDB_LIB_SOURCES ${SCRIPT_OUTPUT})
 
+# add bundled compression code
+SET(ROCKSDB_LIB_SOURCES
+  ${ROCKSDB_LIB_SOURCES}
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4hc.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib/lz4frame.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/entropy_common.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/error_private.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/fse_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/pool.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/threading.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/xxhash.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common/zstd_common.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/fse_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/huf_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstd_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
+)
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/include/rocksdb
   ${CMAKE_CURRENT_SOURCE_DIR}/rocksdb/third-party/gtest-1.7.0/fused-src
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
 )
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DOS_LINUX
-  -DZLIB)
+  -DZLIB -DLZ4 -DZSTD)
+
+IF(WITH_FB_TSAN)
+  SET(PIC_EXT "_pic")
+ELSE()
+  SET(PIC_EXT "")
+ENDIF()
 
 SET(ROCKSDB_SOURCES
   ha_rocksdb.cc ha_rocksdb.h ha_rocksdb_proto.h
@@ -85,50 +115,6 @@ SET(ROCKSDB_SOURCES
   rdb_threads.cc rdb_threads.h
   ${ROCKSDB_LIB_SOURCES}
 )
-
-IF(WITH_FB_TSAN)
-  SET(PIC_EXT "_pic")
-ELSE()
-  SET(PIC_EXT "")
-ENDIF()
-
-SET(rocksdb_static_libs )
-IF (NOT "$ENV{WITH_SNAPPY}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_SNAPPY}/lib/libsnappy${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DSNAPPY)
-ELSE()
-# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
-# SET(rocksdb_static_libs ${rocksdb_static_libs} snappy)
-# MYR-28
-ENDIF()
-
-IF (NOT "$ENV{WITH_LZ4}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_LZ4}/lib/liblz4${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DLZ4)
-ELSE()
-# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
-#  SET(rocksdb_static_libs ${rocksdb_static_libs} lz4)
-# MYR-28
-ENDIF()
-
-IF (NOT "$ENV{WITH_BZ2}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_BZ2}/lib/libbz2${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DBZIP2)
-ELSE()
-# MYR-28 : Support snappy, lz4, and bz2 compression with system libraries
-#  SET(rocksdb_static_libs ${rocksdb_static_libs} bz2)
-# MYR-28
-ENDIF()
-
-# link ZSTD only if instructed
-IF (NOT "$ENV{WITH_ZSTD}" STREQUAL "")
-  SET(rocksdb_static_libs ${rocksdb_static_libs}
-  $ENV{WITH_ZSTD}/lib/libzstd${PIC_EXT}.a)
-  ADD_DEFINITIONS(-DZSTD)
-ENDIF()
 
 SET(rocksdb_static_libs ${rocksdb_static_libs} ${ZLIB_LIBRARY} "-lrt")
 

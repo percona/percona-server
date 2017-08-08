@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,21 +60,6 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 using std::min;
 using std::max;
 
-/**
-   The function represents Log_event delete wrapper
-   to reset possibly active temp_buf member.
-   It's to be invoked in context where the member is
-   not bound with dynamically allocated memory and therefore can
-   be reset as simple as with plain assignment to NULL.
-
-   @param ev  a pointer to Log_event instance
-*/
-inline void reset_temp_buf_and_delete(Log_event *ev)
-{
-  ev->temp_buf= NULL;
-  delete ev;
-}
-
 /* Needed for Rpl_filter */
 CHARSET_INFO *table_alias_charset= &my_charset_bin;
 
@@ -95,6 +80,21 @@ Rpl_filter *binlog_filter= NULL;
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 #include <sslopt-vars.h>
+
+/**
+  The function represents Log_event delete wrapper
+  to reset possibly active temp_buf member.
+  It's to be invoked in context where the member is
+  not bound with dynamically allocated memory and therefore can
+  be reset as simple as with plain assignment to NULL.
+
+  @param ev  a pointer to Log_event instance
+*/
+inline void reset_temp_buf_and_delete(Log_event *ev)
+{
+  ev->temp_buf= NULL;
+  delete ev;
+}
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong filter_server_id = 0;
@@ -2687,10 +2687,9 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           retval= ERROR_STOP;
         }
         if (ev)
-        {
-          ev->temp_buf=0;
-          delete ev;
-        }
+          reset_temp_buf_and_delete(ev);
+        /* Flush result_file after every event */
+        fflush(result_file);
       }
       else
       {

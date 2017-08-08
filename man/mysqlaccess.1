@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlaccess\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/02/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLACCESS\FR" "1" "03/17/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLACCESS\FR" "1" "06/02/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,7 +51,7 @@ This utility is deprecated in MySQL 5\&.6\&.17 and removed in MySQL 5\&.7
 .RE
 .PP
 \fBmysqlaccess\fR
-is a diagnostic tool that Yves Carlier has provided for the MySQL distribution\&. It checks the access privileges for a host name, user name, and database combination\&. Note that
+is a diagnostic tool that Yves Carlier has provided for the MySQL distribution\&. It checks the access privileges for a host name, user name, and database combination\&.
 \fBmysqlaccess\fR
 checks access using only the
 user
@@ -77,8 +77,45 @@ shell> \fBmysqlaccess [\fR\fB\fIhost_name\fR\fR\fB [\fR\fB\fIuser_name\fR\fR\fB 
 .RE
 .\}
 .PP
+When
 \fBmysqlaccess\fR
-supports the following options\&.
+runs, it loads and executes the contents of its configuration file,
+mysqlaccess\&.conf\&.
+\fBmysqlaccess\fR
+looks for the configuration file in these locations, in order:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The directory named by the
+\fBSYSCONFDIR\fR
+option to
+\fBCMake\fR
+when MySQL was built\&. By default, this is the
+etc
+directory located under the compiled\-in installation directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The
+/etc
+directory\&.
+.RE
+.PP
+\fBmysqlaccess\fR
+supports the options shown in the following table\&.
 .sp
 .RS 4
 .ie n \{\

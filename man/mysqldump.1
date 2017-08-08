@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/02/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "03/17/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "06/02/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -462,7 +462,7 @@ Section\ \&6.3.7, \(lqPluggable Authentication\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.7, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 This option was added in MySQL 5\&.6\&.28\&.
 .RE
@@ -899,7 +899,7 @@ statement\&.
 Adds to a table dump all SQL statements needed to create any tablespaces used by an
 NDB
 table\&. This information is not otherwise included in the output from
-\fBmysqldump\fR\&. This option is currently relevant only to MySQL Cluster tables\&.
+\fBmysqldump\fR\&. This option is currently relevant only to NDB Cluster tables\&.
 .RE
 .sp
 .RS 4
@@ -1745,9 +1745,9 @@ This option should be used only when
 \fBmysqldump\fR
 is run on the same machine as the
 \fBmysqld\fR
-server\&. Because the server creates files
+server\&. Because the server creates
 *\&.txt
-file in the directory that you specify, the directory must be writable by the server and the MySQL account that you use must have the
+files in the directory that you specify, the directory must be writable by the server and the MySQL account that you use must have the
 FILE
 privilege\&. Because
 \fBmysqldump\fR
@@ -2732,7 +2732,7 @@ option\&. Also, use the
 option\&.
 .PP
 \fBmysqldump\fR
-does not dump the MySQL Cluster
+does not dump the NDB Cluster
 ndbinfo
 information database\&.
 .PP

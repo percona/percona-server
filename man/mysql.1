@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/02/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "03/17/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "06/02/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -66,7 +66,8 @@ Or:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-user=\fR\fB\fIuser_name\fR\fR\fB \-\-password=\fR\fB\fIyour_password\fR\fR\fB \fR\fB\fIdb_name\fR\fR
+shell> \fBmysql \-\-user=\fR\fB\fIuser_name\fR\fR\fB \-\-password \fR\fB\fIdb_name\fR\fR
+Enter password: \fIyour_password\fR
 .fi
 .if n \{\
 .RE
@@ -206,6 +207,24 @@ does not use the history file\&.
 Batch mode results in nontabular output format and escaping of special characters\&. Escaping may be disabled by using raw mode; see the description for the
 \fB\-\-raw\fR
 option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-binary\-as\-hex\fR,
+\fB\-b\fR
+.sp
+When this option is given,
+\fBmysql\fR
+displays binary data using hexadecimal notation (0x\fIvalue\fR)\&. This occurs whether the overall output dislay format is tabular, vertical, HTML, or XML\&.
+.sp
+This option was added in MySQL 5\&.6\&.37\&.
 .RE
 .sp
 .RS 4
@@ -559,7 +578,7 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.7, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.) This option was added in MySQL 5\&.6\&.7\&.
+Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.) This option was added in MySQL 5\&.6\&.7\&.
 .RE
 .sp
 .RS 4
@@ -693,15 +712,15 @@ Write line numbers for errors\&. Disable this with
 Enable or disable
 LOCAL
 capability for
-LOAD DATA INFILE\&. With no value, the option enables
+LOAD DATA INFILE\&. For
+\fBmysql\fR, this capability is disabled by default\&. With no value, the option enables
 LOCAL\&. The option may be given as
 \fB\-\-local\-infile=0\fR
 or
 \fB\-\-local\-infile=1\fR
 to explicitly disable or enable
-LOCAL\&. Enabling
-LOCAL
-has no effect if the server does not also support it\&.
+LOCAL\&. Enabling local data loading has no effect if the server does not also support it; see
+Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq
 .RE
 .sp
 .RS 4
@@ -1209,12 +1228,9 @@ The server sends the public key to the client as needed, so it is not necessary 
 For additional discussion regarding use of the
 sha256_password
 plugin, including how to get the RSA public key, see
-Section\ \&6.5.1.4, \(lqThe SHA-256 Authentication Plugin\(rq\&.
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
 .sp
-This option is available only if MySQL was built using OpenSSL\&. It was added in MySQL 5\&.6\&.6 under the name
-\fB\-\-server\-public\-key\fR
-and renamed in 5\&.6\&.7 to
-\fB\-\-server\-public\-key\-path\fR\&.
+This option is available only if MySQL was built using OpenSSL\&.
 .RE
 .sp
 .RS 4

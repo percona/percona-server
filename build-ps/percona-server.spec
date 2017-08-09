@@ -528,9 +528,13 @@ fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
   %systemd_post mysqld.service
-  /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
+  if [ $1 == 1 ]; then
+      /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
+  fi
 %else
-  /sbin/chkconfig --add mysql
+  if [ $1 == 1 ]; then
+      /sbin/chkconfig --add mysql
+  fi
 %endif
 if [ -e /etc/my.cnf ]; then
     MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')

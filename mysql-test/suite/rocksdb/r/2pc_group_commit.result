@@ -20,11 +20,11 @@ SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
 select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
 select case when variable_value-@c = 0 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
 case when variable_value-@c = 0 then 'true' else 'false' end
-false
+true
 select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
 select case when variable_value-@c = 0 then 'true' else 'false' end from performance_schema.global_status where variable_name='rocksdb_wal_group_syncs';
 case when variable_value-@c = 0 then 'true' else 'false' end
-false
+true
 SET GLOBAL rocksdb_flush_log_at_trx_commit=@orig_rocksdb_flush_log_at_trx_commit;
 DROP TABLE t1;
 DROP DATABASE mysqlslap;

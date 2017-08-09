@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/02/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "03/17/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "06/02/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -312,7 +312,7 @@ Empty the table before importing the text file\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&6.5.1.7, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 This option was added in MySQL 5\&.6\&.28\&.
 .RE
@@ -425,7 +425,10 @@ Section\ \&13.2.6, \(lqLOAD DATA INFILE Syntax\(rq\&.
 \fB\-\-local\fR,
 \fB\-L\fR
 .sp
-Read input files locally from the client host\&.
+By default, files are read by the server on the server host\&. With this option,
+\fBmysqlimport\fR
+reads input files locally on the client host\&. Enabling local data loading has no effect if the server does not also support it; see
+Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq
 .RE
 .sp
 .RS 4

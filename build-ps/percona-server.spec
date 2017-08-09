@@ -520,7 +520,7 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
 
 %post -n Percona-Server-server%{product_suffix}
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
     /bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log

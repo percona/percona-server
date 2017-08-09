@@ -2,7 +2,7 @@
 
 . /usr/share/debconf/confmodule
 
-MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2)
+MYSQLDATA=$(my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 if [ -z "$MYSQLDATA" ];
 then
     MYSQLDATA=/var/lib/mysql

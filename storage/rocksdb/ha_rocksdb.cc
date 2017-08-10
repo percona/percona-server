@@ -2403,15 +2403,39 @@ static std::string rdb_xid_to_string(const XID &src) {
 */
 static bool rocksdb_flush_wal(handlerton *const hton
                               MY_ATTRIBUTE((__unused__)),
-                              bool binlog_group_flush MY_ATTRIBUTE((unused))) {
+                              bool binlog_group_flush) {
+  DBUG_ENTER("rocksdb_flush_wal");
   DBUG_ASSERT(rdb != nullptr);
-  rocksdb_wal_group_syncs++;
-  const rocksdb::Status s = rdb->SyncWAL();
-  if (!s.ok()) {
-    rdb_log_status_error(s);
-    return HA_EXIT_FAILURE;
+
+  /**
+    If !binlog_group_flush, we got invoked by FLUSH LOGS or similar.
+    Else, we got invoked by binlog group commit during flush stage.
+  */
+
+  if (binlog_group_flush && THDVAR(NULL, flush_log_at_trx_commit) == 0) {
+    /**
+      rocksdb_flush_log_at_trx_commit=0
+      (write and sync based on timer rocksdb_background_sync).
+      Do not flush the redo log during binlog group commit.
+    */
+    DBUG_RETURN(false);
   }
-  return HA_EXIT_SUCCESS;
+
+  if (!binlog_group_flush || THDVAR(NULL, flush_log_at_trx_commit) == 1) {
+    /**
+      Sync the WAL if we are in FLUSH LOGS, or if
+      rocksdb_flush_log_at_trx_commit=1
+      (write and sync at each commit).
+    */
+    rocksdb_wal_group_syncs++;
+    const rocksdb::Status s = rdb->SyncWAL();
+    if (!s.ok()) {
+      rdb_log_status_error(s);
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
 }
 
 /**

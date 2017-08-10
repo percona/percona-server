@@ -12,10 +12,10 @@ Supported Releases:
 
  * 7.0 (wheezy)
  * 8.0 (jessie)
+ * 9.0 (stretch)
 
 * Ubuntu:
 
- * 12.04LTS (precise)
  * 14.04LTS (trusty)
  * 16.04LTS (xenial)
  * 16.10 (yakkety)

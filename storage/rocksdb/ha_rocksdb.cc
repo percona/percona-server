@@ -406,46 +406,61 @@ static void rocksdb_set_max_background_compactions(
 //////////////////////////////////////////////////////////////////////////////
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
-static long long rocksdb_block_cache_size;
+static constexpr ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
+static constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
+static constexpr ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
+static constexpr ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
+static constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
+static constexpr size_t RDB_MIN_MERGE_BUF_SIZE = 100;
+static constexpr size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE = 1024 * 1024 * 1024;
+static constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
+static constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
+static constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
+static constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
+
+static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 /* Use unsigned long long instead of uint64_t because of MySQL compatibility */
 static unsigned long long  // NOLINT(runtime/int)
-    rocksdb_rate_limiter_bytes_per_sec;
+    rocksdb_rate_limiter_bytes_per_sec = 0;
 static unsigned long long  // NOLINT(runtime/int)
-    rocksdb_sst_mgr_rate_bytes_per_sec;
+    rocksdb_sst_mgr_rate_bytes_per_sec = DEFAULT_SST_MGR_RATE_BYTES_PER_SEC;
 static unsigned long long rocksdb_delayed_write_rate;
 static unsigned long  // NOLINT(runtime/int)
-    rocksdb_persistent_cache_size_mb;
-static uint64_t rocksdb_info_log_level;
-static char *rocksdb_wal_dir;
-static char *rocksdb_persistent_cache_path;
-static uint64_t rocksdb_index_type;
-static uint32_t rocksdb_flush_log_at_trx_commit;
-static uint32_t rocksdb_debug_optimizer_n_rows;
-static my_bool rocksdb_force_compute_memtable_stats;
-static my_bool rocksdb_debug_optimizer_no_zero_cardinality;
-static uint32_t rocksdb_wal_recovery_mode;
-static uint32_t rocksdb_access_hint_on_compaction_start;
-static char *rocksdb_compact_cf_name;
-static char *rocksdb_checkpoint_name;
-static my_bool rocksdb_signal_drop_index_thread;
-static my_bool rocksdb_strict_collation_check = 1;
-static char *rocksdb_strict_collation_exceptions;
-static my_bool rocksdb_collect_sst_properties = 1;
-static my_bool rocksdb_force_flush_memtable_now_var = 0;
-static my_bool rocksdb_force_flush_memtable_and_lzero_now_var = 0;
-static my_bool rocksdb_enable_ttl = 1;
-static my_bool rocksdb_reset_stats = 0;
+    rocksdb_persistent_cache_size_mb = 0;
+static uint64_t rocksdb_info_log_level = rocksdb::InfoLogLevel::ERROR_LEVEL;
+static char *rocksdb_wal_dir = nullptr;
+static char *rocksdb_persistent_cache_path = nullptr;
+static uint64_t rocksdb_index_type =
+    rocksdb::BlockBasedTableOptions::kBinarySearch;
+static uint32_t rocksdb_flush_log_at_trx_commit = 1;
+static uint32_t rocksdb_debug_optimizer_n_rows = 0;
+static my_bool rocksdb_force_compute_memtable_stats = TRUE;
+static my_bool rocksdb_debug_optimizer_no_zero_cardinality = TRUE;
+static uint32_t rocksdb_wal_recovery_mode =
+    static_cast<uint32_t>(rocksdb::WALRecoveryMode::kAbsoluteConsistency);
+static uint32_t rocksdb_access_hint_on_compaction_start =
+    rocksdb::Options::AccessHint::NORMAL;
+static char *rocksdb_compact_cf_name = nullptr;
+static char *rocksdb_checkpoint_name = nullptr;
+static my_bool rocksdb_signal_drop_index_thread = FALSE;
+static my_bool rocksdb_strict_collation_check = TRUE;
+static char *rocksdb_strict_collation_exceptions = nullptr;
+static my_bool rocksdb_collect_sst_properties = TRUE;
+static my_bool rocksdb_force_flush_memtable_now_var = FALSE;
+static my_bool rocksdb_force_flush_memtable_and_lzero_now_var = FALSE;
+static my_bool rocksdb_enable_ttl = TRUE;
+static my_bool rocksdb_reset_stats = FALSE;
 static uint64_t rocksdb_number_stat_computes = 0;
 static uint32_t rocksdb_seconds_between_stat_computes = 3600;
 static long long rocksdb_compaction_sequential_deletes = 0l;
 static long long rocksdb_compaction_sequential_deletes_window = 0l;
 static long long rocksdb_compaction_sequential_deletes_file_size = 0l;
 static uint32_t rocksdb_validate_tables = 1;
-static char *rocksdb_datadir;
-static uint32_t rocksdb_table_stats_sampling_pct;
-static my_bool rocksdb_enable_bulk_load_api = 1;
-static my_bool rpl_skip_tx_api_var = 0;
-static my_bool rocksdb_print_snapshot_conflict_queries = 0;
+static char *rocksdb_datadir= nullptr;
+static uint32_t rocksdb_table_stats_sampling_pct = RDB_DEFAULT_TBL_STATS_SAMPLE_PCT;
+static my_bool rocksdb_enable_bulk_load_api = TRUE;
+static my_bool rpl_skip_tx_api_var = FALSE;
+static my_bool rocksdb_print_snapshot_conflict_queries = FALSE;
 
 std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
@@ -522,18 +537,6 @@ static const char *index_type_names[] = {"kBinarySearch", "kHashSearch", NullS};
 static TYPELIB index_type_typelib = {array_elements(index_type_names) - 1,
                                      "index_type_typelib", index_type_names,
                                      nullptr};
-
-const ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
-const ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
-const ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
-const ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
-const size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
-const size_t RDB_MIN_MERGE_BUF_SIZE = 100;
-const size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE = 1024 * 1024 * 1024;
-const size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
-const int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
-const int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
-const int RDB_MAX_CHECKSUMS_PCT = 100;
 
 // TODO: 0 means don't wait at all, and we don't support it yet?
 static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,

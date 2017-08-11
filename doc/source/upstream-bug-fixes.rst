@@ -5,6 +5,12 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`82967`                                                                             |  
+|:Launchpad bug: :bug:`1622992`                                                                               |
+|:Upstream state: N/A                                                                                         |
+|:Fix Released: :rn:`5.6.37-82.2`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`81467` - innodb_fts.sync_block test unstable due to slow query log nondeterminism  |
 |:Launchpad bug: :bug:`1662163`                                                                               |
 |:Upstream state: Verified (checked on 2017-03-23)                                                            |

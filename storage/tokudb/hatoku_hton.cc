@@ -772,10 +772,9 @@ bool tokudb_flush_logs(handlerton * hton, bool binlog_group_commit) {
     int error;
     bool result = 0;
 
-    if (tokudb::sysvars::checkpoint_on_flush_logs) {
-        //
-        // take the checkpoint
-        //
+    // if we are in 'FLUSH LOGS' and we are directed to checkpoint, do a
+    // checkpoint which also has the effect of flushing logs
+    if (!binlog_group_commit && tokudb::sysvars::checkpoint_on_flush_logs) {
         error = db_env->txn_checkpoint(db_env, 0, 0, 0);
         if (error) {
             my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
@@ -783,12 +782,15 @@ bool tokudb_flush_logs(handlerton * hton, bool binlog_group_commit) {
             goto exit;
         }
     }
-    else {
+    // if we are either in 'FLUSH LOGS', or, we are not in 'FLUSH LOGS' but in
+    // binlog_group_commit and we are in high durability, flush 'em
+    else if (!binlog_group_commit ||
+             (tokudb::sysvars::fsync_log_period == 0 &&
+              tokudb::sysvars::commit_sync(NULL))) {
         error = db_env->log_flush(db_env, NULL);
         assert_always(error == 0);
     }
 
-    result = 0;
 exit:
     TOKUDB_DBUG_RETURN(result);
 }

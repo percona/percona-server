@@ -57,8 +57,7 @@ Rdb_key_def::Rdb_key_def(uint indexnr_arg, uint keyno_arg,
                          uint16_t index_dict_version_arg, uchar index_type_arg,
                          uint16_t kv_format_version_arg, bool is_reverse_cf_arg,
                          bool is_per_partition_cf_arg, const char *_name,
-                         Rdb_index_stats _stats,
-                         uint64 ttl_duration)
+                         Rdb_index_stats _stats, uint64 ttl_duration)
     : m_index_number(indexnr_arg), m_cf_handle(cf_handle_arg),
       m_index_dict_version(index_dict_version_arg),
       m_index_type(index_type_arg), m_kv_format_version(kv_format_version_arg),

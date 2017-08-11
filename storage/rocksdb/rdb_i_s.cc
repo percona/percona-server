@@ -895,6 +895,7 @@ static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
 
   for (auto cf_name : cf_manager.get_cf_names()) {
     rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(cf_name);
+
     if (cfh == nullptr) {
       continue;
     }

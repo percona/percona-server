@@ -1397,6 +1397,7 @@ create table t1 (
   index (key1) comment '$per_index_cf'
 ) engine=rocksdb;
 
+
 --echo #
 --echo # Issue #22: SELECT ... FOR UPDATE takes a long time
 --echo #

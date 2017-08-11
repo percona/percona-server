@@ -103,7 +103,6 @@ SET GLOBAL rocksdb_strict_collation_exceptions="abc\\";
 SET GLOBAL rocksdb_strict_collation_exceptions=null;
 
 # cleanup
---let SEARCH_PATTERN=
---let SEARCH_FILE=
 --let $restart_parameters=
 --source include/restart_mysqld.inc
+--remove_file $SEARCH_FILE

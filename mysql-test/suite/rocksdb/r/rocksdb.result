@@ -1509,6 +1509,7 @@ rocksdb_memtable_total	#
 rocksdb_memtable_unflushed	#
 rocksdb_queries_point	#
 rocksdb_queries_range	#
+rocksdb_covered_secondary_key_lookups	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
 rocksdb_block_cache_bytes_read	#
@@ -1603,6 +1604,7 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
@@ -1699,6 +1701,7 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read

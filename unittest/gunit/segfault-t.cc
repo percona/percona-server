@@ -53,8 +53,8 @@ TEST_F(FatalSignalDeathTest, Abort)
 
 TEST_F(FatalSignalDeathTest, Segfault)
 {
-#if defined(__WIN__)
   int *pint= NULL;
+#if defined(__WIN__)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
    caught by handle_fatal_signal(). We get an empty error message from the
@@ -65,7 +65,6 @@ TEST_F(FatalSignalDeathTest, Segfault)
   /* AddressSanitizer */
   MY_EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
-  int *pint= NULL;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).

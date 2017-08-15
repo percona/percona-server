@@ -159,13 +159,18 @@ TokuDB
    tokudb/tokudb_faq
    tokudb/removing_tokudb
 
-MyRocks
-=======
+Percona MyRocks
+===============
 
 .. toctree::
    :maxdepth: 1
    :glob:
 
+   Introduction <myrocks/index>
+   Installation <myrocks/install>
+   Limitations <myrocks/limitations>
+   Differences <myrocks/differences>
+   Variables <myrocks/variables>
    myrocks/gap_locks_detection
 
 Reference

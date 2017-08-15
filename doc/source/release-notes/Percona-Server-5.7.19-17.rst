@@ -24,7 +24,7 @@ Details of this release can be found in the `5.7.19-17 milestone on Launchpad
 New Features
 ============
 
-* Included the MyRocks storage engine
+* Included the :ref:`Percona MyRocks storage engine <myrocks_intro>`
 
   .. note:: MyRocks for Percona Server is currently experimental
      and not recommended for production deployments until further notice.

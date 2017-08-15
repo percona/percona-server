@@ -50,6 +50,7 @@ JEMALLOC_LOCATION=""
 HOTBACKUP_LOCATION=""
 HAROCKSDB_LOCATION=""
 HATOKUDB_LOCATION=""
+DOCKER=0
 
 SCRIPT_PWD=$(cd `dirname $0` && pwd)
 MYSQL_CLIENT_BIN="${SCRIPT_PWD}/mysql"
@@ -63,8 +64,8 @@ fi
 # Check if we have a functional getopt(1)
 if ! getopt --test
   then
-  go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinxg \
-  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-qrt,disable-qrt,enable-audit,disable-audit,enable-pam,disable-pam,enable-mysqlx,disable-mysqlx \
+  go_out="$(getopt --options=c:u:p::S:h:P:edbrfmkotzawinxgD \
+  --longoptions=config-file:,user:,password::,socket:,host:,port:,enable-tokudb,disable-tokudb,enable-tokubackup,disable-tokubackup,help,defaults-file:,force-envfile,force-mycnf,enable-rocksdb,disable-rocksdb,enable-qrt,disable-qrt,enable-audit,disable-audit,enable-pam,disable-pam,enable-mysqlx,disable-mysqlx,docker \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -190,6 +191,10 @@ do
     shift
     FORCE_ENVFILE=1
     ;;
+    -D | --docker )
+    shift
+    DOCKER=1
+    ;;
     --help )
     printf "This script can be used to setup plugins, TokuDB and RocksDB storage engines for Percona Server 5.7.\n"
     printf "For TokuDB if transparent huge pages are enabled on the system it adds thp-setting=never option to my.cnf\n"
@@ -232,7 +237,7 @@ done
 
 # Make sure only root can run this script
 if [ ${ENABLE_TOKUDB} = 1 -o ${DISABLE_TOKUDB} = 1 -o ${ENABLE_TOKUBACKUP} = 1 -o ${DISABLE_TOKUBACKUP} = 1 ]; then
-  if [ $(id -u) -ne 0 ]; then
+  if [ $(id -u) -ne 0 -a $DOCKER = 0 ]; then
     echo "ERROR: For TokuDB install/uninstall this script must be run as root!" 1>&2
     exit 1
   fi
@@ -400,7 +405,7 @@ if [ ${ENABLE_TOKUBACKUP} = 1 ]; then
 fi
 
 # Check if server is running with jemalloc - if not warn that restart is needed (only when running with mysqld_safe)
-if [ ${ENABLE_TOKUDB} = 1 -a ${FULL_SYSTEMD_MODE} = 0 ]; then
+if [ ${ENABLE_TOKUDB} = 1 -a ${FULL_SYSTEMD_MODE} = 0 -a ${DOCKER} = 0 ]; then
   printf "Checking if Percona Server is running with jemalloc enabled...\n"
   grep -qc jemalloc /proc/${PID_NUM}/environ || ldd $(which mysqld) | grep -qc jemalloc
   JEMALLOC_STATUS=$?

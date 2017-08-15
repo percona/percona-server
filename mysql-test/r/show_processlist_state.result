@@ -1,0 +1,4 @@
+"Test SHOW PROCESSLIST, column INFO"
+show processlist;
+Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+ID	root	HOST	test	Query	TIME	starting	show processlist	ROWS_SENT	ROWS_EXAMINED

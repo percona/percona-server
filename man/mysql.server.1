@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql.server\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/22/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\&.SERVER\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\&.SERVER\FR" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -34,9 +34,17 @@ mysql.server \- MySQL server startup script
 \fBmysql {start|stop}\fR
 .SH "DESCRIPTION"
 .PP
-MySQL distributions on Unix include a script named
-\fBmysql\&.server\fR, which starts the server using
-\fBmysqld_safe\fR\&. It can be used on systems such as Linux and Solaris that use System V\-style run directories to start and stop system services\&. It is also used by the OS X Startup Item for MySQL\&.
+MySQL distributions on Unix and Unix\-like system include a script named
+\fBmysql\&.server\fR, which starts the MySQL server using
+\fBmysqld_safe\fR\&. It can be used on systems such as Linux and Solaris that use System V\-style run directories to start and stop system services\&. It is also used by the macOS Startup Item for MySQL\&.
+.PP
+\fBmysql\&.server\fR
+is the script name as used within the MySQL source tree\&. The installed name might be different; for example,
+\fBmysqld\fR
+or
+\fBmysql\fR\&. In the following discussion, adjust the name
+\fBmysql\&.server\fR
+as appropriate for your system\&.
 .if n \{\
 .sp
 .\}
@@ -50,18 +58,18 @@ MySQL distributions on Unix include a script named
 .ps -1
 .br
 .PP
-For MySQL installation using an RPM distribution, server startup and shutdown is managed by systemd on several Linux platforms\&. On these platforms,
+For some Linux platforms, MySQL installation from RPM or Debian packages includes systemd support for managing MySQL server startup and shutdown\&. On these platforms,
 \fBmysql\&.server\fR
 and
 \fBmysqld_safe\fR
-are no longer installed because they are unnecessary\&. For more information, see
+are not installed because they are unnecessary\&. For more information, see
 Section\ \&2.5.10, \(lqManaging MySQL Server with systemd\(rq\&.
 .sp .5v
 .RE
 .PP
 To start or stop the server manually using the
 \fBmysql\&.server\fR
-script, invoke it with
+script, invoke it from the command line with
 start
 or
 stop
@@ -78,21 +86,20 @@ shell> \fBmysql\&.server stop\fR
 .RE
 .\}
 .PP
-Before
 \fBmysql\&.server\fR
-starts the server, it changes location to the MySQL installation directory, and then invokes
+changes location to the MySQL installation directory, then invokes
 \fBmysqld_safe\fR\&. To run the server as some specific user, add an appropriate
 user
 option to the
 [mysqld]
-group of the
+group of the global
 /etc/my\&.cnf
 option file, as shown later in this section\&. (It is possible that you must edit
 \fBmysql\&.server\fR
 if you\*(Aqve installed a binary distribution of MySQL in a nonstandard location\&. Modify it to change location into the proper directory before it runs
 \fBmysqld_safe\fR\&. If you do this, your modified version of
 \fBmysql\&.server\fR
-may be overwritten if you upgrade MySQL in the future, so you should make a copy of your edited version that you can reinstall\&.)
+may be overwritten if you upgrade MySQL in the future; make a copy of your edited version that you can reinstall\&.)
 .PP
 \fBmysql\&.server stop\fR
 stops the server by sending a signal to it\&. You can also stop the server manually by executing
@@ -100,27 +107,44 @@ stops the server by sending a signal to it\&. You can also stop the server manua
 .PP
 To start and stop MySQL automatically on your server, you must add start and stop commands to the appropriate places in your
 /etc/rc*
-files\&.
-.PP
+files:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 If you use the Linux server RPM package (MySQL\-server\-\fIVERSION\fR\&.rpm), or a native Linux package installation, the
 \fBmysql\&.server\fR
 script may be installed in the
 /etc/init\&.d
 directory with the name
+mysqld
+or
 mysql\&. See
 Section\ \&2.5.5, \(lqInstalling MySQL on Linux Using RPM Packages from Oracle\(rq, for more information on the Linux RPM packages\&.
-.PP
-Some vendors provide RPM packages that install a startup script under a different name such as
-\fBmysqld\fR\&.
-.PP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 If you install MySQL from a source distribution or using a binary distribution format that does not install
 \fBmysql\&.server\fR
-automatically, you can install it manually\&. The script can be found in the
+automatically, you can install the script manually\&. It can be found in the
 support\-files
-directory under the MySQL installation directory or in a MySQL source tree\&. Copy it to the
+directory under the MySQL installation directory or in a MySQL source tree\&. Copy the script to the
 /etc/init\&.d
 directory with the name
-\fBmysql\fR, and then make it executable:
+\fBmysql\fR
+and make it executable:
 .sp
 .if n \{\
 .RS 4
@@ -133,40 +157,6 @@ shell> \fBchmod +x /etc/init\&.d/mysql\fR
 .RE
 .\}
 .sp
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-Older Red Hat systems use the
-/etc/rc\&.d/init\&.d
-directory rather than
-/etc/init\&.d\&. Adjust the preceding commands accordingly\&. Alternatively, first create
-/etc/init\&.d
-as a symbolic link that points to
-/etc/rc\&.d/init\&.d:
-.sp .5v
-.RE
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBcd /etc\fR
-shell> \fBln \-s rc\&.d/init\&.d \&.\fR
-.fi
-.if n \{\
-.RE
-.\}
-.PP
 After installing the script, the commands needed to activate it to run at system startup depend on your operating system\&. On Linux, you can use
 \fBchkconfig\fR:
 .sp
@@ -179,7 +169,7 @@ shell> \fBchkconfig \-\-add mysql\fR
 .if n \{\
 .RE
 .\}
-.PP
+.sp
 On some Linux systems, the following command also seems to be necessary to fully enable the
 \fBmysql\fR
 script:
@@ -193,18 +183,36 @@ shell> \fBchkconfig \-\-level 345 mysql on\fR
 .if n \{\
 .RE
 .\}
-.PP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 On FreeBSD, startup scripts generally should go in
-/usr/local/etc/rc\&.d/\&. The
-rc(8)
-manual page states that scripts in this directory are executed only if their base name matches the
-*\&.sh
-shell file name pattern\&. Any other files or directories present within the directory are silently ignored\&. In other words, on FreeBSD, you should install the
+/usr/local/etc/rc\&.d/\&. Install the
 mysql\&.server
 script as
 /usr/local/etc/rc\&.d/mysql\&.server\&.sh
-to enable automatic startup\&.
-.PP
+to enable automatic startup\&. The
+rc(8)
+manual page states that scripts in this directory are executed only if their base name matches the
+*\&.sh
+shell file name pattern\&. Any other files or directories present within the directory are silently ignored\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 As an alternative to the preceding setup, some operating systems also use
 /etc/rc\&.local
 or
@@ -220,8 +228,18 @@ to start additional services on startup\&. To start up MySQL using this method, 
 .if n \{\
 .RE
 .\}
-.PP
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 For other systems, consult your operating system documentation to see how to install startup scripts\&.
+.RE
 .PP
 \fBmysql\&.server\fR
 reads options from the
@@ -238,7 +256,7 @@ You can add options for
 in a global
 /etc/my\&.cnf
 file\&. A typical
-/etc/my\&.cnf
+my\&.cnf
 file might look like this:
 .sp
 .if n \{\
@@ -259,7 +277,7 @@ basedir=/usr/local/mysql
 .PP
 The
 \fBmysql\&.server\fR
-script supports the following options\&. If specified, they
+script supports the options shown in the following table\&. If specified, they
 \fImust\fR
 be placed in an option file, not on the command line\&.
 \fBmysql\&.server\fR
@@ -269,6 +287,57 @@ and
 stop
 as command\-line arguments\&.
 .sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&4.3.\ \&mysql\&.server Option\-File Options
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Option Name
+T}:T{
+Description
+T}:T{
+Type
+T}
+.T&
+l l l
+l l l
+l l l
+l l l.
+T{
+basedir
+T}:T{
+Path to MySQL installation directory
+T}:T{
+directory name
+T}
+T{
+datadir
+T}:T{
+Path to MySQL data directory
+T}:T{
+directory name
+T}
+T{
+pid\-file
+T}:T{
+File in which server should write its process ID
+T}:T{
+file name
+T}
+T{
+service\-startup\-timeout
+T}:T{
+How long to wait for server startup
+T}:T{
+integer
+T}
+.TE
+.sp 1
+.sp
 .RS 4
 .ie n \{\
 \h'-04'\(bu\h'+03'\c
@@ -277,7 +346,7 @@ as command\-line arguments\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
+\fBbasedir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL installation directory\&.
 .RE
@@ -290,7 +359,7 @@ The path to the MySQL installation directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-datadir=\fR\fB\fIdir_name\fR\fR
+\fBdatadir=\fR\fB\fIdir_name\fR\fR
 .sp
 The path to the MySQL data directory\&.
 .RE
@@ -303,7 +372,7 @@ The path to the MySQL data directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-pid\-file=\fR\fB\fIfile_name\fR\fR
+\fBpid\-file=\fR\fB\fIfile_name\fR\fR
 .sp
 The path name of the file in which the server should write its process ID\&.
 .sp
@@ -322,7 +391,7 @@ option file group but not the
 [mysqld_safe]
 group, you can ensure that
 \fBmysqld_safe\fR
-gets the same value when invoke using
+gets the same value when invoked from
 \fBmysql\&.server\fR
 as when invoked manually by putting the same
 pid\-file
@@ -341,7 +410,7 @@ groups\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-service\-startup\-timeout=\fR\fB\fIseconds\fR\fR
+\fBservice\-startup\-timeout=\fR\fB\fIseconds\fR\fR
 .sp
 How long in seconds to wait for confirmation of server startup\&. If the server does not start within this time,
 \fBmysql\&.server\fR

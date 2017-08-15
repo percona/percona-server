@@ -1627,9 +1627,6 @@ recv_parse_or_apply_log_rec_body(
 	mtr_t*		mtr)
 {
 	ut_ad(!block == !mtr);
-#ifndef UNIV_HOTBACKUP
-	ut_ad(!apply || recv_sys->mlog_checkpoint_lsn != 0);
-#endif /* !UNIV_HOTBACKUP */
 
 	switch (type) {
 	case MLOG_FILE_NAME:
@@ -1734,18 +1731,9 @@ recv_parse_or_apply_log_rec_body(
 
 	if (block) {
 		/* Applying a page log record. */
-		ut_ad(apply);
 		page = block->frame;
 		page_zip = buf_block_get_page_zip(block);
 		ut_d(page_type = fil_page_get_type(page));
-	} else if (apply
-		   && !is_predefined_tablespace(space_id)
-		   && recv_spaces.find(space_id) == recv_spaces.end()) {
-		ib::fatal() << "Missing MLOG_FILE_NAME or MLOG_FILE_DELETE"
-			" for redo log record " << type << " (page "
-			<< space_id << ":" << page_no << ") at "
-			<< recv_sys->recovered_lsn << ".";
-		return(NULL);
 	} else {
 		/* Parsing a page log record. */
 		page = NULL;
@@ -3092,15 +3080,13 @@ enum store_t {
 hash table to wait merging to file pages.
 @param[in]	checkpoint_lsn	the LSN of the latest checkpoint
 @param[in]	store		whether to store page operations
-@param[in]	apply		whether to apply the records
 @return whether MLOG_CHECKPOINT record was seen the first time,
 or corruption was noticed */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 recv_parse_log_recs(
 	lsn_t		checkpoint_lsn,
-	store_t		store,
-	bool		apply)
+	store_t		store)
 {
 	byte*		ptr;
 	byte*		end_ptr;
@@ -3146,7 +3132,7 @@ loop:
 		page no, and a pointer to the body of the log record */
 
 		len = recv_parse_log_rec(&type, ptr, end_ptr, &space,
-					 &page_no, apply, &body);
+					 &page_no, true, &body);
 
 		if (len == 0) {
 			return(false);
@@ -3212,9 +3198,6 @@ loop:
 				}
 				recv_sys->mlog_checkpoint_lsn
 					= recv_sys->recovered_lsn;
-#ifndef UNIV_HOTBACKUP
-				return(true);
-#endif /* !UNIV_HOTBACKUP */
 			}
 			break;
 		case MLOG_FILE_NAME:
@@ -3358,7 +3341,7 @@ loop:
 			completely recovered (until MLOG_MULTI_REC_END). */
 			len = recv_parse_log_rec(
 				&type, ptr, end_ptr, &space, &page_no,
-				apply, &body);
+				true, &body);
 
 			if (recv_sys->found_corrupt_log
 			    && !recv_report_corrupt_log(
@@ -3547,7 +3530,6 @@ recv_scan_log_recs(
 	bool		finished	= false;
 	ulint		data_len;
 	bool		more_data	= false;
-	bool		apply		= recv_sys->mlog_checkpoint_lsn != 0;
 	ulint		recv_parsing_buf_size = RECV_PARSING_BUF_SIZE;
 
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
@@ -3714,7 +3696,7 @@ recv_scan_log_recs(
 		/* Try to parse more log records */
 
 		if (recv_parse_log_recs(checkpoint_lsn,
-					*store_to_hash, apply)) {
+					*store_to_hash)) {
 			ut_ad(recv_sys->found_corrupt_log
 			      || recv_sys->found_corrupt_fs
 			      || recv_sys->mlog_checkpoint_lsn
@@ -3775,8 +3757,7 @@ recv_group_scan_log_recs(
 	lsn_t	checkpoint_lsn	= *contiguous_lsn;
 	lsn_t	start_lsn;
 	lsn_t	end_lsn;
-	store_t	store_to_hash	= recv_sys->mlog_checkpoint_lsn == 0
-		? STORE_NO : (last_phase ? STORE_IF_EXISTS : STORE_YES);
+	store_t	store_to_hash	= last_phase ? STORE_IF_EXISTS : STORE_YES;
 	ulint	available_mem	= UNIV_PAGE_SIZE
 		* (buf_pool_get_n_pages()
 		   - (recv_n_pool_free_frames * srv_buf_pool_instances));
@@ -3858,6 +3839,25 @@ recv_init_missing_space(dberr_t err, const recv_spaces_t::const_iterator& i)
 	return(err);
 }
 
+/** Report a missing mlog_file_name or mlog_file_delete record for
+the tablespace.
+@param[in]	recv_addr	Hashed page file address. */
+static
+void
+recv_init_missing_mlog(
+	recv_addr_t*	recv_addr)
+{
+	ulint	space_id = recv_addr->space;
+	ulint	page_no = recv_addr->page_no;
+	ulint	type = UT_LIST_GET_FIRST(recv_addr->rec_list)->type;
+	ulint	start_lsn = UT_LIST_GET_FIRST(recv_addr->rec_list)->start_lsn;
+
+	ib::fatal() << "Missing MLOG_FILE_NAME or MLOG_FILE_DELETE "
+		"for redo log record " << type << " (page "
+		<< space_id << ":" << page_no << ") at "
+		<< start_lsn;
+}
+
 /** Check if all tablespaces were found for crash recovery.
 @return error code or DB_SUCCESS */
 static MY_ATTRIBUTE((warn_unused_result))
@@ -3913,7 +3913,12 @@ recv_init_crash_recovery_spaces(void)
 
 				recv_spaces_t::iterator i
 					= recv_spaces.find(space);
-				ut_ad(i != recv_spaces.end());
+
+				if (i == recv_spaces.end()) {
+					recv_init_missing_mlog(recv_addr);
+					recv_addr->state = RECV_DISCARDED;
+					continue;
+				}
 
 				if (i->second.deleted) {
 					ut_ad(missing_spaces.find(space)
@@ -4096,13 +4101,13 @@ recv_recovery_from_checkpoint_start(
 		return(DB_ERROR);
 	}
 
-	/* Look for MLOG_CHECKPOINT. */
-	recv_group_scan_log_recs(group, &contiguous_lsn, false);
-	/* The first scan should not have stored or applied any records. */
-	ut_ad(recv_sys->n_addrs == 0);
-	ut_ad(!recv_sys->found_corrupt_fs);
+	/** Scan the redo log from checkpoint lsn and redo log to
+	the hash table. */
+	rescan = recv_group_scan_log_recs(group, &contiguous_lsn, false);
 
-	if (recv_sys->found_corrupt_log && !srv_force_recovery) {
+
+	if ((recv_sys->found_corrupt_log && !srv_force_recovery)
+	    || recv_sys->found_corrupt_fs) {
 		log_mutex_exit();
 		return(DB_ERROR);
 	}
@@ -4122,16 +4127,6 @@ recv_recovery_from_checkpoint_start(
 
 		group->scanned_lsn = checkpoint_lsn;
 		rescan = false;
-	} else {
-		contiguous_lsn = checkpoint_lsn;
-		rescan = recv_group_scan_log_recs(
-			group, &contiguous_lsn, false);
-
-		if ((recv_sys->found_corrupt_log && !srv_force_recovery)
-		    || recv_sys->found_corrupt_fs) {
-			log_mutex_exit();
-			return(DB_ERROR);
-		}
 	}
 
 	/* NOTE: we always do a 'recovery' at startup, but only if

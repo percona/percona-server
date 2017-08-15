@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/22/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO ND" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "OPTIONS COMMON TO ND" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.105.\ \& This table describes command\-line options common to all MySQL Cluster programs
+.B Table\ \&21.110.\ \& This table describes command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 .
@@ -119,36 +119,6 @@ See
 Section\ \&21.3.3.8.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
 \fBmysqld\fR
 options relating to NDB Cluster\&.
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-help\fR,
-\fB\-\-usage\fR,
-\fB\-?\fR
-.TS
-allbox tab(:);
-l l s s
-l l s s.
-T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-help
-T}
-T{
-\ \&
-T}:T{
-\-\-usage
-T}
-.TE
-.sp 1
-Prints a short list with descriptions of the available command options\&.
-.RE
 .sp
 .RS 4
 .ie n \{\
@@ -183,63 +153,6 @@ T}
 .TE
 .sp 1
 Tells the program where to find character set information\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-ndb\-connectstring=\fR\fB\fIconnection_string\fR\fR,
-\fB\-\-connect\-string=\fR\fB\fIconnection_string\fR\fR,
-\fB\-c \fR\fB\fIconnection_string\fR\fR
-.TS
-allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
-T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ndb\-connectstring=connectstring
-T}
-T{
-\ \&
-T}:T{
-\-\-connect\-string=connectstring
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
-\fBType\fR
-T}:T{
-string
-T}
-:T{
-\fBDefault\fR
-T}:T{
-localhost:1186
-T}
-.TE
-.sp 1
-This option takes an NDB Cluster connection string that specifies the management server for the application to connect to, as shown here:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\fR
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-For more information, see
-Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
 .RE
 .sp
 .RS 4
@@ -477,6 +390,237 @@ process\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-defaults\-extra\-file\fR=\fIfilename\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-defaults\-extra\-file=filename
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read this file after global option files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR=\fIfilename\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-defaults\-file=filename
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from this file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-defaults\-group\-suffix
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with names ending in this suffix\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR,
+\fB\-\-usage\fR,
+\fB\-?\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-help
+T}
+T{
+\ \&
+T}:T{
+\-\-usage
+T}
+.TE
+.sp 1
+Prints a short list with descriptions of the available command options\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-login\-path\fR=\fIpath\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-login\-path=path
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read this path from the login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-connectstring=\fR\fB\fIconnection_string\fR\fR,
+\fB\-\-connect\-string=\fR\fB\fIconnection_string\fR\fR,
+\fB\-c \fR\fB\fIconnection_string\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-ndb\-connectstring=connectstring
+T}
+T{
+\ \&
+T}:T{
+\-\-connect\-string=connectstring
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+localhost:1186
+T}
+.TE
+.sp 1
+This option takes an NDB Cluster connection string that specifies the management server for the application to connect to, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\fR
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+For more information, see
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-ndb\-mgmd\-host=\fR\fB\fIhost\fR\fR\fB[:\fR\fB\fIport\fR\fR\fB]\fR
 .TS
 allbox tab(:);
@@ -553,6 +697,42 @@ Section\ \&21.1.6.2, \(lqLimits and Differences of NDB Cluster from Standard MyS
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-no\-defaults
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+TRUE
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-ndb\-optimized\-node\-selection\fR
 .TS
 allbox tab(:);
@@ -579,6 +759,42 @@ T}
 .TE
 .sp 1
 Optimize selection of nodes for transactions\&. Enabled by default\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-print\-defaults
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+TRUE
+T}
+.TE
+.sp 1
+Print the program argument list and exit\&.
 .RE
 .sp
 .RS 4

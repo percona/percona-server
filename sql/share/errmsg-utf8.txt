@@ -7765,7 +7765,7 @@ ER_RDB_STATUS_MSG
   eng "%s, Status error %d received from RocksDB: %s"
 
 ER_RDB_TTL_UNSUPPORTED
-  eng "TTL support is currently disabled when table has secondary indexes or hidden PK."
+  eng "TTL support is currently disabled when table has a hidden PK."
 
 ER_RDB_TTL_COL_FORMAT
   eng "TTL column (%s) in MyRocks must be an unsigned non-null 64-bit integer, exist inside the table, and have an accompanying ttl duration."

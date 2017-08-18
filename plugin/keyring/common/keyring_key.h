@@ -49,7 +49,7 @@ struct Key : IKey
 
 private:
   Key(const Key& other);
-  void create_key_signature() const;
+  virtual void create_key_signature() const;
   my_bool load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
                                   size_t key_pod_size, std::string *string,
                                   size_t string_length);

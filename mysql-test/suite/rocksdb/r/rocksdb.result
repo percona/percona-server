@@ -926,6 +926,7 @@ rocksdb_delayed_write_rate	16777216
 rocksdb_delete_obsolete_files_period_micros	21600000000
 rocksdb_enable_bulk_load_api	ON
 rocksdb_enable_thread_tracking	ON
+rocksdb_enable_ttl	ON
 rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
 rocksdb_flush_log_at_trx_commit	1
@@ -966,6 +967,7 @@ rocksdb_print_snapshot_conflict_queries	OFF
 rocksdb_rate_limiter_bytes_per_sec	0
 rocksdb_read_free_rpl_tables	
 rocksdb_records_in_range	50
+rocksdb_reset_stats	OFF
 rocksdb_rpl_skip_tx_api	OFF
 rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
@@ -983,8 +985,8 @@ rocksdb_trace_sst_api	OFF
 rocksdb_unsafe_for_binlog	OFF
 rocksdb_update_cf_options	
 rocksdb_use_adaptive_mutex	OFF
+rocksdb_use_direct_io_for_flush_and_compaction	OFF
 rocksdb_use_direct_reads	OFF
-rocksdb_use_direct_writes	OFF
 rocksdb_use_fsync	OFF
 rocksdb_validate_tables	1
 rocksdb_verify_row_debug_checksums	OFF
@@ -1491,10 +1493,15 @@ rocksdb_rows_deleted	#
 rocksdb_rows_inserted	#
 rocksdb_rows_read	#
 rocksdb_rows_updated	#
+rocksdb_rows_expired	#
 rocksdb_system_rows_deleted	#
 rocksdb_system_rows_inserted	#
 rocksdb_system_rows_read	#
 rocksdb_system_rows_updated	#
+rocksdb_memtable_total	#
+rocksdb_memtable_unflushed	#
+rocksdb_queries_point	#
+rocksdb_queries_range	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_data_hit	#
 rocksdb_block_cache_data_miss	#
@@ -1559,10 +1566,15 @@ rocksdb_rows_deleted
 rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
+rocksdb_rows_expired
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
 rocksdb_system_rows_updated
+rocksdb_memtable_total
+rocksdb_memtable_unflushed
+rocksdb_queries_point
+rocksdb_queries_range
 rocksdb_block_cache_add
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
@@ -1629,10 +1641,15 @@ rocksdb_rows_deleted
 rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
+rocksdb_rows_expired
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
 rocksdb_system_rows_updated
+rocksdb_memtable_total
+rocksdb_memtable_unflushed
+rocksdb_queries_point
+rocksdb_queries_range
 rocksdb_block_cache_add
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
@@ -1798,6 +1815,7 @@ INSERT INTO t1 SET id=123, blob_col=''                ON DUPLICATE KEY UPDATE bl
 DROP TABLE t1;
 #
 # Issue #17: Automatic per-index column families
+# (Now deprecated)
 #
 create table t1 (
 id int not null,
@@ -1805,40 +1823,7 @@ key1 int,
 PRIMARY KEY (id),
 index (key1) comment '$per_index_cf'
 ) engine=rocksdb;
-#Same CF ids with different CF flags
-create table t1_err (
-id int not null,
-key1 int,
-PRIMARY KEY (id),
-index (key1) comment 'test.t1.key1'
-) engine=rocksdb;
-ERROR HY000: Column family ('test.t1.key1') flag (0) is different from an existing flag (2). Assign a new CF flag, or do not change existing CF flag.
-create table t1_err (
-id int not null,
-key1 int,
-PRIMARY KEY (id),
-index (key1) comment 'test.t1.key2'
-) engine=rocksdb;
-drop table t1_err;
-# Unfortunately there is no way to check which column family everything goes to
-insert into t1 values (1,1);
-select * from t1;
-id	key1
-1	1
-# Check that ALTER and RENAME are disallowed
-alter table t1 add col2 int;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE on table with per-index CF'
-rename table t1 to t2;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE on table with per-index CF'
-drop table t1;
-# Check detection of typos in $per_index_cf
-create table t1 (
-id int not null,
-key1 int,
-PRIMARY KEY (id),
-index (key1) comment '$per_idnex_cf'
-)engine=rocksdb;
-ERROR 42000: This version of MySQL doesn't yet support 'column family name looks like a typo of $per_index_cf.'
+ERROR HY000: The per-index column family option has been deprecated.
 #
 # Issue #22: SELECT ... FOR UPDATE takes a long time
 #

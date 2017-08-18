@@ -98,12 +98,12 @@ std::vector<Rdb_trx_info> rdb_get_all_trx_info();
   - the name used to set the default column family parameter for per-cf
     arguments.
 */
-const char *const DEFAULT_CF_NAME = "default";
+extern const std::string DEFAULT_CF_NAME;
 
 /*
   This is the name of the Column Family used for storing the data dictionary.
 */
-const char *const DEFAULT_SYSTEM_CF_NAME = "__system__";
+extern const std::string DEFAULT_SYSTEM_CF_NAME;
 
 /*
   This is the name of the hidden primary key for tables with no pk.
@@ -112,9 +112,9 @@ const char *const HIDDEN_PK_NAME = "HIDDEN_PK_ID";
 
 /*
   Column family name which means "put this index into its own column family".
-  See Rdb_cf_manager::get_per_index_cf_name().
+  DEPRECATED!!!
 */
-const char *const PER_INDEX_CF_NAME = "$per_index_cf";
+extern const std::string PER_INDEX_CF_NAME;
 
 /*
   Name for the background thread.
@@ -140,7 +140,7 @@ constexpr char RDB_PER_PARTITION_QUALIFIER_NAME_SEP = '_';
   - p0_cfname=foo
   - p3_tts_col=bar
 */
-constexpr char RDB_PER_PARTITION_QUALIFIER_VALUE_SEP = '=';
+constexpr char RDB_QUALIFIER_VALUE_SEP = '=';
 
 /*
   Separator between multiple qualifier assignments. Sample usage:
@@ -153,6 +153,16 @@ constexpr char RDB_QUALIFIER_SEP = ';';
   Qualifier name for a custom per partition column family.
 */
 const char *const RDB_CF_NAME_QUALIFIER = "cfname";
+
+/*
+  Qualifier name for a custom per partition ttl duration.
+*/
+const char *const RDB_TTL_DURATION_QUALIFIER = "ttl_duration";
+
+/*
+  Qualifier name for a custom per partition ttl duration.
+*/
+const char *const RDB_TTL_COL_QUALIFIER = "ttl_col";
 
 /*
   Default, minimal valid, and maximum valid sampling rate values when collecting
@@ -224,6 +234,12 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 64 * 1024 * 1024;
 #define ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN sizeof(longlong)
 
 /*
+  Bytes used to store TTL, in the beginning of all records for tables with TTL
+  enabled.
+*/
+#define ROCKSDB_SIZEOF_TTL_RECORD sizeof(longlong)
+
+/*
   MyRocks specific error codes. NB! Please make sure that you will update
   HA_ERR_ROCKSDB_LAST when adding new ones.  Also update the strings in
   rdb_error_messages to include any new error messages.
@@ -262,10 +278,6 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 64 * 1024 * 1024;
 #define HA_ERR_ROCKSDB_STATUS_EXPIRED (HA_ERR_LAST + 24)
 #define HA_ERR_ROCKSDB_STATUS_TRY_AGAIN (HA_ERR_LAST + 25)
 #define HA_ERR_ROCKSDB_LAST HA_ERR_ROCKSDB_STATUS_TRY_AGAIN
-
-inline bool looks_like_per_index_cf_typo(const char *const name) {
-  return (name && name[0] == '$' && strcmp(name, PER_INDEX_CF_NAME));
-}
 
 /**
   @brief
@@ -322,13 +334,16 @@ typedef struct _gl_index_id_s {
   }
 } GL_INDEX_ID;
 
-enum operation_type {
+enum operation_type : int {
   ROWS_DELETED = 0,
   ROWS_INSERTED,
   ROWS_READ,
   ROWS_UPDATED,
+  ROWS_EXPIRED,
   ROWS_MAX
 };
+
+enum query_type : int { QUERIES_POINT = 0, QUERIES_RANGE, QUERIES_MAX };
 
 #if defined(HAVE_SCHED_GETCPU)
 #define RDB_INDEXER get_sched_indexer_t
@@ -343,6 +358,8 @@ struct st_global_stats {
   // system_rows_ stats are only for system
   // tables. They are not counted in rows_* stats.
   ib_counter_t<ulonglong, 64, RDB_INDEXER> system_rows[ROWS_MAX];
+
+  ib_counter_t<ulonglong, 64, RDB_INDEXER> queries[QUERIES_MAX];
 };
 
 /* Struct used for exporting status to MySQL */
@@ -351,11 +368,21 @@ struct st_export_stats {
   ulonglong rows_inserted;
   ulonglong rows_read;
   ulonglong rows_updated;
+  ulonglong rows_expired;
 
   ulonglong system_rows_deleted;
   ulonglong system_rows_inserted;
   ulonglong system_rows_read;
   ulonglong system_rows_updated;
+
+  ulonglong queries_point;
+  ulonglong queries_range;
+};
+
+/* Struct used for exporting RocksDB memory status */
+struct st_memory_stats {
+  ulonglong memtable_total;
+  ulonglong memtable_unflushed;
 };
 
 } // namespace myrocks
@@ -461,6 +488,11 @@ class ha_rocksdb : public my_core::handler {
     pack_record()/pack_index_tuple() calls).
   */
   uchar *m_pack_buffer;
+
+  /*
+    Pointer to the original TTL timestamp value (8 bytes) during UPDATE.
+  */
+  const char *m_ttl_bytes;
 
   /* rowkey of the last record we've read, in StorageFormat. */
   String m_last_rowkey;
@@ -753,14 +785,6 @@ public:
                                          uchar *const buf)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
-  void convert_record_to_storage_format(const rocksdb::Slice &pk_packed_slice,
-                                        Rdb_string_writer *const pk_unpack_info,
-                                        rocksdb::Slice *const packed_rec)
-      MY_ATTRIBUTE((__nonnull__));
-
-  static const std::string gen_cf_name_qualifier_for_partition(
-    const std::string &s);
-
   static const std::vector<std::string> parse_into_tokens(const std::string &s,
                                                           const char delim);
 
@@ -777,6 +801,9 @@ public:
   static const char *get_key_comment(const uint index,
                                      const TABLE *const table_arg,
                                      const Rdb_tbl_def *const tbl_def_arg)
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  static const std::string get_table_comment(const TABLE *const table_arg)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   static bool is_hidden_pk(const uint index, const TABLE *const table_arg,
@@ -913,7 +940,6 @@ private:
   struct key_def_cf_info {
     rocksdb::ColumnFamilyHandle *cf_handle;
     bool is_reverse_cf;
-    bool is_auto_cf;
     bool is_per_partition_cf;
   };
 
@@ -923,12 +949,23 @@ private:
     const uchar *old_data;
     rocksdb::Slice new_pk_slice;
     rocksdb::Slice old_pk_slice;
+    rocksdb::Slice old_pk_rec;
 
     // "unpack_info" data for the new PK value
     Rdb_string_writer *new_pk_unpack_info;
 
     longlong hidden_pk_id;
     bool skip_unique_check;
+
+    // In certain cases, TTL is enabled on a table, as well as an explicit TTL
+    // column.  The TTL column can be part of either the key or the value part
+    // of the record.  If it is part of the key, we store the offset here.
+    //
+    // Later on, we use this offset to store the TTL in the value part of the
+    // record, which we can then access in the compaction filter.
+    //
+    // Set to UINT_MAX by default to indicate that the TTL is not in key.
+    uint ttl_pk_offset = UINT_MAX;
   };
 
   /*
@@ -983,6 +1020,13 @@ private:
   int compare_key_parts(const KEY *const old_key,
                         const KEY *const new_key) const;
   MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  int compare_keys(const KEY *const old_key, const KEY *const new_key) const
+      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  int convert_record_to_storage_format(const struct update_row_info &row_info,
+                                       rocksdb::Slice *const packed_rec)
+      MY_ATTRIBUTE((__nonnull__));
 
   int index_first_intern(uchar *buf)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));

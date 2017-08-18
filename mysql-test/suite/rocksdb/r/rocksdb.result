@@ -1501,6 +1501,7 @@ rocksdb_rows_inserted	#
 rocksdb_rows_read	#
 rocksdb_rows_updated	#
 rocksdb_rows_expired	#
+rocksdb_rows_filtered	#
 rocksdb_system_rows_deleted	#
 rocksdb_system_rows_inserted	#
 rocksdb_system_rows_read	#
@@ -1532,6 +1533,8 @@ rocksdb_block_cache_index_miss	#
 rocksdb_block_cache_miss	#
 rocksdb_block_cachecompressed_hit	#
 rocksdb_block_cachecompressed_miss	#
+rocksdb_bloom_filter_full_positive	#
+rocksdb_bloom_filter_full_true_positive	#
 rocksdb_bloom_filter_prefix_checked	#
 rocksdb_bloom_filter_prefix_useful	#
 rocksdb_bloom_filter_useful	#
@@ -1575,11 +1578,11 @@ rocksdb_number_sst_entry_merge	#
 rocksdb_number_sst_entry_other	#
 rocksdb_number_sst_entry_put	#
 rocksdb_number_sst_entry_singledelete	#
-rocksdb_number_stat_computes	#
 rocksdb_number_superversion_acquires	#
 rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
-rocksdb_rate_limit_delay_millis	#
+rocksdb_row_lock_deadlocks	#
+rocksdb_row_lock_wait_timeouts	#
 rocksdb_snapshot_conflict_errors	#
 rocksdb_stall_micros	#
 rocksdb_wal_bytes	#
@@ -1596,6 +1599,7 @@ rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
+rocksdb_rows_filtered
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1627,6 +1631,8 @@ rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
 rocksdb_block_cachecompressed_hit
 rocksdb_block_cachecompressed_miss
+rocksdb_bloom_filter_full_positive
+rocksdb_bloom_filter_full_true_positive
 rocksdb_bloom_filter_prefix_checked
 rocksdb_bloom_filter_prefix_useful
 rocksdb_bloom_filter_useful
@@ -1670,11 +1676,11 @@ rocksdb_number_sst_entry_merge
 rocksdb_number_sst_entry_other
 rocksdb_number_sst_entry_put
 rocksdb_number_sst_entry_singledelete
-rocksdb_number_stat_computes
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
-rocksdb_rate_limit_delay_millis
+rocksdb_row_lock_deadlocks
+rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors
 rocksdb_stall_micros
 rocksdb_wal_bytes
@@ -1693,6 +1699,7 @@ rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
+rocksdb_rows_filtered
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1724,6 +1731,8 @@ rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
 rocksdb_block_cachecompressed_hit
 rocksdb_block_cachecompressed_miss
+rocksdb_bloom_filter_full_positive
+rocksdb_bloom_filter_full_true_positive
 rocksdb_bloom_filter_prefix_checked
 rocksdb_bloom_filter_prefix_useful
 rocksdb_bloom_filter_useful
@@ -1767,11 +1776,11 @@ rocksdb_number_sst_entry_merge
 rocksdb_number_sst_entry_other
 rocksdb_number_sst_entry_put
 rocksdb_number_sst_entry_singledelete
-rocksdb_number_stat_computes
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
-rocksdb_rate_limit_delay_millis
+rocksdb_row_lock_deadlocks
+rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors
 rocksdb_stall_micros
 rocksdb_wal_bytes

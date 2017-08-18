@@ -85,22 +85,28 @@ INSERT INTO t1 values (7);
 set global rocksdb_debug_ttl_rec_ts = 0;
 
 # should return nothing.
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result
 SELECT * FROM t1;
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
 # disable filtering
 set global rocksdb_enable_ttl_read_filtering=0;
 
 # should return everything
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result
 SELECT * FROM t1;
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
-# disable filtering
+# enable filtering
 set global rocksdb_enable_ttl_read_filtering=1;
 
 # should return nothing.
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result
 SELECT * FROM t1;
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
 DROP TABLE t1;
 
@@ -306,27 +312,35 @@ set global rocksdb_compact_cf='default';
 # read filtered out, because on a different connection, on
 # this connection the records have 'expired' already so they are filtered out
 # even though they have not yet been removed by compaction
+
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result
 SELECT * FROM t1;
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
 --echo # Switching to connection 1
 connection con1;
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result
 SELECT * FROM t1; # <= shouldn't be filtered out here
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
 # Percona Server does not allow this as it invokes a gap lock in REPEATABLE-READ
 # which we need for the purpose of this test. So we are going to do a bunch of
 # specific point updates to achieve the same concept.
 # UPDATE t1 set a = a + 1;
 UPDATE t1 set a = a + 1 WHERE a IN(1,2,3,4,5,6,7,8,9,10);
-
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result
 SELECT * FROM t1; # <= shouldn't be filtered out here
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
 COMMIT;
 
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 --sorted_result # <= filtered out here because time has passed.
 SELECT * FROM t1;
+select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_rows_filtered';
 
 DROP TABLE t1;
 disconnect con1;

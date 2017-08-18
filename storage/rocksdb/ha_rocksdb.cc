@@ -464,7 +464,6 @@ static int rocksdb_debug_ttl_snapshot_ts = 0;
 static int rocksdb_debug_ttl_read_filter_ts = 0;
 static my_bool rocksdb_debug_ttl_ignore_pk = FALSE;
 static my_bool rocksdb_reset_stats = FALSE;
-static uint64_t rocksdb_number_stat_computes = 0;
 static uint32_t rocksdb_seconds_between_stat_computes = 3600;
 static long long rocksdb_compaction_sequential_deletes = 0l;
 static long long rocksdb_compaction_sequential_deletes_window = 0l;
@@ -4121,11 +4120,11 @@ bool ha_rocksdb::init_with_fields() {
   rows within a transaction, etc, because the compaction filter ignores
   snapshots when filtering keys.
 */
-bool ha_rocksdb::should_hide_ttl_rec(const rocksdb::Slice &ttl_rec_val,
+bool ha_rocksdb::should_hide_ttl_rec(const Rdb_key_def &kd,
+                                     const rocksdb::Slice &ttl_rec_val,
                                      const int64_t curr_ts) {
-  DBUG_ASSERT(m_pk_descr != nullptr);
-  DBUG_ASSERT(m_pk_descr->has_ttl());
-  DBUG_ASSERT(m_pk_descr->m_ttl_rec_offset != UINT_MAX);
+  DBUG_ASSERT(kd.has_ttl());
+  DBUG_ASSERT(kd.m_ttl_rec_offset != UINT_MAX);
 
   /*
     Curr_ts can only be 0 if there are no snapshots open.
@@ -4151,7 +4150,7 @@ bool ha_rocksdb::should_hide_ttl_rec(const rocksdb::Slice &ttl_rec_val,
     Find where the 8-byte ttl is for each record in this index.
   */
   uint64 ts;
-  if (!reader.read(m_pk_descr->m_ttl_rec_offset) || reader.read_uint64(&ts)) {
+  if (!reader.read(kd.m_ttl_rec_offset) || reader.read_uint64(&ts)) {
     /*
       This condition should never be reached since all TTL records have an
       8 byte ttl field in front. Don't filter the record out, and log an error.
@@ -4159,7 +4158,7 @@ bool ha_rocksdb::should_hide_ttl_rec(const rocksdb::Slice &ttl_rec_val,
     std::string buf;
     buf = rdb_hexdump(ttl_rec_val.data(), ttl_rec_val.size(),
                       RDB_MAX_HEXDUMP_LEN);
-    const GL_INDEX_ID gl_index_id = m_pk_descr->get_gl_index_id();
+    const GL_INDEX_ID gl_index_id = kd.get_gl_index_id();
     // NO_LINT_DEBUG
     sql_print_error("Decoding ttl from PK value failed, "
                     "for index (%u,%u), val: %s",
@@ -4173,8 +4172,25 @@ bool ha_rocksdb::should_hide_ttl_rec(const rocksdb::Slice &ttl_rec_val,
 #ifndef NDEBUG
   read_filter_ts += rdb_dbug_set_ttl_read_filter_ts();
 #endif
-  return ts + m_pk_descr->m_ttl_duration + read_filter_ts <=
-         static_cast<uint64>(curr_ts);
+  bool is_hide_ttl =
+      ts + kd.m_ttl_duration + read_filter_ts <= static_cast<uint64>(curr_ts);
+  if (is_hide_ttl) {
+    update_row_stats(ROWS_FILTERED);
+  }
+  return is_hide_ttl;
+}
+
+void ha_rocksdb::rocksdb_skip_expired_records(const Rdb_key_def &kd,
+                                              rocksdb::Iterator *const iter,
+                                              bool seek_backward) {
+  if (kd.has_ttl()) {
+    while (iter->Valid() &&
+           should_hide_ttl_rec(
+               kd, iter->value(),
+               get_or_create_tx(table->in_use)->m_snapshot_timestamp)) {
+      rocksdb_smart_next(seek_backward, iter);
+    }
+  }
 }
 
 /**
@@ -6132,7 +6148,7 @@ int ha_rocksdb::read_key_exact(const Rdb_key_def &kd,
       from the POV of the current transaction.  If it has, try going to the next
       key.
     */
-    if (kd.has_ttl() && should_hide_ttl_rec(iter->value(), ttl_filter_ts)) {
+    if (kd.has_ttl() && should_hide_ttl_rec(kd, iter->value(), ttl_filter_ts)) {
       rocksdb_smart_next(kd.m_is_reverse_cf, iter);
       continue;
     }
@@ -6168,7 +6184,7 @@ int ha_rocksdb::read_before_key(const Rdb_key_def &kd,
     if ((full_key_match &&
          kd.value_matches_prefix(m_scan_it->key(), key_slice)) ||
         (kd.has_ttl() &&
-         should_hide_ttl_rec(m_scan_it->value(), ttl_filter_ts))) {
+         should_hide_ttl_rec(kd, m_scan_it->value(), ttl_filter_ts))) {
       rocksdb_smart_next(!kd.m_is_reverse_cf, m_scan_it);
       continue;
     }
@@ -6198,7 +6214,7 @@ int ha_rocksdb::read_after_key(const Rdb_key_def &kd,
     key.
   */
   while (m_scan_it->Valid() && kd.has_ttl() &&
-         should_hide_ttl_rec(m_scan_it->value(), ttl_filter_ts)) {
+         should_hide_ttl_rec(kd, m_scan_it->value(), ttl_filter_ts)) {
     rocksdb_smart_next(kd.m_is_reverse_cf, m_scan_it);
   }
 
@@ -6761,6 +6777,8 @@ int ha_rocksdb::find_icp_matching_index_rec(const bool &move_forward,
     const Rdb_key_def &kd = *m_key_descr_arr[active_index];
 
     while (1) {
+      rocksdb_skip_expired_records(kd, m_scan_it, !move_forward);
+
       if (!m_scan_it->Valid()) {
         table->status = STATUS_NOT_FOUND;
         return HA_ERR_END_OF_FILE;
@@ -6790,10 +6808,7 @@ int ha_rocksdb::find_icp_matching_index_rec(const bool &move_forward,
 
       const enum icp_result icp_status = check_index_cond();
       if (icp_status == ICP_NO_MATCH) {
-        if (move_forward)
-          m_scan_it->Next();
-        else
-          m_scan_it->Prev();
+        rocksdb_smart_next(!move_forward, m_scan_it);
         continue; /* Get the next (or prev) index tuple */
       } else if (icp_status == ICP_OUT_OF_RANGE) {
         /* We have walked out of range we are scanning */
@@ -7104,7 +7119,8 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
   if (found) {
     /* If we found the record, but it's expired, pretend we didn't find it.  */
     if (!skip_ttl_check && m_pk_descr->has_ttl() &&
-        should_hide_ttl_rec(rocksdb::Slice(&m_retrieved_record.front(),
+        should_hide_ttl_rec(*m_pk_descr,
+                            rocksdb::Slice(&m_retrieved_record.front(),
                                            m_retrieved_record.size()),
                             tx->m_snapshot_timestamp)) {
       DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
@@ -7185,6 +7201,8 @@ int ha_rocksdb::index_next_with_direction(uchar *const buf, bool move_forward) {
       else
         m_scan_it->Prev();
     }
+    rocksdb_skip_expired_records(*m_key_descr_arr[active_index], m_scan_it,
+                                 !move_forward);
     rc = find_icp_matching_index_rec(move_forward, buf);
     if (!rc)
       rc = secondary_index_read(active_index, buf);
@@ -7893,7 +7911,8 @@ int ha_rocksdb::check_uniqueness_and_lock(
       m_retrieved_record by check_and_lock_unique_pk().
     */
     if (is_pk(key_id, table, m_tbl_def) && found && m_pk_descr->has_ttl() &&
-        should_hide_ttl_rec(rocksdb::Slice(&m_retrieved_record.front(),
+        should_hide_ttl_rec(*m_pk_descr,
+                            rocksdb::Slice(&m_retrieved_record.front(),
                                            m_retrieved_record.size()),
                             (row_info.tx->m_snapshot_timestamp
                                  ? row_info.tx->m_snapshot_timestamp
@@ -8059,9 +8078,11 @@ int ha_rocksdb::update_sk(const TABLE *const table_arg, const Rdb_key_def &kd,
 
   const uint key_id = kd.get_keyno();
   /*
-    Can skip updating this key if none of the key fields have changed.
+    Can skip updating this key if none of the key fields have changed and, if
+    this table has TTL, the TTL timestamp has not changed.
   */
-  if (row_info.old_data != nullptr && !m_update_scope.is_set(key_id)) {
+  if (row_info.old_data != nullptr && !m_update_scope.is_set(key_id) &&
+      (!kd.has_ttl() || !m_ttl_bytes_updated)) {
     return HA_EXIT_SUCCESS;
   }
 
@@ -8138,6 +8159,7 @@ int ha_rocksdb::update_indexes(const struct update_row_info &row_info,
     return rc;
   }
 
+  // Update the remaining indexes.
   for (uint key_id = 0; key_id < m_tbl_def->m_key_count; key_id++) {
     if (is_pk(key_id, table, m_tbl_def)) {
       continue;
@@ -8414,7 +8436,8 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
       DEBUG_SYNC(ha_thd(), "rocksdb_concurrent_delete");
 
       if (m_pk_descr->has_ttl() &&
-          should_hide_ttl_rec(m_scan_it->value(), tx->m_snapshot_timestamp)) {
+          should_hide_ttl_rec(*m_pk_descr, m_scan_it->value(),
+                              tx->m_snapshot_timestamp)) {
         continue;
       }
 
@@ -8445,7 +8468,8 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
 
       if (m_pk_descr->has_ttl() &&
           should_hide_ttl_rec(
-              value, get_or_create_tx(table->in_use)->m_snapshot_timestamp)) {
+              *m_pk_descr, value,
+              get_or_create_tx(table->in_use)->m_snapshot_timestamp)) {
         continue;
       }
 
@@ -10543,6 +10567,8 @@ struct rocksdb_status_counters_t {
   uint64_t block_cache_data_hit;
   uint64_t block_cache_data_add;
   uint64_t bloom_filter_useful;
+  uint64_t bloom_filter_full_positive;
+  uint64_t bloom_filter_full_true_positive;
   uint64_t memtable_hit;
   uint64_t memtable_miss;
   uint64_t get_hit_l0;
@@ -10567,7 +10593,6 @@ struct rocksdb_status_counters_t {
   uint64_t no_file_opens;
   uint64_t no_file_errors;
   uint64_t stall_micros;
-  uint64_t rate_limit_delay_millis;
   uint64_t num_iterators;
   uint64_t number_multiget_get;
   uint64_t number_multiget_keys_read;
@@ -10618,6 +10643,8 @@ DEF_SHOW_FUNC(block_cache_data_miss, BLOCK_CACHE_DATA_MISS)
 DEF_SHOW_FUNC(block_cache_data_hit, BLOCK_CACHE_DATA_HIT)
 DEF_SHOW_FUNC(block_cache_data_add, BLOCK_CACHE_DATA_ADD)
 DEF_SHOW_FUNC(bloom_filter_useful, BLOOM_FILTER_USEFUL)
+DEF_SHOW_FUNC(bloom_filter_full_positive, BLOOM_FILTER_FULL_POSITIVE)
+DEF_SHOW_FUNC(bloom_filter_full_true_positive, BLOOM_FILTER_FULL_TRUE_POSITIVE)
 DEF_SHOW_FUNC(memtable_hit, MEMTABLE_HIT)
 DEF_SHOW_FUNC(memtable_miss, MEMTABLE_MISS)
 DEF_SHOW_FUNC(get_hit_l0, GET_HIT_L0)
@@ -10642,7 +10669,6 @@ DEF_SHOW_FUNC(no_file_closes, NO_FILE_CLOSES)
 DEF_SHOW_FUNC(no_file_opens, NO_FILE_OPENS)
 DEF_SHOW_FUNC(no_file_errors, NO_FILE_ERRORS)
 DEF_SHOW_FUNC(stall_micros, STALL_MICROS)
-DEF_SHOW_FUNC(rate_limit_delay_millis, RATE_LIMIT_DELAY_MILLIS)
 DEF_SHOW_FUNC(num_iterators, NO_ITERATORS)
 DEF_SHOW_FUNC(number_multiget_get, NUMBER_MULTIGET_CALLS)
 DEF_SHOW_FUNC(number_multiget_keys_read, NUMBER_MULTIGET_KEYS_READ)
@@ -10675,6 +10701,7 @@ static void myrocks_update_status() {
   export_stats.rows_read = global_stats.rows[ROWS_READ];
   export_stats.rows_updated = global_stats.rows[ROWS_UPDATED];
   export_stats.rows_expired = global_stats.rows[ROWS_EXPIRED];
+  export_stats.rows_filtered = global_stats.rows[ROWS_FILTERED];
 
   export_stats.system_rows_deleted = global_stats.system_rows[ROWS_DELETED];
   export_stats.system_rows_inserted = global_stats.system_rows[ROWS_INSERTED];
@@ -10710,6 +10737,8 @@ static SHOW_VAR myrocks_status_variables[] = {
     DEF_STATUS_VAR_FUNC("rows_updated", &export_stats.rows_updated,
                         SHOW_LONGLONG),
     DEF_STATUS_VAR_FUNC("rows_expired", &export_stats.rows_expired,
+                        SHOW_LONGLONG),
+    DEF_STATUS_VAR_FUNC("rows_filtered", &export_stats.rows_filtered,
                         SHOW_LONGLONG),
     DEF_STATUS_VAR_FUNC("system_rows_deleted",
                         &export_stats.system_rows_deleted, SHOW_LONGLONG),
@@ -10762,6 +10791,8 @@ static SHOW_VAR rocksdb_status_vars[] = {
     DEF_STATUS_VAR(block_cache_data_hit),
     DEF_STATUS_VAR(block_cache_data_add),
     DEF_STATUS_VAR(bloom_filter_useful),
+    DEF_STATUS_VAR(bloom_filter_full_positive),
+    DEF_STATUS_VAR(bloom_filter_full_true_positive),
     DEF_STATUS_VAR(memtable_hit),
     DEF_STATUS_VAR(memtable_miss),
     DEF_STATUS_VAR(get_hit_l0),
@@ -10786,7 +10817,6 @@ static SHOW_VAR rocksdb_status_vars[] = {
     DEF_STATUS_VAR(no_file_opens),
     DEF_STATUS_VAR(no_file_errors),
     DEF_STATUS_VAR(stall_micros),
-    DEF_STATUS_VAR(rate_limit_delay_millis),
     DEF_STATUS_VAR(num_iterators),
     DEF_STATUS_VAR(number_multiget_get),
     DEF_STATUS_VAR(number_multiget_keys_read),
@@ -10815,8 +10845,6 @@ static SHOW_VAR rocksdb_status_vars[] = {
     DEF_STATUS_VAR_PTR("snapshot_conflict_errors",
                        &rocksdb_snapshot_conflict_errors, SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("wal_group_syncs", &rocksdb_wal_group_syncs,
-                       SHOW_LONGLONG),
-    DEF_STATUS_VAR_PTR("number_stat_computes", &rocksdb_number_stat_computes,
                        SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("number_sst_entry_put", &rocksdb_num_sst_entry_put,
                        SHOW_LONGLONG),

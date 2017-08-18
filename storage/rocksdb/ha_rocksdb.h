@@ -345,6 +345,7 @@ enum operation_type : int {
   ROWS_READ,
   ROWS_UPDATED,
   ROWS_EXPIRED,
+  ROWS_FILTERED,
   ROWS_HIDDEN_NO_SNAPSHOT,
   ROWS_MAX
 };
@@ -377,6 +378,7 @@ struct st_export_stats {
   ulonglong rows_read;
   ulonglong rows_updated;
   ulonglong rows_expired;
+  ulonglong rows_filtered;
   ulonglong rows_hidden_no_snapshot;
 
   ulonglong system_rows_deleted;
@@ -1048,9 +1050,13 @@ private:
                                        rocksdb::Slice *const packed_rec)
       MY_ATTRIBUTE((__nonnull__));
 
-  bool should_hide_ttl_rec(const rocksdb::Slice &ttl_rec_val,
+  bool should_hide_ttl_rec(const Rdb_key_def &kd,
+                           const rocksdb::Slice &ttl_rec_val,
                            const int64_t curr_ts)
       MY_ATTRIBUTE((__warn_unused_result__));
+  void rocksdb_skip_expired_records(const Rdb_key_def &kd,
+                                    rocksdb::Iterator *const iter,
+                                    bool seek_backward);
 
   int index_first_intern(uchar *buf)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));

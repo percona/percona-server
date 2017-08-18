@@ -458,7 +458,6 @@ else
 
   cd "`dirname $0`"
   if [ -h "`dirname $0`" -o -h "$0" ] ; then
-  if [ -h "$0" ] ; then
     realpath=$(readlink -f "$0")
     cd "`dirname "$realpath"`"
   fi

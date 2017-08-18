@@ -788,6 +788,27 @@ public:
       }
     }
   }
+
+  /**
+    Update use count for SEL_ARG's next_key_part.
+    This function does NOT update use_count of the current
+    SEL_ARG object.
+
+    Primarily used for reducing reference count of next_key_part of a
+    node when removed from SEL_ARG tree during tree merge operations.
+
+    @param count The number of additional references to this SEL_ARG
+                 tree.
+  */
+  void increment_next_key_part_use_count(long count)
+  {
+    if (next_key_part)
+    {
+      next_key_part->use_count+= count;
+      next_key_part->increment_use_count(count);
+    }
+  }
+
   void free_tree()
   {
     for (SEL_ARG *pos=first(); pos ; pos=pos->next)
@@ -8032,9 +8053,11 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
   ulong use_count=key1->use_count;
 
   DBUG_ASSERT(key1->elements > 0);
-  key2->use_count+= key1->elements;
-  key2->increment_use_count(key1->elements);
-
+  if (key1->elements != 1)
+  {
+    key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?
+    key2->increment_use_count((int) key1->elements-1);
+  }
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
     // See todo for left/right pointers
@@ -8567,7 +8590,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
           Use the relevant range in key1.
         */
         cur_key1->merge_flags(cur_key2);        // Copy maybe flags
-        cur_key2->increment_use_count(-1);      // Free not used tree
+        cur_key2->increment_next_key_part_use_count(-1);  // Free not used tree
       }
       else
       {
@@ -8697,15 +8720,11 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
             Move on to next range in key2
           */
-          if (cur_key2->next_key_part)
-          {
-            /*
-              cur_key2 will no longer be used. Reduce reference count
-              of SEL_ARGs in its next_key_part.
-            */
-            cur_key2->next_key_part->use_count--;
-            cur_key2->next_key_part->increment_use_count(-1);
-          }
+          /*
+            cur_key2 will no longer be used. Reduce reference count
+            of SEL_ARGs in its next_key_part.
+          */
+          cur_key2->increment_next_key_part_use_count(-1);
           cur_key2= cur_key2->next;
           continue;
         }
@@ -9044,7 +9063,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     key->prev->next=key->next;
   if (key->next)
     key->next->prev=key->prev;
-  key->increment_use_count(-1);
+  key->increment_next_key_part_use_count(-1);
   if (!key->parent)
     par= &root;
   else
@@ -10991,13 +11010,36 @@ int QUICK_RANGE_SELECT::reset()
 
   if (!file->inited)
   {
+    /*
+      read_set is set to the correct value for ror_merge_scan here as a
+      subquery execution during optimization might result in innodb not
+      initializing the read set in index_read() leading to wrong
+      results while merging.
+    */
+    MY_BITMAP * const save_read_set= head->read_set;
+    MY_BITMAP * const save_write_set= head->write_set;
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2",
                     DBUG_SET("+d,ha_index_init_fail"););
+
+    /* Pass index specifc read set for ror_merged_scan */
+    if (in_ror_merged_scan)
+    {
+      /*
+        We don't need to signal the bitmap change as the bitmap is always the
+        same for this head->file
+      */
+      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+    }
     if ((error= file->ha_index_init(index, sorted)))
     {
       file->print_error(error, MYF(0));
       DBUG_RETURN(error);
+    }
+    if (in_ror_merged_scan)
+    {
+      /* Restore bitmaps set on entry */
+      head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }
   }
 

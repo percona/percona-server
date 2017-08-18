@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlslap\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/22/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLSLAP\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLSLAP\FR" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -161,7 +161,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&5.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -468,7 +468,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&7.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -575,7 +575,7 @@ statements\&. The default is 0 (connections are not detached)\&.
 Enable the
 mysql_clear_password
 cleartext authentication plugin\&. (See
-Section\ \&7.5.1.8, \(lqThe Cleartext Client-Side Authentication Plugin\(rq\&.)
+Section\ \&6.5.1.5, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .RE
 .sp
 .RS 4
@@ -783,7 +783,7 @@ option on the command line,
 prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&7.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
+Section\ \&6.1.2.1, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -815,7 +815,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlslap\fR
 does not find it\&. See
-Section\ \&7.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -912,7 +912,7 @@ Print the program name and all options that it gets from option files\&.
 \fB\-\-protocol={TCP|SOCKET|PIPE|MEMORY}\fR
 .sp
 The connection protocol to use for connecting to the server\&. It is useful when the other connection parameters normally would cause a protocol to be used other than the one you want\&. For details on the permissible values, see
-Section\ \&5.2.2, \(lqConnecting to the MySQL Server\(rq\&.
+Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 .RE
 .sp
 .RS 4
@@ -958,7 +958,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 .ps -1
 .br
 Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them is removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
-Section\ \&7.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
+Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -1031,7 +1031,7 @@ Set the SQL mode for the client session\&. This option was added in MySQL 5\&.7\
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&7.4.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&6.4.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1045,7 +1045,7 @@ Section\ \&7.4.5, \(lqCommand Options for Secure Connections\(rq\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&7.4.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.4.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE

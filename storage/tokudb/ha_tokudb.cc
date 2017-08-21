@@ -31,6 +31,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "ha_tokudb.h"
 #include "sql_db.h"
 
+pfs_key_t ha_tokudb_mutex_key;
+pfs_key_t num_DBs_lock_key;
 
 HASH TOKUDB_SHARE::_open_tables;
 tokudb::thread::mutex_t TOKUDB_SHARE::_open_tables_mutex;
@@ -174,13 +176,9 @@ const char* TOKUDB_SHARE::get_state_string(share_state_t state) {
 void* TOKUDB_SHARE::operator new(size_t sz) {
     return tokudb::memory::malloc(sz, MYF(MY_WME|MY_ZEROFILL|MY_FAE));
 }
-void TOKUDB_SHARE::operator delete(void* p) {
-    tokudb::memory::free(p);
-}
-TOKUDB_SHARE::TOKUDB_SHARE() :
-    _num_DBs_lock(),
-    _mutex() {
-}
+void TOKUDB_SHARE::operator delete(void* p) { tokudb::memory::free(p); }
+TOKUDB_SHARE::TOKUDB_SHARE()
+    : _num_DBs_lock(num_DBs_lock_key), _mutex(ha_tokudb_mutex_key) {}
 void TOKUDB_SHARE::init(const char* table_name) {
     _use_count = 0;
     thr_lock_init(&_thr_lock);
@@ -215,20 +213,15 @@ void TOKUDB_SHARE::destroy() {
     thr_lock_delete(&_thr_lock);
     TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
-TOKUDB_SHARE* TOKUDB_SHARE::get_share(
-    const char* table_name,
-    TABLE_SHARE* table_share,
-    THR_LOCK_DATA* data,
-    bool create_new) {
-
-    _open_tables_mutex.lock();
+TOKUDB_SHARE* TOKUDB_SHARE::get_share(const char* table_name,
+                                      TABLE_SHARE* table_share,
+                                      THR_LOCK_DATA* data,
+                                      bool create_new) {
+    mutex_t_lock(_open_tables_mutex);
     int error = 0;
-    uint length = (uint) strlen(table_name);
-    TOKUDB_SHARE* share =
-        (TOKUDB_SHARE*)my_hash_search(
-            &_open_tables,
-            (uchar*)table_name,
-            length);
+    uint length = (uint)strlen(table_name);
+    TOKUDB_SHARE* share = (TOKUDB_SHARE*)my_hash_search(
+        &_open_tables, (uchar*)table_name, length);
 
     TOKUDB_TRACE_FOR_FLAGS(
         TOKUDB_DEBUG_SHARE,
@@ -263,28 +256,27 @@ TOKUDB_SHARE* TOKUDB_SHARE::get_share(
         thr_lock_data_init(&(share->_thr_lock), data, NULL);
 
 exit:
-    _open_tables_mutex.unlock();
+    mutex_t_unlock(_open_tables_mutex);
     return share;
 }
 void TOKUDB_SHARE::drop_share(TOKUDB_SHARE* share) {
-    TOKUDB_TRACE_FOR_FLAGS(
-        TOKUDB_DEBUG_SHARE,
-        "share[%p]:file[%s]:state[%s]:use_count[%d]",
-        share,
-        share->_full_table_name.ptr(),
-        get_state_string(share->_state),
-        share->_use_count);
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_SHARE,
+                           "share[%p]:file[%s]:state[%s]:use_count[%d]",
+                           share,
+                           share->_full_table_name.ptr(),
+                           get_state_string(share->_state),
+                           share->_use_count);
 
-    _open_tables_mutex.lock();
+    mutex_t_lock(_open_tables_mutex);
     my_hash_delete(&_open_tables, (uchar*)share);
-    _open_tables_mutex.unlock();
+    mutex_t_unlock(_open_tables_mutex);
 }
 TOKUDB_SHARE::share_state_t TOKUDB_SHARE::addref() {
     TOKUDB_SHARE_TRACE_FOR_FLAGS((TOKUDB_DEBUG_ENTER & TOKUDB_DEBUG_SHARE),
-        "file[%s]:state[%s]:use_count[%d]",
-        _full_table_name.ptr(),
-        get_state_string(_state),
-        _use_count);
+                                 "file[%s]:state[%s]:use_count[%d]",
+                                 _full_table_name.ptr(),
+                                 get_state_string(_state),
+                                 _use_count);
 
     lock();
     _use_count++;
@@ -299,7 +291,7 @@ int TOKUDB_SHARE::release() {
 
     int error, result = 0;
 
-    _mutex.lock();
+    mutex_t_lock(_mutex);
     assert_always(_use_count != 0);
     _use_count--;
     if (_use_count == 0 && _state == TOKUDB_SHARE::OPENED) {
@@ -343,7 +335,7 @@ int TOKUDB_SHARE::release() {
 
         _state = TOKUDB_SHARE::CLOSED;
     }
-    _mutex.unlock();
+    mutex_t_unlock(_mutex);
 
     TOKUDB_SHARE_DBUG_RETURN(result);
 }
@@ -3313,12 +3305,12 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     delay_updating_ai_metadata = true;
     ai_metadata_update_required = false;
     abort_loader = false;
-    
-    share->_num_DBs_lock.lock_read();
+
+    rwlock_t_lock_read(share->_num_DBs_lock);
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
     num_DBs_locked_in_bulk = true;
     lock_count = 0;
-    
+
     if ((rows == 0 || rows > 1) && share->try_table_lock) {
         if (tokudb::sysvars::prelock_empty(thd) &&
             may_table_be_empty(transaction) &&
@@ -4029,14 +4021,13 @@ int ha_tokudb::write_row(uchar * record) {
     // grab reader lock on numDBs_lock
     //
     if (!num_DBs_locked_in_bulk) {
-        share->_num_DBs_lock.lock_read();
+        rwlock_t_lock_read(share->_num_DBs_lock);
         num_DBs_locked = true;
-    }
-    else {
+    } else {
         lock_count++;
         if (lock_count >= 2000) {
             share->_num_DBs_lock.unlock();
-            share->_num_DBs_lock.lock_read();
+            rwlock_t_lock_read(share->_num_DBs_lock);
             lock_count = 0;
         }
     }
@@ -4208,7 +4199,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     //
     bool num_DBs_locked = false;
     if (!num_DBs_locked_in_bulk) {
-        share->_num_DBs_lock.lock_read();
+        rwlock_t_lock_read(share->_num_DBs_lock);
         num_DBs_locked = true;
     }
     curr_num_DBs = share->num_DBs;
@@ -4350,7 +4341,7 @@ int ha_tokudb::delete_row(const uchar * record) {
     //
     bool num_DBs_locked = false;
     if (!num_DBs_locked_in_bulk) {
-        share->_num_DBs_lock.lock_read();
+        rwlock_t_lock_read(share->_num_DBs_lock);
         num_DBs_locked = true;
     }
     curr_num_DBs = share->num_DBs;
@@ -6295,7 +6286,7 @@ int ha_tokudb::acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt) {
     TOKUDB_HANDLER_DBUG_ENTER("%p %s", trans, lt == lock_read ? "r" : "w");
     int error = ENOSYS;
     if (!num_DBs_locked_in_bulk) {
-        share->_num_DBs_lock.lock_read();
+        rwlock_t_lock_read(share->_num_DBs_lock);
     }
     uint curr_num_DBs = share->num_DBs;
     if (lt == lock_read) {
@@ -6651,8 +6642,9 @@ THR_LOCK_DATA* *ha_tokudb::store_lock(
             if (sql_command == SQLCOM_CREATE_INDEX &&
                 tokudb::sysvars::create_index_online(thd)) {
                 // hot indexing
-                share->_num_DBs_lock.lock_read();
-                if (share->num_DBs == (table->s->keys + tokudb_test(hidden_primary_key))) {
+                rwlock_t_lock_read(share->_num_DBs_lock);
+                if (share->num_DBs ==
+                    (table->s->keys + tokudb_test(hidden_primary_key))) {
                     lock_type = TL_WRITE_ALLOW_WRITE;
                 }
                 share->_num_DBs_lock.unlock();
@@ -8099,8 +8091,8 @@ int ha_tokudb::tokudb_add_index(
             }
         }
     }
-    
-    share->_num_DBs_lock.lock_write();
+
+    rwlock_t_lock_write(share->_num_DBs_lock);
     rw_lock_taken = true;
     //
     // open all the DB files and set the appropriate variables in share
@@ -8210,7 +8202,7 @@ int ha_tokudb::tokudb_add_index(
             goto cleanup;
         }
 
-        share->_num_DBs_lock.lock_write();
+        rwlock_t_lock_write(share->_num_DBs_lock);
         error = indexer->close(indexer);
         share->_num_DBs_lock.unlock();
         if (error) {
@@ -8444,7 +8436,7 @@ cleanup:
     if (indexer != NULL) {
         sprintf(status_msg, "aborting creation of indexes.");
         thd_proc_info(thd, status_msg);
-        share->_num_DBs_lock.lock_write();
+        rwlock_t_lock_write(share->_num_DBs_lock);
         indexer->abort(indexer);
         share->_num_DBs_lock.unlock();
     }
@@ -8493,10 +8485,10 @@ void ha_tokudb::restore_add_index(
 
     //
     // need to restore num_DBs, and we have to do it before we close the dictionaries
-    // so that there is not a window 
+    // so that there is not a window
     //
     if (incremented_numDBs) {
-        share->_num_DBs_lock.lock_write();
+        rwlock_t_lock_write(share->_num_DBs_lock);
         share->num_DBs--;
     }
     if (modified_DBs) {

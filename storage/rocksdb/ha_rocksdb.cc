@@ -424,6 +424,8 @@ static constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
 static constexpr size_t RDB_MIN_MERGE_BUF_SIZE = 100;
 static constexpr size_t RDB_DEFAULT_MERGE_COMBINE_READ_SIZE = 1024 * 1024 * 1024;
 static constexpr size_t RDB_MIN_MERGE_COMBINE_READ_SIZE = 100;
+static constexpr size_t RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
+static constexpr size_t RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY = 0;
 static constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
 static constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
 static constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
@@ -651,6 +653,18 @@ static MYSQL_THDVAR_ULONGLONG(
     nullptr, nullptr,
     /* default (1GB) */ RDB_DEFAULT_MERGE_COMBINE_READ_SIZE,
     /* min (100B) */ RDB_MIN_MERGE_COMBINE_READ_SIZE,
+    /* max */ SIZE_T_MAX, 1);
+
+static MYSQL_THDVAR_ULONGLONG(
+    merge_tmp_file_removal_delay_ms, PLUGIN_VAR_RQCMDARG,
+    "Fast index creation creates a large tmp file on disk during index "
+    "creation.  Removing this large file all at once when index creation is "
+    "complete can cause trim stalls on Flash.  This variable specifies a "
+    "duration to sleep (in milliseconds) between calling chsize() to truncate "
+    "the file in chunks.  The chunk size is  the same as merge_buf_size.",
+    nullptr, nullptr,
+    /* default (0ms) */ RDB_DEFAULT_MERGE_TMP_FILE_REMOVAL_DELAY,
+    /* min (0ms) */ RDB_MIN_MERGE_TMP_FILE_REMOVAL_DELAY,
     /* max */ SIZE_T_MAX, 1);
 
 static MYSQL_SYSVAR_BOOL(
@@ -1390,6 +1404,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(enable_bulk_load_api),
     MYSQL_SYSVAR(tmpdir),
     MYSQL_SYSVAR(merge_combine_read_size),
+    MYSQL_SYSVAR(merge_tmp_file_removal_delay_ms),
     MYSQL_SYSVAR(skip_bloom_filter_on_read),
 
     MYSQL_SYSVAR(create_if_missing),
@@ -10262,6 +10277,8 @@ int ha_rocksdb::inplace_populate_sk(
   const ulonglong rdb_merge_buf_size = THDVAR(ha_thd(), merge_buf_size);
   const ulonglong rdb_merge_combine_read_size =
       THDVAR(ha_thd(), merge_combine_read_size);
+  const ulonglong rdb_merge_tmp_file_removal_delay =
+      THDVAR(ha_thd(), merge_tmp_file_removal_delay_ms);
 
   for (const auto &index : indexes) {
     const rocksdb::Comparator *index_comp = index->get_cf()->GetComparator();
@@ -10269,7 +10286,8 @@ int ha_rocksdb::inplace_populate_sk(
         new_table_arg->key_info[index->get_keyno()].flags & HA_NOSAME;
 
     Rdb_index_merge rdb_merge(thd_rocksdb_tmpdir(), rdb_merge_buf_size,
-                              rdb_merge_combine_read_size, index_comp);
+                              rdb_merge_combine_read_size,
+                              rdb_merge_tmp_file_removal_delay, index_comp);
 
     if ((res = rdb_merge.init())) {
       DBUG_RETURN(res);

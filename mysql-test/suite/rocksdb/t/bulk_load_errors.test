@@ -6,6 +6,7 @@
 --replace_result $SEARCH_FILE LOG_FILE
 --source include/restart_mysqld.inc
 
+### Bulk load ###
 CREATE TABLE t1(pk INT, PRIMARY KEY(pk)) ENGINE=RocksDB;
 
 # Make sure we get an error with out of order keys during bulk load
@@ -41,4 +42,65 @@ SET rocksdb_bulk_load=0;
 
 --remove_file $SEARCH_FILE
 
+
+TRUNCATE TABLE t1;
+
+### Bulk load with unsorted PKs ###
+SET rocksdb_bulk_load_allow_unsorted=1;
+
+# We should not get an error with out of order PKs
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(100);
+INSERT INTO t1 VALUES(101);
+INSERT INTO t1 VALUES(99);
+SET rocksdb_bulk_load=0;
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+
+# We should get an error with duplicate PKs in the same bulk load
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(201);
+INSERT INTO t1 VALUES(200);
+INSERT INTO t1 VALUES(202);
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(201);
+SET rocksdb_bulk_load=0;
+SELECT * FROM t1;
+
 DROP TABLE t1;
+
+# Crash when table open cache closes handler with bulk load operation not finalized
+SET @orig_table_open_cache=@@global.table_open_cache;
+CREATE TABLE t1(a INT AUTO_INCREMENT, b INT, PRIMARY KEY (a)) ENGINE=ROCKSDB DEFAULT CHARSET=latin1;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES(13, 0);
+INSERT INTO t1 VALUES(2, 1);
+INSERT INTO t1 VALUES(@id, @arg04);
+SET @@global.table_open_cache=FALSE;
+INSERT INTO t1 VALUES(51479+0.333333333,1);
+DROP TABLE t1;
+SET @@global.table_open_cache=@orig_table_open_cache;
+
+--let SEARCH_FILE=$LOG3
+--let SEARCH_PATTERN=RocksDB: Error 207 finalizing bulk load while closing handler
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $LOG3
+
+# Switch between tables, but also introduce duplicate key errors
+CREATE TABLE t1 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk INT, PRIMARY KEY (pk)) ENGINE=ROCKSDB;
+SET rocksdb_bulk_load=1;
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t1 VALUES (1);
+--error ER_OVERLAPPING_KEYS
+INSERT INTO t2 VALUES (3);
+SET rocksdb_bulk_load=0;
+DROP TABLE t1;
+DROP TABLE t2;
+
+--source include/wait_until_count_sessions.inc

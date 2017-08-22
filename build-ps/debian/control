@@ -22,7 +22,8 @@ Build-Depends: bison,
                libnuma-dev,
                gcc (>= 4.4),
                g++ (>= 4.4),
-               libwrap0-dev
+               libwrap0-dev,
+               libldap2-dev
 Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
 Vcs-Git: git://github.com/percona/percona-server.git -b 5.7

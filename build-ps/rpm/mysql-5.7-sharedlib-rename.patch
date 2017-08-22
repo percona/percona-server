@@ -146,15 +146,16 @@ diff -rup old/include/mysql.h new/include/mysql.h
 diff -rup old/libmysql/CMakeLists.txt new/libmysql/CMakeLists.txt
 --- old/libmysql/CMakeLists.txt	2016-03-09 09:25:21.000000000 +0100
 +++ new/libmysql/CMakeLists.txt	2016-03-09 11:41:15.159325622 +0100
-@@ -214,12 +214,12 @@ IF(WIN32)
-   LIST(APPEND LIBS auth_win_client)
- ENDIF()
- 
+@@ -234,12 +234,12 @@
+ MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
+ ADD_SUBDIRECTORY(authentication_ldap)
+   
 -# Merge several convenience libraries into one big perconaserverclient
 -MERGE_LIBRARIES(perconaserverclient STATIC ${LIBS} COMPONENT Development)
+-
 +# Merge several convenience libraries into one big mysqlclient
 +MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
- 
++ 
  # Visual Studio users need debug  static library for debug projects
  IF(MSVC)
 - INSTALL_DEBUG_TARGET(perconaserverclient DESTINATION ${INSTALL_LIBDIR}/debug)

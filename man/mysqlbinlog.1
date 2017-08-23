@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/28/2016
+.\"      Date: 06/03/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "09/28/2016" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "06/03/2017" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -491,7 +491,7 @@ USE\&. (In particular, no cross\-database updates should be used\&.)
 \fBNote\fR
 .ps -1
 .br
-Prior to MySQL Cluster NDB 7\&.2\&.2, this option did not work correctly with MySQL Cluster tables unless, unless the binary log was generated using
+Prior to MySQL NDB Cluster 7\&.2\&.2, this option did not work correctly with NDB Cluster tables unless, unless the binary log was generated using
 \fB\-\-log\-bin\-use\-v1\-row\-events=0\fR\&. (Bug #13067813)
 .sp .5v
 .RE
@@ -946,7 +946,7 @@ set to 32 enables this data to be seen\&.
 .sp
 This option is supported only by the versions of
 \fBmysqlbinlog\fR
-supplied with the MySQL Cluster distribution, or built from the MySQL Cluster sources\&.
+supplied with the NDB Cluster distribution, or built from the NDB Cluster sources\&.
 .RE
 .sp
 .RS 4
@@ -1009,6 +1009,22 @@ Display only the statements contained in the log, without any extra information 
 .sp
 For connections to
 localhost, the Unix socket file to use, or, on Windows, the name of the named pipe to use\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ssl*\fR
+.sp
+Options that begin with
+\fB\-\-ssl\fR
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+Section\ \&6.4.5, \(lqCommand Options for Secure Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2152,7 +2168,7 @@ option can be used to prevent this header from being written\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

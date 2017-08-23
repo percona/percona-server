@@ -96,9 +96,6 @@ List of features available in |Percona Server| releases
    * - :ref:`Too Many Connections Warning <ps51:log_connection_error>`
      - :ref:`Too Many Connections Warning <ps55:log_connection_error>`
      - :ref:`Too Many Connections Warning <ps56:log_connection_error>`
-   * - :ref:`Error Code Compatibility <ps51:error_pad>`
-     - :ref:`Error Code Compatibility <ps55:error_pad>`
-     - :ref:`Error Code Compatibility <ps56:error_pad>`
    * - :ref:`Handle Corrupted Tables <ps51:innodb_corrupt_table_action_page>`
      - :ref:`Handle Corrupted Tables <ps55:innodb_corrupt_table_action_page>`
      - :ref:`Handle Corrupted Tables <ps56:innodb_corrupt_table_action_page>`

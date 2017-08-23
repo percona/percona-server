@@ -25,7 +25,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
 
 /*
   Visual Studio 2003 does not know vsnprintf but knows _vsnprintf.
@@ -123,12 +122,6 @@ emit_endl()
   fflush(tapout);
 }
 
-static void
-handle_core_signal(int signo)
-{
-  BAIL_OUT("Signal %d thrown", signo);
-}
-
 void
 BAIL_OUT(char const *fmt, ...)
 {
@@ -153,52 +146,17 @@ diag(char const *fmt, ...)
   va_end(ap);
 }
 
-typedef struct signal_entry {
-  int signo;
-  void (*handler)(int);
-} signal_entry;
-
-static signal_entry install_signal[]= {
-  { SIGQUIT, handle_core_signal },
-  { SIGILL,  handle_core_signal },
-  { SIGABRT, handle_core_signal },
-  { SIGFPE,  handle_core_signal },
-  { SIGSEGV, handle_core_signal }
-#ifdef SIGBUS
-  , { SIGBUS,  handle_core_signal }
-#endif
-#ifdef SIGXCPU
-  , { SIGXCPU, handle_core_signal }
-#endif
-#ifdef SIGXCPU
-  , { SIGXFSZ, handle_core_signal }
-#endif
-#ifdef SIGXCPU
-  , { SIGSYS,  handle_core_signal }
-#endif
-#ifdef SIGXCPU
-  , { SIGTRAP, handle_core_signal }
-#endif
-};
-
 int skip_big_tests= 1;
 
 void
 plan(int count)
 {
   char *config= getenv("MYTAP_CONFIG");
-  size_t i;
 
   if (config)
     skip_big_tests= strcmp(config, "big");
 
   setvbuf(tapout, 0, _IONBF, 0);  /* provide output at once */
-  /*
-    Install signal handler
-  */
-
-  for (i= 0; i < sizeof(install_signal)/sizeof(*install_signal); ++i)
-    signal(install_signal[i].signo, install_signal[i].handler);
 
   g_test.plan= count;
   switch (count)

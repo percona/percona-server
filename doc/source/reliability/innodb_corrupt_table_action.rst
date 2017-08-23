@@ -4,7 +4,32 @@
  Handle Corrupted Tables
 =========================
 
-Instead of crashing the server as they used to do, corrupted |InnoDB| tables are simply disabled, so that the database remains available while the corruption is being fixed.
+When a server subsystem tries to access a corrupted table,
+the server may crash.
+If this outcome is not desirable when a corrupted table is encountered,
+set the new system :variable:`innodb_corrupt_table_action` variable
+to a value which allows the ongoing operation to continue
+without crashing the server.
+
+The server error log registers attempts to access corrupted table pages.
+
+.. rubric:: Interacting with the :variable:`innodb_force_recovery` variable
+
+The :variable:`innodb_corrupt_table_action` variable
+may work in conjunction with the :variable:`innodb_force_recovery` variable
+which considerably reduces
+the effect of |InnoDB| subsystems
+running in the background.
+
+If the :variable:`innodb_force_recovery` variable is set to a low value
+and you expect the server to crash,
+it may still be running due to
+a non-default value of the :variable:`innodb_corrupt_table_action` variable.
+
+For more information about the :variable:`innodb_force_recovery` variable,
+see `Forcing InnoDB Recovery
+<https://dev.mysql.com/doc/refman/5.5/en/forcing-innodb-recovery.html>`_
+from the MySQL Reference Manual.
 
 This feature adds a new system variable.
 

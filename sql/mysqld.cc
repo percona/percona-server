@@ -988,7 +988,7 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
 
 #ifdef HAVE_OPENSSL
 #include <openssl/crypto.h>
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
 typedef struct CRYPTO_dynlock_value
 {
   mysql_rwlock_t lock;
@@ -1665,7 +1665,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_connection_count);
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
     mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
   OPENSSL_free(openssl_stdlocks);
@@ -2125,7 +2125,7 @@ void close_connection(THD *thd, uint sql_errno)
 
   thd->disconnect();
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   ERR_remove_state(0);
 #endif
 
@@ -3536,9 +3536,24 @@ static int init_common_variables()
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server=	 default_charset_info;
   global_system_variables.collation_database=	 default_charset_info;
-  global_system_variables.collation_connection=  default_charset_info;
-  global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+
+  if (is_supported_parser_charset(default_charset_info))
+  {
+    global_system_variables.collation_connection= default_charset_info;
+    global_system_variables.character_set_results= default_charset_info;
+    global_system_variables.character_set_client= default_charset_info;
+  }
+  else
+  {
+    sql_print_information("'%s' can not be used as client character set. "
+                          "'%s' will be used as default client character set.",
+                          default_charset_info->csname,
+                          my_charset_latin1.csname);
+    global_system_variables.collation_connection= &my_charset_latin1;
+    global_system_variables.character_set_results= &my_charset_latin1;
+    global_system_variables.character_set_client= &my_charset_latin1;
+  }
+
   if (!(character_set_filesystem= 
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
@@ -3696,7 +3711,7 @@ static int init_thread_environment()
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-#ifndef HAVE_YASSL
+#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
                                                      sizeof(openssl_lock_t));
   for (int i= 0; i < CRYPTO_num_locks(); ++i)
@@ -3749,7 +3764,8 @@ static int init_thread_environment()
 }
 
 
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL) && \
+    (OPENSSL_VERSION_NUMBER < 0x10100000L)
 static unsigned long openssl_id_function()
 { 
   return (unsigned long) pthread_self();
@@ -3833,7 +3849,9 @@ static void init_ssl()
 					  opt_ssl_ca, opt_ssl_capath,
                                           opt_ssl_cipher, &error,
                                           ssl_ctx_flags);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_state(0);
+#endif
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
     if (!ssl_acceptor_fd)
     {
@@ -8703,3 +8721,33 @@ void init_server_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
+/* Detecting if being compiled with -fsanitize=address option */
+
+/* GCC has __SANITIZE_ADDRESS__ macro defined to 1 in this case */
+#ifdef __GNUC__
+  #if __SANITIZE_ADDRESS__ == 1
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/* Clang exposes __has_feature(address_sanitizer) */
+#ifdef __clang__
+  #if __has_feature(address_sanitizer)
+    #define UNDER_ADDRESS_SANITIZER
+  #endif
+#endif
+
+/*
+  As some MTR test cases check OOM, it is necessary to instruct address
+  sanitizer to not terminate the process when an allocation of a very
+  large memory block is requested and return NULL as expected. This can
+  be done by setting 'allocator_may_return_null' ASan option to 1.
+*/
+#ifdef UNDER_ADDRESS_SANITIZER
+
+extern "C" const char *__asan_default_options()
+{
+  return "allocator_may_return_null=1";
+}
+
+#endif

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -100,6 +100,8 @@ use mtr_results;
 use IO::Socket::INET;
 use IO::Select;
 use Subunit;
+
+push @INC, ".";
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -341,6 +343,12 @@ $| = 1; # Automatically flush STDOUT
 
 main();
 
+sub is_core_dump {
+  my $core_name= shift;
+  # Name beginning with core, not ending in .gz, or ending with .dmp on Windows
+  return (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
+          or (IS_WINDOWS and $core_name =~ /\.dmp$/));
+}
 
 sub main {
   # Default, verbosity on
@@ -547,6 +555,19 @@ sub main {
     mtr_print_line();
   }
 
+  if ($opt_ctest) {
+    find({ wanted => sub {
+             my $core_file= $File::Find::name;
+             my $core_name= basename($core_file);
+
+             if (is_core_dump($core_name)) {
+               mtr_report(" - found '$core_file'");
+
+               My::CoreDump->show($core_file, "", 1);
+             }
+       }}, $bindir);
+  }
+
   print_total_times($opt_parallel) if $opt_report_times;
 
   mtr_report_stats("Completed", $completed);
@@ -641,10 +662,7 @@ sub run_test_server ($$$) {
 			 my $core_file= $File::Find::name;
 			 my $core_name= basename($core_file);
 
-			 # Name beginning with core, not ending in .gz
-			 if (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
-			     or (IS_WINDOWS and $core_name =~ /\.dmp$/)){
-                                                       # Ending with .dmp
+                         if (is_core_dump($core_name)) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
@@ -2475,6 +2493,17 @@ sub environment_setup {
                         "$basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
+  # mysqlaccess
+  # ----------------------------------------------------
+  my $mysqlaccess=
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlaccess") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqlaccess");
+  if ($mysqlaccess)
+  {
+    $ENV{'MYSQLACCESS'}= $mysqlaccess;
+  }
+
+  # ----------------------------------------------------
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
@@ -3879,6 +3908,14 @@ sub resfile_report_test ($) {
   resfile_test_info("start_time", isotime time);
 }
 
+sub error_logs_to_comment {
+  my $tinfo= shift;
+  foreach my $mysqld (mysqlds())
+  {
+    $tinfo->{comment}.= "\nServer " . $mysqld->{proc} . " log: ".
+      get_log_from_proc($mysqld->{proc}, $tinfo->{name});
+  }
+}
 
 #
 # Run a single test case
@@ -4180,12 +4217,7 @@ sub run_testcase ($) {
 	  goto SRVDIED;
 	}
 
-        foreach my $mysqld (mysqlds())
-        {
-          $tinfo->{comment}.=
-            "\nServer " . $mysqld->{proc} . " log: ".
-            get_log_from_proc($mysqld->{proc}, $tinfo->{name});
-        }
+        error_logs_to_comment($tinfo);
 
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
@@ -4280,6 +4312,7 @@ sub run_testcase ($) {
 	   "== $log_file_name == \n".
 	     mtr_lastlinesfromfile($log_file_name, 500)."\n";
       }
+      error_logs_to_comment($tinfo);
       $tinfo->{'timeout'}= testcase_timeout($tinfo); # Mark as timeout
       run_on_all($tinfo, 'analyze-timeout');
 
@@ -5415,16 +5448,14 @@ sub start_servers($) {
     my $mysqld_basedir= $mysqld->value('basedir');
     if ( $basedir eq $mysqld_basedir )
     {
-      if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
+      if (!$opt_start_dirty)	# If dirty, keep possibly grown system db
       {
-	# Copy datadir from installed system db
-	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
-	    if -d $install_db;
-	}
-	mtr_error("Failed to copy system db to '$datadir'")
-	  unless -d $datadir;
+        # Copy datadir from installed system db
+        my $path= ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
+        my $install_db= "$path/install.db";
+        copytree($install_db, $datadir) if -d $install_db;
+        mtr_error("Failed to copy system db to '$datadir'")
+          unless -d $datadir;
       }
     }
     else

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1137,7 +1137,7 @@ static const char *default_options[]=
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
   "report-data-truncation", "plugin-dir", "default-auth", 
-  "enable-cleartext-plugin",
+  "enable-cleartext-plugin", "ssl-mode",
   NullS
 };
 enum option_id {
@@ -1149,7 +1149,7 @@ enum option_id {
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth, 
-  OPT_enable_cleartext_plugin,
+  OPT_enable_cleartext_plugin, OPT_ssl_mode,
   OPT_keep_this_one_last
 };
 
@@ -1338,12 +1338,26 @@ void mysql_read_default_options(struct st_mysql_options *options,
           my_free(options->ssl_cipher);
           options->ssl_cipher= my_strdup(opt_arg, MYF(MY_WME));
           break;
+        case OPT_ssl_mode:
+          if (opt_arg &&
+              !my_strcasecmp(&my_charset_latin1, opt_arg, "required"))
+          {
+            ENSURE_EXTENSIONS_PRESENT(options);
+            options->extension->ssl_mode= SSL_MODE_REQUIRED;
+          }
+          else
+          {
+            fprintf(stderr, "Unknown option to ssl-mode: %s\n", opt_arg);
+            exit(1);
+          }
+          break;
 #else
 	case OPT_ssl_key:
 	case OPT_ssl_cert:
 	case OPT_ssl_ca:
 	case OPT_ssl_capath:
         case OPT_ssl_cipher:
+        case OPT_ssl_mode:
 	  break;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 	case OPT_character_sets_dir:
@@ -1850,6 +1864,10 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
   mysql->options.ssl_capath = 0;
   mysql->options.ssl_cipher= 0;
   mysql->options.use_ssl = FALSE;
+  if (mysql->options.extension)
+  {
+    mysql->options.extension->ssl_mode= 0;
+  }
   mysql->connector_fd = 0;
   DBUG_VOID_RETURN;
 }
@@ -1878,6 +1896,198 @@ mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
 }
 
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+
+#include <openssl/x509v3.h>
+
+#if defined(HAVE_X509_CHECK_HOST) && defined(HAVE_X509_CHECK_IP)
+  #define HAVE_X509_CHECK_FUNCTIONS 1
+#endif
+
+#if !defined(HAVE_X509_CHECK_FUNCTIONS) && !defined(HAVE_YASSL)
+
+/*
+  Compares the DNS entry from the Subject Alternative Names (SAN) list with
+  the provided host name
+
+  SYNOPSIS
+  ssl_cmp_san_dns_name()
+    dns_name           pointer to a SAN list DNS entry
+    host_name          name of the server
+    errptr             if we fail, we'll return (a pointer to a string
+                       describing) the reason here
+
+  RETURN VALUES
+   0 Success
+   1 Failed to validate server
+
+*/
+
+static int ssl_cmp_san_dns_name(ASN1_STRING *dns_name, const char* host_name,
+                                const char **errptr)
+{
+  const char *cn;
+  DBUG_ENTER("ssl_cmp_san_dns_name");
+  *errptr= NULL;
+  if (dns_name == NULL)
+  {
+    *errptr= "Failed to get DNS name from SAN list item";
+    DBUG_RETURN(1);
+  }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  cn= (const char *)ASN1_STRING_data(dns_name);
+#else
+  cn= (const char *)ASN1_STRING_get0_data(dns_name);
+#endif
+  if (cn == NULL)
+  {
+    *errptr= "Failed to get data from SAN DNS name";
+    DBUG_RETURN(1);
+  }
+  // There should not be any NULL embedded in the DNS name
+  if ((size_t)ASN1_STRING_length(dns_name) != strlen(cn))
+  {
+    *errptr= "NULL embedded in the certificate SAN DNS name";
+    DBUG_RETURN(1);
+  }
+  DBUG_PRINT("info", ("SAN DNS name in cert: %s", cn));
+  if (!strcmp(cn, host_name))
+    DBUG_RETURN(0);
+
+  DBUG_RETURN(1);
+}
+
+/*
+  Compares the IP address entry from the Subject Alternative Names (SAN) list
+  with the provided host IP address
+
+  SYNOPSIS
+  ssl_cmp_san_ip_address()
+    ip_address         pointer to a SAN list IP address entry
+    host_ip            IP address of the server
+    host_ip_len        server IP address length (must be either 4 or 16)
+    errptr             if we fail, we'll return (a pointer to a string
+                       describing) the reason here
+
+  RETURN VALUES
+   0 Success
+   1 Failed to validate server
+
+*/
+
+static int ssl_cmp_san_ip_address(ASN1_OCTET_STRING *ip_address,
+                                  const unsigned char* host_ip,
+                                  size_t host_ip_len,
+                                  const char **errptr)
+{
+  const unsigned char* ip;
+  size_t ip_address_len;
+  DBUG_ENTER("ssl_cmp_san_ip_address");
+  *errptr= NULL;
+  if (ip_address == NULL)
+  {
+    *errptr= "Failed to get IP address from SAN list item";
+    DBUG_RETURN(1);
+  }
+  ip_address_len= ASN1_STRING_length(ip_address);
+  /* IP address length must be either 4 (IPV4) or 16 (IPV6) */
+  if (ip_address_len != 4 && ip_address_len != 16)
+  {
+    *errptr= "Invalid IP address embedded in the certificate SAN IP address";
+    DBUG_RETURN(1);
+  }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ip= ASN1_STRING_data(ip_address);
+#else
+  ip= ASN1_STRING_get0_data(ip_address);
+#endif
+  if (ip == NULL)
+  {
+    *errptr= "Failed to get data from SAN IP address";
+    DBUG_RETURN(1);
+  }
+  if (ip_address_len == host_ip_len &&
+      memcmp(host_ip, ip, host_ip_len) == 0)
+    DBUG_RETURN(0);
+
+  DBUG_RETURN(1);
+}
+
+/*
+  Check the certificate's Subject Alternative Names (SAN) against the
+  hostname / IP address we connected to
+
+  SYNOPSIS
+  ssl_verify_server_cert_san()
+    server_cert        pointer to a X509 certificate
+    hostname_or_ip     name of the server / pointer to a V4/V6 IP address
+                       buffer
+    hostname_or_ip_len 0 for host name, 4/16 for ip address
+    errptr             if we fail, we'll return (a pointer to a string
+                       describing) the reason here
+
+  RETURN VALUES
+   0 Success
+   1 Failed to validate server
+
+*/
+
+static int ssl_verify_server_cert_san(X509 *server_cert,
+                                      const char* hostname_or_ip,
+                                      size_t hostname_or_ip_len,
+                                      const char **errptr)
+{
+  int ret_validation= 1;
+  int i, number_of_sans;
+  GENERAL_NAMES *sans;
+
+  DBUG_ENTER("ssl_verify_server_cert_san");
+  *errptr= NULL;
+  sans= X509_get_ext_d2i(server_cert, NID_subject_alt_name, NULL, NULL);
+  if (sans == NULL)
+    DBUG_RETURN(ret_validation);
+
+  number_of_sans= sk_GENERAL_NAME_num(sans);
+  for (i= 0; ret_validation != 0 && i < number_of_sans; ++i)
+  {
+    GENERAL_NAME *san= sk_GENERAL_NAME_value(sans, i);
+    if (san == NULL)
+    {
+      *errptr= "Failed to get item from SAN list";
+      goto error;
+    }
+    if (hostname_or_ip_len == 0)
+    {
+      /* server host name was provided, check only GEN_DNS entries */
+      if (san->type == GEN_DNS)
+      {
+        ret_validation= ssl_cmp_san_dns_name(san->d.dNSName, hostname_or_ip,
+                                             errptr);
+        if (*errptr != NULL)
+          goto error;
+      }
+    }
+    else
+    {
+      /* server IP address was provided, check only GEN_IPADD entries */
+      if (san->type == GEN_IPADD)
+      {
+        ret_validation= ssl_cmp_san_ip_address(san->d.iPAddress,
+          (const unsigned char *)hostname_or_ip, hostname_or_ip_len, errptr);
+        if (*errptr != NULL)
+          goto error;
+      }
+    }
+  } /* iterating over SAN enries */
+
+error:
+  GENERAL_NAMES_free(sans);
+
+  DBUG_RETURN(ret_validation);
+}
+
+#endif /* !defined(HAVE_X509_CHECK_FUNCTIONS) && !defined(HAVE_YASSL) */
+
 /*
   Check the server's (subject) Common Name against the
   hostname we connected to
@@ -1893,19 +2103,24 @@ mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
    0 Success
    1 Failed to validate server
 
- */
-
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+*/
 
 static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const char **errptr)
 {
   SSL *ssl;
   X509 *server_cert= NULL;
-  char *cn= NULL;
+#ifndef HAVE_X509_CHECK_FUNCTIONS
+  const char *cn= NULL;
   int cn_loc= -1;
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;
   X509_NAME *subject= NULL;
+#endif
+#ifndef HAVE_YASSL
+  ASN1_OCTET_STRING *server_ip_address= NULL;
+  const unsigned char *ipout= NULL;
+  size_t iplen= 0;
+#endif
   int ret_validation= 1;
 
   DBUG_ENTER("ssl_verify_server_cert");
@@ -1940,58 +2155,98 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     are what we expect.
   */
 
+#ifndef HAVE_YASSL
+  /* Checking if the provided server_hostname is a V4/V6 IP address */
+  server_ip_address= a2i_IPADDRESS(server_hostname);
+  if(server_ip_address != NULL)
+  {
+    iplen= ASN1_STRING_length(server_ip_address);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    ipout= (const unsigned char *) ASN1_STRING_data(server_ip_address);
+#else
+    ipout= (const unsigned char *) ASN1_STRING_get0_data(server_ip_address);
+#endif
+  }
+#endif
+
+#ifdef HAVE_X509_CHECK_FUNCTIONS
+  if (iplen == 0)
+    ret_validation= X509_check_host(server_cert, server_hostname, 0, 0, 0) != 1;
+  else
+    ret_validation= X509_check_ip(server_cert, ipout, iplen, 0) != 1;
+#else
   /*
-   Some notes for future development
-   We should check host name in alternative name first and then if needed check in common name.
-   Currently yssl doesn't support alternative name.
-   openssl 1.0.2 support X509_check_host method for host name validation, we may need to start using
-   X509_check_host in the future.
+    YaSSL will always return NULL for any call to 'X509_get_ext_d2i()'
+    and therefore the whole SAN block will be skipped and only 'CN'
+    will be checked.
   */
-
-  subject= X509_get_subject_name((X509 *) server_cert);
-  // Find the CN location in the subject
-  cn_loc= X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0)
-  {
-    *errptr= "Failed to get CN location in the certificate subject";
+#ifndef HAVE_YASSL
+  ret_validation= ssl_verify_server_cert_san(server_cert,
+    iplen != 0 ? (const char*)ipout : server_hostname, iplen, errptr);
+  if (*errptr != NULL)
     goto error;
-  }
-
-  // Get the CN entry for given location
-  cn_entry= X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL)
+#endif
+  if (ret_validation != 0)
   {
-    *errptr= "Failed to get CN entry using CN location";
-    goto error;
+    subject= X509_get_subject_name(server_cert);
+    // Find the CN location in the subject
+    cn_loc= X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
+    if (cn_loc < 0)
+    {
+      *errptr= "Failed to get CN location in the certificate subject";
+      goto error;
+    }
+
+    // Get the CN entry for given location
+    cn_entry= X509_NAME_get_entry(subject, cn_loc);
+    if (cn_entry == NULL)
+    {
+      *errptr= "Failed to get CN entry using CN location";
+      goto error;
+    }
+
+    // Get CN from common name entry
+    cn_asn1= X509_NAME_ENTRY_get_data(cn_entry);
+    if (cn_asn1 == NULL)
+    {
+      *errptr= "Failed to get CN from CN entry";
+      goto error;
+    }
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    cn= (const char *) ASN1_STRING_data(cn_asn1);
+#else
+    cn= (const char *) ASN1_STRING_get0_data(cn_asn1);
+#endif
+    if (cn == NULL)
+    {
+      *errptr= "Failed to get data from CN";
+      goto error;
+    }
+
+    // There should not be any NULL embedded in the CN
+    if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
+    {
+      *errptr= "NULL embedded in the certificate CN";
+      goto error;
+    }
+
+    DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
+    if (!strcmp(cn, server_hostname))
+    {
+      /* Success */
+      ret_validation= 0;
+    }
   }
-
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL)
-  {
-    *errptr= "Failed to get CN from CN entry";
-    goto error;
-  }
-
-  cn= (char *) ASN1_STRING_data(cn_asn1);
-
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
-  {
-    *errptr= "NULL embedded in the certificate CN";
-    goto error;
-  }
-
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname))
-  {
-    /* Success */
-    ret_validation= 0;
-  }
-
-  *errptr= "SSL certificate validation failure";
+#endif
+  *errptr= ret_validation != 0 ? "SSL certificate validation failure" : "";
 
 error:
+#ifndef HAVE_YASSL
+  if(server_ip_address != NULL)
+    ASN1_OCTET_STRING_free(server_ip_address);
+#endif
+
   if (server_cert != NULL)
     X509_free (server_cert);
   DBUG_RETURN(ret_validation);
@@ -2596,6 +2851,31 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     end= buff+5;
   }
 #ifdef HAVE_OPENSSL
+  /*
+    If SSL connection is required we'll:
+      1. check if the server supports SSL;
+      2. check if the client is properly configured;
+      3. try to use SSL no matter the other options given.
+  */
+  if (mysql->options.extension &&
+      mysql->options.extension->ssl_mode == SSL_MODE_REQUIRED)
+  {
+    if (!(mysql->server_capabilities & CLIENT_SSL))
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               "Server doesn't support SSL");
+      goto error;
+    }
+    if (!mysql->options.use_ssl)
+    {
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                               ER(CR_SSL_CONNECTION_ERROR),
+                               "Client is not configured to use SSL");
+      goto error;
+    }
+    mysql->client_flag|= CLIENT_SSL;
+  }
   if (mysql->client_flag & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -3790,12 +4070,15 @@ static void mysql_close_free(MYSQL *mysql)
 */
 static void mysql_prune_stmt_list(MYSQL *mysql)
 {
-  LIST *element= mysql->stmts;
   LIST *pruned_list= 0;
 
-  for (; element; element= element->next)
+  while(mysql->stmts)
   {
-    MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
+    LIST *element= mysql->stmts;
+    MYSQL_STMT *stmt;
+
+    mysql->stmts= list_delete(element, element);
+    stmt= (MYSQL_STMT *) element->data;
     if (stmt->state != MYSQL_STMT_INIT_DONE)
     {
       stmt->mysql= 0;
@@ -4244,6 +4527,13 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
     mysql->options.extension->enable_cleartext_plugin= 
       (*(my_bool*) arg) ? TRUE : FALSE;
+    break;
+  case MYSQL_OPT_SSL_MODE:
+    if (*(uint *) arg == SSL_MODE_REQUIRED)
+    {
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+      mysql->options.extension->ssl_mode= SSL_MODE_REQUIRED;
+    }
     break;
   default:
     DBUG_RETURN(1);

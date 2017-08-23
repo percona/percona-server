@@ -1,2 +1,0 @@
-SET GLOBAL query_exec_id=default;
-SET SESSION query_exec_id=default;

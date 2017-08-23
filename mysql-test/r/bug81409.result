@@ -1,0 +1,3 @@
+SELECT Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
+Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))))
+NULL

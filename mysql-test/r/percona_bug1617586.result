@@ -1,0 +1,29 @@
+#
+# Bug 1617586 (SELECT DISTINCT x...ORDER BY y LIMIT N,N crashes server)
+#
+# Loading data
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `field1` varchar(255) DEFAULT NULL,
+  `field2` int(11) DEFAULT NULL,
+  `field3` datetime DEFAULT NULL,
+  `field4` varchar(255) DEFAULT NULL,
+  `field5` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `index_audits_on_field2` (`field2`),
+  KEY `on_field4` (`field4`),
+  KEY `index_audits_on_field1` (`field1`),
+  KEY `index_audits_on_field4_and_field5_and_field3` (`field4`,`field5`,`field3`),
+  KEY `idx_on_field4_and_field5_and_field2` (`field4`,`field5`,`field2`)
+) ENGINE=InnoDB AUTO_INCREMENT=8000000 DEFAULT CHARSET=latin1
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT DISTINCT field2 FROM t1
+WHERE (field4 IS NULL AND field5 = 233 AND field1 = 'c6bb07f8b5')
+ORDER BY field3 LIMIT 1;
+field2
+2272669
+DROP TABLE t1;

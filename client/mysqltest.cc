@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4159,7 +4159,13 @@ void do_perl(struct st_command *command)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
 
-    str_to_file(temp_file_path, ds_script.str, ds_script.length);
+    /* Compatibility for Perl 5.24 and newer. */
+    static DYNAMIC_STRING script;
+    init_dynamic_string(&script, "push @INC, \".\";\n", 1024, 1024);
+    dynstr_append_mem(&script, ds_script.str, ds_script.length);
+
+    str_to_file(temp_file_path, script.str, script.length);
+    dynstr_free(&script);
 
     /* Format the "perl <filename>" command */
     my_snprintf(buf, sizeof(buf), "perl %s", temp_file_path);
@@ -4727,7 +4733,13 @@ static int my_kill(int pid, int sig)
   CloseHandle(proc);
   return 1;
 #else
-  return kill(pid, sig);
+  int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
 #endif
 }
 
@@ -5295,7 +5307,7 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
               host, port, sock, user, name, failed_attempts);
   while(!mysql_connect_ssl_check(mysql, host,user, pass, db, port, sock,
                                  CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS,
-                                 opt_ssl_required))
+                                 opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       Connect failed
@@ -5397,7 +5409,7 @@ int connect_n_handle_errors(struct st_command *command,
   
   while (!mysql_connect_ssl_check(con, host, user, pass, db, port,
                                   sock ? sock: 0, CLIENT_MULTI_STATEMENTS,
-                                  opt_ssl_required))
+                                  opt_ssl_mode == SSL_MODE_REQUIRED))
   {
     /*
       If we have used up all our connections check whether this

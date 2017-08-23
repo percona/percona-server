@@ -40,6 +40,7 @@
 #include "sql_parse.h"                          // cleanup_items
 #include "sql_base.h"                           // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
+#include "debug_sync.h"         // DEBUG_SYNC
 
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).
@@ -2988,6 +2989,8 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   if (!res)
   {
+    DEBUG_SYNC(thd, "sp_before_exec_core");
+
     res= instr->exec_core(thd, nextp);
     DBUG_PRINT("info",("exec_core returned: %d", res));
   }

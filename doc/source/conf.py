@@ -228,7 +228,7 @@ htmlhelp_basename = 'PerconaServer55doc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'PerconaServer-5.5.tex', u'Percona Server Documentation',
-   u'Percona LLC and/or its affiliates 2009-2016', 'manual'),
+   u'Percona LLC and/or its affiliates 2009-2017', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -237,7 +237,7 @@ latex_logo = 'percona-logo.jpg'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.
-latex_use_parts = True
+latex_toplevel_sectioning = 'part'
 
 latex_elements = {
   'classoptions': ',oneside',
@@ -265,7 +265,7 @@ latex_elements = {
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'perconaserver55', u'Percona Server 5.5 Documentation',
-     [u'Percona LLC and/or its affiliates 2009-2016'], 1)
+     [u'Percona LLC and/or its affiliates 2009-2017'], 1)
 ]
 
 

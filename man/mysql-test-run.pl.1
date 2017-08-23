@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql-test-run.pl\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/16/2016
+.\"      Date: 06/01/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\-TEST\-RUN\" "1" "09/16/2016" "MySQL" "MySQL Database System"
+.TH "\FBMYSQL\-TEST\-RUN\" "1" "06/01/2017" "MySQL" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -33,6 +33,24 @@ mysql-test-run.pl \- run MySQL test suite
 .HP \w'\fBmysql\-test\-run\&.pl\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBmysql\-test\-run\&.pl [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+\fIThis content is no longer updated\&.\fR
+Any further updates to test framework documention take place in the MySQL Source Code documentation and can be accessed at
+\m[blue]\fBThe MySQL Test Framework, Version 2\&.0\fR\m[]\&\s-2\u[1]\d\s+2\&.
+.sp .5v
+.RE
 .PP
 The
 \fBmysql\-test\-run\&.pl\fR
@@ -262,6 +280,7 @@ l l
 l l
 l l
 l l
+l l
 l l.
 T{
 MTR_BUILD_THREAD
@@ -293,7 +312,7 @@ Setting of a timeout in minutes or seconds, corresponding to command
                 CTEST (all in seconds)\&.
                 MTR_CTEST_TIMEOUT is for
                 \fBctest\fR unit tests; it was added in
-                MySQL 5\&.8\&.0\&.
+                MySQL 8\&.0\&.0\&.
 T}
 T{
 MTR_PARALLEL
@@ -365,6 +384,12 @@ T}:T{
 Path name to the var directory that is used for
                 logs, temporary files, and so forth
 T}
+T{
+TSAN_OPTIONS
+T}:T{
+Path name to a file containing ThreadSanitizer suppressions\&. Supported
+                as of MySQL 8\&.0\&.1\&.
+T}
 .TE
 .sp 1
 .PP
@@ -428,6 +453,14 @@ BIG_TEST
 is set to 1\&.
 .sp
 This is typically done for tests that take very long to run, or that use very much resources, so that they are not suitable for running as part of a normal test suite run\&.
+.sp
+If both
+\fB\-\-big\-test\fR
+and
+\fB\-\-only\-big\-tests\fR
+are given,
+\fB\-\-only\-big\-tests\fR
+is ignored\&.
 .RE
 .sp
 .RS 4
@@ -526,6 +559,24 @@ Instructs
 \fBvalgrind\fR
 to use
 \fBcallgrind\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-charset\-for\-testdb=\fR\fB\fIcharset_name\fR\fR
+.sp
+Specify the default character set for the
+test
+database\&. The default value is
+latin1\&.
+.sp
+This option was added in MySQL 8\&.0\&.1\&.
 .RE
 .sp
 .RS 4
@@ -851,7 +902,7 @@ prefix is used so that
 does not fail if Debug Sync is not compiled in\&.
 .sp
 For information about using the Debug Sync facility for testing, see
-Section\ \&4.14, \(lqThread Synchronization in Test Cases\(rq\&.
+Section\ \&4.15, \(lqThread Synchronization in Test Cases\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1012,7 +1063,7 @@ option is available from MySQL 5\&.7\&.
 .sp
 Use a version of
 \fBmysqltest\fR
-built with the embedded server\&.
+built with the embedded server\&. This option was removed in MySQL 8\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1065,7 +1116,13 @@ It is also possible to supply more than one
 .sp
 Run
 EXPLAIN EXTENDED
-on all SELECT, INSERT, REPLACE, UPDATE and DELETE queries\&.
+on all
+SELECT,
+INSERT,
+REPLACE,
+UPDATE, and
+DELETE
+statements\&.
 .RE
 .sp
 .RS 4
@@ -1126,7 +1183,7 @@ Do not perform controlled shutdown when servers need to be restarted or at the e
 .\}
 \fB\-\-fail\-check\-testcases\fR
 .sp
-Enabling this option when a test is run, causes it to fail if MTR\*(Aqs internal check of the test case fails\&. If this option is disabled, only a warning is generated while the test passes\&. For additional information, see the description of the
+Enabling this option when a test is run, causes it to fail if MTR\*(Aqs internal check of the test case fails\&. If this option is disabled, only a warning is generated while the test passes\&. This option is enabled by default\&. For additional information, see the description of the
 \fB\-\-check\-testcases\fR
 option\&.
 .sp
@@ -1471,7 +1528,7 @@ options to set more than one variable\&.
 Extra options to pass to
 \fBmysqltest\fR\&.
 .sp
-This option was added in MySQL 5\&.8\&.0\&.
+This option was added in MySQL 8\&.0\&.0\&.
 .RE
 .sp
 .RS 4
@@ -1610,6 +1667,28 @@ Running of unit tests was enabled from MySQL 5\&.5\&.11\&.
 \fB\-\-nowarnings\fR
 .sp
 Do not look for and report errors and warning in the server logs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-only\-big\-tests\fR
+.sp
+This option causes only big tests to run\&. Normal (non\-big) tests are skipped\&. If both
+\fB\-\-big\-test\fR
+and
+\fB\-\-only\-big\-tests\fR
+are given,
+\fB\-\-only\-big\-tests\fR
+is ignored\&.
+.sp
+\fB\-\-only\-big\-tests\fR
+was added in MySQL 8\&.0\&.1\&.
 .RE
 .sp
 .RS 4
@@ -1821,6 +1900,26 @@ may fail in total, as each repetition is considered a new test case, which may i
 \fB\-\-retry\-failure=\fR\fB\fIN\fR\fR
 .sp
 Allow a failed and retried test to fail more than the default 2 times before giving it up\&. Setting it to 0 or 1 effectively turns off retries
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-sanitize\fR
+.sp
+Scan the server log files for warnings from various sanitizers\&. Use of this option assumes that MySQL was configured with
+\fB\-DWITH_ASAN\fR
+or
+\fB\-DWITH_UBSAN\fR\&.
+.sp
+This option was added in MySQL 8\&.0\&.0\&. As of MySQL 8\&.0\&.1, the
+TSAN_OPTIONS
+environment variable can be set to specify the path name of a file containing ThreadSanitizer suppressions\&.
 .RE
 .sp
 .RS 4
@@ -2187,6 +2286,32 @@ directory)\&.
 \fB\-\-suite\-timeout=\fR\fB\fIminutes\fR\fR
 .sp
 Specify the maximum test suite runtime in minutes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-summary\-report=\fR\fB\fIfile_name\fR\fR
+.sp
+Generate a plain text version of the test summary only and write it to the file named as the option argument\&. The file is suitable for sending by email\&. This option was added in MySQL 8\&.0\&.1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-test\-progress\fR
+.sp
+Display the percentage of tests remaining\&. This option was added in MySQL 5\&.7\&.19\&.
 .RE
 .sp
 .RS 4
@@ -2576,7 +2701,7 @@ The hostname resolves to 127\&.0\&.0\&.1 and not to the actual IP address\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2584,6 +2709,12 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+The MySQL Test Framework, Version 2.0
+.RS 4
+\%http://dev.mysql.com/doc/dev/mysql-server/latest/PAGE_MYSQL_TEST_RUN.html
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

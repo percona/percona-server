@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -385,6 +385,7 @@ THD *thd_get_current_thd()
 */
 void thd_new_connection_setup(THD *thd, char *stack_start)
 {
+  thd_lock_thread_count(thd);
 #ifdef HAVE_PSI_INTERFACE
   if (PSI_server)
     thd_set_psi(thd,
@@ -1386,7 +1387,6 @@ void THD::reset_diff_stats(void)
   diff_lost_connections=           0;
   diff_access_denied_errors=       0;
   diff_empty_queries=              0;
-  diff_disconnects=                0;
 }
 
 // Updates 'diff' stats of a THD.
@@ -4233,7 +4233,7 @@ void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
 {
   mysql_mutex_lock(&LOCK_thd_data);
   set_query_inner(query_arg, query_length_arg, cs);
-  do_set_query_id(new_query_id);
+  query_id= new_query_id;
   mysql_mutex_unlock(&LOCK_thd_data);
 }
 
@@ -4242,19 +4242,8 @@ void THD::set_query_and_id(char *query_arg, uint32 query_length_arg,
 void THD::set_query_id(query_id_t new_query_id)
 {
   mysql_mutex_lock(&LOCK_thd_data);
-  do_set_query_id(new_query_id);
-  mysql_mutex_unlock(&LOCK_thd_data);
-}
-void THD::do_set_query_id(query_id_t new_query_id)
-{
-#ifndef DBUG_OFF
-  if (variables.query_exec_id != 0 &&
-      lex->sql_command != SQLCOM_SET_OPTION)
-  {
-    new_query_id= variables.query_exec_id;
-  }
-#endif /* DBUG_OFF */
   query_id= new_query_id;
+  mysql_mutex_unlock(&LOCK_thd_data);
 }
 
 /** Assign a new value to thd->mysys_var.  */

@@ -164,6 +164,7 @@ sub mtr_report_test ($) {
       mtr_report("[ $retry$fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
+      mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     my $timeout= $tinfo->{'timeout'};

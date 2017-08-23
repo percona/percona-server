@@ -43,6 +43,11 @@ if(`select TIMESTAMPDIFF(SECOND,@time_after_kill, @time_before_kill) > 60`)
 --die
 }
 
+--source include/wait_for_slave_io_to_stop.inc
+
 --echo [Killing of the slave IO thread was successful]
+
+--source include/start_slave.inc
+
 # End of test
 --source include/rpl_end.inc

@@ -1,0 +1,4 @@
+SET NAMES utf8, collation_connection = 'utf16_bin';
+SELECT '2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second;
+'2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second
+2010-10-10 10:10:10

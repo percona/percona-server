@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,10 +11,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+SET(WITH_SSL_DOC "bundled (use yassl)")
+SET(WITH_SSL_DOC
+  "${WITH_SSL_DOC}, yes (prefer os library if present, otherwise use bundled)")
+SET(WITH_SSL_DOC
+  "${WITH_SSL_DOC}, system (use os library)")
 
 MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING "Options are : no, bundled, yes (prefer os library if present otherwise use bundled), system (use os library)" FORCE)
+  SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC} FORCE)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_SSL)
@@ -26,6 +32,8 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   SET(SSL_INCLUDE_DIRS ${INC_DIRS})
   SET(SSL_INTERNAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
   SET(SSL_DEFINES "-DHAVE_YASSL -DYASSL_PURE_C -DYASSL_PREFIX -DHAVE_OPENSSL -DMULTI_THREADED")
+  SET(HAVE_X509_CHECK_HOST OFF CACHE INTERNAL "yassl doesn't support HAVE_X509_check_host")
+  SET(HAVE_X509_CHECK_IP OFF CACHE INTERNAL "yassl doesn't support HAVE_X509_check_ip")
   CHANGE_SSL_SETTINGS("bundled")
   #Remove -fno-implicit-templates 
   #(yassl sources cannot  be compiled with  it)
@@ -50,14 +58,12 @@ ENDMACRO()
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
-# WITH_SSL=[yes|no|bundled]
+# WITH_SSL=[bundled|yes|system]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-   IF(WIN32)
      CHANGE_SSL_SETTINGS("bundled")
-   ELSE()
-     CHANGE_SSL_SETTINGS("no")
-   ENDIF()
+     MESSAGE(STATUS "Found WITH_SSL set to no. "
+             "Changing it to bundled")
   ENDIF()
 
   IF(WITH_SSL STREQUAL "bundled")
@@ -81,14 +87,21 @@ MACRO (MYSQL_CHECK_SSL)
       SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
+      cmake_push_check_state()
+      SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
+      SET(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES} ${CRYPTO_LIBRARY})
+      CHECK_SYMBOL_EXISTS(X509_check_host "openssl/x509v3.h" HAVE_X509_CHECK_HOST)
+      CHECK_SYMBOL_EXISTS(X509_check_ip "openssl/x509v3.h" HAVE_X509_CHECK_IP)
+      cmake_pop_check_state()
       CHANGE_SSL_SETTINGS("system")
     ELSE()
       IF(WITH_SSL STREQUAL "system")
-        MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for SSL. Use  WITH_SSL=bundled to enable SSL support")
+        MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for SSL. Use WITH_SSL=bundled to enable SSL support")
       ENDIF()
       MYSQL_USE_BUNDLED_SSL()
     ENDIF()
-  ELSEIF(NOT WITH_SSL STREQUAL "no")
-    MESSAGE(SEND_ERROR "Wrong option for WITH_SSL. Valid values are : yes, no, bundled")
+  ELSE()
+    MESSAGE(SEND_ERROR "Wrong option for WITH_SSL. "
+            "Valid options are : ${WITH_SSL_DOC}")
   ENDIF()
 ENDMACRO()

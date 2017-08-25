@@ -1908,6 +1908,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_sec_rec_cluster_reads_avoided =
 		srv_sec_rec_cluster_reads_avoided;
 
+	export_vars.innodb_buffered_aio_submitted =
+		srv_stats.n_aio_submitted;
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

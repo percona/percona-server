@@ -1216,6 +1216,8 @@ fil_space_get_n_reserved_extents(
 				aligned
 @param[in]	message		message for aio handler if non-sync aio
 				used, else ignored
+@param[in]	should_buffer	whether to buffer an aio request.
+				Only used by aio read ahead
 
 @return DB_SUCCESS, DB_TABLESPACE_DELETED or DB_TABLESPACE_TRUNCATED
 if we are trying to do i/o on a tablespace which does not exist */
@@ -1229,10 +1231,13 @@ _fil_io(
 	ulint			len,
 	void*			buf,
 	void*			message,
-	trx_t*			trx);
+	trx_t*			trx,
+	bool			should_buffer);
 
-#define fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message) \
-	_fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message, NULL)
+#define fil_io(type, sync, page_id, page_size, byte_offset, \
+		len, buf, message) \
+	_fil_io(type, sync, page_id, page_size, byte_offset, \
+		len, buf, message, NULL, false)
 
 /**********************************************************************//**
 Waits for an aio operation to complete. This function is used to write the

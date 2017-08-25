@@ -4632,6 +4632,9 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     if (tokudb::sysvars::disable_prefetching(thd)) {
         cursor_flags |= DBC_DISABLE_PREFETCHING;
     }
+    if (lock.type == TL_READ_WITH_SHARED_LOCKS) {
+       cursor_flags |= DB_LOCKING_READ;
+    }
     if ((error = share->key_file[keynr]->cursor(share->key_file[keynr],
                                                 transaction, &cursor,
                                                 cursor_flags))) {

@@ -188,6 +188,7 @@ case "$1" in
 		fix_thp_setting
 
 		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
+                check_exit_status $?
 		verify_server start
                 retval=$?
 		if [ "$retval" -eq 0 ];

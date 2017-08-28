@@ -306,14 +306,38 @@ void rdb_log_status_error(const rocksdb::Status &s, const char *msg) {
                   s.ToString().c_str());
 }
 
-void warn_about_bad_patterns(const Regex &regex, const char *name)
-{
+void warn_about_bad_patterns(const Regex &regex, const char *name) {
   // There was some invalid regular expression data in the patterns supplied
 
   // NO_LINT_DEBUG
-  sql_print_warning("RocksDB: Invalid pattern in %s: %s",
-                    name,
+  sql_print_warning("RocksDB: Invalid pattern in %s: %s", name,
                     regex.pattern().c_str());
+}
+
+// Split a string based on a delimiter.  Two delimiters in a row will not add
+// an empty string in the set.
+std::vector<std::string> split_into_vector(const std::string &input,
+                                           char delimiter) {
+  size_t pos;
+  size_t start = 0;
+  std::vector<std::string> elems;
+
+  // Find next delimiter
+  while ((pos = input.find(delimiter, start)) != std::string::npos) {
+    // If there is any data since the last delimiter add it to the list
+    if (pos > start)
+      elems.push_back(input.substr(start, pos - start));
+
+    // Set our start position to the character after the delimiter
+    start = pos + 1;
+  }
+
+  // Add a possible string since the last delimiter
+  if (input.length() > start)
+    elems.push_back(input.substr(start));
+
+  // Return the resulting list back to the caller
+  return elems;
 }
 
 } // namespace myrocks

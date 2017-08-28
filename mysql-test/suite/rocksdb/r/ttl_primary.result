@@ -414,18 +414,29 @@ INSERT INTO t1 values (3);
 set global rocksdb_enable_ttl=0;
 set global rocksdb_force_flush_memtable_now=1;
 set global rocksdb_compact_cf='default';
-select variable_value into @c from information_schema.global_status where variable_name='rocksdb_rows_expired';
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
+select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_rows_expired';
 set global rocksdb_enable_ttl=1;
 set global rocksdb_compact_cf='default';
-select variable_value-@c from information_schema.global_status where variable_name='rocksdb_rows_expired';
+select variable_value-@c from performance_schema.global_status where variable_name='rocksdb_rows_expired';
 variable_value-@c
 3
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 SELECT COUNT(*) FROM t1;
 COUNT(*)
+0
+DROP TABLE t1;
+CREATE TABLE t1 (
+a bigint(20) NOT NULL,
+PRIMARY KEY (a)
+) ENGINE=rocksdb
+COMMENT='ttl_duration=100;';
+INSERT INTO t1 values (1);
+INSERT INTO t1 values (2);
+INSERT INTO t1 values (3);
+select variable_value into @c from performance_schema.global_status where variable_name='rocksdb_rows_expired';
+set global rocksdb_force_flush_memtable_now=1;
+set global rocksdb_compact_cf='default';
+select variable_value-@c from performance_schema.global_status where variable_name='rocksdb_rows_expired';
+variable_value-@c
 0
 DROP TABLE t1;
 SET @@global.rocksdb_update_cf_options = 'default={disable_auto_compactions=false;};';

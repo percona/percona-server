@@ -42,7 +42,12 @@
 #include <mysql/thread_pool_priv.h>
 #include <mysys_err.h>
 
+// Both MySQL and RocksDB define the same constant. To avoid compilation errors
+// till we make the fix in RocksDB, we'll temporary undefine it here.
+#undef CACHE_LINE_SIZE
+
 /* RocksDB includes */
+#include "monitoring/histogram.h"
 #include "rocksdb/compaction_filter.h"
 #include "rocksdb/env.h"
 #include "rocksdb/persistent_cache.h"
@@ -52,6 +57,7 @@
 #include "rocksdb/utilities/checkpoint.h"
 #include "rocksdb/utilities/convenience.h"
 #include "rocksdb/utilities/memory_util.h"
+#include "util/stop_watch.h"
 
 /* MyRocks includes */
 #include "./event_listener.h"
@@ -127,6 +133,7 @@ static char *rocksdb_update_cf_options = nullptr;
 handlerton *rocksdb_hton;
 
 rocksdb::TransactionDB *rdb = nullptr;
+rocksdb::HistogramImpl *commit_latency_stats = nullptr;
 
 static std::shared_ptr<rocksdb::Statistics> rocksdb_stats;
 static std::shared_ptr<Rdb_tbl_prop_coll_factory> properties_collector_factory;
@@ -300,10 +307,14 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
   rocksdb_flush_all_memtables();
 
   const Rdb_cf_manager &cf_manager = rdb_get_cf_manager();
-  const rocksdb::CompactionOptions c_options = rocksdb::CompactionOptions();
+  rocksdb::CompactionOptions c_options = rocksdb::CompactionOptions();
+  rocksdb::ColumnFamilyMetaData metadata;
+  rocksdb::ColumnFamilyDescriptor cf_descr;
+
   for (const auto &cf_handle : cf_manager.get_all_cf()) {
-    rocksdb::ColumnFamilyMetaData metadata;
     rdb->GetColumnFamilyMetaData(cf_handle, &metadata);
+    cf_handle->GetDescriptor(&cf_descr);
+    c_options.output_file_size_limit = cf_descr.options.target_file_size_base;
 
     DBUG_ASSERT(metadata.levels[0].level == 0);
     std::vector<std::string> file_names;
@@ -799,7 +810,7 @@ static MYSQL_SYSVAR_INT(max_background_compactions,
                         "DBOptions::max_background_compactions for RocksDB",
                         nullptr, rocksdb_set_max_background_compactions,
                         rocksdb_db_options->max_background_compactions,
-                        /* min */ 1, /* max */ MAX_BACKGROUND_COMPACTIONS, 0);
+                        /* min */ -1, /* max */ MAX_BACKGROUND_COMPACTIONS, 0);
 
 static MYSQL_SYSVAR_INT(max_background_flushes,
                         rocksdb_db_options->max_background_flushes,
@@ -807,7 +818,7 @@ static MYSQL_SYSVAR_INT(max_background_flushes,
                         "DBOptions::max_background_flushes for RocksDB",
                         nullptr, nullptr,
                         rocksdb_db_options->max_background_flushes,
-                        /* min */ 1, /* max */ MAX_BACKGROUND_FLUSHES, 0);
+                        /* min */ -1, /* max */ MAX_BACKGROUND_FLUSHES, 0);
 
 static MYSQL_SYSVAR_UINT(max_subcompactions,
                          rocksdb_db_options->max_subcompactions,
@@ -1533,6 +1544,12 @@ protected:
 public:
   int64_t m_snapshot_timestamp = 0;
   bool m_ddl_transaction;
+
+  /*
+    Tracks the number of tables in use through external_lock.
+    This should not be reset during start_tx().
+  */
+  int64_t m_n_mysql_tables_in_use = 0;
 
   /*
     for distinction between rdb_transaction_impl and rdb_writebatch_impl
@@ -2531,35 +2548,65 @@ static int rocksdb_prepare(handlerton *const hton, THD *const thd,
  this is needed to avoid crashes in XA scenarios
 */
 static int rocksdb_commit_by_xid(handlerton *const hton, XID *const xid) {
+  DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(hton != nullptr);
+  DBUG_ASSERT(xid != nullptr);
+  DBUG_ASSERT(commit_latency_stats != nullptr);
+
+  rocksdb::StopWatchNano timer(rocksdb::Env::Default(), true);
+
   const auto name = rdb_xid_to_string(*xid);
+  DBUG_ASSERT(!name.empty());
+
   rocksdb::Transaction *const trx = rdb->GetTransactionByName(name);
+
   if (trx == nullptr) {
-    return HA_EXIT_FAILURE;
+    DBUG_RETURN(HA_EXIT_FAILURE);
   }
+
   const rocksdb::Status s = trx->Commit();
+
   if (!s.ok()) {
     rdb_log_status_error(s);
-    return HA_EXIT_FAILURE;
+    DBUG_RETURN(HA_EXIT_FAILURE);
   }
+
   delete trx;
-  return HA_EXIT_SUCCESS;
+
+  // `Add()` is implemented in a thread-safe manner.
+  commit_latency_stats->Add(timer.ElapsedNanos() / 1000);
+
+  DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
 static int rocksdb_rollback_by_xid(handlerton *const hton
                                    MY_ATTRIBUTE((__unused__)),
                                    XID *const xid) {
+  DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(hton != nullptr);
+  DBUG_ASSERT(xid != nullptr);
+  DBUG_ASSERT(rdb != nullptr);
+
   const auto name = rdb_xid_to_string(*xid);
+
   rocksdb::Transaction *const trx = rdb->GetTransactionByName(name);
+
   if (trx == nullptr) {
-    return HA_EXIT_FAILURE;
+    DBUG_RETURN(HA_EXIT_FAILURE);
   }
+
   const rocksdb::Status s = trx->Rollback();
+
   if (!s.ok()) {
     rdb_log_status_error(s);
-    return HA_EXIT_FAILURE;
+    DBUG_RETURN(HA_EXIT_FAILURE);
   }
+
   delete trx;
-  return HA_EXIT_SUCCESS;
+
+  DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
 /**
@@ -2619,6 +2666,9 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
 
   DBUG_ASSERT(hton != nullptr);
   DBUG_ASSERT(thd != nullptr);
+  DBUG_ASSERT(commit_latency_stats != nullptr);
+
+  rocksdb::StopWatchNano timer(rocksdb::Env::Default(), true);
 
   /* this will trigger saving of perf_context information */
   Rdb_perf_context_guard guard(thd);
@@ -2634,8 +2684,9 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
          - For a COMMIT statement that finishes a multi-statement transaction
          - For a statement that has its own transaction
       */
-      if (tx->commit())
+      if (tx->commit()) {
         DBUG_RETURN(HA_ERR_ROCKSDB_COMMIT_FAILED);
+      }
     } else {
       /*
         We get here when committing a statement within a transaction.
@@ -2652,6 +2703,9 @@ static int rocksdb_commit(handlerton *const hton, THD *const thd,
       tx->release_snapshot();
     }
   }
+
+  // `Add()` is implemented in a thread-safe manner.
+  commit_latency_stats->Add(timer.ElapsedNanos() / 1000);
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -2922,6 +2976,19 @@ static bool rocksdb_show_status(handlerton *const hton, THD *const thd,
     /* Global DB Statistics */
     if (rocksdb_stats) {
       str = rocksdb_stats->ToString();
+
+      // Use the same format as internal RocksDB statistics entries to make
+      // sure that output will look unified.
+      DBUG_ASSERT(commit_latency_stats != nullptr);
+
+      snprintf(buf, sizeof(buf), "rocksdb.commit_latency statistics "
+                                 "Percentiles :=> 50 : %.2f 95 : %.2f "
+                                 "99 : %.2f 100 : %.2f\n",
+               commit_latency_stats->Percentile(50),
+               commit_latency_stats->Percentile(95),
+               commit_latency_stats->Percentile(99),
+               commit_latency_stats->Percentile(100));
+      str.append(buf);
 
       uint64_t v = 0;
 
@@ -3299,8 +3366,11 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  // sst_file_manager will move deleted rocksdb sst files to trash_dir
+  // to be deleted in a background thread.
+  std::string trash_dir = std::string(rocksdb_datadir) + "/trash";
   rocksdb_db_options->sst_file_manager.reset(
-      NewSstFileManager(rocksdb_db_options->env));
+      NewSstFileManager(rocksdb_db_options->env, myrocks_logger, trash_dir));
 
   rocksdb_db_options->sst_file_manager->SetDeleteRateBytesPerSecond(
       rocksdb_sst_mgr_rate_bytes_per_sec);
@@ -3530,6 +3600,10 @@ static int rocksdb_init_func(void *const p) {
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
+  // Creating an instance of HistogramImpl should only happen after RocksDB
+  // has been successfully initialized.
+  commit_latency_stats = new rocksdb::HistogramImpl();
+
   sql_print_information("RocksDB instance opened");
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -3603,6 +3677,9 @@ static int rocksdb_done_func(void *const p) {
 
   delete rdb;
   rdb = nullptr;
+
+  delete commit_latency_stats;
+  commit_latency_stats = nullptr;
 
 // Disown the cache data since we're shutting down.
 // This results in memory leaks but it improved the shutdown time.
@@ -4138,7 +4215,9 @@ void ha_rocksdb::setup_read_decoders() {
       continue;
     }
 
+    // bitmap is cleared on index merge, but it still needs to decode columns
     if (m_lock_rows == RDB_LOCK_WRITE || m_verify_row_debug_checksums ||
+        bitmap_is_clear_all(table->read_set) ||
         bitmap_is_set(table->read_set, table->field[i]->field_index)) {
       // We will need to decode this field
       m_decoders_vect.push_back({&m_encoder_arr[i], true, skip_size});
@@ -8562,7 +8641,9 @@ int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
     Rdb_transaction *const tx = get_or_create_tx(thd);
 
     tx->io_perf_end_and_record(&m_io_perf);
-    if (!my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+    tx->m_n_mysql_tables_in_use--;
+    if (tx->m_n_mysql_tables_in_use == 0 &&
+        !my_core::thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
       /*
         Do like InnoDB: when we get here, it's time to commit a
         single-statement transaction.
@@ -8624,6 +8705,7 @@ int ha_rocksdb::external_lock(THD *const thd, int lock_type) {
         tx->m_ddl_transaction = true;
       }
     }
+    tx->m_n_mysql_tables_in_use++;
     rocksdb_register_tx(rocksdb_hton, thd, tx);
     tx->io_perf_start(&m_io_perf);
   }
@@ -8871,7 +8953,6 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
   rocksdb::ReadOptions opts;
   opts.total_order_seek = true;
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
-  rocksdb::Iterator *const it = rdb->NewIterator(opts);
 
   char key_buf[MAX_KEY_LENGTH];
   uint key_len;
@@ -8883,6 +8964,9 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
   for (uint i = 0; i < tbl->m_key_count; i++) {
     const Rdb_key_def &kd = *tbl->m_key_descr_arr[i];
     kd.get_infimum_key(reinterpret_cast<uchar *>(key_buf), &key_len);
+    rocksdb::ColumnFamilyHandle *cf = kd.get_cf();
+
+    std::unique_ptr<rocksdb::Iterator> it(rdb->NewIterator(opts, cf));
 
     const rocksdb::Slice table_key(key_buf, key_len);
     it->Seek(table_key);
@@ -8891,20 +8975,22 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
       if (!kd.covers_key(key)) {
         break;
       }
+
       rocksdb::Status s;
-      if (can_use_single_delete(i))
-        s = rdb->SingleDelete(wo, key);
-      else
-        s = rdb->Delete(wo, key);
+      if (can_use_single_delete(i)) {
+        s = rdb->SingleDelete(wo, cf, key);
+      } else {
+        s = rdb->Delete(wo, cf, key);
+      }
+
       if (!s.ok()) {
-        delete it;
         return tx->set_status_error(table->in_use, s, *m_pk_descr, m_tbl_def);
       }
 
       it->Next();
     }
   }
-  delete it;
+
   return HA_EXIT_SUCCESS;
 }
 
@@ -10480,20 +10566,14 @@ void rdb_update_global_stats(const operation_type &type, uint count,
                              bool is_system_table) {
   DBUG_ASSERT(type < ROWS_MAX);
 
-  if (is_system_table) {
-    if (count > 1) {
-      global_stats.system_rows[type].add(count);
-    } else {
-      global_stats.system_rows[type].inc();
-    }
-
+  if (count == 0) {
     return;
   }
 
-  if (count > 1) {
-    global_stats.rows[type].add(count);
+  if (is_system_table) {
+    global_stats.system_rows[type].add(count);
   } else {
-    global_stats.rows[type].inc();
+    global_stats.rows[type].add(count);
   }
 }
 

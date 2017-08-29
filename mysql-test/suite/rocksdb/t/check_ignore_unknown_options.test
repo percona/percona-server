@@ -1,0 +1,20 @@
+--source include/have_rocksdb.inc
+
+select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -n | tail -1 | xargs -0 -I {} -t sh -c "echo hello=world>>{}"
+
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_errors.err
+--let $restart_parameters=restart:--log-error=$SEARCH_FILE --rocksdb_ignore_unknown_options=0
+--replace_result $SEARCH_FILE LOG_FILE
+--source include/restart_mysqld.inc
+
+--let SEARCH_PATTERN=RocksDB: Compatibility check against existing database options failed
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--exec find $MYSQLD_DATADIR/.rocksdb/OPTIONS* | sort -n | tail -1 | xargs -0 -I {} -t sh -c "sed -i '/hello=world/d' {}"
+select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";

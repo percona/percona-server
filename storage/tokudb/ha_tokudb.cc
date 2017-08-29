@@ -7217,10 +7217,28 @@ int ha_tokudb::create(
     const tokudb::sysvars::format_t row_format =
         (tokudb::sysvars::row_format_t)form->s->option_struct->row_format;
 #else
-    const tokudb::sysvars::row_format_t row_format =
-        (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-        ? row_type_to_row_format(create_info->row_type)
-        : tokudb::sysvars::row_format(thd);
+    // TDB-76 : CREATE TABLE ... LIKE ... does not use source row_format on
+    //          target table
+    // Original code would only use create_info->row_type if
+    // create_info->used_fields & HA_CREATE_USED_ROW_FORMAT was true. This
+    // would cause us to skip transferring the row_format for a table created
+    // via CREATE TABLE tn LIKE tn. We also take on more InnoDB like behavior
+    // and throw a warning if we get a row_format that we can't translate into
+    // a known TokuDB row_format.
+    tokudb::sysvars::row_format_t row_format =
+        tokudb::sysvars::row_format(thd);
+
+    if ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) ||
+        create_info->row_type != ROW_TYPE_DEFAULT) {
+        row_format = row_type_to_row_format(create_info->row_type);
+        if (row_format == tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT &&
+            create_info->row_type != ROW_TYPE_DEFAULT) {
+            push_warning(thd,
+                         Sql_condition::WARN_LEVEL_WARN,
+                         ER_ILLEGAL_HA_CREATE_OPTION,
+                         "TokuDB: invalid ROW_FORMAT specifier.");
+        }
+    }
 #endif
     const toku_compression_method compression_method =
         row_format_to_toku_compression_method(row_format);

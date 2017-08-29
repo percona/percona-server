@@ -394,6 +394,10 @@ static void rocksdb_set_delayed_write_rate(THD *thd,
                                            struct st_mysql_sys_var *var,
                                            void *var_ptr, const void *save);
 
+static void rocksdb_set_max_latest_deadlocks(THD *thd,
+                                             struct st_mysql_sys_var *var,
+                                             void *var_ptr, const void *save);
+
 static void rdb_set_collation_exception_list(const char *exception_list);
 static void rocksdb_set_collation_exception_list(THD *thd,
                                                  struct st_mysql_sys_var *var,
@@ -430,6 +434,7 @@ static constexpr int64 RDB_DEFAULT_BLOCK_CACHE_SIZE = 512 * 1024 * 1024;
 static constexpr int64 RDB_MIN_BLOCK_CACHE_SIZE = 1024;
 static constexpr int RDB_MAX_CHECKSUMS_PCT = 100;
 static constexpr uint32_t RDB_DEFAULT_FORCE_COMPUTE_MEMTABLE_STATS_CACHETIME = 60 * 1000 * 1000;
+static constexpr ulong RDB_DEADLOCK_DETECT_DEPTH = 50;
 
 static long long rocksdb_block_cache_size = RDB_DEFAULT_BLOCK_CACHE_SIZE;
 static long long rocksdb_sim_cache_size = 0;
@@ -439,6 +444,7 @@ static unsigned long long  // NOLINT(runtime/int)
 static unsigned long long  // NOLINT(runtime/int)
     rocksdb_sst_mgr_rate_bytes_per_sec = DEFAULT_SST_MGR_RATE_BYTES_PER_SEC;
 static unsigned long long rocksdb_delayed_write_rate;
+static uint32_t rocksdb_max_latest_deadlocks = RDB_DEADLOCK_DETECT_DEPTH;
 static unsigned long  // NOLINT(runtime/int)
     rocksdb_persistent_cache_size_mb = 0;
 static uint64_t rocksdb_info_log_level = rocksdb::InfoLogLevel::ERROR_LEVEL;
@@ -570,6 +576,14 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
 
 static MYSQL_THDVAR_BOOL(deadlock_detect, PLUGIN_VAR_RQCMDARG,
                          "Enables deadlock detection", nullptr, nullptr, FALSE);
+
+static MYSQL_THDVAR_ULONG(deadlock_detect_depth, PLUGIN_VAR_RQCMDARG,
+                          "Number of transactions deadlock detection will "
+                          "traverse through before assuming deadlock",
+                          nullptr, nullptr,
+                          /*default*/ RDB_DEADLOCK_DETECT_DEPTH,
+                          /*min*/ 2,
+                          /*max*/ ULONG_MAX, 0);
 
 static MYSQL_THDVAR_BOOL(
     trace_sst_api, PLUGIN_VAR_RQCMDARG,
@@ -730,6 +744,13 @@ static MYSQL_SYSVAR_ULONGLONG(delayed_write_rate, rocksdb_delayed_write_rate,
                               rocksdb_set_delayed_write_rate,
                               rocksdb_db_options->delayed_write_rate, 0,
                               UINT64_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(max_latest_deadlocks, rocksdb_max_latest_deadlocks,
+                         PLUGIN_VAR_RQCMDARG,
+                         "Maximum number of recent "
+                         "deadlocks to store",
+                         nullptr, rocksdb_set_max_latest_deadlocks,
+                         rocksdb::kInitialMaxDeadlocks, 0, UINT32_MAX, 0);
 
 static MYSQL_SYSVAR_ENUM(
     info_log_level, rocksdb_info_log_level, PLUGIN_VAR_RQCMDARG,
@@ -1391,6 +1412,7 @@ static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(lock_wait_timeout),
     MYSQL_SYSVAR(deadlock_detect),
+    MYSQL_SYSVAR(deadlock_detect_depth),
     MYSQL_SYSVAR(max_row_locks),
     MYSQL_SYSVAR(write_batch_max_bytes),
     MYSQL_SYSVAR(lock_scanned_rows),
@@ -1416,6 +1438,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(rate_limiter_bytes_per_sec),
     MYSQL_SYSVAR(sst_mgr_rate_bytes_per_sec),
     MYSQL_SYSVAR(delayed_write_rate),
+    MYSQL_SYSVAR(max_latest_deadlocks),
     MYSQL_SYSVAR(info_log_level),
     MYSQL_SYSVAR(max_open_files),
     MYSQL_SYSVAR(max_total_wal_size),
@@ -2230,6 +2253,7 @@ public:
     tx_opts.set_snapshot = false;
     tx_opts.lock_timeout = rdb_convert_sec_to_ms(m_timeout_sec);
     tx_opts.deadlock_detect = THDVAR(m_thd, deadlock_detect);
+    tx_opts.deadlock_detect_depth = THDVAR(m_thd, deadlock_detect_depth);
     tx_opts.max_write_batch_size = THDVAR(m_thd, write_batch_max_bytes);
 
     write_opts.sync = (rocksdb_flush_log_at_trx_commit == FLUSH_LOG_SYNC);
@@ -2959,7 +2983,76 @@ private:
            "=========================================\n";
   }
 
-public:
+  static std::string get_dlock_txn_info(const rocksdb::DeadlockInfo &txn,
+                                        const GL_INDEX_ID &gl_index_id,
+                                        bool is_last_path = false) {
+    std::string txn_data;
+
+    /* extract table name and index names using the index id */
+    std::string table_name = ddl_manager.safe_get_table_name(gl_index_id);
+    auto kd = ddl_manager.safe_find(gl_index_id);
+    std::string idx_name = kd->get_name();
+
+    /* get the name of the column family */
+    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(txn.m_cf_id);
+    std::string cf_name = cfh->GetName();
+
+    txn_data += format_string(
+        "TRANSACTIONID: %u\n"
+        "COLUMN FAMILY NAME: %s\n"
+        "WAITING KEY: %s\n"
+        "LOCK TYPE: %s\n"
+        "INDEX NAME: %s\n"
+        "TABLE NAME: %s\n",
+        txn.m_txn_id, cf_name.c_str(),
+        rdb_hexdump(txn.m_waiting_key.c_str(), txn.m_waiting_key.length())
+            .c_str(),
+        txn.m_exclusive ? "EXCLUSIVE" : "SHARED", idx_name.c_str(),
+        table_name.c_str());
+    if (!is_last_path) {
+      txn_data += "---------------WAITING FOR---------------\n";
+    }
+    return txn_data;
+  }
+
+  static std::string
+  get_dlock_path_info(const rocksdb::DeadlockPath &path_entry) {
+    std::string path_data;
+    if (path_entry.limit_exceeded) {
+      path_data += "\n-------DEADLOCK EXCEEDED MAX DEPTH-------\n";
+    } else {
+      path_data += "\n*** DEADLOCK PATH\n"
+                   "=========================================\n";
+      for (auto it = path_entry.path.begin(); it != path_entry.path.end();
+           it++) {
+        auto txn = *it;
+        const GL_INDEX_ID gl_index_id = {
+            txn.m_cf_id, rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(
+                             txn.m_waiting_key.c_str()))};
+        path_data += get_dlock_txn_info(txn, gl_index_id);
+      }
+
+      DBUG_ASSERT_IFF(path_entry.limit_exceeded, path_entry.path.empty());
+      /* print the first txn in the path to display the full deadlock cycle */
+      if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
+        auto txn = path_entry.path[0];
+        const GL_INDEX_ID gl_index_id = {
+            txn.m_cf_id, rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(
+                             txn.m_waiting_key.c_str()))};
+        path_data += get_dlock_txn_info(txn, gl_index_id, true);
+
+        /* prints the txn id of the transaction that caused the deadlock */
+        auto deadlocking_txn = *(path_entry.path.end() - 1);
+        path_data +=
+            format_string("\n--------TRANSACTIONID: %u GOT DEADLOCK---------\n",
+                          deadlocking_txn.m_txn_id);
+      }
+    }
+
+    return path_data;
+  }
+
+ public:
   Rdb_snapshot_status() : m_data(get_header()) {}
 
   std::string getResult() { return m_data + get_footer(); }
@@ -2983,6 +3076,15 @@ public:
                               "lock count %llu, write count %llu\n",
                               curr_time - snapshot_timestamp, buffer,
                               tx->get_lock_count(), tx->get_write_count());
+    }
+  }
+
+  void populate_deadlock_buffer() {
+    auto dlock_buffer = rdb->GetDeadlockInfoBuffer();
+    m_data += "----------LATEST DETECTED DEADLOCKS----------\n";
+
+    for (auto path_entry : dlock_buffer) {
+      m_data += get_dlock_path_info(path_entry);
     }
   }
 };
@@ -11295,6 +11397,17 @@ void rocksdb_set_delayed_write_rate(THD *thd, struct st_mysql_sys_var *var,
                         "status code = %d, status = %s",
                         s.code(), s.ToString().c_str());
     }
+  }
+  RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
+}
+
+void rocksdb_set_max_latest_deadlocks(THD *thd, struct st_mysql_sys_var *var,
+                                      void *var_ptr, const void *save) {
+  RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
+  const uint64_t new_val = *static_cast<const uint64_t *>(save);
+  if (rocksdb_max_latest_deadlocks != new_val) {
+    rocksdb_max_latest_deadlocks = new_val;
+    rdb->SetDeadlockInfoBufferSize(rocksdb_max_latest_deadlocks);
   }
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }

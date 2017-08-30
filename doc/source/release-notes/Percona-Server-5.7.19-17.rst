@@ -5,7 +5,7 @@ Percona Server 5.7.19-17
 ========================
 
 Percona is glad to announce the release of Percona Server 5.7.19-17
-on August 17, 2017.
+on August 30, 2017.
 Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.19-17/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
@@ -20,6 +20,8 @@ Details of this release can be found in the `5.7.19-17 milestone on Launchpad
 
 .. note:: Red Hat Enterprise Linux 5 (including CentOS 5 and other derivatives),
    Ubuntu 12.04 and older versions are no longer supported by Percona software.
+   The reason for this is that these platforms reached end of life,
+   will not receive updates and are not recommended for use in production.
 
 New Features
 ============
@@ -31,19 +33,20 @@ New Features
      You are encouraged to try it in a testing environment
      and provide feedback or report bugs.
 
-* Implemented Performance Schema instrumentation for the TokuDB storage engine
-
-* Removed packages for Ubuntu 12.04.
-
 * :bug:`1708087`: Added the ``mysql-helpers`` script
   to handle checking for missing ``datadir`` during startup.
   Also fixes :bug:`1635364`.
+
+Platform Support
+================
+
+* Stopped providing packages for Ubuntu 12.04 due to its end of life.
 
 Bugs Fixed
 ==========
 
 * :bug:`1669414`: Fixed handling of failure to set ``O_DIRECT``
-   on parallel doublewrite.
+   on parallel doublewrite buffer file.
 
 * :bug:`1705729`: Fixed the ``postinst`` script
   to correctly locate the ``datadir``.
@@ -60,6 +63,11 @@ Bugs Fixed
 TokuDB Changes
 ==============
 
-* :jirabug:`TDB-70`: Prevented ``fsync`` of TokuDB redo log
+* :jirabug:`TDB-70`: Removed redundant ``fsync`` of TokuDB redo log
   during binlog group commit flush stage.
+  This fixes issue that prevented TokuDB to run in reduced durability mode
+  when the binlog was enabled.
+
+* :jirabug:`TDB-72`: Fixed issue when renaming a table
+  with non-alphanumeric characters in its name.
 

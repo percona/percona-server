@@ -5,7 +5,7 @@ Percona Server 5.7.19-17
 ========================
 
 Percona is glad to announce the release of Percona Server 5.7.19-17
-on August 17, 2017.
+on August 30, 2017.
 Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.19-17/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
@@ -26,7 +26,7 @@ Details of this release can be found in the `5.7.19-17 milestone on Launchpad
 New Features
 ============
 
-* Included the MyRocks storage engine
+* Included the :ref:`Percona MyRocks storage engine <myrocks_intro>`
 
   .. note:: MyRocks for Percona Server is currently experimental
      and not recommended for production deployments until further notice.
@@ -40,7 +40,7 @@ New Features
 Platform Support
 ================
 
-* Removed packages for Ubuntu 12.04.
+* Stopped providing packages for Ubuntu 12.04 due to its end of life.
 
 Bugs Fixed
 ==========

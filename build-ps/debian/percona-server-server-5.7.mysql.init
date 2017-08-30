@@ -181,7 +181,6 @@ case "$1" in
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
 		then
                         install -d -m 0755 -omysql -gmysql ${MYSQLRUN} 
-                        check_exit_status $?
 		fi
 
 		# Needed because of TokuDB

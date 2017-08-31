@@ -474,9 +474,9 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
- 
+
 .. variable:: rocksdb_access_hint_on_compaction_start
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-access-hint-on-compaction-start``
   :dyn: No
@@ -494,7 +494,7 @@ Possible values are:
 * ``3`` = ``WILLNEED``
 
 .. variable:: rocksdb_advise_random_on_open
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-advise-random-on-open``
   :dyn: No
@@ -508,7 +508,7 @@ when a data file is opened.
 Enabled by default.
 
 .. variable:: rocksdb_allow_concurrent_memtable_write
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-allow-concurrent-memtable-write``
   :dyn: No
@@ -522,7 +522,7 @@ Disabled by default.
 .. note:: Not all memtables support concurrent writes.
 
 .. variable:: rocksdb_allow_mmap_reads
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-allow-mmap-reads``
   :dyn: No
@@ -536,7 +536,7 @@ If you enable this,
 make sure that :variable:`rocksdb_use_direct_reads` is disabled.
 
 .. variable:: rocksdb_allow_mmap_writes
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-allow-mmap-writes``
   :dyn: No
@@ -548,7 +548,7 @@ Specifies whether to allow the OS to map a data file into memory for writes.
 Disabled by default.
 
 .. variable:: rocksdb_background_sync
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-background-sync``
   :dyn: No
@@ -563,7 +563,7 @@ If WAL files are already synced on every commit,
 then enabling this option is redundant.
 
 .. variable:: rocksdb_base_background_compactions
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-base-background-compactions``
   :dyn: No
@@ -575,10 +575,11 @@ Specifies the suggested number of concurrent background compaction jobs,
 submitted to the default LOW priority thread pool in RocksDB.
 Default is ``1``.
 Allowed range of values is from ``-1`` to ``64``.
-Maximum depends on the :variable:`rocksdb_max_background_compactions`` variable.
+Maximum depends on the :variable:`rocksdb_max_background_compactions`
+variable.
 
 .. variable:: rocksdb_block_cache_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-block-cache-size``
   :dyn: No
@@ -598,7 +599,7 @@ Default value is ``536870912``.
 Maximum value is ``9223372036854775807``.
 
 .. variable:: rocksdb_block_restart_interval
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-block-restart-interval``
   :dyn: No
@@ -611,7 +612,7 @@ Default value is ``16``.
 Allowed range is from ``1`` to ``2147483647``.
 
 .. variable:: rocksdb_block_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-block-size``
   :dyn: No
@@ -624,7 +625,7 @@ Default value is ``4096``.
 Allowed range is from ``1`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_block_size_deviation
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-block-size-deviation``
   :dyn: No
@@ -642,7 +643,7 @@ until there is less than 10 bits of free space remaining.
 Allowed range is from ``1`` to ``2147483647``.
 
 .. variable:: rocksdb_bulk_load
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-bulk-load``
   :dyn: Yes
@@ -661,7 +662,7 @@ Enabling this variable will also enable
 the :variable:`rocksdb_commit_in_the_middle` variable.
 
 .. variable:: rocksdb_bulk_load_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-bulk-load-size``
   :dyn: Yes
@@ -678,7 +679,7 @@ before they are implicitly committed.
 Allowed range is from ``1`` to ``1073741824``.
 
 .. variable:: rocksdb_bytes_per_sync
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-bytes-per-sync``
   :dyn: No
@@ -693,7 +694,7 @@ Default value is ``0`` meaning that files are never synced.
 Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_cache_index_and_filter_blocks
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-cache-index-and-filter-blocks``
   :dyn: No
@@ -708,7 +709,7 @@ If you disable this feature,
 RocksDB will allocate additional memory to maintain these data blocks.
 
 .. variable:: rocksdb_checksums_pct
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-checksums-pct``
   :dyn: Yes
@@ -721,7 +722,7 @@ Default value is ``100`` (checksum all rows).
 Allowed range is from ``0`` to ``100``.
 
 .. variable:: rocksdb_collect_sst_properties
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-collect-sst-properties``
   :dyn: No
@@ -734,7 +735,7 @@ to improve optimizer behavior.
 Enabled by default.
 
 .. variable:: rocksdb_commit_in_the_middle
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-commit-in-the-middle``
   :dyn: Yes
@@ -743,23 +744,24 @@ Enabled by default.
   :default: ``OFF``
 
 Specifies whether to commit rows implicitly
-when a batch contains more than the value of :variable:`rocksdb_bulk_load_size`.
+when a batch contains more than the value of
+:variable:`rocksdb_bulk_load_size`.
 This is disabled by default
 and will be enabled if :variable:`rocksdb_bulk_load` is enabled.
 
 .. variable:: rocksdb_compact_cf
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-compact-cf``
   :dyn: Yes
   :scope: Global
   :vartype: String
-  :default: 
+  :default:
 
 Specifies the name of the column family to compact.
 
 .. variable:: rocksdb_compaction_readahead_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-compaction-readahead-size``
   :dyn: Yes
@@ -778,7 +780,7 @@ Maximum allowed value is ``18446744073709551615``.
    :variable:`new_table_reader_for_compaction_inputs` is enabled.
 
 .. variable:: rocksdb_compaction_sequential_deletes
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-compaction-sequential-deletes``
   :dyn: Yes
@@ -798,13 +800,13 @@ Maximum allowed value is ``2000000`` (two million delete markers).
    This compaction feature will reduce latency,
    but may also increase the MyRocks write rate.
    Use this variable together with
-   :variable:`rocksdb_compaction_sequential_deletes_file_size``
+   :variable:`rocksdb_compaction_sequential_deletes_file_size`
    to only perform compaction on large files.
 
 .. variable:: rocksdb_compaction_sequential_deletes_count_sd
- 
+
   :version 5.7.19-17: Implemented
-  :cli: ``--rocksdb-compaction-sequential-deletes-count-sd`` 
+  :cli: ``--rocksdb-compaction-sequential-deletes-count-sd``
   :dyn: Yes
   :scope: Global
   :vartype: Boolean
@@ -815,7 +817,7 @@ recognized by :variable:`rocksdb_compaction_sequential_deletes`.
 Disabled by default.
 
 .. variable:: rocksdb_compaction_sequential_deletes_file_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-compaction-sequential-deletes-file-size``
   :dyn: Yes
@@ -830,7 +832,7 @@ meaning that compaction is triggered regardless of file size.
 Allowed range is from ``-1`` to ``9223372036854775807``.
 
 .. variable:: rocksdb_compaction_sequential_deletes_window
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-compaction-sequential-deletes-window``
   :dyn: Yes
@@ -844,7 +846,7 @@ Default value is ``0``.
 Allowed range is up to ``2000000`` (two million).
 
 .. variable:: rocksdb_create_checkpoint
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-create-checkpoint``
   :dyn: Yes
@@ -856,7 +858,7 @@ Specifies the directory where MyRocks should create a checkpoint.
 Empty by default.
 
 .. variable:: rocksdb_create_if_missing
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-create-if-missing``
   :dyn: No
@@ -868,7 +870,7 @@ Specifies whether MyRocks should create its database if it does not exist.
 Enabled by default.
 
 .. variable:: rocksdb_create_missing_column_families
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-create-missing-column-families``
   :dyn: No
@@ -881,7 +883,7 @@ if they do not exist.
 Disabled by default.
 
 .. variable:: rocksdb_datadir
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-datadir``
   :dyn: No
@@ -893,7 +895,7 @@ Specifies the location of the MyRocks data directory.
 By default, it is created in the current working directory.
 
 .. variable:: rocksdb_db_write_buffer_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-db-write-buffer-size``
   :dyn: No
@@ -908,7 +910,7 @@ Default value is ``0``.
 Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_deadlock_detect
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-deadlock-detect``
   :dyn: Yes
@@ -920,7 +922,7 @@ Specifies whether MyRocks should detect deadlocks.
 Disabled by default.
 
 .. variable:: rocksdb_debug_optimizer_no_zero_cardinality
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-debug-optimizer-no-zero-cardinality``
   :dyn: Yes
@@ -932,7 +934,7 @@ Specifies whether MyRocks should prevent zero cardinality
 by always overriding it with some value.
 
 .. variable:: rocksdb_default_cf_options
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-default-cf-options``
   :dyn: No
@@ -944,7 +946,7 @@ Specifies the default column family options for MyRocks.
 Empty by default.
 
 .. variable:: rocksdb_delayed_write_rate
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-delayed-write-rate``
   :dyn: Yes
@@ -958,7 +960,7 @@ Default value is ``16777216`` (16 MB/sec).
 Allowed range is from ``0`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_delete_obsolete_files_period_micros
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-delete-obsolete-files-period-micros``
   :dyn: No
@@ -972,7 +974,7 @@ Default value is ``21600000000`` (6 hours).
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_enable_bulk_load_api
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-enable-bulk-load-api``
   :dyn: No
@@ -989,7 +991,7 @@ If disabled, bulk loading uses the normal write path via the memtable
 and does not require keys to be inserted in any order.
 
 .. variable:: rocksdb_enable_thread_tracking
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-enable-thread-tracking``
   :dyn: No
@@ -1003,7 +1005,7 @@ Disabled by default.
 If enabled, thread status will be available via ``GetThreadList()``.
 
 .. variable:: rocksdb_enable_write_thread_adaptive_yield
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-enable-write-thread-adaptive-yield``
   :dyn: Yes
@@ -1018,7 +1020,7 @@ Disabled by default.
 Enable it to increase throughput for concurrent workloads.
 
 .. variable:: rocksdb_error_if_exists
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-error-if-exists``
   :dyn: No
@@ -1030,7 +1032,7 @@ Specifies whether to report an error when a database already exists.
 Disabled by default.
 
 .. variable:: rocksdb_flush_log_at_trx_commit
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-flush-log-at-trx-commit``
   :dyn: Yes
@@ -1060,7 +1062,7 @@ Possible values:
   controlled via :variable:`rocksdb-background-sync`.
 
 .. variable:: rocksdb_flush_memtable_on_analyze
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-flush-memtable-on-analyze``
   :dyn: Yes
@@ -1074,7 +1076,7 @@ This ensures accurate cardinality
 by including data in the memtable for calculating stats.
 
 .. variable:: rocksdb_force_compute_memtable_stats
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-force-compute-memtable-stats``
   :dyn: Yes
@@ -1088,7 +1090,7 @@ used by the query optimizer.
 Enabled by default.
 This provides better accuracy, but may reduce performance.
 
-.. variable:: rocksdb_force_flush_memtable_and_lzero_now 
+.. variable:: rocksdb_force_flush_memtable_and_lzero_now
 
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-force-flush-memtable-and-lzero-now``
@@ -1099,7 +1101,7 @@ This provides better accuracy, but may reduce performance.
 
 Works similar to :variable:`force_flush_memtable_now`
 but also flushes all L0 files.
- 
+
 .. variable:: rocksdb_force_flush_memtable_now
 
   :version 5.7.19-17: Implemented
@@ -1115,7 +1117,7 @@ Forces MyRocks to immediately flush all memtables out to data files.
    Write requests will be blocked until all memtables are flushed.
 
 .. variable:: rocksdb_force_index_records_in_range
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-force-index-records-in-range``
   :dyn: Yes
@@ -1130,7 +1132,7 @@ Allowed range is from ``0`` to ``2147483647``.
 Set to ``0`` if you do not want to override the returned value.
 
 .. variable:: rocksdb_hash_index_allow_collision
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-hash-index-allow-collision``
   :dyn: No
@@ -1143,7 +1145,7 @@ Enabled by default, which uses less memory.
 If disabled, full prefix is stored to prevent hash collisions.
 
 .. variable:: rocksdb_index_type
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-index-type``
   :dyn: No
@@ -1158,7 +1160,7 @@ Specifies the type of indexing used by MyRocks:
 * ``kHashSearch``: Hash search.
 
 .. variable:: rocksdb_info_log_level
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-info-log-level``
   :dyn: Yes
@@ -1169,14 +1171,15 @@ Specifies the type of indexing used by MyRocks:
 Specifies the level for filtering messages written by MyRocks
 to the ``mysqld`` log.
 
-* ``debug_level``: Maximum logging (everything including debugging log messages)
+* ``debug_level``: Maximum logging (everything including debugging
+  log messages)
 * ``info_level``
 * ``warn_level``
 * ``error_level`` (default)
 * ``fatal_level``: Minimum logging (only fatal error messages logged)
 
 .. variable:: rocksdb_is_fd_close_on_exec
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-is-fd-close-on-exec``
   :dyn: No
@@ -1188,7 +1191,7 @@ Specifies whether child processes should inherit open file jandles.
 Enabled by default.
 
 .. variable:: rocksdb_keep_log_file_num
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-keep-log-file-num``
   :dyn: No
@@ -1201,7 +1204,7 @@ Default value is ``1000``.
 Allowed range is from ``1`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_lock_scanned_rows
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-lock-scanned-rows``
   :dyn: Yes
@@ -1214,7 +1217,7 @@ and not actually updated.
 Disabled by default.
 
 .. variable:: rocksdb_lock_wait_timeout
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-lock-wait-timeout``
   :dyn: Yes
@@ -1228,7 +1231,7 @@ Default value is ``1``.
 Allowed range is up to ``1073741824``.
 
 .. variable:: rocksdb_log_file_time_to_roll
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-log-file-time-to-roll``
   :dyn: No
@@ -1241,7 +1244,7 @@ Default value is ``0``, meaning that the log file is not rotated.
 Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_manifest_preallocation_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-manifest-preallocation-size``
   :dyn: No
@@ -1259,7 +1262,7 @@ Allowed range is up to ``18446744073709551615``.
    to reduce random I/O on XFS.
 
 .. variable:: rocksdb_max_background_compactions
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-background-compactions``
   :dyn: Yes
@@ -1273,7 +1276,7 @@ Default value is ``1``.
 Allowed range is up to ``64``.
 
 .. variable:: rocksdb_max_background_flushes
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-background-flushes``
   :dyn: No
@@ -1287,7 +1290,7 @@ Default value is ``1``.
 Allowed range is up to ``64``.
 
 .. variable:: rocksdb_max_log_file_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-log-file-size``
   :dyn: No
@@ -1303,7 +1306,7 @@ Allowed range is up to ``18446744073709551615``.
 Also see :variable:`rocksdb_log_file_time_to_roll`.
 
 .. variable:: rocksdb_max_manifest_file_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-manifest-log-file-size``
   :dyn: No
@@ -1317,7 +1320,7 @@ Default value is also the maximum, making it practically unlimited:
 only one manifest file is used.
 
 .. variable:: rocksdb_max_open_files
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-open-files``
   :dyn: No
@@ -1330,7 +1333,7 @@ Default value is also the maximum, making it practically unlimited:
 all opened files remain open.
 
 .. variable:: rocksdb_max_row_locks
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-row-locks``
   :dyn: Yes
@@ -1344,7 +1347,7 @@ Default value is also the maximum, making it practically unlimited:
 transactions never fail due to row locks.
 
 .. variable:: rocksdb_max_subcompactions
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-subcompactions``
   :dyn: No
@@ -1357,7 +1360,7 @@ Default value of ``1`` means no subcompactions (one thread per compaction job).
 Allowed range is up to ``64``.
 
 .. variable:: rocksdb_max_total_wal_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-max-total-wal-size``
   :dyn: No
@@ -1371,7 +1374,7 @@ Default value is ``0``: WAL size limit is chosen dynamically.
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_merge_buf_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-merge-buf-size``
   :dyn: Yes
@@ -1388,7 +1391,7 @@ with buffers set to 64 MB by default (``67108864``).
 Allowed range is from ``100`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_merge_combine_read_size
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-merge-combine-read-size``
   :dyn: Yes
@@ -1403,7 +1406,7 @@ Default size is 1 GB (``1073741824``).
 Allowed range is from ``100`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_new_table_reader_for_compaction_inputs
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-new-table-reader-for-compaction-inputs``
   :dyn: No
@@ -1415,11 +1418,11 @@ Specifies whether MyRocks should create a new file descriptor and table reader
 for each compaction input.
 Disabled by default.
 Enabling this may increase memory consumption,
-but will also allow pre-fetch options to be specified for compaction input files
-without impacting table readers used for user queries.
+but will also allow pre-fetch options to be specified for compaction
+input files without impacting table readers used for user queries.
 
 .. variable:: rocksdb_no_block_cache
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-no-block-cache``
   :dyn: No
@@ -1432,7 +1435,7 @@ Variable is disabled by default,
 meaning that using the block cache is allowed.
 
 .. variable:: rocksdb_override_cf_options
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-override-cf-options``
   :dyn: No
@@ -1444,7 +1447,7 @@ Specifies option overrides for each column family.
 Empty by default.
 
 .. variable:: rocksdb_paranoid_checks
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-paranoid-checks``
   :dyn: No
@@ -1457,7 +1460,7 @@ as soon as it is created to verify correctness.
 Enabled by default.
 
 .. variable:: rocksdb_pause_background_work
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-pause-background-work``
   :dyn: Yes
@@ -1469,7 +1472,7 @@ Specifies whether MyRocks should pause all background operations.
 Disabled by default.
 
 .. variable:: rocksdb_perf_context_level
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-perf-context-level``
   :dyn: Yes
@@ -1482,7 +1485,7 @@ Default value is ``0``.
 Allowed range is up to ``4``.
 
 .. variable:: rocksdb_persistent_cache_path
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-persistent-cache-path``
   :dyn: No
@@ -1494,7 +1497,7 @@ Specifies the path to the persistent cache.
 Set this together with :variable:`rocksdb_persistent_cache_size_mb`.
 
 .. variable:: rocksdb_persistent_cache_size_mb
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-persistent-cache-size-mb``
   :dyn: No
@@ -1508,7 +1511,7 @@ Allowed range is up to ``18446744073709551615``.
 Set this together with :variable:`rocksdb_persistent_cache_path`.
 
 .. variable:: rocksdb_pin_l0_filter_and_index_blocks_in_cache
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-pin-l0-filter-and-index-blocks-in-cache``
   :dyn: No
@@ -1521,7 +1524,7 @@ if :variable:`rocksdb_cache_index_and_filter_blocks` is enabled.
 Enabled by default.
 
 .. variable:: rocksdb_print_snapshot_conflict_queries
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-print-snapshot-conflict-queries``
   :dyn: Yes
@@ -1534,7 +1537,7 @@ should be logged to the error log.
 Disabled by default.
 
 .. variable:: rocksdb_rate_limiter_bytes_per_sec
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-rate-limiter-bytes-per-sec``
   :dyn: Yes
@@ -1548,7 +1551,7 @@ Default value is ``0`` (write rate is not limited).
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_read_free_rpl_tables
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-read-free-rpl-tables``
   :dyn: Yes
@@ -1562,7 +1565,7 @@ that should use read-free replication on the slave
 Empty by default.
 
 .. variable:: rocksdb_records_in_range
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-records-in-range``
   :dyn: Yes
@@ -1575,7 +1578,7 @@ Default value is ``0``.
 Allowed range is up to ``2147483647``.
 
 .. variable:: rocksdb_rpl_skip_tx_api
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-rpl-skip-tx-api``
   :dyn: No
@@ -1588,7 +1591,7 @@ instead of the transaction API.
 Disabled by default.
 
 .. variable:: rocksdb_seconds_between_stat_computes
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-seconds-between-stat-computes``
   :dyn: Yes
@@ -1603,7 +1606,7 @@ Default value is ``3600``.
 Allowed is from ``0`` to ``4294967295``.
 
 .. variable:: rocksdb_signal_drop_index_thread
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-signal-drop-index-thread``
   :dyn: Yes
@@ -1614,7 +1617,7 @@ Allowed is from ``0`` to ``4294967295``.
 Signals the MyRocks drop index thread to wake up.
 
 .. variable:: rocksdb_skip_bloom_filter_on_read
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-skip-bloom-filter-on_read``
   :dyn: Yes
@@ -1626,7 +1629,7 @@ Specifies whether bloom filters should be skipped on reads.
 Disabled by default (bloom filters are not skipped).
 
 .. variable:: rocksdb_skip_fill_cache
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-skip-fill-cache``
   :dyn: Yes
@@ -1638,7 +1641,7 @@ Specifies whether to skip caching data on read requests.
 Disabled by default (caching is not skipped).
 
 .. variable:: rocksdb_sst_mgr_rate_bytes_per_sec
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-sst-mgr-rate-bytes-per-sec``
   :dyn: Yes
@@ -1651,7 +1654,7 @@ Default value is ``67108864`` (64 MB/sec).
 Allowed range is from ``0`` to ``18446744073709551615``.
 
 .. variable:: rocksdb_stats_dump_period_sec
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-stats-dump-period-sec``
   :dyn: No
@@ -1665,7 +1668,7 @@ Default value is ``600``.
 Allowed range is up to ``2147483647``.
 
 .. variable:: rocksdb_store_row_debug_checksums
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-store-row-debug-checksums``
   :dyn: Yes
@@ -1677,7 +1680,7 @@ Specifies whether to include checksums when writing index or table records.
 Disabled by default.
 
 .. variable:: rocksdb_strict_collation_check
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-strict-collation-check``
   :dyn: Yes
@@ -1690,7 +1693,7 @@ that table indexes have proper collation settings.
 Enabled by default.
 
 .. variable:: rocksdb_strict_collation_exceptions
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-strict-collation-exceptions``
   :dyn: Yes
@@ -1704,7 +1707,7 @@ enforced by :variable:`rocksdb_strict_collation_check`.
 Empty by default.
 
 .. variable:: rocksdb_table_cache_numshardbits
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-table-cache-numshardbits``
   :dyn: No
@@ -1717,7 +1720,7 @@ Default value is ``6``.
 Allowed range is from ``0`` to ``2147483647``.
 
 .. variable:: rocksdb_table_stats_sampling_pct
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-table-stats-sampling-pct``
   :dyn: Yes
@@ -1731,7 +1734,7 @@ Default value is ``10``.
 Allowed range is from ``0`` to ``100``.
 
 .. variable:: rocksdb_tmpdir
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-tmpdir``
   :dyn: Yes
@@ -1742,7 +1745,7 @@ Allowed range is from ``0`` to ``100``.
 Specifies the path to the directory for temporary files during DDL operations.
 
 .. variable:: rocksdb_trace_sst_api
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-trace-sst-api``
   :dyn: Yes
@@ -1755,7 +1758,7 @@ for each call to ``SstFileWriter``.
 Disabled by default.
 
 .. variable:: rocksdb_unsafe_for_binlog
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-unsafe-for-binlog``
   :dyn: Yes
@@ -1768,7 +1771,7 @@ which may break consistency.
 Disabled by default.
 
 .. variable:: rocksdb_update_cf_options
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-update-cf-options``
   :dyn: No
@@ -1780,7 +1783,7 @@ Specifies option updates for each column family.
 Empty by default.
 
 .. variable:: rocksdb_use_adaptive_mutex
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-use-adaptive-mutex``
   :dyn: No
@@ -1788,12 +1791,12 @@ Empty by default.
   :vartype: Boolean
   :default: ``OFF``
 
-Specifies whether to use adaptive mutexe
+Specifies whether to use adaptive mutex
 which spins in user space before resorting to the kernel.
 Disabled by default.
 
 .. variable:: rocksdb_use_direct_reads
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-use-direct-reads``
   :dyn: No
@@ -1808,7 +1811,7 @@ If you enable this,
 make sure that :variable:`rocksdb_allow_mmap_reads` is disabled.
 
 .. variable:: rocksdb_use_direct_writes
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-use-direct-writes``
   :dyn: No
@@ -1821,7 +1824,7 @@ without caches or buffers.
 Disable by default.
 
 .. variable:: rocksdb_use_fsync
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-use-fsync``
   :dyn: No
@@ -1829,12 +1832,12 @@ Disable by default.
   :vartype: Boolean
   :default: ``OFF``
 
-SPecifies whether MyRocks should use ``fsync`` instead of ``fdatasync``
+Specifies whether MyRocks should use ``fsync`` instead of ``fdatasync``
 when requesting a sync of a data file.
 Disabled by default.
 
 .. variable:: rocksdb_validate_tables
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-validate-tables``
   :dyn: No
@@ -1849,7 +1852,7 @@ Specifies whether to verify that MySQL ``.frm`` files match MyRocks tables.
 * ``2``: verify and continue with error.
 
 .. variable:: rocksdb_verify_row_debug_checksums
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-verify-row-debug-checksums``
   :dyn: Yes
@@ -1861,7 +1864,7 @@ Specifies whether to verify checksums when reading index or table records.
 Disabled by default.
 
 .. variable:: rocksdb_wal_bytes_per_sync
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-wal-bytes-per-sync``
   :dyn: No
@@ -1876,7 +1879,7 @@ Default value is ``0``, meaning that files are never synced.
 Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_wal_dir
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-wal-dir``
   :dyn: No
@@ -1887,7 +1890,7 @@ Allowed range is up to ``18446744073709551615``.
 Specifies the path to the directory where MyRocks stores WAL files.
 
 .. variable:: rocksdb_wal_recovery_mode
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-wal-recovery-mode``
   :dyn: Yes
@@ -1895,12 +1898,13 @@ Specifies the path to the directory where MyRocks stores WAL files.
   :vartype: Numeric
   :default: ``1``
 
-Specifies the level of tolerance when recovering WAL files after a system crash.
+Specifies the level of tolerance when recovering WAL files
+after a system crash.
 Default is ``1``.
 Allowed range is from ``0`` to ``3``.
 
 .. variable:: rocksdb_wal_size_limit_mb
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-wal-size-limit-mb``
   :dyn: No
@@ -1914,7 +1918,7 @@ Default value is ``0`` (never rotated).
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_wal_ttl_seconds
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-wal-ttl-seconds``
   :dyn: No
@@ -1927,7 +1931,7 @@ Default is ``0`` (archived WAL files are never deleted).
 Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_whole_key_filtering
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-whole-key-filtering``
   :dyn: No
@@ -1941,7 +1945,7 @@ Enabled by default.
 Make sure that lookups use the whole key for matching.
 
 .. variable:: rocksdb_write_disable_wal
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-write-disable-wal``
   :dyn: Yes
@@ -1953,7 +1957,7 @@ Lets you temporarily disable writes to WAL files,
 which can be useful for bulk loading.
 
 .. variable:: rocksdb_write_ignore_missing_column_families
- 
+
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-write-ignore-missing-column-families``
   :dyn: Yes
@@ -1963,295 +1967,3 @@ which can be useful for bulk loading.
 
 Specifies whether to ignore writes to column families that do not exist.
 Disabled by default (writes to non-existent column families are not ignored).
-
-.. _myrocks_status_variables:
-
-MyRocks Status Variables
-------------------------
-
-MyRocks status variables provide details
-about the inner workings of the storage engine
-and they can be useful in tuning the storage engine
-to a particular environment.
-
-You can view these variables and their values by running:
-
-.. code-block:: mysql
-
-  mysql> SHOW STATUS LIKE 'rocksdb%';
-
-The following global status variables are available:
-
-.. tabularcolumns:: |p{9cm}|p{6cm}|
-
-.. list-table::
-   :header-rows: 1
-
-   * - Name
-     - Var Type
-   * - :variable:`rocksdb_rows_deleted`
-     - Var Type
-   * - :variable:`rocksdb_rows_inserted`
-     - Var Type
-   * - :variable:`rocksdb_rows_read`
-     - Var Type
-   * - :variable:`rocksdb_rows_updated`
-     - Var Type
-   * - :variable:`rocksdb_system_rows_deleted`
-     - Var Type
-   * - :variable:`rocksdb_system_rows_inserted`
-     - Var Type
-   * - :variable:`rocksdb_system_rows_read`
-     - Var Type
-   * - :variable:`rocksdb_system_rows_updated`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_add`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_data_hit`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_data_miss`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_filter_hit`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_filter_miss`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_hit`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_index_hit`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_index_miss`
-     - Var Type
-   * - :variable:`rocksdb_block_cache_miss`
-     - Var Type
-   * - :variable:`rocksdb_block_cachecompressed_hit`
-     - Var Type
-   * - :variable:`rocksdb_block_cachecompressed_miss`
-     - Var Type
-   * - :variable:`rocksdb_bloom_filter_prefix_checked`
-     - Var Type
-   * - :variable:`rocksdb_bloom_filter_prefix_useful`
-     - Var Type
-   * - :variable:`rocksdb_bloom_filter_useful`
-     - Var Type
-   * - :variable:`rocksdb_bytes_read`
-     - Var Type
-   * - :variable:`rocksdb_bytes_written`
-     - Var Type
-   * - :variable:`rocksdb_compact_read_bytes`
-     - Var Type
-   * - :variable:`rocksdb_compact_write_bytes`
-     - Var Type
-   * - :variable:`rocksdb_compaction_key_drop_new`
-     - Var Type
-   * - :variable:`rocksdb_compaction_key_drop_obsolete`
-     - Var Type
-   * - :variable:`rocksdb_compaction_key_drop_user`
-     - Var Type
-   * - :variable:`rocksdb_flush_write_bytes`
-     - Var Type
-   * - :variable:`rocksdb_getupdatessince_calls`
-     - Var Type
-   * - :variable:`rocksdb_memtable_hit`
-     - Var Type
-   * - :variable:`rocksdb_memtable_miss`
-     - Var Type
-   * - :variable:`rocksdb_no_file_closes`
-     - Var Type
-   * - :variable:`rocksdb_no_file_errors`
-     - Var Type
-   * - :variable:`rocksdb_no_file_opens`
-     - Var Type
-   * - :variable:`rocksdb_num_iterators`
-     - Var Type
-   * - :variable:`rocksdb_number_block_not_compressed`
-     - Var Type
-   * - :variable:`rocksdb_number_deletes_filtered`
-     - Var Type
-   * - :variable:`rocksdb_number_keys_read`
-     - Var Type
-   * - :variable:`rocksdb_number_keys_updated`
-     - Var Type
-   * - :variable:`rocksdb_number_keys_written`
-     - Var Type
-   * - :variable:`rocksdb_number_merge_failures`
-     - Var Type
-   * - :variable:`rocksdb_number_multiget_bytes_read`
-     - Var Type
-   * - :variable:`rocksdb_number_multiget_get`
-     - Var Type
-   * - :variable:`rocksdb_number_multiget_keys_read`
-     - Var Type
-   * - :variable:`rocksdb_number_reseeks_iteration`
-     - Var Type
-   * - :variable:`rocksdb_number_sst_entry_delete`
-     - Var Type
-   * - :variable:`rocksdb_number_sst_entry_merge`
-     - Var Type
-   * - :variable:`rocksdb_number_sst_entry_other`
-     - Var Type
-   * - :variable:`rocksdb_number_sst_entry_put`
-     - Var Type
-   * - :variable:`rocksdb_number_sst_entry_singledelete`
-     - Var Type
-   * - :variable:`rocksdb_number_stat_computes`
-     - Var Type
-   * - :variable:`rocksdb_number_superversion_acquires`
-     - Var Type
-   * - :variable:`rocksdb_number_superversion_cleanups`
-     - Var Type
-   * - :variable:`rocksdb_number_superversion_releases`
-     - Var Type
-   * - :variable:`rocksdb_rate_limit_delay_millis`
-     - Var Type
-   * - :variable:`rocksdb_snapshot_conflict_errors`
-     - Var Type
-   * - :variable:`rocksdb_stall_micros`
-     - Var Type
-   * - :variable:`rocksdb_wal_bytes`
-     - Var Type
-   * - :variable:`rocksdb_wal_group_syncs`
-     - Var Type
-   * - :variable:`rocksdb_wal_synced`
-     - Var Type
-   * - :variable:`rocksdb_write_other`
-     - Var Type
-   * - :variable:`rocksdb_write_self`
-     - Var Type
-   * - :variable:`rocksdb_write_timedout`
-     - Var Type
-   * - :variable:`rocksdb_write_wal`
-     - Var Type
-
-
-.. variable:: rocksdb_rows_deleted
-
-.. variable:: rocksdb_rows_inserted
-
-.. variable:: rocksdb_rows_read
-
-.. variable:: rocksdb_rows_updated
-
-.. variable:: rocksdb_system_rows_deleted
-
-.. variable:: rocksdb_system_rows_inserted
-
-.. variable:: rocksdb_system_rows_read
-
-.. variable:: rocksdb_system_rows_updated
-
-.. variable:: rocksdb_block_cache_add
-
-.. variable:: rocksdb_block_cache_data_hit
-
-.. variable:: rocksdb_block_cache_data_miss
-
-.. variable:: rocksdb_block_cache_filter_hit
-
-.. variable:: rocksdb_block_cache_filter_miss
-
-.. variable:: rocksdb_block_cache_hit
-
-.. variable:: rocksdb_block_cache_index_hit
-
-.. variable:: rocksdb_block_cache_index_miss
-
-.. variable:: rocksdb_block_cache_miss
-
-.. variable:: rocksdb_block_cachecompressed_hit
-
-.. variable:: rocksdb_block_cachecompressed_miss
-
-.. variable:: rocksdb_bloom_filter_prefix_checked
-
-.. variable:: rocksdb_bloom_filter_prefix_useful
-
-.. variable:: rocksdb_bloom_filter_useful
-
-.. variable:: rocksdb_bytes_read
-
-.. variable:: rocksdb_bytes_written
-
-.. variable:: rocksdb_compact_read_bytes
-
-.. variable:: rocksdb_compact_write_bytes
-
-.. variable:: rocksdb_compaction_key_drop_new
-
-.. variable:: rocksdb_compaction_key_drop_obsolete
-
-.. variable:: rocksdb_compaction_key_drop_user
-
-.. variable:: rocksdb_flush_write_bytes
-
-.. variable:: rocksdb_getupdatessince_calls
-
-.. variable:: rocksdb_memtable_hit
-
-.. variable:: rocksdb_memtable_miss
-
-.. variable:: rocksdb_no_file_closes
-
-.. variable:: rocksdb_no_file_errors
-
-.. variable:: rocksdb_no_file_opens
-
-.. variable:: rocksdb_num_iterators
-
-.. variable:: rocksdb_number_block_not_compressed
-
-.. variable:: rocksdb_number_deletes_filtered
-
-.. variable:: rocksdb_number_keys_read
-
-.. variable:: rocksdb_number_keys_updated
-
-.. variable:: rocksdb_number_keys_written
-
-.. variable:: rocksdb_number_merge_failures
-
-.. variable:: rocksdb_number_multiget_bytes_read
-
-.. variable:: rocksdb_number_multiget_get
-
-.. variable:: rocksdb_number_multiget_keys_read
-
-.. variable:: rocksdb_number_reseeks_iteration
-
-.. variable:: rocksdb_number_sst_entry_delete
-
-.. variable:: rocksdb_number_sst_entry_merge
-
-.. variable:: rocksdb_number_sst_entry_other
-
-.. variable:: rocksdb_number_sst_entry_put
-
-.. variable:: rocksdb_number_sst_entry_singledelete
-
-.. variable:: rocksdb_number_stat_computes
-
-.. variable:: rocksdb_number_superversion_acquires
-
-.. variable:: rocksdb_number_superversion_cleanups
-
-.. variable:: rocksdb_number_superversion_releases
-
-.. variable:: rocksdb_rate_limit_delay_millis
-
-.. variable:: rocksdb_snapshot_conflict_errors
-
-.. variable:: rocksdb_stall_micros
-
-.. variable:: rocksdb_wal_bytes
-
-.. variable:: rocksdb_wal_group_syncs
-
-.. variable:: rocksdb_wal_synced
-
-.. variable:: rocksdb_write_other
-
-.. variable:: rocksdb_write_self
-
-.. variable:: rocksdb_write_timedout
-
-.. variable:: rocksdb_write_wal
-

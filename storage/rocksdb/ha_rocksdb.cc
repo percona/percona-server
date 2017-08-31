@@ -4119,7 +4119,8 @@ int ha_rocksdb::convert_record_to_storage_format(
       }
     }
 
-    if (m_encoder_arr[i].m_field_type == MYSQL_TYPE_BLOB) {
+    if (m_encoder_arr[i].m_field_type == MYSQL_TYPE_BLOB ||
+        m_encoder_arr[i].m_field_type == MYSQL_TYPE_JSON) {
       my_core::Field_blob *blob = (my_core::Field_blob *)field;
       /* Get the number of bytes needed to store length*/
       const uint length_bytes = blob->pack_length() - portable_sizeof_char_ptr;
@@ -4494,7 +4495,8 @@ int ha_rocksdb::convert_record_from_storage_format(
         field->set_notnull();
       }
 
-      if (field_dec->m_field_type == MYSQL_TYPE_BLOB) {
+      if (field_dec->m_field_type == MYSQL_TYPE_BLOB ||
+          field_dec->m_field_type == MYSQL_TYPE_JSON) {
         err = convert_blob_from_storage_format(
             (my_core::Field_blob *) field, &reader, decode);
       } else if (field_dec->m_field_type == MYSQL_TYPE_VARCHAR) {
@@ -5076,7 +5078,7 @@ rdb_is_index_collation_supported(const my_core::Field *const field) {
   const my_core::enum_field_types type = field->real_type();
   /* Handle [VAR](CHAR|BINARY) or TEXT|BLOB */
   if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_STRING ||
-      type == MYSQL_TYPE_BLOB) {
+      type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_JSON) {
     return RDB_INDEX_COLLATIONS.find(field->charset()) !=
            RDB_INDEX_COLLATIONS.end();
   }

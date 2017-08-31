@@ -2873,6 +2873,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB: {
+  case MYSQL_TYPE_JSON:
     if (key_descr) {
       // The my_charset_bin collation is special in that it will consider
       // shorter strings sorting as less than longer strings.

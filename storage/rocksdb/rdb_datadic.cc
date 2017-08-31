@@ -3903,6 +3903,13 @@ bool Rdb_dict_manager::init(rocksdb::DB *const rdb_dict,
   m_db = rdb_dict;
 
   m_system_cfh = cf_manager->get_or_create_cf(m_db, DEFAULT_SYSTEM_CF_NAME);
+  rocksdb::ColumnFamilyHandle *default_cfh =
+      cf_manager->get_cf(DEFAULT_CF_NAME);
+
+  // System CF and default CF should be initialized
+  if (m_system_cfh == nullptr || default_cfh == nullptr) {
+    return HA_EXIT_FAILURE;
+  }
 
   rdb_netbuf_store_index(m_key_buf_max_index_id, Rdb_key_def::MAX_INDEX_ID);
 
@@ -3913,17 +3920,15 @@ bool Rdb_dict_manager::init(rocksdb::DB *const rdb_dict,
   resume_drop_indexes();
   rollback_ongoing_index_creation();
 
-  // If system CF was created then we need to set its flags as well to make
-  // sure that CF is properly initialized.
-  if (m_system_cfh != nullptr) {
-    const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
-    rocksdb::WriteBatch *const batch = wb.get();
+  // Initialize system CF and default CF flags
+  const std::unique_ptr<rocksdb::WriteBatch> wb = begin();
+  rocksdb::WriteBatch *const batch = wb.get();
 
-    add_cf_flags(batch, m_system_cfh->GetID(), 0);
-    commit(batch);
-  }
+  add_cf_flags(batch, m_system_cfh->GetID(), 0);
+  add_cf_flags(batch, default_cfh->GetID(), 0);
+  commit(batch);
 
-  return (m_system_cfh == nullptr);
+  return HA_EXIT_SUCCESS;
 }
 
 std::unique_ptr<rocksdb::WriteBatch> Rdb_dict_manager::begin() const {
@@ -4334,13 +4339,6 @@ void Rdb_dict_manager::finish_indexes_operation(
 
   for (const auto &gl_index_id : gl_index_ids) {
     if (is_index_operation_ongoing(gl_index_id, dd_type)) {
-      // NO_LINT_DEBUG
-      sql_print_information("RocksDB: Finished %s (%u,%u)",
-                            dd_type == Rdb_key_def::DDL_DROP_INDEX_ONGOING
-                                ? "filtering dropped index"
-                                : "index creation",
-                            gl_index_id.cf_id, gl_index_id.index_id);
-
       end_ongoing_index_operation(batch, gl_index_id, dd_type);
 
       /*
@@ -4440,8 +4438,6 @@ void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,
       abort_with_stack_traces();
     }
   }
-  sql_print_information("RocksDB: %s filtering dropped index (%u,%u)",
-                        log_action, gl_index_id.cf_id, gl_index_id.index_id);
 }
 
 bool Rdb_dict_manager::get_max_index_id(uint32_t *const index_id) const {

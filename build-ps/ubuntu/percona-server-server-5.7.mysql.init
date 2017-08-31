@@ -181,13 +181,13 @@ case "$1" in
 		if [ ! -d "${MYSQLRUN}" -a ! -L "${MYSQLRUN}" ];
 		then
                         install -d -m 0755 -omysql -gmysql ${MYSQLRUN} 
-                        check_exit_status $?
 		fi
 
 		# Needed because of TokuDB
 		fix_thp_setting
 
 		su - mysql -s /bin/bash -c "mysqld_safe > /dev/null &"
+                check_exit_status $?
 		verify_server start
                 retval=$?
 		if [ "$retval" -eq 0 ];

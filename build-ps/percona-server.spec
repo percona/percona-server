@@ -157,6 +157,7 @@ BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRequires:  bison
+BuildRequires:  openldap-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -725,6 +726,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -771,6 +773,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 #
 %attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql

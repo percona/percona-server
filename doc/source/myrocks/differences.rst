@@ -6,7 +6,7 @@ Differences between Percona MyRocks and Facebook MyRocks
 
 The original MyRocks was developed by Facebook
 and works with their implementation of MySQL.
-*Percona MyRocks* is an implementation for Percona Server
+*Percona MyRocks* is a branch of MyRocks for Percona Server
 and includes the following differences from the original implementation:
 
 * The behavior of the ``START TRANSACTION WITH CONSISTENT SNAPSHOT`` statement
@@ -25,5 +25,5 @@ and includes the following differences from the original implementation:
   | Percona MyRocks  | Fail               | Fail                |
   +------------------+--------------------+---------------------+
 
-* Percona MyRocks includes the ``lz4`` and ``zstd`` libraries.
+* Percona MyRocks includes the ``lz4`` and ``zstd`` statically linked libraries.
 

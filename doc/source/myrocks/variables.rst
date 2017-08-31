@@ -532,7 +532,8 @@ Disabled by default.
 
 Specifies whether to allow the OS to map a data file into memory for reads.
 Disabled by default.
-If you enable this, make sure that :var:`rocksdb_use_direct_reads` is disabled.
+If you enable this,
+make sure that :variable:`rocksdb_use_direct_reads` is disabled.
 
 .. variable:: rocksdb_allow_mmap_writes
  
@@ -1803,7 +1804,8 @@ Disabled by default.
 Specifies whether to read data files directly,
 without caches or buffers.
 Disabled by default.
-If you enable this, make sure that :var:`rocksdb_allow_mmap_reads` is disabled.
+If you enable this,
+make sure that :variable:`rocksdb_allow_mmap_reads` is disabled.
 
 .. variable:: rocksdb_use_direct_writes
  

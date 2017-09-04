@@ -678,3 +678,13 @@ t1	CREATE TABLE `t1` (
   KEY `c442` (`c442`,`c443`,`c444`,`c445`,`c446`,`c447`,`c448`)
 ) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
+CREATE TABLE t1 (a INT) ENCRYPTION='y' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='n' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='1' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='AES' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLE t1 (a INT) ENCRYPTION='867-5309' ENGINE=ROCKSDB;
+ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'

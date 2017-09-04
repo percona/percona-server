@@ -5719,7 +5719,7 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
   DBUG_ASSERT(table_arg != nullptr);
   DBUG_ASSERT(create_info != nullptr);
 
-  if (create_info->data_file_name) {
+  if (unlikely(create_info->data_file_name)) {
     // DATA DIRECTORY is used to create tables under a specific location
     // outside the MySQL data directory. We don't support this for MyRocks.
     // The `rocksdb_datadir` setting should be used to configure RocksDB data
@@ -5727,9 +5727,15 @@ int ha_rocksdb::create(const char *const name, TABLE *const table_arg,
     DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_DATA_DIRECTORY_NOT_SUPPORTED);
   }
 
-  if (create_info->index_file_name) {
+  if (unlikely(create_info->index_file_name)) {
     // Similar check for INDEX DIRECTORY as well.
     DBUG_RETURN(HA_ERR_ROCKSDB_TABLE_INDEX_DIRECTORY_NOT_SUPPORTED);
+  }
+
+  if (unlikely(create_info->encrypt_type.length)) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+             "ENCRYPTION for the RocksDB storage engine");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   std::string str;

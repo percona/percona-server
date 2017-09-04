@@ -688,3 +688,9 @@ CREATE TABLE t1 (a INT) ENCRYPTION='AES' ENGINE=ROCKSDB;
 ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
 CREATE TABLE t1 (a INT) ENCRYPTION='867-5309' ENGINE=ROCKSDB;
 ERROR 42000: This version of MySQL doesn't yet support 'ENCRYPTION for the RocksDB storage engine'
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=ROCKSDB;
+ERROR HY000: Table storage engine 'ROCKSDB' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+CREATE TABLE t1 (a INT) ENGINE=ROCKSDB TABLESPACE ts1;
+ERROR 42000: This version of MySQL doesn't yet support 'TABLESPACEs for the RocksDB storage engine'
+DROP TABLESPACE ts1 ENGINE=INNODB;

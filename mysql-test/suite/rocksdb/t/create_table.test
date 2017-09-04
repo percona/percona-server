@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source include/have_innodb.inc
 
 # 
 # Basic CREATE TABLE statements
@@ -207,5 +208,17 @@ CREATE TABLE t1 (a INT) ENCRYPTION='AES' ENGINE=ROCKSDB;
 
 --error ER_NOT_SUPPORTED_YET
 CREATE TABLE t1 (a INT) ENCRYPTION='867-5309' ENGINE=ROCKSDB;
+
+# MYR-168 : Alter rocksdb table into innodb general tablespace silently works
+# MYR-170 : ROCKSDB table creation accepts INNODB tablespace.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=ROCKSDB;
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t1 (a INT) ENGINE=ROCKSDB TABLESPACE ts1;
+
+DROP TABLESPACE ts1 ENGINE=INNODB;
 
 # End of 5.7 tests

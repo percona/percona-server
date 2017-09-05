@@ -189,7 +189,7 @@ USE tde_db;
 --echo # File per table is set 0. Encryption not possible.
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE tde_db.t_encrypt(c4 JSON ,
                        c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
                        c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
@@ -202,11 +202,11 @@ SELECT @@innodb_file_per_table;
 
 
 CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" TABLESPACE=`s_alt1` ENGINE=InnoDB;
 DROP TABLESPACE s_alt1;
 
---error ER_TABLESPACE_CANNOT_ENCRYPT
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
 
 # Now error/warning shown

@@ -593,6 +593,8 @@ class st_alter_tablespace : public Sql_alloc
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
+  bool encrypt;
+  LEX_STRING encrypt_type;
   bool is_tablespace_command()
   {
     return ts_cmd_type == CREATE_TABLESPACE      ||
@@ -623,6 +625,8 @@ class st_alter_tablespace : public Sql_alloc
     wait_until_completed= TRUE;
     ts_comment= NULL;
     ts_access_mode= TS_NOT_DEFINED;
+    encrypt= false;
+    encrypt_type = LEX_STRING();
   }
 };
 

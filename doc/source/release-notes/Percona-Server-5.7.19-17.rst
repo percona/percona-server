@@ -5,7 +5,7 @@ Percona Server 5.7.19-17
 ========================
 
 Percona is glad to announce the release of Percona Server 5.7.19-17
-on August 30, 2017.
+on August 31, 2017.
 Downloads are available `here
 <http://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.19-17/>`_
 and from the :doc:`Percona Software Repositories </installation>`.
@@ -58,7 +58,9 @@ Bugs Fixed
 * :bug:`1709834`: Fixed the ``mysqld_safe`` script
   to correctly locate the ``basedir``.
 
-* Other fixes: :bug:`1698996`, :bug:`1706055`, :bug:`1706262`, :bug:`1706981`
+* Other fixes: :bug:`1698996`, :bug:`1706055`, :bug:`1706262`, :bug:`1706981`,
+  :bug:`1686340` (upstream :mysqlbug:`86799`), :bug:`1654256` (upstream
+  :mysqlbug:`84640`), and :bug:`1651941` (upstream :mysqlbug:`84442`).
 
 TokuDB Changes
 ==============

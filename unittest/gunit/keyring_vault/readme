@@ -1,0 +1,3 @@
+In order to run those test you first need to export MYSQL_TEST_DIR variable first and it needs to point to mysql-test directory.
+Something like this:
+export MYSQL_TEST_DIR=/home/rob/mysql-test

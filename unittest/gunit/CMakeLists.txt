@@ -510,3 +510,4 @@ COPY_OPENSSL_DLLS(copy_openssl_gunit)
 
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
+ADD_SUBDIRECTORY(keyring_vault)

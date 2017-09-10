@@ -79,6 +79,8 @@ ifeq ($(SKIP_DEBUG_BINARY),)
 		-DWITH_ARCHIVE_STORAGE_ENGINE=ON \
 		-DWITH_BLACKHOLE_STORAGE_ENGINE=ON \
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
+		-DWITH_PAM=ON \
+		-DWITH_ROCKSDB=ON \
 		-DWITH_SCALABILITY_METRICS=ON \
 		-DWITH_PAM=ON \
 		-DDOWNLOAD_BOOST=1 \
@@ -118,7 +120,7 @@ endif
 		-DWITH_FEDERATED_STORAGE_ENGINE=ON \
 		-DWITH_SCALABILITY_METRICS=ON \
 		-DWITH_PAM=ON \
-                -DWITH_ROCKSDB=0 \
+		-DWITH_ROCKSDB=ON \
 		-DDOWNLOAD_BOOST=1 \
 		-DWITH_SCALABILITY_METRICS=ON \
 		-DWITH_BOOST=libboost \
@@ -154,6 +156,8 @@ override_dh_auto_install:
 	# install default file for init script timeout params
 	install -d $(TMP)/etc/default
 	install -m 0644 debian/extra/default-mysql $(TMP)/etc/default/mysql
+        # Add helper functions for maintainer scripts
+	install -m 0644 debian/extra/mysql-helpers debian/tmp/usr/share/mysql/
 
 	# install source tarball for source package
 	install -D -m 0644 $(EXPORTED_SOURCE_TARBALL) $(TMP)/usr/src/percona-server/`basename $(EXPORTED_SOURCE_TARBALL)`

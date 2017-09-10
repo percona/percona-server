@@ -1,5 +1,6 @@
 ## Test cases for mysqlx plugin TLS versions
 
+--source include/not_ubuntu_precise.inc
 --source include/have_ssl.inc
 --source ../include/have_performance_schema_threads.inc
 --source ../include/xplugin_preamble.inc
@@ -31,11 +32,12 @@ EOF
 
 --let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='DHE-RSA-AES256-SHA'
 
-# In ERROR1 and ERROR5, the first regex handles OpenSSL, the second one YaSSL
+# In ERROR1 and ERROR5, the first regex handles OpenSSL < 1.1, the second one YaSSL,
+# the third one OpenSSL >= 1.1
 
---let $ERROR1= /in main, line 0:ERROR: error:14077102:SSL routines:SSL23_GET_SERVER_HELLO:/Application terminated with expected error: / /in main, line 0:ERROR: not in error state /Application terminated with expected error: unsupported protocol /
+--let $ERROR1= /in main, line 0:ERROR: error:14077102:SSL routines:SSL23_GET_SERVER_HELLO:/Application terminated with expected error: / /in main, line 0:ERROR: not in error state /Application terminated with expected error: unsupported protocol / /in main, line 0:ERROR: error:14171102:SSL routines:tls_process_server_hello:/Application terminated with expected error: /
 
---let $ERROR5= /in main, line 0:ERROR: error:00000000:lib\(0\):func\(0\):reason\(0\)/Application terminated with expected error: socket layer receive error/ /in main, line 0:ERROR: not in error state /Application terminated with expected error: socket layer receive error /
+--let $ERROR5= /in main, line 0:ERROR: error:00000000:lib\(0\):func\(0\):reason\(0\)/Application terminated with expected error: socket layer receive error/ /in main, line 0:ERROR: not in error state /Application terminated with expected error: socket layer receive error / /in main, line 0:ERROR: error:1409442E:SSL routines:ssl3_read_bytes:tlsv1 alert protocol version/Application terminated with expected error: socket layer receive error/
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1

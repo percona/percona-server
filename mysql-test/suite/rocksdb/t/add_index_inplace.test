@@ -337,27 +337,43 @@ while ($i <= $max) {
 
 DROP TABLE t1;
 
-# Test that fast secondary index creation updates cardinality properly
-CREATE TABLE t1 (i INT PRIMARY KEY, j INT) ENGINE = ROCKSDB;
-INSERT INTO t1 VALUES (1,2), (2,4), (3,6), (4,8), (5,10);
-ALTER TABLE t1 ADD INDEX kj(j), ALGORITHM=INPLACE;
+# https://github.com/facebook/mysql-5.6/issues/602
+# Add then drop same index should be optimized out.
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b INT,
+c INT,
+KEY kbc(b,c)) ENGINE = ROCKSDB;
+INSERT INTO t1 (a,b,c) VALUES (1,1,1);
+INSERT INTO t1 (a,b,c) VALUES (2,2,2);
+INSERT INTO t1 (a,b,c) VALUES (3,3,3);
+SHOW CREATE TABLE t1;
 
-# Flush memtable out to SST
-SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+ALTER TABLE t1 DROP INDEX kbc, ADD INDEX kbc(b,c), ALGORITHM=INPLACE;
+ALTER TABLE t1 DROP INDEX kbc;
+DROP TABLE t1;
 
-# Return the data for the primary key of t1
---replace_column 1 # 2 # 3 SSTNAME 5 # 6 # 7 # 8 # 9 #
-SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_INDEX_FILE_MAP
-WHERE INDEX_NUMBER =
-    (SELECT INDEX_NUMBER FROM INFORMATION_SCHEMA.ROCKSDB_DDL
-     WHERE TABLE_NAME = 't1' AND INDEX_NAME = "PRIMARY");
+# Make sure changing key part prefix length causes index rebuild as well.
+CREATE TABLE t1 (
+a INT PRIMARY KEY,
+b varchar(10),
+index kb(b(5))
+) ENGINE = ROCKSDB charset utf8 collate utf8_bin;
 
-# Return the data for the secondary index of t1
---replace_column 1 # 2 # 3 SSTNAME 5 # 6 # 7 # 8 # 9 #
-SELECT * FROM INFORMATION_SCHEMA.ROCKSDB_INDEX_FILE_MAP
-WHERE INDEX_NUMBER =
-    (SELECT INDEX_NUMBER FROM INFORMATION_SCHEMA.ROCKSDB_DDL
-     WHERE TABLE_NAME = 't1' AND INDEX_NAME = "kj");
+INSERT INTO t1 (a,b) VALUES (1,'1111122222');
+INSERT INTO t1 (a,b) VALUES (2,'2222233333');
+INSERT INTO t1 (a,b) VALUES (3,'3333344444');
 
-# cleanup
+--let $start_max_index_id = query_get_value(SELECT * from INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO where type = 'MAX_INDEX_ID', VALUE, 1)
+
+ALTER TABLE t1 DROP INDEX kb, ADD INDEX kb(b(8)), ALGORITHM=INPLACE;
+SELECT * FROM t1 FORCE INDEX(kb);
+
+--let $end_max_index_id = query_get_value(SELECT * from INFORMATION_SCHEMA.ROCKSDB_GLOBAL_INFO where type = 'MAX_INDEX_ID', VALUE, 1)
+
+if ($end_max_index_id <= $start_max_index_id) {
+  echo Max index ID did not increase;
+}
+
+SHOW CREATE TABLE t1;
 DROP TABLE t1;

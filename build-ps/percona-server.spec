@@ -41,6 +41,10 @@
 # By default a build will be done including the TokuDB
 %{!?with_tokudb: %global tokudb 1}
 
+# By default a build will be done including the RocksDB
+%{!?with_rocksdb: %global rocksdb 1}
+
+
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
@@ -66,6 +70,13 @@
   %global TOKUDB_FLAGS -DWITHOUT_TOKUDB=1
   %global TOKUDB_DEBUG_ON %{nil}
   %global TOKUDB_DEBUG_OFF %{nil}
+%endif
+
+# Setup cmake flags for RocksDB
+%if 0%{?rocksdb}
+  %global ROCKSDB_FLAGS -DWITH_ROCKSDB=1
+%else
+  %global ROCKSDB_FLAGS -DWITH_ROCKSDB=0
 %endif
 
 # On rhel 5/6 we still have renamed library to libperconaserverclient
@@ -146,6 +157,7 @@ BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRequires:  bison
+BuildRequires:  openldap-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -300,6 +312,19 @@ Provides:       tokudb-plugin = %{version}-%{release}
 This package contains the TokuDB plugin for Percona Server %{version}-%{release}
 %endif
 
+%if 0%{?rocksdb}
+# ----------------------------------------------------------------------------
+%package -n Percona-Server-rocksdb%{product_suffix}
+Summary:        Percona Server - RocksDB package
+Group:          Applications/Databases
+Requires:       Percona-Server-server%{product_suffix} = %{version}-%{release}
+Requires:       Percona-Server-shared%{product_suffix} = %{version}-%{release}
+Requires:       Percona-Server-client%{product_suffix} = %{version}-%{release}
+
+%description -n Percona-Server-rocksdb%{product_suffix}
+This package contains the RocksDB plugin for Percona Server %{version}-%{release}
+%endif
+
 %prep
 %setup -q -T -a 0 -a 10 -c -n %{src_dir}
 pushd %{src_dir}
@@ -357,13 +382,13 @@ mkdir debug
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
-           -DWITH_ROCKSDB=0 \
+           -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            %{?ssl_option} \
            %{?mecab_option} \
-           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
+           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
@@ -393,25 +418,25 @@ mkdir release
            -DWITH_EMBEDDED_SERVER=0 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=0 \
            -DWITH_PAM=1 \
-           -DWITH_ROCKSDB=0 \
+           -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
            -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            %{?ssl_option} \
            %{?mecab_option} \
-           -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF}
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" %{TOKUDB_FLAGS} %{TOKUDB_DEBUG_OFF} %{ROCKSDB_FLAGS}
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
 )
 
 %install
 %if 0%{?compatlib}
-# Install compat libs
-%if 0%{?rhel} > 6
-install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient.so.18.1.0
-install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient_r.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient_r.so.18.1.0
-%endif # 0%{?rhel} > 6
+  # Install compat libs
+  %if 0%{?rhel} > 6
+    install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient.so.18.1.0
+    install -D -m 0755 percona-compatlib/usr/lib64/libmysqlclient_r.so.18.1.0 %{buildroot}%{_libdir}/mysql/libmysqlclient_r.so.18.1.0
+  %endif # 0%{?rhel} > 6
 %endif # 0%{?compatlib}
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
@@ -433,13 +458,13 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
  
-#%if 0%{?rhel} > 6
-#install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
-#%endif
+%if 0%{?rhel} > 6
+  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
+%endif
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
-install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
+  install -D -m 0755 $MBD/%{src_dir}/build-ps/rpm/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
 %endif
 
 # Add libdir to linker
@@ -448,11 +473,11 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 
 # multiarch support
 %ifarch %{multiarchs}
-mv %{buildroot}/%{_includedir}/mysql/my_config.h \
+  mv %{buildroot}/%{_includedir}/mysql/my_config.h \
    %{buildroot}/%{_includedir}/mysql/my_config_%{_arch}.h
-install -p -m 0644 %{SOURCE4} %{buildroot}/%{_includedir}/mysql/my_config.h
-mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
-install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
+  install -p -m 0644 %{SOURCE4} %{buildroot}/%{_includedir}/mysql/my_config.h
+  mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{__isa_bits}
+  install -p -m 0755 %{SOURCE5} %{buildroot}/%{_bindir}/mysql_config
 %endif
 
 
@@ -464,13 +489,13 @@ rm -f %{buildroot}%{_datadir}/percona-server/win_install_firewall.sql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 
 %if 0%{?tokudb}
-rm -f %{buildroot}%{_prefix}/README.md
-rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
-rm -f %{buildroot}%{_prefix}/COPYING.GPLv2
-rm -f %{buildroot}%{_prefix}/PATENTS
+  rm -f %{buildroot}%{_prefix}/README.md
+  rm -f %{buildroot}%{_prefix}/COPYING.AGPLv3
+  rm -f %{buildroot}%{_prefix}/COPYING.GPLv2
+  rm -f %{buildroot}%{_prefix}/PATENTS
 %else
-# Not needed if TokuDB package is not created
-rm -rf %{buildroot}%{_bindir}/ps_tokudb_admin
+  # Not needed if TokuDB package is not created
+  rm -rf %{buildroot}%{_bindir}/ps_tokudb_admin
 %endif
 
 # Remove upcoming man pages, to avoid breakage when they materialize
@@ -479,16 +504,16 @@ rm -rf %{buildroot}%{_bindir}/ps_tokudb_admin
 
 %check
 %if 0%{?runselftest}
-pushd release
-make test VERBOSE=1
-export MTR_BUILD_THREAD=auto
-pushd mysql-test
-./mtr \
+  pushd release
+    make test VERBOSE=1
+    export MTR_BUILD_THREAD=auto
+  pushd mysql-test
+  ./mtr \
     --mem --parallel=auto --force --retry=0 \
     --mysqld=--binlog-format=mixed \
     --suite-timeout=720 --testcase-timeout=30 \
     --clean-vardir
-rm -r $(readlink var) var
+  rm -r $(readlink var) var
 %endif
 
 %pre -n Percona-Server-server%{product_suffix}
@@ -503,17 +528,21 @@ if [ $1 -ge 1 ]; then
 fi
 
 %post -n Percona-Server-server%{product_suffix}
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
     /bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log
 fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
-%systemd_post mysqld.service
-/usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
+  %systemd_post mysqld.service
+  if [ $1 == 1 ]; then
+      /usr/bin/systemctl enable mysqld >/dev/null 2>&1 || :
+  fi
 %else
-/sbin/chkconfig --add mysql
+  if [ $1 == 1 ]; then
+      /sbin/chkconfig --add mysql
+  fi
 %endif
 if [ -e /etc/my.cnf ]; then
     MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
@@ -577,21 +606,21 @@ echo "See http://www.percona.com/doc/percona-server/5.7/management/udf_percona_t
 
 %preun -n Percona-Server-server%{product_suffix}
 %if 0%{?systemd}
-%systemd_preun mysqld.service
+  %systemd_preun mysqld.service
 %else
-if [ "$1" = 0 ]; then
+  if [ "$1" = 0 ]; then
     /sbin/service mysql stop >/dev/null 2>&1 || :
     /sbin/chkconfig --del mysql
-fi
+  fi
 %endif
 
 %postun -n Percona-Server-server%{product_suffix}
 %if 0%{?systemd}
-%systemd_postun_with_restart mysqld.service
+  %systemd_postun_with_restart mysqld.service
 %else
-if [ $1 -ge 1 ]; then
+  if [ $1 -ge 1 ]; then
     /sbin/service mysql condrestart >/dev/null 2>&1 || :
-fi
+  fi
 %endif
 
 %post -n Percona-Server-shared%{product_suffix} -p /sbin/ldconfig
@@ -601,9 +630,9 @@ fi
 %if 0%{?compatlib}
 %post -n Percona-Server-shared-compat%{product_suffix}
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
-if [ ! -f %{_libdir}/mysql/${lib} ]; then
-  ln -s libmysqlclient.so.18.1.0 %{_libdir}/mysql/${lib};
-fi
+  if [ ! -f %{_libdir}/mysql/${lib} ]; then
+    ln -s libmysqlclient.so.18.1.0 %{_libdir}/mysql/${lib};
+  fi
 done
 /sbin/ldconfig
 
@@ -617,9 +646,9 @@ fi
 
 %postun -n Percona-Server-shared-compat%{product_suffix}
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
-if [ -h %{_libdir}/mysql/${lib} ]; then
-  rm -f %{_libdir}/mysql/${lib};
-fi
+  if [ -h %{_libdir}/mysql/${lib} ]; then
+    rm -f %{_libdir}/mysql/${lib};
+  fi
 done
 /sbin/ldconfig
 %endif
@@ -629,11 +658,22 @@ done
 if [ $1 -eq 1 ] ; then
   echo -e "\n\n * This release of Percona Server is distributed with TokuDB storage engine."
   echo -e " * Run the following script to enable the TokuDB storage engine in Percona Server:\n"
-  echo -e "\tps_tokudb_admin --enable -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
+  echo -e "\tps-admin --enable-tokudb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
   echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_installation.html for more installation details\n"
   echo -e " * See http://www.percona.com/doc/percona-server/5.7/tokudb/tokudb_intro.html for an introduction to TokuDB\n\n"
 fi
 %endif
+
+%if 0%{?rocksdb}
+%post -n Percona-Server-rocksdb%{product_suffix}
+if [ $1 -eq 1 ] ; then
+  echo -e "\n\n * This is _EXPERIMENTAL_ build so it is not for production systems."
+  echo -e "\n\n * This release of Percona Server is distributed with RocksDB storage engine."
+  echo -e " * Run the following script to enable the RocksDB storage engine in Percona Server:\n"
+  echo -e "\tps-admin --enable-rocksdb -u <mysql_admin_user> -p[mysql_admin_pass] [-S <socket>] [-h <host> -P <port>]\n"
+fi
+%endif
+
 
 %files -n Percona-Server-server%{product_suffix}
 %defattr(-, root, root, -)
@@ -695,6 +735,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/lz4_decompress
 %attr(755, root, root) %{_bindir}/zlib_decompress
+%attr(755, root, root) %{_bindir}/ps-admin
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
 %else
@@ -724,6 +765,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/group_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl_client.so
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
@@ -770,6 +812,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
 #
 %attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql
@@ -972,7 +1015,21 @@ fi
 %{_includedir}/backup.h
 %endif
 
+%if 0%{?rocksdb}
+%files -n Percona-Server-rocksdb%{product_suffix}
+%attr(-, root, root)
+%{_libdir}/mysql/plugin/ha_rocksdb.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_rocksdb.so
+%attr(755, root, root) %{_bindir}/ldb
+%attr(755, root, root) %{_bindir}/mysql_ldb
+%attr(755, root, root) %{_bindir}/sst_dump
+%endif
+
+
 %changelog
+* Wed Aug  2 2017 Evgeniy Patlan <evgeniy.patlan@percona.com>
+- Added RocksDB
+
 * Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com> 
 - fix license field
 

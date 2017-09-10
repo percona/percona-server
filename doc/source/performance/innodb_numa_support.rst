@@ -24,10 +24,10 @@ Command-line Options for mysqld_safe
      :location: mysqld_safe
      :dyn: No
      :vartype: Boolean
-     :default: OFF
-     :range: ON/OFF
+     :default: ``0`` (OFF)
+     :range: ``0``/``1``
 
-When enabled this will flush and purge buffers/caches before starting the server to help ensure ``NUMA`` allocation fairness across nodes. This option is useful for establishing a consistent and predictable behavior for normal usage and/or benchmarking.
+When enabled (set to ``1``) this will flush and purge buffers/caches before starting the server to help ensure ``NUMA`` allocation fairness across nodes. This option is useful for establishing a consistent and predictable behavior for normal usage and/or benchmarking.
 
 Other Reading
 =============

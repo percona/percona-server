@@ -2,7 +2,7 @@
 
 . /usr/share/debconf/confmodule
 
-MYSQLDATA=$(my_print_defaults mysqld | grep datadir | cut -d= -f2)
+MYSQLDATA=$(my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 if [ -z "$MYSQLDATA" ];
 then
     MYSQLDATA=/var/lib/mysql
@@ -14,6 +14,14 @@ take_upstart_job_backup () {
 	then
 		mv /etc/init/mysql.conf $MYSQLDATA/.mysql.conf.backup
 	fi
+}
+
+check_exit_status() {
+        errcode=$1
+        if [ $errcode > 0 ];
+        then
+                exit $errcode
+        fi
 }
 
 MY_BASEDIR_VERSION=$(my_print_defaults --loose-verbose mysqld server | grep basedir | awk -F'=' '{print $2}')

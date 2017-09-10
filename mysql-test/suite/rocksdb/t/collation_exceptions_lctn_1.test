@@ -4,9 +4,9 @@
 
 SET @old_rocksdb_strict_collation_exceptions = @@global.rocksdb_strict_collation_exceptions;
 
---error ER_UNKNOWN_ERROR
+--error ER_UNSUPPORTED_COLLATION
 CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
---error ER_UNKNOWN_ERROR
+--error ER_UNSUPPORTED_COLLATION
 CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
 
 SET GLOBAL rocksdb_strict_collation_exceptions="abc";
@@ -14,7 +14,7 @@ CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=ro
 DROP TABLE abc;
 CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
 DROP TABLE ABC;
---error ER_UNKNOWN_ERROR
+--error ER_UNSUPPORTED_COLLATION
 CREATE TABLE bcd (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
 
 SET GLOBAL rocksdb_strict_collation_exceptions="ABC";
@@ -29,7 +29,7 @@ DROP TABLE abcd;
 CREATE TABLE ABCD (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
 DROP TABLE ABCD;
 
---error ER_UNKNOWN_ERROR
+--error ER_UNSUPPORTED_COLLATION
 CREATE TABLE ZABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
 
 SET GLOBAL rocksdb_strict_collation_exceptions=@old_rocksdb_strict_collation_exceptions;

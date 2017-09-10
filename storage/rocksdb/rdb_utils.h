@@ -19,6 +19,7 @@
 #include <chrono>
 #include <string>
 #include <regex>
+#include <vector>
 
 /* MySQL header files */
 #include "../sql/log.h"
@@ -28,6 +29,7 @@
 
 /* RocksDB header files */
 #include "rocksdb/slice.h"
+#include "rocksdb/status.h"
 
 #ifdef HAVE_JEMALLOC
 #include <jemalloc/jemalloc.h>
@@ -242,6 +244,8 @@ inline void rdb_check_mutex_call_result(const char *function_name,
   }
 }
 
+void rdb_log_status_error(const rocksdb::Status &s, const char *msg = nullptr);
+
 /*
   Helper functions to parse strings.
 */
@@ -268,6 +272,9 @@ const char *rdb_parse_id(const struct charset_info_st *const cs,
 
 const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
     MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+const std::vector<std::string> parse_into_tokens(const std::string& s,
+                                                 const char delim);
 
 /*
   Helper functions to populate strings.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3020,7 +3020,12 @@ row_sel_field_store_in_mysql_format_func(
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
 		      || !(templ->mysql_col_len % templ->mbmaxlen));
-		ut_ad(len * templ->mbmaxlen >= templ->mysql_col_len
+		/* Length of the record will be less in case of
+		clust_templ_for_sec is true or if it is fetched
+		from prefix virtual column in virtual index. */
+		ut_ad(templ->is_virtual
+		      || clust_templ_for_sec
+		      || len * templ->mbmaxlen >= templ->mysql_col_len
 		      || (field_no == templ->icp_rec_field_no
 			  && field->prefix_len > 0)
 		      || templ->rec_field_is_prefix);
@@ -3420,7 +3425,8 @@ row_sel_store_mysql_rec(
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
 	if (dict_table_has_fts_index(prebuilt->table)) {
-		if (dict_index_is_clust(index)
+		if ((dict_index_is_clust(index)
+		     && !clust_templ_for_sec)
 		    || prebuilt->fts_doc_id_in_read_set) {
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
@@ -4308,8 +4314,14 @@ row_search_no_mvcc(
 	ut_ad(index && pcur && search_tuple);
 
 	/* Step-0: Re-use the cached mtr. */
-	mtr_t*		mtr = &index->last_sel_cur->mtr;
+	mtr_t*		mtr;
 	dict_index_t*	clust_index = dict_table_get_first_index(index->table);
+
+	if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+	}
+
+	mtr = &index->last_sel_cur->mtr;
 
 	/* Step-1: Build the select graph. */
 	if (direction == 0 && prebuilt->sel_graph == NULL) {
@@ -6130,8 +6142,19 @@ idx_cond_failed:
 			btr_pcur_store_position(pcur, &mtr);
 		}
 
-		if (prebuilt->innodb_api) {
-			prebuilt->innodb_api_rec = result_rec;
+		if (prebuilt->innodb_api &&
+		   (btr_pcur_get_rec(pcur) != result_rec)) {
+			ulint rec_size =  rec_offs_size(offsets);
+			if (!prebuilt->innodb_api_rec_size ||
+			   (prebuilt->innodb_api_rec_size < rec_size)) {
+				prebuilt->innodb_api_buf =
+				  static_cast<byte*>
+				  (mem_heap_alloc(prebuilt->cursor_heap,rec_size));
+				prebuilt->innodb_api_rec_size = rec_size;
+			}
+			prebuilt->innodb_api_rec =
+				rec_copy(
+				 prebuilt->innodb_api_buf, result_rec, offsets);
 		}
 	}
 

@@ -20,6 +20,8 @@
 /* C++ standard header files */
 #include <array>
 #include <string>
+#include <vector>
+#include <sstream>
 
 /* C standard header files */
 #include <ctype.h>
@@ -215,6 +217,22 @@ const char *rdb_skip_id(const struct charset_info_st *const cs,
   return rdb_parse_id(cs, str, nullptr);
 }
 
+/*
+  Parses a given string into tokens (if any) separated by a specific delimiter.
+*/
+const std::vector<std::string> parse_into_tokens(
+  const std::string& s, const char delim) {
+  std::vector<std::string> tokens;
+  std::string t;
+  std::stringstream ss(s);
+
+  while (getline(ss, t, delim)) {
+    tokens.push_back(t);
+  }
+
+  return tokens;
+}
+
 static const std::size_t rdb_hex_bytes_per_char = 2;
 static const std::array<char, 16> rdb_hexdigit = {{'0', '1', '2', '3', '4', '5',
                                                    '6', '7', '8', '9', 'a', 'b',
@@ -273,6 +291,19 @@ bool rdb_database_exists(const std::string &db_name) {
 
   my_dirend(dir_info);
   return true;
+}
+
+void rdb_log_status_error(const rocksdb::Status &s, const char *msg) {
+  if (msg == nullptr) {
+    // NO_LINT_DEBUG
+    sql_print_error("RocksDB: status error, code: %d, error message: %s",
+                    s.code(), s.ToString().c_str());
+    return;
+  }
+
+  // NO_LINT_DEBUG
+  sql_print_error("RocksDB: %s, Status Code: %d, Status: %s", msg, s.code(),
+                  s.ToString().c_str());
 }
 
 void warn_about_bad_patterns(const Regex &regex, const char *name)

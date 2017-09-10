@@ -17,6 +17,7 @@ usr/bin/replace
 usr/bin/resolveip
 usr/bin/resolve_stack_dump
 usr/sbin/mysqld
+usr/bin/ps-admin
 # debug binary
 usr/sbin/mysqld-debug
 # man pages
@@ -79,6 +80,7 @@ usr/lib/mysql/plugin/debug/mysqlx.so
 usr/lib/mysql/plugin/debug/keyring_udf.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/group_replication.so
+usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
 # Percona plugins
 usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/debug/audit_log.so
@@ -101,11 +103,13 @@ usr/lib/mysql/plugin/debug/auth.so
 usr/lib/mysql/plugin/query_response_time.so
 usr/lib/mysql/plugin/connection_control.so
 usr/lib/mysql/plugin/group_replication.so
+usr/lib/mysql/plugin/authentication_ldap_sasl_client.so
 usr/lib/mysql/plugin/debug/query_response_time.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/magic
 usr/share/mysql/mysql-log-rotate
+usr/share/mysql/mysql-helpers
 usr/share/mysql/mysql-systemd-start
 usr/share/mysql/mysqld_multi.server
 # defaults file

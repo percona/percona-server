@@ -31,6 +31,7 @@ JEMALLOC_LOCATION=""
 HOTBACKUP_LOCATION=""
 FORCE_MYCNF=0
 FORCE_ENVFILE=0
+DOCKER=0
 
 SCRIPT_PWD=$(cd `dirname $0` && pwd)
 MYSQL_CLIENT_BIN="${SCRIPT_PWD}/mysql"
@@ -45,8 +46,8 @@ fi
 # Check if we have a functional getopt(1)
 if ! getopt --test
   then
-  go_out="$(getopt --options=u:p::S:h:P:edbrfm \
-  --longoptions=user:,password::,socket:,host:,port:,enable,disable,enable-backup,disable-backup,help,defaults-file:,force-envfile,force-mycnf \
+  go_out="$(getopt --options=u:p::S:h:P:edbrfmD \
+  --longoptions=user:,password::,socket:,host:,port:,enable,disable,enable-backup,disable-backup,help,defaults-file:,force-envfile,force-mycnf,docker \
   --name="$(basename "$0")" -- "$@")"
   test $? -eq 0 || exit 1
   eval set -- $go_out
@@ -121,7 +122,12 @@ do
     shift
     FORCE_ENVFILE=1
     ;;
+    -D | --docker )
+    shift
+    DOCKER=1
+    ;;
     --help )
+    printf "WARNING: This script is deprecated and will be removed in 8.0. You can use ps-admin script which has more functionality.\n\n"
     printf "This script is used for installing and uninstalling TokuDB plugin for Percona Server 5.7.\n"
     printf "It can also be used to install or uninstall the Percona TokuBackup plugin (requires mysql server restart).\n"
     printf "If transparent huge pages are enabled on the system it adds thp-setting=never option to my.cnf\n"
@@ -152,10 +158,12 @@ do
 done
 
 # Make sure only root can run this script
-if [ $(id -u) -ne 0 ]; then
+if [ $(id -u) -ne 0 -a $DOCKER = 0 ]; then
   echo "ERROR: This script must be run as root!" 1>&2
   exit 1
 fi
+
+printf "WARNING: This script is deprecated and will be removed in 8.0. You can use ps-admin script which has more functionality.\n\n"
 
 if [ $ENABLE = 1 -a $DISABLE = 1 ]; then
   printf "ERROR: Only --enable OR --disable can be specified - not both!\n"
@@ -257,7 +265,7 @@ if [ $FULL_SYSTEMD_MODE = 1 -a $ENABLE_TOKUBACKUP = 1 ]; then
 fi
 
 # Check if server is running with jemalloc - if not warn that restart is needed (only when running with mysqld_safe)
-if [ $ENABLE = 1 -a $FULL_SYSTEMD_MODE = 0 ]; then
+if [ $ENABLE = 1 -a $FULL_SYSTEMD_MODE = 0 -a $DOCKER = 0 ]; then
   printf "Checking if Percona Server is running with jemalloc enabled...\n"
   grep -qc jemalloc /proc/${PID_NUM}/environ || ldd $(which mysqld) | grep -qc jemalloc
   JEMALLOC_STATUS=$?

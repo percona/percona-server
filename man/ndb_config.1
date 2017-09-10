@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/17/2017
+.\"      Date: 06/22/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "03/17/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.90.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&21.91.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
 .
@@ -83,28 +83,25 @@ allbox tab(:);
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-usage\fR,
-\fB\-\-help\fR, or
-\fB\-?\fR
-.TS
-allbox tab(:);
-l l s s
-l l s s.
-T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-help
-T}
-T{
-\ \&
-T}:T{
-\-\-usage
-T}
-.TE
-.sp 1
-Causes
+\fB\-\-configinfo\fR
+.sp
+The
+\fB\-\-configinfo\fR
+option causes
 \fBndb_config\fR
-to print a list of available options, and then exit\&.
+to dump a list of each NDB Cluster configuration parameter supported by the NDB Cluster distribution of which
+\fBndb_config\fR
+is a part, including the following information:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A brief description of each parameter\*(Aqs purpose, effects, and usage
 .RE
 .sp
 .RS 4
@@ -115,48 +112,9 @@ to print a list of available options, and then exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-config_from_node=#\fR
-.TS
-allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
-T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-config_from_node=#
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
-\fBType\fR
-T}:T{
-numeric
-T}
-:T{
-\fBDefault\fR
-T}:T{
-none
-T}
-:T{
-\fBMin Value\fR
-T}:T{
-1
-T}
-:T{
-\fBMax Value\fR
-T}:T{
-48
-T}
-.TE
-.sp 1
-Obtain the cluster\*(Aqs configuration data from the data node that has this ID\&.
-.sp
-If the node having this ID is not a data node,
-\fBndb_config\fR
-fails with an error\&. (To obtain configuration data from the management node instead, simply omit this option\&.)
+The section of the
+config\&.ini
+file where the parameter may be used
 .RE
 .sp
 .RS 4
@@ -167,21 +125,7 @@ fails with an error\&. (To obtain configuration data from the management node in
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-version\fR,
-\fB\-V\fR
-.TS
-allbox tab(:);
-l l s s.
-T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-version
-T}
-.TE
-.sp 1
-Causes
-\fBndb_config\fR
-to print a version information string, and then exit\&.
+The parameter\*(Aqs data type or unit of measurement
 .RE
 .sp
 .RS 4
@@ -192,41 +136,53 @@ to print a version information string, and then exit\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-ndb\-connectstring=\fR\fB\fIconnection_string\fR\fR,
-\fB\-c \fR\fB\fIconnection_string\fR\fR
-.TS
-allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
-T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-ndb\-connectstring=connectstring
-T}
-T{
-\ \&
-T}:T{
-\-\-connect\-string=connectstring
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
-\fBType\fR
-T}:T{
-string
-T}
-:T{
-\fBDefault\fR
-T}:T{
-localhost:1186
-T}
-.TE
-.sp 1
-Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
-Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
-localhost:1186\&.
+Where applicable, the parameter\*(Aqs default, minimum, and maximum values
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+NDB Cluster release version and build information
+.RE
+.sp
+By default, this output is in text format\&. Part of this output is shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_config \-\-configinfo\fR
+****** SYSTEM ******
+Name (String)
+Name of system (NDB Cluster)
+MANDATORY
+PrimaryMGMNode (Non\-negative Integer)
+Node id of Primary ndb_mgmd(MGM) node
+Default: 0 (Min: 0, Max: 4294967039)
+ConfigGenerationNumber (Non\-negative Integer)
+Configuration generation number
+Default: 0 (Min: 0, Max: 4294967039)
+****** DB ******
+MaxNoOfSubscriptions (Non\-negative Integer)
+Max no of subscriptions (default 0 == MaxNoOfTables)
+Default: 0 (Min: 0, Max: 4294967039)
+MaxNoOfSubscribers (Non\-negative Integer)
+Max no of subscribers (default 0 == 2 * MaxNoOfTables)
+Default: 0 (Min: 0, Max: 4294967039)
+\&...
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Use this option together with the
+\fB\-\-xml\fR
+option to obtain output in XML format\&.
 .RE
 .sp
 .RS 4
@@ -274,7 +230,59 @@ is invoked, then an absolute path must be used\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-mycnf\fR
+\fB\-\-config_from_node=#\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s
+^ l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-config\-from\-node=#
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+numeric
+T}
+:T{
+\fBDefault\fR
+T}:T{
+none
+T}
+:T{
+\fBMin Value\fR
+T}:T{
+1
+T}
+:T{
+\fBMax Value\fR
+T}:T{
+48
+T}
+.TE
+.sp 1
+Obtain the cluster\*(Aqs configuration data from the data node that has this ID\&.
+.sp
+If the node having this ID is not a data node,
+\fBndb_config\fR
+fails with an error\&. (To obtain configuration data from the management node instead, simply omit this option\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connections\fR
 .TS
 allbox tab(:);
 l l s s
@@ -283,7 +291,7 @@ l l l s
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-mycnf
+\-\-connections
 T}
 T{
 \fBPermitted Values\fR
@@ -299,9 +307,26 @@ FALSE
 T}
 .TE
 .sp 1
-Read configuration data from the
-my\&.cnf
-file\&.
+Tells
+\fBndb_config\fR
+to print
+CONNECTIONS
+information only\(emthat is, information about parameters found in the
+[tcp],
+[tcp default],
+[sci],
+[sci default],
+[shm], or
+[shm default]
+sections of the cluster configuration file (see
+Section\ \&21.3.3.9, \(lqNDB Cluster TCP/IP Connections\(rq,
+Section\ \&21.3.3.12, \(lqSCI Transport Connections in NDB Cluster\(rq, and
+Section\ \&21.3.3.11, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+.sp
+This option is mutually exclusive with
+\fB\-\-nodes\fR
+and
+\fB\-\-system\fR; only one of these 3 options can be used\&.
 .RE
 .sp
 .RS 4
@@ -312,9 +337,79 @@ file\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-query=\fR\fB\fIquery\-options\fR\fR,
-\fB\-q\fR
-\fIquery\-options\fR
+\fB\-\-diff\-default\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s
+l l l s
+^ l l s
+l l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.7\&.18\-ndb\-7\&.6\&.3
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-diff\-default
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+FALSE
+T}
+T{
+\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.5\&.7)
+T}:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+FALSE
+T}
+T{
+\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.6\&.3)
+T}:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Print only configuration parameters that have non\-default values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-fields=\fR\fB\fIdelimiter\fR\fR,
+\fB\-f\fR
+\fIdelimiter\fR
 .TS
 allbox tab(:);
 l l s s
@@ -323,7 +418,7 @@ l l l s
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-query=string
+\-\-fields=string
 T}
 T{
 \fBPermitted Values\fR
@@ -338,20 +433,11 @@ T}:T{
 T}
 .TE
 .sp 1
-This is a comma\-delimited list of
-\fIquery options\fR\(emthat is, a list of one or more node attributes to be returned\&. These include
-id
-(node ID), type (node type\(emthat is,
-ndbd,
-mysqld, or
-ndb_mgmd), and any configuration parameters whose values are to be obtained\&.
-.sp
-For example,
-\fB\-\-query=id,type,indexmemory,datamemory\fR
-returns the node ID, node type,
-DataMemory, and
-IndexMemory
-for each node\&.
+Specifies a
+\fIdelimiter\fR
+string used to separate the fields in the result\&. The default is
+,
+(the comma character)\&.
 .if n \{\
 .sp
 .\}
@@ -364,7 +450,11 @@ for each node\&.
 \fBNote\fR
 .ps -1
 .br
-If a given parameter is not applicable to a certain type of node, than an empty string is returned for the corresponding value\&. See the examples later in this section for more information\&.
+If the
+\fIdelimiter\fR
+contains spaces or escapes (such as
+\en
+for the linefeed character), then it must be quoted\&.
 .sp .5v
 .RE
 .RE
@@ -442,9 +532,91 @@ in the same fashion\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-id=\fR\fB\fInode_id\fR\fR
+\fB\-\-mycnf\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-mycnf
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+boolean
+T}
+:T{
+\fBDefault\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Read configuration data from the
+my\&.cnf
+file\&.
+.RE
 .sp
-\fB\-\-nodeid=\fR\fB\fInode_id\fR\fR
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-connectstring=\fR\fB\fIconnection_string\fR\fR,
+\fB\-c \fR\fB\fIconnection_string\fR\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-ndb\-connectstring=connectstring
+T}
+T{
+\ \&
+T}:T{
+\-\-connect\-string=connectstring
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+localhost:1186
+T}
+.TE
+.sp 1
+Specifies the connection string to use in connecting to the management server\&. The format for the connection string is the same as described in
+Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, and defaults to
+localhost:1186\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-nodeid=\fR\fB\fInode_id\fR\fR,
+\fB\-\-id=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
 l l s s
@@ -469,7 +641,7 @@ T}:T{
 T}
 .TE
 .sp 1
-Either of these options can be used to specify the node ID of the node for which configuration information is to be obtained\&.
+Specify the node ID of the node for which configuration information is to be obtained\&.
 \fB\-\-nodeid\fR
 is the preferred form\&.
 .RE
@@ -530,7 +702,9 @@ and
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-connections\fR
+\fB\-\-query=\fR\fB\fIquery\-options\fR\fR,
+\fB\-q\fR
+\fIquery\-options\fR
 .TS
 allbox tab(:);
 l l s s
@@ -539,42 +713,152 @@ l l l s
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-connections
+\-\-query=string
 T}
 T{
 \fBPermitted Values\fR
 T}:T{
 \fBType\fR
 T}:T{
-boolean
+string
 T}
 :T{
 \fBDefault\fR
 T}:T{
-FALSE
 T}
 .TE
 .sp 1
-Tells
-\fBndb_config\fR
-to print
-CONNECTIONS
-information only\(emthat is, information about parameters found in the
-[tcp],
-[tcp default],
-[sci],
-[sci default],
-[shm], or
-[shm default]
-sections of the cluster configuration file (see
-Section\ \&21.3.3.9, \(lqNDB Cluster TCP/IP Connections\(rq,
-Section\ \&21.3.3.12, \(lqSCI Transport Connections in NDB Cluster\(rq, and
-Section\ \&21.3.3.11, \(lqNDB Cluster Shared-Memory Connections\(rq, for more information)\&.
+This is a comma\-delimited list of
+\fIquery options\fR\(emthat is, a list of one or more node attributes to be returned\&. These include
+id
+(node ID), type (node type\(emthat is,
+ndbd,
+mysqld, or
+ndb_mgmd), and any configuration parameters whose values are to be obtained\&.
 .sp
-This option is mutually exclusive with
-\fB\-\-nodes\fR
-and
-\fB\-\-system\fR; only one of these 3 options can be used\&.
+For example,
+\fB\-\-query=nodeid,type,indexmemory,datamemory\fR
+returns the node ID, node type,
+DataMemory, and
+IndexMemory
+for each node\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If a given parameter is not applicable to a certain type of node, than an empty string is returned for the corresponding value\&. See the examples later in this section for more information\&.
+.sp .5v
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-query\-all\fR,
+\fB\-a\fR
+.TS
+allbox tab(:);
+l l s s
+l l s s
+l l l s
+^ l l s.
+T{
+\fBIntroduced\fR
+T}:T{
+5\&.7\&.18\-ndb\-7\&.5\&.7
+T}
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-query\-all
+T}
+T{
+\fBPermitted Values\fR (>= 5\&.7\&.18\-ndb\-7\&.4\&.16,5\&.7\&.18\-ndb\-7\&.5\&.7)
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+T}
+.TE
+.sp 1
+Returns a comma\-delimited list of all query options (node attributes; note that this list is a single string\&.
+.sp
+This option was introduced in NDB 7\&.5\&.7 (Bug #60095, Bug #11766869)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-rows=\fR\fB\fIseparator\fR\fR,
+\fB\-r\fR
+\fIseparator\fR
+.TS
+allbox tab(:);
+l l s s
+l l l s
+^ l l s.
+T{
+\fBCommand\-Line Format\fR
+T}:T{
+\-\-rows=string
+T}
+T{
+\fBPermitted Values\fR
+T}:T{
+\fBType\fR
+T}:T{
+string
+T}
+:T{
+\fBDefault\fR
+T}:T{
+T}
+.TE
+.sp 1
+Specifies a
+\fIseparator\fR
+string used to separate the rows in the result\&. The default is a space character\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+If the
+\fIseparator\fR
+contains spaces or escapes (such as
+\en
+for the linefeed character), then it must be quoted\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -687,56 +971,28 @@ ndb_mgmd) are returned\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-fields=\fR\fB\fIdelimiter\fR\fR,
-\fB\-f\fR
-\fIdelimiter\fR
+\fB\-\-usage\fR,
+\fB\-\-help\fR, or
+\fB\-?\fR
 .TS
 allbox tab(:);
 l l s s
-l l l s
-^ l l s.
+l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-fields=string
+\-\-help
 T}
 T{
-\fBPermitted Values\fR
+\ \&
 T}:T{
-\fBType\fR
-T}:T{
-string
-T}
-:T{
-\fBDefault\fR
-T}:T{
+\-\-usage
 T}
 .TE
 .sp 1
-Specifies a
-\fIdelimiter\fR
-string used to separate the fields in the result\&. The default is
-,
-(the comma character)\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-If the
-\fIdelimiter\fR
-contains spaces or escapes (such as
-\en
-for the linefeed character), then it must be quoted\&.
-.sp .5v
-.RE
+Causes
+\fBndb_config\fR
+to print a list of available options, and then exit\&.
 .RE
 .sp
 .RS 4
@@ -747,83 +1003,21 @@ for the linefeed character), then it must be quoted\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-rows=\fR\fB\fIseparator\fR\fR,
-\fB\-r\fR
-\fIseparator\fR
+\fB\-\-version\fR,
+\fB\-V\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+l l s s.
 T{
 \fBCommand\-Line Format\fR
 T}:T{
-\-\-rows=string
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
-\fBType\fR
-T}:T{
-string
-T}
-:T{
-\fBDefault\fR
-T}:T{
+\-\-version
 T}
 .TE
 .sp 1
-Specifies a
-\fIseparator\fR
-string used to separate the rows in the result\&. The default is a space character\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-If the
-\fIseparator\fR
-contains spaces or escapes (such as
-\en
-for the linefeed character), then it must be quoted\&.
-.sp .5v
-.RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-configinfo\fR
-.sp
-The
-\fB\-\-configinfo\fR
-option causes
+Causes
 \fBndb_config\fR
-to dump a list of each NDB Cluster configuration parameter supported by the NDB Cluster distribution of which
-\fBndb_config\fR
-is a part, including the following information:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-A brief description of each parameter\*(Aqs purpose, effects, and usage
+to print a version information string, and then exit\&.
 .RE
 .sp
 .RS 4
@@ -834,74 +1028,6 @@ A brief description of each parameter\*(Aqs purpose, effects, and usage
 .sp -1
 .IP \(bu 2.3
 .\}
-The section of the
-config\&.ini
-file where the parameter may be used
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The parameter\*(Aqs data type or unit of measurement
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-Where applicable, the parameter\*(Aqs default, minimum, and maximum values
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-NDB Cluster release version and build information
-.RE
-.sp
-By default, this output is in text format\&. Part of this output is shown here:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBndb_config \-\-configinfo\fR
-****** SYSTEM ******
-Name (String)
-Name of system (NDB Cluster)
-MANDATORY
-PrimaryMGMNode (Non\-negative Integer)
-Node id of Primary ndb_mgmd(MGM) node
-Default: 0 (Min: 0, Max: 4294967039)
-ConfigGenerationNumber (Non\-negative Integer)
-Configuration generation number
-Default: 0 (Min: 0, Max: 4294967039)
-****** DB ******
-MaxNoOfSubscriptions (Non\-negative Integer)
-Max no of subscriptions (default 0 == MaxNoOfTables)
-Default: 0 (Min: 0, Max: 4294967039)
-MaxNoOfSubscribers (Non\-negative Integer)
-Max no of subscribers (default 0 == 2 * MaxNoOfTables)
-Default: 0 (Min: 0, Max: 4294967039)
-\&...
-.fi
-.if n \{\
-.RE
-.\}
-.sp
 \fB\-\-configinfo\fR
 \fB\-\-xml\fR
 .TS
@@ -928,19 +1054,17 @@ false
 T}
 .TE
 .sp 1
-You can obtain the output of
+Cause
 \fBndb_config\fR
 \fB\-\-configinfo\fR
-as XML by adding the
-\fB\-\-xml\fR
-option\&. A portion of the resulting output is shown in this example:
+to provide output as XML by adding this option\&. A portion of such output is shown in this example:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.18\-ndb\-7\&.5\&.7"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.19\-ndb\-7\&.5\&.8"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1117,7 +1241,8 @@ config\&.ini
 or
 my\&.cnf
 file is required for these two options\&.
-.sp
+.RE
+.PP
 Combining other
 \fBndb_config\fR
 options (such as
@@ -1125,9 +1250,9 @@ options (such as
 or
 \fB\-\-type\fR) with
 \fB\-\-configinfo\fR
-or
+(with or without the
 \fB\-\-xml\fR
-is not supported\&. Currently, if you attempt to do so, the usual result is that all other options besides
+option is not supported\&. Currently, if you attempt to do so, the usual result is that all other options besides
 \fB\-\-configinfo\fR
 or
 \fB\-\-xml\fR
@@ -1142,7 +1267,6 @@ or
 with
 \fB\-\-configinfo\fR
 serves no purpose\&.
-.RE
 Examples
 .sp
 .RS 4
@@ -1272,8 +1396,6 @@ In this example, we also used the short form
 to determine the attributes to be queried\&.
 .sp
 Similarly, you can limit results to a node with a specific ID using the
-\fB\-\-id\fR
-or
 \fB\-\-nodeid\fR
 option\&.
 .RE

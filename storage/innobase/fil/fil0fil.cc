@@ -3539,7 +3539,7 @@ fil_ibd_create(
 	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
-	ut_ad(!is_system_tablespace(space_id));
+	ut_ad(!is_shared_system_tablespace(space_id));
 	ut_ad(!srv_read_only_mode);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
@@ -5471,18 +5471,33 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
-	/* Don't encrypt the log, page 0 of all tablespaces, all pages
-	from the system tablespace. */
-	if (!req_type.is_log() && page_id.page_no() > 0
-	    && space->encryption_type != Encryption::NONE)
-	{
-		req_type.encryption_key(space->encryption_key,
-					space->encryption_klen,
-					space->encryption_iv);
-		req_type.encryption_algorithm(Encryption::AES);
-	} else {
+	/* Don't encrypt redo log and system tablespaces,
+	for all the other types tablespaces, don't encrypt page 0. */
+	if (space->encryption_type == Encryption::NONE
+	    || (page_id.page_no() == 0 && !req_type.is_log())) {
 		req_type.clear_encrypted();
+		return;
 	}
+
+	/* For writing redo log, if encryption for redo log is disabled,
+	skip setting encryption. */
+	if (req_type.is_log() && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	/* For writing temporary tablespace, if encryption for temporary
+	tablespace is disabled, skip setting encryption. */
+	if (fsp_is_system_temporary(space->id)
+	    && !srv_tmp_tablespace_encrypt && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	req_type.encryption_key(space->encryption_key,
+				space->encryption_klen,
+				space->encryption_iv);
+	req_type.encryption_algorithm(Encryption::AES);
 }
 
 /** Reads or writes data. This operation could be asynchronous (aio).
@@ -6969,8 +6984,9 @@ fil_space_validate_for_mtr_commit(
 {
 	ut_ad(!mutex_own(&fil_system->mutex));
 	ut_ad(space != NULL);
-	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	ut_ad(!is_predefined_tablespace(space->id));
+	ut_ad(space->purpose == FIL_TYPE_TABLESPACE ||
+		space->purpose == FIL_TYPE_TEMPORARY);
+	ut_ad(!is_shared_system_tablespace(space->id));
 
 	/* We are serving mtr_commit(). While there is an active
 	mini-transaction, we should have !space->stop_new_ops. This is
@@ -7354,11 +7370,7 @@ fil_set_encryption(
 	byte*			key,
 	byte*			iv)
 {
-	ut_ad(!is_system_or_undo_tablespace(space_id));
-
-	if (is_system_tablespace(space_id)) {
-		return(DB_IO_NO_ENCRYPT_TABLESPACE);
-	}
+	ut_ad(!is_shared_system_tablespace(space_id));
 
 	mutex_enter(&fil_system->mutex);
 
@@ -7391,6 +7403,9 @@ fil_set_encryption(
 	return(DB_SUCCESS);
 }
 
+/** Default master key id for bootstrap */
+static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
+
 /** Rotate the tablespace keys by new master key.
 @return true if the re-encrypt suceeds */
 bool
@@ -7404,14 +7419,29 @@ fil_encryption_rotate()
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
 		if (is_system_or_undo_tablespace(space->id)
-		    || fsp_is_system_temporary(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		/* Skip the temporary tablespace when it's in default
+		key status, since it's the first server startup
+		after bootstrap, and the server uuid is not ready
+		yet. */
+		if (fsp_is_system_temporary(space->id)
+		    && Encryption::master_key_id ==
+			ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}
 
 		if (space->encryption_type != Encryption::NONE) {
 			mtr_start(&mtr);
+
+			if (fsp_is_system_temporary(space->id)) {
+				mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+			}
+
 			mtr.set_named_space(space->id);
 
 			space = mtr_x_lock_space(space->id, &mtr);

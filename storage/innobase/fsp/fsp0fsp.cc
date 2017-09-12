@@ -231,7 +231,6 @@ fsp_flags_is_valid(
 	bool	has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 	bool	is_shared = FSP_FLAGS_GET_SHARED(flags);
 	bool	is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
-	bool	is_encryption = FSP_FLAGS_GET_ENCRYPTION(flags);
 
 	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
 
@@ -275,11 +274,6 @@ fsp_flags_is_valid(
 	It is not compatible with the TABLESPACE clause.  Nor is it
 	compatible with the TEMPORARY clause. */
 	if (has_data_dir && (is_shared || is_temp)) {
-		return(false);
-	}
-
-	/* Temporary tablespaces do not use the encryption clause. */
-	if (is_encryption && is_temp) {
 		return(false);
 	}
 
@@ -597,7 +591,8 @@ xdes_get_descriptor_with_space_hdr(
 			  && fspace->id <= srv_undo_tablespaces))));
 	ut_ad(size == fspace->size_in_header);
 	ut_ad((flags & ~FSP_FLAGS_MASK_DATA_DIR)
-	      == (fspace->flags & ~FSP_FLAGS_MASK_DATA_DIR));
+	      == (fspace->flags & ~FSP_FLAGS_MASK_DATA_DIR)
+	      || fspace->purpose == FIL_TYPE_TEMPORARY);
 	if ((offset >= size) || (offset >= limit)) {
 		return(NULL);
 	}
@@ -1049,6 +1044,52 @@ fsp_header_rotate_encryption(
 			  encrypt_info,
 			  ENCRYPTION_INFO_SIZE_V2,
 			  mtr);
+
+	return(true);
+}
+
+/** Enable encryption for already existing tablespace.
+@param[in]	space_id	tablespace id
+@return true if success */
+bool
+fsp_enable_encryption(
+	ulint space_id)
+{
+	byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+	fil_space_t*	space = fil_space_get(space_id);
+
+	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
+
+	if (!fsp_header_fill_encryption_info(space, encrypt_info)) {
+		return(false);
+	}
+
+	mtr_t		mtr;
+	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	mtr.set_named_space(space_id);
+
+	space = mtr_x_lock_space(space_id, &mtr);
+
+	const page_size_t	page_size(space->flags);
+	buf_block_t* block = buf_page_get(page_id_t(space->id, 0), page_size,
+					  RW_SX_LATCH, &mtr);
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+	ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
+
+	page_t* page = buf_block_get_frame(block);
+	mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page,
+			 space->flags, MLOG_4BYTES, &mtr);
+
+	ulint offset = fsp_header_get_encryption_offset(page_size);
+	ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
+
+	mlog_write_string(page + offset,
+			  encrypt_info,
+			  ENCRYPTION_INFO_SIZE_V2,
+			  &mtr);
+
+	mtr_commit(&mtr);
 
 	return(true);
 }

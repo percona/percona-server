@@ -288,6 +288,9 @@ extern my_bool	srv_undo_log_truncate;
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
 
+/** Enable or disable encryption of temporary tablespace.*/
+extern my_bool	srv_tmp_tablespace_encrypt;
+
 
 /** Whether the redo log tracking is currently enabled. Note that it is
 possible for the log tracker thread to be running and the tracking to be
@@ -507,6 +510,9 @@ extern my_bool	srv_purge_view_update_only_debug;
 
 /** Value of MySQL global used to disable master thread. */
 extern my_bool	srv_master_thread_disabled_debug;
+/** Pause master thread in the middle of enabling of temporary tablespace
+encryption */
+extern ulint	srv_master_encrypt_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulint	srv_fatal_semaphore_wait_threshold;

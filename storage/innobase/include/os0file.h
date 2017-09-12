@@ -514,6 +514,11 @@ struct Encryption {
 		ulint			dst_len)
 		MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_INNOCHECKSUM
+	/** Check if keyring plugin loaded. */
+	static bool MY_ATTRIBUTE((warn_unused_result)) check_keyring();
+#endif
+
 	/** Encrypt type */
 	Type			m_type;
 

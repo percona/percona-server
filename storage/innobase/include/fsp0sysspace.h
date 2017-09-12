@@ -282,6 +282,18 @@ extern SysTablespace srv_sys_space;
 /** The control info of a temporary table shared tablespace. */
 extern SysTablespace srv_tmp_space;
 
+/** Check if the space_id is for a shared system tablespace.
+@param[in]	id	Space ID to check
+@return true if id is a system tablespace, false if not. */
+UNIV_INLINE
+bool
+MY_ATTRIBUTE((warn_unused_result))
+is_shared_system_tablespace(
+	ulint	id)
+{
+	return(id == srv_sys_space.space_id());
+}
+
 /** Check if the space_id is for a system-tablespace (shared + temp).
 @param[in]	id	Space ID to check
 @return true if id is a system tablespace, false if not. */

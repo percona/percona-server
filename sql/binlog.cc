@@ -11125,7 +11125,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   @retval false Error was generated.
   @retval true No error was generated (possibly a warning was generated).
 */
-static bool handle_gtid_consistency_violation(THD *thd, int error_code)
+bool handle_gtid_consistency_violation(THD *thd, int error_code)
 {
   DBUG_ENTER("handle_gtid_consistency_violation");
 
@@ -11248,17 +11248,19 @@ bool THD::is_ddl_gtid_compatible()
     DBUG_RETURN(ret);
   }
   else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
-            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
-           (lex->sql_command == SQLCOM_DROP_TABLE && lex->drop_temporary))
+            (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) != 0))
   {
     /*
-      [CREATE|DROP] TEMPORARY TABLE is unsafe to execute
-      inside a transaction because the table will stay and the
-      transaction will be written to the slave's binary log with the
-      GTID even if the transaction is rolled back.
-      This includes the execution inside Functions and Triggers.
+      In statement binary log format, CREATE TEMPORARY TABLE is unsafe
+      to execute inside a transaction because the table will stay and the
+      transaction will be written to the slave's binary log with the GTID even
+      if the transaction is rolled back. This includes the execution inside
+      functions and triggers.
+      The same considerations apply for DROP TEMPORARY TABLE too, this is
+      checked in mysql_rm_table instead.
     */
-    if (in_multi_stmt_transaction_mode() || in_sub_stmt)
+    if ((in_multi_stmt_transaction_mode() || in_sub_stmt)
+        && variables.binlog_format == BINLOG_FORMAT_STMT)
     {
       bool ret= handle_gtid_consistency_violation(
         this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION);

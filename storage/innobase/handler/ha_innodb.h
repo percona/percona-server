@@ -1133,7 +1133,7 @@ innobase_build_index_translation(
 
 /** Compression dictionary id container */
 typedef std::map<uint16, ulint, std::less<uint16>,
-	ut_allocator<std::pair<uint16, const ulint> > >
+	ut_allocator<std::pair<const uint16, ulint> > >
 	zip_dict_id_container_t;
 
 /** This function checks if all the compression dictionaries referenced

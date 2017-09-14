@@ -34,6 +34,8 @@ FOREACH(test ${TESTS})
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_keys_container.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/common/system_key_adapter.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_list.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_key.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_io.cc

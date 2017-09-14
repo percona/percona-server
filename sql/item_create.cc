@@ -32,6 +32,7 @@
 #include "item_sum.h"            // Item_sum_udf_str
 #include "item_timefunc.h"       // Item_func_add_time
 #include "item_xmlfunc.h"        // Item_func_xml_extractvalue
+#include "item_keyring_func.h"   // Item_func_rotate_system_key
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "sql_class.h"           // THD
 #include "sql_time.h"            // str_to_datetime
@@ -2133,6 +2134,17 @@ protected:
   virtual ~Create_func_is_ipv6() {}
 };
 
+class Create_func_rotate_system_key : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_rotate_system_key s_singleton;
+
+protected:
+  Create_func_rotate_system_key() {}
+  virtual ~Create_func_rotate_system_key() {}
+};
 
 class Create_func_is_ipv4_compat : public Create_func_arg1
 {
@@ -5509,6 +5521,13 @@ Create_func_is_ipv4::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_is_ipv4(POS(), arg1);
 }
 
+Create_func_rotate_system_key Create_func_rotate_system_key::s_singleton;
+
+Item*
+Create_func_rotate_system_key::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_rotate_system_key(POS(), arg1);
+}
 
 Create_func_is_ipv6 Create_func_is_ipv6::s_singleton;
 
@@ -7621,6 +7640,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("RELEASE_ALL_LOCKS") }, BUILDER(Create_func_release_all_locks) },
   { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock) },
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
+  { { C_STRING_WITH_LEN("ROTATE_SYSTEM_KEY") }, BUILDER(Create_func_rotate_system_key)},
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},
   { { C_STRING_WITH_LEN("RPAD") }, BUILDER(Create_func_rpad)},
   { { C_STRING_WITH_LEN("RTRIM") }, BUILDER(Create_func_rtrim)},

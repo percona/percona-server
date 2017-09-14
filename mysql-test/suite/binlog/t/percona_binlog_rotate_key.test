@@ -1,0 +1,35 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_statement.inc
+
+--echo # This test is to check that using rotate_system_key when binlog is enabled and format of the binlog is statement
+--echo # generates warning that unsafe statement was written to binary log.
+
+--let $restart_hide_args=1
+--let $restart_parameters=restart:--log-error=$MYSQLTEST_VARDIR/tmp/percona_binlog_rotate_key.err --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT
+--source include/restart_mysqld.inc
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+CREATE TABLE t0 (a INT);
+
+--let $assert_text= Binlog should be ON
+--let $assert_cond= "[SELECT @@GLOBAL.log_bin = 1]" = 1
+--source include/assert.inc
+
+--let $assert_text= percona_binlog key got rotated
+--let $assert_cond= "[SELECT rotate_system_key\\(\\"percona_binlog\\"\\) = 1]" = 1
+--source include/assert.inc
+
+INSERT INTO t0 VALUES (rotate_system_key("percona_binlog"));
+
+# Find a warning in server's log
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/percona_binlog_rotate_key.err
+--let SEARCH_PATTERN= Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+# cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_binlog_rotate_key.err
+DROP TABLE t0;

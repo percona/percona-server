@@ -40,9 +40,9 @@ namespace keyring__api_unittest
   protected:
     virtual void SetUp()
     {
-      plugin_name= new char[strlen("FakeKeyring")+1];
+      plugin_name= new char[strlen("FakeKeyring") + 1];
       strcpy(plugin_name, "FakeKeyring");
-      keyring_filename= new char[strlen("./keyring")+1];
+      keyring_filename= new char[strlen("./keyring") + 1];
       strcpy(keyring_filename, "./keyring");
 
       plugin_info.name.str= plugin_name;
@@ -96,7 +96,7 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
+    EXPECT_EQ(key_len, sample_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
@@ -127,12 +127,12 @@ namespace keyring__api_unittest
     //make sure that the key was xored before it was put into keys_container, i.e.
     //the fetched key data is not equal to the key data that was stored
     EXPECT_STRNE(sample_key_data.c_str(), reinterpret_cast<const char*>(key_data_fetched));
-    ASSERT_TRUE(sample_key_data.length()+1 == key_data_fetched_size);
+    ASSERT_TRUE(sample_key_data.length() + 1 == key_data_fetched_size);
 
     //now xor to get the data that was stored
     fetched_key->xor_data();
     EXPECT_STREQ(sample_key_data.c_str(), reinterpret_cast<const char*>(key_data_fetched));
-    ASSERT_TRUE(sample_key_data.length()+1 == key_data_fetched_size);
+    ASSERT_TRUE(sample_key_data.length() + 1 == key_data_fetched_size);
     my_free(fetched_key->release_key_data());
   }
 
@@ -179,14 +179,14 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Robert_key1", &key_type, "Robert", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, key_data1.length()+1);
+    EXPECT_EQ(key_len, key_data1.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, key_data1.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
     my_free(key);
     key= NULL;
     EXPECT_EQ(mysql_key_remove("Robert_key2", "Robert"), 0);
-    //make sure the key was removed - fetch it
+    // make sure the key was removed - fetch it
     EXPECT_EQ(mysql_key_fetch("Robert_key2", &key_type, "Robert", &key,
                               &key_len), 0);
     ASSERT_TRUE(key == NULL);
@@ -223,6 +223,229 @@ namespace keyring__api_unittest
                               sample_key_data.length() + 1), 1);
   }
 
+  TEST_F(Keyring_api_test, StorePBStoreSKFetchPBRemovePB)
+  {
+    EXPECT_EQ(mysql_key_store("percona_binlog", "AES", NULL, sample_key_data.c_str(),
+                              sample_key_data.length() + 1), 0);
+    EXPECT_EQ(mysql_key_store("percona_RGRGRG_1", "AES", NULL, "1234_",
+                              strlen("1234_") + 1), 0);
+    char *key_type= NULL;
+    size_t key_len= 0;
+    void *key= NULL;
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    std::string key_data_with_version= "0:" + sample_key_data;
+    EXPECT_EQ(key_len, key_data_with_version.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key), key_data_with_version.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+    my_free(key);
+    key= NULL;
+    EXPECT_EQ(mysql_key_remove("percona_binlog", NULL), 1);
+    // make sure the key was not removed - fetch it
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, key_data_with_version.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key), key_data_with_version.c_str(), key_len) == 0);
+    my_free(key_type);
+    my_free(key);
+  }
+
+  TEST_F(Keyring_api_test, GeneratePBFetchPBRotatePBFetchPB)
+  {
+    EXPECT_EQ(mysql_key_generate("percona_binlog", "AES", NULL, 16), 0);
+
+    char *key_type= NULL;
+    size_t key_len= 0;
+    void *key_ver0= NULL;
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key_ver0,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, static_cast<size_t>(18));
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver0), "0:", 2) == 0);
+    my_free(key_type);
+    key_type= NULL;
+
+    void *key_ver1= NULL;
+    EXPECT_EQ(mysql_key_generate("percona_binlog", "AES", NULL, 16), 0);
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key_ver1,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, static_cast<size_t>(18));
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver1), "1:", 2) == 0);
+    my_free(key_type);
+    key_type= NULL;
+
+    // make sure that rotated key is different than the original one
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver0) + 2, reinterpret_cast<char*>(key_ver1) + 2, 16) != 0);
+
+    my_free(key_ver0);
+    my_free(key_ver1);
+  }
+
+  TEST_F(Keyring_api_test, GeneratePBRotatePBFetchFirstVersionFetchLatestPB)
+  {
+    EXPECT_EQ(mysql_key_generate("percona_binlog", "AES", NULL, 16), 0);
+
+    EXPECT_EQ(mysql_key_generate("percona_binlog", "AES", NULL, 16), 0);
+
+    char *key_type= NULL;
+    size_t key_len= 0;
+    void *key_ver0= NULL;
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog:0", &key_type, NULL, &key_ver0,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, static_cast<size_t>(16));
+    my_free(key_type);
+    key_type= NULL;
+
+    void *key_ver1= NULL;
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key_ver1,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, static_cast<size_t>(18));
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver1), "1:", 2) == 0);
+    my_free(key_type);
+    key_type= NULL;
+
+    // make sure that rotated key is different than the original one
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver0) + 2, reinterpret_cast<char*>(key_ver1) + 2, 16) != 0);
+
+    my_free(key_ver0);
+    my_free(key_ver1);
+  }
+
+  TEST_F(Keyring_api_test, StorePBRotatePBFetchFirstVersionFetchLatestPB)
+  {
+    std::string percona_binlog_key_ver0_data("key_ver0");
+
+    EXPECT_EQ(mysql_key_store("percona_binlog", "AES", NULL, percona_binlog_key_ver0_data.c_str(),
+                              percona_binlog_key_ver0_data.length() + 1), 0);
+
+    std::string percona_binlog_key_ver1_data("key_ver1");
+
+    EXPECT_EQ(mysql_key_store("percona_binlog", "AES", NULL, percona_binlog_key_ver1_data.c_str(),
+                              percona_binlog_key_ver1_data.length() + 1), 0);
+
+    char *key_type= NULL;
+    size_t key_len= 0;
+    void *key_ver0= NULL;
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog:0", &key_type, NULL, &key_ver0,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, percona_binlog_key_ver0_data.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver0), percona_binlog_key_ver0_data.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+
+    void *key_ver1= NULL;
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key_ver1,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    EXPECT_EQ(key_len, percona_binlog_key_ver1_data.length() + 3);
+    std::string expected_percona_binlog_key_ver1_data_with_verion= "1:" + percona_binlog_key_ver1_data;
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver1), expected_percona_binlog_key_ver1_data_with_verion.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+
+    my_free(key_ver0);
+    my_free(key_ver1);
+  }
+
+  TEST_F(Keyring_api_test, RotatePBStoreSKFetchPBRotatePBFetchPBRotatePBRotateSKFetchPBFetchSK)
+  {
+    std::string percona_binlog_key_data_1("key1");
+
+    EXPECT_EQ(mysql_key_store("percona_binlog", "AES", NULL, percona_binlog_key_data_1.c_str(),
+                              percona_binlog_key_data_1.length() + 1), 0);
+
+    std::string percona_sk_data_1("system_key1");
+
+    EXPECT_EQ(mysql_key_store("percona_sk", "AES", NULL, percona_sk_data_1.c_str(),
+                              percona_sk_data_1.length() + 1), 0);
+
+    char *key_type= NULL;
+    size_t key_len= 0;
+    void *key= NULL;
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    std::string key_data_with_version= "0:" + percona_binlog_key_data_1;
+    EXPECT_EQ(key_len, key_data_with_version.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key), key_data_with_version.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+    my_free(key);
+    key= NULL;
+
+    std::string percona_binlog_key_data_2("key2");
+
+    EXPECT_EQ(mysql_key_store("percona_binlog", "AES", NULL, percona_binlog_key_data_2.c_str(),
+                              percona_binlog_key_data_2.length() + 1), 0);
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    key_data_with_version= "1:" + percona_binlog_key_data_2;
+    EXPECT_EQ(key_len, key_data_with_version.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key), key_data_with_version.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+    my_free(key);
+    key= NULL;
+
+    std::string percona_binlog_key_data_3("key3___");
+
+    EXPECT_EQ(mysql_key_store("percona_binlog", "AES", NULL, percona_binlog_key_data_3.c_str(),
+                              percona_binlog_key_data_3.length() + 1), 0);
+
+    std::string percona_sk_data_2("percona_sk_data2");
+
+    EXPECT_EQ(mysql_key_store("percona_sk", "AES", NULL, percona_sk_data_2.c_str(),
+                              percona_sk_data_2.length() + 1), 0);
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    key_data_with_version= "2:" + percona_binlog_key_data_3;
+    EXPECT_EQ(key_len, key_data_with_version.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key), key_data_with_version.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+    my_free(key);
+    key= NULL;
+
+    EXPECT_EQ(mysql_key_fetch("percona_sk", &key_type, NULL, &key,
+                              &key_len), 0);
+    EXPECT_STREQ("AES", key_type);
+    key_data_with_version= "1:" + percona_sk_data_2;
+    EXPECT_EQ(key_len, key_data_with_version.length() + 1);
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key), key_data_with_version.c_str(), key_len) == 0);
+    my_free(key_type);
+    key_type= NULL;
+    my_free(key);
+    key= NULL;
+
+  }
+
+  TEST_F(Keyring_api_test, FetchSystemKeyOnJustInitializedContainer)
+  {
+    char *key_type= NULL;
+    size_t key_len= 0;
+    void *key= NULL;
+
+    EXPECT_EQ(mysql_key_fetch("percona_binlog", &key_type, NULL, &key,
+                              &key_len), 0);
+    ASSERT_TRUE(key == NULL);
+  }
+
   TEST_F(Keyring_api_test, KeyGenerate)
   {
     EXPECT_EQ(mysql_key_generate("Robert_key", "AES", "Robert", 128), 0);
@@ -251,15 +474,16 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
+    EXPECT_EQ(key_len, sample_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
     my_free(key);
     key= NULL;
     delete[] keyring_filename;
-    keyring_filename= new char[strlen("./new_keyring")+1];
+    keyring_filename= new char[strlen("./new_keyring") + 1];
     strcpy(keyring_filename, "./new_keyring");
+    remove(keyring_filename); // just to make sure new_keyring does not exist
     keyring_file_data_value= keyring_filename;
     keyring_deinit_with_mock_logger();
     keyring_init_with_mock_logger();
@@ -269,7 +493,7 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_store("Robert_key_new", "AES", "Robert", sample_key_data.c_str(),
                               sample_key_data.length() + 1), 0);
     delete[] keyring_filename;
-    keyring_filename= new char[strlen("./keyring")+1];
+    keyring_filename= new char[strlen("./keyring") + 1];
     strcpy(keyring_filename, "./keyring");
     keyring_file_data_value= keyring_filename;
     keyring_deinit_with_mock_logger();
@@ -280,14 +504,14 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, "Robert", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
+    EXPECT_EQ(key_len, sample_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
     my_free(key);
     key= NULL;
     delete[] keyring_filename;
-    keyring_filename= new char[strlen("./new_keyring")+1];
+    keyring_filename= new char[strlen("./new_keyring") + 1];
     strcpy(keyring_filename, "./new_keyring");
     keyring_file_data_value= keyring_filename;
     keyring_deinit_with_mock_logger();
@@ -295,13 +519,16 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Robert_key_new", &key_type, "Robert", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
+    EXPECT_EQ(key_len, sample_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
     my_free(key);
     key= NULL;
     remove("./new_keyring");
+    // backup will stay as adding percona_binlog key will be unsuccessful - we have already added it in
+    // keyring
+    remove("./new_keyring.backup");
   }
 
   TEST_F(Keyring_api_test, NullUser)
@@ -314,7 +541,7 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Robert_key", &key_type, NULL, &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
+    EXPECT_EQ(key_len, sample_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
@@ -327,7 +554,7 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Kamil_key", &key_type, NULL, &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, sample_key_data.length()+1);
+    EXPECT_EQ(key_len, sample_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, sample_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
@@ -339,7 +566,7 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Artur_key", &key_type, "Artur", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, arturs_key_data.length()+1);
+    EXPECT_EQ(key_len, arturs_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, arturs_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;
@@ -352,7 +579,7 @@ namespace keyring__api_unittest
     EXPECT_EQ(mysql_key_fetch("Artur_key", &key_type, "Artur", &key,
                               &key_len), 0);
     EXPECT_STREQ("AES", key_type);
-    EXPECT_EQ(key_len, arturs_key_data.length()+1);
+    EXPECT_EQ(key_len, arturs_key_data.length() + 1);
     ASSERT_TRUE(memcmp((char *)key, arturs_key_data.c_str(), key_len) == 0);
     my_free(key_type);
     key_type= NULL;

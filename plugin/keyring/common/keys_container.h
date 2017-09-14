@@ -24,6 +24,7 @@
 #include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 #include "i_keys_container.h"
 #include "keyring_memory.h"
+#include "i_system_keys_container.h"
 
 #include <vector>
 
@@ -74,6 +75,7 @@ protected:
   ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;
+  boost::movelib::unique_ptr<ISystem_keys_container> system_keys_container;
 };
 
 } //namespace keyring

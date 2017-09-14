@@ -1886,14 +1886,7 @@ public:
   }
 
   Binlog_crypt_data crypto_data;
-  bool start_decryption(Start_encryption_log_event* sele)
-  {
-    DBUG_ASSERT(!crypto_data.is_enabled());
-
-    if (!sele->is_valid())
-      return true;
-    return crypto_data.init(sele->crypto_scheme, sele->key_version, sele->nonce);
-  }
+  bool start_decryption(Start_encryption_log_event* sele);
 
   void copy_crypto_data(const Format_description_log_event& o)
   {

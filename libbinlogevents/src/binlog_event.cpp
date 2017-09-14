@@ -32,6 +32,7 @@ namespace binary_log_debug
   bool debug_checksum_test= false;
   bool debug_simulate_invalid_address= false;
   bool debug_pretend_version_50034_in_binlog= false;
+  bool debug_expect_unknown_event= false;
 }
 
 namespace binary_log
@@ -195,6 +196,13 @@ Log_event_header(const char* buf, uint16_t binlog_version)
     }
   /* otherwise, go on with reading the header from buf (nothing now) */
   } //end switch (binlog_version)
+  // The below type_code assert is correct and needed in 99% of time. In normal testing we do not
+  // anticipate type_code to be of unknown value. This is why we only skip this assert when
+  // debug variable expect_Unknown_event is set.
+#ifndef DBUG_OFF
+  if (binary_log_debug::debug_expect_unknown_event)
+    return;
+#endif
   BAPI_ASSERT(type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F);
 }
 

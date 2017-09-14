@@ -34,7 +34,7 @@ SET(MYSYS_SOURCES  array.c charset-def.c charset.c checksum.c
 				thr_rwlock.c tree.c typelib.c base64.c my_memmem.c
 				lf_alloc-pin.c lf_dynarray.c lf_hash.c
 				my_rdtsc.c psi_noop.c my_syslog.c
-				my_chmod.c my_thread.c)
+				my_chmod.c my_thread.c system_key.c)
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES

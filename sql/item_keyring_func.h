@@ -14,27 +14,26 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef MYSQL_VAULT_BASE64_H
-#define MYSQL_VAULT_BASE64_H
-
 #include <my_global.h>
-#include "secure_string.h"
+#include "item_cmpfunc.h"
 
-namespace keyring
+class Item_func_rotate_system_key : public Item_bool_func
 {
-  class Vault_base64
+public:
+  Item_func_rotate_system_key(const POS &pos, Item *system_key_id)
+    : Item_bool_func(pos, system_key_id)
   {
-  public :
-    enum Base64Format
-    {
-      SINGLE_LINE,
-      MULTI_LINE
-    };
-    static bool encode(const void *src, size_t src_len, Secure_string *encoded, Base64Format format);
-    static bool decode(const Secure_string &src, Secure_string *dst);
-    // It is caller responsibility to delete memory allocated with delete[]
-    static bool decode(const Secure_string &src, char **dst, uint64 *dst_length);
-  };
-}
+    null_value= false;
+  }
 
-#endif // MYSQL_VAULT_BASE64_H
+public:
+  virtual longlong val_int();
+  virtual const char *func_name() const
+  { return "rotate_system_key"; }
+  virtual bool itemize(Parse_context *pc, Item **res);
+  virtual bool fix_fields(THD *, Item **);
+
+protected:
+  virtual bool calc_value(const String *arg);
+};
+

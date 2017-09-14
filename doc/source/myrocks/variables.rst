@@ -27,9 +27,6 @@ There several ways to set these variables:
 * If you want to test things out, you can set some of the variables
   when starting ``mysqld`` using corresponding command-line options.
 
-  .. note:: Not all variables have a corresponding option
-     that can be set on the command line.
-
 If a variable was not set in either the configuration file
 or as a command-line option,
 the default value is used.
@@ -67,10 +64,6 @@ Also, all variables can exist in one or both of the following scopes:
      - No
      - Global
    * - :variable:`rocksdb_allow_mmap_writes`
-     - Yes
-     - No
-     - Global
-   * - :variable:`rocksdb_background_sync`
      - Yes
      - No
      - Global
@@ -190,13 +183,17 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_enable_ttl`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_enable_thread_tracking`
      - Yes
      - No
      - Global
    * - :variable:`rocksdb_enable_write_thread_adaptive_yield`
      - Yes
-     - Yes
+     - No
      - Global
    * - :variable:`rocksdb_error_if_exists`
      - Yes
@@ -354,6 +351,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_reset_stats`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_rpl_skip_tx_api`
      - Yes
      - Yes
@@ -422,11 +423,11 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
-   * - :variable:`rocksdb_use_direct_reads`
+   * - :variable:`rocksdb_use_direct_io_for_flush_and_compaction`
      - Yes
      - No
      - Global
-   * - :variable:`rocksdb_use_direct_writes`
+   * - :variable:`rocksdb_use_direct_reads`
      - Yes
      - No
      - Global
@@ -546,21 +547,6 @@ make sure that :variable:`rocksdb_use_direct_reads` is disabled.
 
 Specifies whether to allow the OS to map a data file into memory for writes.
 Disabled by default.
-
-.. variable:: rocksdb_background_sync
-
-  :version 5.7.19-17: Implemented
-  :cli: ``--rocksdb-background-sync``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
-
-Specifies whether to perform background ``fsync``
-on WAL (write-ahead log) files every second.
-Disabled by default.
-If WAL files are already synced on every commit,
-then enabling this option is redundant.
 
 .. variable:: rocksdb_base_background_compactions
 
@@ -990,6 +976,19 @@ Enabled by default.
 If disabled, bulk loading uses the normal write path via the memtable
 and does not require keys to be inserted in any order.
 
+.. variable:: rocksdb_enable_ttl
+
+  :version 5.7.19-17: Implemented
+  :cli: ``--rocksdb-enable-ttl``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Specifies whether to keep expired TTL records during compaction.
+Enabled by default.
+If disabled, expired TTL records will be dropped during compaction.
+
 .. variable:: rocksdb_enable_thread_tracking
 
   :version 5.7.19-17: Implemented
@@ -1008,7 +1007,7 @@ If enabled, thread status will be available via ``GetThreadList()``.
 
   :version 5.7.19-17: Implemented
   :cli: ``--rocksdb-enable-write-thread-adaptive-yield``
-  :dyn: Yes
+  :dyn: No
   :scope: Global
   :vartype: Boolean
   :default: ``OFF``
@@ -1058,8 +1057,7 @@ Possible values:
   as it ensures data consistency,
   but reduces performance.
 
-* ``2``: Sync based on a timer
-  controlled via :variable:`rocksdb-background-sync`.
+* ``2``: Sync every second.
 
 .. variable:: rocksdb_flush_memtable_on_analyze
 
@@ -1577,6 +1575,18 @@ Specifies the value to overrride the result of ``records_in_range()``.
 Default value is ``0``.
 Allowed range is up to ``2147483647``.
 
+.. variable:: rocksdb_reset_stats
+
+  :version 5.7.19-17: Implemented
+  :cli: ``--rocksdb-reset-stats``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Resets MyRocks internal statistics dynamically
+(without restarting the server).
+
 .. variable:: rocksdb_rpl_skip_tx_api
 
   :version 5.7.19-17: Implemented
@@ -1795,6 +1805,19 @@ Specifies whether to use adaptive mutex
 which spins in user space before resorting to the kernel.
 Disabled by default.
 
+.. variable:: rocksdb_use_direct_io_for_flush_and_compaction
+
+  :version 5.7.19-17: Implemented
+  :cli: ``--rocksdb-use-direct-io-for-flush-and-compaction``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether to write to data files directly,
+without caches or buffers.
+Disabled by default.
+
 .. variable:: rocksdb_use_direct_reads
 
   :version 5.7.19-17: Implemented
@@ -1809,19 +1832,6 @@ without caches or buffers.
 Disabled by default.
 If you enable this,
 make sure that :variable:`rocksdb_allow_mmap_reads` is disabled.
-
-.. variable:: rocksdb_use_direct_writes
-
-  :version 5.7.19-17: Implemented
-  :cli: ``--rocksdb-use-direct-writes``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
-
-Specifies whether to write to data files directly,
-without caches or buffers.
-Disable by default.
 
 .. variable:: rocksdb_use_fsync
 

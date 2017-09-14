@@ -798,8 +798,7 @@ static MYSQL_SYSVAR_BOOL(
 static MYSQL_SYSVAR_INT(max_open_files, rocksdb_db_options->max_open_files,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                         "DBOptions::max_open_files for RocksDB", nullptr,
-                        nullptr, rocksdb_db_options->max_open_files,
-                        /* min */ -1, /* max */ INT_MAX, 0);
+                        nullptr, 1000, /* min */ -1, /* max */ INT_MAX, 0);
 
 static MYSQL_SYSVAR_ULONG(max_total_wal_size,
                           rocksdb_db_options->max_total_wal_size,
@@ -3438,6 +3437,14 @@ static int rocksdb_init_func(void *const p) {
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE;
 
   DBUG_ASSERT(!mysqld_embedded);
+
+  if (rocksdb_db_options->max_open_files > (long) open_files_limit) {
+    sql_print_information("RocksDB: rocksdb_max_open_files should not be "
+                          "greater than the open_files_limit, effective value "
+                          "of rocksdb_max_open_files is being set to "
+                          "open_files_limit.");
+    rocksdb_db_options->max_open_files = open_files_limit;
+  }
 
   rocksdb_stats = rocksdb::CreateDBStatistics();
   rocksdb_db_options->statistics = rocksdb_stats;

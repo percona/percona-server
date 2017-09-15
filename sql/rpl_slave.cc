@@ -3389,10 +3389,13 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
 
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
+  @param force_mi_flush force mi flush independent of sync_master_info setting
 
   @return 0 if everything went fine, 1 otherwise.
 */
-static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
+static int write_ignored_events_info_to_relay_log(THD *thd,
+                                                  Master_info *mi,
+                                                  bool force_mi_flush)
 {
   Relay_log_info *rli= mi->rli;
   mysql_mutex_t *log_lock= rli->relay_log.get_log_lock();
@@ -3425,7 +3428,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
                    " to the relay log, SHOW SLAVE STATUS may be"
                    " inaccurate");
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-      if (flush_master_info(mi, TRUE))
+      if (flush_master_info(mi, force_mi_flush))
       {
         error= 1;
         sql_print_error("Failed to flush master info file.");
@@ -6021,7 +6024,7 @@ err:
     mi->mysql=0;
   }
   mysql_mutex_lock(&mi->data_lock);
-  write_ignored_events_info_to_relay_log(thd, mi);
+  write_ignored_events_info_to_relay_log(thd, mi, true);
   mysql_mutex_unlock(&mi->data_lock);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
@@ -8464,7 +8467,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
              FN_REFLEN);
       rli->ign_master_log_pos_end = mi->get_master_log_pos();
 
-      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi, false))
         goto end;
     }
 
@@ -8513,7 +8516,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
     rli->ign_master_log_pos_end= mi->get_master_log_pos();
 
-    if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+    if (write_ignored_events_info_to_relay_log(mi->info_thd, mi, true))
       goto err;
 
     goto end;

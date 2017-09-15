@@ -25,5 +25,6 @@ and includes the following differences from the original implementation:
   | Percona MyRocks  | Fail               | Fail                |
   +------------------+--------------------+---------------------+
 
-* Percona MyRocks includes the ``lz4`` and ``zstd`` statically linked libraries.
+* Percona MyRocks includes the ``lz4`` and ``zstd``
+  statically linked libraries.
 

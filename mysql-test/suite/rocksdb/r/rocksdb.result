@@ -1505,11 +1505,22 @@ rocksdb_memtable_unflushed	#
 rocksdb_queries_point	#
 rocksdb_queries_range	#
 rocksdb_block_cache_add	#
+rocksdb_block_cache_add_failures	#
+rocksdb_block_cache_bytes_read	#
+rocksdb_block_cache_bytes_write	#
+rocksdb_block_cache_data_add	#
+rocksdb_block_cache_data_bytes_insert	#
 rocksdb_block_cache_data_hit	#
 rocksdb_block_cache_data_miss	#
+rocksdb_block_cache_filter_add	#
+rocksdb_block_cache_filter_bytes_evict	#
+rocksdb_block_cache_filter_bytes_insert	#
 rocksdb_block_cache_filter_hit	#
 rocksdb_block_cache_filter_miss	#
 rocksdb_block_cache_hit	#
+rocksdb_block_cache_index_add	#
+rocksdb_block_cache_index_bytes_evict	#
+rocksdb_block_cache_index_bytes_insert	#
 rocksdb_block_cache_index_hit	#
 rocksdb_block_cache_index_miss	#
 rocksdb_block_cache_miss	#
@@ -1526,7 +1537,11 @@ rocksdb_compaction_key_drop_new	#
 rocksdb_compaction_key_drop_obsolete	#
 rocksdb_compaction_key_drop_user	#
 rocksdb_flush_write_bytes	#
+rocksdb_get_hit_l0	#
+rocksdb_get_hit_l1	#
+rocksdb_get_hit_l2_and_up	#
 rocksdb_getupdatessince_calls	#
+rocksdb_iter_bytes_read	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
 rocksdb_no_file_closes	#
@@ -1534,6 +1549,12 @@ rocksdb_no_file_errors	#
 rocksdb_no_file_opens	#
 rocksdb_num_iterators	#
 rocksdb_number_block_not_compressed	#
+rocksdb_number_db_next	#
+rocksdb_number_db_next_found	#
+rocksdb_number_db_prev	#
+rocksdb_number_db_prev_found	#
+rocksdb_number_db_seek	#
+rocksdb_number_db_seek_found	#
 rocksdb_number_deletes_filtered	#
 rocksdb_number_keys_read	#
 rocksdb_number_keys_updated	#
@@ -1578,11 +1599,22 @@ rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
 rocksdb_block_cache_add
+rocksdb_block_cache_add_failures
+rocksdb_block_cache_bytes_read
+rocksdb_block_cache_bytes_write
+rocksdb_block_cache_data_add
+rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
+rocksdb_block_cache_filter_add
+rocksdb_block_cache_filter_bytes_evict
+rocksdb_block_cache_filter_bytes_insert
 rocksdb_block_cache_filter_hit
 rocksdb_block_cache_filter_miss
 rocksdb_block_cache_hit
+rocksdb_block_cache_index_add
+rocksdb_block_cache_index_bytes_evict
+rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
@@ -1599,7 +1631,11 @@ rocksdb_compaction_key_drop_new
 rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
+rocksdb_get_hit_l0
+rocksdb_get_hit_l1
+rocksdb_get_hit_l2_and_up
 rocksdb_getupdatessince_calls
+rocksdb_iter_bytes_read
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1607,6 +1643,12 @@ rocksdb_no_file_errors
 rocksdb_no_file_opens
 rocksdb_num_iterators
 rocksdb_number_block_not_compressed
+rocksdb_number_db_next
+rocksdb_number_db_next_found
+rocksdb_number_db_prev
+rocksdb_number_db_prev_found
+rocksdb_number_db_seek
+rocksdb_number_db_seek_found
 rocksdb_number_deletes_filtered
 rocksdb_number_keys_read
 rocksdb_number_keys_updated
@@ -1653,11 +1695,22 @@ rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
 rocksdb_block_cache_add
+rocksdb_block_cache_add_failures
+rocksdb_block_cache_bytes_read
+rocksdb_block_cache_bytes_write
+rocksdb_block_cache_data_add
+rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
+rocksdb_block_cache_filter_add
+rocksdb_block_cache_filter_bytes_evict
+rocksdb_block_cache_filter_bytes_insert
 rocksdb_block_cache_filter_hit
 rocksdb_block_cache_filter_miss
 rocksdb_block_cache_hit
+rocksdb_block_cache_index_add
+rocksdb_block_cache_index_bytes_evict
+rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
@@ -1674,7 +1727,11 @@ rocksdb_compaction_key_drop_new
 rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
+rocksdb_get_hit_l0
+rocksdb_get_hit_l1
+rocksdb_get_hit_l2_and_up
 rocksdb_getupdatessince_calls
+rocksdb_iter_bytes_read
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1682,6 +1739,12 @@ rocksdb_no_file_errors
 rocksdb_no_file_opens
 rocksdb_num_iterators
 rocksdb_number_block_not_compressed
+rocksdb_number_db_next
+rocksdb_number_db_next_found
+rocksdb_number_db_prev
+rocksdb_number_db_prev_found
+rocksdb_number_db_seek
+rocksdb_number_db_seek_found
 rocksdb_number_deletes_filtered
 rocksdb_number_keys_read
 rocksdb_number_keys_updated

@@ -339,10 +339,13 @@ Write a merge block to the file system.
 ibool
 row_merge_write(
 /*============*/
-	int		fd,	/*!< in: file descriptor */
-	ulint		offset,	/*!< in: offset where to write,
-				in number of row_merge_block_t elements */
-	const void*	buf);	/*!< in: data */
+	int		fd,		/*!< in: file descriptor */
+	ulint		offset,		/*!< in: offset where to write,
+					in number of row_merge_block_t
+					elements */
+	void*		buf,		/*!< in: data */
+	void*		crypt_buf,	/*!< in: crypt buf or NULL */
+	ulint		space_id);	/*!< in: tablespace id */
 /********************************************************************//**
 Empty a sort buffer.
 @return sort buffer */
@@ -362,12 +365,14 @@ row_merge_file_create(
 	const char*	path);
 
 /** Merge disk files.
-@param[in]	trx	transaction
-@param[in]	dup	descriptor of index being created
-@param[in,out]	file	file containing index entries
-@param[in,out]	block	3 buffers
-@param[in,out]	tmpfd	temporary file handle
-@param[in,out]	stage	performance schema accounting object, used by
+@param[in]	trx		transaction
+@param[in]	dup		descriptor of index being created
+@param[in,out]	file		file containing index entries
+@param[in,out]	block		3 buffers
+@param[in,out]	crypt_block	encrypted file buffer
+@param[in]	space_id	tablespace id
+@param[in,out]	tmpfd		temporary file handle
+@param[in,out]	stage		performance schema accounting object, used by
 ALTER TABLE. If not NULL, stage->begin_phase_sort() will be called initially
 and then stage->inc() will be called for each record processed.
 @return DB_SUCCESS or error code */
@@ -377,6 +382,8 @@ row_merge_sort(
 	const row_merge_dup_t*	dup,
 	merge_file_t*		file,
 	row_merge_block_t*	block,
+	row_merge_block_t*	crypt_block,
+	ulint			space_id,
 	int*			tmpfd,
 	ut_stage_alter_t*	stage = NULL);
 
@@ -406,26 +413,30 @@ Read a merge block from the file system.
 ibool
 row_merge_read(
 /*===========*/
-	int			fd,	/*!< in: file descriptor */
-	ulint			offset,	/*!< in: offset where to read
-					in number of row_merge_block_t
-					elements */
-	row_merge_block_t*	buf);	/*!< out: data */
+	int			fd,		/*!< in: file descriptor */
+	ulint			offset,		/*!< in: offset where to read
+						in number of row_merge_block_t
+						elements */
+	row_merge_block_t*	buf,		/*!< out: data */
+	row_merge_block_t*	crypt_buf,	/*!< in: crypt buf or NULL */
+	ulint			space_id);	/*!< in: tablespace id */
 /********************************************************************//**
 Read a merge record.
 @return pointer to next record, or NULL on I/O error or end of list */
 const byte*
 row_merge_read_rec(
 /*===============*/
-	row_merge_block_t*	block,	/*!< in/out: file buffer */
-	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
-	const byte*		b,	/*!< in: pointer to record */
-	const dict_index_t*	index,	/*!< in: index of the record */
-	int			fd,	/*!< in: file descriptor */
-	ulint*			foffs,	/*!< in/out: file offset */
-	const mrec_t**		mrec,	/*!< out: pointer to merge record,
-					or NULL on end of list
-					(non-NULL on I/O error) */
-	ulint*			offsets)/*!< out: offsets of mrec */
+	row_merge_block_t*	block,		/*!< in/out: file buffer */
+	row_merge_block_t*	crypt_block,	/*!< in: crypt buf or NULL */
+	ulint			space_id,	/*!< in: tablespace id */
+	mrec_buf_t*		buf,		/*!< in/out: secondary buffer */
+	const byte*		b,		/*!< in: pointer to record */
+	const dict_index_t*	index,		/*!< in: index of the record */
+	int			fd,		/*!< in: file descriptor */
+	ulint*			foffs,		/*!< in/out: file offset */
+	const mrec_t**		mrec,		/*!< out: pointer to merge
+						record, or NULL on end of list
+						(non-NULL on I/O error) */
+	ulint*			offsets)	/*!< out: offsets of mrec */
 	MY_ATTRIBUTE((warn_unused_result));
 #endif /* row0merge.h */

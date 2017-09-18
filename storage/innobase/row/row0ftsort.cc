@@ -40,8 +40,9 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index,			\
-			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
+			block[N], crypt_block[N], table->space, buf[N],	\
+			b[N], index, fd[N], &foffs[N], &mrec[N],	\
+			offsets[N]);					\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
 				goto exit;				\
@@ -267,6 +268,31 @@ row_fts_psort_info_init(
 				ret = FALSE;
 				goto func_exit;
 			}
+
+			/* If tablespace is encrypted, allocate additional
+			buffer for encryption/decryption. */
+			if (log_tmp_is_encrypted()) {
+
+				/* Need to align memory for O_DIRECT write */
+				psort_info[j].crypt_alloc[i] =
+					static_cast<row_merge_block_t*>(
+						ut_malloc_nokey(
+							block_size + 1024));
+
+				if (psort_info[j].crypt_alloc[i] == NULL) {
+					ret = FALSE;
+					goto func_exit;
+				}
+
+				psort_info[j].crypt_block[i] =
+					static_cast<row_merge_block_t*>(
+						ut_align(
+							psort_info[j]
+							.crypt_alloc[i], 1024));
+			} else {
+				psort_info[j].crypt_alloc[i] = NULL;
+				psort_info[j].crypt_block[i] = NULL;
+			}
 		}
 
 		psort_info[j].child_status = 0;
@@ -318,6 +344,7 @@ row_fts_psort_info_destroy(
 
 				ut_free(psort_info[j].block_alloc[i]);
 				ut_free(psort_info[j].merge_file[i]);
+				ut_free(psort_info[j].crypt_alloc[i]);
 			}
 
 			mutex_free(&psort_info[j].mutex);
@@ -776,6 +803,7 @@ fts_parallel_tokenization(
 				? DATA_VARCHAR : DATA_VARMYSQL;
 
 	block = psort_info->merge_block;
+	row_merge_block_t** crypt_block = psort_info->crypt_block;
 
 	const page_size_t&	page_size = dict_table_page_size(table);
 
@@ -869,7 +897,9 @@ loop:
 
 		if (!row_merge_write(merge_file[t_ctx.buf_used]->fd,
 				     merge_file[t_ctx.buf_used]->offset++,
-				     block[t_ctx.buf_used])) {
+				     block[t_ctx.buf_used],
+				     crypt_block[t_ctx.buf_used],
+				     table->space)) {
 			error = DB_TEMP_FILE_WRITE_FAIL;
 			goto func_exit;
 		}
@@ -961,13 +991,19 @@ exit:
 			if (merge_file[i]->offset != 0) {
 				if (!row_merge_write(merge_file[i]->fd,
 						merge_file[i]->offset++,
-						block[i])) {
+						block[i], crypt_block[i],
+						table->space)) {
 					error = DB_TEMP_FILE_WRITE_FAIL;
 					goto func_exit;
 				}
 
 				UNIV_MEM_INVALID(block[i][0],
 						 srv_sort_buf_size);
+
+				if (crypt_block[i]) {
+					UNIV_MEM_INVALID(crypt_block[i][0],
+						 srv_sort_buf_size);
+				}
 			}
 
 			buf[i] = row_merge_buf_empty(buf[i]);
@@ -992,7 +1028,8 @@ exit:
 
 		error = row_merge_sort(psort_info->psort_common->trx,
 				       psort_info->psort_common->dup,
-				       merge_file[i], block[i], &tmpfd[i]);
+				       merge_file[i], block[i], crypt_block[i],
+				       table->space, &tmpfd[i]);
 		if (error != DB_SUCCESS) {
 			close(tmpfd[i]);
 			goto func_exit;
@@ -1564,6 +1601,8 @@ row_fts_merge_insert(
 	fd = (int*) mem_heap_alloc(heap, sizeof(*fd) * fts_sort_pll_degree);
 	block = (byte**) mem_heap_alloc(
 		heap, sizeof(*block) * fts_sort_pll_degree);
+	byte** crypt_block = (byte**) mem_heap_alloc(
+		heap, sizeof(*crypt_block) * fts_sort_pll_degree);
 	mrec = (const mrec_t**) mem_heap_alloc(
 		heap, sizeof(*mrec) * fts_sort_pll_degree);
 	sel_tree = (int*) mem_heap_alloc(
@@ -1584,6 +1623,7 @@ row_fts_merge_insert(
 		offsets[i][0] = num;
 		offsets[i][1] = dict_index_get_n_fields(index);
 		block[i] = psort_info[i].merge_block[id];
+		crypt_block[i] = psort_info[i].crypt_block[id];
 		b[i] = psort_info[i].merge_block[id];
 		fd[i] = psort_info[i].merge_file[id]->fd;
 		foffs[i] = 0;
@@ -1662,7 +1702,9 @@ row_fts_merge_insert(
 			if (psort_info[i].merge_file[id]->offset > 0
 			    && (!row_merge_read(
 					fd[i], foffs[i],
-					(row_merge_block_t*) block[i]))) {
+					(row_merge_block_t*) block[i],
+					(row_merge_block_t*) crypt_block[i],
+					table->space))) {
 				error = DB_CORRUPTION;
 				goto exit;
 			}

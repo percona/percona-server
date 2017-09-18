@@ -64,6 +64,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "que0que.h"
 #include "row0mysql.h"
 #include "row0trunc.h"
+#include "row0log.h"
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -1773,6 +1774,18 @@ srv_export_innodb_status(void)
 		srv_truncated_status_writes;
 
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
+
+	export_vars.innodb_n_merge_blocks_encrypted =
+		srv_stats.n_merge_blocks_encrypted;
+
+	export_vars.innodb_n_merge_blocks_decrypted =
+		srv_stats.n_merge_blocks_decrypted;
+
+	export_vars.innodb_n_rowlog_blocks_encrypted =
+		srv_stats.n_rowlog_blocks_encrypted;
+
+	export_vars.innodb_n_rowlog_blocks_decrypted =
+		srv_stats.n_rowlog_blocks_decrypted;
 
 #ifdef UNIV_DEBUG
 	rw_lock_s_lock(&purge_sys->latch);

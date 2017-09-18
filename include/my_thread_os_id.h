@@ -60,7 +60,7 @@ static inline my_thread_os_id_t my_thread_os_id()
     as SYS_gettid has a different meaning compared to linux gettid().
   */
   uint64_t tid64;
-  pthread_threadid_np(nullptr, &tid64);
+  pthread_threadid_np(NULL, &tid64);
   return (pid_t)tid64;
 #else
 #ifdef HAVE_SYS_GETTID

@@ -507,7 +507,13 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
   char const *const str_end= buf - common_header_len + event_len;
   uint8_t len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
-  read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
+  if (read_str_at_most_255_bytes(&ptr, str_end, &str, &len))
+  {
+    /* Mark this event invalid */
+    incident= INCIDENT_NONE;
+    return;
+  }
+
   if (!(message= static_cast<char*>(bapi_malloc(len + 1, 16))))
   {
     /* Mark this event invalid */

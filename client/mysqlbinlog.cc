@@ -1197,14 +1197,16 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   IO_CACHE *const head= &print_event_info->head_cache;
 
   /*
-    Format events are not concerned by --offset and such, we always need to
-    read them to be able to process the wanted events.
+    Format and Start encryptions events are not concerned by --offset and such,
+    we always need to read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&
        ((my_time_t) (ev->common_header->when.tv_sec) >= start_datetime)) ||
-      (ev_type == binary_log::FORMAT_DESCRIPTION_EVENT))
+      (ev_type == binary_log::FORMAT_DESCRIPTION_EVENT) ||
+      (ev_type == binary_log::START_ENCRYPTION_EVENT))
   {
-    if (ev_type != binary_log::FORMAT_DESCRIPTION_EVENT)
+    if (ev_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+        ev_type != binary_log::START_ENCRYPTION_EVENT)
     {
       /*
         We have found an event after start_datetime, from now on print
@@ -1692,6 +1694,14 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       in_transaction= false;
       print_event_info->skipped_event_in_transaction= false;
       seen_gtid= false;
+      ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
+      break;
+    }
+    case binary_log::START_ENCRYPTION_EVENT:
+    {
+      glob_description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev));
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -3513,6 +3523,7 @@ int main(int argc, char** argv)
 
 #include "decimal.c"
 #include "my_decimal.cc"
+#include "event_crypt.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"
@@ -3521,3 +3532,4 @@ int main(int argc, char** argv)
 #include "rpl_gtid_set.cc"
 #include "rpl_gtid_specification.cc"
 #include "rpl_tblmap.cc"
+#include "binlog_crypt_data.cc"

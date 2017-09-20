@@ -1,0 +1,207 @@
+# This test checks whether master and slave servers can be restarted without keyring and cope
+# with encrypted binary log/relaylog. In both cases server will look for previous gtids in previous
+# binary logs/relaylogs - even when server cannot decrypt previous binary logs/relaylogs.
+
+--source include/not_gtid_enabled.inc
+# Different binlog formats can generate different number of binlog files. When we try to decrypt an encrypted binlog file
+# with invalid key we check if we got expected warning, expected number of times. For each binlog file we get a warning,
+# so the number of binlog files must be constant and thus we limit the test to mix format only.
+--source include/have_binlog_format_mixed.inc
+
+--echo #################
+--echo # Initialization
+--echo #################
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--connection slave
+call mtr.add_suppression("Event crc check failed! Most likely there is event corruption");
+
+--connection master
+--let $master_datadir= `SELECT @@datadir`
+
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT --encrypt-binlog=1 --early-plugin-load=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/keyring/keys.txt
+--let $rpl_server_number= 1
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_restart_server.inc
+
+--echo #####################################################
+--echo # Part 1: encrypted master
+--echo #####################################################
+
+--connection master
+call mtr.add_suppression("Event crc check failed! Most likely there is event corruption");
+
+CREATE TABLE table1_encryption (
+  pk INT AUTO_INCREMENT PRIMARY KEY,
+  ts TIMESTAMP NULL,
+  b BLOB
+);
+
+INSERT INTO table1_encryption VALUES (NULL,NOW(),'data_encryption');
+INSERT INTO table1_encryption SELECT NULL,NOW(),b FROM table1_encryption;
+FLUSH BINARY LOGS;
+SET binlog_format=ROW;
+INSERT INTO table1_encryption SELECT NULL,NOW(),b FROM table1_encryption;
+INSERT INTO table1_encryption SELECT NULL,NOW(),b FROM table1_encryption;
+
+# Make sure that binary logs are encrypted
+
+--let PRINT_SEARCH_RESULT=1
+--let SEARCH_FILE= $master_datadir/master-bin.0*
+--let SEARCH_PATTERN= table1_encryption
+--source include/search_pattern_in_file.inc
+
+--echo #################################################################################
+--echo # Part 2: restart master, without binlog encryption and without keyring plugin
+--echo #################################################################################
+
+# Since keyring is now unavailable the master will not be able to decrypt previously
+# encrypted binlogs. It will try to read Previous_gtid from encrypted binlog and will
+# fail to do that. However, this is not a fatal error, only a warning.
+
+call mtr.add_suppression("Error reading GTIDs from binary log");
+call mtr.add_suppression("Error initializing decryption while reading GTIDs from binary log");
+
+--let $rpl_server_parameters= --encrypt-binlog=0 --log-error=$MYSQLTEST_VARDIR/tmp/mysqld_master.err
+--let $rpl_server_number= 1
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_restart_server.inc
+
+--echo # Check that plugin is not installed
+query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+
+CREATE TABLE table2_no_encryption (
+  pk INT AUTO_INCREMENT PRIMARY KEY,
+  ts TIMESTAMP NULL,
+  b BLOB
+);
+
+INSERT INTO table2_no_encryption VALUES (NULL,NOW(),'data_to_encrypt');
+INSERT INTO table2_no_encryption SELECT NULL,NOW(),b FROM table2_no_encryption;
+FLUSH BINARY LOGS;
+SET binlog_format=ROW;
+INSERT INTO table2_no_encryption SELECT NULL,NOW(),b FROM table2_no_encryption;
+INSERT INTO table2_no_encryption SELECT NULL,NOW(),b FROM table2_no_encryption;
+
+# Make sure that binary logs are not encrypted
+
+--let SEARCH_FILE= $master_datadir/master-bin.0*
+--let SEARCH_PATTERN= table2_no_encryption
+--source include/search_pattern_in_file.inc
+
+# Makes sure we got the expected warnings
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/mysqld_master.err
+--let $assert_count = 1
+--let $assert_select = Error reading GTIDs from binary log: -1
+--let $assert_text = Found the expected warning "Error reading GTIDs from binary log: -1" in master's error log.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/mysqld_master.err
+--let $assert_count = 1
+--let $assert_select = Error initializing decryption while reading GTIDs from binary log
+--let $assert_text = Found the expected warning "Error initializing decryption while reading GTIDs from binary log" in slave's error log.
+--source include/assert_grep.inc
+
+
+--echo ################################################
+--echo # Part 3: restart master again with encryption
+--echo ################################################
+
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT --encrypt-binlog=1 --early-plugin-load=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/keyring/keys.txt
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--echo #####################################################
+--echo # Part 4: restart slave with encryption
+--echo #####################################################
+
+--connection slave
+
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT --encrypt-binlog=1 --early-plugin-load=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/keyring/keys2.txt --master-verify-checksum=1
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+# With encryption turned on again *on master* - master should be able to read both encrypted and unencrypted binlogs
+# thus allowing slave to synchronize
+
+--source include/start_slave.inc
+
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+# Now the slave is in sync with master and is encrypted
+
+--echo #################################################################################
+--echo # Part 5: restart slave, without binlog encryption and without keyring plugin
+--echo #################################################################################
+
+# Since keyring is now unavailable slave will not be able to decrypt previously
+# encrypted relay logs. It will try to read Previous_gtid from encrypted relay log and will
+# fail to do that. However, this is not a fatal error, only a warning.
+
+# Legit Format description events is never encrypted - as it comes before Start encryption event and is the
+# first event in binlog. However garbage data can get interpreted as Format description event - in case of this event
+# there are additional checks before checking its checksum thus we can get error related to it:
+call mtr.add_suppression("Found invalid Format description event in binary log");
+call mtr.add_suppression("Error reading GTIDs from relaylog");
+call mtr.add_suppression("Error initializing decryption while reading GTIDs from relaylog");
+
+--let $rpl_server_parameters= --encrypt-binlog=0 --master_verify_checksum=1 --log-error=$MYSQLTEST_VARDIR/tmp/mysqld_slave.err
+--let $rpl_server_number= 2
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_restart_server.inc
+
+--connection slave
+
+--echo # Check that plugin is not installed
+query_vertical SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS
+FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
+
+# Makes sure we got the expected warnings
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/mysqld_slave.err
+--let $assert_count = 2
+--let $assert_select = Error reading GTIDs from relaylog: -1
+--let $assert_text = Found the expected warning "Error reading GTIDs from relaylog: -1" in slave's error log.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/mysqld_slave.err
+--let $assert_count = 2
+--let $assert_select = Error initializing decryption while reading GTIDs from relaylog
+--let $assert_text = Error initializing decryption while reading GTIDs from relaylog
+--source include/assert_grep.inc
+
+--echo #################################################################################
+--echo # Part 6: restart slave with keyring plugin
+--echo #################################################################################
+
+# In order to synchronize slave with master, slave needs to be able to decrypt
+# relay logs, thus we restart the slave with keyring plugin (however, without encrypt_binlog
+# turned out as having access to the correct key is enough to decrypt relaylog/binarylog)
+
+--let $rpl_server_parameters= $KEYRING_PLUGIN_OPT --encrypt-binlog=0 --early-plugin-load=$KEYRING_PLUGIN --keyring_file_data=$MYSQL_TMP_DIR/keyring/keys2.txt
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--source include/start_slave.inc
+
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+--echo ##########
+--echo # Cleanup
+--echo ##########
+
+--connection master
+
+DROP TABLE table1_encryption;
+DROP TABLE table2_no_encryption;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqld_master.err
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqld_slave.err
+
+--source include/rpl_end.inc

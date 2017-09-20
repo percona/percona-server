@@ -1,0 +1,20 @@
+source include/have_log_bin.inc;
+source include/have_debug.inc;
+
+call mtr.add_suppression("Failed to fetch percona_binlog key from keyring and thus failed to initialize binlog encryption.");
+call mtr.add_suppression("Could not use ./master-bin.000002 for logging");
+call mtr.add_suppression("Could not open ./master-bin.000002 for logging");
+
+let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`;
+
+SET debug="+d,binlog_encryption_error_on_key_fetch";
+SELECT 1;
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+--error ER_CANT_OPEN_FILE
+FLUSH LOGS;
+
+SET debug="-d,binlog_encryption_error_on_key_fetch";
+eval SET GLOBAL binlog_error_action= $saved_binlog_error_action;
+
+# binlog was turned off, thus need to restart server to switch it back on
+--source include/restart_mysqld.inc

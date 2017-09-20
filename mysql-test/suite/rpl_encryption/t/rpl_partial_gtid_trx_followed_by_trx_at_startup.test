@@ -1,0 +1,1 @@
+--source suite/rpl/t/rpl_partial_gtid_trx_followed_by_trx_at_startup.test

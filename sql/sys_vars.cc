@@ -988,6 +988,11 @@ static Sys_var_enum rbr_exec_mode(
        ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
        ON_UPDATE(NULL));
 
+static Sys_var_mybool Sys_binlog_encryption(
+       "encrypt_binlog", "Encrypt binary logs (including relay logs)",
+       READ_ONLY GLOBAL_VAR(encrypt_binlog), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_image(
        "binlog_row_image", 

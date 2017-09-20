@@ -22,7 +22,7 @@
 #include "binlog_event.h"     // enum_binlog_checksum_alg, Log_event_type
 #include "mysqld_error.h"     // ER_*
 #include "sql_error.h"        // Diagnostics_area
-
+#include "boost/move/unique_ptr.hpp"
 
 /**
   The major logic of dump thread is implemented in this class. It sends
@@ -140,6 +140,8 @@ private:
    * it is deemed to being underused.
    */
   const static float PACKET_SHRINK_FACTOR;
+
+  boost::movelib::unique_ptr<Format_description_log_event> m_fdle;
 
   uint32 m_flag;
   /*

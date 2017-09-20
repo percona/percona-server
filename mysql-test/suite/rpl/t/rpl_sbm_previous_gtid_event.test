@@ -15,6 +15,11 @@
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 
+if (!$idle)
+{
+  let $idle=180;
+}
+
 # Set sync debug point to calculate sbm exactly after every
 #  previous_gtid_log_event.
 --connection slave
@@ -83,12 +88,12 @@ FLUSH LOGS;
 
 # Just to fake that I/O thread started 3 mints ago,
 #  the server changes the I/O thread start time to
-#  now() - 180 seconds (3 mints ago) instead of now()
+#  now() - 180 seconds (3 mints ago) or 200 seconds
+#  when using encryption instead of now()
 #  using debug point 'calculate_sbm_after_previous_gtid_log_event'.
 #  But that 3 mints delay should not be seen when
 #  some one asks for SBM after Previous_gtid_log_event and
 #  this test script try to test that below.
---let $idle=180
 
 --let $i=0
 while ($i < 7)
@@ -97,8 +102,8 @@ SET DEBUG_SYNC="now wait_for signal.reached";
 
 # Calcualte SBM
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
---let $assert_text= Seconds Behind Master should be less than $idle seconds.
---let $assert_cond= $sbm < $idle
+--let $assert_text= Seconds Behind Master should be less than 200 seconds.
+--let $assert_cond= $sbm < 200
 --source include/assert.inc
 
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";

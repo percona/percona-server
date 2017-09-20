@@ -326,10 +326,17 @@ enum Log_event_type
 
   /* Prepared XA transaction terminal event similar to Xid */
   XA_PREPARE_LOG_EVENT= 38,
-  /**
-    Add new events here - right above this comment!
-    Existing events (except ENUM_END_EVENT) should never change their numbers
-  */
+
+  /* New MySQL events are to be added right above this comment */
+  MYSQL_END_EVENT,
+
+  //PERCONA_EVENTS_BEGIN= 100,
+  MARIA_EVENTS_BEGIN= 160,
+
+  START_ENCRYPTION_EVENT= 164,
+
+  /* Add new Percona Server events here - right above this comment! */
+
   ENUM_END_EVENT /* end marker */
 };
 
@@ -746,9 +753,11 @@ public:
   /*
      The number of types we handle in Format_description_event (UNKNOWN_EVENT
      is not to be handled, it does not exist in binlogs, it does not have a
-     format).
+     format - unless it's START_ENCRYPTION_EVENT - then Format_description_event
+     is not aware of it. That's OK as this event never leaves the server -
+     it's not sent to slave).
   */
-  static const int LOG_EVENT_TYPES= (ENUM_END_EVENT - 1);
+  static const int LOG_EVENT_TYPES= (MYSQL_END_EVENT - 1);
 
   /**
     The lengths for the fixed data part of each event.
@@ -786,7 +795,8 @@ public:
     ROWS_HEADER_LEN_V2= 10,
     TRANSACTION_CONTEXT_HEADER_LEN= 18,
     VIEW_CHANGE_HEADER_LEN= 52,
-    XA_PREPARE_HEADER_LEN= 0
+    XA_PREPARE_HEADER_LEN= 0,
+    START_ENCRYPTION_HEADER_LEN= 0
   }; // end enum_post_header_length
 protected:
   /**

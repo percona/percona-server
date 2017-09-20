@@ -2038,6 +2038,26 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
                         errmsg);
         goto end;
       }
+      // Search for Start_encryption_event. When relay log is encrypted the second
+      // event (after Format_description_event) will be Start_encryption_event.
+      for (uint i= 0; i < 2; i++)
+      {
+        ev= Log_event::read_log_event(&relay_io, NULL,
+                                      rli->get_rli_description_event(),
+                                      opt_slave_sql_verify_checksum);
+
+        if (ev != NULL)
+        {
+          if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT && 
+              !rli->get_rli_description_event()->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+          {
+            delete ev;
+            goto end;
+            error= true;
+          }
+          delete ev;
+        }
+      }
       my_b_seek(&relay_io, start_relay_pos);
     }
 

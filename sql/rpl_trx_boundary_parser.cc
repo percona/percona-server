@@ -110,7 +110,7 @@ Transaction_boundary_parser::get_event_boundary_type(
   if (length < header_size)
     goto end;
 
-  event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
+  event_type= (Log_event_type)static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]);
   DBUG_PRINT("info",("trx boundary parser was fed with an event of type %s",
                      Log_event::get_type_str(event_type)));
 
@@ -235,6 +235,7 @@ Transaction_boundary_parser::get_event_boundary_type(
     case binary_log::NEW_LOAD_EVENT:
     case binary_log::EXEC_LOAD_EVENT:
     case binary_log::TRANSACTION_CONTEXT_EVENT:
+    case binary_log::START_ENCRYPTION_EVENT:
       boundary_type= EVENT_BOUNDARY_TYPE_IGNORE;
       break;
 

@@ -1,0 +1,13 @@
+!include ../my.cnf
+
+[mysqld.1]
+gtid-mode=ON
+enforce-gtid-consistency=ON
+binlog-format='STATEMENT'
+
+[mysqld.2]
+gtid-mode=ON
+enforce-gtid-consistency=ON
+binlog-format='STATEMENT'
+log-slave-updates=off
+relay_log_info_repository=TABLE

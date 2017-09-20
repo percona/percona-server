@@ -1,0 +1,1 @@
+--max_relay_log_size=16384 --log-warnings $KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --loose-keyring_file_data=$MYSQL_TMP_DIR/keyring/keyring2 --encrypt-binlog --master-verify-checksum=1

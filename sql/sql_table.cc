@@ -2140,6 +2140,14 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     if (is_temporary_table(table)
         && table->table->should_binlog_drop_if_temp())
     {
+      if (enforce_gtid_consistency && drop_temporary
+          && (thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt))
+      {
+        my_error(ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
+                 MYF(0));
+        DBUG_RETURN(true);
+      }
+
       if (table->table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
         have_trans_tmp_table= 1;
       else if (table->table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)

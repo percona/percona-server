@@ -856,15 +856,6 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
       {
         fixed_data_size= next_field_pos;
       }
-
-
-      if (field->field_index >= fixed_key_fieldnr)
-      {
-        /*
-          Do not use seg->fieldnr as it's not reliable in case of temp tables
-        */
-        fixed_key_fieldnr= field->field_index + 1;
-      }
     }
   }
 

@@ -9,7 +9,7 @@ call mtr.add_suppression("Error while generating key: key_id cannot be empty");
 call mtr.add_suppression("Error while storing key: invalid key_type");
 call mtr.add_suppression("Error while storing key: key_id cannot be empty");
 
---source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
+--source generate_default_conf_files.inc
 
 let server_uuid = query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
 

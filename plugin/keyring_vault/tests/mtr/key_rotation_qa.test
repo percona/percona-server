@@ -25,7 +25,7 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Can't read encryption key from f
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to decrpt encryption information, please check key file is not changed!");
 
---source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
+--source generate_default_conf_files.inc
 
 # Invalid syntax
 --error ER_PARSE_ERROR
@@ -183,7 +183,7 @@ SELECT * FROM t5;
 # Cleanup
 DROP TABLE t1,t2,t5,t12,t10;
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 --echo #End:

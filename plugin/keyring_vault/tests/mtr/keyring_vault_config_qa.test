@@ -13,7 +13,7 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault. Vault has returned the following error\\(s\\): \\[\"permission denied\"\\]'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
 
---source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
+--source generate_default_conf_files.inc
 
 # Installing keyring plugin.
 --replace_regex /\.dll/.so/
@@ -77,6 +77,6 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_vault';
 # Cleanup
 DROP TABLE t1;
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 --echo
 --echo #End:

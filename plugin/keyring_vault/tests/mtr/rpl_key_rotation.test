@@ -14,7 +14,7 @@ call mtr.add_suppression("\\[Warning\\] Slave: Can't find master key from keyrin
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 
---source ../plugin/keyring_vault/tests/mtr/generate_default_conf_files.inc
+--source generate_default_conf_files.inc
 
 --connection slave
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -118,14 +118,14 @@ DROP TABLE t1,t2,t3,t4;
 
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
 --connection master
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 --connection slave
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
 --connection master
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 --connection slave
---source ../plugin/keyring_vault/tests/mtr/vault_cleanup.inc
+--source vault_cleanup.inc
 
 #reset keyring_vault_config variable to null
 UNINSTALL PLUGIN keyring_vault;

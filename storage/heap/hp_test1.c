@@ -56,7 +56,6 @@ int main(int argc, char **argv)
   hp_create_info.min_records= 10UL;
   hp_create_info.columns= 2;
   hp_create_info.columndef= columndef;
-  hp_create_info.fixed_key_fieldnr= 30;
   hp_create_info.fixed_data_size= sizeof(char*) * 2;
 
   keyinfo[0].keysegs=1;

@@ -506,6 +506,7 @@ static my_bool rocksdb_enable_bulk_load_api = TRUE;
 static my_bool rpl_skip_tx_api_var = FALSE;
 static my_bool rocksdb_print_snapshot_conflict_queries = FALSE;
 static my_bool rocksdb_large_prefix = FALSE;
+static my_bool rocksdb_allow_to_start_after_corruption = FALSE;
 
 std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
@@ -1455,6 +1456,12 @@ static MYSQL_SYSVAR_BOOL(
     "index prefix length is 767.",
     nullptr, nullptr, FALSE);
 
+static MYSQL_SYSVAR_BOOL(
+    allow_to_start_after_corruption, rocksdb_allow_to_start_after_corruption,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Allow server to start successfully when RocksDB corruption is detected.",
+    nullptr, nullptr, FALSE);
+
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
 static struct st_mysql_sys_var *rocksdb_system_variables[] = {
@@ -1591,6 +1598,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(table_stats_sampling_pct),
 
     MYSQL_SYSVAR(large_prefix),
+    MYSQL_SYSVAR(allow_to_start_after_corruption),
     nullptr};
 
 static rocksdb::WriteOptions
@@ -3534,6 +3542,22 @@ static rocksdb::Status check_rocksdb_options_compatibility(
 static int rocksdb_init_func(void *const p) {
   DBUG_ENTER_FUNC();
 
+  if (rdb_check_rocksdb_corruption()) {
+    sql_print_error("RocksDB: There was corruption detected in the RockDB data"
+                    "files. Check error log emitted earlier for more details.");
+    if (rocksdb_allow_to_start_after_corruption) {
+      sql_print_information(
+          "RocksDB: Set rocksdb_allow_to_start_after_corruption=0 to prevent "
+          "server from starting when RocksDB data corruption is detected.");
+    } else {
+      sql_print_error("RocksDB: The server will exit normally and stop restart "
+                      "attempts. Remove %s file from data directory and "
+                      "start mysqld manually.",
+                      rdb_corruption_marker_file_name().c_str());
+      exit(0);
+    }
+  }
+
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
   static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
 
@@ -4036,6 +4060,33 @@ static inline void rocksdb_smart_next(bool seek_backward,
     iter->Prev();
   } else {
     iter->Next();
+  }
+}
+
+#ifndef NDEBUG
+// simulate that RocksDB has reported corrupted data
+static void dbug_change_status_to_corrupted(rocksdb::Status *status) {
+  *status = rocksdb::Status::Corruption();
+}
+#endif
+
+// If the iterator is not valid it might be because of EOF but might be due
+// to IOError or corruption. The good practice is always check it.
+// https://github.com/facebook/rocksdb/wiki/Iterator#error-handling
+static inline bool is_valid(rocksdb::Iterator *scan_it) {
+  if (scan_it->Valid()) {
+    return true;
+  } else {
+    rocksdb::Status s = scan_it->status();
+    DBUG_EXECUTE_IF("rocksdb_return_status_corrupted",
+                    dbug_change_status_to_corrupted(&s););
+    if (s.IsIOError() || s.IsCorruption()) {
+      if (s.IsCorruption()) {
+        rdb_persist_corruption_marker();
+      }
+      rdb_handle_io_error(s, RDB_IO_ERROR_GENERAL);
+    }
+    return false;
   }
 }
 
@@ -6473,7 +6524,7 @@ int ha_rocksdb::read_before_key(const Rdb_key_def &kd,
   */
   rocksdb_smart_seek(!kd.m_is_reverse_cf, m_scan_it, key_slice);
 
-  while (m_scan_it->Valid()) {
+  while (is_valid(m_scan_it)) {
     /*
       We are using full key and we've hit an exact match, or...
 
@@ -6513,12 +6564,12 @@ int ha_rocksdb::read_after_key(const Rdb_key_def &kd,
     from the POV of the current transaction.  If it has, try going to the next
     key.
   */
-  while (m_scan_it->Valid() && kd.has_ttl() &&
+  while (is_valid(m_scan_it) && kd.has_ttl() &&
          should_hide_ttl_rec(kd, m_scan_it->value(), ttl_filter_ts)) {
     rocksdb_smart_next(kd.m_is_reverse_cf, m_scan_it);
   }
 
-  return m_scan_it->Valid() ? HA_EXIT_SUCCESS : HA_ERR_KEY_NOT_FOUND;
+  return is_valid(m_scan_it) ? HA_EXIT_SUCCESS : HA_ERR_KEY_NOT_FOUND;
 }
 
 int ha_rocksdb::position_to_correct_key(
@@ -6777,7 +6828,7 @@ int ha_rocksdb::secondary_index_read(const int keyno, uchar *const buf) {
   /* Use STATUS_NOT_FOUND when record not found or some error occurred */
   table->status = STATUS_NOT_FOUND;
 
-  if (m_scan_it->Valid()) {
+  if (is_valid(m_scan_it)) {
     rocksdb::Slice key = m_scan_it->key();
 
     /* Check if we've ran out of records of this index */
@@ -7079,7 +7130,7 @@ int ha_rocksdb::find_icp_matching_index_rec(const bool &move_forward,
     while (1) {
       rocksdb_skip_expired_records(kd, m_scan_it, !move_forward);
 
-      if (!m_scan_it->Valid()) {
+      if (!is_valid(m_scan_it)) {
         table->status = STATUS_NOT_FOUND;
         return HA_ERR_END_OF_FILE;
       }
@@ -7409,6 +7460,9 @@ int ha_rocksdb::get_row_by_rowid(uchar *const buf, const char *const rowid,
     s = get_for_update(tx, m_pk_descr->get_cf(), key_slice,
                        &m_retrieved_record);
   }
+
+  DBUG_EXECUTE_IF("rocksdb_return_status_corrupted",
+                  dbug_change_status_to_corrupted(&s););
 
   if (!s.IsNotFound() && !s.ok()) {
     DBUG_RETURN(tx->set_status_error(table->in_use, s, *m_pk_descr, m_tbl_def));
@@ -8746,7 +8800,7 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
 
   table->status = STATUS_NOT_FOUND;
 
-  if (!m_scan_it || !m_scan_it->Valid()) {
+  if (!m_scan_it || !is_valid(m_scan_it)) {
     /*
       We can get here when SQL layer has called
 
@@ -8768,7 +8822,7 @@ int ha_rocksdb::rnd_next_with_direction(uchar *const buf, bool move_forward) {
         m_scan_it->Prev(); /* this call cannot fail */
     }
 
-    if (!m_scan_it->Valid()) {
+    if (!is_valid(m_scan_it)) {
       rc = HA_ERR_END_OF_FILE;
       break;
     }
@@ -11610,6 +11664,7 @@ void rdb_handle_io_error(const rocksdb::Status status,
     }
   } else if (status.IsCorruption()) {
     rdb_log_status_error(status, "data corruption detected!");
+    rdb_persist_corruption_marker();
     /* NO_LINT_DEBUG */
     sql_print_error("MyRocks: aborting because of data corruption.");
     abort_with_stack_traces();
@@ -12080,6 +12135,12 @@ double ha_rocksdb::read_time(uint index, uint ranges, ha_rows rows) {
   }
 
   DBUG_RETURN((rows / 20.0) + 1);
+}
+
+std::string rdb_corruption_marker_file_name() {
+  std::string ret(rocksdb_datadir);
+  ret.append("/ROCKSDB_CORRUPTED");
+  return ret;
 }
 
 } // namespace myrocks

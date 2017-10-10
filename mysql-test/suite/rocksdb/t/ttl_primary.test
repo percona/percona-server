@@ -377,8 +377,6 @@ COMMENT='ttl_duration=100;';
 
 --error ER_RDB_TTL_UNSUPPORTED
 ALTER TABLE t1 DROP PRIMARY KEY;
---error ER_RDB_TTL_UNSUPPORTED
-ALTER TABLE t1 ADD INDEX kb(b), ALGORITHM=INPLACE;
 
 DROP TABLE t1;
 
@@ -508,7 +506,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   a bigint(20) NOT NULL,
   PRIMARY KEY (a)
-) ENGINE=rocksdb
+) ENGINE=ROCKSDB
 COMMENT='ttl_duration=1;';
 
 set global rocksdb_debug_ttl_rec_ts = -100;
@@ -535,7 +533,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (
   a bigint(20) NOT NULL,
   PRIMARY KEY (a)
-) ENGINE=rocksdb
+) ENGINE=ROCKSDB
 COMMENT='ttl_duration=100;';
 
 INSERT INTO t1 values (1);

@@ -913,6 +913,7 @@ rocksdb_compaction_sequential_deletes	0
 rocksdb_compaction_sequential_deletes_count_sd	OFF
 rocksdb_compaction_sequential_deletes_file_size	0
 rocksdb_compaction_sequential_deletes_window	0
+rocksdb_concurrent_prepare	ON
 rocksdb_create_checkpoint	
 rocksdb_create_if_missing	ON
 rocksdb_create_missing_column_families	OFF
@@ -920,6 +921,7 @@ rocksdb_datadir	./.rocksdb
 rocksdb_db_write_buffer_size	0
 rocksdb_deadlock_detect	OFF
 rocksdb_debug_optimizer_no_zero_cardinality	ON
+rocksdb_debug_ttl_ignore_pk	OFF
 rocksdb_debug_ttl_read_filter_ts	0
 rocksdb_debug_ttl_rec_ts	0
 rocksdb_debug_ttl_snapshot_ts	0
@@ -935,6 +937,7 @@ rocksdb_error_if_exists	OFF
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_flush_memtable_on_analyze	ON
 rocksdb_force_compute_memtable_stats	ON
+rocksdb_force_compute_memtable_stats_cachetime	0
 rocksdb_force_flush_memtable_and_lzero_now	OFF
 rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
@@ -943,10 +946,12 @@ rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level
 rocksdb_is_fd_close_on_exec	ON
 rocksdb_keep_log_file_num	1000
+rocksdb_large_prefix	OFF
 rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
 rocksdb_manifest_preallocation_size	4194304
+rocksdb_manual_wal_flush	ON
 rocksdb_max_background_jobs	2
 rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	18446744073709551615
@@ -956,6 +961,7 @@ rocksdb_max_subcompactions	1
 rocksdb_max_total_wal_size	0
 rocksdb_merge_buf_size	67108864
 rocksdb_merge_combine_read_size	1073741824
+rocksdb_merge_tmp_file_removal_delay_ms	0
 rocksdb_new_table_reader_for_compaction_inputs	OFF
 rocksdb_no_block_cache	OFF
 rocksdb_override_cf_options	
@@ -973,6 +979,7 @@ rocksdb_reset_stats	OFF
 rocksdb_rpl_skip_tx_api	OFF
 rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
+rocksdb_sim_cache_size	0
 rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0
@@ -1505,6 +1512,7 @@ rocksdb_memtable_total	#
 rocksdb_memtable_unflushed	#
 rocksdb_queries_point	#
 rocksdb_queries_range	#
+rocksdb_covered_secondary_key_lookups	#
 rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
 rocksdb_block_cache_bytes_read	#
@@ -1599,6 +1607,7 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
@@ -1695,6 +1704,7 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
@@ -2313,7 +2323,10 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
+set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
+set @@global.rocksdb_large_prefix=1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(1255))) engine=rocksdb;
+set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
 a	b	c
@@ -2338,7 +2351,7 @@ a	b	c
 3	3abcde	3abcde
 drop table t1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
-ERROR 42000: Specified key was too long; max key length is 2048 bytes
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 SET sql_mode = @old_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

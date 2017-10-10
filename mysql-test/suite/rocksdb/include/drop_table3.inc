@@ -5,7 +5,6 @@ set global rocksdb_compact_cf = 'cf1';
 set global rocksdb_compact_cf = 'rev:cf2';
 set global rocksdb_signal_drop_index_thread = 1;
 --source include/restart_mysqld.inc
---exec truncate --size=0 $MYSQLTEST_VARDIR/log/mysqld.1.err
 
 CREATE TABLE t1 (
   a int not null,

@@ -239,6 +239,12 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 #define ROCKSDB_SIZEOF_TTL_RECORD sizeof(longlong)
 
 /*
+  Maximum index prefix length in bytes.
+*/
+constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
+constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
+
+/*
   MyRocks specific error codes. NB! Please make sure that you will update
   HA_ERR_ROCKSDB_LAST when adding new ones.  Also update the strings in
   rdb_error_messages to include any new error messages.
@@ -295,6 +301,12 @@ struct Rdb_table_handler {
   /* Stores cumulative table statistics */
   my_io_perf_atomic_t m_io_perf_read;
   Rdb_atomic_perf_counters m_table_perf_context;
+
+  /* Stores cached memtable estimate statistics */
+  std::atomic_uint m_mtcache_lock;
+  uint64_t m_mtcache_count;
+  uint64_t m_mtcache_size;
+  uint64_t m_mtcache_last_update;
 };
 
 class Rdb_key_def;
@@ -360,6 +372,8 @@ struct st_global_stats {
   ib_counter_t<ulonglong, 64, RDB_INDEXER> system_rows[ROWS_MAX];
 
   ib_counter_t<ulonglong, 64, RDB_INDEXER> queries[QUERIES_MAX];
+
+  ib_counter_t<ulonglong, 64, RDB_INDEXER> covered_secondary_key_lookups;
 };
 
 /* Struct used for exporting status to MySQL */
@@ -378,6 +392,8 @@ struct st_export_stats {
 
   ulonglong queries_point;
   ulonglong queries_range;
+
+  ulonglong covered_secondary_key_lookups;
 };
 
 /* Struct used for exporting RocksDB memory status */
@@ -494,6 +510,12 @@ class ha_rocksdb : public my_core::handler {
     Pointer to the original TTL timestamp value (8 bytes) during UPDATE.
   */
   char m_ttl_bytes[ROCKSDB_SIZEOF_TTL_RECORD];
+  /*
+    The TTL timestamp value can change if the explicit TTL column is
+    updated. If we detect this when updating the PK, we indicate it here so
+    we know we must always update any SK's.
+  */
+  bool m_ttl_bytes_updated;
 
   /* rowkey of the last record we've read, in StorageFormat. */
   String m_last_rowkey;
@@ -624,6 +646,13 @@ class ha_rocksdb : public my_core::handler {
 
   /* Setup field_decoders based on type of scan and table->read_set */
   void setup_read_decoders();
+
+  /*
+    For the active index, indicates which columns must be covered for the
+    current lookup to be covered. If the bitmap field is null, that means this
+    index does not cover the current lookup for any record.
+   */
+  MY_BITMAP m_lookup_bitmap = {nullptr, 0, 0, nullptr, nullptr};
 
   /*
     Number of bytes in on-disk (storage) record format that are used for
@@ -843,11 +872,7 @@ public:
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint max_supported_key_part_length() const override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN(2048);
-  }
+  uint max_supported_key_part_length() const override;
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -1029,9 +1054,13 @@ private:
                                        rocksdb::Slice *const packed_rec)
       MY_ATTRIBUTE((__nonnull__));
 
-  bool should_hide_ttl_rec(const rocksdb::Slice &ttl_rec_val,
+  bool should_hide_ttl_rec(const Rdb_key_def &kd,
+                           const rocksdb::Slice &ttl_rec_val,
                            const int64_t curr_ts)
       MY_ATTRIBUTE((__warn_unused_result__));
+  void rocksdb_skip_expired_records(const Rdb_key_def &kd,
+                                    rocksdb::Iterator *const iter,
+                                    bool seek_backward);
 
   int index_first_intern(uchar *buf)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));

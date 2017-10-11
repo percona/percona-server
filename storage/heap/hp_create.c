@@ -131,9 +131,9 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
       uint has_variable_fields= 0;
 
       fixed_data_length= create_info->fixed_data_size;
-      fixed_column_count= create_info->fixed_key_fieldnr;
+      fixed_column_count= 0;
 
-      for (i= create_info->fixed_key_fieldnr; i < create_info->columns; i++)
+      for (i= fixed_column_count; i < create_info->columns; i++)
       {
         HP_COLUMNDEF *column= create_info->columndef + i;
 	if ((column->type == MYSQL_TYPE_VARCHAR &&

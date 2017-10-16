@@ -2740,3 +2740,14 @@ SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 SET rocksdb_commit_in_the_middle=0;
 DROP TABLE t1, t2;
 SET GLOBAL ROCKSDB_PAUSE_BACKGROUND_WORK = @ORIG_PAUSE_BACKGROUND_WORK;
+#
+# Issue #728: Assertion `covers_key(b)' failed in int
+# myrocks::Rdb_key_def::cmp_full_keys(const rocks db::Slice&,
+# const rocksdb::Slice&)
+#
+CREATE TABLE t2(c1 TINYINT SIGNED KEY,c2 TINYINT UNSIGNED,c3 INT) ENGINE=ROCKSDB;
+INSERT INTO t2(c1)VALUES(0);
+SELECT * FROM t2 WHERE c1<=127 ORDER BY c1 DESC;
+c1	c2	c3
+0	NULL	NULL
+DROP TABLE t2;

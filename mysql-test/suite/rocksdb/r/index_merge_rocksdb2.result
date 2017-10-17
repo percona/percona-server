@@ -23,6 +23,7 @@ INDEX i6(key6),
 INDEX i7(key7),
 INDEX i8(key8)
 );
+set global rocksdb_force_flush_memtable_now=1;
 analyze table t0;
 Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
@@ -1045,6 +1046,7 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
 select key1a, key1b, key2a, key2b, key3a, key3b from t1;
 insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
 select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+set global rocksdb_force_flush_memtable_now=1;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -1525,7 +1527,7 @@ primary key (pk1, pk2)
 # Column 9, rows, can change depending on innodb-page-size.
 explain select * from t1 where pk1 = 1 and pk2 < 80  and key1=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,key1	key1,PRIMARY	12,8	NULL	ROWS	#	Using intersect(key1,PRIMARY); Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,key1	key1	12	NULL	ROWS	#	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk1` AS `pk1`,`test`.`t1`.`pk2` AS `pk2`,`test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`pktail1ok` AS `pktail1ok`,`test`.`t1`.`pktail2ok` AS `pktail2ok`,`test`.`t1`.`pktail3bad` AS `pktail3bad`,`test`.`t1`.`pktail4bad` AS `pktail4bad`,`test`.`t1`.`pktail5bad` AS `pktail5bad`,`test`.`t1`.`pk2copy` AS `pk2copy`,`test`.`t1`.`badkey` AS `badkey`,`test`.`t1`.`filler1` AS `filler1`,`test`.`t1`.`filler2` AS `filler2` from `test`.`t1` where ((`test`.`t1`.`key1` = 0) and (`test`.`t1`.`pk1` = 1) and (`test`.`t1`.`pk2` < 80))
 # CPK scan + 1 ROR range scan is a special case
@@ -1812,6 +1814,7 @@ INSERT INTO t2 VALUES
 (103,4,4,'1900-01-01','1900-01-01','15:32:04','15:32:04','2001-03-06 10:00:37','2001-03-06 10:00:37','d','d'),
 (104,8,7,'2009-02-13','2009-02-13','20:25:36','20:25:36','2004-08-15 00:00:00','2004-08-15 00:00:00','z','z'),
 (105,8,6,'2008-03-25','2008-03-25','21:33:53','21:33:53','2006-10-12 06:13:06','2006-10-12 06:13:06','s','s');
+set global rocksdb_force_flush_memtable_now=1;
 analyze table t1;
 analyze table t2;
 UPDATE t1 SET col_time_nokey = 25

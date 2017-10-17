@@ -4884,7 +4884,7 @@ bool Rdb_dict_manager::get_max_index_id(uint32_t *const index_id) const {
 }
 
 bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
-                                           const uint32_t &index_id) const {
+                                           uint32_t index_id) const {
   DBUG_ASSERT(batch != nullptr);
 
   uint32_t old_index_id = -1;
@@ -4920,7 +4920,7 @@ void Rdb_dict_manager::add_stats(
     // IndexStats::materialize takes complete care of serialization including
     // storing the version
     const auto value =
-        Rdb_index_stats::materialize(std::vector<Rdb_index_stats>{it}, 1.);
+        Rdb_index_stats::materialize(std::vector<Rdb_index_stats>{it});
 
     batch->Put(m_system_cfh, rocksdb::Slice((char *)key_buf, sizeof(key_buf)),
                value);
@@ -4948,7 +4948,7 @@ Rdb_index_stats Rdb_dict_manager::get_stats(GL_INDEX_ID gl_index_id) const {
 
 rocksdb::Status
 Rdb_dict_manager::put_auto_incr_val(rocksdb::WriteBatchBase *batch,
-                                    const GL_INDEX_ID &gl_index_id,
+                                    GL_INDEX_ID gl_index_id,
                                     ulonglong val) const {
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 3] = {0};
   dump_index_id(key_buf, Rdb_key_def::AUTO_INC, gl_index_id);
@@ -4969,7 +4969,7 @@ Rdb_dict_manager::put_auto_incr_val(rocksdb::WriteBatchBase *batch,
   return batch->Merge(m_system_cfh, key, value);
 }
 
-bool Rdb_dict_manager::get_auto_incr_val(const GL_INDEX_ID &gl_index_id,
+bool Rdb_dict_manager::get_auto_incr_val(GL_INDEX_ID gl_index_id,
                                          ulonglong *new_val) const {
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 3] = {0};
   dump_index_id(key_buf, Rdb_key_def::AUTO_INC, gl_index_id);

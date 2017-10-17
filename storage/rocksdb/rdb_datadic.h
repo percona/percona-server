@@ -232,6 +232,14 @@ public:
     *size = INDEX_NUMBER_SIZE;
   }
 
+  /* Get the first key that you need to position at to start iterating.
+     Returns a "supremum" or "infimum" for this index based on collation order
+  */
+  inline void get_first_key(uchar *const key, uint *const size) const {
+    return m_is_reverse_cf ? get_supremum_key(key, size)
+                           : get_infimum_key(key, size);
+  }
+
   /* Make a key that is right after the given key. */
   static int successor(uchar *const packed_tuple, const uint &len);
 
@@ -1306,15 +1314,15 @@ public:
 
   bool get_max_index_id(uint32_t *const index_id) const;
   bool update_max_index_id(rocksdb::WriteBatch *const batch,
-                           const uint32_t &index_id) const;
+                           uint32_t index_id) const;
   void add_stats(rocksdb::WriteBatch *const batch,
                  const std::vector<Rdb_index_stats> &stats) const;
   Rdb_index_stats get_stats(GL_INDEX_ID gl_index_id) const;
 
   rocksdb::Status put_auto_incr_val(rocksdb::WriteBatchBase *batch,
-                                    const GL_INDEX_ID &gl_index_id,
+                                    GL_INDEX_ID gl_index_id,
                                     ulonglong val) const;
-  bool get_auto_incr_val(const GL_INDEX_ID &gl_index_id,
+  bool get_auto_incr_val(GL_INDEX_ID gl_index_id,
                          ulonglong *new_val) const;
 };
 

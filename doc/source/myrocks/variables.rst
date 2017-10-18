@@ -167,6 +167,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_debug_ttl_ignore_pk`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_default_cf_options`
      - Yes
      - No
@@ -926,6 +930,20 @@ Disabled by default.
 
 Specifies whether MyRocks should prevent zero cardinality
 by always overriding it with some value.
+
+.. variable:: rocksdb_debug_ttl_ignore_pk
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-debug-ttl-ignore-pk``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether compaction filtering should occur on primary key TTL data.
+Disable by default.
+
+.. note:: Use only in debug builds.
 
 .. variable:: rocksdb_default_cf_options
 

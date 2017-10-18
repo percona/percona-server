@@ -495,6 +495,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_write_batch_max_bytes`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_write_disable_wal`
      - Yes
      - Yes
@@ -2076,6 +2080,19 @@ Specifies whether the bloomfilter should use the whole key for filtering
 instead of just the prefix.
 Enabled by default.
 Make sure that lookups use the whole key for matching.
+
+.. variable:: rocksdb_write_batch_max_bytes
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-write-batch-max-bytes``
+  :dyn: Yes
+  :scope: Global, Session
+  :vartype: Numeric
+  :default: ``0``
+
+Specifies the maximum size of the write batch in bytes.
+Default is ``0``, meaning there is no limit.
+Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_write_disable_wal
 

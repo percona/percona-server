@@ -379,6 +379,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_sim_cache_size`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_skip_bloom_filter_on_read`
      - Yes
      - Yes
@@ -1679,6 +1683,20 @@ Allowed is from ``0`` to ``4294967295``.
   :default: ``OFF``
 
 Signals the MyRocks drop index thread to wake up.
+
+.. variable:: rocksdb_sim_cache_size
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-sim-cache-size``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``0``
+
+Enables simulated cache to see the hit/miss rate with a specific cache size
+without actually changing :variable:`rocksdb_block_size`.
+Default is ``0``.
+Allowed range is up to ``9223372036854775807``.
 
 .. variable:: rocksdb_skip_bloom_filter_on_read
 

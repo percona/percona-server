@@ -195,6 +195,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_enable_ttl_read_filtering`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_enable_thread_tracking`
      - Yes
      - No
@@ -1044,6 +1048,22 @@ Specifies whether to keep expired TTL records during compaction.
 Enabled by default.
 If disabled, expired TTL records will be dropped during compaction.
 
+.. variable:: rocksdb_enable_ttl_read_filtering
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-enable-ttl-read-filtering``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Specifies whether expired TTL records should be skipped
+during processing and in query results.
+Enabled by default.
+Disabling this will allow expired TTL records to be seen,
+but as a result rows may disappear in the middle of a transaction
+as they are dropped during compaction.
+
 .. variable:: rocksdb_enable_thread_tracking
 
   :version 5.7.19-17: Implemented
@@ -1354,7 +1374,7 @@ to write the WAL buffer to its file.
 
 .. variable:: rocksdb_max_background_jobs
 
-  :version 5.7.19-17: Implemented
+  :version 5.7.20-18: Implemented
   :cli: ``--rocksdb-max-background-jobs``
   :dyn: Yes
   :scope: Global

@@ -299,6 +299,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_merge_tmp_file_removal_delay_ms`
+     - Yes
+     - Yes
+     - Global, Session
    * - :variable:`rocksdb_new_table_reader_for_compaction_inputs`
      - Yes
      - No
@@ -1402,6 +1406,22 @@ used for the merge-sort algorithm
 as described in :variable:`rocksdb_merge_buf_size`.
 Default size is 1 GB (``1073741824``).
 Allowed range is from ``100`` to ``18446744073709551615``.
+
+.. variable:: rocksdb_merge_tmp_file_removal_delay_ms
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-merge-tmp-file-removal-delay-ms``
+  :dyn: No
+  :scope: Global, Session
+  :vartype: Numeric
+  :default: ``0``
+
+Specifies the duration (in milliseconds) to sleep
+when removing chunks of the temporary merge file
+created during fast index creation.
+Default is ``0``, which can cause trim stalls on flash storage
+when a lot of files are removed without any delay.
+The size of the chunks is controlled with :variable:`rocksdb_merge_buf_size`.
 
 .. variable:: rocksdb_new_table_reader_for_compaction_inputs
 

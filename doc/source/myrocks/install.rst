@@ -42,8 +42,6 @@ It is recommended to install Percona software from official repositories:
    `Percona Software Repositories Documentation
    <https://www.percona.com/doc/percona-repo-config/index.html>`_.
 
-   .. note:: Enable experimental repositories!
-
 #. Install Percona MyRocks using the corresponding package manager:
 
    * For Debian or Ubuntu::

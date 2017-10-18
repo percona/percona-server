@@ -21,20 +21,20 @@ For more information about using Docker, see the `Docker Docs`_.
 Using the Percona Server Images
 ===============================
 
-The following procedure describes how to run and access Percona Server 5.6
+The following procedure describes how to run and access Percona Server 5.7
 using Docker.
 
 Starting a Percona Server Instance in a Container
 -------------------------------------------------
 
 To start a container named ``ps``
-running the latest version in the Percona Server 5.6 series,
+running the latest version in the Percona Server 5.7 series,
 with the root password set to ``root``::
 
  [root@docker-host] $ docker run -d \
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
-   percona/percona-server:5.6
+   percona/percona-server:5.7
 
 .. note:: ``root`` is not a secure password.
 
@@ -199,7 +199,7 @@ you run the container with the following command::
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
    -v /local/datadir:/var/lib/mysql \
-   percona/percona-server:5.6
+   percona/percona-server:5.7
 
 The ``-v /local/datadir:/var/lib/mysql`` option
 mounts the ``/local/datadir`` directory on the host
@@ -234,7 +234,7 @@ To map the standard MySQL port 3306 to port 6603 on the host::
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
    -p 6603:3306 \
-   percona/percona-server:5.6
+   percona/percona-server:5.7
 
 Passing Options to Percona Server
 =================================
@@ -248,7 +248,7 @@ and collation for all databases::
   [root@docker-host] $ docker run -d \
    --name ps \
    -e MYSQL_ROOT_PASSWORD=root \
-   percona/percona-server:5.6 \
+   percona/percona-server:5.7 \
    --character-set-server=utf8 \
    --collation-server=utf8_general_ci
 

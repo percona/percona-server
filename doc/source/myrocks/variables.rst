@@ -255,6 +255,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_large_prefix`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_lock_scanned_rows`
      - Yes
      - Yes
@@ -1263,6 +1267,19 @@ Enabled by default.
 Specifies the maximum number of info log files to keep.
 Default value is ``1000``.
 Allowed range is from ``1`` to ``18446744073709551615``.
+
+.. variable:: rocksdb_large_prefix
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-large-prefix``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether to allow large index key prefixes.
+Disabled by default (maximum prefix length is 767 bytes).
+If enabled, index key prefixes up to 3072 bytes are allowed.
 
 .. variable:: rocksdb_lock_scanned_rows
 

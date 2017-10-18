@@ -139,6 +139,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_concurrent_prepare`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_create_checkpoint`
      - Yes
      - Yes
@@ -266,6 +270,10 @@ Also, all variables can exist in one or both of the following scopes:
    * - :variable:`rocksdb_manifest_preallocation_size`
      - Yes
      - No
+     - Global
+   * - :variable:`rocksdb_manual_wal_flush`
+     - Yes
+     - Yes
      - Global
    * - :variable:`rocksdb_max_background_compactions`
      - Yes
@@ -847,6 +855,19 @@ by :variable:`rocksdb_compaction_sequential_deletes`.
 Default value is ``0``.
 Allowed range is up to ``2000000`` (two million).
 
+.. variable:: rocksdb_concurrent_prepare
+
+  :version 5.7.20-18: Implemented
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Specifies whether to use a separate queue for memtable writes.
+This is enabled by default to ensure that memtable writes
+do not lag behind other writes.
+If disabled, only one queue is used for all writes.
+
 .. variable:: rocksdb_create_checkpoint
 
   :version 5.7.19-17: Implemented
@@ -1300,6 +1321,19 @@ Allowed range is up to ``18446744073709551615``.
 
 .. note:: A value of ``4194304`` (4 MB) is reasonable
    to reduce random I/O on XFS.
+
+.. variable:: rocksdb_manual_wal_flush
+
+  :version 5.7.20-18: ``--rocksdb-manual-wal-flush``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+Specifies whether WAL should only be flushed manually.
+This is enabled by default to ensure that WAL is not flushed automatically.
+Instead it relies on manual invocation of FlushWAL
+to write the WAL buffer to its file.
 
 .. variable:: rocksdb_max_background_compactions
 

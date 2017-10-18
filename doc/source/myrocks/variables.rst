@@ -279,13 +279,9 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
-   * - :variable:`rocksdb_max_background_compactions`
+   * - :variable:`rocksdb_max_background_jobs`
      - Yes
      - Yes
-     - Global
-   * - :variable:`rocksdb_max_background_flushes`
-     - Yes
-     - No
      - Global
    * - :variable:`rocksdb_max_log_file_size`
      - Yes
@@ -1356,32 +1352,18 @@ This is enabled by default to ensure that WAL is not flushed automatically.
 Instead it relies on manual invocation of FlushWAL
 to write the WAL buffer to its file.
 
-.. variable:: rocksdb_max_background_compactions
+.. variable:: rocksdb_max_background_jobs
 
   :version 5.7.19-17: Implemented
-  :cli: ``--rocksdb-max-background-compactions``
+  :cli: ``--rocksdb-max-background-jobs``
   :dyn: Yes
   :scope: Global
   :vartype: Numeric
-  :default: ``1``
+  :default: ``2``
 
-Specifies the maximum number of concurrent background compaction threads,
-submitted to the low-priority thread pool.
-Default value is ``1``.
-Allowed range is up to ``64``.
-
-.. variable:: rocksdb_max_background_flushes
-
-  :version 5.7.19-17: Implemented
-  :cli: ``--rocksdb-max-background-flushes``
-  :dyn: No
-  :scope: Global
-  :vartype: Numeric
-  :default: ``1``
-
-Specifies the maximum number of concurrent background memtable flush threads,
-submitted to the high-priority thread-pool.
-Default value is ``1``.
+Specifies the maximum number
+of concurrent background compaction and memtable flush threads.
+Default value is ``2``.
 Allowed range is up to ``64``.
 
 .. variable:: rocksdb_max_log_file_size

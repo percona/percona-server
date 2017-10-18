@@ -774,8 +774,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/query_response_time.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl_client.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_vault.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_vault.so
 #
 %attr(644, root, root) %{_datadir}/percona-server/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/percona-server/mysql_sys_schema.sql

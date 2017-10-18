@@ -211,6 +211,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global
+   * - :variable:`rocksdb_force_compute_memtable_stats_cachetime`
+     - Yes
+     - Yes
+     - Global
    * - :variable:`rocksdb_force_flush_memtable_and_lzero_now`
      - Yes
      - Yes
@@ -1091,6 +1095,18 @@ for calculating index statistics
 used by the query optimizer.
 Enabled by default.
 This provides better accuracy, but may reduce performance.
+
+.. variable:: rocksdb_force_compute_memtable_stats_cachetime
+
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-force-compute-memtable-stats-cachetime``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Numeric
+  :default: ``60000000``
+
+Specifies the time in microseconds to cache memtable estimates.
+Default is 60 seconds.
 
 .. variable:: rocksdb_force_flush_memtable_and_lzero_now
 

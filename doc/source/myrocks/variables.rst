@@ -1786,11 +1786,11 @@ Disabled by default (caching is not skipped).
   :dyn: Yes
   :scope: Global, Session
   :vartype: Numeric
-  :default: ``67108864``
+  :default: ``0``
 
 Specifies the maximum rate for writing to data files.
-Default value is ``67108864`` (64 MB/sec).
-Allowed range is from ``0`` to ``18446744073709551615``.
+Default value is ``0``.
+Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_stats_dump_period_sec
 

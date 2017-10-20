@@ -524,3 +524,14 @@ diff -rup old/rapid/unittest/gunit/xplugin/CMakeLists.txt new/rapid/unittest/gun
    ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
    ${CMAKE_THREAD_LIBS_INIT}
    ${PROTOBUF_LIBRARY}
+--- old/storage/tokudb/PerconaFT/tools/CMakeLists.txt
++++ new/storage/tokudb/PerconaFT/tools/CMakeLists.txt
+@@ -12,7 +12,7 @@
+         (CMAKE_CXX_FLAGS_DEBUG MATCHES " -DENABLED_DEBUG_SYNC"))
+       target_link_libraries(${tool} sql binlog rpl master slave)
+     endif()
+-    target_link_libraries(${tool} perconaserverclient)
++    target_link_libraries(${tool} mysqlclient)
+   endif ()
+ 
+   add_space_separated_property(TARGET ${tool} COMPILE_FLAGS -fvisibility=hidden)

@@ -1,0 +1,7 @@
+--source include/have_rocksdb.inc
+
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+let $engine=rocksdb;
+--source include/skip_scan_test.inc
+

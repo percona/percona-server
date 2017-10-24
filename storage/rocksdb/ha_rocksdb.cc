@@ -2983,73 +2983,53 @@ private:
            "=========================================\n";
   }
 
-  static std::string get_dlock_txn_info(const rocksdb::DeadlockInfo &txn,
-                                        const GL_INDEX_ID &gl_index_id,
-                                        bool is_last_path = false) {
-    std::string txn_data;
+  static Rdb_deadlock_info::Rdb_dl_trx_info
+  get_dl_txn_info(const rocksdb::DeadlockInfo &txn,
+                  const GL_INDEX_ID &gl_index_id) {
+    Rdb_deadlock_info::Rdb_dl_trx_info txn_data;
 
-    /* extract table name and index names using the index id */
-    std::string table_name = ddl_manager.safe_get_table_name(gl_index_id);
-    auto kd = ddl_manager.safe_find(gl_index_id);
-    std::string idx_name = kd->get_name();
+    txn_data.trx_id = txn.m_txn_id;
 
-    /* get the name of the column family */
-    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(txn.m_cf_id);
-    std::string cf_name = cfh->GetName();
-
-    txn_data += format_string(
-        "TRANSACTIONID: %u\n"
-        "COLUMN FAMILY NAME: %s\n"
-        "WAITING KEY: %s\n"
-        "LOCK TYPE: %s\n"
-        "INDEX NAME: %s\n"
-        "TABLE NAME: %s\n",
-        txn.m_txn_id, cf_name.c_str(),
-        rdb_hexdump(txn.m_waiting_key.c_str(), txn.m_waiting_key.length())
-            .c_str(),
-        txn.m_exclusive ? "EXCLUSIVE" : "SHARED", idx_name.c_str(),
-        table_name.c_str());
-    if (!is_last_path) {
-      txn_data += "---------------WAITING FOR---------------\n";
+    txn_data.table_name = ddl_manager.safe_get_table_name(gl_index_id);
+    if (txn_data.table_name.empty()) {
+      txn_data.table_name =
+          "NOT FOUND; INDEX_ID: " + std::to_string(gl_index_id.index_id);
     }
+
+    const auto& kd = ddl_manager.safe_find(gl_index_id);
+    txn_data.index_name =
+        (kd) ? kd->get_name()
+             : "NOT FOUND; INDEX_ID: " + std::to_string(gl_index_id.index_id);
+
+    rocksdb::ColumnFamilyHandle *cfh = cf_manager.get_cf(txn.m_cf_id);
+    txn_data.cf_name = cfh->GetName();
+
+    txn_data.waiting_key =
+        rdb_hexdump(txn.m_waiting_key.c_str(), txn.m_waiting_key.length());
+
+    txn_data.exclusive_lock = txn.m_exclusive;
+
     return txn_data;
   }
 
-  static std::string
-  get_dlock_path_info(const rocksdb::DeadlockPath &path_entry) {
-    std::string path_data;
-    if (path_entry.limit_exceeded) {
-      path_data += "\n-------DEADLOCK EXCEEDED MAX DEPTH-------\n";
-    } else {
-      path_data += "\n*** DEADLOCK PATH\n"
-                   "=========================================\n";
-      for (auto it = path_entry.path.begin(); it != path_entry.path.end();
-           it++) {
-        auto txn = *it;
-        const GL_INDEX_ID gl_index_id = {
-            txn.m_cf_id, rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(
-                             txn.m_waiting_key.c_str()))};
-        path_data += get_dlock_txn_info(txn, gl_index_id);
-      }
+  static Rdb_deadlock_info
+  get_dl_path_trx_info(const rocksdb::DeadlockPath &path_entry) {
+    Rdb_deadlock_info deadlock_info;
+    deadlock_info.path.reserve(path_entry.path.size());
 
-      DBUG_ASSERT_IFF(path_entry.limit_exceeded, path_entry.path.empty());
-      /* print the first txn in the path to display the full deadlock cycle */
-      if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
-        auto txn = path_entry.path[0];
-        const GL_INDEX_ID gl_index_id = {
-            txn.m_cf_id, rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(
-                             txn.m_waiting_key.c_str()))};
-        path_data += get_dlock_txn_info(txn, gl_index_id, true);
-
-        /* prints the txn id of the transaction that caused the deadlock */
-        auto deadlocking_txn = *(path_entry.path.end() - 1);
-        path_data +=
-            format_string("\n--------TRANSACTIONID: %u GOT DEADLOCK---------\n",
-                          deadlocking_txn.m_txn_id);
-      }
+    for (const auto& txn : path_entry.path) {
+      const GL_INDEX_ID gl_index_id = {
+          txn.m_cf_id, rdb_netbuf_to_uint32(reinterpret_cast<const uchar *>(
+                           txn.m_waiting_key.c_str()))};
+      deadlock_info.path.push_back(get_dl_txn_info(txn, gl_index_id));
     }
-
-    return path_data;
+    DBUG_ASSERT_IFF(path_entry.limit_exceeded, path_entry.path.empty());
+    /* print the first txn in the path to display the full deadlock cycle */
+    if (!path_entry.path.empty() && !path_entry.limit_exceeded) {
+      const auto& deadlocking_txn = *(path_entry.path.end() - 1);
+      deadlock_info.victim_trx_id = deadlocking_txn.m_txn_id;
+    }
+    return deadlock_info;
   }
 
  public:
@@ -3079,13 +3059,15 @@ private:
     }
   }
 
-  void populate_deadlock_buffer() {
-    auto dlock_buffer = rdb->GetDeadlockInfoBuffer();
-    m_data += "----------LATEST DETECTED DEADLOCKS----------\n";
-
-    for (auto path_entry : dlock_buffer) {
-      m_data += get_dlock_path_info(path_entry);
+  std::vector<Rdb_deadlock_info> get_deadlock_info() {
+    std::vector<Rdb_deadlock_info> deadlock_info;
+    const auto& dlock_buffer = rdb->GetDeadlockInfoBuffer();
+    for (const auto& path_entry : dlock_buffer) {
+      if (!path_entry.limit_exceeded) {
+        deadlock_info.push_back(get_dl_path_trx_info(path_entry));
+      }
     }
+    return deadlock_info;
   }
 };
 
@@ -3175,6 +3157,16 @@ std::vector<Rdb_trx_info> rdb_get_all_trx_info() {
   Rdb_trx_info_aggregator trx_info_agg(&trx_info);
   Rdb_transaction::walk_tx_list(&trx_info_agg);
   return trx_info;
+}
+
+/*
+  returns a vector of info of recent deadlocks
+  for use by information_schema.rocksdb_deadlock
+*/
+std::vector<Rdb_deadlock_info> rdb_get_deadlock_info() {
+  Rdb_snapshot_status showStatus;
+  Rdb_transaction::walk_tx_list(&showStatus);
+  return showStatus.get_deadlock_info();
 }
 
 /*
@@ -11404,7 +11396,7 @@ void rocksdb_set_delayed_write_rate(THD *thd, struct st_mysql_sys_var *var,
 void rocksdb_set_max_latest_deadlocks(THD *thd, struct st_mysql_sys_var *var,
                                       void *var_ptr, const void *save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
-  const uint64_t new_val = *static_cast<const uint64_t *>(save);
+  const uint32_t new_val = *static_cast<const uint32_t *>(save);
   if (rocksdb_max_latest_deadlocks != new_val) {
     rocksdb_max_latest_deadlocks = new_val;
     rdb->SetDeadlockInfoBufferSize(rocksdb_max_latest_deadlocks);
@@ -11675,4 +11667,4 @@ mysql_declare_plugin(rocksdb_se){
     myrocks::rdb_i_s_cfoptions, myrocks::rdb_i_s_compact_stats,
     myrocks::rdb_i_s_global_info, myrocks::rdb_i_s_ddl,
     myrocks::rdb_i_s_index_file_map, myrocks::rdb_i_s_lock_info,
-    myrocks::rdb_i_s_trx_info mysql_declare_plugin_end;
+    myrocks::rdb_i_s_trx_info, myrocks::rdb_i_s_deadlock_info mysql_declare_plugin_end;

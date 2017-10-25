@@ -1321,7 +1321,8 @@ public:
 
   rocksdb::Status put_auto_incr_val(rocksdb::WriteBatchBase *batch,
                                     GL_INDEX_ID gl_index_id,
-                                    ulonglong val) const;
+                                    ulonglong val,
+                                    bool overwrite = false) const;
   bool get_auto_incr_val(GL_INDEX_ID gl_index_id,
                          ulonglong *new_val) const;
 };

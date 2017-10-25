@@ -4949,7 +4949,7 @@ Rdb_index_stats Rdb_dict_manager::get_stats(GL_INDEX_ID gl_index_id) const {
 rocksdb::Status
 Rdb_dict_manager::put_auto_incr_val(rocksdb::WriteBatchBase *batch,
                                     GL_INDEX_ID gl_index_id,
-                                    ulonglong val) const {
+                                    ulonglong val, bool overwrite) const {
   uchar key_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 3] = {0};
   dump_index_id(key_buf, Rdb_key_def::AUTO_INC, gl_index_id);
   const rocksdb::Slice key =
@@ -4966,6 +4966,9 @@ Rdb_dict_manager::put_auto_incr_val(rocksdb::WriteBatchBase *batch,
   const rocksdb::Slice value =
       rocksdb::Slice(reinterpret_cast<char *>(value_buf), ptr - value_buf);
 
+  if (overwrite) {
+    return batch->Put(m_system_cfh, key, value);
+  }
   return batch->Merge(m_system_cfh, key, value);
 }
 

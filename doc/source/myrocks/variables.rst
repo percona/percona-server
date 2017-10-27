@@ -866,6 +866,7 @@ Allowed range is up to ``2000000`` (two million).
 .. variable:: rocksdb_concurrent_prepare
 
   :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-concurrent-prepare``
   :dyn: Yes
   :scope: Global
   :vartype: Boolean
@@ -1361,7 +1362,8 @@ Allowed range is up to ``18446744073709551615``.
 
 .. variable:: rocksdb_manual_wal_flush
 
-  :version 5.7.20-18: ``--rocksdb-manual-wal-flush``
+  :version 5.7.20-18: Implemented
+  :cli: ``--rocksdb-manual-wal-flush``
   :dyn: Yes
   :scope: Global
   :vartype: Boolean

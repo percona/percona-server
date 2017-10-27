@@ -6,6 +6,7 @@
 
 --echo # Disable for valgrind because this takes too long
 --source include/not_valgrind.inc
+--source include/big_test.inc
 
 CREATE DATABASE mysqlslap;
 USE mysqlslap;

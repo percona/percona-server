@@ -119,10 +119,6 @@ static handler *rocksdb_create_handler(my_core::handlerton *hton,
                                        my_core::TABLE_SHARE *table_arg,
                                        my_core::MEM_ROOT *mem_root);
 
-bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
-                          const rocksdb::Slice &eq_cond,
-                          const bool use_all_keys);
-
 static rocksdb::CompactRangeOptions getCompactRangeOptions() {
   rocksdb::CompactRangeOptions compact_range_options;
   compact_range_options.bottommost_level_compaction =
@@ -508,6 +504,8 @@ static my_bool rocksdb_print_snapshot_conflict_queries = FALSE;
 static my_bool rocksdb_large_prefix = FALSE;
 static my_bool rocksdb_allow_to_start_after_corruption = FALSE;
 
+std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
+std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
 std::atomic<uint64_t> rocksdb_snapshot_conflict_errors(0);
 std::atomic<uint64_t> rocksdb_wal_group_syncs(0);
 
@@ -1801,11 +1799,14 @@ protected:
         */
       thd->mark_transaction_to_rollback(false /*just statement*/);
 
+      rocksdb_row_lock_wait_timeouts++;
+
       return HA_ERR_LOCK_WAIT_TIMEOUT;
     }
 
     if (s.IsDeadlock()) {
       thd->mark_transaction_to_rollback(false /* just statement */);
+      rocksdb_row_lock_deadlocks++;
       return HA_ERR_LOCK_DEADLOCK;
     } else if (s.IsBusy()) {
       rocksdb_snapshot_conflict_errors++;
@@ -2064,6 +2065,8 @@ public:
   rocksdb::Iterator *
   get_iterator(rocksdb::ColumnFamilyHandle *const column_family,
                bool skip_bloom_filter, bool fill_cache,
+               const rocksdb::Slice &eq_cond_lower_bound,
+               const rocksdb::Slice &eq_cond_upper_bound,
                bool read_current = false, bool create_snapshot = true) {
     // Make sure we are not doing both read_current (which implies we don't
     // want a snapshot) and create_snapshot which makes sure we create
@@ -2078,6 +2081,8 @@ public:
 
     if (skip_bloom_filter) {
       options.total_order_seek = true;
+      options.iterate_lower_bound = &eq_cond_lower_bound;
+      options.iterate_upper_bound = &eq_cond_upper_bound;
     } else {
       // With this option, Iterator::Valid() returns false if key
       // is outside of the prefix bloom filter range set at Seek().
@@ -4288,7 +4293,7 @@ static ulonglong rdb_get_int_col_max_value(const Field *field) {
 }
 
 void ha_rocksdb::load_auto_incr_value() {
-  ulonglong dd_val = 0;
+  ulonglong auto_incr = 0;
   bool validate_last = false, use_datadic = true;
 #ifndef NDEBUG
   DBUG_EXECUTE_IF("myrocks_autoinc_upgrade", use_datadic = false;);
@@ -4296,21 +4301,27 @@ void ha_rocksdb::load_auto_incr_value() {
 #endif
 
   if (use_datadic && dict_manager.get_auto_incr_val(
-                         m_tbl_def->get_autoincr_gl_index_id(), &dd_val)) {
-    update_auto_incr_val(dd_val);
+                         m_tbl_def->get_autoincr_gl_index_id(), &auto_incr)) {
+    update_auto_incr_val(auto_incr);
   }
 
   // If we find nothing in the data dictionary, or if we are in debug mode,
   // then call index_last to get the last value.
   //
   // This is needed when upgrading from a server that did not support
-  // persistent auto_increment.
+  // persistent auto_increment, of if the table is empty.
   //
   // For debug mode, we are just verifying that the data dictionary value is
   // greater than or equal to the maximum value in the table.
-  if (dd_val == 0 || validate_last) {
-    ulonglong last_val = load_auto_incr_value_from_index();
-    update_auto_incr_val(last_val);
+  if (auto_incr == 0 || validate_last) {
+    auto_incr = load_auto_incr_value_from_index();
+    update_auto_incr_val(auto_incr);
+  }
+
+  // If we failed to find anything from the data dictionary and index, then
+  // initialize auto_increment to 1.
+  if (m_tbl_def->m_auto_incr_val == 0) {
+    update_auto_incr_val(1);
   }
 }
 
@@ -4418,12 +4429,12 @@ int ha_rocksdb::load_hidden_pk_value() {
   Rdb_transaction *const tx = get_or_create_tx(table->in_use);
   const bool is_new_snapshot = !tx->has_snapshot();
 
+  longlong hidden_pk_id = 1;
   // Do a lookup.
   if (!index_last(table->record[0])) {
     /*
       Decode PK field from the key
     */
-    longlong hidden_pk_id = 0;
     auto err = read_hidden_pk_id_from_rowkey(&hidden_pk_id);
     if (err) {
       if (is_new_snapshot) {
@@ -4433,11 +4444,11 @@ int ha_rocksdb::load_hidden_pk_value() {
     }
 
     hidden_pk_id++;
-    longlong old = m_tbl_def->m_hidden_pk_val;
-    while (
-        old < hidden_pk_id &&
-        !m_tbl_def->m_hidden_pk_val.compare_exchange_weak(old, hidden_pk_id)) {
-    }
+  }
+
+  longlong old = m_tbl_def->m_hidden_pk_val;
+  while (old < hidden_pk_id &&
+         !m_tbl_def->m_hidden_pk_val.compare_exchange_weak(old, hidden_pk_id)) {
   }
 
   if (is_new_snapshot) {
@@ -4524,7 +4535,8 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_sk_packed_tuple(nullptr), m_end_key_packed_tuple(nullptr),
       m_sk_match_prefix(nullptr), m_sk_match_prefix_buf(nullptr),
       m_sk_packed_tuple_old(nullptr), m_dup_sk_packed_tuple(nullptr),
-      m_dup_sk_packed_tuple_old(nullptr), m_pack_buffer(nullptr),
+      m_dup_sk_packed_tuple_old(nullptr), m_eq_cond_lower_bound(nullptr),
+      m_eq_cond_upper_bound(nullptr), m_pack_buffer(nullptr),
       m_lock_rows(RDB_LOCK_NONE), m_keyread_only(FALSE),
       m_bulk_load_tx(nullptr), m_encoder_arr(nullptr),
       m_row_checksums_checked(0), m_in_rpl_delete_rows(false),
@@ -5402,8 +5414,12 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
             my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
       !(m_end_key_packed_tuple = static_cast<uchar *>(
             my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
-      !((m_pack_buffer = static_cast<uchar *>(
-             my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))))) {
+      !(m_pack_buffer = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+      !(m_eq_cond_upper_bound = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0)))) ||
+      !(m_eq_cond_lower_bound = static_cast<uchar *>(
+            my_malloc(rdb_handler_memory_key, max_packed_sk_len, MYF(0))))) { 
 #else
   if (!(m_sk_packed_tuple = static_cast<uchar *>(
             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
@@ -5413,8 +5429,12 @@ int ha_rocksdb::alloc_key_buffers(const TABLE *const table_arg,
             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
       !(m_end_key_packed_tuple = static_cast<uchar *>(
             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
-      !((m_pack_buffer = static_cast<uchar *>(
-             my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))))) {
+      !(m_pack_buffer = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+      !(m_eq_cond_upper_bound = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0)))) ||
+      !(m_eq_cond_lower_bound = static_cast<uchar *>(
+            my_malloc(PSI_NOT_INSTRUMENTED, max_packed_sk_len, MYF(0))))) { 
 #endif
     goto error;
   }
@@ -5477,6 +5497,12 @@ void ha_rocksdb::free_key_buffers() {
 
   my_free(m_dup_sk_packed_tuple_old);
   m_dup_sk_packed_tuple_old = nullptr;
+
+  my_free(m_eq_cond_upper_bound);
+  m_eq_cond_upper_bound = nullptr;
+
+  my_free(m_eq_cond_lower_bound);
+  m_eq_cond_lower_bound = nullptr;
 }
 
 void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
@@ -5585,11 +5611,13 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
   */
   m_verify_row_debug_checksums = false;
 
-  /* TODO: move the following to where TABLE_SHARE is opened: */
-  if (table->found_next_number_field)
+  /* Load auto_increment value only once on first use. */
+  if (table->found_next_number_field && m_tbl_def->m_auto_incr_val == 0) {
     load_auto_incr_value();
+  }
 
-  if (has_hidden_pk(table) &&
+  /* Load hidden pk only once on first use. */
+  if (has_hidden_pk(table) && m_tbl_def->m_hidden_pk_val == 0 &&
       (err = load_hidden_pk_value()) != HA_EXIT_SUCCESS) {
     free_key_buffers();
     DBUG_RETURN(err);
@@ -8321,7 +8349,7 @@ int ha_rocksdb::check_and_lock_sk(const uint &key_id,
 
     The bloom filter may need to be disabled for this lookup.
   */
-  const bool total_order_seek = !can_use_bloom_filter(
+  const bool total_order_seek = !check_bloom_and_set_bounds(
       ha_thd(), kd, new_slice, all_parts_used);
   const bool fill_cache = !THDVAR(ha_thd(), skip_fill_cache);
 
@@ -8332,7 +8360,9 @@ int ha_rocksdb::check_and_lock_sk(const uint &key_id,
   }
 
   rocksdb::Iterator *const iter = row_info.tx->get_iterator(
-      kd.get_cf(), total_order_seek, fill_cache, true /* read current data */,
+      kd.get_cf(), total_order_seek, fill_cache,
+      m_eq_cond_lower_bound_slice, m_eq_cond_upper_bound_slice,
+      true /* read current data */,
       false /* acquire snapshot */);
   /*
     Need to scan the transaction to see if there is a duplicate key.
@@ -8770,6 +8800,42 @@ int ha_rocksdb::update_write_row(const uchar *const old_data,
 }
 
 /*
+ Setting iterator upper/lower bounds for Seek/SeekForPrev.
+ This makes RocksDB to avoid scanning tombstones outside of
+ the given key ranges, when prefix_same_as_start=true was not passed
+ (when prefix bloom filter can not be used).
+ Inversing upper/lower bound is necessary on reverse order CF.
+ This covers HA_READ_PREFIX_LAST* case as well. For example,
+ if given query eq condition was 12 bytes and condition was
+ 0x0000b3eb003f65c5e78858b8, and if doing HA_READ_PREFIX_LAST,
+ eq_cond_len was 11 (see calc_eq_cond_len() for details).
+ If the index was reverse order, upper bound would be
+ 0x0000b3eb003f65c5e78857, and lower bound would be
+ 0x0000b3eb003f65c5e78859. These cover given eq condition range.
+*/
+void ha_rocksdb::setup_iterator_bounds(const Rdb_key_def &kd,
+                                       const rocksdb::Slice &eq_cond) {
+  uint eq_cond_len = eq_cond.size();
+  DBUG_ASSERT(eq_cond_len >= Rdb_key_def::INDEX_NUMBER_SIZE);
+  memcpy(m_eq_cond_upper_bound, eq_cond.data(), eq_cond_len);
+  kd.successor(m_eq_cond_upper_bound, eq_cond_len);
+  memcpy(m_eq_cond_lower_bound, eq_cond.data(), eq_cond_len);
+  kd.predecessor(m_eq_cond_lower_bound, eq_cond_len);
+
+  if (kd.m_is_reverse_cf) {
+    m_eq_cond_upper_bound_slice =
+        rocksdb::Slice((const char *)m_eq_cond_lower_bound, eq_cond_len);
+    m_eq_cond_lower_bound_slice =
+        rocksdb::Slice((const char *)m_eq_cond_upper_bound, eq_cond_len);
+  } else {
+    m_eq_cond_upper_bound_slice =
+        rocksdb::Slice((const char *)m_eq_cond_upper_bound, eq_cond_len);
+    m_eq_cond_lower_bound_slice =
+        rocksdb::Slice((const char *)m_eq_cond_lower_bound, eq_cond_len);
+  }
+}
+
+/*
   Open a cursor
 */
 
@@ -8785,7 +8851,7 @@ void ha_rocksdb::setup_scan_iterator(const Rdb_key_def &kd,
   bool skip_bloom = true;
 
   const rocksdb::Slice eq_cond(slice->data(), eq_cond_len);
-  if (can_use_bloom_filter(ha_thd(), kd, eq_cond, use_all_keys)) {
+  if (check_bloom_and_set_bounds(ha_thd(), kd, eq_cond, use_all_keys)) {
     skip_bloom = false;
   }
 
@@ -8825,7 +8891,9 @@ void ha_rocksdb::setup_scan_iterator(const Rdb_key_def &kd,
       read_opts.snapshot = m_scan_it_snapshot;
       m_scan_it = rdb->NewIterator(read_opts, kd.get_cf());
     } else {
-      m_scan_it = tx->get_iterator(kd.get_cf(), skip_bloom, fill_cache);
+      m_scan_it = tx->get_iterator(kd.get_cf(), skip_bloom, fill_cache,
+                                   m_eq_cond_lower_bound_slice,
+                                   m_eq_cond_upper_bound_slice);
     }
     m_scan_it_skips_bloom = skip_bloom;
   }
@@ -8848,7 +8916,8 @@ void ha_rocksdb::setup_iterator_for_rnd_scan() {
 
   rocksdb::Slice table_key((const char *)m_pk_packed_tuple, key_size);
 
-  setup_scan_iterator(*m_pk_descr, &table_key);
+  setup_scan_iterator(*m_pk_descr, &table_key, false,
+                      Rdb_key_def::INDEX_NUMBER_SIZE);
   m_scan_it->Seek(table_key);
   m_skip_scan_it_next_call = true;
 }
@@ -9707,6 +9776,13 @@ ha_rocksdb::get_range(const int &i,
   return myrocks::get_range(*m_key_descr_arr[i], buf);
 }
 
+/*
+ This function is called with total_order_seek=true, but
+ upper/lower bound setting is not necessary.
+ Boundary set is useful when there is no matching key,
+ but in drop_index_thread's case, it means index is marked as removed,
+ so no further seek will happen for the index id.
+*/
 static bool is_myrocks_index_empty(
   rocksdb::ColumnFamilyHandle *cfh, const bool is_reverse_cf,
   const rocksdb::ReadOptions &read_opts,
@@ -9896,10 +9972,12 @@ int ha_rocksdb::remove_rows(Rdb_tbl_def *const tbl) {
     const Rdb_key_def &kd = *tbl->m_key_descr_arr[i];
     kd.get_infimum_key(reinterpret_cast<uchar *>(key_buf), &key_len);
     rocksdb::ColumnFamilyHandle *cf = kd.get_cf();
-
+    const rocksdb::Slice table_key(key_buf, key_len);
+    setup_iterator_bounds(kd, table_key);
+    opts.iterate_lower_bound = &m_eq_cond_lower_bound_slice;
+    opts.iterate_upper_bound = &m_eq_cond_upper_bound_slice;
     std::unique_ptr<rocksdb::Iterator> it(rdb->NewIterator(opts, cf));
 
-    const rocksdb::Slice table_key(key_buf, key_len);
     it->Seek(table_key);
     while (it->Valid()) {
       const rocksdb::Slice key = it->key();
@@ -11198,9 +11276,11 @@ bool ha_rocksdb::commit_inplace_alter_table(
     for (inplace_alter_handler_ctx **pctx = ctx_array; *pctx; pctx++) {
       Rdb_inplace_alter_ctx *const ctx =
           static_cast<Rdb_inplace_alter_ctx *>(*pctx);
+      auto_incr_val = std::max(auto_incr_val, ctx->m_max_auto_incr);
       dict_manager.put_auto_incr_val(
-          batch, ctx->m_new_tdef->get_autoincr_gl_index_id(),
-          std::max(ctx->m_max_auto_incr, auto_incr_val), true /* overwrite */);
+          batch, ctx->m_new_tdef->get_autoincr_gl_index_id(), auto_incr_val,
+          true /* overwrite */);
+      ctx->m_new_tdef->m_auto_incr_val = auto_incr_val;
     }
 
     if (dict_manager.commit(batch)) {
@@ -11613,6 +11693,10 @@ static SHOW_VAR rocksdb_status_vars[] = {
     DEF_STATUS_VAR(number_superversion_releases),
     DEF_STATUS_VAR(number_superversion_cleanups),
     DEF_STATUS_VAR(number_block_not_compressed),
+    DEF_STATUS_VAR_PTR("row_lock_deadlocks", &rocksdb_row_lock_deadlocks,
+                       SHOW_LONGLONG),
+    DEF_STATUS_VAR_PTR("row_lock_wait_timeouts",
+                       &rocksdb_row_lock_wait_timeouts, SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("snapshot_conflict_errors",
                        &rocksdb_snapshot_conflict_errors, SHOW_LONGLONG),
     DEF_STATUS_VAR_PTR("wal_group_syncs", &rocksdb_wal_group_syncs,
@@ -11701,6 +11785,16 @@ void Rdb_background_thread::run() {
   ddl_manager.persist_stats();
 }
 
+bool ha_rocksdb::check_bloom_and_set_bounds(THD *thd, const Rdb_key_def &kd,
+                                            const rocksdb::Slice &eq_cond,
+                                            const bool use_all_keys) {
+  bool can_use_bloom = can_use_bloom_filter(thd, kd, eq_cond, use_all_keys);
+  if (!can_use_bloom) {
+    setup_iterator_bounds(kd, eq_cond);
+  }
+  return can_use_bloom;
+}
+
 /**
   Deciding if it is possible to use bloom filter or not.
 
@@ -11719,9 +11813,9 @@ void Rdb_background_thread::run() {
   @param use_all_keys True if all key parts are set with equal conditions.
                       This is aware of extended keys.
 */
-bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
-                          const rocksdb::Slice &eq_cond,
-                          const bool use_all_keys) {
+bool ha_rocksdb::can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
+                                      const rocksdb::Slice &eq_cond,
+                                      const bool use_all_keys) {
   bool can_use = false;
 
   if (THDVAR(thd, skip_bloom_filter_on_read)) {

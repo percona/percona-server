@@ -413,9 +413,9 @@ static int rocksdb_check_bulk_load(THD *const thd,
                                    void *save,
                                    struct st_mysql_value *value);
 
-static void rocksdb_set_bulk_load_allow_unsorted(
-    THD *thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
-    void *var_ptr, const void *save);
+static int rocksdb_check_bulk_load_allow_unsorted(
+    THD *const thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
+    void *save, struct st_mysql_value *value);
 
 static void rocksdb_set_max_background_jobs(THD *thd,
                                             struct st_mysql_sys_var *const var,
@@ -643,7 +643,8 @@ static MYSQL_THDVAR_BOOL(
 static MYSQL_THDVAR_BOOL(bulk_load_allow_unsorted, PLUGIN_VAR_RQCMDARG,
                          "Allow unsorted input during bulk-load. "
                          "Can be changed only when bulk load is disabled.",
-                         nullptr, rocksdb_set_bulk_load_allow_unsorted, FALSE);
+                         rocksdb_check_bulk_load_allow_unsorted, nullptr,
+                         FALSE);
 
 static MYSQL_SYSVAR_BOOL(enable_bulk_load_api, rocksdb_enable_bulk_load_api,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12149,10 +12150,7 @@ void rocksdb_set_collation_exception_list(THD *const thd,
   *static_cast<const char **>(var_ptr) = val;
 }
 
-int rocksdb_check_bulk_load(THD *const thd, struct st_mysql_sys_var *var
-                                                MY_ATTRIBUTE((__unused__)),
-                            void *save, struct st_mysql_value *value) {
-  my_bool new_value;
+int mysql_value_to_bool(struct st_mysql_value *value, my_bool *return_value) {
   int new_value_type = value->value_type(value);
   if (new_value_type == MYSQL_VALUE_TYPE_STRING) {
     char buf[16];
@@ -12160,10 +12158,10 @@ int rocksdb_check_bulk_load(THD *const thd, struct st_mysql_sys_var *var
     const char *str = value->val_str(value, buf, &len);
     if (str && (my_strcasecmp(system_charset_info, "true", str) == 0 ||
                 my_strcasecmp(system_charset_info, "on", str) == 0)) {
-      new_value = TRUE;
+      *return_value = TRUE;
     } else if (str && (my_strcasecmp(system_charset_info, "false", str) == 0 ||
                        my_strcasecmp(system_charset_info, "off", str) == 0)) {
-      new_value = FALSE;
+      *return_value = FALSE;
     } else {
       return 1;
     }
@@ -12172,12 +12170,23 @@ int rocksdb_check_bulk_load(THD *const thd, struct st_mysql_sys_var *var
     value->val_int(value, &intbuf);
     if (intbuf > 1)
       return 1;
-    new_value = intbuf > 0 ? TRUE : FALSE;
+    *return_value = intbuf > 0 ? TRUE : FALSE;
   } else {
     return 1;
   }
-  Rdb_transaction *&tx = get_tx_from_thd(thd);
 
+  return 0;
+}
+
+int rocksdb_check_bulk_load(
+    THD *const thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
+    void *save, struct st_mysql_value *value) {
+  my_bool new_value;
+  if (mysql_value_to_bool(value, &new_value) != 0) {
+    return 1;
+  }
+
+  Rdb_transaction *&tx = get_tx_from_thd(thd);
   if (tx != nullptr) {
     const int rc = tx->finish_bulk_load();
     if (rc != 0) {
@@ -12194,16 +12203,23 @@ int rocksdb_check_bulk_load(THD *const thd, struct st_mysql_sys_var *var
   return 0;
 }
 
-void rocksdb_set_bulk_load_allow_unsorted(
-    THD *const thd,
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *const var_ptr, const void *const save) {
-  if (THDVAR(thd, bulk_load)) {
-    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), "SET",
-             "Cannot change this setting while bulk load is enabled");
-  } else {
-    *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
+int rocksdb_check_bulk_load_allow_unsorted(
+    THD *const thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
+    void *save, struct st_mysql_value *value) {
+  my_bool new_value;
+  if (mysql_value_to_bool(value, &new_value) != 0) {
+    return 1;
   }
+
+  if (THDVAR(thd, bulk_load)) {
+    sql_print_error("RocksDB: Cannot change this setting while bulk load is "
+                    "enabled");
+
+    return 1;
+  }
+
+  *static_cast<bool *>(save) = new_value;
+  return 0;
 }
 
 static void rocksdb_set_max_background_jobs(THD *thd,

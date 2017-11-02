@@ -23,6 +23,7 @@
 #include <cinttypes>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -90,6 +91,25 @@ struct Rdb_trx_info {
 };
 
 std::vector<Rdb_trx_info> rdb_get_all_trx_info();
+
+/*
+ * class for exporting deadlock transaction information for
+ * information_schema.rocksdb_deadlock
+ */
+struct Rdb_deadlock_info {
+  struct Rdb_dl_trx_info {
+    ulonglong trx_id;
+    std::string cf_name;
+    std::string waiting_key;
+    bool exclusive_lock;
+    std::string index_name;
+    std::string table_name;
+  };
+  std::vector <Rdb_dl_trx_info> path;
+  ulonglong victim_trx_id;
+};
+
+std::vector<Rdb_deadlock_info> rdb_get_deadlock_info();
 
 /*
   This is
@@ -402,6 +422,27 @@ struct st_memory_stats {
   ulonglong memtable_unflushed;
 };
 
+/* Struct used for exporting RocksDB IO stalls stats */
+struct st_io_stall_stats {
+  ulonglong level0_slowdown;
+  ulonglong level0_slowdown_with_compaction;
+  ulonglong level0_numfiles;
+  ulonglong level0_numfiles_with_compaction;
+  ulonglong stop_for_pending_compaction_bytes;
+  ulonglong slowdown_for_pending_compaction_bytes;
+  ulonglong memtable_compaction;
+  ulonglong memtable_slowdown;
+  ulonglong total_stop;
+  ulonglong total_slowdown;
+
+  st_io_stall_stats()
+      : level0_slowdown(0), level0_slowdown_with_compaction(0),
+        level0_numfiles(0), level0_numfiles_with_compaction(0),
+        stop_for_pending_compaction_bytes(0),
+        slowdown_for_pending_compaction_bytes(0), memtable_compaction(0),
+        memtable_slowdown(0), total_stop(0), total_slowdown(0) {}
+};
+
 } // namespace myrocks
 
 #include "./rdb_buff.h"
@@ -529,7 +570,7 @@ class ha_rocksdb : public my_core::handler {
     This is used only when we get the record with rocksdb's Get() call (The
     other option is when we get a rocksdb::Slice from an iterator)
   */
-  std::string m_retrieved_record;
+  rocksdb::PinnableSlice m_retrieved_record;
 
   /* Type of locking to apply to rows */
   enum { RDB_LOCK_NONE, RDB_LOCK_READ, RDB_LOCK_WRITE } m_lock_rows;
@@ -556,7 +597,9 @@ class ha_rocksdb : public my_core::handler {
   bool m_update_scope_is_valid;
 
   /* SST information used for bulk loading the primary key */
-  std::shared_ptr<Rdb_sst_info> m_sst_info;
+  std::unique_ptr<Rdb_sst_info> m_sst_info;
+  /* External merge sorts for bulk load: key ID -> merge sort instance */
+  std::unordered_map<GL_INDEX_ID, Rdb_index_merge> m_key_merge;
   Rdb_transaction *m_bulk_load_tx;
   /* Mutex to protect finalizing bulk load */
   mysql_mutex_t m_bulk_load_mutex;
@@ -589,7 +632,8 @@ class ha_rocksdb : public my_core::handler {
   rocksdb::Status
   get_for_update(Rdb_transaction *const tx,
                  rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key, std::string *const value) const;
+                 const rocksdb::Slice &key,
+                 rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true)
@@ -703,8 +747,12 @@ public:
              my_core::TABLE_SHARE *const table_arg);
   ~ha_rocksdb() {
     int err MY_ATTRIBUTE((__unused__));
-    err = finalize_bulk_load();
-    DBUG_ASSERT(err == 0);
+    err = finalize_bulk_load(false);
+    if (err != 0) {
+      sql_print_error("RocksDB: Error %d finalizing bulk load while closing "
+                      "handler.",
+                      err);
+    }
     mysql_mutex_destroy(&m_bulk_load_mutex);
   }
 
@@ -1094,7 +1142,8 @@ private:
                          struct unique_sk_buf_info *sk_info)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int bulk_load_key(Rdb_transaction *const tx, const Rdb_key_def &kd,
-                    const rocksdb::Slice &key, const rocksdb::Slice &value)
+                    const rocksdb::Slice &key, const rocksdb::Slice &value,
+                    bool sort)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int update_pk(const Rdb_key_def &kd, const struct update_row_info &row_info,
                 const bool &pk_changed) MY_ATTRIBUTE((__warn_unused_result__));
@@ -1195,7 +1244,7 @@ public:
     DBUG_ENTER_FUNC();
 
     /* Free blob data */
-    m_retrieved_record.clear();
+    m_retrieved_record.Reset();
 
     DBUG_RETURN(HA_EXIT_SUCCESS);
   }
@@ -1266,7 +1315,8 @@ public:
                              my_core::Alter_inplace_info *const ha_alter_info,
                              bool commit) override;
 
-  int finalize_bulk_load() MY_ATTRIBUTE((__warn_unused_result__));
+  int finalize_bulk_load(bool print_client_error = true)
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   void set_use_read_free_rpl(const char *const whitelist);
 

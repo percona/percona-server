@@ -1088,6 +1088,8 @@ public:
     return m_sequence.get_and_update_next_number(dict);
   }
 
+  const std::string safe_get_table_name(const GL_INDEX_ID &gl_index_id);
+
   /* Walk the data dictionary */
   int scan_for_tables(Rdb_tables_scanner *tables_scanner);
 
@@ -1127,6 +1129,7 @@ private:
   key: Rdb_key_def::INDEX_INFO(0x2) + cf_id + index_id
   value: version, index_type, kv_format_version, ttl_duration
   index_type is 1 byte, version and kv_format_version are 2 bytes.
+  index_flags is 4 bytes.
   ttl_duration is 8 bytes.
 
   3. CF id => CF flags

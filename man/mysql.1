@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/03/2017
+.\"      Date: 09/13/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "06/03/2017" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/13/2017" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -295,9 +295,9 @@ Display result set metadata\&.
 \fB\-\-comments\fR,
 \fB\-c\fR
 .sp
-Whether to preserve comments in statements sent to the server\&. The default is
+Whether to strip or preserve comments in statements sent to the server\&. The default is
 \fB\-\-skip\-comments\fR
-(discard comments), enable with
+(strip comments), enable with
 \fB\-\-comments\fR
 (preserve comments)\&.
 .RE
@@ -650,7 +650,7 @@ LOCAL\&. The option may be given as
 or
 \fB\-\-local\-infile=1\fR
 to explicitly disable or enable
-LOCAL\&. Enabling local data loading has no effect if the server does not also support it; see
+LOCAL\&. Enabling local data loading also requires that the server permits it; see
 Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq
 .RE
 .sp
@@ -1269,7 +1269,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1415,9 +1415,9 @@ The output when
 is used with
 \fBmysql\fR
 matches that of
-\fBmysqldump \fR\fB\fB\-\-xml\fR\fR\&. See
-\fBmysqldump\fR(1)
-for details\&.
+\fBmysqldump\fR
+\fB\-\-xml\fR\&. See
+\fBmysqldump\fR(1), for details\&.
 .sp
 The XML output also uses an XML namespace, as shown here:
 .sp
@@ -1692,7 +1692,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&23.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&23.8.16, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&20.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -3158,7 +3158,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&23.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&23.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

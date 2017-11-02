@@ -891,7 +891,7 @@ static MYSQL_SYSVAR_INT(table_cache_numshardbits,
                         "DBOptions::table_cache_numshardbits for RocksDB",
                         nullptr, nullptr,
                         rocksdb_db_options->table_cache_numshardbits,
-                        /* min */ 0, /* max */ INT_MAX, 0);
+                        /* min */ 0, /* max */ 19, 0);
 
 static MYSQL_SYSVAR_ULONG(wal_ttl_seconds, rocksdb_db_options->WAL_ttl_seconds,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -1066,7 +1066,7 @@ static MYSQL_SYSVAR_ULONG(block_size, rocksdb_tbl_options->block_size,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "BlockBasedTableOptions::block_size for RocksDB",
                           nullptr, nullptr, rocksdb_tbl_options->block_size,
-                          /* min */ 1L, /* max */ LONG_MAX, 0);
+                          /* min */ 1024L, /* max */ LONG_MAX, 0);
 
 static MYSQL_SYSVAR_INT(
     block_size_deviation, rocksdb_tbl_options->block_size_deviation,

@@ -1,0 +1,21 @@
+--source include/have_rocksdb.inc
+
+select @@global.rocksdb_block_size;
+
+call mtr.add_suppression("option 'rocksdb-block-size': unsigned value 12 adjusted to 1024");
+
+# try to restart server with a bad value
+--let $restart_parameters=restart:--rocksdb_block_size=12
+--source include/restart_mysqld.inc
+
+# should have been reset to the default
+select @@global.rocksdb_block_size;
+
+# test case that uncovered bad lower limit allowance of 0 from MYR-190
+CREATE TABLE t1(a INT, b INT, PRIMARY KEY(a)) ENGINE=ROCKSDB;
+INSERT INTO t1(a) VALUES (0.0);
+SELECT t1.a FROM t1 GROUP BY t1.a;
+DROP TABLE t1;
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc

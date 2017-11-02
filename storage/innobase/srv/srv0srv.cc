@@ -1908,6 +1908,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_sec_rec_cluster_reads_avoided =
 		srv_sec_rec_cluster_reads_avoided;
 
+	thd_get_fragmentation_stats(current_thd,
+		&export_vars.innodb_fragmentation_stats);
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

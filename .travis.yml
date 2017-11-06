@@ -6,44 +6,32 @@ language: cpp
 matrix:
   include:
     - os: linux
-      compiler: gcc
+      compiler: clang
       addons:
         apt:
-          sources: [ 'ubuntu-toolchain-r-test', 'kalakris-cmake' ]
-          packages: [ 'g++-5', 'libstdc++-5-dev', 'cmake' ]
-      env: CMAKE_BUILD_TYPE=DEBUG GXX=5
-
-    - os: linux
-      compiler: gcc
-      addons:
-        apt:
-          sources: [ 'ubuntu-toolchain-r-test', 'kalakris-cmake' ]
-          packages: [ 'g++-5', 'libstdc++-5-dev', 'cmake' ]
-      env: CMAKE_BUILD_TYPE=RELEASE GXX=5
-
+          sources: [ 'ubuntu-toolchain-r-test', 'kalakris-cmake', 'llvm-toolchain-trusty-5.0']
+          packages: [ 'g++-5', 'libstdc++-5-dev', 'cmake','dh-autoreconf','libcrypto++-dev', 'libssl-dev', 'libaio-dev', 'libncurses5-dev', 'bison' ]
+      env: MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
 
 # container-based builds
 sudo: true
 
 before_install:
-  - sudo apt-get update -qq -y
-  - sudo apt-get install dh-autoreconf libcrypto++-dev libssl-dev
-  - sudo apt-get install dpkg-dev libaio-dev libncurses5-dev bison
   - env
+  - eval "${MATRIX_EVAL}"
   - export SRC_DIR="`pwd`"
-  - if [ "$CXX" = "g++" ]; then export CXX="g++-$GXX" CC="gcc-$GXX"; fi
+  - echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled > /dev/null
+
+before_script:
+  - rm -rf CMakeFiles/ cmake_install.cmake CMakeCache.txt
 
 script:
   - $CXX --version
   - cmake --version
   - git submodule update
   - git submodule init
-  - cmake . -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF -DWITH_TOKUDB_STORAGE_ENGINE=1 -DTOKUDB_VERSION=7.5.6 -DBUILD_TESTING=ON -DWITH_BOOST=extra/boost/boost_1_59_0.tar.gz
+  - cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF -DWITHOUT_ROCKSDB_STORAGE_ENGINE=1 -DWITH_TOKUDB_STORAGE_ENGINE=1 -DTOKUDB_VERSION=7.5.6 -DWITH_BOOST=extra/boost/boost_1_59_0.tar.gz
   - make -j16
-
-after_success:
-  - cd storage/tokudb/PerconaFT
-  - ctest -j16 .
 
 notifications:
   email:

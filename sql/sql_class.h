@@ -52,6 +52,7 @@
 #include "mysql/thread_type.h"
 
 #include "query_strip_comments.h"
+#include "sql_thd_internal_api.h"
 
 class Reprepare_observer;
 class sp_cache;
@@ -701,6 +702,8 @@ typedef struct system_status_var
   double last_query_cost;
   ulonglong last_query_partial_plans;
 
+  /** fragmentation statistics */
+  fragmentation_stats_t fragmentation_stats;
 } STATUS_VAR;
 
 /*

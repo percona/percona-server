@@ -1196,7 +1196,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   IO_CACHE *const head= &print_event_info->head_cache;
 
   /*
-    Format events and Start encryptions are not concerned by --offset and such,
+    Format and Start encryptions events are not concerned by --offset and such,
     we always need to read them to be able to process the wanted events.
   */
   if (((rec_count >= offset) &&

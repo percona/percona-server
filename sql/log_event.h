@@ -1892,9 +1892,6 @@ public:
 
     if (!sele->is_valid())
       return true;
-
-    //memcpy(crypto_data.nonce, sele->nonce, BINLOG_NONCE_LENGTH);
-    
     return crypto_data.init(sele->crypto_scheme, sele->key_version, sele->nonce);
   }
 

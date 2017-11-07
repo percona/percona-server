@@ -6,6 +6,7 @@
 #include <mysql/service_mysql_keyring.h>
 #endif
 #include <algorithm>
+#include <boost/move/unique_ptr.hpp>
 
 Binlog_crypt_data::Binlog_crypt_data()
   : key(NULL)
@@ -50,6 +51,12 @@ void Binlog_crypt_data::free_key()
 
 Binlog_crypt_data& Binlog_crypt_data::operator=(Binlog_crypt_data b)
 {
+  this->swap(b);
+  return *this;
+}
+
+void Binlog_crypt_data::swap(Binlog_crypt_data &b)
+{
   enabled= b.enabled;
   key_version= b.key_version;
   key_length= b.key_length;
@@ -58,8 +65,6 @@ Binlog_crypt_data& Binlog_crypt_data::operator=(Binlog_crypt_data b)
   memcpy(iv, b.iv, BINLOG_IV_LENGTH);
   dst_len= b.dst_len;
   memcpy(nonce, b.nonce, BINLOG_NONCE_LENGTH);
-
-  return *this;
 }
 
 bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
@@ -73,39 +78,36 @@ bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
   DBUG_ASSERT(nonce != NULL);
   memcpy(this->nonce, nonce, BINLOG_NONCE_LENGTH);
 
-  char *key_type= NULL;
+  boost::movelib::unique_ptr<char, void (*)(void*)> key_type(NULL, my_free);
+  char *key_type_raw = NULL;
   size_t key_len;
 
   DBUG_EXECUTE_IF("binlog_encryption_error_on_key_fetch",
                   { return 1; } );
 
-  if (my_key_fetch("percona_binlog", &key_type, NULL,
-                   reinterpret_cast<void**>(&key), &key_len) ||
-      (key != NULL && key_len != 16))
+  int fetch_result = my_key_fetch("percona_binlog", &key_type_raw, NULL,
+                                  reinterpret_cast<void**>(&key), &key_len);
+  key_type.reset(key_type_raw);
+  if (key != NULL && key_len != 16)
   {
     free_key();
-    if (key_type != NULL)
-      my_free(key_type);
     return true;
   }
-  my_free(key_type);
-  key_type= NULL;
+  key_type.reset();
 
   if (key == NULL)
   {
     my_key_generate("percona_binlog", "AES", NULL, 16);
-    if (my_key_fetch("percona_binlog", &key_type, NULL,
-                     reinterpret_cast<void**>(&key), &key_len) ||
-        key_len != 16)
+    fetch_result = my_key_fetch("percona_binlog", &key_type_raw, NULL,
+                                reinterpret_cast<void**>(&key), &key_len);
+    key_type.reset(key_type_raw);
+    if (fetch_result || key_len != 16)
     {
       free_key();
-      if (key_type != NULL)
-        my_free(key_type);
       return true;
     }
-    DBUG_ASSERT(strncmp(key_type, "AES", 3) == 0);
+    DBUG_ASSERT(strncmp(key_type.get(), "AES", 3) == 0);
   }
-  my_free(key_type);
 #endif
   enabled= true;
   return false;

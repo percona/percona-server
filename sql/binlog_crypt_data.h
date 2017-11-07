@@ -20,6 +20,7 @@ public:
   ~Binlog_crypt_data();
   Binlog_crypt_data(const Binlog_crypt_data &b);
   Binlog_crypt_data& operator=(Binlog_crypt_data b);
+  void swap(Binlog_crypt_data &b);
 
   void free_key();
   bool init(uint sch, uint kv, const uchar* nonce);

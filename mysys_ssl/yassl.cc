@@ -54,16 +54,16 @@ typedef struct {
   TaoCrypt::word32 key_len;
 } EVP_CIPHER;
 
-#define gen_cipher(mode, MODE, len)                                     \
-  static const EVP_CIPHER *EVP_aes_ ## len ## _ ## mode()               \
-  { static const EVP_CIPHER c={TaoCrypt::MODE, len/8}; return &c; }
+#define GEN_CIPHER(MODE_LC, MODE_UC, LEN)                                     \
+  static const EVP_CIPHER *EVP_aes_ ## LEN ## _ ## MODE_LC()               \
+  { static const EVP_CIPHER c={TaoCrypt::MODE_UC, LEN/8}; return &c; }
 
-gen_cipher(ecb,ECB,128)
-gen_cipher(ecb,ECB,192)
-gen_cipher(ecb,ECB,256)
-gen_cipher(cbc,CBC,128)
-gen_cipher(cbc,CBC,192)
-gen_cipher(cbc,CBC,256)
+GEN_CIPHER(ecb,ECB,128)
+GEN_CIPHER(ecb,ECB,192)
+GEN_CIPHER(ecb,ECB,256)
+GEN_CIPHER(cbc,CBC,128)
+GEN_CIPHER(cbc,CBC,192)
+GEN_CIPHER(cbc,CBC,256)
 
 static inline TaoCrypt::AES *TAO(EVP_CIPHER_CTX *ctx)
 {

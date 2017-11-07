@@ -42,24 +42,16 @@ bool Event_encrypter::init(IO_CACHE *output_cache, uchar* &header, size_t &buf_l
   uchar iv[Binlog_crypt_data::BINLOG_IV_LENGTH];
   crypto->set_iv(iv, my_b_safe_tell(output_cache));
 
-  //int res = 0;
-
-  //if ((res = my_aes_crypt_init(ctx, MY_AES_CBC, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD,
-                              //crypto->key, crypto->key_length, iv, sizeof(iv))))
-
   if (my_aes_crypt_init(ctx, MY_AES_CBC, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD,
                         crypto->get_key(), crypto->get_keys_length(), iv, sizeof(iv)))
   {
     if (ctx != NULL)
     {
-      delete ctx;
+      my_aes_crypt_free_ctx(ctx);
       ctx = NULL;
     }
-    //return res;
     return true;
   }
-
-  //ctx.reset(ctx_raw);
 
   DBUG_ASSERT(buf_len >= LOG_EVENT_HEADER_LEN);
   event_len = uint4korr(header + EVENT_LEN_OFFSET);
@@ -68,7 +60,6 @@ bool Event_encrypter::init(IO_CACHE *output_cache, uchar* &header, size_t &buf_l
   header += 4;
   buf_len -= 4;
 
-  //return res;
   return false;
 }
 

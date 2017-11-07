@@ -22,7 +22,10 @@ public:
   ~Event_encrypter()
   {
     if (ctx != NULL)
-      delete ctx;
+    {
+      my_aes_crypt_free_ctx(ctx);
+      ctx = NULL;
+    } 
   }
 
   bool init(IO_CACHE *output_cache, uchar* &header, size_t &buf_len);
@@ -49,6 +52,9 @@ private:
      Encryption data (key, nonce). Only used if ctx != 0.
   */
   Binlog_crypt_data *crypto;
+
+  Event_encrypter(const Event_encrypter&);
+  Event_encrypter& operator=(const Event_encrypter&); 
 };
 
 #endif //EVENT_ENCRYPTER_H

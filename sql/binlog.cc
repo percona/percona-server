@@ -6943,10 +6943,7 @@ void MYSQL_BIN_LOG::dec_prep_xids(THD *thd)
 int MYSQL_BIN_LOG::write_to_file(Log_event* event)
 {
   if (crypto.is_enabled())
-  {
     event->event_encrypter.enable_encryption(&crypto);
-    //event->event_encrypter.ctx= alloca(crypto.ctx_size);
-  }
   return event->write(&log_file);
 }
 

@@ -330,7 +330,6 @@ enum Log_event_type
   /* New MySQL events are to be added right above this comment */
   MYSQL_END_EVENT,
 
-  //PERCONA_EVENTS_BEGIN= 100,
   MARIA_EVENTS_BEGIN= 160,
 
   START_ENCRYPTION_EVENT= 164,

@@ -1,4 +1,5 @@
 /*
+ Copyright (c) 2017 Percona
  Copyright (c) 2014 Google Inc.
  Copyright (c) 2014, 2015 MariaDB Corporation
 
@@ -44,24 +45,24 @@ enum my_aes_mode {
 #endif
 };
 
-class MyEncryptionCTX
-{
-public:
-  MyEncryptionCTX();
-  virtual ~MyEncryptionCTX();
+class MyEncryptionCTX;
+//{
+//public:
+  //MyEncryptionCTX();
+  //virtual ~MyEncryptionCTX();
 
-  virtual int init(const my_aes_mode mode, int encrypt, const uchar *key, size_t klen,
-                   const uchar *iv, size_t ivlen);
-  virtual int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen);
-  virtual int finish(uchar *dst, size_t *dlen);
+  //virtual int init(const my_aes_mode mode, int encrypt, const uchar *key, size_t klen,
+                   //const uchar *iv, size_t ivlen);
+  //virtual int update(const uchar *src, size_t slen, uchar *dst, size_t *dlen);
+  //virtual int finish(uchar *dst, size_t *dlen);
 
-protected:
-  struct Impl;
-  Impl* pimpl;
+//protected:
+  //struct Impl;
+  //Impl* pimpl;
 
-private:
-  MyEncryptionCTX(const MyEncryptionCTX &enc);
-};
+//private:
+  //MyEncryptionCTX(const MyEncryptionCTX &enc);
+//};
 
 int my_aes_crypt_init(MyEncryptionCTX* &ctx, enum my_aes_mode mode, int flags,
                       const unsigned char* key, size_t klen,
@@ -69,6 +70,8 @@ int my_aes_crypt_init(MyEncryptionCTX* &ctx, enum my_aes_mode mode, int flags,
 int my_aes_crypt_update(MyEncryptionCTX *ctx, const unsigned char *src, size_t slen,
                         unsigned char *dst, size_t *dlen);
 int my_aes_crypt_finish(MyEncryptionCTX* &ctx, uchar *dst, size_t *dlen);
+void my_aes_crypt_free_ctx(MyEncryptionCTX* ctx);
+
 int my_aes_crypt(enum my_aes_mode mode, int flags,
                  const unsigned char *src, size_t slen, unsigned char *dst, size_t *dlen,
                  const unsigned char *key, size_t klen, const unsigned char *iv, size_t ivlen);

@@ -663,7 +663,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 {
   uint key, parts, mem_per_row_keys= 0, keys= table_arg->s->keys;
   uint auto_key= 0, auto_key_type= 0;
-  uint fixed_key_fieldnr = 0, fixed_data_size = 0, next_field_pos = 0;
+  uint fixed_data_size = 0, next_field_pos = 0;
   uint column_idx, column_count= table_arg->s->fields;
   HP_COLUMNDEF *columndef;
   HP_KEYDEF *keydef;
@@ -856,15 +856,6 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
       {
         fixed_data_size= next_field_pos;
       }
-
-
-      if (field->field_index >= fixed_key_fieldnr)
-      {
-        /*
-          Do not use seg->fieldnr as it's not reliable in case of temp tables
-        */
-        fixed_key_fieldnr= field->field_index + 1;
-      }
     }
   }
 
@@ -888,7 +879,6 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
   hp_create_info->is_dynamic= (share->row_type == ROW_TYPE_DYNAMIC);
   hp_create_info->columns= column_count;
   hp_create_info->columndef= columndef;
-  hp_create_info->fixed_key_fieldnr= fixed_key_fieldnr;
   hp_create_info->fixed_data_size= fixed_data_size;
   hp_create_info->max_records= (ulong) share->max_rows;
   hp_create_info->min_records= (ulong) share->min_rows;

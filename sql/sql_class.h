@@ -641,6 +641,22 @@ typedef struct system_variables
   my_bool show_old_temporals;
 } SV;
 
+/** Page fragmentation statistics */
+struct fragmentation_stats_t
+{
+  ulonglong scan_pages_contiguous;          /*!< number of contiguous InnoDB
+                                            page reads inside a query */
+  ulonglong scan_pages_disjointed;          /*!< number of disjointed InnoDB
+                                            page reads inside a query */
+  ulonglong scan_pages_total_seek_distance; /*!< total seek distance between
+                                            InnoDB pages */
+  ulonglong scan_data_size;                 /*!< size of data in all InnoDB
+                                            pages read inside a query
+                                            (in bytes) */
+  ulonglong scan_deleted_recs_size;         /*!< size of deleted records in
+                                            all InnoDB pages read inside a
+                                            query (in bytes) */
+};
 
 /**
   Per thread status variables.
@@ -722,6 +738,8 @@ typedef struct system_status_var
   ulong max_statement_time_set;
   ulong max_statement_time_set_failed;
 
+  /** fragmentation statistics */
+  fragmentation_stats_t fragmentation_stats;
 } STATUS_VAR;
 
 /*
@@ -5720,5 +5738,18 @@ extern pthread_attr_t *get_connection_attrib(void);
   @retval >= 0	a file handle that can be passed to dup or my_close
 */
 int mysql_tmpfile_path(const char* path, const char* prefix);
+
+/** Gets page fragmentation statistics. Assigns zeros to stats if thd is
+NULL.
+@param[in]  thd   the calling thread
+@param[out] stats a pointer to fragmentation statistics to fill */
+void thd_get_fragmentation_stats(const THD *thd,
+                                 fragmentation_stats_t* stats);
+
+/** Adds page scan statistics. Does nothing if thd is NULL.
+@param[in] thd   the calling thread
+@param[in] stats a pointer to fragmentation statistics to add */
+void thd_add_fragmentation_stats(THD *thd,
+                                 const fragmentation_stats_t* stats);
 
 #endif /* SQL_CLASS_INCLUDED */

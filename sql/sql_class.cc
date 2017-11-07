@@ -5364,3 +5364,52 @@ bool THD::is_current_stmt_binlog_disabled() const
   return (!(variables.option_bits & OPTION_BIN_LOG) ||
           !mysql_bin_log.is_open());
 }
+
+/** Gets page fragmentation statistics. Assigns zeros to stats if thd is
+NULL.
+@param[in]  thd   the calling thread
+@param[out] stats a pointer to fragmentation statistics to fill */
+void thd_get_fragmentation_stats(const THD *thd,
+                                 fragmentation_stats_t* stats)
+{
+  DBUG_ASSERT(stats != NULL);
+  if (likely(thd != NULL))
+  {
+    stats->scan_pages_contiguous=
+      thd->status_var.fragmentation_stats.scan_pages_contiguous;
+    stats->scan_pages_disjointed=
+      thd->status_var.fragmentation_stats.scan_pages_disjointed;
+    stats->scan_pages_total_seek_distance=
+      thd->status_var.fragmentation_stats.scan_pages_total_seek_distance;
+    stats->scan_data_size=
+      thd->status_var.fragmentation_stats.scan_data_size;
+    stats->scan_deleted_recs_size=
+      thd->status_var.fragmentation_stats.scan_deleted_recs_size;
+  }
+  else
+  {
+    memset(stats, 0, sizeof(*stats));
+  }
+}
+
+/** Adds page scan statistics. Does nothing if thd is NULL.
+@param[in] thd   the calling thread
+@param[in] stats a pointer to fragmentation statistics to add */
+void thd_add_fragmentation_stats(THD *thd,
+                                 const fragmentation_stats_t* stats)
+{
+  DBUG_ASSERT(stats != NULL);
+  if (likely(thd != NULL))
+  {
+    thd->status_var.fragmentation_stats.scan_pages_contiguous+=
+      stats->scan_pages_contiguous;
+    thd->status_var.fragmentation_stats.scan_pages_disjointed+=
+      stats->scan_pages_disjointed;
+    thd->status_var.fragmentation_stats.scan_pages_total_seek_distance+=
+      stats->scan_pages_total_seek_distance;
+    thd->status_var.fragmentation_stats.scan_data_size+=
+      stats->scan_data_size;
+    thd->status_var.fragmentation_stats.scan_deleted_recs_size+=
+      stats->scan_deleted_recs_size;
+  }
+}

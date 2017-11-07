@@ -52,6 +52,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "ut0counter.h"
 
+#include <sql_class.h>
+
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
 	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
@@ -1105,6 +1107,9 @@ struct export_var_t{
 	ulint innodb_sec_rec_cluster_reads_avoided; /*!< srv_sec_rec_cluster_reads_avoided */
 
 	ulint innodb_buffered_aio_submitted;
+
+	fragmentation_stats_t innodb_fragmentation_stats;/*!< Fragmentation
+						statistics */
 };
 
 /** Thread slot in the thread table.  */

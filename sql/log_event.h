@@ -49,6 +49,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include "event_crypt.h"
 
 #ifdef MYSQL_CLIENT
 class Format_description_log_event;
@@ -114,6 +115,7 @@ int ignored_error_code(int err_code);
 #define LOG_READ_TRUNC  -6
 #define LOG_READ_TOO_LARGE -7
 #define LOG_READ_CHECKSUM_FAILURE -8
+#define LOG_READ_DECRYPT -9
 
 #define LOG_EVENT_OFFSET 4
 
@@ -132,6 +134,7 @@ struct sql_ex_info
 {
   sql_ex_info() {}                            /* Remove gcc warning */
   binary_log::sql_ex_data_info data_info;
+  Event_encrypter *event_encrypter;
 
   bool write_data(IO_CACHE* file);
   const char* init(const char* buf, const char* buf_end, bool use_new_format);
@@ -613,6 +616,9 @@ public:
     Placeholder for event checksum while writing to binlog.
   */
   ha_checksum crc;
+
+  Event_encrypter event_encrypter;
+
   /**
     Index in @c rli->gaq array to indicate a group that this event is
     purging. The index is set by Coordinator to a group terminator
@@ -728,6 +734,7 @@ public:
     given binlog is still active.
 
     @param[in]  file                log file to be read
+    @param[in]  fdle                format description log event
     @param[out] packet              packet to hold the event
     @param[in]  lock                the lock to be used upon read
     @param[in]  checksum_alg_arg    the checksum algorithm
@@ -746,6 +753,7 @@ public:
     @retval LOG_READ_TOO_LARGE  event too large
    */
   static int read_log_event(IO_CACHE* file, String* packet,
+                            const Format_description_log_event *fdle,
                             mysql_mutex_t* log_lock,
                             binary_log::enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
@@ -1080,7 +1088,8 @@ private:
         */
         (get_type_code() == binary_log::ROTATE_EVENT &&
          ((server_id == (uint32) ::server_id) ||
-          (common_header->log_pos == 0 && mts_in_group))))
+          (common_header->log_pos == 0 && mts_in_group))) ||
+        (get_type_code() == binary_log::START_ENCRYPTION_EVENT))
       return EVENT_EXEC_ASYNC;
     else if (is_mts_sequential_exec(is_dbname_type))
       return EVENT_EXEC_SYNC;
@@ -1720,6 +1729,72 @@ protected:
 #endif
 };
 
+/**
+  @class Start_encryption_log_event
+
+  Start_encryption_log_event marks the beginning of encrypted data (all events
+  after this event are encrypted).
+
+  It contains the cryptographic scheme used for the encryption as well as any
+  data required to decrypt (except the actual key).
+
+  For binlog cryptoscheme 1: key version, and nonce for iv generation.
+*/
+class Start_encryption_log_event : public Binary_log_event, public Log_event
+{
+public:
+#ifdef MYSQL_SERVER
+  Start_encryption_log_event(uint crypto_scheme_arg, uint key_version_arg,
+                             const uchar* nonce_arg)
+  : Binary_log_event(binary_log::START_ENCRYPTION_EVENT),
+    Log_event(header(), footer(), Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING),
+    crypto_scheme(crypto_scheme_arg), key_version(key_version_arg)
+  {
+    DBUG_ASSERT(crypto_scheme == 1);
+    is_valid_param= crypto_scheme == 1;
+    memcpy(nonce, nonce_arg, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
+  }
+
+  bool write_data_body(IO_CACHE* file)
+  {
+    uchar scheme_buf= crypto_scheme;
+    uchar key_version_buf[Binlog_crypt_data::BINLOG_KEY_VERSION_LENGTH];
+    int4store(key_version_buf, key_version);
+    return wrapper_my_b_safe_write(file, (uchar*)&scheme_buf, sizeof(scheme_buf)) || 
+           wrapper_my_b_safe_write(file, (uchar*)key_version_buf, sizeof(key_version_buf)) ||
+           wrapper_my_b_safe_write(file, (uchar*)nonce, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
+  }
+#else
+  void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
+#endif
+
+  Start_encryption_log_event(
+     const char* buf, uint event_len,
+     const Format_description_log_event* description_event);
+
+  Log_event_type get_type_code() { return binary_log::START_ENCRYPTION_EVENT; }
+
+  size_t get_data_size()
+  {
+    return Binlog_crypt_data::BINLOG_CRYPTO_SCHEME_LENGTH +
+           Binlog_crypt_data::BINLOG_KEY_VERSION_LENGTH +
+           Binlog_crypt_data::BINLOG_NONCE_LENGTH;
+  }
+
+  uint crypto_scheme;
+  uint key_version;
+  uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
+
+protected:
+#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
+  virtual int do_apply_event(Relay_log_info const *rli);
+  virtual int do_update_pos(Relay_log_info *rli);
+  virtual enum_skip_reason do_shall_skip(Relay_log_info *rli)
+  {
+     return Log_event::EVENT_SKIP_NOT;
+  }
+#endif
+};
 
 /**
   @class Format_description_log_event
@@ -1809,6 +1884,28 @@ public:
     */
     return Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN;
   }
+
+  Binlog_crypt_data crypto_data;
+  bool start_decryption(Start_encryption_log_event* sele)
+  {
+    DBUG_ASSERT(!crypto_data.is_enabled());
+
+    if (!sele->is_valid())
+      return true;
+    return crypto_data.init(sele->crypto_scheme, sele->key_version, sele->nonce);
+  }
+
+  void copy_crypto_data(const Format_description_log_event& o)
+  {
+    DBUG_PRINT("info", ("Copying crypto data"));
+    crypto_data= o.crypto_data;
+  }
+
+  void reset_crypto()
+  {
+    crypto_data.disable();
+  }
+
 protected:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
   virtual int do_apply_event(Relay_log_info const *rli);
@@ -2698,6 +2795,7 @@ private:
 class Unknown_log_event: public binary_log::Unknown_event , public Log_event
 {
 public:
+  enum { UNKNOWN, ENCRYPTED } what;
   /**
     Even if this is an unknown event, we still pass description_event to
     Log_event's ctor, this way we can extract maximum information from the
@@ -2706,10 +2804,14 @@ public:
   Unknown_log_event(const char* buf,
                     const Format_description_event *description_event)
   : binary_log::Unknown_event(buf, description_event),
-    Log_event(header(), footer())
+    Log_event(header(), footer()), what(UNKNOWN)
   {
     is_valid_param= true;
   }
+
+  /* constructor for hopelessly corrupted events */
+  Unknown_log_event() : Log_event(header(), footer()), what(ENCRYPTED)
+  {}
 
   ~Unknown_log_event() {}
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);

@@ -1,0 +1,5 @@
+--binlog-format='MIXED'
+--master-info-repository=TABLE
+--relay-log-info-repository=TABLE
+--log_error=$MYSQLTEST_VARDIR/tmp/slave.err
+--no-console

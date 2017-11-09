@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2195,6 +2195,22 @@ public:
   }
 
   virtual void update_null_value();
+
+  /**
+    Ensure that deterministic functions are not evaluated in preparation phase
+    by returning false before tables are locked and true after they are locked.
+    (can_be_evaluated_now() handles this because a function has the
+    has_subquery() property).
+
+     @retval true if tables are locked for deterministic functions
+     @retval false Otherwise
+  */
+  bool const_item() const
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
 };
 
 

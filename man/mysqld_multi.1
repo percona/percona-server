@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2017
+.\"      Date: 09/13/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "06/02/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "09/13/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -542,31 +542,7 @@ monitors its
 \fBmysqld\fR
 process and restarts it if the process terminates due to a signal sent using
 kill \-9
-or for other reasons, such as a segmentation fault\&. The
-\fBmysqld_safe\fR
-script might require that you start it from a certain place\&. This means that you might have to change location to a certain directory before running
-\fBmysqld_multi\fR\&. If you have problems starting, please see the
-\fBmysqld_safe\fR
-script\&. Check especially the lines:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
-MY_PWD=`pwd`
-# Check if we are starting this relative (for the binary release)
-if test \-d $MY_PWD/data/mysql \-a \e
-   \-f \&./share/mysql/english/errmsg\&.sys \-a \e
-   \-x \&./bin/mysqld
-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
-.fi
-.if n \{\
-.RE
-.\}
-.sp
-The test performed by these lines should be successful, or you might encounter problems\&. See
-\fBmysqld_safe\fR(1)\&.
+or for other reasons, such as a segmentation fault\&.
 .RE
 .sp
 .RS 4

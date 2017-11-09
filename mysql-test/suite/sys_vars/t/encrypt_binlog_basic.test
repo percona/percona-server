@@ -1,0 +1,89 @@
+################## mysql-test\t\encrypt_binlog_basic.test #####################
+#                                                                             #
+# Variable Name: encrypt_binlog                                               #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: boolean                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2017-11-08                                                   #
+# Author : Robert Golebiowski                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Staitc System Variable encrypt_binlog             #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.encrypt_binlog);
+--echo 1 Expected
+
+SELECT @@GLOBAL.encrypt_binlog;
+--echo 0 Expected
+
+####################################################################
+#   Check if Value cannot be set                                   #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.encrypt_binlog=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.encrypt_binlog);
+--echo 1 Expected
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+--disable_warnings
+SELECT @@GLOBAL.encrypt_binlog= VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='encrypt_binlog';
+--enable_warnings
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.encrypt_binlog);
+--echo 1 Expected
+
+--disable_warnings
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='encrypt_binlog';
+--enable_warnings
+--echo 1 Expected
+
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@encrypt_binlog= @@GLOBAL.encrypt_binlog;
+--echo 1 Expected
+
+################################################################################
+#   Check if encrypt_binlog can be accessed with and without @@ sign           #
+################################################################################
+
+SELECT COUNT(@@encrypt_binlog);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.encrypt_binlog);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.encrypt_binlog);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_BAD_FIELD_ERROR
+SELECT encrypt_binlog= @@SESSION.encrypt_binlog;
+--echo Expected error 'Readonly variable'
+
+

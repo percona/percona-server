@@ -1,9 +1,0 @@
-!include my.cnf
-
-[mysqld.2]
-binlog-ignore-db=test
-plugin_dir=@env.KEYRING_PLUGIN_DIR
-early-plugin-load=@env.KEYRING_PLUGIN
-keyring_file_data=../../tmp/keyring2
-encrypt-binlog=1
-master-verify-checksum=1

@@ -38,7 +38,7 @@ public:
     this->crypto = crypto;
   }
 
-  bool is_encryption_enabled()
+  bool is_encryption_enabled() const
   {
     return crypto != NULL;
   }

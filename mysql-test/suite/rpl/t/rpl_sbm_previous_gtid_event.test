@@ -20,6 +20,7 @@ if (!$idle)
   let $idle=180;
 }
 
+--let $encrypt_binlog= `SELECT @@GLOBAL.ENCRYPT_BINLOG`
 # Set sync debug point to calculate sbm exactly after every
 #  previous_gtid_log_event.
 --connection slave
@@ -102,8 +103,17 @@ SET DEBUG_SYNC="now wait_for signal.reached";
 
 # Calcualte SBM
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
---let $assert_text= Seconds Behind Master should be less than 200 seconds.
---let $assert_cond= $sbm < 200
+
+--let $assert_text= Seconds Behind Master should be less than 180 seconds.
+--let $assert_cond= $sbm < 180
+
+# In case of encrypted binlog SBM might be slightly higher due to encryption
+# overhead
+if ($encrypt_binlog)
+{
+  --let $assert_text= Seconds Behind Master should be less than 200 seconds.
+  --let $assert_cond= $sbm < 200
+}
 --source include/assert.inc
 
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";

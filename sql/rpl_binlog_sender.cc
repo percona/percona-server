@@ -1098,7 +1098,7 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
     {
       log_pos= my_b_tell(log_cache);
       // We have read start encryption event from master binlog, but we have
-      // not send it to slave. We need to inform slave that master position
+      // not sent it to slave. We need to inform slave that master position
       // has advanced.
       if (unlikely(send_heartbeat_event(log_pos)))
          DBUG_RETURN(1);

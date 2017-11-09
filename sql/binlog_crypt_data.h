@@ -22,12 +22,25 @@ public:
   Binlog_crypt_data& operator=(Binlog_crypt_data b);
   void swap(Binlog_crypt_data &b);
 
+  bool is_enabled() const
+  {
+    return enabled;
+  }
+  void disable()
+  {
+    enabled= false;
+  }
+  uchar* get_key() const
+  {
+    return key;
+  }
+  size_t get_keys_length() const
+  {
+    return key_length;
+  }
+
   void free_key();
   bool init(uint sch, uint kv, const uchar* nonce);
-  bool is_enabled() const;
-  void disable();
-  uchar *get_key() const;
-  size_t get_keys_length() const;
   void set_iv(uchar* iv, uint32 offs) const;
 
 private:

@@ -1,5 +1,0 @@
-!include my.cnf
-
-[mysqld.1]
-encrypt-binlog=0
-binlog-format='MIXED'

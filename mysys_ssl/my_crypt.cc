@@ -26,11 +26,9 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #endif
-
 #include <my_crypt.h>
-
-#include "boost/move/unique_ptr.hpp"
-#include "boost/core/noncopyable.hpp"
+#include <boost/move/unique_ptr.hpp>
+#include <boost/core/noncopyable.hpp>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define ERR_remove_state(X) ERR_clear_error()
@@ -61,7 +59,6 @@ MAKE_AES_DISPATCHER(gcm)
 
 typedef const EVP_CIPHER* (*cipher_function)(uint);
 
-//const EVP_CIPHER *(*ciphers[])(uint)= {
 const cipher_function ciphers[]= {
     aes_ecb, aes_cbc
 #ifdef HAVE_EncryptAes128Ctr
@@ -85,26 +82,10 @@ public:
 
 protected:
   EVP_CIPHER_CTX *ctx;
-  //struct Impl;
-  //Impl* pimpl;
-
-//private:
-  //MyEncryptionCTX(const MyEncryptionCTX &enc);
 };
-
-//struct MyEncryptionCTX::Impl
-//{
-  //Impl() 
-  //: ctx(NULL)
-  //{}
-
-  //EVP_CIPHER_CTX *ctx;
-//};
 
 MyEncryptionCTX::MyEncryptionCTX()
 {
-  //pimpl = new Impl();
-
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ctx= new EVP_CIPHER_CTX();
   EVP_CIPHER_CTX_init(ctx);
@@ -174,8 +155,8 @@ public:
     DBUG_ASSERT(ivlen == 0 || ivlen == sizeof(oiv));
 
     int res= MyEncryptionCTX::init(mode, encrypt, key, klen, iv, ivlen);
-
-    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    if (res == MY_AES_OK)
+      EVP_CIPHER_CTX_set_padding(ctx, 0);
     return res;
   }
 
@@ -315,14 +296,13 @@ int my_aes_crypt_init(MyEncryptionCTX* &ctx, const my_aes_mode mode, int flags,
     ctx= (flags & ENCRYPTION_FLAG_NOPAD) ? new MyEncryptionCTX_nopad()
                                          : new MyEncryptionCTX();
 
-  return ((MyEncryptionCTX*)ctx)->init(mode, flags & 1, key, klen,
-                             iv, ivlen);
+  return ctx->init(mode, flags & 1, key, klen, iv, ivlen);
 }
 
 int my_aes_crypt_update(MyEncryptionCTX *ctx, const uchar *src, size_t slen,
                         uchar *dst, size_t *dlen)
 {
-  return ((MyEncryptionCTX*)ctx)->update(src, slen, dst, dlen);
+  return ctx->update(src, slen, dst, dlen);
 }
 
 void my_aes_crypt_free_ctx(MyEncryptionCTX* ctx)
@@ -367,7 +347,7 @@ int my_aes_crypt(const my_aes_mode mode, int flags,
   Without padding (ENCRYPTION_FLAG_NOPAD) cyphertext has the same length
   as the plaintext
 */
-size_t my_aes_crypt_get_size(enum my_aes_mode mode __attribute__((unused)), size_t source_length)
+size_t my_aes_crypt_get_size(enum my_aes_mode mode MY_ATTRIBUTE((unused)), size_t source_length)
 {
 #ifdef HAVE_EncryptAes128Ctr
   if (mode == MY_AES_CTR)

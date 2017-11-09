@@ -1,6 +1,0 @@
-!include my.cnf
-
-[mysqld.2]
-log-slave-updates
-log-bin=slave-bin
-relay-log=slave-relay-bin

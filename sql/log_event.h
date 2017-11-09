@@ -1888,7 +1888,7 @@ public:
   Binlog_crypt_data crypto_data;
   bool start_decryption(Start_encryption_log_event* sele)
   {
-    DBUG_ASSERT(crypto_data.is_enabled() == false);
+    DBUG_ASSERT(!crypto_data.is_enabled());
 
     if (!sele->is_valid())
       return true;

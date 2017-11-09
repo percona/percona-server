@@ -1,0 +1,15 @@
+!include ../rpl_1slave_base.cnf
+!include include/default_client.cnf
+
+[mysqld.1]
+log-bin
+
+[mysqld.2]
+log-bin
+log-slave-updates
+
+[mysqld.3]
+skip-log-bin
+
+[ENV]
+SERVER_MYPORT_3= @mysqld.3.port

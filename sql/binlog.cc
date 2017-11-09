@@ -3285,7 +3285,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       {
         if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
         {
-          if (description_event->start_decryption((Start_encryption_log_event*) ev))
+          if (description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
           {
             delete ev;
             errmsg= "Could not initialize decryption of binlog.";
@@ -9909,7 +9909,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
         goto err2;
     }
     else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT &&
-             fdle->start_decryption((Start_encryption_log_event*) ev))
+             fdle->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
       goto err2;
   
     /*

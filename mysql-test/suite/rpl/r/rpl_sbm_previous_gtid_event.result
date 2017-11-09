@@ -36,25 +36,25 @@ FLUSH LOGS;
 include/sync_slave_io_with_master.inc
 include/start_slave_sql.inc
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET DEBUG_SYNC="now wait_for signal.reached";
-include/assert.inc [Seconds Behind Master should be less than 200 seconds.]
+include/assert.inc [Seconds Behind Master should be less than 180 seconds.]
 SET DEBUG_SYNC="now signal signal.done_sbm_calculation";
 SET @@GLOBAL.DEBUG=@save_global_debug;
 SET @@global.slave_transaction_retries=@saved_slave_transaction_retries;

@@ -330,11 +330,13 @@ enum Log_event_type
   /* New MySQL events are to be added right above this comment */
   MYSQL_END_EVENT,
 
+  /* Add new Percona Server events here - its' ids should go downwards
+   * starting from MARIA_EVENTS_BEGIN, i.e. 159, 159 ..
+   * till MYSQL_END_EVENT */
+
+  START_ENCRYPTION_EVENT= 159,
+
   MARIA_EVENTS_BEGIN= 160,
-
-  START_ENCRYPTION_EVENT= 164,
-
-  /* Add new Percona Server events here - right above this comment! */
 
   ENUM_END_EVENT /* end marker */
 };

@@ -113,26 +113,6 @@ bool Binlog_crypt_data::init(uint sch, uint kv, const uchar* nonce)
   return false;
 }
 
-bool Binlog_crypt_data::is_enabled() const
-{
-  return enabled;
-}
-
-void Binlog_crypt_data::disable()
-{
-  enabled= false;
-}
-
-uchar* Binlog_crypt_data::get_key() const
-{
-  return key;
-}
-
-size_t Binlog_crypt_data::get_keys_length() const
-{
-  return key_length;
-}
-
 void Binlog_crypt_data::set_iv(uchar* iv, uint32 offs) const
 {
   DBUG_ASSERT(key != NULL && key_length == 16);

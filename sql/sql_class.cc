@@ -4020,6 +4020,16 @@ extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 }
 
 /**
+  Return the query id of a thread
+  @param thd user thread
+  @return query id
+*/
+extern "C" int64_t thd_get_query_id(const MYSQL_THD thd)
+{
+  return(thd->query_id);
+}
+
+/**
   Check if batching is allowed for the thread
   @param thd  user thread
   @retval 1 batching allowed

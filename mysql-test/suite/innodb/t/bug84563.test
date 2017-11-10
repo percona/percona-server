@@ -1,0 +1,37 @@
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+SET @innodb_lock_wait_timeout_saved = @@GLOBAL.innodb_lock_wait_timeout;
+SET @innodb_print_lock_wait_timeout_info_saved =
+  @@GLOBAL.innodb_print_lock_wait_timeout_info;
+
+SET GLOBAL innodb_lock_wait_timeout = 1;
+SET GLOBAL innodb_print_lock_wait_timeout_info = true;
+
+CREATE TABLE t (i INT) ENGINE = InnoDB;
+INSERT INTO t (i) VALUES(1);
+
+START TRANSACTION;
+SELECT * FROM t WHERE i = 1 LOCK IN SHARE MODE;
+
+--connect(con0, localhost, root,,)
+START TRANSACTION;
+--error ER_LOCK_WAIT_TIMEOUT
+DELETE FROM t WHERE i = 1;
+COMMIT;
+--disconnect con0
+
+--connection default
+DELETE FROM t WHERE i = 1;
+COMMIT;
+
+--echo Grepping the error log for lock wait timeout info
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/bug84563.err
+--let SEARCH_PATTERN= Lock wait timeout info:
+--source include/search_pattern_in_file.inc
+
+DROP TABLE t;
+SET GLOBAL innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+SET GLOBAL innodb_print_lock_wait_timeout_info =
+  @innodb_print_lock_wait_timeout_info_saved;
+--source include/wait_until_count_sessions.inc

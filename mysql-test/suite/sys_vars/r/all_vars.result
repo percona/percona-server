@@ -14,5 +14,7 @@ left join t1 on variable_name=test_name where test_name is null ORDER BY variabl
 There should be *no* variables listed below:
 INNODB_FAKE_CHANGES
 INNODB_FAKE_CHANGES
+INNODB_PRINT_LOCK_WAIT_TIMEOUT_INFO
+INNODB_PRINT_LOCK_WAIT_TIMEOUT_INFO
 drop table t1;
 drop table t2;

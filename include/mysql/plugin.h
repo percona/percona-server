@@ -642,6 +642,13 @@ void thd_set_kill_status(const MYSQL_THD thd);
 unsigned long thd_get_thread_id(const MYSQL_THD thd);
 
 /**
+  Return the query id of a thread
+  @param thd user thread
+  @return query id
+*/
+int64_t thd_get_query_id(const MYSQL_THD thd);
+
+/**
   Get the XID for this connection's transaction
 
   @param thd  user thread connection handle

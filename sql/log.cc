@@ -45,6 +45,7 @@
 #include "sp_instr.h"           // sp_lex_instr
 #include "sql_prepare.h"        // Prepared_statement
 #include "mysqld.h" // binlog_space_limit etc
+#include "debug_sync.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -626,30 +627,42 @@ static File mysql_file_real_name_reopen(File file,
 }
 
 
+bool File_query_log::set_file(const char *new_name)
+{
+  char *nn;
+
+  assert(new_name && new_name[0]);
+
+  if (!(nn= my_strdup(key_memory_File_query_log_name,
+                      new_name, MYF(MY_WME))))
+    return true;
+
+  if (name != NULL)
+    my_free(name);
+
+  name= nn;
+
+  // We can do this here since we're not actually resolving symlinks etc.
+  fn_format(log_file_name, name, mysql_data_home, "", MY_UNPACK_FILENAME);
+
+  return false;
+}
+
+
 bool File_query_log::open()
 {
   File file= -1;
   my_off_t pos= 0;
-  const char *log_name= NULL;
   char buff[FN_REFLEN];
   MY_STAT f_stat;
   DBUG_ENTER("File_query_log::open");
 
-  if (m_log_type == QUERY_LOG_SLOW)
-    log_name= opt_slow_logname;
-  else if (m_log_type == QUERY_LOG_GENERAL)
-    log_name= opt_general_logname;
-  else
-    assert(false);
-  assert(log_name && log_name[0]);
+  assert(name != NULL);
+
+  if (is_open())
+    DBUG_RETURN(false);
 
   write_error= false;
-
-  if (!(name= my_strdup(key_memory_File_query_log_name, log_name, MYF(MY_WME))))
-  {
-    name= const_cast<char *>(log_name); // for the error message
-    goto err;
-  }
 
   if ((cur_log_ext == (ulong)-1) || max_slowlog_size == 0)
   {
@@ -761,8 +774,7 @@ err:
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
-  my_free(name);
-  name= NULL;
+
   log_open= false;
   DBUG_RETURN(true);
 }
@@ -783,8 +795,7 @@ void File_query_log::close()
     check_and_print_write_error();
 
   log_open= false;
-  my_free(name);
-  name= NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -1744,6 +1755,29 @@ void Query_logger::deactivate_log_handler(enum_log_table_type log_type)
   file_log_handler->get_query_log(log_type)->close();
   // table_list_handler has no state, nothing to close
   mysql_rwlock_unlock(&LOCK_logger);
+}
+
+
+bool Query_logger::set_log_file(enum_log_table_type log_type)
+{
+  const char *log_name= NULL;
+
+  mysql_rwlock_wrlock(&LOCK_logger);
+
+  DEBUG_SYNC(current_thd, "log_set_file_holds_lock");
+
+  if (log_type == QUERY_LOG_SLOW)
+    log_name= opt_slow_logname;
+  else if (log_type == QUERY_LOG_GENERAL)
+    log_name= opt_general_logname;
+  else
+    assert(false);
+
+  bool res= file_log_handler->get_query_log(log_type)->set_file(log_name);
+
+  mysql_rwlock_unlock(&LOCK_logger);
+
+  return res;
 }
 
 

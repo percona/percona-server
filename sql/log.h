@@ -114,6 +114,11 @@ class File_query_log
   ~File_query_log()
   {
     assert(!is_open());
+    if (name != NULL)
+    {
+      my_free(name);
+      name= NULL;
+    }
     mysql_mutex_destroy(&LOCK_log);
   }
   int rotate(ulong max_size, bool *need_purge);
@@ -138,6 +143,11 @@ class File_query_log
      The internal structures are not freed until the destructor is called.
   */
   void close();
+
+  /**
+   Change what file we log to
+  */
+  bool set_file(const char *new_name);
 
   /**
      Check if we have already printed ER_ERROR_ON_WRITE and if not,
@@ -545,6 +555,17 @@ public:
      @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
   */
   bool reopen_log_file(enum_log_table_type log_type);
+
+  /**
+     Read log file name from global variable opt_*_logname.
+     If called from a sys_var update function, the caller
+     must hold a lock protecting the sys_var
+     (LOCK_global_system_variables, a polylock for the
+     variable, etc.).
+
+     @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
+  */
+  bool set_log_file(enum_log_table_type log_type);
 
   /**
      Check if given TABLE_LIST has a query log table name and

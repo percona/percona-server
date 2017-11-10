@@ -422,6 +422,10 @@ ulong	srv_force_recovery_crash;
 
 my_bool	srv_print_all_deadlocks = FALSE;
 
+/** Print lock wait timeout info to mysqld stderr */
+
+my_bool	srv_print_lock_wait_timeout_info = FALSE;
+
 /** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
 my_bool	srv_cmp_per_index_enabled = FALSE;
 

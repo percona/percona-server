@@ -4,6 +4,7 @@
 #include "vault_parser.h"
 #include "vault_key.h"
 #include "vault_base64.h"
+#include "my_rnd.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring
@@ -209,6 +210,18 @@ namespace keyring__vault_parser_unittest
     EXPECT_TRUE(vault_parser.parse_key_data(payload, &key));
   }
 
+  TEST_F(Vault_parser_test, ParsePayloadThatsGarbage)
+  {
+    uchar garbage[101000];
+    my_rand_buffer(garbage, sizeof(garbage));
+    Secure_string payload(reinterpret_cast<char*>(garbage), sizeof(garbage));
+
+    Vault_parser vault_parser(logger);
+    Vault_key key("key1", NULL, "rob", NULL, 0);
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
+      log(MY_ERROR_LEVEL, StrEq("Could not parse type tag for a key.")));
+    EXPECT_TRUE(vault_parser.parse_key_data(payload, &key));
+  }
 
 } // namespace keyring__file_io_unittest
 

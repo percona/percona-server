@@ -586,6 +586,9 @@ extern ulong srv_sync_array_size;
 /* print all user-level transactions deadlocks to mysqld stderr */
 extern my_bool srv_print_all_deadlocks;
 
+/* print lock wait timeout info to mysqld stderr */
+extern my_bool srv_print_lock_wait_timeout_info;
+
 extern my_bool	srv_cmp_per_index_enabled;
 
 /** Number of times secondary index lookup triggered cluster lookup */

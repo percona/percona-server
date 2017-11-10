@@ -10,22 +10,30 @@
 #    The environment variables SEARCH_FILE and SEARCH_PATTERN must be set
 #    before sourcing this routine.
 #
-#    Optionally, SEARCH_RANGE can be set to the max number of bytes of the file
-#    to search. If negative, it will search that many bytes at the end of the
-#    file. By default the search happens from the last CURRENT_TEST:
-#    marker till the end of file (appropriate for searching error logs).
-#
-#    Optionally, PRINT_SEARCH_RESULT can be set to 0 or 1 - 0 being default.
-#    When set an information whether string was found or not will be printed
-#
-#    Optionally, SEARCH_ABORT can be set to "FOUND" or "NOT FOUND" and this
-#    will abort if the search result doesn't match the requested one and
-#    PRINT_SEARCH_RESULT is not set.
-#
 #    In case of
 #    - SEARCH_FILE and/or SEARCH_PATTERN is not set
 #    - SEARCH_FILE cannot be opened
-#    the test will abort immediate.
+#    - SEARCH_FILE does not contain SEARCH_PATTERN and PRINT_SEARCH_RESULT
+#    is not set the test will abort immediate.
+#    MTR will report something like
+#    - PRINT_SEARCH_RESULT is set - the result of the search will
+#    get printed.
+#    ....
+#    worker[1] Using MTR_BUILD_THREAD 300, with reserved ports 13000..13009
+#    main.1st                                 [ pass ]      3
+#    innodb.innodb_page_size                  [ fail ]
+#            Test ended at 2011-11-11 18:15:58
+#
+#    CURRENT_TEST: innodb.innodb_page_size
+#    # ERROR: The file '<name>' does not contain the expected pattern  <pattern>
+#    mysqltest: In included file "./include/search_pattern_in_file.inc":
+#    included from ./include/search_pattern_in_file.inc at line 36:
+#    At line 25: command "perl" failed with error 255. my_errno=175
+#
+#    The result from queries just before the failure was:
+#    ...
+#    - saving '<some path>' to '<some path>'
+#    main.1st                                 [ pass ]      2
 #
 # Typical use case (check invalid server startup options):
 #    let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -35,7 +43,7 @@
 #    # Stop the server
 #    let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 #    --exec echo "wait" > $restart_file
-#    --shutdown_server 10
+#    --shutdown_server 
 #    --source include/wait_until_disconnected.inc
 #
 #    --error 1
@@ -45,44 +53,34 @@
 #    --source include/search_pattern_in_file.inc
 #
 # Created: 2011-11-11 mleich
+# Modified: 2014-04-26 hvadodar
+# Modified: 2017-11-10 rgolebiowski
 #
 
 perl;
     use strict;
-    die "SEARCH_FILE not set" unless $ENV{SEARCH_FILE};
-    my $print_search_result= $ENV{PRINT_SEARCH_RESULT} or 0;
-    my @search_files= glob($ENV{SEARCH_FILE});
-    my $search_pattern= $ENV{SEARCH_PATTERN} or die "SEARCH_PATTERN not set";
-    my $search_range=   $ENV{SEARCH_RANGE};
-    my $search_abort= $ENV{SEARCH_ABORT} or "FOUND";
-    my $content;
+    die "SEARCH_FILE not set" unless $ENV{'SEARCH_FILE'};
+    my $print_search_result=   $ENV{PRINT_SEARCH_RESULT} or 0;
+    my @search_files=          glob($ENV{'SEARCH_FILE'});
+    my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
+    my $file_content=          "";
+    my $found=                  0;
     foreach my $search_file (@search_files) {
-        open(FILE, '<', $search_file) || die("Can't open file $search_file: $!");
-        my $file_content;
-        if ($search_range > 0) {
-           read(FILE, $file_content, $search_range, 0);
-        } elsif ($search_range < 0) {
-           my $size= -s $search_file;
-           $search_range = -$size if $size > -$search_range;
-           seek(FILE, $search_range, 2);
-           read(FILE, $file_content, -$search_range, 0);
-        } else {
-          while(<FILE>) { # error log
-            if (/^CURRENT_TEST:/) {
-              $content='';
-            } else {
-              $content.=$_;
-            }
+       open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
+       while ( read(FILE, $file_content, 50000, 0) ) {
+          if ( $file_content =~ m{$search_pattern} ) {
+             $found= 1;
+             last;
           }
-        }
-        close(FILE);
-        $content.= $file_content;
+       }
+       close(FILE);
     }
-    my @matches=($content =~ m/$search_pattern/gs);
-    my $res=@matches ? "FOUND " . scalar(@matches) : "NOT FOUND";
-    $ENV{SEARCH_FILE} =~ s{^.*?([^/\\]+)$}{$1};
-    print "$res /$search_pattern/ in $ENV{SEARCH_FILE}\n"
-    if ($print_search_result);
-    die "$ENV{SEARCH_ABORT}\n"
-    if ($ENV{SEARCH_ABORT} && $print_search_result == 0 && $res =~ /^$ENV{SEARCH_ABORT}/);
+    if ( $print_search_result ) {
+       my $res=$found ? "FOUND" : "NOT FOUND";
+       $ENV{SEARCH_FILE} =~ s{^.*?([^/\\]+)$}{$1};
+       print "$res /$search_pattern/ in $ENV{SEARCH_FILE}\n";
+    }
+    elsif ( $found == 0 ) {
+       die("# ERROR: Non of the files do not contain the expected pattern  $search_pattern\n");
+    }
 EOF

@@ -42,7 +42,7 @@
 
 --let $master_datadir= `SELECT @@datadir`
 
---echo # Lets make sure that master binlog files are not encrypted by finding some
+--echo # Let's make sure that master binlog files are not encrypted by finding some
 --echo # plain texts that we know would appear in not encrypted binary log files.
 
 --let PRINT_SEARCH_RESULT=1

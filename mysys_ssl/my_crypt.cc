@@ -27,8 +27,8 @@
 #include <openssl/rand.h>
 #endif
 #include <my_crypt.h>
-#include <boost/move/unique_ptr.hpp>
-#include <boost/core/noncopyable.hpp>
+#include "boost/move/unique_ptr.hpp"
+#include "boost/core/noncopyable.hpp"
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define ERR_remove_state(X) ERR_clear_error()

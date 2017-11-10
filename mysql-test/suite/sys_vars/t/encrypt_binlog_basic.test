@@ -1,4 +1,4 @@
-################## mysql-test\t\encrypt_binlog_basic.test #####################
+###############################################################################
 #                                                                             #
 # Variable Name: encrypt_binlog                                               #
 # Scope: Global                                                               #
@@ -10,13 +10,10 @@
 # Author : Robert Golebiowski                                                 #
 #                                                                             #
 #                                                                             #
-# Description:Test Cases of Staitc System Variable encrypt_binlog             #
+# Description:Test Cases of Statcc System Variable encrypt_binlog             #
 #             that checks the behavior of this variable in the following ways #
 #              * Value Check                                                  #
 #              * Scope Check                                                  #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
 
@@ -85,5 +82,3 @@ SELECT COUNT(@@SESSION.encrypt_binlog);
 --Error ER_BAD_FIELD_ERROR
 SELECT encrypt_binlog= @@SESSION.encrypt_binlog;
 --echo Expected error 'Readonly variable'
-
-

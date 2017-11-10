@@ -154,11 +154,11 @@ DROP SERVER server_name_to_encrypt;
 #################
 # Master binlog checks
 #################
-# Lets make sure that master binlog files are not encrypted by finding some
+# Let's make sure that master binlog files are not encrypted by finding some
 # plain texts that we know would appear in not encrypted binary log files.
-FOUND 299 /_to_encrypt/ in master-bin.0*
-FOUND 2 /COMMIT/ in master-bin.0*
-FOUND 5 /TIMESTAMP/ in master-bin.0*
+FOUND /_to_encrypt/ in master-bin.0*
+FOUND /COMMIT/ in master-bin.0*
+FOUND /TIMESTAMP/ in master-bin.0*
 include/sync_slave_io_with_master.inc
 connection server_1;
 connection server_2;

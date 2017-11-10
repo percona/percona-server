@@ -608,14 +608,14 @@ include/save_master_pos.inc
 #############################
 connection server_2;
 include/sync_slave_io.inc
-FOUND 1196 /_to_encrypt/ in slave-relay-bin.0*
-FOUND 8 /COMMIT/ in slave-relay-bin.0*
-FOUND 20 /TIMESTAMP/ in slave-relay-bin.0*
+FOUND /_to_encrypt/ in slave-relay-bin.0*
+FOUND /COMMIT/ in slave-relay-bin.0*
+FOUND /TIMESTAMP/ in slave-relay-bin.0*
 include/start_slave.inc
 include/sync_slave_sql_with_io.inc
-FOUND 1200 /_to_encrypt/ in slave-bin.0*
-FOUND 8 /COMMIT/ in slave-bin.0*
-FOUND 20 /TIMESTAMP/ in slave-bin.0*
+FOUND /_to_encrypt/ in slave-bin.0*
+FOUND /COMMIT/ in slave-bin.0*
+FOUND /TIMESTAMP/ in slave-bin.0*
 ##########
 # Cleanup
 ##########

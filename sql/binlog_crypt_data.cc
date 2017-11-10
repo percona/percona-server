@@ -6,7 +6,7 @@
 #include <mysql/service_mysql_keyring.h>
 #endif
 #include <algorithm>
-#include <boost/move/unique_ptr.hpp>
+#include "boost/move/unique_ptr.hpp"
 
 Binlog_crypt_data::Binlog_crypt_data()
   : key(NULL)

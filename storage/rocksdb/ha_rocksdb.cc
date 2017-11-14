@@ -1151,7 +1151,9 @@ static MYSQL_SYSVAR_BOOL(
 
 static MYSQL_SYSVAR_STR(default_cf_options, rocksdb_default_cf_options,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                        "default cf options for RocksDB", nullptr, nullptr, "");
+                        "default cf options for RocksDB", nullptr, nullptr,
+                        "compression=kLZ4Compression;"
+                        "bottommost_compression=kLZ4Compression");
 
 static MYSQL_SYSVAR_STR(override_cf_options, rocksdb_override_cf_options,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

@@ -3101,6 +3101,7 @@ ha_innobase::ha_innobase(
 			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
+			  | HA_ONLINE_ANALYZE
 		  ),
 	m_start_of_scan(),
 	m_num_write_row(),

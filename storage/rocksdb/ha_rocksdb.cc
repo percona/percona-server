@@ -518,7 +518,7 @@ static std::unique_ptr<rocksdb::DBOptions> rdb_init_rocksdb_db_options(void) {
   o->max_subcompactions = DEFAULT_SUBCOMPACTIONS;
   o->max_open_files = -2; // auto-tune to 50% open_files_limit
 
-  o->concurrent_prepare = true;
+  o->two_write_queues = true;
   o->manual_wal_flush = true;
   return o;
 }
@@ -733,12 +733,26 @@ static MYSQL_SYSVAR_BOOL(
     "DBOptions::create_if_missing for RocksDB", nullptr, nullptr,
     rocksdb_db_options->create_if_missing);
 
+static void concurrent_prepare_update(THD *thd, st_mysql_sys_var *var,
+                                      void *var_ptr, const void *save) {
+  push_warning(thd, Sql_condition::SL_WARNING, HA_ERR_WRONG_COMMAND,
+               "Using rocksdb_concurrent_prepare is deprecated and the "
+               "parameter may be removed in future releases.");
+}
+
 static MYSQL_SYSVAR_BOOL(
     concurrent_prepare,
-    *reinterpret_cast<my_bool *>(&rocksdb_db_options->concurrent_prepare),
+    *reinterpret_cast<my_bool *>(&rocksdb_db_options->two_write_queues),
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-    "DBOptions::concurrent_prepare for RocksDB", nullptr, nullptr,
-    rocksdb_db_options->concurrent_prepare);
+    "DEPRECATED, use rocksdb_two_write_queries instead.", nullptr,
+    concurrent_prepare_update, rocksdb_db_options->two_write_queues);
+
+static MYSQL_SYSVAR_BOOL(
+    two_write_queues,
+    *reinterpret_cast<my_bool *>(&rocksdb_db_options->two_write_queues),
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "DBOptions::two_write_queues for RocksDB", nullptr, nullptr,
+    rocksdb_db_options->two_write_queues);
 
 static MYSQL_SYSVAR_BOOL(
     manual_wal_flush,
@@ -1480,6 +1494,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
 
     MYSQL_SYSVAR(create_if_missing),
     MYSQL_SYSVAR(concurrent_prepare),
+    MYSQL_SYSVAR(two_write_queues),
     MYSQL_SYSVAR(manual_wal_flush),
     MYSQL_SYSVAR(create_missing_column_families),
     MYSQL_SYSVAR(error_if_exists),

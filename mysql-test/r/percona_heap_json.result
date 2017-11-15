@@ -10,3 +10,42 @@ SELECT * FROM t0;
 utf0k
 0
 DROP TABLE t0;
+#
+# Bug 1731483: MEMORY storage engine incorrectly allows BLOB columns before indexed columns
+#
+CREATE TABLE t1 (a JSON, b INT PRIMARY KEY) ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+CREATE TABLE t1 (a INT PRIMARY KEY, b JSON, c INT, KEY c(c)) ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+CREATE TABLE t1 (a JSON, b INT) ENGINE=MEMORY;
+ALTER TABLE t1 ADD INDEX idx_b (b);
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+ALTER TABLE t1 ADD PRIMARY KEY (b);
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b JSON, c INT) ENGINE=MEMORY;
+ALTER TABLE t1 ADD INDEX c (c);
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;
+CREATE TABLE t1 (a JSON, b INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE t1 ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b JSON, c INT, KEY c(c)) ENGINE=InnoDB;
+ALTER TABLE t1 ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;
+CREATE TABLE t1 (a INT PRIMARY KEY, b JSON) ENGINE=MEMORY;
+ALTER TABLE t1 MODIFY b JSON FIRST;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b JSON, c INT, PRIMARY KEY(a, c)) ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+CREATE TABLE t1 (a INT, b JSON, c INT, PRIMARY KEY(c, a)) ENGINE=MEMORY;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+CREATE TABLE t1 (a INT, b JSON, c INT) ENGINE=MEMORY;
+ALTER TABLE t1 ADD PRIMARY KEY (a, c);
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+ALTER TABLE t1 ADD INDEX idx (c, a);
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+DROP TABLE t1;

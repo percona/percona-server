@@ -250,6 +250,7 @@ typedef struct st_heap_create_info
   my_bool pin_share;
   uint columns;
   HP_COLUMNDEF *columndef;
+  uint fixed_key_fieldnr;
   uint fixed_data_size;
   uint keys_memory_size;
   uint max_chunk_size;

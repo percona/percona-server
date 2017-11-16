@@ -19,6 +19,7 @@ SET DEBUG_SYNC= 'now SIGNAL updated';
 DROP TABLE t2;
 SELECT variable_value > 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_num_pages_encrypted';
 variable_value > 0
+1
 SELECT variable_value > 0 FROM performance_schema.global_status WHERE variable_name = 'innodb_encryption_n_merge_blocks_encrypted';
 variable_value > 0
 1

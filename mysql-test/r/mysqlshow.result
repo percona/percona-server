@@ -121,7 +121,7 @@ Database: information_schema
 | INNODB_CMP_RESET                      |
 | INNODB_SYS_DATAFILES                  |
 | XTRADB_READ_VIEW                      |
-| INNODB_SYS_VIRTUAL                    |
+| INNODB_SYS_TABLESTATS                 |
 | XTRADB_RSEG                           |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_TRX                            |
@@ -131,7 +131,7 @@ Database: information_schema
 | INNODB_LOCKS                          |
 | INNODB_LOCK_WAITS                     |
 | XTRADB_INTERNAL_HASH_TABLES           |
-| INNODB_SYS_INDEXES                    |
+| INNODB_TABLESPACES_ENCRYPTION         |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_SYS_FIELDS                     |
 | XTRADB_ZIP_DICT                       |
@@ -152,7 +152,8 @@ Database: information_schema
 | INNODB_SYS_COLUMNS                    |
 | INNODB_FT_CONFIG                      |
 | XTRADB_ZIP_DICT_COLS                  |
-| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_VIRTUAL                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -200,7 +201,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_CMP_RESET                      |
 | INNODB_SYS_DATAFILES                  |
 | XTRADB_READ_VIEW                      |
-| INNODB_SYS_VIRTUAL                    |
+| INNODB_SYS_TABLESTATS                 |
 | XTRADB_RSEG                           |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_TRX                            |
@@ -210,7 +211,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_LOCKS                          |
 | INNODB_LOCK_WAITS                     |
 | XTRADB_INTERNAL_HASH_TABLES           |
-| INNODB_SYS_INDEXES                    |
+| INNODB_TABLESPACES_ENCRYPTION         |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_SYS_FIELDS                     |
 | XTRADB_ZIP_DICT                       |
@@ -231,7 +232,8 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_COLUMNS                    |
 | INNODB_FT_CONFIG                      |
 | XTRADB_ZIP_DICT_COLS                  |
-| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_INDEXES                    |
+| INNODB_SYS_VIRTUAL                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

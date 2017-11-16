@@ -1025,6 +1025,14 @@ struct dict_index_t{
 		ut_ad(committed || !(type & DICT_CLUSTERED));
 		uncommitted = !committed;
 	}
+
+	/** @return whether this index is readable
+	@retval	true	normally
+	@retval	false	if this is a single-table tablespace
+			and the .ibd file is missing, or a
+			page cannot be read or decrypted */
+	inline bool is_readable() const;
+
 #endif /* !UNIV_HOTBACKUP */
 };
 
@@ -1336,6 +1344,25 @@ struct dict_table_t {
 	/** Release the table handle. */
 	inline void release();
 
+	/** @return whether this table is readable
+	@retval	true	normally
+	@retval	false	if this is a single-table tablespace
+			and the .ibd file is missing, or a
+			page cannot be read or decrypted */
+	
+	bool is_readable() const {
+		return(UNIV_LIKELY(!file_unreadable));
+	}
+
+	void set_file_unreadable() {
+		file_unreadable = true;
+	}
+
+	void set_file_readable() {
+		file_unreadable = false;
+	}
+
+
 	/** Id of the table. */
 	table_id_t				id;
 
@@ -1392,10 +1419,10 @@ struct dict_table_t {
 	Use DICT_TF2_FLAG_IS_SET() to parse this flag. */
 	unsigned				flags2:DICT_TF2_BITS;
 
-	/** TRUE if this is in a single-table tablespace and the .ibd file is
-	missing. Then we must return in ha_innodb.cc an error if the user
-	tries to query such an orphaned table. */
-	unsigned				ibd_file_missing:1;
+	/*!< whether this is in a single-table tablespace and the .ibd
+	file is missing or page decryption failed and page is corrupted */
+
+	unsigned				file_unreadable:1;
 
 	/** TRUE if the table object has been added to the dictionary cache. */
 	unsigned				cached:1;
@@ -1732,7 +1759,13 @@ public:
 
 	/** encryption iv, it's only for export/import */
 	byte*					encryption_iv;
+
+	Keyring_encryption_info keyring_encryption_info;
 };
+
+inline bool dict_index_t::is_readable() const {
+	return(UNIV_LIKELY(!table->file_unreadable));
+}
 
 /*******************************************************************//**
 Initialise the table lock list. */

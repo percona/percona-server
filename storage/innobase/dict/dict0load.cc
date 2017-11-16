@@ -84,7 +84,7 @@ key constraints are loaded into memory.
 				constraints are loaded.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
+file_unreadable flag TRUE in the table object we return */
 static
 dict_table_t*
 dict_load_table_one(
@@ -1371,6 +1371,8 @@ dict_check_sys_tablespaces(
 		opened. */
 		char*	filepath = dict_get_first_path(space_id);
 
+		Keyring_encryption_info keyring_encryption_info;
+
 		/* Check that the .ibd file exists. */
 		dberr_t	err = fil_ibd_open(
 			validate,
@@ -1379,7 +1381,8 @@ dict_check_sys_tablespaces(
 			space_id,
 			fsp_flags,
 			space_name,
-			filepath);
+			filepath,
+                        keyring_encryption_info);
 
 		if (err != DB_SUCCESS) {
 			ib::warn() << "Ignoring tablespace "
@@ -1612,6 +1615,8 @@ dict_check_sys_tables(
 							 is_temp,
 							 is_encrypted);
 
+		Keyring_encryption_info keyring_encryption_info;
+
 		dberr_t	err = fil_ibd_open(
 			validate,
 			!srv_read_only_mode && srv_log_file_size != 0,
@@ -1619,7 +1624,8 @@ dict_check_sys_tables(
 			space_id,
 			fsp_flags,
 			space_name,
-			filepath);
+			filepath,
+			keyring_encryption_info);
 
 		if (err != DB_SUCCESS) {
 			ib::warn() << "Ignoring tablespace "
@@ -2716,7 +2722,7 @@ dict_load_indexes(
 			dict_mem_index_free(index);
 			goto func_exit;
 		} else if (index->page == FIL_NULL
-			   && !table->ibd_file_missing
+			   && !table->file_unreadable
 			   && (!(index->type & DICT_FTS))) {
 
 			ib::error() << "Trying to load index " << index->name
@@ -2839,7 +2845,7 @@ dict_load_table_low(
 	*table = dict_mem_table_create(
 		name.m_name, space_id, n_cols + n_v_col, n_v_col, flags, flags2);
 	(*table)->id = table_id;
-	(*table)->ibd_file_missing = FALSE;
+	(*table)->set_file_readable();
 
 	return(NULL);
 }
@@ -2995,7 +3001,7 @@ a foreign key references columns in this table.
 @param[in]	ignore_err	Error to be ignored when loading
 				table and its index definition
 @return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the ibd_file_missing
+.ibd file, but the file does not exist, then we set the file_unreadable
 flag in the table object we return. */
 dict_table_t*
 dict_load_table(
@@ -3058,13 +3064,13 @@ dict_load_tablespace(
 	if (table->flags2 & DICT_TF2_DISCARDED) {
 		ib::warn() << "Tablespace for table " << table->name
 			<< " is set as discarded.";
-		table->ibd_file_missing = TRUE;
+		table->set_file_unreadable();
 		return;
 	}
 
 	if (dict_table_is_temporary(table)) {
 		/* Do not bother to retry opening temporary tables. */
-		table->ibd_file_missing = TRUE;
+		table->set_file_unreadable();
 		return;
 	}
 
@@ -3144,14 +3150,19 @@ dict_load_tablespace(
 	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags,
 					       false,
 					       dict_table_is_encrypted(table));
+
+	Keyring_encryption_info keyring_encryption_info;
+
 	dberr_t err = fil_ibd_open(
 		true, false, FIL_TYPE_TABLESPACE, table->space,
-		fsp_flags, space_name, filepath);
+		fsp_flags, space_name, filepath, keyring_encryption_info);
 
 	if (err != DB_SUCCESS) {
 		/* We failed to find a sensible tablespace file */
-		table->ibd_file_missing = TRUE;
+		table->set_file_unreadable();
 	}
+
+	table->keyring_encryption_info = keyring_encryption_info;
 
 	ut_free(shared_space_name);
 	ut_free(filepath);
@@ -3174,7 +3185,7 @@ key constraints are loaded into memory.
 				constraints are loaded.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
+file_unreadable flag TRUE in the table object we return */
 static
 dict_table_t*
 dict_load_table_one(
@@ -3283,7 +3294,7 @@ err_exit:
 	were not allowed while the table is being locked by a transaction. */
 	dict_err_ignore_t index_load_err =
 		!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
-		&& table->ibd_file_missing
+		&& table->file_unreadable
 		? DICT_ERR_IGNORE_ALL
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
@@ -3344,7 +3355,7 @@ err_exit:
 	of the error condition, since the user may want to dump data from the
 	clustered index. However we load the foreign key information only if
 	all indexes were loaded. */
-	if (!cached || table->ibd_file_missing) {
+	if (!cached || table->file_unreadable) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
 		err = dict_load_foreigns(table->name.m_name, NULL,
@@ -3378,7 +3389,7 @@ err_exit:
 			table = NULL;
 
 		} else if (dict_index_is_corrupted(index)
-			   && !table->ibd_file_missing) {
+			   && !table->file_unreadable) {
 
 			/* It is possible we force to load a corrupted
 			clustered index if srv_load_corrupted is set.
@@ -3392,7 +3403,7 @@ func_exit:
 
 	ut_ad(!table
 	      || ignore_err != DICT_ERR_IGNORE_NONE
-	      || table->ibd_file_missing
+	      || table->file_unreadable
 	      || !table->corrupted);
 
 	if (table && table->fts) {

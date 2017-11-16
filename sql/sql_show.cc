@@ -1943,6 +1943,18 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" ENCRYPTION="));
       append_unescaped(packet, share->encrypt_type.str, share->encrypt_type.length);
     }
+
+    if (share->was_encryption_key_id_set)
+    {
+      DBUG_ASSERT(share->encrypt_type.length == 0 || my_strcasecmp(system_charset_info, share->encrypt_type.str, "KEYRING") != 0
+                  || share->encrypt_type.length == strlen("KEYRING"));
+
+      char *end;
+      packet->append(STRING_WITH_LEN(" ENCRYPTION_KEY_ID=")); 
+      end= longlong10_to_str(table->s->encryption_key_id, buff, 10);
+      packet->append(buff, static_cast<uint>(end - buff));
+    }
+
     table->file->append_create_info(packet);
     if (share->comment.length)
     {
@@ -5621,9 +5633,12 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     {
       /* In the .frm file this option has a max length of 2K. Currently,
       InnoDB uses only the first 1 bytes and the only supported values
-      are (Y | N). */
+      are (Y | N | KEYRING). */
       ptr= my_stpcpy(ptr, " ENCRYPTION=\"");
-      ptr= strxnmov(ptr, 3, share->encrypt_type.str, NullS);
+      if (strncmp(share->encrypt_type.str, "KEYRING", strlen("KEYRING")) == 0)
+        ptr= strxnmov(ptr, 14, share->encrypt_type.str, NullS);
+      else
+        ptr= strxnmov(ptr, 3, share->encrypt_type.str, NullS);
       ptr= my_stpcpy(ptr, "\"");
     }
 

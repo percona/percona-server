@@ -176,6 +176,14 @@ btr_root_block_get(
 	buf_block_t*	block = btr_block_get(page_id, page_size, mode,
 					      index, mtr);
 
+	if (!block && index && index->table && !index->table->is_readable()) {
+
+			ib::warn() << "Table in tablespace is encrypted but encryption service or"
+				" used key_id is not available. "
+				" Can't continue reading table.";
+		return NULL;
+	}
+
 	SRV_CORRUPT_TABLE_CHECK(block, return(0););
 
 	btr_assert_not_corrupted(block, index);
@@ -216,8 +224,15 @@ btr_root_get(
 	/* Intended to be used for segment list access.
 	SX lock doesn't block reading user data by other threads.
 	And block the segment list access by others.*/
-	return(buf_block_get_frame(btr_root_block_get(index, RW_SX_LATCH,
-						      mtr)));
+
+	buf_block_t* root = btr_root_block_get(index, RW_SX_LATCH,
+					       mtr);
+
+	if (root && root->page.encrypted == true) {
+		root = NULL;
+	}
+
+	return(root ? buf_block_get_frame(root) : NULL);
 }
 
 /**************************************************************//**
@@ -231,7 +246,7 @@ btr_height_get(
 	dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	ulint		height;
+	ulint		height=0;
 	buf_block_t*	root_block;
 
 	ut_ad(srv_read_only_mode
@@ -244,12 +259,14 @@ btr_height_get(
 	/* S latches the page */
 	root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
 
-	height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
+	if (root_block) {
+		height = btr_page_get_level(buf_block_get_frame(root_block), mtr);
 
-	/* Release the S latch on the root page. */
-	mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
+		/* Release the S latch on the root page. */
+		mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
 
-	ut_d(sync_check_unlock(&root_block->lock));
+		ut_d(sync_check_unlock(&root_block->lock));
+	}
 
 	return(height);
 }
@@ -547,6 +564,9 @@ btr_get_size(
 	}
 
 	root = btr_root_get(index, mtr);
+
+	if (!root && index->table->is_readable() == false)
+		return ULINT_UNDEFINED;
 
 	SRV_CORRUPT_TABLE_CHECK(root,
 	{
@@ -951,17 +971,20 @@ btr_free_root_check(
 
 	buf_block_t*	block = buf_page_get(
 		page_id, page_size, RW_X_LATCH, mtr);
-	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 
-	if (fil_page_index_page_check(block->frame)
-	    && index_id == btr_page_get_index_id(block->frame)) {
-		/* This should be a root page.
-		It should not be possible to reassign the same
-		index_id for some other index in the tablespace. */
-		ut_ad(page_is_root(block->frame));
-	} else {
-		block = NULL;
-	}
+	if (block) {
+		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+
+		if (fil_page_index_page_check(block->frame)
+		   && index_id == btr_page_get_index_id(block->frame)) {
+			/* This should be a root page.
+			It should not be possible to reassign the same
+			index_id for some other index in the tablespace. */
+			ut_ad(page_is_root(block->frame));
+		} else {
+			block = NULL;
+		}
+        }
 
 	return(block);
 }
@@ -5075,22 +5098,26 @@ btr_validate_spatial_index(
 
 /**************************************************************//**
 Checks the consistency of an index tree.
-@return true if ok */
-bool
+@return	DB_SUCCESS if ok, error code if not */
+dberr_t
 btr_validate_index(
 /*===============*/
 	dict_index_t*	index,	/*!< in: index */
 	const trx_t*	trx,	/*!< in: transaction or NULL */
 	bool		lockout)/*!< in: true if X-latch index is intended */
 {
+	dberr_t err = DB_SUCCESS;
+
 	/* Full Text index are implemented by auxiliary tables,
 	not the B-tree */
 	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
-		return(true);
+		return(err);
 	}
 
 	if (dict_index_is_spatial(index)) {
-		return(btr_validate_spatial_index(index, trx));
+		if (!btr_validate_spatial_index(index, trx)) {
+			err = DB_ERROR;
+		}
 	}
 
 	mtr_t		mtr;
@@ -5105,13 +5132,18 @@ btr_validate_index(
 		}
 	}
 
-	bool	ok = true;
 	page_t*	root = btr_root_get(index, &mtr);
+
+	if (root == NULL && !index->is_readable()) {
+		err = DB_DECRYPTION_FAILED;
+		mtr_commit(&mtr);
+		return err;
+	}
 
 	SRV_CORRUPT_TABLE_CHECK(root,
 	{
 		mtr_commit(&mtr);
-		return(false);
+		return DB_CORRUPTION;
 	});
 
 	ulint	n = btr_page_get_level(root, &mtr);
@@ -5119,14 +5151,14 @@ btr_validate_index(
 	for (ulint i = 0; i <= n; ++i) {
 
 		if (!btr_validate_level(index, trx, n - i, lockout)) {
-			ok = false;
+			err = DB_CORRUPTION;
 			break;
 		}
 	}
 
 	mtr_commit(&mtr);
 
-	return(ok);
+	return(err);
 }
 
 /**************************************************************//**

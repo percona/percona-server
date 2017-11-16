@@ -45,6 +45,8 @@ direct reference to server header and global variable */
 my_bool opt_initialize = 0;
 #endif /* !UNIV_HOTBACKUP */
 
+#include "fil0crypt.h"
+
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
 
@@ -581,7 +583,8 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	first datafile. */
 	for (int retry = 0; retry < 2; ++retry) {
 
-		err = it->validate_first_page(flushed_lsn, false);
+		err = it->validate_first_page(flushed_lsn, false).error;
+
 
 		if (err != DB_SUCCESS
 		    && (retry == 1
@@ -957,7 +960,8 @@ SysTablespace::open_or_create(
 			tablespace in the tablespace manager. */
 			space = fil_space_create(
 				name(), space_id(), flags(), is_temp
-				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE,
+				NULL);
 		}
 
 		ut_a(fil_validate());

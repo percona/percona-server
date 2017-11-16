@@ -36,6 +36,7 @@ Created 11/29/1995 Heikki Tuuri
 #else /* UNIV_HOTBACKUP */
 #include "buf0buf.h"
 #include "fil0fil.h"
+#include "fil0crypt.h"
 #include "mtr0log.h"
 #include "ut0byte.h"
 #include "page0page.h"
@@ -1162,7 +1163,8 @@ fsp_header_init(
 
 	/* For encryption tablespace, we need to save the encryption
 	info to the page 0. */
-	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags) &&
+	    !space->crypt_data) {
 		ulint	offset = fsp_header_get_encryption_offset(page_size);
 		byte	encryption_info[ENCRYPTION_INFO_SIZE_V2];
 
@@ -1181,6 +1183,17 @@ fsp_header_init(
 				  encryption_info,
 				  ENCRYPTION_INFO_SIZE_V2,
 				  mtr);
+	}
+
+	if (space->crypt_data) {
+		/* Write encryption metadata to page 0 if tablespace is
+		encrypted or encryption is disabled by table option. */
+		if (space->crypt_data &&
+		    (space->crypt_data->should_encrypt() ||
+		     space->crypt_data->not_encrypted())) {
+			space->crypt_data->write_page0(space, page, mtr, space->crypt_data->min_key_version, space->crypt_data->type,
+						       space->crypt_data->encryption_rotation);
+		}
 	}
 
 	if (space_id == srv_sys_space.space_id()) {

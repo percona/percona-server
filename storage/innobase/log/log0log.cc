@@ -46,7 +46,9 @@ Created 12/9/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "srv0srv.h"
 #include "log0recv.h"
+#include "lock0lock.h"
 #include "fil0fil.h"
+#include "fil0crypt.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h"
 #include "srv0srv.h"
@@ -2226,7 +2228,7 @@ loop:
 
 	active_thd = srv_get_active_thread_type();
 
-	if (active_thd != SRV_NONE) {
+	if (active_thd != SRV_NONE || srv_n_fil_crypt_threads_started) {
 
 		if (active_thd == SRV_PURGE) {
 			srv_purge_wakeup();
@@ -2242,11 +2244,9 @@ loop:
 
 			switch (active_thd) {
 			case SRV_NONE:
-				/* This shouldn't happen because we've
-				already checked for this case before
-				entering the if(). We handle it here
-				to avoid a compiler warning. */
-				ut_error;
+				ut_ad(srv_n_fil_crypt_threads_started);
+				thread_type = "encryption thread";
+				break;
 			case SRV_WORKER:
 				thread_type = "worker threads";
 				break;

@@ -1,0 +1,2 @@
+let $t1_table_type=ENCRYPTION='Y' COMPRESSION="zlib";
+--source innodb_encryption_aborted_key_rotation.inc

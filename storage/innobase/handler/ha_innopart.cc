@@ -1089,7 +1089,7 @@ share_error:
 
 		no_tablespace = false;
 
-	} else if (ib_table->ibd_file_missing) {
+	} else if (ib_table->file_unreadable) {
 
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_WARN,
@@ -1275,7 +1275,7 @@ share_error:
 
 	/* Only if the table has an AUTOINC column. */
 	if (m_prebuilt->table != NULL
-	    && !m_prebuilt->table->ibd_file_missing
+	    && !m_prebuilt->table->file_unreadable
 	    && table->found_next_number_field != NULL) {
 		int	error;
 

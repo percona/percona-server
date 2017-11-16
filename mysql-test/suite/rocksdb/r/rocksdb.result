@@ -452,11 +452,11 @@ drop table t21;
 CREATE TABLE t22 (a int primary key) ENGINE=RocksDB;
 INSERT INTO t22 VALUES (1),(2);
 CREATE TABLE t23 (b int primary key) ENGINE=RocksDB;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t23 SELECT * FROM t22;
 DELETE IGNORE t22.*, t23.* FROM t22, t23 WHERE b < a;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t22,t23;
 #
 # MDEV-4046: RocksDB: Multi-table DELETE locks itself and ends with ER_LOCK_WAIT_TIMEOUT
@@ -464,11 +464,11 @@ DROP TABLE t22,t23;
 CREATE TABLE t24 (pk int primary key) ENGINE=RocksDB;
 INSERT INTO t24 VALUES (1),(2);
 CREATE TABLE t25 LIKE t24;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t25 SELECT * FROM t24;
 DELETE t25.* FROM t24, t25;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t24,t25;
 #
 # MDEV-4044: RocksDB: UPDATE or DELETE with ORDER BY locks itself
@@ -1229,8 +1229,8 @@ DROP TABLE t1;
 # 
 CREATE TABLE t1 (pk INT PRIMARY KEY, i INT, KEY(i)) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (1,1),(2,2);
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 UPDATE t1 SET i = 100;
 connect  con1,localhost,root,,test;
@@ -1239,7 +1239,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 disconnect con1;
 connection default;
 COMMIT;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t1;
 #
 # MDEV-4324: RocksDB: Valgrind "Use of uninitialised value" warnings on inserting value into varchar field
@@ -1298,14 +1298,14 @@ create table t1 (pk varchar(12) primary key) engine=rocksdb;
 insert into t1 values ('old-val1'),('old-val2');
 create table t2 (pk varchar(12) primary key) engine=rocksdb;
 insert into t2 values ('new-val2'),('old-val1');
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 begin;
 insert into t1 values ('new-val1');
 insert into t1 select * from t2;
 ERROR 23000: Duplicate entry 'old-val1' for key 'PRIMARY'
 commit;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 select * from t1;
 pk
 new-val1
@@ -1319,8 +1319,8 @@ drop table t1, t2;
 CREATE TABLE t2 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=RocksDB;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=RocksDB;
 INSERT INTO t1 (pk) VALUES (NULL),(NULL);
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 INSERT INTO t2 (pk) VALUES (NULL),(NULL);
 INSERT INTO t1 (pk) VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
@@ -1342,7 +1342,7 @@ pk
 affected rows: 0
 COMMIT;
 DROP TABLE t1,t2;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 #
 # MDEV-4374: RocksDB: Valgrind warnings 'Use of uninitialised value' on 
 #   inserting into a varchar column
@@ -2030,10 +2030,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2097,10 +2097,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2166,10 +2166,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2235,10 +2235,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2303,10 +2303,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2421,12 +2421,12 @@ create table t2 (
 a varchar(32) primary key,
 col1 int
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2
 select concat('v-', 100 + A.a*100 + B.a), 12345 from t1 A, t1 B;
 update t2 set a=concat('x-', a) where a between 'v-1002' and 'v-1004';
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 drop table t1,t2;
 #
 # Issue #131: Assertion `v->cfd_->internal_comparator().Compare(start, end) <= 0' failed
@@ -2493,8 +2493,8 @@ id	value
 9	NULL
 10	NULL
 INSERT INTO t1 (id) VALUES (11),(12),(13),(14),(15);
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 UPDATE t1 SET value=100;
 ROLLBACK;
@@ -2525,7 +2525,7 @@ id	value
 13	NULL
 14	NULL
 15	NULL
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 SET rocksdb_commit_in_the_middle=0;
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 DROP TABLE t1;
@@ -2632,12 +2632,12 @@ set session sql_mode=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 lock tables t1 write,t1 as t0 write,t1 as t2 write;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 SELECT a FROM t1 ORDER BY a;
 a
 2147483647
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 truncate t1;
 INSERT INTO t1 VALUES(X'042000200020',X'042000200020'),(X'200400200020',X'200400200020');
 ERROR 22003: Out of range value for column 'a' at row 1
@@ -2733,10 +2733,10 @@ DEFAULT CHARSET=latin1;
 set rocksdb_commit_in_the_middle=1;
 SET @save_rocksdb_bulk_load_size= @@rocksdb_bulk_load_size;
 set rocksdb_bulk_load_size = 100;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 DELETE t2, t1 FROM t2 LEFT JOIN t1 ON t2.id2 = t1.id2 AND t2.id1 = t1.id1 WHERE t2.id1 = 0;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 SET rocksdb_commit_in_the_middle=0;
 DROP TABLE t1, t2;

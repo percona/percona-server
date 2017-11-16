@@ -7,11 +7,11 @@ key(col1)
 create table ten(a int primary key) engine=rocksdb;
 insert into ten values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table one_k(a int primary key) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into one_k select A.a + B.a* 10 + C.a * 100 from ten A, ten B, ten C;
 insert into t1 select a,a,a from one_k;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # Start the transaction, get the snapshot
 begin;
 select * from t1 where col1<10;

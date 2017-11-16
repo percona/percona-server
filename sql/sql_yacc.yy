@@ -9309,6 +9309,7 @@ select_option:
           }
         | SQL_NO_CACHE_SYM
           {
+            push_deprecated_warn_no_replacement(YYTHD, "SQL_NO_CACHE");
             /*
               Allow this flag only on the first top-level SELECT statement, if
               SQL_CACHE wasn't specified, and only once per query.
@@ -9318,6 +9319,7 @@ select_option:
           }
         | SQL_CACHE_SYM
           {
+            push_deprecated_warn_no_replacement(YYTHD, "SQL_CACHE");
             /*
               Allow this flag only on the first top-level SELECT statement, if
               SQL_NO_CACHE wasn't specified, and only once per query.
@@ -12629,7 +12631,10 @@ flush_option:
         | RELAY LOGS_SYM opt_channel
           { Lex->type|= REFRESH_RELAY_LOG; }
         | QUERY_SYM CACHE_SYM
-          { Lex->type|= REFRESH_QUERY_CACHE_FREE; }
+          {
+            push_deprecated_warn_no_replacement(YYTHD, "FLUSH QUERY CACHE");
+            Lex->type|= REFRESH_QUERY_CACHE_FREE;
+          }
         | HOSTS_SYM
           { Lex->type|= REFRESH_HOSTS; }
         | PRIVILEGES
@@ -12682,7 +12687,11 @@ reset_option:
           SLAVE               { Lex->type|= REFRESH_SLAVE; }
           slave_reset_options opt_channel
         | MASTER_SYM          { Lex->type|= REFRESH_MASTER; }
-        | QUERY_SYM CACHE_SYM { Lex->type|= REFRESH_QUERY_CACHE;}
+        | QUERY_SYM CACHE_SYM
+          {
+            push_deprecated_warn_no_replacement(YYTHD, "RESET QUERY CACHE");
+            Lex->type|= REFRESH_QUERY_CACHE;
+          }
         | CHANGED_PAGE_BITMAPS_SYM
           { Lex->type |= REFRESH_RESET_PAGE_BITMAPS; }
         ;
@@ -13182,6 +13191,8 @@ simple_ident_q:
           }
         | '.' ident '.' ident
           {
+            push_deprecated_warn(YYTHD, ".<table>.<column>",
+                                 "the table.column name without a dot prefix");
             $$= NEW_PTN PTI_simple_ident_q_3d(@$, NULL, $2.str, $4.str);
           }
         | ident '.' ident '.' ident
@@ -13218,7 +13229,11 @@ field_ident:
             }
             $$=$3;
           }
-        | '.' ident { $$=$2;} /* For Delphi */
+        | '.' ident /* For Delphi */
+          {
+            push_deprecated_warn(YYTHD, ".<column>", "the column name without a dot prefix");
+            $$=$2;
+          }
         ;
 
 table_ident:
@@ -13241,6 +13256,7 @@ table_ident:
         | '.' ident
           {
             /* For Delphi */
+            push_deprecated_warn(YYTHD, ".<table>", "the table name without a dot prefix");
             $$= NEW_PTN Table_ident(to_lex_cstring($2));
             if ($$ == NULL)
               MYSQL_YYABORT;

@@ -235,7 +235,7 @@ connection con1;
 --echo # Creating Snapshot (start transaction)
 # For Percona Server, portiion of this session activity requires gap lock
 # which is not yet supported in REPEATABLE-READ in MyRocks
-set session tx_isolation=`READ-COMMITTED`;
+set session transaction_isolation=`READ-COMMITTED`;
 BEGIN;
 
 # We need the below snippet in case establishing con1 took an arbitrary

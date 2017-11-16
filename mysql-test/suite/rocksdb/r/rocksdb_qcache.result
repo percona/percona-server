@@ -22,6 +22,8 @@ select sql_no_cache * from t1;
 pk	c
 1	updated
 2	updated
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 select * from t1 where pk = 1;
 pk	c
 1	updated

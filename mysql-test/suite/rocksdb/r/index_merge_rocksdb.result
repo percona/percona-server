@@ -1,4 +1,4 @@
-SET SESSION tx_isolation='READ-COMMITTED';
+SET SESSION transaction_isolation='READ-COMMITTED';
 CREATE TABLE t1
 (
 /* fields/keys for row retrieval tests */

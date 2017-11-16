@@ -406,7 +406,7 @@ TEST_F(Keyring_vault_api_test, StoreIKStoreIKFetchIKRemovePerconaInnodb) {
       mysql_key_fetch("percona_innodb_1", &key_type, nullptr, &key, &key_len),
       0);
   EXPECT_STREQ("AES", key_type);
-  std::string key_data_with_version = "0:" + sample_key_data;
+  std::string key_data_with_version = "1:" + sample_key_data;
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, key_data_with_version.c_str(), key_len) == 0);
   my_free(key_type);
@@ -499,7 +499,7 @@ TEST_F(
   EXPECT_EQ(mysql_key_fetch("percona_sk_2", &key_type, nullptr, &key, &key_len),
             0);
   EXPECT_STREQ("AES", key_type);
-  key_data_with_version = "1:" + percona_sk_data_2;
+  key_data_with_version = "2:" + percona_sk_data_2;
   EXPECT_EQ(key_len, key_data_with_version.length() + 1);
   ASSERT_TRUE(memcmp((char *)key, key_data_with_version.c_str(), key_len) == 0);
   my_free(key_type);

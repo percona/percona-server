@@ -52,6 +52,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include <vector>
 
+#include "fil0rkinfo.h"
+#include "keyring_encryption_key_info.h"
+
+/** Structure containing encryption specification */
+struct fil_space_crypt_t;
+
 extern ulong srv_fast_shutdown;
 
 /** Maximum number of tablespaces to be scanned by a thread while scanning
@@ -479,6 +485,8 @@ struct fil_space_t {
   is forbidden if this is positive.  Protected by Fil_shard::m_mutex. */
   uint32_t n_pending_ops{};
 
+  ulint n_pending_ios;
+
 #ifndef UNIV_HOTBACKUP
   /** Latch protecting the file space storage allocation */
   rw_lock_t latch;
@@ -492,6 +500,20 @@ struct fil_space_t {
   bool is_in_unflushed_spaces{};
 
   bool is_corrupt;
+
+  bool is_space_encrypted;
+
+  bool exclude_from_rotation;
+
+  // List of all spaces
+  List_node space_list;
+  List_node rotation_list;
+
+  /** whether this tablespace needs key rotation */
+  bool is_in_rotation_list;
+
+  /** MariaDB encryption data */
+  fil_space_crypt_t *crypt_data;
 
   /** Compression algorithm */
   Compression::Type compression_type;
@@ -507,6 +529,10 @@ struct fil_space_t {
 
   /** FIL_SPACE_MAGIC_N */
   ulint magic_n;
+
+  /** @return whether the tablespace is about to be dropped or
+  truncated */
+  bool is_stopping() const { return stop_new_ops; }
 
   /** System tablespace */
   static fil_space_t *s_sys_space;
@@ -1306,6 +1332,16 @@ inline bool fil_page_index_page_check(const byte *page) {
   return fil_page_type_is_index(fil_page_get_type(page));
 }
 
+/** Enum values for encryption table option */
+enum fil_encryption_t {
+  /** Encrypted if innodb_encrypt_tables=ON (srv_encrypt_tables) */
+  FIL_ENCRYPTION_DEFAULT,
+  /** Encrypted */
+  FIL_ENCRYPTION_ON,
+  /** Not encrypted */
+  FIL_ENCRYPTION_OFF
+};
+
 /** @} */
 
 /** Number of pending tablespace flushes */
@@ -1371,9 +1407,10 @@ Error messages are issued to the server log.
 @param[in]      purpose         Tablespace purpose
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
-[[nodiscard]] fil_space_t *fil_space_create(const char *name,
-                                            space_id_t space_id, uint32_t flags,
-                                            fil_type_t purpose);
+[[nodiscard]] fil_space_t *fil_space_create(
+    const char *name, space_id_t space_id, uint32_t flags, fil_type_t purpose,
+    fil_space_crypt_t *crypt_data,
+    fil_encryption_t mode = FIL_ENCRYPTION_DEFAULT);
 
 /** Assigns a new space id for a new single-table tablespace. This works
 simply by incrementing the global counter. If 4 billion id's is not enough,
@@ -1537,6 +1574,82 @@ for concurrency control.
 @param[in,out]  space   Tablespace to release  */
 void fil_space_release(fil_space_t *space);
 
+/** Acquire a tablespace for reading or writing a block,
+when it could be dropped concurrently.
+@param[in]	id	tablespace ID
+@return	the tablespace
+@retval	NULL if missing */
+fil_space_t *fil_space_acquire_for_io(space_id_t id);
+
+/** Release a tablespace acquired with fil_space_acquire_for_io().
+@param[in,out]	space	tablespace to release  */
+void fil_space_release_for_io(fil_space_t *space);
+
+/** Return the next fil_space_t.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in,out]	prev_space	Pointer to the previous fil_space_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_space_t.
+@retval NULL if this was the last  */
+MY_NODISCARD fil_space_t *fil_space_next(fil_space_t *prev_space);
+
+/** Return the next fil_space_t from key rotation list.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in,out]	prev_space	Pointer to the previous fil_space_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_space_t.
+@retval NULL if this was the last*/
+MY_NODISCARD fil_space_t *fil_space_keyrotate_next(fil_space_t *prev_space);
+
+class FilSpace {
+ public:
+  /** Default constructor: Use this when reference counting
+  is done outside this wrapper. */
+  FilSpace() : m_space(NULL) {}
+
+  /** Constructor: Look up the tablespace and increment the
+  referece count if found.
+  @param[in]	space_id	tablespace ID */
+  explicit FilSpace(space_id_t space_id, bool silent = false)
+      : m_space(silent ? fil_space_acquire_silent(space_id)
+                       : fil_space_acquire(space_id)) {}
+
+  /** Assignment operator: This assumes that fil_space_acquire()
+  has already been done for the fil_space_t. The caller must
+  assign NULL if it calls fil_space_release().
+  @param[in]	space	tablespace to assign */
+  class FilSpace &operator=(fil_space_t *space) {
+    /* fil_space_acquire() must have been invoked. */
+    ut_ad(space == NULL || space->n_pending_ops > 0);
+    m_space = space;
+    return (*this);
+  }
+
+  /** Destructor - Decrement the reference count if a fil_space_t
+  is still assigned. */
+  ~FilSpace() {
+    if (m_space != NULL) {
+      fil_space_release(m_space);
+    }
+  }
+
+  /** Implicit type conversion
+  @return the wrapped object */
+  operator const fil_space_t *() const { return (m_space); }
+
+  /** Explicit type conversion
+  @return the wrapped object */
+  const fil_space_t *operator()() const { return (m_space); }
+
+ private:
+  /** The wrapped pointer */
+  fil_space_t *m_space;
+};
+
 /** Fetch the file name opened for a space_id from the file map.
 @param[in]   space_id  tablespace ID
 @param[out]  name      the scanned filename
@@ -1617,9 +1730,10 @@ the normal data directory
 @param[in]      size            Initial size of the tablespace file in pages,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t fil_ibd_create(space_id_t space_id, const char *name,
-                                     const char *path, uint32_t flags,
-                                     page_no_t size);
+[[nodiscard]] dberr_t fil_ibd_create(
+    space_id_t space_id, const char *name, const char *path, uint32_t flags,
+    page_no_t size, fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Create a session temporary tablespace (IBT) file.
 @param[in]      space_id        Tablespace ID
@@ -1669,10 +1783,10 @@ The fil_node_t::handle will not be left open.
 @param[in]      old_space       whether it is a 5.7 tablespace opening
                                 by upgrade
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t fil_ibd_open(bool validate, fil_type_t purpose,
-                                   space_id_t space_id, uint32_t flags,
-                                   const char *space_name, const char *path_in,
-                                   bool strict, bool old_space);
+[[nodiscard]] dberr_t fil_ibd_open(
+    bool validate, fil_type_t purpose, space_id_t space_id, uint32_t flags,
+    const char *space_name, const char *path_in, bool strict, bool old_space,
+    Keyring_encryption_info &keyring_encryption_info);
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache.
@@ -1991,10 +2105,10 @@ void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
 @param[in] algorithm            Encryption algorithm
 @param[in] key                  Encryption key
 @param[in] iv                   Encryption iv
+@param[in] acquire_mutex        if true acquire fil_sys mutex, else false
 @return DB_SUCCESS or error code */
-[[nodiscard]] dberr_t fil_set_encryption(space_id_t space_id,
-                                         Encryption::Type algorithm, byte *key,
-                                         byte *iv);
+[[nodiscard]] dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
+                           byte *key, byte *iv, bool aquire_mutex = true);
 
 /** Set the autoextend_size attribute for the tablespace
 @param[in] space_id             Space ID of tablespace for which to set
@@ -2264,7 +2378,16 @@ void fil_adjust_name_import(dict_table_t *table, const char *path,
 @param space_id	space id */
 void fil_space_set_corrupt(space_id_t space_id);
 
+void fil_space_set_encrypted(space_id_t space_id);
+
 using space_id_vec = std::vector<space_id_t>;
+
+// TODO: Check if can get encryption threads start without this
+void fil_system_acquire();
+void fil_system_release();
+
+void fil_lock_shard_by_id(space_id_t space_id);
+void fil_unlock_shard_by_id(space_id_t space_id);
 
 #ifndef UNIV_HOTBACKUP
 

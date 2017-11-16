@@ -1,18 +1,10 @@
 # InnoDB transparent tablespace data encryption
 # This test case will test basic encryption support features.
 
-CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
-
-DROP TABLE t1;
-
 # Restart the server with keyring loaded
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING2_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -20,7 +12,7 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
 # Create a table with encryption
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+eval CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="$encryption_type" ENGINE = InnoDB;
 
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -43,8 +35,8 @@ INSERT INTO t1 select * from t1;
 SELECT * FROM t1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING2_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
@@ -55,7 +47,7 @@ ALTER INSTANCE ROTATE INNODB MASTER KEY;
 DROP TABLE t1;
 
 # Crash/recovery test.
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+eval CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="$encryption_type" ENGINE = InnoDB;
 
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
@@ -69,15 +61,15 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING2_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING2_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 LIMIT 10;
 DROP TABLE t1;
 
---let $restart_parameters="$KEYRING1_RESTART_PARAM --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING1_RESTART_PARAM --general-log --log-output=FILE --general_log_file=$MYSQL_TMP_DIR/keyring_query_log
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 # Check no effect of block_encryption_mode = 'aes-256-cbc' variable on table encryption
@@ -86,7 +78,7 @@ SET block_encryption_mode = 'aes-256-cbc';
 --disable_warnings
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
-CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = 'Y' ENGINE = InnoDB;
+eval CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENCRYPTION = '$encryption_type' ENGINE = InnoDB;
 --enable_warnings
 #
 INSERT INTO tde_db.t1 VALUES(0, 'abc');
@@ -140,6 +132,11 @@ DROP TABLE not_encrypted2;
 
 
 # Cleanup
+
+--let $restart_parameters = $KEYRING2_RESTART_PARAM
+--let $restart_hide_args = 1
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQL_TMP_DIR/keyring_query_log
 --remove_file $MYSQL_TMP_DIR/mysqlpump_encrypt.sql
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;

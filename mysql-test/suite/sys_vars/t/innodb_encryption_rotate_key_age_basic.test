@@ -1,0 +1,3 @@
+--skip Not implemented
+
+SELECT @@global.innodb_encryption_rotate_key_age;

@@ -42,28 +42,38 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/handler.h"
 #include "univ.i"
 
+#include "keyring_encryption_key_info.h"
+
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]  table           dict table object
 @param[in]      create_info     HA_CREATE_INFO object
 @param[in,out]  trx             transaction instance
+@param[in]      keyring_encryption_key_id       info on keyring encryption key
 @return DB_SUCCESS or error code */
-dberr_t dict_build_table_def(dict_table_t *table,
-                             const HA_CREATE_INFO *create_info, trx_t *trx);
+dberr_t dict_build_table_def(
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Builds a tablespace to store various objects.
 @param[in,out]  trx             DD transaction
 @param[in,out]  tablespace      Tablespace object describing what to build.
+@param[in]      keyring_encryption_key_id info on keyring encryption key
 @return DB_SUCCESS or error code. */
-dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace);
+dberr_t dict_build_tablespace(
+    trx_t *trx, Tablespace *tablespace, fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]  table           Table to build in its own tablespace.
 @param[in]      create_info     HA_CREATE_INFO object
 @param[in,out]  trx             Transaction
+@param[in]      keyring_encryption_key_id       info on keyring encryption key
 @return DB_SUCCESS or error code */
-dberr_t dict_build_tablespace_for_table(dict_table_t *table,
-                                        const HA_CREATE_INFO *create_info,
-                                        trx_t *trx);
+dberr_t dict_build_tablespace_for_table(
+    dict_table_t *table, const HA_CREATE_INFO *create_info, trx_t *trx,
+    fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]  table   Table that needs an ID */

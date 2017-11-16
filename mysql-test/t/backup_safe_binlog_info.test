@@ -21,7 +21,7 @@ INSERT INTO t2 VALUES(2);
 LOCK TABLES FOR BACKUP;
 
 --let $custom_log_file = $MYSQLTEST_VARDIR/log/my_restart.err
---let $restart_hide_args = 1
+--let $do_not_echo_parameters = 1
 --let $restart_parameters = restart: --debug=+d,ib_recovery_print_mysql_binlog_offset --log-error=$custom_log_file --log-error-verbosity=3
 --source include/kill_and_restart_mysqld.inc
 

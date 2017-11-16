@@ -356,6 +356,7 @@ struct mtr_t {
 
   mtr_t() {
     m_impl.m_state = MTR_STATE_INIT;
+    m_impl.m_flush_observer = nullptr;
     m_impl.m_marked_nolog = false;
     m_impl.m_shard_index = 0;
   }

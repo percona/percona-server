@@ -20,23 +20,9 @@ call mtr.add_suppression("\\[ERROR\\] .* ibd can't be decrypted, please confirm 
 call mtr.add_suppression("\\[ERROR\\] .* Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
-# Create a table with encryption, should fail since keyring is not
-# loaded
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
-
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 
@@ -62,63 +48,16 @@ DROP TABLE t1;
 
 # Test create temporary encrypted table,
 # Should fail, 'ENCRYPTION' clause is not  allowed with temporary tablespace.
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
 SHOW WARNINGS;
---error ER_CANNOT_USE_ENCRYPTION_CLAUSE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 SHOW WARNINGS;
 
 # Test create encrypted table with incorrect option.
 --error ER_INVALID_ENCRYPTION_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
-
-# Create a table with encryption
-CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES(0, "aaaaa");
-INSERT INTO t1 VALUES(1, "bbbbb");
-INSERT INTO t1 VALUES(2, "ccccc");
-INSERT INTO t1 VALUES(3, "ddddd");
-INSERT INTO t1 VALUES(4, "eeeee");
-INSERT INTO t1 VALUES(5, "fffff");
-INSERT INTO t1 VALUES(6, "ggggg");
-INSERT INTO t1 VALUES(7, "hhhhh");
-INSERT INTO t1 VALUES(8, "iiiii");
-INSERT INTO t1 VALUES(9, "jjjjj");
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-INSERT INTO t1 select * from t1;
-
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-
---disable_query_log
-SET DEBUG='+d,os_block_cache_busy';
---enable_query_log
-
-# Restart without key ring to check the encrypted table can't be open.
---let $restart_parameters=
--- source include/restart_mysqld.inc
-
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-
-# Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
---source include/restart_mysqld.inc
-
---disable_query_log
-SET DEBUG='-d,os_block_cache_busy';
---enable_query_log
-
-SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-
-DROP TABLE t1;
 
 # Crash/recovery test.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
@@ -135,8 +74,8 @@ INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/kill_and_restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
@@ -186,8 +125,8 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -207,8 +146,8 @@ UNLOCK TABLES;
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING_RESTART_PARAM"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 SELECT * FROM t1 ORDER BY c1;
@@ -239,8 +178,8 @@ UNLOCK TABLES;
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
 
 # Restart to confirm the encryption info can be retrieved properly.
---let $restart_parameters="$KEYRING_RESTART_PARAM --innodb_strict_mode=OFF"
---let $restart_hide_args= 1
+--let $restart_parameters = $KEYRING_RESTART_PARAM --innodb_strict_mode=OFF
+--let $restart_hide_args = 1
 --source include/restart_mysqld.inc
 
 SELECT c1, ST_AsText(g) FROM t1 ORDER BY c1 LIMIT 10;
@@ -283,3 +222,8 @@ let SEARCH_PATTERN=Sydney;
 # Cleanup
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 DROP TABLE t1;
+
+# Restart with default innodb_strict_mode
+--let $restart_parameters = $KEYRING_RESTART_PARAM
+--let $restart_hide_args = 1
+--source include/restart_mysqld.inc

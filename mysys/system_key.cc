@@ -32,7 +32,7 @@ struct Valid_percona_system_key {
                    // name from key_name
 };
 
-/**
+/** 
    System keys cannot have ':' in their name. We use ':' as a separator between
    system key's name and system key's version.
 */

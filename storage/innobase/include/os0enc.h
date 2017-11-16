@@ -31,6 +31,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #define os0enc_h
 
 #include <mysql/components/my_service.h>
+
+#include "keyring_encryption_key_info.h"
+#include "template_utils.h"
+
 #include "univ.i"
 
 namespace innobase {
@@ -46,6 +50,11 @@ void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv);
 class IORequest;
 struct Encryption_key;
 
+enum class Encryption_rotation : std::uint8_t {
+  NO_ROTATION,
+  MASTER_KEY_TO_KEYRING
+};
+
 // Forward declaration.
 struct Encryption_metadata;
 
@@ -60,6 +69,8 @@ class Encryption {
 
     /** Use AES */
     AES = 1,
+
+    KEYRING = 2
   };
 
   /** Encryption information format version */
@@ -109,6 +120,8 @@ class Encryption {
   information version. */
   static constexpr char KEY_MAGIC_V3[] = "lCC";
 
+  static constexpr char KEY_MAGIC_PS_V1[] = "PSA";
+
   /** Encryption master key prifix */
   static constexpr char MASTER_KEY_PREFIX[] = "INNODBKey";
 
@@ -123,6 +136,18 @@ class Encryption {
 
   /** Encryption master key prifix size */
   static constexpr size_t MASTER_KEY_PRIFIX_LEN = 9;
+
+  static constexpr char ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC[] = "RK";
+
+  static constexpr ulint ZIP_PAGE_KEYRING_ENCRYPTION_MAGIC_LEN = 2;
+
+  /** Encryption master key prifix */
+  // TODO: Change this to percona_innodb_idb
+  static constexpr char PERCONA_SYSTEM_KEY_PREFIX[] = "percona_innodb";
+
+  /** Encryption master key prifix size */
+  static constexpr ulint PERCONA_SYSTEM_KEY_PREFIX_LEN =
+      array_elements(PERCONA_SYSTEM_KEY_PREFIX);
 
   /** Encryption master key prifix size */
   static constexpr size_t MASTER_KEY_NAME_MAX_LEN = 100;
@@ -159,15 +184,37 @@ class Encryption {
   static std::vector<space_id_t> s_tablespaces_to_reencrypt;
 
   /** Default constructor */
-  Encryption() noexcept : m_type(NONE) {}
+  Encryption() noexcept
+      : m_type(NONE),
+        m_key(nullptr),
+        m_klen(0),
+        m_iv(nullptr),
+        m_tablespace_key(nullptr),
+        m_key_version(0),
+        m_key_id(0),
+        m_checksum(0),
+        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+    m_key_id_uuid[0] = '\0';
+  }
 
   /** Specific constructor
   @param[in]  type    Algorithm type */
-  explicit Encryption(Type type) noexcept : m_type(type) {
+  explicit Encryption(Type type) noexcept
+      : m_type(type),
+        m_key(nullptr),
+        m_klen(0),
+        m_iv(nullptr),
+        m_tablespace_key(nullptr),
+        m_key_version(0),
+        m_key_id(0),
+        m_checksum(0),
+        m_encryption_rotation(Encryption_rotation::NO_ROTATION) {
+    m_key_id_uuid[0] = '\0';
 #ifdef UNIV_DEBUG
     switch (m_type) {
       case NONE:
       case AES:
+      case KEYRING:
 
       default:
         ut_error;
@@ -176,9 +223,30 @@ class Encryption {
   }
 
   /** Copy constructor */
-  Encryption(const Encryption &other) noexcept = default;
+  Encryption(const Encryption &other) noexcept;
 
-  Encryption &operator=(const Encryption &) = default;
+  Encryption &operator=(const Encryption &other) noexcept {
+    Encryption tmp(other);
+    swap(tmp);
+    return *this;
+  }
+
+  void swap(Encryption &other) noexcept {
+    std::swap(m_type, other.m_type);
+    std::swap(m_key, other.m_key);
+    std::swap(m_klen, other.m_klen);
+    std::swap(m_iv, other.m_iv);
+    std::swap(m_tablespace_key, other.m_tablespace_key);
+    std::swap(m_key_version, other.m_key_version);
+    std::swap(m_key_id, other.m_key_id);
+    std::swap(m_checksum, other.m_checksum);
+    std::swap(m_encryption_rotation, other.m_encryption_rotation);
+    std::swap(m_key_id_uuid, other.m_key_id_uuid);
+  }
+
+  ~Encryption();
+
+  void set_key(const byte *key, ulint key_len) noexcept;
 
   /** Check if page is encrypted page or not
   @param[in]  page  page which need to check
@@ -212,9 +280,36 @@ class Encryption {
   @return true if no algorithm requested */
   [[nodiscard]] static bool is_none(const char *algorithm) noexcept;
 
+  /** Check if the NO algorithm was explicitly specified.
+  @param[in]      explicit_encryption was ENCRYPTION clause
+                  specified explicitly
+  @param[in]      algorithm       Encryption algorithm to check
+  @return true if no algorithm explicitly requested */
+  MY_NODISCARD static bool none_explicitly_specified(
+      const char *algorithm) noexcept;
+
+  /** Check if the string is "y" or "Y".
+  @param[in]      algorithm       Encryption algorithm to check
+  @return true if no algorithm requested */
+  MY_NODISCARD static bool is_master_key_encryption(
+      const char *algorithm) noexcept;
+
+  MY_NODISCARD static bool is_empty(const char *algorithm) noexcept;
+
+  MY_NODISCARD static bool is_keyring(const char *algoritm) noexcept;
+
+  MY_NODISCARD static bool is_online_encryption_on() noexcept;
+
   /** Generate random encryption value for key and iv.
   @param[in,out]  value Encryption value */
   static void random_value(byte *value) noexcept;
+
+  /** Create tablespace key
+  @param[in,out]	tablespace_key	tablespace key - null if failure
+  @param[in]		key_id		tablespace key id
+  @param[in]  uuid tablespace key uuid */
+  static void create_tablespace_key(byte **tablespace_key, uint key_id,
+                                    const char *uuid);
 
   /** Copy the given encryption metadata to the given Encryption_metadata
   object, if both key != nullptr and iv != nullptr. Generate randomly the
@@ -232,6 +327,27 @@ class Encryption {
   @param[in,out]  master_key  master key */
   static void create_master_key(byte **master_key) noexcept;
 
+  static bool tablespace_key_exists_or_create_new_one_if_does_not_exist(
+      uint key_id, const char *uuid);
+
+  static bool tablespace_key_exists(uint key_id, const char *uuid);
+
+  static bool is_encrypted_and_compressed(const byte *page);
+
+  static uint encryption_get_latest_version(uint key_id, const char *uuid);
+
+  static void get_latest_tablespace_key(uint key_id, const char *uuid,
+                                        uint *tablespace_key_version,
+                                        byte **tablespace_key);
+
+  static void get_latest_key_or_create(uint tablespace_key_id, const char *uuid,
+                                       uint *tablespace_key_version,
+                                       byte **tablespace_key);
+
+  static bool get_tablespace_key(uint key_id, const char *uuid,
+                                 uint tablespace_key_version,
+                                 byte **tablespace_key, size_t *key_len);
+
   /** Get master key by key id.
   @param[in]      master_key_id master key id
   @param[in]      srv_uuid      uuid of server instance
@@ -244,6 +360,15 @@ class Encryption {
   @param[in,out]  master_key    master key */
   static void get_master_key(uint32_t *master_key_id,
                              byte **master_key) noexcept;
+
+  /** Checks if keyring is installed and it is operational.
+   *  This is done by trying to fetch/create
+   *  dummy percona_keyring_test key
+  @return true if success */
+  static bool is_keyring_alive();
+
+  static bool can_page_be_keyring_encrypted(ulint page_type);
+  static bool can_page_be_keyring_encrypted(byte *page);
 
   /** Fill the encryption information.
   @param[in]      encryption_metadata  encryption metadata (key,iv)
@@ -401,6 +526,8 @@ class Encryption {
   @param[in]  key  encryption key **/
   void set_key(const byte *key);
 
+  bool has_key() const noexcept { return m_key != nullptr; }
+
   /** Get key length
   @return  key length **/
   ulint get_key_length() const;
@@ -413,6 +540,46 @@ class Encryption {
   @param[in]  iv  initial_vector **/
   void set_initial_vector(const byte *iv);
 
+  /** Get tablespace encryption key
+  @return tablespace encryption key **/
+  byte *get_tablespace_key() const;
+
+  /** Set tablespace encryption key
+  @param[in]  tablespace_key  tablespace encryption key **/
+  void set_tablespace_key(byte *tablespace_key);
+
+  /** Get key id UUID
+  @return key id UUID **/
+  const char *get_key_id_uuid() const;
+
+  /** Set key id UUID
+  @param[in]  key_id_uuid  key id UUID **/
+  void set_key_id_uuid(const char *key_id_uuid);
+
+  /** Get key version
+  @return  key version **/
+  ulint get_key_version() const;
+
+  /** Set key version
+  @param[in]  key_version  key version **/
+  void set_key_version(ulint key_version);
+
+  /** Get key id
+  @return  key id **/
+  ulint get_key_id() const;
+
+  /** Set key id
+  @param[in]  key_id  key id **/
+  void set_key_id(ulint key_id);
+
+  /** Get encryption rotation
+  @return  encryption rotation **/
+  Encryption_rotation get_encryption_rotation() const;
+
+  /** Set encryption rotation
+  @param[in]  encryption_rotation  encryption rotation **/
+  void set_encryption_rotation(Encryption_rotation encryption_rotation);
+
   /** Get master key id
   @return master key id **/
   static uint32_t get_master_key_id();
@@ -421,12 +588,14 @@ class Encryption {
   /** Encrypt the page data contents. Page type can't be
   FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
   FIL_PAGE_ENCRYPTED_RTREE.
+  @param[in]  type      IORequest
   @param[in]  src       page data which need to encrypt
   @param[in]  src_len   size of the source in bytes
   @param[in,out]  dst       destination area
   @param[in,out]  dst_len   size of the destination in bytes
   @return true if operation successful, false otherwise. */
-  [[nodiscard]] bool encrypt_low(byte *src, ulint src_len, byte *dst,
+  [[nodiscard]] bool encrypt_low(const IORequest &type, byte *src,
+                                 ulint src_len, byte *dst,
                                  ulint *dst_len) noexcept;
 
   /** Encrypt type */
@@ -441,11 +610,36 @@ class Encryption {
   /** Encrypt initial vector */
   const byte *m_iv;
 
+  byte *m_tablespace_key;
+
+  char m_key_id_uuid[SERVER_UUID_LEN + 1];  // uuid that is part of
+                                            // the full key id of a
+                                            // percona system key
+  uint m_key_version;
+
+  uint m_key_id;
+
+  uint32 m_checksum;
+
+  Encryption_rotation m_encryption_rotation;
+
   /** Current master key id */
   static uint32_t s_master_key_id;
 
   /** Current uuid of server instance */
   static char s_uuid[SERVER_UUID_LEN + 1];
+
+  // TODO: Robert: Is it needed here?
+  static void get_keyring_key(const char *key_name, byte **key,
+                              size_t *key_len);
+
+  static void get_latest_system_key(const char *system_key_name, byte **key,
+                                    uint *key_version, size_t *key_length);
+
+  static void fill_key_name(char *key_name, uint key_id, const char *uuid);
+
+  static void fill_key_name(char *key_name, uint key_id, const char *uuid,
+                            uint key_version);
 };
 
 /** Encryption metadata. */

@@ -4,8 +4,8 @@ create tablespace ts_encrypted2 add datafile 'ts_encrypted2.ibd' engine=innodb e
 
 call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("Function 'keyring_file' already exists");
+call mtr.add_suppression("Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
 
 --source include/count_sessions.inc
@@ -48,6 +48,7 @@ connection con1;
 
 create table t6_force_default (a int) engine=innodb;
 create table t6_force_default_dup like t6_force_default;
+--error ER_ILLEGAL_HA_CREATE_OPTION
 create table t7_partitioned (a int, primary key(a))
 	engine=innodb tablespace ts_encrypted1
 	partition by range (a) partitions 2 (
@@ -84,7 +85,6 @@ show create table t5_off_explicit_off;
 show create table t6_force_default;
 show create table t6_force_default_dup;
 show create table t5_off_explicit_off_dup;
-show create table t7_partitioned;
 
 connection default;
 REVOKE TABLE_ENCRYPTION_ADMIN ON *.* FROM u1@localhost;
@@ -152,7 +152,6 @@ show create table t5_off_explicit_off;
 show create table t6_force_default;
 show create table t6_force_default_dup;
 show create table t5_off_explicit_off_dup;
-show create table t7_partitioned;
 
 flush tables;
 
@@ -172,6 +171,22 @@ select * from t4_on_explicit_off;
 select * from t5_off_explicit_off;
 select * from t6_force_default;
 
+--echo #
+--echo # PS-5120 - Cannot add encrypted tables in to encrypted tablespace
+--echo #
+
+SET default_table_encryption = ON;
+ALTER DATABASE db1 DEFAULT ENCRYPTION='Y';
+SET GLOBAL table_encryption_privilege_check = OFF;
+
+create tablespace ts1 add datafile 'ts1.ibd' encryption='Y';
+create table t7(a INT);
+show create table t7;
+alter table t7 tablespace=ts1;
+show create table t7;
+drop table t7;
+drop tablespace ts1;
+
 # Cleanup
 connection default;
 disconnect con1;
@@ -184,10 +199,10 @@ drop table t5_off_explicit_off;
 drop table t6_force_default;
 drop table t6_force_default_dup;
 drop table t5_off_explicit_off_dup;
-drop table t7_partitioned;
 
 drop tablespace ts_encrypted1;
 drop tablespace ts_encrypted2;
+drop tablespace ts_unencrypted1;
 
 eval SET default_table_encryption=$initial_default_table_encryption;
 ALTER DATABASE db1 DEFAULT ENCRYPTION='N';

@@ -62,6 +62,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0type.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
 #include "fsp0sysspace.h"
@@ -200,6 +201,8 @@ mysql_pfs_key_t trx_recovery_rollback_thread_key;
 mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 mysql_pfs_key_t parallel_rseg_init_thread_key;
 #endif /* UNIV_PFS_THREAD */
+
+int unlock_keyrings(THD *thd);
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Array of all InnoDB stage events for monitoring activities via
@@ -613,7 +616,8 @@ dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     /* Load the tablespace into InnoDB's internal data structures.
     Set the compressed page size to 0 (non-compressed) */
     flags = fsp_flags_init(univ_page_size, false, false, false, false);
-    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
+    space = fil_space_create(undo_name, space_id, flags, FIL_TYPE_TABLESPACE,
+                             nullptr);
     ut_a(space != nullptr);
     ut_ad(fil_validate());
 
@@ -1435,6 +1439,10 @@ void srv_shutdown_exit_threads() {
         /* Wakeup purge threads. */
         srv_purge_wakeup();
       }
+
+      if (srv_threads.m_crypt_threads_n) {
+        os_event_set(fil_crypt_threads_event);
+      }
     }
 
     if (srv_start_state_is_set(SRV_START_STATE_IO)) {
@@ -2181,20 +2189,21 @@ dberr_t srv_start(bool create_new_db) {
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
-      fil_space_t *space =
-          fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
-      if (space == nullptr) {
-        dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
-                         predefined_flags, dict_sys_t::s_dd_space_name,
-                         dict_sys_t::s_dd_space_file_name, true, false);
-        if (error != DB_SUCCESS) {
-          ib::error(ER_IB_MSG_1142);
-          return (srv_init_abort(DB_ERROR));
+        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
+        if (space == nullptr) {
+          Keyring_encryption_info keyring_encryption_info;
+          dberr_t error = fil_ibd_open(
+              true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
+              predefined_flags, dict_sys_t::s_dd_space_name,
+              dict_sys_t::s_dd_space_file_name, true, false,
+              keyring_encryption_info);
+          if (error != DB_SUCCESS) {
+            ib::error(ER_IB_MSG_1142);
+            return (srv_init_abort(DB_ERROR));
+          }
+        } else {
+          fil_space_release(space);
         }
-      } else {
-        fil_space_release(space);
-      }
 
       dict_persist->table_buffer =
           ut::new_withkey<DDTableBuffer>(UT_NEW_THIS_FILE_PSI_KEY);
@@ -2776,6 +2785,10 @@ void srv_start_threads(bool bootstrap) {
   /* Create the thread that will optimize the FTS sub-system. */
   fts_optimize_init();
 
+  fil_system_acquire();
+  fil_crypt_threads_init();
+  fil_system_release();
+
   srv_start_state_set(SRV_START_STATE_STAT);
 }
 
@@ -2892,6 +2905,7 @@ void srv_pre_dd_shutdown() {
     srv_shutdown_set_state(SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS);
     srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
     srv_shutdown_set_state(SRV_SHUTDOWN_DD);
+    unlock_keyrings(NULL);
     return;
   }
 
@@ -2964,6 +2978,11 @@ void srv_pre_dd_shutdown() {
     std::this_thread::sleep_for(
         std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
+
+  if (srv_start_state_is_set(SRV_START_STATE_STAT)) {
+    fil_crypt_threads_cleanup();
+  }
+
   switch (trx_purge_state()) {
     case PURGE_STATE_INIT:
     case PURGE_STATE_EXIT:
@@ -2974,6 +2993,8 @@ void srv_pre_dd_shutdown() {
     case PURGE_STATE_STOP:
       ut_d(ut_error);
   }
+
+  unlock_keyrings(NULL);
 
   /* After this phase plugins are asked to be shut down, in which case they
   will be marked as DELETED. Note: we cannot leave any transaction in the THD,

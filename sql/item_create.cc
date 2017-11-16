@@ -56,17 +56,18 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "sql/item.h"
-#include "sql/item_cmpfunc.h"      // Item_func_any_value
-#include "sql/item_func.h"         // Item_func_udf_str
-#include "sql/item_geofunc.h"      // Item_func_st_area
-#include "sql/item_inetfunc.h"     // Item_func_inet_ntoa
-#include "sql/item_json_func.h"    // Item_func_json
-#include "sql/item_pfs_func.h"     // Item_pfs_func_thread_id
-#include "sql/item_regexp_func.h"  // Item_func_regexp_xxx
-#include "sql/item_strfunc.h"      // Item_func_aes_encrypt
-#include "sql/item_sum.h"          // Item_sum_udf_str
-#include "sql/item_timefunc.h"     // Item_func_add_time
-#include "sql/item_xmlfunc.h"      // Item_func_xml_extractvalue
+#include "sql/item_cmpfunc.h"       // Item_func_any_value
+#include "sql/item_func.h"          // Item_func_udf_str
+#include "sql/item_geofunc.h"       // Item_func_st_area
+#include "sql/item_inetfunc.h"      // Item_func_inet_ntoa
+#include "sql/item_json_func.h"     // Item_func_json
+#include "sql/item_keyring_func.h"  // Item_func_rotate_system_key
+#include "sql/item_pfs_func.h"      // Item_pfs_func_thread_id
+#include "sql/item_regexp_func.h"   // Item_func_regexp_xxx
+#include "sql/item_strfunc.h"       // Item_func_aes_encrypt
+#include "sql/item_sum.h"           // Item_sum_udf_str
+#include "sql/item_timefunc.h"      // Item_func_add_time
+#include "sql/item_xmlfunc.h"       // Item_func_xml_extractvalue
 #include "sql/my_decimal.h"
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
@@ -1531,6 +1532,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"RELEASE_LOCK", SQL_FN(Item_func_release_lock, 1)},
     {"REVERSE", SQL_FN(Item_func_reverse, 1)},
     {"ROLES_GRAPHML", SQL_FN(Item_func_roles_graphml, 0)},
+    {"ROTATE_SYSTEM_KEY", SQL_FN(Item_func_rotate_system_key, 1)},
     {"ROUND", SQL_FACTORY(Round_instantiator)},
     {"RPAD", SQL_FN(Item_func_rpad, 3)},
     {"RTRIM", SQL_FN(Item_func_rtrim, 1)},

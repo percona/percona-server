@@ -43,6 +43,7 @@
 #include <string_view>
 
 #include <mysql/components/services/page_track_service.h>
+#include "keyring_encryption_key_info.h"
 #include "ft_global.h"  // ft_hints
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -828,6 +829,8 @@ struct st_handler_tablename {
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO 1
+
+#define HA_CREATE_USED_ENCRYPTION_KEY_ID (1L << 28)
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -3090,6 +3093,8 @@ struct HA_CREATE_INFO {
   and ignored by the Server layer. */
 
   LEX_STRING encrypt_type{nullptr, 0};
+  uint32_t encryption_key_id{0};
+  bool was_encryption_key_id_set{false};
 
   /**
    * Secondary engine of the table.

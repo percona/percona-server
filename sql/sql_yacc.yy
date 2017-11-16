@@ -1391,6 +1391,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> TABLE_STATS_SYM 1305
 %token<lexer.keyword> THREAD_STATS_SYM 1306
 %token<lexer.keyword> USER_STATS_SYM 1307
+%token<lexer.keyword> ENCRYPTION_KEY_ID_SYM 1308
 
 /*
    Tokens from Percona Server 8.0
@@ -6765,6 +6766,10 @@ create_table_option:
         | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
           {
             $$= NEW_PTN PT_create_encryption_option($3);
+	        }
+        | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
+          {
+            $$= NEW_PTN PT_create_encryption_key_id_option($3);
           }
         | AUTO_INC opt_equal ulonglong_num
           {
@@ -15432,6 +15437,7 @@ ident_keywords_unambiguous:
         | DYNAMIC_SYM
         | EFFECTIVE_SYM
         | ENABLE_SYM
+        | ENCRYPTION_KEY_ID_SYM
         | ENCRYPTION_SYM
         | ENDS_SYM
         | ENFORCED_SYM

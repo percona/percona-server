@@ -3,8 +3,8 @@ call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master k
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
+SET @@global.keyring_file_data="MYSQL_TMP_DIR/keyring";
 # restart:<hidden args>
-DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -162,5 +162,5 @@ DROP TABLE encrypted1;
 DROP TABLE not_encrypted1;
 DROP TABLE encrypted2;
 DROP TABLE not_encrypted2;
-# restart:
+# restart:<hidden args>
 SET GLOBAL innodb_file_per_table=1;

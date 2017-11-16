@@ -84,7 +84,7 @@ ALTER TABLE t2 ENGINE=MyISAM;
 # Successful alteration with allowed (enforced) engine and new column definition
 ALTER TABLE t3 MODIFY a INT, ENGINE=MyISAM;
 --let $enforce_table= t3
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 
 #
@@ -93,7 +93,7 @@ ALTER TABLE t3 MODIFY a INT, ENGINE=MyISAM;
 SET sql_mode = '';
 --let $enforce_table= t4
 --let $enforce_engine= InnoDB
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table.inc
 
 # Successful alteration with allowed (enforced) engine with SUBSTITUTION
@@ -107,7 +107,7 @@ ALTER TABLE t5 ENGINE=MyISAM;
 # with SUBSTITUTION
 ALTER TABLE t6 MODIFY a INT, ENGINE=MyISAM;
 --let $enforce_table= t6
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 
 # Successful alteration with "Memory" engine with SUBSTITUTION
@@ -120,7 +120,7 @@ ALTER TABLE t7 ENGINE=Memory;
 # with SUBSTITUTION
 ALTER TABLE t8 MODIFY a INT, ENGINE=Memory;
 --let $enforce_table= t8
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 
 # Successful alteration with current ("InnoDB") engine with SUBSTITUTION
@@ -133,7 +133,7 @@ ALTER TABLE t9 ENGINE=InnoDB;
 # definition with SUBSTITUTION
 ALTER TABLE t10 MODIFY a INT, ENGINE=InnoDB;
 --let $enforce_table= t10
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 
 #
@@ -150,37 +150,37 @@ SELECT @@global.enforce_storage_engine IS NULL AS enforce_storage_engine_is_disa
 # Make sure the table engine is still "InnoDB"
 --let $enforce_table= t1
 --let $enforce_engine= InnoDB
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t2
 --let $enforce_engine= MyISAM
 --let $enforce_column= varchar(1)
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t3
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t4
 --let $enforce_engine= InnoDB
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t5
 --let $enforce_engine= MyISAM
 --let $enforce_column= varchar(1)
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t6
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t7
 --let $enforce_column= varchar(1)
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t8
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t9
 --let $enforce_column= varchar(1)
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 --let $enforce_table= t10
---let $enforce_column= int(11)
+--let $enforce_column= int
 --source include/percona_enforce_storage_engine_alter_table_assert.inc
 
 # Cleaning up

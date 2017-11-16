@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "fsp0fsp.h"
 #include "buf0buf.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "mtr0log.h"
@@ -1098,7 +1099,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
 
   /* For encryption tablespace, we need to save the encryption
   info to the page 0. */
-  if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+  if (FSP_FLAGS_GET_ENCRYPTION(space->flags) && !space->crypt_data) {
     auto offset = fsp_header_get_encryption_offset(page_size);
     byte encryption_info[Encryption::INFO_SIZE];
 
@@ -1135,6 +1136,16 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr) {
     });
   }
   space->encryption_op_in_progress = Encryption::Progress::NONE;
+
+  if (space->crypt_data) {
+    /* Write encryption metadata to page 0 if tablespace is
+    encrypted or encryption is disabled by table option. */
+    if (space->crypt_data) {
+      space->crypt_data->write_page0(
+          space, page, mtr, space->crypt_data->min_key_version,
+          space->crypt_data->type, space->crypt_data->encryption_rotation);
+    }
+  }
 
   if (space_id == TRX_SYS_SPACE) {
     if (btr_create(DICT_CLUSTERED | DICT_IBUF, 0, DICT_IBUF_ID_MIN + space_id,

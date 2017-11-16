@@ -323,6 +323,10 @@ class Flush_observer {
     return (m_estimate.load(std::memory_order_relaxed));
   }
 
+  ulint get_number_of_pages_flushed() const {
+    return m_number_of_pages_flushed;
+  }
+
  private:
   using Counter = std::atomic_int;
   using Counters = std::vector<Counter, ut::allocator<Counter>>;
@@ -358,6 +362,8 @@ class Flush_observer {
   /** LSN at which observer started observing. This is
   used to find the dirty blocks that are dirtied before Observer */
   const lsn_t m_lsn;
+
+  std::atomic<ulint> m_number_of_pages_flushed;
 };
 
 lsn_t get_flush_sync_lsn() noexcept;

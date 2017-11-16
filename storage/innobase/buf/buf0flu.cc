@@ -3903,7 +3903,8 @@ Flush_observer::Flush_observer(space_id_t space_id, trx_t *trx,
       m_flushed(srv_buf_pool_instances),
       m_removed(srv_buf_pool_instances),
       m_estimate(),
-      m_lsn(log_get_lsn(*log_sys)) {
+      m_lsn(log_get_lsn(*log_sys)),
+      m_number_of_pages_flushed(0) {
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
   ib::info(ER_IB_MSG_130) << "Flush_observer : ID= " << m_id
                           << ", space_id=" << space_id << ", trx_id="
@@ -3942,6 +3943,7 @@ void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *) {
 
 void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *) {
   m_removed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
+  m_number_of_pages_flushed.fetch_add(1, std::memory_order_seq_cst);
 }
 
 void Flush_observer::flush() {

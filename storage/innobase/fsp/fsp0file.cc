@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_prototypes.h"
 
 #include "dict0dd.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
@@ -383,25 +384,59 @@ in order for this function to validate it.
 @param[in]      for_import      if it is for importing
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
-dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
-                                 bool for_import) {
-  dberr_t err;
+Datafile::ValidateOutput Datafile::validate_to_dd(space_id_t space_id,
+                                                  uint32_t flags,
+                                                  bool for_import) {
+  ValidateOutput output;
 
   if (!is_open()) {
-    return (DB_ERROR);
+    output.error = DB_ERROR;
+    return output;
   }
 
   /* Validate this single-table-tablespace with the data dictionary,
   but do not compare the DATA_DIR flag, in case the tablespace was
   remotely located. */
-  err = validate_first_page(space_id, nullptr, for_import);
-  if (err != DB_SUCCESS) {
-    return (err);
+  output = validate_first_page(space_id, nullptr, for_import);
+  if (output.error != DB_SUCCESS) {
+    return (output);
+  }
+
+  // in case of keyring encryption it can be so happen that there will be a
+  // crash after all pages of tablespace is rotated and DD is updated, but page0
+  // of the tablespace has not been yet update. We handle this here.
+
+  if (output.encryption_type == ValidateOutput::KEYRING &&
+      ((FSP_FLAGS_GET_ENCRYPTION(flags) &&
+        output.keyring_encryption_info.keyring_encryption_min_key_version ==
+            0) ||
+       (!FSP_FLAGS_GET_ENCRYPTION(flags) &&
+        output.keyring_encryption_info.keyring_encryption_min_key_version !=
+            0)) &&
+      FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
+    if (srv_n_fil_crypt_threads_requested == 0) {
+      ib::warn() << "In file '" << m_filepath
+                 << "' (tablespace id = " << m_space_id
+                 << ") encryption flag is "
+                 << (FSP_FLAGS_GET_ENCRYPTION(m_flags) ? "ON" : "OFF")
+                 << ". However the encryption flag in the data dictionary is "
+                 << (FSP_FLAGS_GET_ENCRYPTION(flags) ? "ON" : "OFF")
+                 << ". This indicates that the rotation of the table was "
+                    "interrupted before space's flags were updated."
+                 << " Please have encryption_thread variable "
+                    "(innodb-encryption-threads) set to value > 0. So the "
+                    "encryption"
+                 << " could finish up the rotation.";
+    }
+    // exclude encryption flag from validation
+    fsp_flags_unset_encryption(m_flags);
+    fsp_flags_unset_encryption(flags);
   }
 
   if (m_space_id == space_id && FSP_FLAGS_ARE_NOT_SET(flags) &&
       fsp_is_dd_tablespace(space_id)) {
-    return (DB_SUCCESS);
+    output.error = DB_SUCCESS;
+    return (output);
   }
 
   /* Make sure the datafile we found matched the space ID.
@@ -415,7 +450,8 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
       !((m_flags ^ flags) & ~(FSP_FLAGS_MASK_DATA_DIR | FSP_FLAGS_MASK_SHARED |
                               FSP_FLAGS_MASK_SDI))) {
     /* Datafile matches the tablespace expected. */
-    return (DB_SUCCESS);
+    output.error = DB_SUCCESS;
+    return (output);
   }
 
   /* For a shared tablesapce, it is possible that encryption flag updated in
@@ -434,7 +470,8 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
     if (!((m_flags ^ flags) &
           ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
             FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-      return (DB_SUCCESS);
+      output.error = DB_SUCCESS;
+      return output;
     }
   }
 
@@ -454,18 +491,19 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
          " "
       << TROUBLESHOOT_DATADICT_MSG;
 
-  return (DB_ERROR);
+  output.error = DB_ERROR;
+  return (output);
 }
 
-dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
-  dberr_t err;
+Datafile::ValidateOutput Datafile::validate_for_recovery(space_id_t space_id) {
+  ValidateOutput output;
 
   ut_ad(!srv_read_only_mode);
   ut_ad(is_open());
 
-  err = validate_first_page(space_id, nullptr, false);
+  output = validate_first_page(space_id, nullptr, false);
 
-  switch (err) {
+  switch (output.error) {
     case DB_SUCCESS:
     case DB_TABLESPACE_EXISTS:
     case DB_TABLESPACE_NOT_FOUND:
@@ -475,56 +513,60 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
     default:
       /* For encryption tablespace, we skip the retry step,
       since it is only because the keyring is not ready. */
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && (err != DB_CORRUPTION)) {
-        return (err);
+      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) &&
+          (output.error != DB_CORRUPTION)) {
+        return output;
       }
 
       /* Re-open the file in read-write mode  Attempt to restore
       page 0 from doublewrite and read the space ID from a survey
       of the first few pages. */
-      err = open_read_write(srv_read_only_mode);
-      if (err != DB_SUCCESS) {
+      output.error = open_read_write(srv_read_only_mode);
+      if (output.error != DB_SUCCESS) {
         ib::error(ER_IB_MSG_395) << "Datafile '" << m_filepath
                                  << "' could not"
                                     " be opened in read-write mode so that the"
                                     " doublewrite pages could be restored.";
-        return (err);
+        return (output);
       };
 
-      err = find_space_id();
-      if (err != DB_SUCCESS || m_space_id == 0) {
+      output.error = find_space_id();
+      if (output.error != DB_SUCCESS || m_space_id == 0) {
         ib::error(ER_IB_MSG_396)
             << "Datafile '" << m_filepath
             << "' is"
                " corrupted. Cannot determine the space ID from"
                " the first 64 pages.";
-        return (err);
+        return (output);
       }
 
-      err = restore_from_doublewrite(0);
+      output.error = restore_from_doublewrite(0);
 
-      if (err != DB_SUCCESS) {
-        return (err);
+      if (output.error != DB_SUCCESS) {
+        return (output);
       }
 
       /* Free the previously read first page and then re-validate. */
       free_first_page();
 
-      err = validate_first_page(space_id, nullptr, false);
+      output = validate_first_page(space_id, nullptr, false);
   }
 
-  if (err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META) {
+  if (output.error == DB_SUCCESS ||
+      output.error == DB_INVALID_ENCRYPTION_META) {
     set_name(nullptr);
   }
 
-  return (err);
+  return (output);
 }
 
-dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
-                                      bool for_import) {
+Datafile::ValidateOutput Datafile::validate_first_page(space_id_t space_id,
+                                                       lsn_t *flush_lsn,
+                                                       bool for_import) {
   char *prev_name;
   char *prev_filepath;
   const char *error_txt = nullptr;
+  ValidateOutput output;
 
   m_is_valid = true;
 
@@ -574,8 +616,9 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                              << univ_page_size.logical();
 
     free_first_page();
+    output.error = DB_ERROR;
 
-    return (DB_ERROR);
+    return (output);
   } else if (!fsp_flags_is_valid(m_flags) || FSP_FLAGS_GET_TEMPORARY(m_flags)) {
     /* Tablespace flags must be valid. */
     error_txt = "Tablespace flags are invalid";
@@ -600,7 +643,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                   << ", expected " << space_id << " but found " << m_space_id;
 #endif /* !UNIV_HOTBACKUP */
 
-    return (DB_WRONG_FILE_NAME);
+    output.error = DB_WRONG_FILE_NAME;
+    return (output);
 
   } else {
     BlockReporter reporter(false, m_first_page, page_size,
@@ -634,17 +678,37 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
 
     free_first_page();
 
-    return (DB_CORRUPTION);
+    output.error = DB_CORRUPTION;
+    return (output);
   }
+
+  fil_space_crypt_t *crypt_data =
+      fil_space_read_crypt_data(page_size_t(m_flags), m_first_page);
+
+  if (crypt_data) {
+    output.encryption_type = ValidateOutput::KEYRING;
+    output.keyring_encryption_info.page0_has_crypt_data = true;
+    output.keyring_encryption_info.keyring_encryption_min_key_version =
+        crypt_data->min_key_version;
+    output.keyring_encryption_info.type = crypt_data->type;
+  } else if (FSP_FLAGS_GET_ENCRYPTION(m_flags))
+    output.encryption_type = ValidateOutput::MASTER_KEY;
+  else
+    output.encryption_type = ValidateOutput::NONE;
 
   /* For encrypted tablespace, check the encryption info in the
   first page can be decrypt by master key, otherwise, this table
   can't be open. And for importing, we skip checking it. */
-  if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
-    m_encryption_key = static_cast<byte *>(
-        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
-    m_encryption_iv = static_cast<byte *>(
-        ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
+  if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import &&
+      crypt_data == nullptr) {
+    if (m_encryption_key == nullptr) {
+      m_encryption_key = static_cast<byte *>(
+          ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
+    }
+    if (m_encryption_iv == nullptr) {
+      m_encryption_iv = static_cast<byte *>(
+          ut::zalloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, Encryption::KEY_LEN));
+    }
 #ifdef UNIV_ENCRYPT_DEBUG
     fprintf(stderr, "Got from file %u:", m_space_id);
 #endif
@@ -662,7 +726,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       ut::free(m_encryption_iv);
       m_encryption_key = nullptr;
       m_encryption_iv = nullptr;
-      return (DB_INVALID_ENCRYPTION_META);
+      output.error = DB_INVALID_ENCRYPTION_META;
+      return (output);
     } else {
 #ifdef UNIV_DEBUG
       ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
@@ -687,12 +752,17 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       fsp_header_encryption_op_type_in_progress(m_first_page, page_size);
 #endif /* UNIV_HOTBACKUP */
 
+  if (crypt_data != NULL) {
+    fil_space_destroy_crypt_data(&crypt_data);
+  }
+
   if (fil_space_read_name_and_filepath(m_space_id, &prev_name,
                                        &prev_filepath)) {
     if (0 == strcmp(m_filepath, prev_filepath)) {
       ut::free(prev_name);
       ut::free(prev_filepath);
-      return (DB_SUCCESS);
+      output.error = DB_SUCCESS;
+      return (output);
     }
 
     /* Make sure the space_id has not already been opened. */
@@ -710,10 +780,12 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
 
     free_first_page();
 
-    return (DB_TABLESPACE_EXISTS);
+    output.error = DB_TABLESPACE_EXISTS;
+    return (output);
   }
 
-  return (DB_SUCCESS);
+  output.error = DB_SUCCESS;
+  return (output);
 }
 
 /** Determine the space id of the given file descriptor by reading a few

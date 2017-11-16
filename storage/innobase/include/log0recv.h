@@ -647,6 +647,8 @@ struct recv_sys_t {
   /** Encryption Key information per tablespace ID */
   Encryption_Keys *keys;
 
+  void set_corrupt_log() { found_corrupt_log = true; }
+
   /** Tablespace IDs that were ignored during redo log apply. */
   Missing_Ids missing_ids;
 

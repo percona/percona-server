@@ -3,6 +3,8 @@ SELECT @@global.innodb_redo_log_encrypt ;
 @@global.innodb_redo_log_encrypt
 0
 SET GLOBAL innodb_redo_log_encrypt = 1;
+Warnings:
+Warning	7013	InnoDB: Redo log cannot be encrypted if the keyring plugin is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = 1;
 Warnings:
 Warning	7014	InnoDB: Undo log can't be encrypted if the keyring is not loaded.

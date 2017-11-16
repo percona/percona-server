@@ -980,11 +980,20 @@ class create_table_info_t {
   @return true if successful. */
   static bool normalize_table_name(char *norm_name, const char *name);
 
-  /** If encryption is requested, check for master key availability
+  /** If master key encryption is requested, check for master key availability
   and set the encryption flag in table flags
   @param[in,out]	table	table object
   @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
-  dberr_t enable_encryption(dict_table_t *table);
+  dberr_t enable_master_key_encryption(dict_table_t *table);
+
+  /** If keyring encryption is requested, check for tablespace's key
+  availability and set the encryption flag in table flags
+  @param[in,out] table table object
+  @param[in,out] rotated_keys_encryption_option contains appropriate
+                 FIL_ENCRYPTION_(ON/DEFAULT/OFF)
+  @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
+  dberr_t enable_keyring_encryption(
+      dict_table_t *table, fil_encryption_t &rotated_keys_encryption_option);
 
  private:
   /** Parses the table name into normal name and either temp path or
@@ -1375,10 +1384,6 @@ bool innobase_build_index_translation(const TABLE *table,
 
 uint innodb_force_index_records_in_range(THD *thd);
 uint innodb_records_in_range(THD *thd);
-
-/** Free InnoDB session specific data.
-@param[in,out]	thd	MySQL thread handler. */
-void thd_free_innodb_session(THD *thd) noexcept;
 
 /** Drop the statistics for a specified table, and mark it as discard
 after DDL

@@ -1130,7 +1130,9 @@ Rows_sent	0
 Rows_examined	0
 ========================
 
-mysqltest: At line 1: query 'KILL QUERY 276447231' failed: 1094: 
+KILL QUERY 276447231;
+mysqltest: At line 1: Query 'KILL QUERY 276447231' failed.
+ERROR 1094 (00000): 
 # PROCESSLIST should not be dumped if error was expected
 KILL QUERY 276447231;
 ERROR HY000: Unknown thread id: 276447231
@@ -1175,7 +1177,9 @@ Rows_sent	0
 Rows_examined	0
 ========================
 
-mysqltest: At line 1: query 'KILL QUERY 276447231' failed with wrong errno 1094: '', instead of 1064...
+KILL QUERY 276447231;
+ERROR HY000: Unknown thread id: 276447231
+mysqltest: At line 1: Query 'KILL QUERY 276447231' failed with wrong error 1094: '', should have failed with error '1064'.
 End of tests
 # To test cat_file command can handle \r\n at the 256th place
 # This test file will contain \r at the 256th position and in its
@@ -1433,6 +1437,8 @@ bug30435_5k.txt
 cat_file.txt
 charset_utf8.txt
 crl-certificate-readme.txt
+keys2.txt
+keys3.txt
 loaddata1.dat
 loaddata2.dat
 loaddata3.dat
@@ -1459,6 +1465,8 @@ bug30435_5k.txt
 cat_file.txt
 charset_utf8.txt
 crl-certificate-readme.txt
+keys2.txt
+keys3.txt
 loaddata1.dat
 loaddata2.dat
 loaddata3.dat

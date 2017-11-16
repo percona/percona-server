@@ -1,18 +1,22 @@
 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('foo');
 Warnings:
-Note	49003	Compression dictionary 'ddd' already exists
+Note	7003	Compression dictionary 'ddd' already exists
 CREATE COMPRESSION_DICTIONARY IF NOT EXISTS ddd('bar');
 Warnings:
-Note	49003	Compression dictionary 'ddd' already exists
+Note	7003	Compression dictionary 'ddd' already exists
 DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
 DROP COMPRESSION_DICTIONARY IF EXISTS ddd;
 Warnings:
-Note	49004	Compression dictionary 'ddd' does not exist
+Note	7004	Compression dictionary 'ddd' does not exist
 CREATE COMPRESSION_DICTIONARY d1('');
 CREATE COMPRESSION_DICTIONARY d2(_ucs2'');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE COMPRESSION_DICTIONARY d3('aaaaaaaabbbbbbbbccccccccdddddddd');
 CREATE COMPRESSION_DICTIONARY d4(_ucs2'aaaaaaaabbbbbbbbccccccccdddddddd');
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE COMPRESSION_DICTIONARY d5(' ');
 CREATE COMPRESSION_DICTIONARY d6('\0');
 CREATE COMPRESSION_DICTIONARY d7('\0aaaaaaaabbbbbbbbccccccccdddddddd');

@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
@@ -253,7 +254,6 @@ const byte *row_mysql_read_true_varchar(
   return (field + 1);
 }
 
-
 /**
    Compressed BLOB header format:
    ---------------------------------------------------------------
@@ -385,7 +385,7 @@ static void column_zip_set_alloc(void *stream, mem_heap_t *heap) noexcept {
 @param[in]      lenlen          bytes used to store the length of data
 @param[in]      dict_data       optional dictionary data used for compression
 @param[in]      dict_data_len   optional dictionary data length
-@param[in]      prebuilt        use prebuilt->compress only here
+@param[in]      compress_heap
 @return pointer to the compressed data */
 byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
                           const byte *dict_data, ulint dict_data_len,
@@ -1105,7 +1105,6 @@ static void row_mysql_convert_row_to_innobase(
     fts_create_doc_id(prebuilt->table, row, prebuilt->heap);
   }
 }
-
 
 /** Handles user errors and lock waits detected by the database engine.
  @return true if it was a lock wait and we should continue running the
@@ -3202,10 +3201,11 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   trx->dict_operation_lock_mode = 0;
 }
 
-dberr_t row_create_table_for_mysql(dict_table_t *&table,
-                                   const char *compression,
-                                   const HA_CREATE_INFO *create_info,
-                                   trx_t *trx, mem_heap_t *heap) {
+dberr_t row_create_table_for_mysql(
+    dict_table_t *&table, const char *compression,
+    const HA_CREATE_INFO *create_info, trx_t *trx, mem_heap_t *heap,
+    const fil_encryption_t mode,
+    const KeyringEncryptionKeyIdInfo &keyring_encryption_key_id) {
   dberr_t err;
 
   ut_ad(!dict_sys_mutex_own());
@@ -3234,7 +3234,8 @@ dberr_t row_create_table_for_mysql(dict_table_t *&table,
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, create_info, trx);
+  err = dict_build_table_def(table, create_info, trx, mode,
+                             keyring_encryption_key_id);
   if (err != DB_SUCCESS) {
     trx->error_state = DB_SUCCESS;
     trx->op_info = "";

@@ -69,7 +69,7 @@ t3	CREATE TABLE `t3` (
 SHOW CREATE TABLE test.t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
-  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `a` int NOT NULL AUTO_INCREMENT,
   `b` text /*!50633 COLUMN_FORMAT COMPRESSED */,
   `c` varchar(1000) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL,
   `d` varchar(10000) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT 'hello, world! see you!',
@@ -78,7 +78,7 @@ t4	CREATE TABLE `t4` (
 SHOW CREATE TABLE test.t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
-  `id` bigint(20) unsigned NOT NULL,
+  `id` bigint unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (`id`)
@@ -87,7 +87,7 @@ t5	CREATE TABLE `t5` (
 SHOW CREATE TABLE test.t6;
 Table	Create Table
 t6	CREATE TABLE `t6` (
-  `id` bigint(20) unsigned NOT NULL,
+  `id` bigint unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (`id`)
@@ -96,7 +96,7 @@ t6	CREATE TABLE `t6` (
 SHOW CREATE TABLE test.t7;
 Table	Create Table
 t7	CREATE TABLE `t7` (
-  `id` bigint(20) unsigned NOT NULL,
+  `id` bigint unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (`id`)
@@ -104,7 +104,7 @@ PARTITIONS 2 */
 SHOW CREATE TABLE test.t8;
 Table	Create Table
 t8	CREATE TABLE `t8` (
-  `id` bigint(20) unsigned NOT NULL,
+  `id` bigint unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (`id`)
@@ -118,7 +118,7 @@ SUBPARTITION BY HASH (`id`)
 SHOW CREATE TABLE test.t9;
 Table	Create Table
 t9	CREATE TABLE `t9` (
-  `id` bigint(20) unsigned NOT NULL,
+  `id` bigint unsigned NOT NULL,
   `a` varchar(250) /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (`id`)
@@ -129,7 +129,7 @@ SUBPARTITIONS 2
 SHOW CREATE TABLE test.t10;
 Table	Create Table
 t10	CREATE TABLE `t10` (
-  `id` int(11) NOT NULL,
+  `id` int NOT NULL,
   `a` blob NOT NULL /*!50633 COLUMN_FORMAT COMPRESSED WITH COMPRESSION_DICTIONARY `numbers` */,
   `vchar` char(2) GENERATED ALWAYS AS (substr(`a`,2,2)) VIRTUAL,
   KEY `vchar` (`vchar`)
@@ -137,7 +137,7 @@ t10	CREATE TABLE `t10` (
 SHOW CREATE TABLE test.t11;
 Table	Create Table
 t11	CREATE TABLE `t11` (
-  `f1` int(11) NOT NULL,
+  `f1` int NOT NULL,
   `f2` blob /*!50633 COLUMN_FORMAT COMPRESSED */,
   `f3` blob GENERATED ALWAYS AS (`f2`) VIRTUAL,
   PRIMARY KEY (`f1`),

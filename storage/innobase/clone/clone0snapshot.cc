@@ -961,7 +961,7 @@ int Clone_Snapshot::get_page_for_write(const page_id_t &page_id,
 
     auto buf_ptr = os_file_compress_page(
         request.compression_algorithm(), file_meta->m_fsblk_size, page_data,
-        data_size, compressed_data, &compressed_len);
+        data_size, compressed_data, &compressed_len, false);
 
     if (buf_ptr != page_data) {
       encrypted_data = page_data;

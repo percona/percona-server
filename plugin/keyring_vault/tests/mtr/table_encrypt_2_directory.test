@@ -20,6 +20,7 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_vault' alrea
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_vault' with soname 'keyring_vault.*'.");
 call mtr.add_suppression("Plugin keyring_vault reported");
 call mtr.add_suppression("keyring_vault initialization failure");
+call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached");
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config="$KEYRING_CONF_FILE_1";

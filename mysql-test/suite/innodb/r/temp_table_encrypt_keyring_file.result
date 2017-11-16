@@ -19,8 +19,8 @@ INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
 Pattern not found.
 CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
 INSERT INTO t05 VALUES (1), (2), (3);
-CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
-ERROR HY000: InnoDB: Tablespace `innodb_temporary` can contain only an ENCRYPTED tables.
+CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ENCRYPTION='n';
+ERROR HY000: InnoDB: ENCRYPTION is not accepted for temporary tablespace. For temporary tablespace encryption please use innodb_temp_tablespace_encrypt variable.
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t07 VALUES (1), (2), (3);

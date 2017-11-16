@@ -173,6 +173,21 @@ struct srv_stats_t {
 
   /* Number of row log blocks decrypted */
   ulint_ctr_64_t n_rowlog_blocks_decrypted;
+
+  /** Number of times page 0 is read from tablespace */
+  ulint_ctr_64_t page0_read;
+
+  /** Number of encryption_get_latest_key_version calls */
+  ulint_ctr_64_t n_key_requests;
+
+  /** Number of spaces in keyrotation list */
+  ulint_ctr_64_t key_rotation_list_length;
+
+  /* Number of pages encrypted */
+  ulint_ctr_64_t pages_encrypted;
+
+  /* Number of pages decrypted */
+  ulint_ctr_64_t pages_decrypted;
 };
 
 /** Structure which keeps shared future objects for InnoDB background
@@ -274,6 +289,9 @@ struct Srv_threads {
   waiting procedure used in the pre_dd_shutdown. */
   os_event_t m_shutdown_cleanup_dbg;
 #endif /* UNIV_DEBUG */
+
+  /** No of key rotation threads started */
+  size_t m_crypt_threads_n = 0;
 
   /** When the master thread notices that shutdown has started (by noticing
   srv_shutdown_state >= SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS), it exits
@@ -432,6 +450,8 @@ extern ulong srv_rollback_segments;
 
 /** Maximum size of undo tablespace. */
 extern unsigned long long srv_max_undo_tablespace_size;
+
+extern uint srv_n_fil_crypt_threads_requested;
 
 /** Rate at which UNDO records should be purged. */
 extern ulong srv_purge_rseg_truncate_frequency;
@@ -857,7 +877,7 @@ extern bool srv_print_lock_wait_timeout_info;
 
 extern bool srv_cmp_per_index_enabled;
 
-extern ulong srv_encrypt_tables;
+extern enum_default_table_encryption srv_default_table_encryption;
 
 /** Number of times secondary index lookup triggered cluster lookup */
 extern std::atomic<ulint> srv_sec_rec_cluster_reads;
@@ -1372,6 +1392,18 @@ struct export_var_t {
 
   fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
                                            statistics */
+
+  int64_t innodb_pages_encrypted; /*!< Number of pages
+                                  encrypted */
+  int64_t innodb_pages_decrypted; /*!< Number of pages
+                                  decrypted */
+  ulint innodb_encryption_rotation_pages_read_from_cache;
+  ulint innodb_encryption_rotation_pages_read_from_disk;
+  ulint innodb_encryption_rotation_pages_modified;
+  ulint innodb_encryption_rotation_pages_flushed;
+  ulint innodb_encryption_rotation_estimated_iops;
+  int64_t innodb_encryption_key_requests;
+  int64_t innodb_key_rotation_list_length;
 };
 
 #ifndef UNIV_HOTBACKUP

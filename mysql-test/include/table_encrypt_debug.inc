@@ -203,17 +203,21 @@ INSERT INTO tde_db.t1 VALUES(7, "hhhhh");
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t1;
-#DROP DATABASE tde_db;
 
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+--remove_files_wildcard $MYSQLD_DATADIR/tde_db/ t1.*
+DROP DATABASE tde_db;
+
 --echo #
 --echo # Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
 --echo # DURING CRASH RECOVERY
 --echo #
+
+CREATE DATABASE tde_db;
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -237,9 +241,8 @@ SELECT COUNT(*) FROM tde_db.test_tbl;
 
 
 # Cleanup
-#DROP DATABASE tde_db;
+DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
-
 # Clean up
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQLD_DATADIR/t1.cfg_back

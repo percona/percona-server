@@ -50,6 +50,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "clone0api.h"
 #include "dict0dd.h"
+#include "fil0crypt.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
@@ -1730,13 +1731,30 @@ static byte *recv_parse_or_apply_log_rec_body(
 #ifdef UNIV_HOTBACKUP
       if (recv_recovery_on && meb_is_space_loaded(space_id)) {
 #endif /* UNIV_HOTBACKUP */
-        /* For encrypted tablespace, we need to get the encryption key
-        information before the page 0 is recovered. Otherwise, redo will not
-        find the key to decrypt the data pages. */
+        /* For encrypted tablespace, we need to get the
+        encryption key information before the page 0 is
+        recovered. Otherwise, redo will not find the key
+        to decrypt the data pages. */
+
         if (page_no == 0 && !applying_redo &&
-            !fsp_is_system_or_temp_tablespace(space_id) &&
             /* For cloned db header page has the encryption information. */
             !recv_sys->is_cloned_db) {
+          byte *ptr_copy = ptr;
+          ptr_copy += 2;  // skip offset
+          ulint len = mach_read_from_2(ptr_copy);
+          ptr_copy += 2;
+          if (end_ptr < ptr_copy + len) return nullptr;
+
+          if (memcmp(ptr_copy, Encryption::KEY_MAGIC_PS_V1,
+                     Encryption::MAGIC_SIZE) == 0 &&
+              !recv_sys->apply_log_recs) {
+            return (fil_parse_write_crypt_data_v1(space_id, ptr, end_ptr, len));
+          }
+
+          if (fsp_is_system_or_temp_tablespace(space_id)) {
+            break;
+          }
+
           ut_ad(LSN_MAX != start_lsn);
           return fil_tablespace_redo_encryption(ptr, end_ptr, space_id,
                                                 start_lsn);
@@ -1910,7 +1928,9 @@ static byte *recv_parse_or_apply_log_rec_body(
             redo log been written with something
             older than InnoDB Plugin 1.0.4. */
             ut_ad(
-                0 ||
+                0
+                /* fil_crypt_rotate_page() writes this */
+                || offs == FIL_PAGE_SPACE_ID ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_SPACE ||
                 offs == IBUF_TREE_SEG_HEADER + IBUF_HEADER + FSEG_HDR_PAGE_NO ||
                 offs == PAGE_BTR_IBUF_FREE_LIST + PAGE_HEADER /* flst_init */

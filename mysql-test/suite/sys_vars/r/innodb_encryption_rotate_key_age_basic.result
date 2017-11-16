@@ -1,0 +1,3 @@
+SELECT @@global.innodb_encryption_rotate_key_age;
+@@global.innodb_encryption_rotate_key_age
+1

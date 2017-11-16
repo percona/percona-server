@@ -419,7 +419,8 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
                               const page_size_t &page_size, ulint rw_latch,
                               buf_block_t *guess, Page_fetch mode,
                               ut::Location location, mtr_t *mtr,
-                              bool dirty_with_no_latch = false);
+                              bool dirty_with_no_latch = false,
+                              dberr_t *err = nullptr);
 
 /** NOTE! The following macros should be used instead of buf_page_get_gen,
  to improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed
@@ -593,6 +594,27 @@ inline void buf_block_buf_fix_inc(buf_block_t *b,
 #else  /* !UNIV_HOTBACKUP */
 static inline void buf_block_modify_clock_inc(buf_block_t *block) {}
 #endif /* !UNIV_HOTBACKUP */
+
+bool buf_page_is_checksum_valid_crc32(const byte *read_buf,
+                                      ulint checksum_field1,
+                                      ulint checksum_field2,
+#ifdef UNIV_INNOCHECKSUM
+                                      uintmax_t page_no, bool is_log_enabled,
+                                      FILE *log_file,
+                                      const srv_checksum_algorithm_t curr_algo,
+#endif /* UNIV_INNOCHECKSUM */
+                                      bool use_legacy_big_endian);
+
+bool buf_page_is_checksum_valid_innodb(const byte *read_buf,
+                                       ulint checksum_field1,
+                                       ulint checksum_field2
+#ifdef UNIV_INNOCHECKSUM
+                                       ,
+                                       uintmax_t page_no, bool is_log_enabled,
+                                       FILE *log_file,
+                                       const srv_checksum_algorithm_t curr_algo
+#endif /* UNIV_INNOCHECKSUM */
+);
 
 #ifndef UNIV_HOTBACKUP
 

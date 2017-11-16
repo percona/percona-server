@@ -56,6 +56,7 @@ constexpr uint32_t IB_EXPORT_CFG_VERSION_V6 = 6;
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V7 = 7;
 /** Future version used to test that the correct error message is returned. */
 constexpr uint32_t IB_EXPORT_CFG_VERSION_V99 = 99;
+constexpr uint32_t IB_EXPORT_CFG_VERSION_V1_WITH_RK = 0xFFFFFFFF;
 
 /** Quiesce the tablespace that the table resides in.
 @param[in] table Quiesce this table

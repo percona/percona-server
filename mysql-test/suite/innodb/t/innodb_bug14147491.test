@@ -1,7 +1,6 @@
 #
 # Test opening a corrupted table.
 #
-
 # Valgrind can hang or return spurious messages on DBUG_SUICIDE
 source include/not_valgrind.inc;
 # Avoid CrashReporter popup on Mac

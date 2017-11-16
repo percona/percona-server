@@ -1416,6 +1416,10 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
     opened. */
     char *filepath = dict_get_first_path(space_id);
 
+    // We do not need to validate tablespace for online encryption as encryption
+    // threads do not work in 5.7. Only ENCRYPTION='KEYRING' works.
+    Keyring_encryption_info keyring_encryption_info;
+
     /* Check that this ibd is in a known location. If not, allow this
     but make some noise. */
     if (!fil_path_is_known(filepath)) {
@@ -1424,7 +1428,8 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
 
     /* Check that the .ibd file exists. */
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, filepath, true, true);
+                               fsp_flags, space_name, filepath, true, true,
+                               keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
@@ -1686,8 +1691,11 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
     }
 
     /* Check that the .ibd file exists. */
+    Keyring_encryption_info keyring_encryption_info;
+
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
-                               fsp_flags, space_name, filepath, true, true);
+                               fsp_flags, space_name, filepath, true, true,
+                               keyring_encryption_info);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
@@ -2420,13 +2428,17 @@ void dict_load_tablespace(dict_table_t *table, dict_err_ignore_t ignore_err) {
 
   /* This dict_load_tablespace() is only used on old 5.7 database during
   upgrade */
+  Keyring_encryption_info keyring_encryption_info;
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-                             space_name, filepath, true, true);
+                             space_name, filepath, true, true,
+                             keyring_encryption_info);
 
   if (err != DB_SUCCESS) {
     /* We failed to find a sensible tablespace file */
     table->ibd_file_missing = true;
   }
+
+  table->keyring_encryption_info = keyring_encryption_info;
 
   ut::free(shared_space_name);
   ut::free(filepath);

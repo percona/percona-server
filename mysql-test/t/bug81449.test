@@ -9,6 +9,6 @@
 
 CALL mtr.add_suppression("Column count of mysql\\.user is wrong\\. Expected [0-9]+, found [0-9]+\\. The table is probably corrupted");
 
-CREATE TEMPORARY TABLE mysql.user(id INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE mysql.user(id INT) ENGINE=InnoDB;
 --error ER_CANNOT_USER
 DROP USER 'user\\_0'@0;

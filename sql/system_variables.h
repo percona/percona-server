@@ -102,6 +102,14 @@ enum use_secondary_engine {
   SECONDARY_ENGINE_FORCED = 2
 };
 
+// Values for default_table_encryption
+enum enum_default_table_encryption {
+  DEFAULT_TABLE_ENC_OFF = 0,
+  DEFAULT_TABLE_ENC_ON = 1,
+  DEFAULT_TABLE_ENC_ONLINE_TO_KEYRING = 2,
+  DEFAULT_TABLE_ENC_ONLINE_FROM_KEYRING_TO_UNENCRYPTED = 3
+};
+
 /* Bits for different SQL modes modes (including ANSI mode) */
 #define MODE_REAL_AS_FLOAT 1
 #define MODE_PIPES_AS_CONCAT 2

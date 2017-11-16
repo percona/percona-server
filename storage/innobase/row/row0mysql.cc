@@ -81,6 +81,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0undo.h"
 #include "ut0new.h"
 #include "zlib.h"
+#include "fil0crypt.h"
 
 static const char *MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
     "innodb_force_recovery is on. We do not allow database modifications"
@@ -1143,6 +1144,7 @@ handle_new_error:
     case DB_FTS_INVALID_DOCID:
     case DB_INTERRUPTED:
     case DB_CANT_CREATE_GEOMETRY_OBJECT:
+    case DB_DECRYPTION_FAILED:
     case DB_COMPUTE_VALUE_FAILED:
     case DB_LOCK_NOWAIT:
       DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
@@ -1939,6 +1941,46 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
   return (err);
 }
 
+/** Determine is tablespace encrypted but decryption failed, is table corrupted
+or is tablespace .ibd file missing.
+@param[in] table                Table
+@param[in] trx                  Transaction
+@param[in] push_warning         true if we should push warning to user
+@retval DB_DECRYPTION_FAILED    table is encrypted but decryption failed
+@retval DB_CORRUPTION           table is corrupted
+@retval DB_TABLESPACE_NOT_FOUND tablespace .ibd file not found */
+static dberr_t row_mysql_get_table_status(const dict_table_t* table,
+                                          trx_t* trx,
+                                          bool push_warning = true) {
+  dberr_t err;
+  if (fil_space_t* space = fil_space_acquire_silent(table->space)) {
+    if (space->crypt_data && space->crypt_data->is_encrypted()) {
+      if (push_warning) {
+        push_warning_printf(trx->mysql_thd, Sql_condition::SL_WARNING,
+                            HA_ERR_DECRYPTION_FAILED, "Table %s in tablespace %u encrypted."
+                            "However key management plugin or used key_id is not found or"
+                            " used encryption algorithm or method does not match.",
+                            table->name.m_name, table->space);
+      }
+      err = DB_DECRYPTION_FAILED;
+    } else {
+      if (push_warning) {
+        push_warning_printf(trx->mysql_thd, Sql_condition::SL_WARNING,
+                            HA_ERR_CRASHED, "Table %s in tablespace %u corrupted.",
+                            table->name.m_name, table->space);
+      }
+      err = DB_CORRUPTION;
+    }
+    fil_space_release(space);
+  } else {
+    ib::error(ER_IB_MSG_977) << ".ibd file is missing for table "
+                << table->name;
+                err = DB_TABLESPACE_NOT_FOUND;
+  }
+
+  return(err);
+}
+
 /** Does an insert for MySQL using INSERT graph. This function will run/execute
 INSERT graph.
 @param[in]	mysql_rec	row in the MySQL format
@@ -1969,12 +2011,8 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
 
     return (DB_TABLESPACE_DELETED);
 
-  } else if (prebuilt->table->ibd_file_missing) {
-    ib::error(ER_IB_MSG_977)
-        << ".ibd file is missing for table " << prebuilt->table->name;
-
-    return (DB_TABLESPACE_NOT_FOUND);
-
+  } else if (!prebuilt->table->is_readable()) {
+		return(row_mysql_get_table_status(prebuilt->table, trx, true));
   } else if (srv_force_recovery &&
              !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN &&
                dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
@@ -2641,7 +2679,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
   UT_NOT_USED(mysql_rec);
 
-  if (prebuilt->table->ibd_file_missing) {
+  if (prebuilt->table->file_unreadable) {
     ib::error(ER_IB_MSG_984)
         << "MySQL is trying to use a table handle but the"
            " .ibd file for table "
@@ -3106,9 +3144,12 @@ kept in non-LRU list while on failure the 'table' object will be freed.
                                 DB_SUCCESS added to the data dictionary cache)
 @param[in]	compression	compression algorithm to use, can be nullptr
 @param[in,out]	trx		transaction
+@param[in]      fil_encryption_t mode,  in: encryption mode
+@param[in]      const CreateInfoEncryptionKeyId &create_info_encryption_key_id in: encryption key_id
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
-                                   trx_t *trx) {
+                                   trx_t *trx, fil_encryption_t mode, 
+                                   const CreateInfoEncryptionKeyId &create_info_encryption_key_id) {
   mem_heap_t *heap;
   dberr_t err;
 
@@ -3137,7 +3178,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   }
 
   /* Assign table id and build table space. */
-  err = dict_build_table_def(table, trx);
+  err = dict_build_table_def(table, trx, mode, create_info_encryption_key_id);
   if (err != DB_SUCCESS) {
     trx->error_state = err;
     goto error_handling;
@@ -3843,7 +3884,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
   4) FOREIGN KEY operations: if table->n_foreign_key_checks_running > 0,
   we do not allow the discard. */
 
-  /* For SDI tables, acquire exclusive MDL and set sdi_table->ibd_file_missing
+  /* For SDI tables, acquire exclusive MDL and set sdi_table->file_unreadable
   to true. Purge on SDI table acquire shared MDL & also check for missing
   flag. */
   mutex_exit(&dict_sys->mutex);
@@ -3912,7 +3953,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
       /* All persistent operations successful, update the
       data dictionary memory cache. */
 
-      table->ibd_file_missing = TRUE;
+      table->set_file_unreadable();
 
       table->flags2 |= DICT_TF2_DISCARDED;
 
@@ -3930,7 +3971,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
       {
         dict_table_t *sdi_table = dict_sdi_get_table(table->space, true, false);
         if (sdi_table) {
-          sdi_table->ibd_file_missing = true;
+          sdi_table->set_file_unreadable();
           dict_sdi_close_table(sdi_table);
         }
       }
@@ -3957,7 +3998,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding
  means that this function renames the .ibd file and assigns a new table id for
- the table. Also the flag table->ibd_file_missing is set to TRUE.
+ the table. Also the flag table->file_unreadable is set to TRUE.
  @return error code or DB_SUCCESS */
 dberr_t row_discard_tablespace_for_mysql(
     const char *name, /*!< in: table name */
@@ -4465,7 +4506,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   space_id_t space_id;
   bool is_temp;
-  bool ibd_file_missing;
+  bool file_unreadable;
   bool is_discarded;
   bool shared_tablespace;
   table_id_t table_id;
@@ -4474,7 +4515,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   space_id = table->space;
   table_id = table->id;
-  ibd_file_missing = table->ibd_file_missing;
+  file_unreadable = table->file_unreadable;
   is_discarded = dict_table_is_discarded(table);
   is_temp = table->is_temporary();
   shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
@@ -4528,13 +4569,13 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   /* Do not attempt to drop known-to-be-missing tablespaces,
   nor system or shared general tablespaces. */
-  if (is_discarded || ibd_file_missing || is_temp || shared_tablespace ||
+  if (is_discarded || file_unreadable || is_temp || shared_tablespace ||
       fsp_is_system_or_temp_tablespace(space_id)) {
     /* For encrypted table, if ibd file can not be decrypt,
-    we also set ibd_file_missing. We still need to try to
+    we also set file_unreadable. We still need to try to
     remove the ibd file for this. */
 
-    if (is_discarded || !is_encrypted || !ibd_file_missing) {
+    if (is_discarded || !is_encrypted || !file_unreadable) {
       goto funct_exit;
     }
   }
@@ -4626,7 +4667,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     err = DB_TABLE_NOT_FOUND;
     goto funct_exit;
 
-  } else if (table->ibd_file_missing && !dict_table_is_discarded(table)) {
+  } else if (table->file_unreadable && !dict_table_is_discarded(table)) {
     err = DB_TABLE_NOT_FOUND;
 
     ib::error(ER_IB_MSG_996) << "Table " << old_name

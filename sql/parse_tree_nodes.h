@@ -2773,6 +2773,25 @@ class PT_traceable_create_table_option : public PT_create_table_option {
   }
 };
 
+template <typename Option_type, Option_type HA_CREATE_INFO::*Property,
+          ulong Property_flag>
+class PT_traceable_create_table_option_encryption_key_id : public PT_create_table_option {
+  typedef PT_create_table_option super;
+
+  const Option_type value;
+
+ public:
+  explicit PT_traceable_create_table_option_encryption_key_id(Option_type value) : value(value) {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override {
+    if (super::contextualize(pc)) return true;
+    pc->create_info->*Property = value;
+    pc->create_info->used_fields |= Property_flag;
+    pc->create_info->was_encryption_key_id_set = true;
+    return false;
+  }
+};
+
 #define TYPE_AND_REF(x) decltype(x), &x
 
 /**
@@ -2837,6 +2856,10 @@ typedef PT_traceable_create_table_option<TYPE_AND_REF(HA_CREATE_INFO::compress),
 typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::encrypt_type), HA_CREATE_USED_ENCRYPT>
     PT_create_encryption_option;
+
+typedef PT_traceable_create_table_option_encryption_key_id<
+    TYPE_AND_REF(HA_CREATE_INFO::encryption_key_id), HA_CREATE_USED_ENCRYPTION_KEY_ID>
+    PT_create_encryption_key_id_option;
 
 /**
   Node for the @SQL{AUTO_INCREMENT [=] @B{@<integer@>}} table option

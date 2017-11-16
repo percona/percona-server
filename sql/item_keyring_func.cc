@@ -47,11 +47,9 @@ longlong Item_func_rotate_system_key::val_int() {
 }
 
 bool Item_func_rotate_system_key::calc_value(const String *arg) {
-  bool found = false;
-  for (uint i = 0; i < valid_percona_system_keys_size; ++i) {
-    if (strcmp(valid_percona_system_keys[i], arg->ptr()) == 0) found = true;
-  }
-  return found && !(my_key_generate(arg->ptr(), "AES", NULL, 16));
+  size_t key_length = 0;
+  return is_valid_percona_system_key(arg->ptr(), &key_length) &&
+         !(my_key_generate(arg->ptr(), "AES", NULL, key_length));
 }
 
 bool Item_func_rotate_system_key::fix_fields(THD *thd, Item **ref) {

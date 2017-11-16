@@ -88,7 +88,7 @@ void btr_pcur_free(btr_pcur_t *pcur);
 /** Initializes and opens a persistent cursor to an index tree. It should be
  closed with btr_pcur_close. */
 UNIV_INLINE
-void btr_pcur_open_low(
+dberr_t btr_pcur_open_low(
     dict_index_t *index,   /*!< in: index */
     ulint level,           /*!< in: level in the btree */
     const dtuple_t *tuple, /*!< in: tuple on which search done */
@@ -109,7 +109,7 @@ void btr_pcur_open_low(
 /** Opens an persistent cursor to an index tree without initializing the
  cursor. */
 UNIV_INLINE
-void btr_pcur_open_with_no_init_func(
+dberr_t btr_pcur_open_with_no_init_func(
     dict_index_t *index,   /*!< in: index */
     const dtuple_t *tuple, /*!< in: tuple on which search done */
     page_cur_mode_t mode,  /*!< in: PAGE_CUR_L, ...;
@@ -137,7 +137,7 @@ void btr_pcur_open_with_no_init_func(
 
 /** Opens a persistent cursor at either end of an index. */
 UNIV_INLINE
-void btr_pcur_open_at_index_side(
+dberr_t btr_pcur_open_at_index_side(
     bool from_left,      /*!< in: true if open to the low end,
                          false if to the high end */
     dict_index_t *index, /*!< in: index */

@@ -44,7 +44,7 @@ UNIV_INLINE
 page_t *page_cur_get_page(page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
-  ut_ad(page_align(cur->rec) == cur->block->frame);
+  ut_ad(cur->rec == NULL || page_align(cur->rec) == cur->block->frame);
 
   return (page_align(cur->rec));
 }
@@ -55,8 +55,8 @@ UNIV_INLINE
 buf_block_t *page_cur_get_block(page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
-  ut_ad(page_align(cur->rec) == cur->block->frame);
-  return (cur->block);
+  ut_ad(cur->rec == NULL || page_align(cur->rec) == cur->block->frame);
+  return(cur->block);
 }
 
 /** Gets pointer to the page frame where the cursor is positioned.
@@ -73,7 +73,7 @@ UNIV_INLINE
 rec_t *page_cur_get_rec(page_cur_t *cur) /*!< in: page cursor */
 {
   ut_ad(cur);
-  ut_ad(page_align(cur->rec) == cur->block->frame);
+  ut_ad(cur->rec == NULL || page_align(cur->rec) == cur->block->frame);
 
   return (cur->rec);
 }

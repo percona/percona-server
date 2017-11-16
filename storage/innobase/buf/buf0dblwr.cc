@@ -719,7 +719,10 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
       BlockReporter dblwr_buf_page(true, page, page_size,
                                    fsp_is_checksum_disabled(space->id));
 
-      dberr_t err = os_dblwr_decrypt_page(space, page);
+      dberr_t err = DB_SUCCESS;
+
+      if (space->crypt_data == NULL) // if it was crypt_data encrypted it was already decrypted
+        err = os_dblwr_decrypt_page(space, page);
 
       if (err != DB_SUCCESS || dblwr_buf_page.is_corrupted()) {
         ib::error(ER_IB_MSG_107) << "Dump of the page:";
@@ -1009,11 +1012,9 @@ static void buf_dblwr_check_block(
       /* TODO: validate also non-index pages */
       return;
     case FIL_PAGE_TYPE_ALLOCATED:
-      if (srv_immediate_scrub_data_uncompressed) {
-        return;
-      }
-      /* empty pages should never be flushed, unless scrubbing is on */
-      break;
+      /* empty pages could be flushed by encryption threads
+         and scrubbing */
+      return;
   }
 
   buf_dblwr_assert_on_corrupt_block(block);
@@ -1174,7 +1175,10 @@ void buf_dblwr_flush_buffered_writes(ulint dblwr_partition) noexcept {
     buffer has sane LSN values. */
     buf_dblwr_check_page_lsn(dblwr_page);
 
-    if (encrypt_parallel_dblwr && !buf_dblwr_disable_encryption(*block)) {
+    // it can be already encrypted by encryption threads
+    FilSpace space (TRX_SYS_SPACE);
+    if (encrypt_parallel_dblwr && space()->crypt_data == nullptr
+        && !buf_dblwr_disable_encryption(*block)) {
       buf_dblwr_encrypt_page(block, dblwr_page);
     }
   }

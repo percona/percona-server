@@ -16,6 +16,7 @@ call mtr.add_suppression("Plugin keyring_file reported");
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval SET @@global.keyring_file_data="$MYSQL_TMP_DIR/keyring";
 
+--let $encryption_type=Y
 --source include/table_encrypt_2.inc
 
 #Cleanup

@@ -202,7 +202,9 @@ struct mtr_t {
     mtr_t *m_mtr;
   };
 
-  mtr_t() { m_impl.m_state = MTR_STATE_INIT; }
+  mtr_t() { m_impl.m_state = MTR_STATE_INIT;
+            m_impl.m_flush_observer = NULL;
+  }
 
   ~mtr_t() {
 #ifdef UNIV_DEBUG

@@ -325,6 +325,9 @@ bool BlockReporter::is_corrupted() const {
       if ((i < FIL_PAGE_FILE_FLUSH_LSN ||
            i >= FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID) &&
           m_read_buf[i] != 0) {
+		if (i >= FIL_PAGE_ENCRYPTION_KEY_VERSION &&
+		    i <= FIL_PAGE_ENCRYPTION_KEY_VERSION + 3) //those four bytes might not be 0 for keyring encryption
+			continue;
         empty = false;
         break;
       }
@@ -742,3 +745,26 @@ std::ostream &operator<<(std::ostream &out, const page_id_t &page_id) {
       << ", page number=" << page_id.m_page_no << "]";
   return (out);
 }
+
+uint32_t
+buf_calc_page_crc32_encrypted_with_keyring(
+	const byte*	page,
+	uint            page_size,
+	bool		use_legacy_big_endian /* = false */)
+{
+	ut_crc32_func_t	crc32_func = use_legacy_big_endian
+		? ut_crc32_legacy_big_endian
+		: ut_crc32;
+
+	const uint32_t	c1 = crc32_func(
+		page + FIL_PAGE_OFFSET,
+		FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET);
+
+	const uint32_t	c2 = crc32_func(
+		page + FIL_PAGE_DATA,
+		page_size - FIL_PAGE_DATA - FIL_PAGE_END_LSN_OLD_CHKSUM);
+
+	return(c1 ^ c2);
+
+}
+

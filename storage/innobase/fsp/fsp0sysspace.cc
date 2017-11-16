@@ -53,6 +53,8 @@ direct reference to server header and global variable */
 #include "trx0sys.h"
 #include "ut0new.h"
 
+#include "fil0crypt.h"
+
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
 
@@ -539,7 +541,7 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   /* Check the contents of the first page of the
   first datafile. */
   for (int retry = 0; retry < 2; ++retry) {
-    err = it->validate_first_page(it->m_space_id, flushed_lsn, false);
+    err = it->validate_first_page(it->m_space_id, flushed_lsn, false).error;
 
     if (err != DB_SUCCESS &&
         (retry == 1 || it->restore_from_doublewrite(0) != DB_SUCCESS)) {
@@ -889,7 +891,8 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
       tablespace in the tablespace manager. */
       space =
           fil_space_create(name(), space_id(), flags(),
-                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+                           is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE,
+                           nullptr);
     }
 
     ut_ad(fil_validate());

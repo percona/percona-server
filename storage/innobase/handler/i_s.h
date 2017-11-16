@@ -68,5 +68,7 @@ extern struct st_mysql_plugin i_s_innodb_datafiles;
 extern struct st_mysql_plugin i_s_innodb_changed_pages;
 extern struct st_mysql_plugin i_s_innodb_virtual;
 extern struct st_mysql_plugin i_s_innodb_cached_indexes;
+extern struct st_mysql_plugin i_s_innodb_tablespaces_encryption;
+
 
 #endif /* i_s_h */

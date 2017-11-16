@@ -236,7 +236,7 @@ static dict_table_t *ib_lookup_table_by_name(
 
   table = dict_table_get_low(name);
 
-  if (table != NULL && table->ibd_file_missing) {
+  if (table != NULL && table->file_unreadable) {
     table = NULL;
   }
 

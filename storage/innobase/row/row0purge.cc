@@ -931,7 +931,7 @@ try_again:
     goto close_exit;
   }
 
-  if (node->table->ibd_file_missing) {
+  if (node->table->file_unreadable) {
     /* We skip purge of missing .ibd files */
 
     if (dict_table_is_sdi(node->table->id)) {

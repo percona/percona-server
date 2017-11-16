@@ -12226,6 +12226,15 @@ bool mysql_prepare_alter_table(THD *thd, const dd::Table *src_table,
     create_info->auto_increment_value = table->file->stats.auto_increment_value;
   }
 
+  // Encryption was changed to not KEYRING and ALTER does not contain encryption_key_id
+  // mark encryption_key_id as not set then
+  if (used_fields & HA_CREATE_USED_ENCRYPT &&
+      0 != strncmp(create_info->encrypt_type.str, "KEYRING", create_info->encrypt_type.length) &&
+      !(used_fields & HA_CREATE_USED_ENCRYPTION_KEY_ID)) {
+    create_info->used_fields&= ~(HA_CREATE_USED_ENCRYPTION_KEY_ID);
+    create_info->was_encryption_key_id_set = false;
+  }
+
   if (prepare_fields_and_keys(thd, src_table, table, create_info, alter_info,
                               alter_ctx, used_fields))
     DBUG_RETURN(true);

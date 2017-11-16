@@ -1,0 +1,611 @@
+--skip
+--source include/have_innodb.inc
+--source include/not_valgrind.inc
+--source include/not_embedded.inc
+
+call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table `[^`]+`.`[^`]+` is set as discarded\\.");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Page [[:digit:]]+ at offset [[:digit:]]+ looks corrupted in file");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: os_file_read\\(\\) failed");
+
+--let $number_of_records = 10000
+--let MYSQLD_DATADIR = `SELECT @@datadir`
+
+--let DB_NAME = `SELECT DATABASE()`
+--let $t1_ibd = $MYSQLD_DATADIR/$DB_NAME/t1.ibd
+--let $t2_ibd = $MYSQLD_DATADIR/$DB_NAME/t2.ibd
+--let $t3_ibd = $MYSQLD_DATADIR/$DB_NAME/t3.ibd
+--let $t4_ibd = $MYSQLD_DATADIR/$DB_NAME/t4.ibd
+--let $t5_ibd = $MYSQLD_DATADIR/$DB_NAME/t5.ibd
+--let $t6_ibd = $MYSQLD_DATADIR/$DB_NAME/t6.ibd
+--let $t7_ibd = $MYSQLD_DATADIR/$DB_NAME/t7.ibd
+--let $t8_ibd = $MYSQLD_DATADIR/$DB_NAME/t8.ibd
+
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='KEYRING';
+CREATE TABLE t2 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TABLE t3 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB COMPRESSION="zlib" ENCRYPTION='KEYRING';
+CREATE TABLE t4 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB COMPRESSION="zlib";
+CREATE TABLE t5 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='KEYRING';
+CREATE TABLE t6 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+CREATE TABLE t7 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB ENCRYPTION='N';
+CREATE TABLE t8 (id INT NOT NULL PRIMARY KEY, a VARCHAR(255)) ENGINE=InnoDB;
+
+delimiter //;
+CREATE PROCEDURE innodb_insert_proc(repeat_count INT)
+BEGIN
+  DECLARE current_num INT;
+  SET current_num = 0;
+  WHILE current_num < repeat_count DO
+    INSERT INTO t1 VALUES (current_num, REPEAT('foobar', 42));
+    INSERT INTO t2 VALUES (current_num, REPEAT('temp'  , 42));
+    INSERT INTO t3 VALUES (current_num, REPEAT('barfoo', 42));
+    INSERT INTO t4 VALUES (current_num, REPEAT('secret', 42));
+    INSERT INTO t5 VALUES (current_num, REPEAT('fbar'  , 42));
+    INSERT INTO t6 VALUES (current_num, REPEAT('barf'  , 42));
+    INSERT INTO t7 VALUES (current_num, REPEAT('barb'  , 42));
+    INSERT INTO t8 VALUES (current_num, REPEAT('baba'  , 42));
+    SET current_num = current_num + 1;
+  END WHILE;
+END//
+delimiter ;//
+COMMIT;
+
+SET autocommit = 0;
+eval CALL innodb_insert_proc($number_of_records);
+COMMIT;
+SET autocommit = 1;
+
+--let $tables_count = `SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`
+
+--echo # Wait max 2 min for key encryption threads to encrypt all spaces
+--let $wait_timeout = 120
+# All tables should get encrypted. Exactly ($tables_count) because
+# INNODB_TABLESPACES_ENCRYPTION contains artificial 'innodb_system' (+1)
+# table and 't7' is unencrypted (-1).
+--let $wait_condition = SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t7 is not encrypted
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t7"] = 1
+--source include/assert.inc
+
+--echo # tablespaces should be now encrypted
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = temp
+--let SEARCH_FILE = $t2_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barfoo
+--let SEARCH_FILE = $t3_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = secret
+--let SEARCH_FILE = $t4_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = fbar
+--let SEARCH_FILE = $t5_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barf
+--let SEARCH_FILE = $t6_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = barb
+--let SEARCH_FILE = $t7_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = baba
+--let SEARCH_FILE = $t8_ibd
+--source include/search_pattern_in_file.inc
+
+
+--list_files $MYSQLD_DATADIR/$DB_NAME
+FLUSH TABLES t1, t2, t3, t4, t5, t6, t7, t8 FOR EXPORT;
+
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_backup_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+EOF
+--list_files $MYSQLD_DATADIR/$DB_NAME
+UNLOCK TABLES;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t2 DISCARD TABLESPACE;
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+ALTER TABLE t5 DISCARD TABLESPACE;
+ALTER TABLE t6 DISCARD TABLESPACE;
+ALTER TABLE t7 DISCARD TABLESPACE;
+ALTER TABLE t8 DISCARD TABLESPACE;
+
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_discard_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+ib_restore_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+EOF
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t2 IMPORT TABLESPACE;
+--let $assert_text = Make sure t2 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t2] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t3 IMPORT TABLESPACE;
+--let $assert_text = Make sure t3 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t3] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t4 IMPORT TABLESPACE;
+--let $assert_text = Make sure t4 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t4] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t5 IMPORT TABLESPACE;
+--let $assert_text = Make sure t5 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t5] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t6 IMPORT TABLESPACE;
+--let $assert_text = Make sure t6 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t6] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t7 IMPORT TABLESPACE;
+--let $assert_text = Make sure t7 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t7] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t8 IMPORT TABLESPACE;
+--let $assert_text = Make sure t8 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t8] = $number_of_records
+--source include/assert.inc
+
+--echo # tablespaces should remain encrypted after import, apart from t7
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = temp
+--let SEARCH_FILE = $t2_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barfoo
+--let SEARCH_FILE = $t3_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = secret
+--let SEARCH_FILE = $t4_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = fbar
+--let SEARCH_FILE = $t5_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barf
+--let SEARCH_FILE = $t6_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = barb
+--let SEARCH_FILE = $t7_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = baba
+--let SEARCH_FILE = $t8_ibd
+--source include/search_pattern_in_file.inc
+
+
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+ALTER TABLE t2 ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+ALTER TABLE t3 ENGINE InnoDB;
+SHOW CREATE TABLE t3;
+ALTER TABLE t4 ENGINE InnoDB;
+SHOW CREATE TABLE t4;
+ALTER TABLE t5 ENGINE InnoDB;
+SHOW CREATE TABLE t5;
+ALTER TABLE t6 ENGINE InnoDB;
+SHOW CREATE TABLE t6;
+ALTER TABLE t7 ENGINE InnoDB;
+SHOW CREATE TABLE t7;
+ALTER TABLE t8 ENGINE InnoDB;
+SHOW CREATE TABLE t8;
+
+--echo # Restarting server
+--source include/restart_mysqld.inc
+--echo # Done restarting server
+
+--echo # Verify that tables are still usable
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t2 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t2] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t3 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t3] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t4 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t4] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t5 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t5] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t6 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t6] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t7 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t7] = $number_of_records
+--source include/assert.inc
+--let $assert_text = Make sure t8 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t8] = $number_of_records
+--source include/assert.inc
+
+--echo # Tablespaces should be encrypted after restart
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = temp
+--let SEARCH_FILE = $t2_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barfoo
+--let SEARCH_FILE = $t3_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = secret
+--let SEARCH_FILE = $t4_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = fbar
+--let SEARCH_FILE = $t5_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barf
+--let SEARCH_FILE = $t6_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = barb
+--let SEARCH_FILE = $t7_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = baba
+--let SEARCH_FILE = $t8_ibd
+--source include/search_pattern_in_file.inc
+
+
+--let $assert_text = Make sure all tables, apart from t7, are encrypted
+--let $assert_cond = "[SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0]" = 1
+--source include/assert.inc
+
+--list_files $MYSQLD_DATADIR/$DB_NAME
+FLUSH TABLES t1, t2, t3, t4, t5, t6, t7, t8 FOR EXPORT;
+
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_backup_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+EOF
+--list_files $MYSQLD_DATADIR/$DB_NAME
+UNLOCK TABLES;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t2 DISCARD TABLESPACE;
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+ALTER TABLE t5 DISCARD TABLESPACE;
+ALTER TABLE t6 DISCARD TABLESPACE;
+ALTER TABLE t7 DISCARD TABLESPACE;
+ALTER TABLE t8 DISCARD TABLESPACE;
+
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_discard_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+ib_restore_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8");
+EOF
+
+--echo # Disable rotation threads
+SET GLOBAL innodb_encryption_threads = 0;
+SET GLOBAL innodb_encrypt_tables = OFF;
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+--let $assert_text = Make sure t1 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t1"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t1 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t1"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t2 IMPORT TABLESPACE;
+--let $assert_text = Make sure t2 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t2"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t2 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t2"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t2 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t2] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t3 IMPORT TABLESPACE;
+--let $assert_text = Make sure t3 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t3"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t3 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t3"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t3 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t3] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t4 IMPORT TABLESPACE;
+--let $assert_text = Make sure t4 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t4"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t4 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t4"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t4 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t4] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t5 IMPORT TABLESPACE;
+--let $assert_text = Make sure t5 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t5"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t5 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t5"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t5 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t5] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t6 IMPORT TABLESPACE;
+--let $assert_text = Make sure t6 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t6"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t6 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t6"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t6 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t6] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t7 IMPORT TABLESPACE;
+--let $assert_text = Make sure t7 does not have encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t7"] = 0
+--source include/assert.inc
+--let $assert_text = Make sure t7 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0 (i.e. unencrypted)
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t7"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t7 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t7] = $number_of_records
+--source include/assert.inc
+
+ALTER TABLE t8 IMPORT TABLESPACE;
+--let $assert_text = Make sure t8 has encrypted flag set after importing
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t8"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t8 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t8"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t8 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t8] = $number_of_records
+--source include/assert.inc
+
+--echo # tablespaces should be encrypted, apart from t7
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = temp
+--let SEARCH_FILE = $t2_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barfoo
+--let SEARCH_FILE = $t3_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = secret
+--let SEARCH_FILE = $t4_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = fbar
+--let SEARCH_FILE = $t5_ibd
+--source include/search_pattern_in_file.inc
+--let SEARCH_PATTERN = barf
+--let SEARCH_FILE = $t6_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = barb
+--let SEARCH_FILE = $t7_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = baba
+--let SEARCH_FILE = $t8_ibd
+--source include/search_pattern_in_file.inc
+
+SET GLOBAL innodb_encryption_threads = 4;
+
+--echo # Wait max 2 min for key encryption threads to decrypt all spaces, apart from t1, t3 and t5
+--let $wait_timeout = 120
+--let $wait_condition = SELECT COUNT(*) = 3 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION <> 0
+--source include/wait_condition.inc
+
+--let $assert_text = Make sure t1 has encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t1"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t1 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t1"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t1 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t1] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t2 does not have encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t2"] = 0
+--source include/assert.inc
+--let $assert_text = Make sure t2 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t2"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t2 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t2] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t3 has encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t3"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t3 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t3"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t3 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t3] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t4 does not have encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t4"] = 0
+--source include/assert.inc
+--let $assert_text = Make sure t4 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t4"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t4 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t4] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t5 has encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t5"] = 8192
+--source include/assert.inc
+--let $assert_text = Make sure t5 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 1
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1 AND NAME = "$DB_NAME/t5"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t5 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t5] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t6 does not have encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t6"] = 0
+--source include/assert.inc
+--let $assert_text = Make sure t6 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t6"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t6 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t6] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t7 does not have encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t7"] = 0
+--source include/assert.inc
+--let $assert_text = Make sure t7 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0 (i.e. unencrypted)
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t7"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t7 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t7] = $number_of_records
+--source include/assert.inc
+
+--let $assert_text = Make sure t8 does not have encrypted flag set
+--let $assert_cond = [SELECT FLAG & 8192 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE NAME = "$DB_NAME/t8"] = 0
+--source include/assert.inc
+--let $assert_text = Make sure t8 is visible in INNODB_SYS_TABLESPACES with MIN_KEY_VERSION = 0
+--let $assert_cond = [SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 0 AND NAME = "$DB_NAME/t8"] = 1
+--source include/assert.inc
+--let $assert_text = Make sure t8 is readable
+--let $assert_cond = [SELECT COUNT(1) FROM t8] = $number_of_records
+--source include/assert.inc
+
+--echo # tablespaces should not be encrypted, apart from t1,t3 and t5
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = foobar
+--let SEARCH_FILE = $t1_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = temp
+--let SEARCH_FILE = $t2_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = barfoo
+--let SEARCH_FILE = $t3_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = secret
+--let SEARCH_FILE = $t4_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = FOUND
+--let SEARCH_PATTERN = fbar
+--let SEARCH_FILE = $t5_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = barb
+# t6 is not encrypted, but unreadable as it is compressed
+--let SEARCH_FILE = $t7_ibd
+--source include/search_pattern_in_file.inc
+--let ABORT_ON = NOT_FOUND
+--let SEARCH_PATTERN = baba
+--let SEARCH_FILE = $t8_ibd
+--source include/search_pattern_in_file.inc
+
+--echo # Now let's backup keyring file, change encryption key id of encrypt-able tables (all but t7) 
+--echo # export and dicard them. Next restart the server with backuped keyring file and make sure that
+--echo # server starts, but tables cannot be imported gracefully
+
+SET GLOBAL innodb_encrypt_tables = ONLINE_TO_KEYRING;
+
+--echo # Wait max 2 min for key encryption threads to encrypt all spaces
+--let $wait_timeout = 120
+# All tables should get encrypted. Exactly ($tables_count) because
+# INNODB_TABLESPACES_ENCRYPTION contains artificial 'innodb_system' (+1)
+# table and 't7' is unencrypted (-1).
+--let $wait_condition = SELECT COUNT(*) = $tables_count FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE MIN_KEY_VERSION = 1
+--source include/wait_condition.inc
+
+--copy_file $MYSQLTEST_VARDIR/tmp/mysecret_keyring $MYSQLTEST_VARDIR/tmp/mysecret_keyring_backup
+
+ALTER TABLE t1 encryption_key_id = 5;
+ALTER TABLE t2 encryption_key_id = 5;
+ALTER TABLE t3 encryption_key_id = 5;
+ALTER TABLE t4 encryption_key_id = 5;
+ALTER TABLE t5 encryption_key_id = 5;
+ALTER TABLE t6 encryption_key_id = 5;
+ALTER TABLE t8 encryption_key_id = 5;
+
+--list_files $MYSQLD_DATADIR/$DB_NAME
+FLUSH TABLES t1, t2, t3, t4, t5, t6, t8 FOR EXPORT;
+
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_backup_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t8");
+EOF
+--list_files $MYSQLD_DATADIR/$DB_NAME
+UNLOCK TABLES;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t2 DISCARD TABLESPACE;
+ALTER TABLE t3 DISCARD TABLESPACE;
+ALTER TABLE t4 DISCARD TABLESPACE;
+ALTER TABLE t5 DISCARD TABLESPACE;
+ALTER TABLE t6 DISCARD TABLESPACE;
+ALTER TABLE t8 DISCARD TABLESPACE;
+
+--perl
+do "$ENV{MYSQL_TEST_DIR}/include/innodb-util.inc";
+ib_discard_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t8");
+ib_restore_tablespaces("$ENV{DB_NAME}", "t1", "t2", "t3", "t4", "t5", "t6", "t8");
+EOF
+
+--let $restart_parameters = restart:--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_backup
+--source include/restart_mysqld.inc
+
+--error ER_INTERNAL_ERROR
+ALTER TABLE t1 IMPORT TABLESPACE;
+#--error ER_INTERNAL_ERROR
+ALTER TABLE t2 IMPORT TABLESPACE;
+--error ER_INTERNAL_ERROR
+ALTER TABLE t3 IMPORT TABLESPACE;
+--error ER_INTERNAL_ERROR
+ALTER TABLE t4 IMPORT TABLESPACE;
+--error ER_INTERNAL_ERROR
+ALTER TABLE t5 IMPORT TABLESPACE;
+--error ER_INTERNAL_ERROR
+ALTER TABLE t6 IMPORT TABLESPACE;
+--error ER_INTERNAL_ERROR
+ALTER TABLE t8 IMPORT TABLESPACE;
+
+--let $restart_parameters = restart:--loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/restart_mysqld.inc
+
+DROP PROCEDURE innodb_insert_proc;
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;

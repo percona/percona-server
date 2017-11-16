@@ -1195,9 +1195,14 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
     ut_ad(flush_type == BUF_FLUSH_SINGLE_PAGE);
     fil_flush(bpage->id.space());
 
+#ifdef UNIV_DEBUG
+    dberr_t err =
+#endif
     /* true means we want to evict this page from the
     LRU list as well. */
     buf_page_io_complete(bpage, true);
+
+    ut_ad(err == DB_SUCCESS);
   }
 
   /* Increment the counter of I/O operations used
@@ -3559,7 +3564,8 @@ FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
       m_stage(stage),
       m_interrupted(false),
       m_estimate(),
-      m_lsn(log_get_lsn(*log_sys)) {
+      m_lsn(log_get_lsn(*log_sys)),
+      m_number_of_pages_flushed(0) {
   m_flushed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
   m_removed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
 
@@ -3613,6 +3619,7 @@ void FlushObserver::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
 @param[in]	bpage		buffer page flushed */
 void FlushObserver::notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage) {
   os_atomic_increment_ulint(&m_removed->at(buf_pool->instance_no), 1);
+  os_atomic_increment_ulint(&m_number_of_pages_flushed, 1);
 }
 
 /** Flush dirty pages and wait. */

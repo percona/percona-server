@@ -67,7 +67,7 @@ Pattern "table2_to_encrypt" not found
 #####################################################
 # Part 3: restart master again without encryption
 #####################################################
-call mtr.add_suppression("Failed to fetch percona_binlog key \\(version 0\\) from keyring and thus failed to initialize binlog encryption.");
+call mtr.add_suppression("Failed to fetch percona_binlog key \\(version 1\\) from keyring and thus failed to initialize binlog encryption.");
 call mtr.add_suppression("Error initializing decryption while reading GTIDs from binary log");
 call mtr.add_suppression("Found invalid Format description event in binary log");
 include/rpl_restart_server.inc [server_number=1]

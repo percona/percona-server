@@ -185,6 +185,15 @@ enum dberr_t {
   DB_INVALID_ENCRYPTION_META, /*!< Invalid encrytion metadata in
                               page 0. */
 
+  DB_DECRYPTION_FAILED = 998, /* Tablespace encrypted and
+                              decrypt operation failed because
+                              of missing key management plugin,
+                              or missing or incorrect key or
+                              incorret AES method or algorithm. */
+  
+  DB_PAGE_CORRUPTED = 999,    /* Page read from tablespace is
+                              corrupted. */
+
   /* The following are partial failure codes */
   DB_FAIL = 1000,
   DB_OVERFLOW,

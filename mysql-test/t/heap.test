@@ -537,23 +537,3 @@ SELECT * FROM t1 WHERE c1='bar2';
 SELECT * FROM t1 IGNORE INDEX (i1) WHERE c1='bar2';
 --echo #should show one tuple!
 DROP TABLE t1;
-
-#
-# BUG 1706356: Adding Index corrupts data in memory table
-#
-CREATE TABLE t1 (
-  rid bigint(20) NOT NULL AUTO_INCREMENT,
-  pid bigint(20) NOT NULL,
-  full_name text NOT NULL,
-  update_time int(11) NOT NULL DEFAULT '0',
-PRIMARY KEY (`rid`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8;
-
-INSERT INTO t1 (rid, pid, full_name, update_time) VALUES ('1170618590', '-2289398025558017', '"People Get Ready" by Jeff Beck and Rod Stewart', 1471513707),
-('1170618636', '-2289398025558017', 'Rod Stewart - Da Ya Think I\'m Sexy (Dvj Gee Remix)', 1471513707);
-
-alter table t1 add INDEX idx_update USING BTREE (update_time ASC);
-
-select * from t1;
-
-DROP TABLE t1;

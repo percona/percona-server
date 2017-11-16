@@ -366,10 +366,7 @@ _field_148 tinyint(4) DEFAULT '0' NOT NULL,
 PRIMARY KEY (t3_id),
 KEY _field_133 (_field_133),
 KEY _field_135 (_field_135),
-KEY _field_139 (_field_139),
-KEY _field_142 (_field_142),
-KEY _field_145 (_field_145),
-KEY _field_148 (_field_148)
+KEY _field_139 (_field_139)
 );
 INSERT INTO t3 VALUES (1,'test job 1',0,'0000-00-00 00:00:00',0,'1999-02-25 22:43:32','test\r\njob\r\n1',0,0,0);
 INSERT INTO t3 VALUES (2,'test job 2',0,'0000-00-00 00:00:00',0,'1999-02-26 21:08:04','',0,0,0);

@@ -803,7 +803,7 @@ public:
                 HA_REC_NOT_IN_SEQ | HA_CAN_INDEX_BLOBS |
                 (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
-                HA_PARTIAL_COLUMN_READ);
+                HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);
   }
 
   bool init_with_fields() override;

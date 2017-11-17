@@ -1182,8 +1182,6 @@ MySQL_Test_DB.t1	analyze	status	OK
 MySQL_Test_DB.t1	analyze	warning	The partition engine, used by table 'MySQL_Test_DB.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Truncate without FLUSH
 ALTER TABLE t1 TRUNCATE PARTITION MAX;
-Warnings:
-Warning	1287	The partition engine, used by table 'MySQL_Test_DB.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL, "First after TRUNCATE MAX (1)");
 Warnings:
 Warning	1287	The partition engine, used by table 'MySQL_Test_DB.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.

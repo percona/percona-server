@@ -188,27 +188,28 @@ lock_wait_table_reserve_slot(
 	return(NULL);
 }
 
-/***************************************************************//**
-Print lock wait timeout info to stderr. It's supposed this function
+/** Print lock wait timeout info to stderr. It's supposed this function
 is executed in trx's THD thread as it calls some non-thread-safe
-functions to get some info from THD. */
+functions to get some info from THD.
+@param[in]	trx	requested trx
+@param[in]	blocking	blocking info array
+@param[in]	blocking_count	blocking info array size */
 void
 print_lock_wait_timeout(
-/*====================*/
-	trx_t *trx, /*!< in: requested trx */
-	blocking_trx_info *blocking, /*!< in: blocking info array */
-	size_t blocking_count) /*!< in: blocking info array size */
+	const trx_t &trx,
+	blocking_trx_info *blocking,
+	size_t blocking_count)
 {
 	std::ostringstream outs;
 	size_t unused;
 
 	outs << "Lock wait timeout info:\n";
 	outs << "Requested thread id: " <<
-		thd_get_thread_id(trx->mysql_thd) <<
+		thd_get_thread_id(trx.mysql_thd) <<
 		"\n";
-	outs << "Requested trx id: " << trx_get_id_for_print(trx) << "\n";
+	outs << "Requested trx id: " << trx_get_id_for_print(&trx) << "\n";
 	outs << "Requested query: " <<
-		innobase_get_stmt_unsafe(trx->mysql_thd, &unused) << "\n";
+		innobase_get_stmt_unsafe(trx.mysql_thd, &unused) << "\n";
 
 	outs << "Total blocking transactions count: " <<
 		blocking_count <<
@@ -446,7 +447,7 @@ lock_wait_suspend_thread(
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 		if (srv_print_lock_wait_timeout_info)
-			print_lock_wait_timeout(trx, blocking, blocking_count);
+			print_lock_wait_timeout(*trx, blocking, blocking_count);
 
 		MONITOR_INC(MONITOR_TIMEOUT);
 	}

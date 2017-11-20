@@ -67,6 +67,8 @@ eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
 --replace_result $key_id key_id
 eval select keyring_key_fetch('$key_id') into @x;
 select LENGTH(@x);
+--replace_result $key_id key_id
+eval select keyring_key_remove('$key_id');
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';

@@ -1,7 +1,3 @@
-
-# 2010-01-25 - Added
-#
-
 --source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_print_lock_wait_timeout_info;

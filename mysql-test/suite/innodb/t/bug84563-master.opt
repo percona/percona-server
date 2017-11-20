@@ -1,1 +1,0 @@
---log-error=$MYSQLTEST_VARDIR/tmp/bug84563.err

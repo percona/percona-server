@@ -98,6 +98,9 @@ select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 16
+select keyring_key_remove('key_id');
+keyring_key_remove('key_id')
+1
 SET @@global.keyring_vault_config='MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault2.conf';
 select keyring_key_fetch('key_id') into @x;
 select LENGTH(@x);

@@ -11,6 +11,13 @@ call mtr.add_suppression("Error while storing key: key_id cannot be empty");
 
 --source generate_default_conf_files.inc
 
+# Create mount points
+--let MOUNT_POINT_SERVICE_OP=CREATE
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--source mount_point_service.inc
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
+--source mount_point_service.inc
+
 let server_uuid = query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1);
 
 --echo # Check what happens when we have not yet loaded keyring_udf or keyring_vault
@@ -161,3 +168,10 @@ drop function keyring_key_remove;
 drop function keyring_key_generate;
 drop function keyring_key_type_fetch;
 drop function keyring_key_length_fetch;
+
+# Delete mount points
+--let MOUNT_POINT_SERVICE_OP=DELETE
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--source mount_point_service.inc
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
+--source mount_point_service.inc

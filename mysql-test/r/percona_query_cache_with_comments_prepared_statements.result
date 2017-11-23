@@ -1,7 +1,15 @@
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 drop table if exists t1;
 create table t1 (a int not null);
@@ -393,4 +401,6 @@ Variable_name	Value
 Qcache_hits	22
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set global query_cache_strip_comments=OFF;

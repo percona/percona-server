@@ -4269,8 +4269,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
-  thd->get_protocol_classic()->set_client_capabilities(
-      CLIENT_LOCAL_FILES);
 
   /*
     Replication threads are:
@@ -6929,8 +6927,9 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
 err:
   if (error && w)
   {
-    if (w->current_mts_submode)
-      delete w->current_mts_submode;
+    // Free the current submode object
+    delete w->current_mts_submode;
+    w->current_mts_submode= 0;
     delete w;
     /*
       Any failure after array inserted must follow with deletion
@@ -7017,6 +7016,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   {
     if ((error= slave_start_single_worker(rli, i)))
       goto err;
+    rli->slave_parallel_workers++;
   }
 
 end:
@@ -7029,7 +7029,6 @@ end:
     delete rli->workers_copy_pfs[i];
   rli->workers_copy_pfs.clear();
 
-  rli->slave_parallel_workers= n;
   // Effective end of the recovery right now when there is no gaps
   if (!error && rli->mts_recovery_group_cnt == 0)
   {
@@ -7056,6 +7055,11 @@ err:
 void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   THD *thd= rli->info_thd;
+
+  if (!*mts_inited)
+    return;
+  else if (rli->slave_parallel_workers == 0)
+    goto end;
 
   /*
     If request for stop slave is received notify worker
@@ -7141,10 +7145,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     mysql_mutex_unlock(&w->jobs_lock);
   }
 
-  if (!*mts_inited)
-    return;
-
-  if (rli->slave_parallel_workers != 0 && thd->killed == THD::NOT_KILLED)
+  if (thd->killed == THD::NOT_KILLED)
     (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
 
   while (!rli->workers.empty())
@@ -7179,6 +7180,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   DBUG_ASSERT(rli->pending_jobs == 0);
   DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
 
+end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
@@ -9936,6 +9938,12 @@ bool start_slave(THD* thd,
 
   DBUG_ENTER("start_slave(THD, lex, lex, int, Master_info, bool");
 
+  /*
+    START SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
 
@@ -10238,6 +10246,13 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
   if (!thd)
     thd = current_thd;
 
+  /*
+    STOP SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
+
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
 
@@ -10399,6 +10414,12 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
   bool no_init_after_delete= false;
 
+  /*
+    RESET SLAVE command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' and
+    'mysql.slave_relay_log_info' replication repository tables.
+  */
+  thd->set_skip_readonly_check();
   mi->channel_wrlock();
 
   lock_slave_threads(mi);
@@ -10938,6 +10959,12 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 
   DBUG_ENTER("change_master");
 
+  /*
+    CHANGE MASTER command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.slave_master_info' replication
+    repository tables.
+  */
+  thd->set_skip_readonly_check();
   mi->channel_wrlock();
   /*
     When we change master, we first decide which thread is running and

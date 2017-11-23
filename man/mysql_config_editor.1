@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/22/2017
+.\"      Date: 09/13/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDIT" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDIT" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -463,7 +463,18 @@ shell> \fBmysql\fR
 Options read from the login path file take precedence over options read from other option files\&. Options read from login path groups appearing later in the login path file take precedence over options read from groups appearing earlier in the file\&.
 .PP
 \fBmysql_config_editor\fR
-adds login paths to the login path file in the order you create them, so you should create more general login paths first and more specific paths later\&. If you need to move a login path within the file, you can remove it, then recreate it to add it to the end\&.
+adds login paths to the login path file in the order you create them, so you should create more general login paths first and more specific paths later\&. If you need to move a login path within the file, you can remove it, then recreate it to add it to the end\&. For example, a
+client
+login path is more general because it is read by all client programs, whereas a
+mysqldump
+login path is read only by
+\fBmysqldump\fR\&. Options specified later override options specified earlier, so putting the login paths in the order
+client,
+mysqldump
+enables
+\fBmysqldump\fR\-specific options to override
+client
+options\&.
 .PP
 When you use the
 set

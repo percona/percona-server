@@ -456,11 +456,11 @@ CREATE TABLE t23 (b int primary key) ENGINE=RocksDB;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t23 SELECT * FROM t22;
 DELETE IGNORE t22.*, t23.* FROM t22, t23 WHERE b < a;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t22,t23;
 
 --echo #
@@ -473,12 +473,12 @@ CREATE TABLE t25 LIKE t24;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t25 SELECT * FROM t24;
 
 DELETE t25.* FROM t24, t25;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t24,t25;
 
 --echo #
@@ -995,8 +995,8 @@ INSERT INTO t1 VALUES (1,1),(2,2);
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 UPDATE t1 SET i = 100;
 
@@ -1007,7 +1007,7 @@ DELETE IGNORE FROM t1 ORDER BY i;
 
 --connection default
 COMMIT;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t1;
 
 --echo #
@@ -1065,14 +1065,14 @@ insert into t2 values ('new-val2'),('old-val1');
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 begin;
 insert into t1 values ('new-val1');
 --error ER_DUP_ENTRY
 insert into t1 select * from t2;
 commit;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 select * from t1;
 drop table t1, t2;
@@ -1088,8 +1088,8 @@ INSERT INTO t1 (pk) VALUES (NULL),(NULL);
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 INSERT INTO t2 (pk) VALUES (NULL),(NULL);
 INSERT INTO t1 (pk) VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
@@ -1102,7 +1102,7 @@ SELECT * FROM t1 ORDER BY pk LIMIT 9;
 
 COMMIT;
 DROP TABLE t1,t2;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 --echo #
 --echo # MDEV-4374: RocksDB: Valgrind warnings 'Use of uninitialised value' on 
@@ -1482,10 +1482,10 @@ create table t2 (
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1529,10 +1529,10 @@ create table t2 (
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1578,10 +1578,10 @@ create table t2 (
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1629,10 +1629,10 @@ create table t2 (
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1679,10 +1679,10 @@ create table t2 (
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 --echo # This must show 'Using index'
 --replace_column 10 #
 explain 
@@ -1786,12 +1786,12 @@ create table t2 (
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2
 select concat('v-', 100 + A.a*100 + B.a), 12345 from t1 A, t1 B;
 update t2 set a=concat('x-', a) where a between 'v-1002' and 'v-1004';
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 drop table t1,t2;
 
@@ -1847,8 +1847,8 @@ INSERT INTO t1 (id) VALUES (11),(12),(13),(14),(15);
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 
 UPDATE t1 SET value=100;
@@ -1858,7 +1858,7 @@ BEGIN;
 DELETE FROM t1;
 ROLLBACK;
 SELECT * FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 SET rocksdb_commit_in_the_middle=0;
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 DROP TABLE t1;
@@ -1942,10 +1942,10 @@ lock tables t1 write,t1 as t0 write,t1 as t2 write;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 SELECT a FROM t1 ORDER BY a;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 truncate t1;
 # 5.7 uses strict mode by default, so this will now return an error
 --error ER_WARN_DATA_OUT_OF_RANGE
@@ -2046,10 +2046,10 @@ while ($j)
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this part of the
 # test does not require RR ISO to complete, so lets temporarily alter the ISO
 # to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 DELETE t2, t1 FROM t2 LEFT JOIN t1 ON t2.id2 = t1.id2 AND t2.id1 = t1.id1 WHERE t2.id1 = 0;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 SET rocksdb_commit_in_the_middle=0;

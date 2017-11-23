@@ -1,5 +1,6 @@
 #
-# Bug 85835: FTS LIMIT processing crashes, returns wrong query results
+# Bug #85835: FTS LIMIT processing crashes, returns wrong query results
+# Bug #25851975 / #87518: Server asserts when using n-gram full text searching with LIMIT
 #
 CREATE TABLE t1 ( 
 FTS_DOC_ID BIGINT UNSIGNED NOT NULL PRIMARY KEY, 

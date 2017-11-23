@@ -190,6 +190,18 @@ buf_read_page_low(
 		dst = ((buf_block_t*) bpage)->frame;
 	}
 
+	/* This debug code is only for 5.7. In trunk, with newDD,
+	the space->name is no longer same as table name. */
+	DBUG_EXECUTE_IF("innodb_invalid_read_after_truncate",
+		fil_space_t*	space = fil_space_get(page_id.space());
+
+		if (space != NULL && strcmp(space->name, "test/t1") == 0
+		    && page_id.page_no() == space->size - 1) {
+			type = IORequest::READ;
+			sync = true;
+		}
+	);
+
 	IORequest	request(type | IORequest::READ);
 
 	*err = _fil_io(
@@ -334,6 +346,17 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
+		/* This debug code is only for 5.7. In trunk, with newDD,
+		the space->name is no longer same as table name. */
+		DBUG_EXECUTE_IF("innodb_invalid_read_after_truncate",
+			fil_space_t*	space = fil_space_get(page_id.space());
+
+			if (space != NULL
+			    && strcmp(space->name, "test/t1") == 0) {
+				high = space->size;
+				goto read_ahead;
+			}
+		);
 
 		rw_lock_t* hash_lock;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -746,9 +746,6 @@ fts_query_union_doc_id(
 
 		query->total_size += SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t) + RANKING_WORDS_INIT_LEN;
-
-		if (query->limit != ULONG_UNDEFINED)
-			query->n_docs++;
 	}
 }
 
@@ -775,9 +772,6 @@ fts_query_remove_doc_id(
 		      SIZEOF_RBT_NODE_ADD + sizeof(fts_ranking_t));
 		query->total_size -= SIZEOF_RBT_NODE_ADD
 			+ sizeof(fts_ranking_t);
-
-		if (query->limit != ULONG_UNDEFINED)
-			query->n_docs--;
 	}
 }
 
@@ -898,9 +892,6 @@ fts_query_intersect_doc_id(
 
 			query->total_size += SIZEOF_RBT_NODE_ADD
 				+ sizeof(fts_ranking_t);
-
-			if (query->limit != ULONG_UNDEFINED)
-				query->n_docs++;
 		}
 	}
 }
@@ -3246,7 +3237,6 @@ fts_query_filter_doc_ids(
 
 	if (query->limit != ULONG_UNDEFINED
 	    && query->n_docs >= query->limit) {
-		ut_ad(0);
 		return(DB_SUCCESS);
 	}
 
@@ -3337,14 +3327,21 @@ fts_query_filter_doc_ids(
 			/* Add the word to the document's matched RB tree. */
 			fts_query_add_word_to_document(query, doc_id, word);
 		}
+
+		if (query->limit != ULONG_UNDEFINED
+		    && query->limit <= ++query->n_docs) {
+			goto func_exit;
+		}
 	}
 
 	/* Some sanity checks. */
 	ut_a(doc_id == node->last_doc_id);
 
+func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {
+		query->n_docs = 0;
 		return(DB_SUCCESS);
 	}
 }
@@ -3822,6 +3819,11 @@ fts_query_free(
 
 	if (query->deleted) {
 		fts_doc_ids_free(query->deleted);
+	}
+
+	if (query->intersection) {
+		fts_query_free_doc_ids(query, query->intersection);
+		query->intersection = NULL;
 	}
 
 	if (query->doc_ids) {

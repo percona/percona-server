@@ -79,10 +79,10 @@ LOCK TABLE t1 WRITE, t2 WRITE;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this portion of
 # the test does not require RR ISO to complete, so lets temporarily alter the
 # ISO to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t2 (id,id2) SELECT id,id2 FROM t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 UPDATE t1 SET id=1 WHERE id=-1;
 DROP TABLE t1,t2;
 
@@ -99,11 +99,11 @@ LOCK TABLES t1 WRITE, t2 READ;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this portion of
 # the test does not require RR ISO to complete, so lets temporarily alter the
 # ISO to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (i1,nr) SELECT 1, nr FROM t2 WHERE nm=3;
 INSERT INTO t1 (i1,nr) SELECT 2, nr FROM t2 WHERE nm=4;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 UNLOCK TABLES;
 
 LOCK TABLES t1 WRITE;
@@ -114,10 +114,10 @@ LOCK TABLES t1 WRITE, t1 AS t1_alias READ;
 # MyRocks does not support gap locks in REPEATABLE-READ mode, this portion of
 # the test does not require RR ISO to complete, so lets temporarily alter the
 # ISO to RC
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (i1,nr) SELECT i1, nr FROM t1 AS t1_alias;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 --error ER_TABLE_NOT_LOCKED
 DROP TABLE t1,t2;
 UNLOCK TABLES;

@@ -1,7 +1,7 @@
 --source include/have_rocksdb.inc
 
 # needed by these json .inc tests
-SET SESSION TX_ISOLATION='READ-COMMITTED';
+SET SESSION TRANSACTION_ISOLATION='READ-COMMITTED';
 SET SESSION DEFAULT_STORAGE_ENGINE=ROCKSDB;
 --source suite/json/inc/json_ddl.inc
 --source suite/json/inc/json_group_concat.inc

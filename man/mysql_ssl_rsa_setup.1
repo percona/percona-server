@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_ssl_rsa_setup\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/22/2017
+.\"      Date: 09/13/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SSL_RSA_SET" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SSL_RSA_SET" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -55,8 +55,8 @@ uses the
 \fBopenssl\fR
 command, so its use is contingent on having OpenSSL installed on your machine\&.
 .PP
-Another way to generate SSL and RSA files, for MySQL distributions compiled using OpenSSL, is to have the server generated them automatically\&. See
-Section\ \&6.4.6.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Another way to generate SSL and RSA files, for MySQL distributions compiled using OpenSSL, is to have the server generate them automatically\&. See
+Section\ \&6.4.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -130,7 +130,9 @@ is present,
 \fBmysql_ssl_rsa_setup\fR
 looks for default SSL and RSA files in the MySQL data directory specified by the
 \fB\-\-datadir\fR
-option, or the compiled\-in data directory if that option is not given\&.
+option, or the compiled\-in data directory if the
+\fB\-\-datadir\fR
+option is not given\&.
 .RE
 .sp
 .RS 4
@@ -187,7 +189,7 @@ client\-key\&.pem       Client private key
 .\}
 .sp
 These files enable secure client connections using SSL; see
-Section\ \&6.4.4, \(lqConfiguring MySQL to Use Secure Connections\(rq\&.
+Section\ \&6.4.1, \(lqConfiguring MySQL to Use Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -233,12 +235,14 @@ Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
 .PP
 For information about the characteristics of files created by
 \fBmysql_ssl_rsa_setup\fR, see
-Section\ \&6.4.6.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
+Section\ \&6.4.3.1, \(lqCreating SSL and RSA Certificates and Keys using MySQL\(rq\&.
 .PP
 At startup, the MySQL server automatically uses the SSL files created by
 \fBmysql_ssl_rsa_setup\fR
 to enable SSL if no explicit SSL options are given other than
-\fB\-\-ssl\fR\&. If you prefer to designate the files explicitly, use the
+\fB\-\-ssl\fR
+(possibly along with
+\fB\-\-ssl\-cipher\fR)\&. If you prefer to designate the files explicitly, invoke clients with the
 \fB\-\-ssl\-ca\fR,
 \fB\-\-ssl\-cert\fR, and
 \fB\-\-ssl\-key\fR
@@ -252,9 +256,7 @@ The server also automatically uses the RSA files created by
 \fBmysql_ssl_rsa_setup\fR
 to enable RSA if no explicit RSA options are given\&.
 .PP
-If the server is SSL\-enabled, clients need only use
-\fB\-\-ssl\fR
-on the command line to use SSL for the connection\&. To specify certificate and key files explicitly, use the
+If the server is SSL\-enabled, clients use SSL by default for the connection\&. To specify certificate and key files explicitly, use the
 \fB\-\-ssl\-ca\fR,
 \fB\-\-ssl\-cert\fR, and
 \fB\-\-ssl\-key\fR
@@ -282,7 +284,7 @@ For local clients, the MySQL installation directory can be used\&. For example, 
 .RS 4
 .\}
 .nf
-shell> \fBcp ca\&.pem client\-cert\&.pem client\-key\&.pem \&.\&.\fR
+cp ca\&.pem client\-cert\&.pem client\-key\&.pem \&.\&.
 .fi
 .if n \{\
 .RE
@@ -421,7 +423,7 @@ are owned by the user who executes it\&. This option is valid only if you execut
 root
 on a system that supports the
 chown()
-system call\&. This option was added in MySQL 5\&.7\&.8\&.
+system call\&.
 .RE
 .sp
 .RS 4

@@ -26,7 +26,7 @@ create table t2 (
 ) engine=rocksdb;
 insert into t2 select a,a,a,a from t1;
 create table t3 like t2;
-set statement tx_isolation='READ-COMMITTED' for insert into t3 select * from t2;
+set statement transaction_isolation='READ-COMMITTED' for insert into t3 select * from t2;
 
 --source include/sync_slave_sql_with_master.inc
 

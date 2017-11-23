@@ -152,6 +152,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
       */
       log_pos+= data_written; /* purecov: inspected */
     }
+    // fallthrough
 
   /* 4.0 or newer */
   /**

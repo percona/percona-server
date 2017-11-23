@@ -148,6 +148,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_PREPARE_FOR_UPDATE:
     if (info->s->data_file_type != DYNAMIC_RECORD)
       break;
+    // fallthrough
     /* Remove read/write cache if dynamic rows */
     // Fall through.
   case HA_EXTRA_NO_CACHE:

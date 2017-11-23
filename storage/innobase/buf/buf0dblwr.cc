@@ -346,8 +346,8 @@ buf_parallel_dblwr_make_path(void)
 	if (parallel_dblwr_buf.path)
 		return(DB_SUCCESS);
 
-	char path[FN_REFLEN];
-	const char *dir;
+	char path[FN_REFLEN + 1 /* OS_PATH_SEPARATOR */];
+	const char *dir = NULL;
 
 	ut_ad(srv_parallel_doublewrite_path);
 

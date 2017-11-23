@@ -1321,6 +1321,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto err;
       break;
     }
+    // fallthrough
           
     case binary_log::INTVAR_EVENT:
     {

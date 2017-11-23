@@ -189,16 +189,6 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
-# gcc 7.2.0 complains:
-# boost/geometry/algorithms/detail/expand/indexed.hpp:81
-# *((void*)& box +24) may be used uninitialized
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    ../sql/geometry_rtree.cc
-    COMPILE_FLAGS "-Wno-maybe-uninitialized")
-ENDIF()
-
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

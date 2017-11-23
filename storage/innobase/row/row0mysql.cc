@@ -6413,7 +6413,8 @@ loop:
 		ib::warn() << doing << " on index " << index->name << " of"
 			" table " << index->table->name << " returned " << ret;
 	}
-	/* fall through (this error is ignored by CHECK TABLE) */
+	/* Fall through */
+	/* (this error is ignored by CHECK TABLE) */
 	case DB_END_OF_INDEX:
 		ret = DB_SUCCESS;
 func_exit:

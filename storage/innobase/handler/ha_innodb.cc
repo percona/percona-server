@@ -8084,7 +8084,8 @@ ha_innobase::innobase_lock_autoinc(void)
 				break;
 			}
 		}
-		/* Fall through to old style locking. */
+		// fallthrough
+		// to old style locking.
 
 	case AUTOINC_OLD_STYLE_LOCKING:
 		DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used",
@@ -12347,7 +12348,8 @@ index_bad:
 			break;
 		}
 		zip_allowed = false;
-		/* fall through to set row_type = DYNAMIC */
+		// fallthrough
+		// to set row_type = DYNAMIC
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:

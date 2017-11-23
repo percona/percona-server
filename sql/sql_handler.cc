@@ -698,6 +698,7 @@ retry:
         error= table->file->ha_rnd_next(table->record[0]);
         break;
       }
+      // fallthrough
       /*
         Fall through to HANDLER ... READ ... FIRST case if we are trying
         to read next row in index order after starting reading rows in
@@ -728,7 +729,8 @@ retry:
         error= table->file->ha_index_prev(table->record[0]);
         break;
       }
-      /* else fall through, for more info, see comment before 'case RFIRST'. */
+      // fallthrough
+      // for more info, see comment before 'case RFIRST'.
     case RLAST:
       DBUG_ASSERT(m_key_name != 0);
       if (!(error= table->file->ha_index_or_rnd_end()) &&

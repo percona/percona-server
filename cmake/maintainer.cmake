@@ -16,15 +16,6 @@
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security -Wvla")
 
-# The default =3 given by -Wextra is a bit too strict for our code.
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wimplicit-fallthrough=2"
-    HAVE_IMPLICIT_FALLTHROUGH)
-  IF(HAVE_IMPLICIT_FALLTHROUGH)
-    SET(MY_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wimplicit-fallthrough=2")
-  ENDIF()
-ENDIF()
-
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")

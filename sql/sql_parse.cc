@@ -3013,6 +3013,7 @@ case SQLCOM_PREPARE:
       break;
     }
   }
+  // fallthrough
   case SQLCOM_PURGE_BEFORE:
   {
     Item *it;

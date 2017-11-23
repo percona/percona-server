@@ -2156,6 +2156,7 @@ static void print_xml_comment(FILE *xml_file, size_t len,
     case '-':
       if (*(comment_string + 1) == '-')         /* Only one hyphen allowed. */
         break;
+      // fallthrough
     default:
       fputc(*comment_string, xml_file);
       break;

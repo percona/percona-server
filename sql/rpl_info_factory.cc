@@ -213,7 +213,9 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
                         worker_table_data, worker_file_data, &msg))
     goto err;
 
-  if (!(rli= new Relay_log_info(is_slave_recovery
+  try
+  {
+    rli= new Relay_log_info(is_slave_recovery
 #ifdef HAVE_PSI_INTERFACE
                                 ,&key_relay_log_info_run_lock,
                                 &key_relay_log_info_data_lock,
@@ -224,7 +226,8 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
                                 &key_relay_log_info_sleep_cond
 #endif
                                 , instances
-                                )))
+                                );
+  } catch (std::bad_alloc&)  
   {
     msg= msg_alloc;
     goto err;
@@ -386,7 +389,9 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   char *pos= strmov(worker_file_data.name, worker_file_data.pattern);
   sprintf(pos, "%u", worker_id + 1);
 
-  if (!(worker= new Slave_worker(rli
+  try
+  {
+    worker= new Slave_worker(rli
 #ifdef HAVE_PSI_INTERFACE
                                  ,&key_relay_log_info_run_lock,
                                  &key_relay_log_info_data_lock,
@@ -397,9 +402,11 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
                                  &key_relay_log_info_sleep_cond
 #endif
                                  , worker_id
-                                )))
+                                );
+  } catch (std::bad_alloc&)
+  {
     goto err;
-
+  }
 
   if(init_repositories(worker_table_data, worker_file_data, rli_option,
                        worker_id + 1, &handler_src, &handler_dest, &msg))

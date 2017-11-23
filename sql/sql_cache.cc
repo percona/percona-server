@@ -455,6 +455,7 @@ void QueryStripComments::set(LEX_CSTRING query, uint additional_length)
           break;
         }
       }
+      // fallthrough
     case '#':
       {
         do
@@ -1848,6 +1849,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
           {
             break;
           }
+          // fallthrough
         case '#':
           do
           {

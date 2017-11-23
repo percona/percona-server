@@ -34,6 +34,15 @@ IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
   RETURN ()
 ENDIF ()
 
+# Relax fallthrough warnings we have no control over, as it's in zstd
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  MY_CHECK_CXX_COMPILER_FLAG("-Wimplicit-fallthrough=0" HAVE_IMPLICIT_FALLTHROUGH)
+  IF(HAVE_IMPLICIT_FALLTHROUGH)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wimplicit-fallthrough=0")
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wimplicit-fallthrough=0")
+  ENDIF()
+ENDIF()
+
 # check that compiler supports cxx11 and set options
 INCLUDE (check_stdcxx11)
 IF (!HAVE_STDCXX11)

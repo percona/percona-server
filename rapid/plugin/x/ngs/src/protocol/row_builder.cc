@@ -126,16 +126,16 @@ static inline int count_leading_zeroes(int i, dec1 val)
   switch (i)
   {
     /* @note Intentional fallthrough in all case labels */
-  case 9: if (val >= 1000000000) break; ++ret;
-  case 8: if (val >= 100000000) break; ++ret;
-  case 7: if (val >= 10000000) break; ++ret;
-  case 6: if (val >= 1000000) break; ++ret;
-  case 5: if (val >= 100000) break; ++ret;
-  case 4: if (val >= 10000) break; ++ret;
-  case 3: if (val >= 1000) break; ++ret;
-  case 2: if (val >= 100) break; ++ret;
-  case 1: if (val >= 10) break; ++ret;
-  case 0: if (val >= 1) break; ++ret;
+  case 9: if (val >= 1000000000) break; ++ret; //fallthrough
+  case 8: if (val >= 100000000) break; ++ret; //fallthrough
+  case 7: if (val >= 10000000) break; ++ret; //fallthrough
+  case 6: if (val >= 1000000) break; ++ret; //fallthrough
+  case 5: if (val >= 100000) break; ++ret; //fallthrough
+  case 4: if (val >= 10000) break; ++ret; //fallthrough
+  case 3: if (val >= 1000) break; ++ret; //fallthrough
+  case 2: if (val >= 100) break; ++ret; //fallthrough
+  case 1: if (val >= 10) break; ++ret; //fallthrough
+  case 0: if (val >= 1) break; ++ret; //fallthrough
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;

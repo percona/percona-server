@@ -3016,6 +3016,7 @@ case SQLCOM_PREPARE:
       break;
     }
   }
+  // fallthrough
   case SQLCOM_PURGE_BEFORE:
   {
     Item *it;
@@ -4377,6 +4378,7 @@ end_with_restore_list:
       initialize this variable because RESET shares the same code as FLUSH
     */
     lex->no_write_to_binlog= 1;
+    // fallthrough
   case SQLCOM_FLUSH:
   {
     int write_to_binlog;

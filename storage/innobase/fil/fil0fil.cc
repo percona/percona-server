@@ -4573,7 +4573,8 @@ fil_ibd_load(
 			break;
 		}
 
-		/* Fall through to error handling */
+		// fallthrough
+		// to error handling
 
 	case DB_TABLESPACE_EXISTS:
 #ifdef UNIV_HOTBACKUP

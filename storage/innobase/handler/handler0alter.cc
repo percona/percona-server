@@ -4653,6 +4653,7 @@ prepare_inplace_alter_table_dict(
 				ctx->old_table->name.m_name);
 
 			error = DB_SUCCESS;
+			// fallthrough
 
 		case DB_SUCCESS:
 			/* We need to bump up the table ref count and

@@ -3227,7 +3227,7 @@ fseg_alloc_free_page_general(
 	fseg_inode_t*	inode;
 	ulint		space_id;
 	fil_space_t*	space;
-	buf_block_t*	iblock;
+	buf_block_t*	iblock = NULL;
 	buf_block_t*	block;
 	ulint		n_reserved;
 
@@ -3712,7 +3712,7 @@ fseg_free_page(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fseg_inode_t*		seg_inode;
-	buf_block_t*		iblock;
+	buf_block_t*		iblock = NULL;
 	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	const page_size_t	page_size(space->flags);
 

@@ -293,6 +293,13 @@ thd_lock_wait_timeout(
 /*==================*/
 	THD*	thd);	/*!< in: thread handle, or NULL to query
 			the global innodb_lock_wait_timeout */
+
+/** Is FT ignore stopwords variable set.
+@param thd Thread object
+@return true if ft_ignore_stopwords is set, false otherwise. */
+bool
+thd_has_ft_ignore_stopwords(THD* thd) MY_ATTRIBUTE((warn_unused_result));
+
 /******************************************************************//**
 Add up the time waited for the lock for the current query. */
 void

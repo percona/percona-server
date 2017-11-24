@@ -223,6 +223,7 @@ or greater than fts_max_token_size.
 @param[in]	stopwords	stopwords rb tree
 @param[in]	is_ngram	is ngram parser
 @param[in]	cs		token charset
+@param[in]	skip		true if the check should be skipped
 @retval true	if it is not stopword and length in range
 @retval false	if it is stopword or length not in range */
 bool
@@ -230,7 +231,8 @@ fts_check_token(
 	const fts_string_t*	token,
 	const ib_rbt_t*		stopwords,
 	bool			is_ngram,
-	const CHARSET_INFO*	cs);
+	const CHARSET_INFO*	cs,
+	bool			skip);
 
 /*******************************************************************//**
 Tokenize a document. */

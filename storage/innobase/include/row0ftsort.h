@@ -117,6 +117,11 @@ struct fts_tokenize_ctx {
 	dfield_t		sort_field[FTS_NUM_FIELDS_SORT];
 						/*!< in: sort field */
 	fts_token_list_t	fts_token_list;
+	bool			ignore_stopwords;
+						/*!< in: true if token
+						stopwords checking should be
+						skipped */
+
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;

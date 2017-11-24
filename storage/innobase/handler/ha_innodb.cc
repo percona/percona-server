@@ -903,6 +903,10 @@ static MYSQL_THDVAR_STR(tmpdir,
   "Directory for temporary non-tablespace files.",
   innodb_tmpdir_validate, NULL, NULL);
 
+static MYSQL_THDVAR_BOOL(ft_ignore_stopwords, PLUGIN_VAR_OPCMDARG,
+  "Instruct FTS to ignore stopwords.",
+  NULL, NULL, FALSE);
+
 static SHOW_VAR innodb_status_variables[]= {
   {"background_log_sync",
   (char*) &export_vars.innodb_background_log_sync,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -1848,6 +1852,16 @@ thd_lock_wait_timeout(
 	/* According to <mysql/plugin.h>, passing thd == NULL
 	returns the global value of the session variable. */
 	return(THDVAR(thd, lock_wait_timeout));
+}
+
+/** Is FT ignore stopwords variable set.
+@param thd Thread object
+@return true if ft_ignore_stopwords is set, false otherwise. */
+bool
+thd_has_ft_ignore_stopwords(THD* thd)
+{
+	bool res = THDVAR(thd, ft_ignore_stopwords);
+	return(res);
 }
 
 /******************************************************************//**
@@ -21923,6 +21937,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(parallel_doublewrite_path),
   MYSQL_SYSVAR(compressed_columns_zip_level),
   MYSQL_SYSVAR(compressed_columns_threshold),
+  MYSQL_SYSVAR(ft_ignore_stopwords),
   NULL
 };
 

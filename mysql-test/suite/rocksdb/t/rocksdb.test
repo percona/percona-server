@@ -1115,6 +1115,8 @@ INSERT INTO t1 VALUES (1,'foo'),(2,'bar');
 DROP TABLE t1;
 
 
+# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
+#               actually test something specific
 --echo #
 --echo # MDEV-4061: RocksDB: Changes from an interrupted query are still applied
 --echo #
@@ -1127,21 +1129,16 @@ insert into t1 values (1,10),(2,20);
 --let $con_id = `select connection_id()`
 
 set autocommit = 1;
-# TODO : this is bad and will result in unstable tests
-# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
-#               actually test something specific
 --send update t1 set a = sleep(300) where pk = 1;
 
 --connect (con1,localhost,root,,)
+
+
+let $wait_condition= select State='User sleep' from information_schema.processlist where id=$con_id;
+--source include/wait_condition.inc
+
 --echo kill query \$con_id;
 --disable_query_log
-# TODO : this is bad and will result in unstable tests
-# See MYR-122 : split up rocksdb.rocksdb test into individual tests that
-#               actually test something specific
-# If we immeditely kill the query - internally the condition broadcast can
-# occur before the lock is waiting on the condition, thus the broadcast call
-# is lost.  Sleep 1 second to avoid this condition.
---sleep 1
 eval kill query $con_id;
 --enable_query_log
 

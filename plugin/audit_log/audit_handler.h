@@ -52,6 +52,7 @@ struct audit_handler_file_config_struct
   my_bool sync_on_write;
   my_bool use_buffer;
   size_t buffer_size;
+  ulonglong num_rows_threshold;
   my_bool can_drop_data;
   logger_prolog_func_t header;
   logger_epilog_func_t footer;

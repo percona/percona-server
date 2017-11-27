@@ -63,6 +63,7 @@ char *audit_log_syslog_ident;
 char default_audit_log_syslog_ident[] = "percona-audit";
 ulong audit_log_syslog_facility= 0;
 ulong audit_log_syslog_priority= 0;
+ulonglong audit_log_num_rows_threshold= 100000;
 static char *audit_log_exclude_accounts= NULL;
 static char *audit_log_include_accounts= NULL;
 static char *audit_log_exclude_commands= NULL;
@@ -720,6 +721,7 @@ int init_new_log_file()
     opts.sync_on_write= audit_log_strategy == SYNCHRONOUS;
     opts.use_buffer= audit_log_strategy < SEMISYNCHRONOUS;
     opts.buffer_size= audit_log_buffer_size;
+    opts.num_rows_threshold= audit_log_num_rows_threshold;
     opts.can_drop_data= audit_log_strategy == PERFORMANCE;
     opts.header= audit_log_header;
     opts.footer= audit_log_footer;
@@ -1214,6 +1216,25 @@ static MYSQL_SYSVAR_ULONGLONG(buffer_size, audit_log_buffer_size,
   NULL, NULL, 1048576UL, 4096UL, ULONGLONG_MAX, 4096UL);
 
 static
+void audit_log_num_rows_threshold_update(
+          MYSQL_THD thd MY_ATTRIBUTE((unused)),
+          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
+          void *var_ptr MY_ATTRIBUTE((unused)),
+          const void *save)
+{
+  ulonglong new_val= *(ulonglong *)(save);
+
+  audit_log_num_rows_threshold= new_val;
+}
+
+
+static MYSQL_SYSVAR_ULONGLONG(num_rows_threshold, audit_log_num_rows_threshold,
+  PLUGIN_VAR_OPCMDARG,
+  "Queries returning more than this number of rows will be logged",
+  NULL, NULL, 100000UL, 0UL, ULONG_MAX, 1L);
+			  
+
+static
 void audit_log_rotate_on_size_update(
           MYSQL_THD thd MY_ATTRIBUTE((unused)),
           struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
@@ -1539,6 +1560,7 @@ static struct st_mysql_sys_var* audit_log_system_variables[] =
   MYSQL_SYSVAR(strategy),
   MYSQL_SYSVAR(format),
   MYSQL_SYSVAR(buffer_size),
+  MYSQL_SYSVAR(num_rows_threshold),
   MYSQL_SYSVAR(rotate_on_size),
   MYSQL_SYSVAR(rotations),
   MYSQL_SYSVAR(flush),

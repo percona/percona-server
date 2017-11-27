@@ -1071,20 +1071,22 @@ void audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   audit_log_update_thd_local(local, event_class, event);
 
-  if (!is_event_class_allowed_by_policy(event_class, audit_log_policy))
+  const struct mysql_event_general *event_general=
+  (const struct mysql_event_general *) event;
+
+      
+  if (!is_event_class_allowed_by_policy(event_class, audit_log_policy) && (event_general->general_rows < audit_log_num_rows_threshold)) // TODO
     return;
 
-  if (local->skip_session)
+  if (local->skip_session && (event_general->general_rows < audit_log_num_rows_threshold))
     return;
 
   if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
   {
-    const struct mysql_event_general *event_general=
-      (const struct mysql_event_general *) event;
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_STATUS:
-      if (local->skip_query)
+      if (local->skip_query && (event_general->general_rows < audit_log_num_rows_threshold))
         break;
 
       /* use allocated buffer if available */

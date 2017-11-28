@@ -1055,6 +1055,7 @@ static void thread_group_close(thread_group_t *thread_group)
 
   if (pipe(thread_group->shutdown_pipe))
   {
+    mysql_mutex_unlock(&thread_group->mutex);
     DBUG_VOID_RETURN;
   }
   
@@ -1062,11 +1063,15 @@ static void thread_group_close(thread_group_t *thread_group)
   if (io_poll_associate_fd(thread_group->pollfd, 
       thread_group->shutdown_pipe[0], NULL))
   {
+    mysql_mutex_unlock(&thread_group->mutex);
     DBUG_VOID_RETURN;
   }
   char c= 0;
   if (write(thread_group->shutdown_pipe[1], &c, 1) < 0)
+  {
+    mysql_mutex_unlock(&thread_group->mutex);
     DBUG_VOID_RETURN;
+  }
 
   /* Wake all workers. */
   while(wake_thread(thread_group) == 0) 

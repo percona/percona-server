@@ -1,0 +1,15 @@
+#
+# Bug 53588 test case.
+#
+# Create long enough index (between 1000 and 3500). 1000 is the old value,
+# 3500 is innodb value (see ha_innobase::max_supported_key_length()). Without
+# the fix the test will fail with "Specified key was too long" error.
+#
+--source include/have_blackhole.inc
+
+CREATE TABLE `t` (
+  `a` varchar(3000) NOT NULL default '',
+  PRIMARY KEY  (`a`)
+) ENGINE=BLACKHOLE;
+
+DROP TABLE `t`;

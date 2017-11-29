@@ -963,6 +963,7 @@ impossible position";
           loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
           break;
         }
+        // fallthrough
       default:
 	errmsg = "could not find next log";
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;

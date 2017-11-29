@@ -2953,6 +2953,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, host.length);
       host.str= (char *)pos;
       pos+= host.length;
+      break;
     }
     default:
       /* That's why you must write status vars in growing order of code */

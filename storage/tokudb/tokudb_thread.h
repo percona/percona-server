@@ -204,21 +204,21 @@ inline mutex_t::mutex_t(pfs_key_t key) {
     _owners = 0;
     _owner = _null_owner;
 #endif
-    int r = mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
+    int  r MY_ATTRIBUTE((unused)) = mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
     assert_debug(r == 0);
 }
 inline mutex_t::~mutex_t(void) {
 #ifdef TOKUDB_DEBUG
     assert_debug(_owners == 0);
 #endif
-    int r = mysql_mutex_destroy(&_mutex);
+    int  r MY_ATTRIBUTE((unused)) = mysql_mutex_destroy(&_mutex);
     assert_debug(r == 0);
 }
 inline void mutex_t::reinit(pfs_key_t key) {
 #ifdef TOKUDB_DEBUG
     assert_debug(_owners == 0);
 #endif
-    int r;
+    int  r MY_ATTRIBUTE((unused));
     r = mysql_mutex_destroy(&_mutex);
     assert_debug(r == 0);
     r = mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
@@ -231,7 +231,7 @@ inline void mutex_t::lock(
 #endif  // HAVE_PSI_MUTEX_INTERFACE
     ) {
     assert_debug(is_owned_by_me() == false);
-    int r = inline_mysql_mutex_lock(&_mutex
+    int r MY_ATTRIBUTE((unused)) = inline_mysql_mutex_lock(&_mutex
 #ifdef HAVE_PSI_MUTEX_INTERFACE
                                     ,
                                     src_file,
@@ -260,7 +260,7 @@ inline void mutex_t::unlock(
     _owners--;
     _owner = _null_owner;
 #endif
-    int r = inline_mysql_mutex_unlock(&_mutex
+    int r MY_ATTRIBUTE((unused)) = inline_mysql_mutex_unlock(&_mutex
 #ifdef SAFE_MUTEX
                                       ,
                                       src_file,
@@ -276,11 +276,11 @@ inline bool mutex_t::is_owned_by_me(void) const {
 #endif
 
 inline rwlock_t::rwlock_t(pfs_key_t key) {
-    int r = mysql_rwlock_init(key, &_rwlock);
+    int r MY_ATTRIBUTE((unused)) = mysql_rwlock_init(key, &_rwlock);
     assert_debug(r == 0);
 }
 inline rwlock_t::~rwlock_t(void) {
-    int r = mysql_rwlock_destroy(&_rwlock);
+    int r MY_ATTRIBUTE((unused)) = mysql_rwlock_destroy(&_rwlock);
     assert_debug(r == 0);
 }
 inline void rwlock_t::lock_read(
@@ -328,7 +328,7 @@ inline void rwlock_t::lock_write(
     assert_debug(r == 0);
 }
 inline void rwlock_t::unlock(void) {
-    int r = mysql_rwlock_unlock(&_rwlock);
+    int r MY_ATTRIBUTE((unused)) = mysql_rwlock_unlock(&_rwlock);
     assert_debug(r == 0);
 }
 inline rwlock_t::rwlock_t(const rwlock_t&) {}
@@ -340,7 +340,7 @@ inline rwlock_t& rwlock_t::operator=(const rwlock_t&) {
 inline event_t::event_t(bool create_signalled, bool manual_reset) :
     _manual_reset(manual_reset) {
 
-    int r = pthread_mutex_init(&_mutex, NULL);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_init(&_mutex, NULL);
     assert_debug(r == 0);
     r = pthread_cond_init(&_cond, NULL);
     assert_debug(r == 0);
@@ -352,13 +352,13 @@ inline event_t::event_t(bool create_signalled, bool manual_reset) :
     _pulsed = false;
 }
 inline event_t::~event_t(void) {
-    int r = pthread_mutex_destroy(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_destroy(&_mutex);
     assert_debug(r == 0);
     r = pthread_cond_destroy(&_cond);
     assert_debug(r == 0);
 }
 inline void event_t::wait(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     while (_signalled == false && _pulsed == false) {
         r = pthread_cond_wait(&_cond, &_mutex);
@@ -395,7 +395,7 @@ inline int event_t::wait(ulonglong microseconds) {
     return 0;
 }
 inline void event_t::signal(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     _signalled = true;
     if (_manual_reset) {
@@ -409,7 +409,7 @@ inline void event_t::signal(void) {
     assert_debug(r == 0);
 }
 inline void event_t::pulse(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     _pulsed = true;
     r = pthread_cond_signal(&_cond);
@@ -419,7 +419,7 @@ inline void event_t::pulse(void) {
 }
 inline bool event_t::signalled(void) {
     bool ret = false;
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     ret = _signalled;
     r = pthread_mutex_unlock(&_mutex);
@@ -427,7 +427,7 @@ inline bool event_t::signalled(void) {
     return ret;
 }
 inline void event_t::reset(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     _signalled = false;
     _pulsed = false;
@@ -449,21 +449,21 @@ inline semaphore_t::semaphore_t(
     _initial_count(initial_count),
     _max_count(max_count) {
 
-    int r = pthread_mutex_init(&_mutex, NULL);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_init(&_mutex, NULL);
     assert_debug(r == 0);
     r = pthread_cond_init(&_cond, NULL);
     assert_debug(r == 0);
     _signalled = _initial_count;
 }
 inline semaphore_t::~semaphore_t(void) {
-    int r = pthread_mutex_destroy(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_destroy(&_mutex);
     assert_debug(r == 0);
     r = pthread_cond_destroy(&_cond);
     assert_debug(r == 0);
 }
 inline semaphore_t::E_WAIT semaphore_t::wait(void) {
     E_WAIT ret;
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     while (_signalled == 0 && _interrupted == false) {
         r = pthread_cond_wait(&_cond, &_mutex);
@@ -506,7 +506,7 @@ inline semaphore_t::E_WAIT semaphore_t::wait(ulonglong microseconds) {
 }
 inline bool semaphore_t::signal(void) {
     bool ret = false;
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     if (_signalled < _max_count) {
         _signalled++;
@@ -520,7 +520,7 @@ inline bool semaphore_t::signal(void) {
 }
 inline int semaphore_t::signalled(void) {
     int ret = 0;
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     ret = _signalled;
     r = pthread_mutex_unlock(&_mutex);
@@ -528,7 +528,7 @@ inline int semaphore_t::signalled(void) {
     return ret;
 }
 inline void semaphore_t::reset(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     _signalled = 0;
     r = pthread_mutex_unlock(&_mutex);
@@ -536,7 +536,7 @@ inline void semaphore_t::reset(void) {
     return;
 }
 inline void semaphore_t::set_interrupt(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     _interrupted = true;
     r = pthread_cond_broadcast(&_cond);
@@ -545,7 +545,7 @@ inline void semaphore_t::set_interrupt(void) {
     assert_debug(r == 0);
 }
 inline void semaphore_t::clear_interrupt(void) {
-    int r = pthread_mutex_lock(&_mutex);
+    int r MY_ATTRIBUTE((unused)) = pthread_mutex_lock(&_mutex);
     assert_debug(r == 0);
     _interrupted = false;
     r = pthread_mutex_unlock(&_mutex);

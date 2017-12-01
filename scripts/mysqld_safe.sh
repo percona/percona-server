@@ -215,6 +215,9 @@ eval_log_error () {
 
   #echo "Running mysqld: [$cmd]"
   eval "$cmd"
+  if [ $ret -gt 0 ] && [ $ret -lt 128 ]; then
+    exit $ret
+  fi
 }
 
 shell_quote_string() {

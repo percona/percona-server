@@ -63,7 +63,7 @@ char *audit_log_syslog_ident;
 char default_audit_log_syslog_ident[] = "percona-audit";
 ulong audit_log_syslog_facility= 0;
 ulong audit_log_syslog_priority= 0;
-ulonglong audit_log_num_rows_threshold= 100000;
+ulonglong audit_log_num_rows_threshold= 0;
 static char *audit_log_exclude_accounts= NULL;
 static char *audit_log_include_accounts= NULL;
 static char *audit_log_exclude_commands= NULL;
@@ -465,6 +465,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                      "  OS_USER=\"%s\"\n"
                      "  IP=\"%s\"\n"
                      "  DB=\"%s\"\n"
+		     "  NUM_ROWS=\"%d\n\""
                      "/>\n",
 
                      "<AUDIT_RECORD>\n"
@@ -480,6 +481,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                      "  <OS_USER>%s</OS_USER>\n"
                      "  <IP>%s</IP>\n"
                      "  <DB>%s</DB>\n"
+		     "  <NUM_ROWS>%d</NUM_ROWS>\n"
                      "</AUDIT_RECORD>\n",
 
                      "{\"audit_record\":"
@@ -494,10 +496,11 @@ char *audit_log_general_record(char *buf, size_t buflen,
                        "\"host\":\"%s\","
                        "\"os_user\":\"%s\","
                        "\"ip\":\"%s\","
-                       "\"db\":\"%s\"}}\n",
+                       "\"db\":\"%s\",\n"
+		       "\"num_rows\":\"%d\"}}",
 
                      "\"%s\",\"%s\",\"%s\",\"%s\",\"%lu\",%d,\"%s\",\"%s\","
-                     "\"%s\",\"%s\",\"%s\",\"%s\"\n" };
+                     "\"%s\",\"%s\",\"%s\",\"%s\",%d\n" };
 
   query_length= my_charset_utf8mb4_general_ci.mbmaxlen *
                 event->general_query_length;
@@ -544,6 +547,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                     event->general_sql_command.length +
                     20 + /* general_thread_id */
                     20 + /* status */
+                    20 + /* num_rows */
                     MAX_RECORD_ID_SIZE + MAX_TIMESTAMP_SIZE;
   if (buflen_estimated > buflen)
   {
@@ -558,7 +562,7 @@ char *audit_log_general_record(char *buf, size_t buflen,
                     make_timestamp(timestamp, sizeof(timestamp), t),
                     event->general_sql_command.str,
                     event->general_thread_id,
-                    status, query, user, host, external_user, ip, db);
+                    status, query, user, host, external_user, ip, db, event->general_rows-1);
 
   /* make sure that record is not truncated */
   DBUG_ASSERT(endptr + *outlen <= buf + buflen);
@@ -1075,10 +1079,14 @@ void audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   (const struct mysql_event_general *) event;
 
       
-  if (!is_event_class_allowed_by_policy(event_class, audit_log_policy) && (event_general->general_rows < audit_log_num_rows_threshold)) // TODO
+  if (!is_event_class_allowed_by_policy(event_class, audit_log_policy)) // TODO
     return;
 
-  if (local->skip_session && (event_general->general_rows < audit_log_num_rows_threshold))
+  if (local->skip_session) 
+    return;
+
+  // -1 because general_rows include the header as a row (so a nil result set has general_rows == 1)
+  if (((event_general->general_rows - 1) < audit_log_num_rows_threshold) && (audit_log_num_rows_threshold > 0))
     return;
 
   if (event_class == MYSQL_AUDIT_GENERAL_CLASS)
@@ -1086,7 +1094,7 @@ void audit_log_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
     switch (event_general->event_subclass)
     {
     case MYSQL_AUDIT_GENERAL_STATUS:
-      if (local->skip_query && (event_general->general_rows < audit_log_num_rows_threshold))
+      if (local->skip_query && ((event_general->general_rows -1) < audit_log_num_rows_threshold))
         break;
 
       /* use allocated buffer if available */
@@ -1233,7 +1241,7 @@ void audit_log_num_rows_threshold_update(
 static MYSQL_SYSVAR_ULONGLONG(num_rows_threshold, audit_log_num_rows_threshold,
   PLUGIN_VAR_OPCMDARG,
   "Queries returning more than this number of rows will be logged",
-  NULL, NULL, 100000UL, 0UL, ULONG_MAX, 1L);
+  NULL, NULL, 0UL, 0UL, ULONG_MAX, 1L);
 			  
 
 static

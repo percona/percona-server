@@ -53,6 +53,9 @@ indexes only. Turning off uniqueness checking on the primary key can provide
 large performance boosts, but it should only be done when the primary key is
 known to be unique.
 
+**Group Replication**: |TokuDB| storage engine doesn't support `Group Replication
+<https://dev.mysql.com/doc/refman/5.7/en/group-replication.html>`_.
+
 .. _tokudb_lock_visualization:
 
 Lock Visualization in TokuDB

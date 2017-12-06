@@ -1505,6 +1505,7 @@ rocksdb_rows_inserted	#
 rocksdb_rows_read	#
 rocksdb_rows_updated	#
 rocksdb_rows_expired	#
+rocksdb_rows_filtered	#
 rocksdb_system_rows_deleted	#
 rocksdb_system_rows_inserted	#
 rocksdb_system_rows_read	#
@@ -1612,6 +1613,7 @@ rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
+rocksdb_rows_filtered
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1721,6 +1723,7 @@ rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
+rocksdb_rows_filtered
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read

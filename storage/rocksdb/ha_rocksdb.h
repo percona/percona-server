@@ -374,6 +374,7 @@ enum operation_type : int {
   ROWS_READ,
   ROWS_UPDATED,
   ROWS_EXPIRED,
+  ROWS_FILTERED,
   ROWS_HIDDEN_NO_SNAPSHOT,
   ROWS_MAX
 };
@@ -406,6 +407,7 @@ struct st_export_stats {
   ulonglong rows_read;
   ulonglong rows_updated;
   ulonglong rows_expired;
+  ulonglong rows_filtered;
   ulonglong rows_hidden_no_snapshot;
 
   ulonglong system_rows_deleted;

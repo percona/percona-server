@@ -7838,18 +7838,9 @@ User_var_log_event(const char* buf, uint event_len,
     uint bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
+    const int checksum_length = (old_pre_checksum_fd || description_event->checksum_alg == BINLOG_CHECKSUM_ALG_OFF) ? 0 : BINLOG_CHECKSUM_LEN;
 #endif
-    DBUG_ASSERT((bytes_read == (data_written -
-                 ((old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN)))
-                ||
-                ((bytes_read == (data_written -1 -
-                 (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN))));
+    DBUG_ASSERT(bytes_read == data_written - checksum_length || bytes_read == data_written - checksum_length - 1);
     if ((data_written - bytes_read) > 0)
     {
       flags= (uint) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +

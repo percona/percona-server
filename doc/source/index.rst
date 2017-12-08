@@ -66,6 +66,7 @@ Performance Improvements
    :maxdepth: 1
    :glob:
 
+   performance/aio_page_requests
    performance/query_cache_enhance
    performance/innodb_numa_support
    performance/threadpool
@@ -138,6 +139,7 @@ Diagnostics Improvements
    diagnostics/thread_based_profiling
    diagnostics/scalability_metrics_plugin
    diagnostics/response_time_distribution
+   diagnostics/innodb_fragmentation_count
 
 TokuDB
 ======
@@ -155,6 +157,7 @@ TokuDB
    tokudb/tokudb_variables
    tokudb/tokudb_status_variables
    tokudb/tokudb_troubleshooting
+   tokudb/tokudb_performance_schema
    tokudb/toku_backup
    tokudb/tokudb_faq
    tokudb/removing_tokudb

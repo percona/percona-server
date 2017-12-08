@@ -159,7 +159,7 @@ bool mysqlx::parse_mysql_connstring(const std::string &connstring,
   return true;
 }
 
-static void throw_server_error(const Mysqlx::Error &error)
+MY_ATTRIBUTE((noreturn)) static void throw_server_error(const Mysqlx::Error &error)
 {
   throw Error(error.code(), error.msg());
 }

@@ -8835,7 +8835,7 @@ void run_explain(struct st_connection *cn, struct st_command *command,
 char *re_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
+  size_t len MY_ATTRIBUTE((unused))= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
@@ -10110,7 +10110,8 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
       */
       if (size1 < (size_t) r)
         r= size1;
-    // fallthrough: all cases till next break are executed
+    // fallthrough
+    // all cases till next break are executed
     case 'e':
     case 'E':
       if (isdigit(*(from + size + 1)))

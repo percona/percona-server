@@ -434,7 +434,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg, cons
       }
       break;
     }
-    // missing "break;"? on purpose
+    // fallthrough
 
   default:
     m_qb.put("(");

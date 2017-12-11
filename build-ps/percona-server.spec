@@ -158,6 +158,7 @@ BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRequires:  bison
 BuildRequires:  openldap-devel
+BuildRequires:  libcurl-devel
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)

@@ -92,6 +92,7 @@ Flexibility Improvements
    flexibility/proxy_protocol_support
    flexibility/per_session_server-id
    flexibility/compressed_columns
+   flexibility/innodb_fts_improvements
 
 Reliability Improvements
 ========================

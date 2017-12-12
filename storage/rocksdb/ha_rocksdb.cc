@@ -4679,6 +4679,10 @@ bool ha_rocksdb::init_with_fields() {
   DBUG_RETURN(false); /* Ok */
 }
 
+bool ha_rocksdb::rpl_can_handle_stm_event() const {
+  return !(rpl_skip_tx_api_var && !super_read_only);
+}
+
 /*
   If the key is a TTL key, we may need to filter it out.
 

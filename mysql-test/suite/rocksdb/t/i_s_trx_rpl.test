@@ -1,10 +1,8 @@
 --source include/have_rocksdb.inc
---source include/master-slave.inc
 
---disable_warnings
-connection slave;
---source include/stop_slave.inc
---enable_warnings
+--let rpl_skip_start_slave=1
+
+--source include/master-slave.inc
 
 connection master;
 create table t1 (a int) engine=rocksdb;
@@ -20,22 +18,8 @@ connection slave;
 show variables like 'rocksdb_rpl_skip_tx_api';
 --source include/start_slave.inc
 
---let $it=0
---let $stop=0
-while ($stop != 1) {
-let $count= query_get_value(select count(*) as Value from information_schema.rocksdb_trx, Value, 1);
-  if ($count) {
-    --echo found
-    --let $stop=1
-  }
-
-  if ($it > 1000) {
-    --echo not found
-    --let $stop=1
-  }
-
-  --inc $it
-}
+--let $wait_condition = select count(*) > 0 from information_schema.rocksdb_trx;
+--source include/wait_condition.inc
 
 connection master;
 DROP TABLE t1;

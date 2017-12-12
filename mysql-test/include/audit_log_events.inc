@@ -6,6 +6,42 @@ CREATE TABLE t1
              (c1 INT,
               c2 CHAR(20));
 INSERT INTO t1 VALUES (1,'a'),(2,'b'),(3,'c');
+-- if ($test_control_chars) {
+INSERT INTO `t1` VALUES (4,NULL);
+# can't add the zero ascii character, as that's a syntax error in MySQL
+INSERT INTO `t1` VALUES (6,'');
+INSERT INTO `t1` VALUES (7,'');
+INSERT INTO `t1` VALUES (8,'');
+INSERT INTO `t1` VALUES (9,'');
+INSERT INTO `t1` VALUES (10,'');
+INSERT INTO `t1` VALUES (11,'');
+INSERT INTO `t1` VALUES (12,'');
+INSERT INTO `t1` VALUES (13,'');
+INSERT INTO `t1` VALUES (14,'	');
+INSERT INTO `t1` VALUES (15,'
+');
+INSERT INTO `t1` VALUES (16,'');
+INSERT INTO `t1` VALUES (17,'');
+INSERT INTO `t1` VALUES (18,'');
+INSERT INTO `t1` VALUES (19,'');
+INSERT INTO `t1` VALUES (20,'');
+INSERT INTO `t1` VALUES (21,'');
+INSERT INTO `t1` VALUES (22,'');
+INSERT INTO `t1` VALUES (23,'');
+INSERT INTO `t1` VALUES (24,'');
+INSERT INTO `t1` VALUES (25,'');
+INSERT INTO `t1` VALUES (26,'');
+INSERT INTO `t1` VALUES (27,'');
+INSERT INTO `t1` VALUES (28,'');
+INSERT INTO `t1` VALUES (29,'');
+INSERT INTO `t1` VALUES (30,'');
+INSERT INTO `t1` VALUES (31,'');
+INSERT INTO `t1` VALUES (32,'');
+INSERT INTO `t1` VALUES (33,'');
+INSERT INTO `t1` VALUES (34,'');
+INSERT INTO `t1` VALUES (35,'');
+INSERT INTO `t1` VALUES (36,'');
+-- }
 SELECT * FROM t1;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM t2;

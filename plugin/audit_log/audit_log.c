@@ -172,37 +172,48 @@ typedef struct
 
 static
 void escape_buf(const char *in, size_t *inlen, char *out, size_t *outlen,
-                const escape_rule_t *escape_rules)
+                const escape_rule_t *control_escape_rules,
+                const escape_rule_t *other_escape_rules)
 {
   char* outstart = out;
   const char* base = in;
   char* outend = out + *outlen;
   const char* inend;
-  const escape_rule_t *rule;
-  my_bool replaced;
+  const escape_rule_t *replace_rule = NULL;
 
   inend = in + (*inlen);
 
   while ((in < inend) && (out < outend))
   {
-    replaced= FALSE;
-    for (rule= escape_rules; rule->character; rule++)
+    replace_rule = NULL;
+    if ((unsigned char)(*in) < 32) {
+      if (control_escape_rules[(unsigned int)*in].character) {
+        replace_rule = &control_escape_rules[(unsigned int)*in];
+      }
+    } else
     {
-      if (*in == rule->character)
+      const escape_rule_t *rule = NULL;
+      for (rule= other_escape_rules; rule->character; rule++)
       {
-        if ((outend - out) < (int) rule->length)
-          goto end_of_buffer;
-        memcpy(out, rule->replacement, rule->length);
-        out += rule->length;
-        replaced= TRUE;
-        break;
+        if (*in == rule->character)
+        {
+          replace_rule = rule;
+          break;
+        }
       }
     }
-    if (!replaced)
+    if (replace_rule)
+    {
+          if ((outend - out) < (ptrdiff_t) replace_rule->length)
+            break;
+          memcpy(out, replace_rule->replacement, replace_rule->length);
+          out += replace_rule->length;
+    } else
+    {
       *out++ = *in;
+    }
     ++in;
   }
-end_of_buffer:
   *outlen = out - outstart;
   *inlen = in - base;
 }
@@ -210,50 +221,153 @@ end_of_buffer:
 static
 void xml_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
 {
-  const escape_rule_t rules[]=
+  // Most control sequences aren't supported before XML 1.1, and most
+  // tools only support 1.0. Our output is 1.0. Escaping them wouldn't make
+  // the output more valid.
+  static const escape_rule_t control_rules[]=
+  {
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { '\t', 5, "&#9;" },
+    { '\n', 6, "&#10;" },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { '\r', 6, "&#13;" },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+  };
+  static const escape_rule_t other_rules[]=
   {
     { '<',  4, "&lt;" },
     { '>',  4, "&gt;" },
     { '&',  5, "&amp;" },
-    { '\r', 5, "&#13;" },
-    { '\n', 5, "&#10;" },
-    { '\t', 5, "&#9;" },
     { '"',  6, "&quot;" },
     { 0,  0, NULL }
   };
 
-  escape_buf(in, inlen, out, outlen, rules);
+  escape_buf(in, inlen, out, outlen, control_rules, other_rules);
 }
 
 static
 void json_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
 {
-  const escape_rule_t rules[]=
+  static const escape_rule_t control_rules[]=
+  {
+    { 0,  6, "\\u0000" },
+    { 1,  6, "\\u0001" },
+    { 2,  6, "\\u0002" },
+    { 3,  6, "\\u0003" },
+    { 4,  6, "\\u0004" },
+    { 5,  6, "\\u0005" },
+    { 6,  6, "\\u0006" },
+    { 7,  6, "\\u0007" },
+    { '\b',  2, "\\b" },
+    { '\t',  2, "\\t" },
+    { '\n',  2, "\\n" },
+    { 11, 6, "\\u000B" },
+    { '\f',  2, "\\f" },
+    { '\r',  2, "\\r" },
+    { 14, 6, "\\u000E" },
+    { 15, 6, "\\u000F" },
+    { 16, 6, "\\u0010" },
+    { 17, 6, "\\u0011" },
+    { 18, 6, "\\u0012" },
+    { 19, 6, "\\u0013" },
+    { 20, 6, "\\u0014" },
+    { 21, 6, "\\u0015" },
+    { 22, 6, "\\u0016" },
+    { 23, 6, "\\u0017" },
+    { 24, 6, "\\u0018" },
+    { 25, 6, "\\u0019" },
+    { 26, 6, "\\u001A" },
+    { 27, 6, "\\u001B" },
+    { 28, 6, "\\u001C" },
+    { 29, 6, "\\u001D" },
+    { 30, 6, "\\u001E" },
+    { 31, 6, "\\u001F" },
+  };
+
+  static const escape_rule_t other_rules[]=
   {
     { '\\', 2, "\\\\" },
     { '"',  2, "\\\"" },
-    { '\r',  2, "\\r" },
-    { '\n',  2, "\\n" },
     { '/',  2, "\\/" },
-    { '\b',  2, "\\b" },
-    { '\f',  2, "\\f" },
-    { '\t',  2, "\\t" },
     { 0,  0, NULL }
   };
 
-  escape_buf(in, inlen, out, outlen, rules);
+  escape_buf(in, inlen, out, outlen, control_rules, other_rules);
 }
 
 static
 void csv_escape(const char *in, size_t *inlen, char *out, size_t *outlen)
 {
-  const escape_rule_t rules[]=
+  // We do not have any standard control escape rules for CSVs
+  static const escape_rule_t control_rules[]=
+  {
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+    { 0,  0, NULL },
+  };
+
+  static const escape_rule_t other_rules[]=
   {
     { '"',  2, "\"\"" },
     { 0,  0, NULL }
   };
 
-  escape_buf(in, inlen, out, outlen, rules);
+  escape_buf(in, inlen, out, outlen, control_rules, other_rules);
 }
 
 static const escape_buf_func_t format_escape_func[]=

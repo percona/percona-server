@@ -64,9 +64,13 @@ MyRocks Changes
   reduce the number of (confusing) options users and can tweak and push the
   responsibility down to RocksDB level.
 
-* New :variable:`rocksdb_sim_cache_size` has been implemented to enable the
-  simulated cache. This can be used to figure out the hit/miss rate
+* New :variable:`rocksdb_sim_cache_size` variable has been implemented to
+  enable the simulated cache. This can be used to figure out the hit/miss rate
   with a specific cache size without changing the real block cache.
 
 * Input can be now sorted by the Primary Key during the bulkload by enababling
   the :variable:`rocksdb_bulk_load_allow_unsorted` variable.
+
+* New :variable:`rocksdb_ignore_unknown_options` variable has been implemented,
+  which when enabled (default) allows RocksDB to receive unknown options and
+  not exit.

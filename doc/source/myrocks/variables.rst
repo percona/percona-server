@@ -1748,7 +1748,7 @@ Signals the MyRocks drop index thread to wake up.
 .. variable:: rocksdb_sim_cache_size
 
   :version 5.7.20-18: Implemented
-  :cli: ``--rocksdb-sim-cache-size
+  :cli: ``--rocksdb-sim-cache-size``
   :dyn: No
   :scope: Global
   :vartype: Numeric

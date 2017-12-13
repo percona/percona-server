@@ -24,6 +24,11 @@ New Features
 
  * |Percona Server| packages are now available for *Ubuntu 17.10 (Artful)*.
 
+ * As part of :ref:`innodb_fts_improvements` a new
+   :variable:`innodb_ft_ignore_stopwords` variable has been implemented which
+   controls whether |InnoDB| Full-Text Search should ignore stopword list
+   when building/updating an FTS index.
+
 Bugs Fixed
 ==========
 

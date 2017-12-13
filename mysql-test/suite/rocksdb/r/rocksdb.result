@@ -1521,6 +1521,8 @@ rocksdb_block_cache_add	#
 rocksdb_block_cache_add_failures	#
 rocksdb_block_cache_bytes_read	#
 rocksdb_block_cache_bytes_write	#
+rocksdb_block_cache_compressed_hit	#
+rocksdb_block_cache_compressed_miss	#
 rocksdb_block_cache_data_add	#
 rocksdb_block_cache_data_bytes_insert	#
 rocksdb_block_cache_data_hit	#
@@ -1537,8 +1539,6 @@ rocksdb_block_cache_index_bytes_insert	#
 rocksdb_block_cache_index_hit	#
 rocksdb_block_cache_index_miss	#
 rocksdb_block_cache_miss	#
-rocksdb_block_cachecompressed_hit	#
-rocksdb_block_cachecompressed_miss	#
 rocksdb_bloom_filter_prefix_checked	#
 rocksdb_bloom_filter_prefix_useful	#
 rocksdb_bloom_filter_useful	#
@@ -1553,7 +1553,7 @@ rocksdb_flush_write_bytes	#
 rocksdb_get_hit_l0	#
 rocksdb_get_hit_l1	#
 rocksdb_get_hit_l2_and_up	#
-rocksdb_getupdatessince_calls	#
+rocksdb_get_updates_since_calls	#
 rocksdb_iter_bytes_read	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
@@ -1626,6 +1626,8 @@ rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
 rocksdb_block_cache_bytes_write
+rocksdb_block_cache_compressed_hit
+rocksdb_block_cache_compressed_miss
 rocksdb_block_cache_data_add
 rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
@@ -1642,8 +1644,6 @@ rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
-rocksdb_block_cachecompressed_hit
-rocksdb_block_cachecompressed_miss
 rocksdb_bloom_filter_prefix_checked
 rocksdb_bloom_filter_prefix_useful
 rocksdb_bloom_filter_useful
@@ -1658,7 +1658,7 @@ rocksdb_flush_write_bytes
 rocksdb_get_hit_l0
 rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
-rocksdb_getupdatessince_calls
+rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
 rocksdb_memtable_hit
 rocksdb_memtable_miss
@@ -1733,6 +1733,8 @@ rocksdb_block_cache_add
 rocksdb_block_cache_add_failures
 rocksdb_block_cache_bytes_read
 rocksdb_block_cache_bytes_write
+rocksdb_block_cache_compressed_hit
+rocksdb_block_cache_compressed_miss
 rocksdb_block_cache_data_add
 rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
@@ -1749,8 +1751,6 @@ rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
-rocksdb_block_cachecompressed_hit
-rocksdb_block_cachecompressed_miss
 rocksdb_bloom_filter_prefix_checked
 rocksdb_bloom_filter_prefix_useful
 rocksdb_bloom_filter_useful
@@ -1765,7 +1765,7 @@ rocksdb_flush_write_bytes
 rocksdb_get_hit_l0
 rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
-rocksdb_getupdatessince_calls
+rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
 rocksdb_memtable_hit
 rocksdb_memtable_miss

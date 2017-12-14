@@ -30,7 +30,7 @@ Status Variables
 
 .. variable:: Innodb_buffered_aio_submitted
 
-  :version 5.6.38-83.0: Implemented
+  :version 5.7.20-18: Implemented
   :vartype: Numeric
   :scope: Global
 

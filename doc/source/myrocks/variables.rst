@@ -848,7 +848,7 @@ to ensure sequential reads instead of random.
 Maximum allowed value is ``18446744073709551615``.
 
 .. note:: If you set this variable to a non-zero value,
-   :variable:`new_table_reader_for_compaction_inputs` is enabled.
+   :variable:`rocksdb_new_table_reader_for_compaction_inputs` is enabled.
 
 .. variable:: rocksdb_compaction_sequential_deletes
 
@@ -2266,7 +2266,7 @@ Make sure that lookups use the whole key for matching.
 .. variable:: rocksdb_write_batch_max_bytes
 
   :version 5.7.20-18: Implemented
-  :cli: ``--rocksdb-write_batch_max_bytes``
+  :cli: ``--rocksdb-write-batch-max-bytes``
   :dyn: Yes
   :scope: Global, Session
   :vartype: Numeric

@@ -6,7 +6,7 @@
 
 |MySQL| executes statements using one thread per client connection. Once the number of connections increases past a certain point performance will degrade. 
 
-This feature enables the server to keep the top performance even with large number of client connections by introducing a dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries). 
+This feature enables the server to keep the top performance even with a large number of client connections by introducing a dynamic thread pool. By using the thread pool server would decrease the number of threads, which will then reduce the context switching and hot locks contentions. Using the thread pool will have the most effect with ``OLTP`` workloads (relatively short CPU-bound queries). 
 
 In order to enable the thread pool variable :variable:`thread_handling` should be set up to ``pool-of-threads`` value. This can be done by adding: ::
 

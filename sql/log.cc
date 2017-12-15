@@ -1236,8 +1236,9 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     }
 
     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
+    compile_time_assert(sizeof(sctx->priv_user) / sizeof(void*) > 1);
     user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                             sctx->priv_user ? sctx->priv_user : "", "[",
+                             sctx->priv_user, "[",
                              sctx->user ? sctx->user : (thd->slave_thread ? "SQL_SLAVE" : ""), "] @ ",
                              sctx->get_host()->length() ?
                              sctx->get_host()->ptr() : "", " [",
@@ -2240,7 +2241,7 @@ static int find_uniq_filename(char *name, ulong *next, bool need_next)
   my_dirend(dir_info);
 
   /* check if reached the maximum possible extension number */
-  if ((max_found == MAX_LOG_UNIQUE_FN_EXT))
+  if (max_found == MAX_LOG_UNIQUE_FN_EXT)
   {
     sql_print_error("Log filename extension number exhausted: %06lu. \
 Please fix this by archiving old logs and \

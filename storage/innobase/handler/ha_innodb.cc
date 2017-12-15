@@ -1938,6 +1938,7 @@ trx_is_registered_for_2pc(
 
 /*********************************************************************//**
 Note that a transaction owns the prepare_commit_mutex. */
+#ifndef EXTENDED_FOR_COMMIT_ORDERED
 static inline
 void
 trx_owns_prepare_commit_mutex_set(
@@ -1947,6 +1948,7 @@ trx_owns_prepare_commit_mutex_set(
 	ut_a(trx_is_registered_for_2pc(trx));
 	trx->owns_prepare_mutex = 1;
 }
+#endif // EXTENDED_FOR_COMMIT_ORDERED
 
 /*********************************************************************//**
 Note that a transaction has been registered with MySQL 2PC coordinator. */
@@ -7648,8 +7650,6 @@ create_table_def(
 			}
 		}
 
-		ut_a(field->type() < 256); /* we assume in dtype_form_prtype()
-					   that this fits in one byte */
 		col_len = field->pack_length();
 
 		/* The MySQL pack length contains 1 or 2 bytes length field

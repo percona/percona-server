@@ -172,6 +172,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const
 TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
   {
@@ -553,11 +554,13 @@ TABLE_FIELD_TYPE mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] =
     { C_STRING_WITH_LEN("utf8") }
   }
 };
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 const TABLE_FIELD_DEF
   mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
@@ -576,6 +579,7 @@ const TABLE_FIELD_DEF
 const TABLE_FIELD_DEF
   mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
                                 mysql_tables_priv_table_fields};
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -5719,7 +5723,8 @@ bool check_grant_db(THD *thd,const char *db)
   bool error= TRUE;
   size_t copy_length;
 
-  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+  compile_time_assert(sizeof(sctx->priv_user) / sizeof(void*) > 1);
+  copy_length= (size_t) (strlen(sctx->priv_user) +
                  strlen(db ? db : "")) + 1; /* Added 1 at the end to avoid  
                                                buffer overflow at strmov()*/
 
@@ -8623,7 +8628,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', table: `%s`.`%s`",
                        sctx->priv_host, (sctx->get_ip()->length() ?
                        sctx->get_ip()->ptr() : "(NULL)"),
-                       (sctx->priv_user ? sctx->priv_user : "(NULL)"),
+                       sctx->priv_user,
                        db, table));
   /* --skip-grants */
   if (!initialized)
@@ -8636,12 +8641,6 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
 
   /* global privileges */
   grant->privilege= sctx->master_access;
-
-  if (!sctx->priv_user)
-  {
-    DBUG_PRINT("info", ("privilege 0x%lx", grant->privilege));
-    DBUG_VOID_RETURN;                         // it is slave
-  }
 
   /* db privileges */
   grant->privilege|= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
@@ -10410,10 +10409,10 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   {
     if (strcmp(mpvio.auth_info.authenticated_as, mpvio.auth_info.user_name))
     {
+      compile_time_assert(sizeof(mpvio.auth_info.authenticated_as) / sizeof(void*) > 1);
       general_log_print(thd, command, "%s@%s as %s on %s",
                         mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
+                        mpvio.auth_info.authenticated_as,
                         mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else

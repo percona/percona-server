@@ -244,7 +244,7 @@ typedef struct st_mysql_const_lex_string LEX_CSTRING;
   Skip trailing space.
 
   On most systems reading memory in larger chunks (ideally equal to the size of
-  the chinks that the machine physically reads from memory) causes fewer memory
+  the chunks that the machine physically reads from memory) causes fewer memory
   access loops and hence increased performance.
   This is why the 'int' type is used : it's closest to that (according to how
   it's defined in C).

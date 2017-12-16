@@ -1007,6 +1007,8 @@ int query_error_code(THD *thd, bool not_killed);
 bool generate_new_log_name(char *new_name, ulong *new_ext,
                            const char *log_name, bool is_binlog);
 
+bool handle_gtid_consistency_violation(THD *thd, int error_code);
+
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
 extern bool opt_binlog_order_commits;

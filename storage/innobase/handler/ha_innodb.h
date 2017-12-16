@@ -756,6 +756,9 @@ public:
 	/** Validate COMPRESSION option. */
 	bool create_option_compression_is_valid();
 
+	/** Validate ENCRYPTION option. */
+	bool create_option_encryption_is_valid() const;
+
 	/** Prepare to create a table. */
 	int prepare_create_table(const char* name);
 
@@ -1130,7 +1133,7 @@ innobase_build_index_translation(
 
 /** Compression dictionary id container */
 typedef std::map<uint16, ulint, std::less<uint16>,
-	ut_allocator<std::pair<uint16, const ulint> > >
+	ut_allocator<std::pair<const uint16, ulint> > >
 	zip_dict_id_container_t;
 
 /** This function checks if all the compression dictionaries referenced

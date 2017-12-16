@@ -10,7 +10,6 @@ The easiest way to install the *Percona Yum* repository is to install an *RPM* t
 
 Supported Releases:
 
-
  * *CentOS* 6 and *RHEL* 6 (Current Stable) [#f1]_
 
  * *CentOS* 7 and *RHEL* 7

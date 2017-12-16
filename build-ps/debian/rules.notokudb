@@ -116,11 +116,7 @@ endif
 		-DDOWNLOAD_BOOST=1 \
 		-DWITH_BOOST=libboost \
 		-DWITHOUT_TOKUDB=ON \
-<<<<<<< HEAD
-                -DWITH_SCALABILITY_METRICS=ON \
-=======
 		-DWITH_SCALABILITY_METRICS=ON \
->>>>>>> percona/release-5.7.17-11
 		-DWITH_EXTRA_CHARSETS=all ..
 
 	touch $@

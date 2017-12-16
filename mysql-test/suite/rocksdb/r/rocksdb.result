@@ -452,11 +452,11 @@ drop table t21;
 CREATE TABLE t22 (a int primary key) ENGINE=RocksDB;
 INSERT INTO t22 VALUES (1),(2);
 CREATE TABLE t23 (b int primary key) ENGINE=RocksDB;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t23 SELECT * FROM t22;
 DELETE IGNORE t22.*, t23.* FROM t22, t23 WHERE b < a;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t22,t23;
 #
 # MDEV-4046: RocksDB: Multi-table DELETE locks itself and ends with ER_LOCK_WAIT_TIMEOUT
@@ -464,11 +464,11 @@ DROP TABLE t22,t23;
 CREATE TABLE t24 (pk int primary key) ENGINE=RocksDB;
 INSERT INTO t24 VALUES (1),(2);
 CREATE TABLE t25 LIKE t24;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t25 SELECT * FROM t24;
 DELETE t25.* FROM t24, t25;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t24,t25;
 #
 # MDEV-4044: RocksDB: UPDATE or DELETE with ORDER BY locks itself
@@ -896,12 +896,12 @@ rocksdb_advise_random_on_open	ON
 rocksdb_allow_concurrent_memtable_write	OFF
 rocksdb_allow_mmap_reads	OFF
 rocksdb_allow_mmap_writes	OFF
-rocksdb_base_background_compactions	1
 rocksdb_block_cache_size	536870912
 rocksdb_block_restart_interval	16
 rocksdb_block_size	4096
 rocksdb_block_size_deviation	10
 rocksdb_bulk_load	OFF
+rocksdb_bulk_load_allow_unsorted	OFF
 rocksdb_bulk_load_size	1000
 rocksdb_bytes_per_sync	0
 rocksdb_cache_index_and_filter_blocks	ON
@@ -914,46 +914,58 @@ rocksdb_compaction_sequential_deletes	0
 rocksdb_compaction_sequential_deletes_count_sd	OFF
 rocksdb_compaction_sequential_deletes_file_size	0
 rocksdb_compaction_sequential_deletes_window	0
+rocksdb_concurrent_prepare	ON
 rocksdb_create_checkpoint	
 rocksdb_create_if_missing	ON
 rocksdb_create_missing_column_families	OFF
 rocksdb_datadir	./.rocksdb
 rocksdb_db_write_buffer_size	0
 rocksdb_deadlock_detect	OFF
+rocksdb_deadlock_detect_depth	50
 rocksdb_debug_optimizer_no_zero_cardinality	ON
-rocksdb_default_cf_options	
-rocksdb_delayed_write_rate	16777216
+rocksdb_debug_ttl_ignore_pk	OFF
+rocksdb_debug_ttl_read_filter_ts	0
+rocksdb_debug_ttl_rec_ts	0
+rocksdb_debug_ttl_snapshot_ts	0
+rocksdb_default_cf_options	compression=kLZ4Compression;bottommost_compression=kLZ4Compression
+rocksdb_delayed_write_rate	0
 rocksdb_delete_obsolete_files_period_micros	21600000000
 rocksdb_enable_bulk_load_api	ON
 rocksdb_enable_thread_tracking	ON
 rocksdb_enable_ttl	ON
+rocksdb_enable_ttl_read_filtering	ON
 rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_flush_memtable_on_analyze	ON
 rocksdb_force_compute_memtable_stats	ON
+rocksdb_force_compute_memtable_stats_cachetime	0
 rocksdb_force_flush_memtable_and_lzero_now	OFF
 rocksdb_force_flush_memtable_now	OFF
 rocksdb_force_index_records_in_range	0
 rocksdb_hash_index_allow_collision	ON
+rocksdb_ignore_unknown_options	ON
 rocksdb_index_type	kBinarySearch
 rocksdb_info_log_level	error_level
 rocksdb_is_fd_close_on_exec	ON
 rocksdb_keep_log_file_num	1000
+rocksdb_large_prefix	OFF
 rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
 rocksdb_manifest_preallocation_size	4194304
-rocksdb_max_background_compactions	1
-rocksdb_max_background_flushes	1
+rocksdb_manual_wal_flush	ON
+rocksdb_max_background_jobs	2
+rocksdb_max_latest_deadlocks	5
 rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	18446744073709551615
-rocksdb_max_open_files	4294967295
+rocksdb_max_open_files	1000
 rocksdb_max_row_locks	1073741824
 rocksdb_max_subcompactions	1
 rocksdb_max_total_wal_size	0
 rocksdb_merge_buf_size	67108864
 rocksdb_merge_combine_read_size	1073741824
+rocksdb_merge_tmp_file_removal_delay_ms	0
 rocksdb_new_table_reader_for_compaction_inputs	OFF
 rocksdb_no_block_cache	OFF
 rocksdb_override_cf_options	
@@ -971,9 +983,10 @@ rocksdb_reset_stats	OFF
 rocksdb_rpl_skip_tx_api	OFF
 rocksdb_seconds_between_stat_computes	3600
 rocksdb_signal_drop_index_thread	OFF
+rocksdb_sim_cache_size	0
 rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
-rocksdb_sst_mgr_rate_bytes_per_sec	67108864
+rocksdb_sst_mgr_rate_bytes_per_sec	0
 rocksdb_stats_dump_period_sec	600
 rocksdb_store_row_debug_checksums	OFF
 rocksdb_strict_collation_check	OFF
@@ -996,6 +1009,7 @@ rocksdb_wal_recovery_mode	1
 rocksdb_wal_size_limit_mb	0
 rocksdb_wal_ttl_seconds	0
 rocksdb_whole_key_filtering	ON
+rocksdb_write_batch_max_bytes	0
 rocksdb_write_disable_wal	OFF
 rocksdb_write_ignore_missing_column_families	OFF
 create table t47 (pk int primary key, col1 varchar(12)) engine=rocksdb;
@@ -1215,8 +1229,8 @@ DROP TABLE t1;
 # 
 CREATE TABLE t1 (pk INT PRIMARY KEY, i INT, KEY(i)) ENGINE=RocksDB;
 INSERT INTO t1 VALUES (1,1),(2,2);
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 UPDATE t1 SET i = 100;
 connect  con1,localhost,root,,test;
@@ -1225,7 +1239,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 disconnect con1;
 connection default;
 COMMIT;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 DROP TABLE t1;
 #
 # MDEV-4324: RocksDB: Valgrind "Use of uninitialised value" warnings on inserting value into varchar field
@@ -1284,14 +1298,14 @@ create table t1 (pk varchar(12) primary key) engine=rocksdb;
 insert into t1 values ('old-val1'),('old-val2');
 create table t2 (pk varchar(12) primary key) engine=rocksdb;
 insert into t2 values ('new-val2'),('old-val1');
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 begin;
 insert into t1 values ('new-val1');
 insert into t1 select * from t2;
 ERROR 23000: Duplicate entry 'old-val1' for key 'PRIMARY'
 commit;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 select * from t1;
 pk
 new-val1
@@ -1305,8 +1319,8 @@ drop table t1, t2;
 CREATE TABLE t2 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=RocksDB;
 CREATE TABLE t1 (pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=RocksDB;
 INSERT INTO t1 (pk) VALUES (NULL),(NULL);
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 INSERT INTO t2 (pk) VALUES (NULL),(NULL);
 INSERT INTO t1 (pk) VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
@@ -1328,7 +1342,7 @@ pk
 affected rows: 0
 COMMIT;
 DROP TABLE t1,t2;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 #
 # MDEV-4374: RocksDB: Valgrind warnings 'Use of uninitialised value' on 
 #   inserting into a varchar column
@@ -1502,12 +1516,24 @@ rocksdb_memtable_total	#
 rocksdb_memtable_unflushed	#
 rocksdb_queries_point	#
 rocksdb_queries_range	#
+rocksdb_covered_secondary_key_lookups	#
 rocksdb_block_cache_add	#
+rocksdb_block_cache_add_failures	#
+rocksdb_block_cache_bytes_read	#
+rocksdb_block_cache_bytes_write	#
+rocksdb_block_cache_data_add	#
+rocksdb_block_cache_data_bytes_insert	#
 rocksdb_block_cache_data_hit	#
 rocksdb_block_cache_data_miss	#
+rocksdb_block_cache_filter_add	#
+rocksdb_block_cache_filter_bytes_evict	#
+rocksdb_block_cache_filter_bytes_insert	#
 rocksdb_block_cache_filter_hit	#
 rocksdb_block_cache_filter_miss	#
 rocksdb_block_cache_hit	#
+rocksdb_block_cache_index_add	#
+rocksdb_block_cache_index_bytes_evict	#
+rocksdb_block_cache_index_bytes_insert	#
 rocksdb_block_cache_index_hit	#
 rocksdb_block_cache_index_miss	#
 rocksdb_block_cache_miss	#
@@ -1524,7 +1550,11 @@ rocksdb_compaction_key_drop_new	#
 rocksdb_compaction_key_drop_obsolete	#
 rocksdb_compaction_key_drop_user	#
 rocksdb_flush_write_bytes	#
+rocksdb_get_hit_l0	#
+rocksdb_get_hit_l1	#
+rocksdb_get_hit_l2_and_up	#
 rocksdb_getupdatessince_calls	#
+rocksdb_iter_bytes_read	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
 rocksdb_no_file_closes	#
@@ -1532,6 +1562,12 @@ rocksdb_no_file_errors	#
 rocksdb_no_file_opens	#
 rocksdb_num_iterators	#
 rocksdb_number_block_not_compressed	#
+rocksdb_number_db_next	#
+rocksdb_number_db_next_found	#
+rocksdb_number_db_prev	#
+rocksdb_number_db_prev_found	#
+rocksdb_number_db_seek	#
+rocksdb_number_db_seek_found	#
 rocksdb_number_deletes_filtered	#
 rocksdb_number_keys_read	#
 rocksdb_number_keys_updated	#
@@ -1552,6 +1588,16 @@ rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
 rocksdb_rate_limit_delay_millis	#
 rocksdb_snapshot_conflict_errors	#
+rocksdb_stall_l0_file_count_limit_slowdowns	#
+rocksdb_stall_locked_l0_file_count_limit_slowdowns	#
+rocksdb_stall_l0_file_count_limit_stops	#
+rocksdb_stall_locked_l0_file_count_limit_stops	#
+rocksdb_stall_pending_compaction_limit_stops	#
+rocksdb_stall_pending_compaction_limit_slowdowns	#
+rocksdb_stall_memtable_limit_stops	#
+rocksdb_stall_memtable_limit_slowdowns	#
+rocksdb_stall_total_stops	#
+rocksdb_stall_total_slowdowns	#
 rocksdb_stall_micros	#
 rocksdb_wal_bytes	#
 rocksdb_wal_group_syncs	#
@@ -1575,12 +1621,24 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
+rocksdb_block_cache_add_failures
+rocksdb_block_cache_bytes_read
+rocksdb_block_cache_bytes_write
+rocksdb_block_cache_data_add
+rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
+rocksdb_block_cache_filter_add
+rocksdb_block_cache_filter_bytes_evict
+rocksdb_block_cache_filter_bytes_insert
 rocksdb_block_cache_filter_hit
 rocksdb_block_cache_filter_miss
 rocksdb_block_cache_hit
+rocksdb_block_cache_index_add
+rocksdb_block_cache_index_bytes_evict
+rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
@@ -1597,7 +1655,11 @@ rocksdb_compaction_key_drop_new
 rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
+rocksdb_get_hit_l0
+rocksdb_get_hit_l1
+rocksdb_get_hit_l2_and_up
 rocksdb_getupdatessince_calls
+rocksdb_iter_bytes_read
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1605,6 +1667,12 @@ rocksdb_no_file_errors
 rocksdb_no_file_opens
 rocksdb_num_iterators
 rocksdb_number_block_not_compressed
+rocksdb_number_db_next
+rocksdb_number_db_next_found
+rocksdb_number_db_prev
+rocksdb_number_db_prev_found
+rocksdb_number_db_seek
+rocksdb_number_db_seek_found
 rocksdb_number_deletes_filtered
 rocksdb_number_keys_read
 rocksdb_number_keys_updated
@@ -1625,6 +1693,16 @@ rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
 rocksdb_rate_limit_delay_millis
 rocksdb_snapshot_conflict_errors
+rocksdb_stall_l0_file_count_limit_slowdowns
+rocksdb_stall_locked_l0_file_count_limit_slowdowns
+rocksdb_stall_l0_file_count_limit_stops
+rocksdb_stall_locked_l0_file_count_limit_stops
+rocksdb_stall_pending_compaction_limit_stops
+rocksdb_stall_pending_compaction_limit_slowdowns
+rocksdb_stall_memtable_limit_stops
+rocksdb_stall_memtable_limit_slowdowns
+rocksdb_stall_total_stops
+rocksdb_stall_total_slowdowns
 rocksdb_stall_micros
 rocksdb_wal_bytes
 rocksdb_wal_group_syncs
@@ -1650,12 +1728,24 @@ rocksdb_memtable_total
 rocksdb_memtable_unflushed
 rocksdb_queries_point
 rocksdb_queries_range
+rocksdb_covered_secondary_key_lookups
 rocksdb_block_cache_add
+rocksdb_block_cache_add_failures
+rocksdb_block_cache_bytes_read
+rocksdb_block_cache_bytes_write
+rocksdb_block_cache_data_add
+rocksdb_block_cache_data_bytes_insert
 rocksdb_block_cache_data_hit
 rocksdb_block_cache_data_miss
+rocksdb_block_cache_filter_add
+rocksdb_block_cache_filter_bytes_evict
+rocksdb_block_cache_filter_bytes_insert
 rocksdb_block_cache_filter_hit
 rocksdb_block_cache_filter_miss
 rocksdb_block_cache_hit
+rocksdb_block_cache_index_add
+rocksdb_block_cache_index_bytes_evict
+rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
@@ -1672,7 +1762,11 @@ rocksdb_compaction_key_drop_new
 rocksdb_compaction_key_drop_obsolete
 rocksdb_compaction_key_drop_user
 rocksdb_flush_write_bytes
+rocksdb_get_hit_l0
+rocksdb_get_hit_l1
+rocksdb_get_hit_l2_and_up
 rocksdb_getupdatessince_calls
+rocksdb_iter_bytes_read
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1680,6 +1774,12 @@ rocksdb_no_file_errors
 rocksdb_no_file_opens
 rocksdb_num_iterators
 rocksdb_number_block_not_compressed
+rocksdb_number_db_next
+rocksdb_number_db_next_found
+rocksdb_number_db_prev
+rocksdb_number_db_prev_found
+rocksdb_number_db_seek
+rocksdb_number_db_seek_found
 rocksdb_number_deletes_filtered
 rocksdb_number_keys_read
 rocksdb_number_keys_updated
@@ -1700,6 +1800,16 @@ rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
 rocksdb_rate_limit_delay_millis
 rocksdb_snapshot_conflict_errors
+rocksdb_stall_l0_file_count_limit_slowdowns
+rocksdb_stall_locked_l0_file_count_limit_slowdowns
+rocksdb_stall_l0_file_count_limit_stops
+rocksdb_stall_locked_l0_file_count_limit_stops
+rocksdb_stall_pending_compaction_limit_stops
+rocksdb_stall_pending_compaction_limit_slowdowns
+rocksdb_stall_memtable_limit_stops
+rocksdb_stall_memtable_limit_slowdowns
+rocksdb_stall_total_stops
+rocksdb_stall_total_slowdowns
 rocksdb_stall_micros
 rocksdb_wal_bytes
 rocksdb_wal_group_syncs
@@ -1920,10 +2030,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -1987,10 +2097,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2056,10 +2166,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2125,10 +2235,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2193,10 +2303,10 @@ kp2 int,
 col1 int,
 key(kp1, kp2)
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2 select * from t1;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 # This must show 'Using index'
 explain 
 select kp1,kp2 from t2 force index (kp1) 
@@ -2247,7 +2357,10 @@ Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' 
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(c, b(255))) engine=rocksdb;
 drop table t1;
+set @orig_rocksdb_large_prefix=@@global.rocksdb_large_prefix;
+set @@global.rocksdb_large_prefix=1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(1255))) engine=rocksdb;
+set @@global.rocksdb_large_prefix=@orig_rocksdb_large_prefix;
 insert into t1 values (1, '1abcde', '1abcde'), (2, '2abcde', '2abcde'), (3, '3abcde', '3abcde');
 select * from t1;
 a	b	c
@@ -2272,7 +2385,7 @@ a	b	c
 3	3abcde	3abcde
 drop table t1;
 create table t1 (a int, b text, c varchar(400), Primary Key(a), Key(b(2255))) engine=rocksdb;
-ERROR 42000: Specified key was too long; max key length is 2048 bytes
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 SET sql_mode = @old_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -2308,12 +2421,12 @@ create table t2 (
 a varchar(32) primary key,
 col1 int
 ) engine=rocksdb;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 insert into t2
 select concat('v-', 100 + A.a*100 + B.a), 12345 from t1 A, t1 B;
 update t2 set a=concat('x-', a) where a between 'v-1002' and 'v-1004';
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 drop table t1,t2;
 #
 # Issue #131: Assertion `v->cfd_->internal_comparator().Compare(start, end) <= 0' failed
@@ -2380,8 +2493,8 @@ id	value
 9	NULL
 10	NULL
 INSERT INTO t1 (id) VALUES (11),(12),(13),(14),(15);
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 BEGIN;
 UPDATE t1 SET value=100;
 ROLLBACK;
@@ -2412,7 +2525,7 @@ id	value
 13	NULL
 14	NULL
 15	NULL
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 SET rocksdb_commit_in_the_middle=0;
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 DROP TABLE t1;
@@ -2519,12 +2632,12 @@ set session sql_mode=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 lock tables t1 write,t1 as t0 write,t1 as t2 write;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 SELECT a FROM t1 ORDER BY a;
 a
 2147483647
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 truncate t1;
 INSERT INTO t1 VALUES(X'042000200020',X'042000200020'),(X'200400200020',X'200400200020');
 ERROR 22003: Out of range value for column 'a' at row 1
@@ -2620,10 +2733,10 @@ DEFAULT CHARSET=latin1;
 set rocksdb_commit_in_the_middle=1;
 SET @save_rocksdb_bulk_load_size= @@rocksdb_bulk_load_size;
 set rocksdb_bulk_load_size = 100;
-set @orig_tx_iso=@@session.tx_isolation;
-set session tx_isolation='READ-COMMITTED';
+set @orig_tx_iso=@@session.transaction_isolation;
+set session transaction_isolation='READ-COMMITTED';
 DELETE t2, t1 FROM t2 LEFT JOIN t1 ON t2.id2 = t1.id2 AND t2.id1 = t1.id1 WHERE t2.id1 = 0;
-set session tx_isolation=@orig_tx_iso;
+set session transaction_isolation=@orig_tx_iso;
 SET rocksdb_bulk_load_size= @save_rocksdb_bulk_load_size;
 SET rocksdb_commit_in_the_middle=0;
 DROP TABLE t1, t2;

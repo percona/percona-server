@@ -1,4 +1,4 @@
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT
 PRIMARY KEY) ENGINE=rocksdb;
 INSERT INTO t1 (a,b) VALUES

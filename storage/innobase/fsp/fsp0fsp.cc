@@ -278,9 +278,8 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-	/* Only single-table and not temp tablespaces use the encryption
-	clause. */
-	if (is_encryption && (is_shared || is_temp)) {
+	/* Temporary tablespaces do not use the encryption clause. */
+	if (is_encryption && is_temp) {
 		return(false);
 	}
 
@@ -1009,6 +1008,9 @@ fsp_header_rotate_encryption(
 	ut_ad(space->encryption_type != Encryption::NONE);
 
 	const page_size_t	page_size(space->flags);
+
+	DBUG_EXECUTE_IF("fsp_header_rotate_encryption_failure",
+			return(false););
 
 	/* Fill encryption info. */
 	if (!fsp_header_fill_encryption_info(space,
@@ -3228,7 +3230,7 @@ fseg_alloc_free_page_general(
 	fseg_inode_t*	inode;
 	ulint		space_id;
 	fil_space_t*	space;
-	buf_block_t*	iblock;
+	buf_block_t*	iblock = NULL;
 	buf_block_t*	block;
 	ulint		n_reserved;
 
@@ -3713,7 +3715,7 @@ fseg_free_page(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	fseg_inode_t*		seg_inode;
-	buf_block_t*		iblock;
+	buf_block_t*		iblock = NULL;
 	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	const page_size_t	page_size(space->flags);
 

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/22/2017
+.\"      Date: 09/13/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -58,16 +58,9 @@ because that program invokes
 to check all tables and repair them if necessary\&.)
 .PP
 \fBmysqlcheck\fR
-is similar in function to
-\fBmyisamchk\fR, but works differently\&. The main operational difference is that
-\fBmysqlcheck\fR
 must be used when the
 \fBmysqld\fR
-server is running, whereas
-\fBmyisamchk\fR
-should be used when it is not\&. The benefit of using
-\fBmysqlcheck\fR
-is that you do not have to stop the server to perform table maintenance\&.
+server is running, which means that you do not have to stop the server to perform table maintenance\&.
 .PP
 \fBmysqlcheck\fR
 uses the SQL statements
@@ -78,15 +71,9 @@ OPTIMIZE TABLE
 in a convenient way for the user\&. It determines which statements to use for the operation you want to perform, and then sends the statements to the server to be executed\&. For details about which storage engines each statement works with, see the descriptions for those statements in
 Section\ \&13.7.2, \(lqTable Maintenance Statements\(rq\&.
 .PP
-The
-MyISAM
-storage engine supports all four maintenance operations, so
-\fBmysqlcheck\fR
-can be used to perform any of them on
-MyISAM
-tables\&. Other storage engines do not necessarily support all operations\&. In such cases, an error message is displayed\&. For example, if
+All storage engines do not necessarily support all four maintenance operations\&. In such cases, an error message is displayed\&. For example, if
 test\&.t
-is a
+is an
 MEMORY
 table, an attempt to check it produces this result:
 .sp
@@ -534,7 +521,7 @@ If you are using this option to repair tables, it runs an extended repair that m
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -758,7 +745,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysqlcheck\fR
 does not find it\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -858,7 +845,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 \fBNote\fR
 .ps -1
 .br
-Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them is removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
+Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them was removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
 Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
@@ -938,7 +925,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -969,7 +956,7 @@ option\&. All name arguments following the option are regarded as table names\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE

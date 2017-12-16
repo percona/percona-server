@@ -23,6 +23,7 @@ Build-Depends: bison,
                gcc (>= 4.4),
                g++ (>= 4.4),
                libwrap0-dev,
+               libcurl4-openssl-dev,
                libldap2-dev
 Standards-Version: 3.9.4
 Homepage: http://www.percona.com/software/percona-server/
@@ -47,7 +48,7 @@ Description: TokuDB engine plugin for Percona Server
 Package: percona-server-rocksdb-5.7
 Section: database
 Architecture: any
-Depends: percona-server-server-5.7 (= ${binary:Version})
+Depends: percona-server-server-5.7 (= ${binary:Version}), ${misc:Depends}
 Description: MyRocks storage engine plugin for Percona Server
  .
  MyRocks is a storage engine for Percona Server which incorporates RocksDB

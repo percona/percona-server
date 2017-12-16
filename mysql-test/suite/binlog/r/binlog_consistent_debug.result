@@ -32,7 +32,7 @@ SET GLOBAL sync_binlog = @saved_sync_binlog;
 FLUSH LOGS;
 # connection con1
 SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";
-PURGE BINARY LOGS BEFORE '9999-12-31';
+PURGE BINARY LOGS BEFORE '2038-01-19';
 # connection con2
 SET DEBUG_SYNC="materialize_session_status_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
 SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'Binlog_snapshot_%';;
@@ -47,6 +47,8 @@ SET DEBUG_SYNC="now SIGNAL finish_purge";
 SET DEBUG_SYNC="now SIGNAL finish_pfs";
 SET DEBUG_SYNC="now SIGNAL finish_show";
 # connection con1
+Warnings:
+Warning	1868	file ./master-bin.000002 was not purged because it is the active log file.
 # connection con2
 VARIABLE_NAME	VARIABLE_VALUE
 Binlog_snapshot_file	master-bin.000002

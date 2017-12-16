@@ -2787,6 +2787,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
              "The master event is logically timestamped incorrectly.");
+    // fallthrough
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;
@@ -10118,20 +10119,19 @@ Rows_log_event::next_record_scan(bool first_read)
     if (!first_read)
     {
       /*
-        if we fail to fetch next record corresponding to an index value, we
+        if we fail to fetch next record corresponding to a key value, we
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
-      error= table->file->ha_index_next(table->record[0]);
+      error= table->file->ha_index_next_same(table->record[0], m_key,
+                                             m_key_info->key_length);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+      {
         /*
-          if we are out of rows for this particular key value
-          or we have jumped to the next key value, we reposition the
-          marker according to the next key value that we have in the
-          list.
+          if we are out of rows for this particular key value, we reposition the
+          marker according to the next key value that we have in the list.
          */
-        if ((error) ||
-            (key_cmp(m_key_info->key_part, m_key, m_key_info->key_length) != 0))
+        if (error)
         {
           if (m_itr != m_distinct_keys.end())
           {
@@ -10142,6 +10142,7 @@ Rows_log_event::next_record_scan(bool first_read)
           else
             error= HA_ERR_KEY_NOT_FOUND;
         }
+      }
     }
 
     if (first_read)
@@ -10336,12 +10337,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     if (m_table->file->inited && (error= m_table->file->ha_index_end()))
       goto end;
 
-    if ((error= m_table->file->ha_rnd_init(FALSE)))
-      goto end;
-
     error= m_table->file->rnd_pos_by_record(m_table->record[0]);
-
-    m_table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
@@ -12229,7 +12225,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 
     Set 'sql_command' as SQLCOM_INSERT after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_INSERT;
@@ -12775,7 +12771,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_DELETE;
@@ -12912,7 +12908,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
    */
   thd->lex->sql_command= SQLCOM_UPDATE;
@@ -13591,10 +13587,10 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     function that would restore the tx_isolation after finishing the transaction
     may not happen.
   */
-  if (DBUG_EVALUATE("force_trx_as_rbr_only", true,
-                    !may_have_sbr_stmts &&
-                    thd->tx_isolation > ISO_READ_COMMITTED &&
-                    gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
+  if (DBUG_EVALUATE_IF("force_trx_as_rbr_only", true,
+                       !may_have_sbr_stmts &&
+                       thd->tx_isolation > ISO_READ_COMMITTED &&
+                       gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
   {
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::SESSION));

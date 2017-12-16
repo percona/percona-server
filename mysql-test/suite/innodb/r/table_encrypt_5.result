@@ -1,3 +1,6 @@
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
@@ -11,11 +14,8 @@ call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 # Starting server with keyring plugin  
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db. t_encrypt;
 CREATE DATABASE tde_db;
@@ -229,7 +229,7 @@ PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 #-----------------------------------------------------------------------
 # Test 1 : Restart with same keyring option , all tables accesible
 # restart with --early-plugin-load 
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
@@ -296,7 +296,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart with same --early-plugin-load and keyring_file_data option
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 COUNT(*)
 64
@@ -467,7 +467,7 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 , tde_db.t_non_encrypt_
 # Test 2 : Restart without keyring option - old encrypt table not 
 # accessible but rest are.
 # restart with --early-plugin-load to load initial data
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
@@ -582,7 +582,7 @@ DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4
 DROP DATABASE tde_db;
 # Initial setup
 # Starting server with keyring plugin 
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
@@ -918,7 +918,7 @@ ERROR HY000: Can't find master key from keyring, please check keyring plugin is 
 # Old encrypt table not accessible , non encrypt tables accessible
 # And creation of new encrypt,non encrypt table is also posible
 # restart with --early-plugin-load to load initial data
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS
 keyring_file	1.0	ACTIVE
@@ -985,7 +985,7 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 13	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 14	aaaaaaaaaaaaaaaa0001	{"key_a": 1, "key_b": 2, "key_c": 3}	1	2	POINT(383293632 1754448)
 # restart with with different keyring_file_data file
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring_new --plugin-dir=KEYRING_PLUGIN_PATH
+# restart:<hidden args>
 # encrypt table not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
 ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.

@@ -4,36 +4,26 @@ SET @orig_write_ignore_missing_column_families=@@global.rocksdb_write_ignore_mis
 SET GLOBAL rocksdb_write_disable_wal=false;
 SET GLOBAL rocksdb_write_ignore_missing_column_families=true;
 create table aaa (id int primary key, i int) engine=rocksdb;
-SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
+SET GLOBAL rocksdb_flush_log_at_trx_commit=1;
 select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 insert aaa(id, i) values(1,1);
 select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 variable_value-@a
-0
+1
 insert aaa(id, i) values(2,1);
 select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 variable_value-@a
-0
+2
 insert aaa(id, i) values(3,1);
 select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
 variable_value-@a
-0
-SET GLOBAL rocksdb_flush_log_at_trx_commit=1;
-insert aaa(id, i) values(4,1);
-select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
-variable_value-@a
-1
-insert aaa(id, i) values(5,1);
-select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
-variable_value-@a
-2
-insert aaa(id, i) values(6,1);
-select variable_value-@a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
-variable_value-@a
 3
+SET GLOBAL rocksdb_flush_log_at_trx_commit=0;
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+insert aaa(id, i) values(4,1);
 SET GLOBAL rocksdb_flush_log_at_trx_commit=2;
-insert aaa(id, i) values(7,1);
-truncate table aaa;
+select variable_value into @a from performance_schema.global_status where variable_name='rocksdb_wal_synced';
+insert aaa(id, i) values(5,1);
 drop table aaa;
 SET GLOBAL rocksdb_flush_log_at_trx_commit=@orig_rocksdb_flush_log_at_trx_commit;
 SET GLOBAL rocksdb_write_disable_wal=@orig_rocksdb_write_disable_wal;

@@ -1140,6 +1140,7 @@ THD::THD(bool enable_plugins)
    fill_variables_recursion_level(0),
    order_deterministic(false),
    binlog_row_event_extra_data(NULL),
+   skip_readonly_check(false),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -4017,6 +4018,16 @@ extern "C" void thd_set_kill_status(const MYSQL_THD thd)
 extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 {
   return((unsigned long)thd->thread_id());
+}
+
+/**
+  Return the query id of a thread
+  @param thd user thread
+  @return query id
+*/
+extern "C" int64_t thd_get_query_id(const MYSQL_THD thd)
+{
+  return(thd->query_id);
 }
 
 /**

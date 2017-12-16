@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* C++ standard header files */
+#include <algorithm>
+#include <cctype>
 #include <map>
 #include <string>
 #include <vector>
@@ -631,98 +633,24 @@ static int rdb_i_s_cfoptions_fill_table(my_core::THD *const thd,
         {"COMPACTION_OPTION_FIFO::MAX_TABLE_FILES_SIZE",
          std::to_string(opts.compaction_options_fifo.max_table_files_size)});
 
-    // get block-based table related options
-    const rocksdb::BlockBasedTableOptions &table_options =
-        rdb_get_table_options();
+    // get table related options
+    std::vector<std::string> table_options =
+        split_into_vector(opts.table_factory->GetPrintableTableOptions(), '\n');
 
-    // get BLOCK_BASED_TABLE_FACTORY::CACHE_INDEX_AND_FILTER_BLOCKS option
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::CACHE_INDEX_AND_FILTER_BLOCKS",
-         table_options.cache_index_and_filter_blocks ? "1" : "0"});
+    for (auto option : table_options) {
+      option.erase(std::remove(option.begin(), option.end(), ' '),
+                   option.end());
 
-    // get BLOCK_BASED_TABLE_FACTORY::INDEX_TYPE option value
-    switch (table_options.index_type) {
-    case rocksdb::BlockBasedTableOptions::kBinarySearch:
-      val = "kBinarySearch";
-      break;
-    case rocksdb::BlockBasedTableOptions::kHashSearch:
-      val = "kHashSearch";
-      break;
-    default:
-      val = "NULL";
+      int pos = option.find(":");
+      std::string option_name = option.substr(0, pos);
+      std::string option_value = option.substr(pos + 1, option.length());
+      std::transform(option_name.begin(), option_name.end(),
+                     option_name.begin(),
+                     [](unsigned char c) { return std::toupper(c); });
+
+      cf_option_types.push_back(
+          {"TABLE_FACTORY::" + option_name, option_value});
     }
-
-    cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::INDEX_TYPE", val});
-
-    // get BLOCK_BASED_TABLE_FACTORY::HASH_INDEX_ALLOW_COLLISION option value
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::HASH_INDEX_ALLOW_COLLISION",
-         table_options.hash_index_allow_collision ? "ON" : "OFF"});
-
-    // get BLOCK_BASED_TABLE_FACTORY::CHECKSUM option value
-    switch (table_options.checksum) {
-    case rocksdb::kNoChecksum:
-      val = "kNoChecksum";
-      break;
-    case rocksdb::kCRC32c:
-      val = "kCRC32c";
-      break;
-    case rocksdb::kxxHash:
-      val = "kxxHash";
-      break;
-    default:
-      val = "NULL";
-    }
-
-    cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::CHECKSUM", val});
-
-    // get BLOCK_BASED_TABLE_FACTORY::NO_BLOCK_CACHE option value
-    cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::NO_BLOCK_CACHE",
-                               table_options.no_block_cache ? "ON" : "OFF"});
-
-    // get BLOCK_BASED_TABLE_FACTORY::FILTER_POLICY option
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::FILTER_POLICY",
-         table_options.filter_policy == nullptr
-             ? "NULL"
-             : std::string(table_options.filter_policy->Name())});
-
-    // get BLOCK_BASED_TABLE_FACTORY::WHOLE_KEY_FILTERING option
-    cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::WHOLE_KEY_FILTERING",
-                               table_options.whole_key_filtering ? "1" : "0"});
-
-    // get BLOCK_BASED_TABLE_FACTORY::BLOCK_CACHE option
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::BLOCK_CACHE",
-         table_options.block_cache == nullptr
-             ? "NULL"
-             : std::to_string(table_options.block_cache->GetUsage())});
-
-    // get BLOCK_BASED_TABLE_FACTORY::BLOCK_CACHE_COMPRESSED option
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::BLOCK_CACHE_COMPRESSED",
-         table_options.block_cache_compressed == nullptr
-             ? "NULL"
-             : std::to_string(
-                   table_options.block_cache_compressed->GetUsage())});
-
-    // get BLOCK_BASED_TABLE_FACTORY::BLOCK_SIZE option
-    cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::BLOCK_SIZE",
-                               std::to_string(table_options.block_size)});
-
-    // get BLOCK_BASED_TABLE_FACTORY::BLOCK_SIZE_DEVIATION option
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::BLOCK_SIZE_DEVIATION",
-         std::to_string(table_options.block_size_deviation)});
-
-    // get BLOCK_BASED_TABLE_FACTORY::BLOCK_RESTART_INTERVAL option
-    cf_option_types.push_back(
-        {"BLOCK_BASED_TABLE_FACTORY::BLOCK_RESTART_INTERVAL",
-         std::to_string(table_options.block_restart_interval)});
-
-    // get BLOCK_BASED_TABLE_FACTORY::FORMAT_VERSION option
-    cf_option_types.push_back({"BLOCK_BASED_TABLE_FACTORY::FORMAT_VERSION",
-                               std::to_string(table_options.format_version)});
 
     for (const auto &cf_option_type : cf_option_types) {
       DBUG_ASSERT(tables->table != nullptr);
@@ -900,17 +828,22 @@ static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
       continue;
     }
 
-    std::map<std::string, double> props;
+    std::map<std::string, std::string> props;
     bool bool_ret MY_ATTRIBUTE((__unused__));
     bool_ret = rdb->GetMapProperty(cfh, "rocksdb.cfstats", &props);
     DBUG_ASSERT(bool_ret);
 
+    const std::string prop_name_prefix = "compaction.";
     for (auto const &prop_ent : props) {
       std::string prop_name = prop_ent.first;
-      double value = prop_ent.second;
-      std::size_t del_pos = prop_name.find('.');
+      if (prop_name.find(prop_name_prefix) != 0) {
+        continue;
+      }
+      std::string value = prop_ent.second;
+      std::size_t del_pos = prop_name.find('.', prop_name_prefix.size());
       DBUG_ASSERT(del_pos != std::string::npos);
-      std::string level_str = prop_name.substr(0, del_pos);
+      std::string level_str = prop_name.substr(
+          prop_name_prefix.size(), del_pos - prop_name_prefix.size());
       std::string type_str = prop_name.substr(del_pos + 1);
 
       Field **field = tables->table->field;
@@ -919,7 +852,7 @@ static int rdb_i_s_compact_stats_fill_table(my_core::THD *thd,
       field[0]->store(cf_name.c_str(), cf_name.size(), system_charset_info);
       field[1]->store(level_str.c_str(), level_str.size(), system_charset_info);
       field[2]->store(type_str.c_str(), type_str.size(), system_charset_info);
-      field[3]->store(value, true);
+      field[3]->store(std::stod(value));
 
       ret |= static_cast<int>(
           my_core::schema_table_store_record(thd, tables->table));
@@ -963,6 +896,8 @@ enum {
   INDEX_NUMBER,
   INDEX_TYPE,
   KV_FORMAT_VERSION,
+  TTL_DURATION,
+  INDEX_FLAGS,
   CF
 };
 } // namespace RDB_DDL_FIELD
@@ -978,6 +913,8 @@ static ST_FIELD_INFO rdb_i_s_ddl_fields_info[] = {
     ROCKSDB_FIELD_INFO("INDEX_TYPE", sizeof(uint16_t), MYSQL_TYPE_SHORT, 0),
     ROCKSDB_FIELD_INFO("KV_FORMAT_VERSION", sizeof(uint16_t), MYSQL_TYPE_SHORT,
                        0),
+    ROCKSDB_FIELD_INFO("TTL_DURATION", sizeof(uint64), MYSQL_TYPE_LONGLONG, 0),
+    ROCKSDB_FIELD_INFO("INDEX_FLAGS", sizeof(uint64), MYSQL_TYPE_LONGLONG, 0),
     ROCKSDB_FIELD_INFO("CF", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
     ROCKSDB_FIELD_INFO_END};
 
@@ -1019,6 +956,8 @@ int Rdb_ddl_scanner::add_table(Rdb_tbl_def *tdef) {
     field[RDB_DDL_FIELD::INDEX_TYPE]->store(kd.m_index_type, true);
     field[RDB_DDL_FIELD::KV_FORMAT_VERSION]->store(kd.m_kv_format_version,
                                                    true);
+    field[RDB_DDL_FIELD::TTL_DURATION]->store(kd.m_ttl_duration, true);
+    field[RDB_DDL_FIELD::INDEX_FLAGS]->store(kd.m_index_flags_bitmap, true);
 
     std::string cf_name = kd.get_cf()->GetName();
     field[RDB_DDL_FIELD::CF]->store(cf_name.c_str(), cf_name.size(),
@@ -1511,6 +1450,117 @@ static int rdb_i_s_trx_info_init(void *const p) {
   DBUG_RETURN(0);
 }
 
+/*
+  Support for INFORMATION_SCHEMA.ROCKSDB_DEADLOCK dynamic table
+ */
+namespace RDB_DEADLOCK_FIELD {
+enum {
+  DEADLOCK_ID = 0,
+  TRANSACTION_ID,
+  CF_NAME,
+  WAITING_KEY,
+  LOCK_TYPE,
+  INDEX_NAME,
+  TABLE_NAME,
+  ROLLED_BACK
+};
+} // namespace RDB_TRX_FIELD
+
+static ST_FIELD_INFO rdb_i_s_deadlock_info_fields_info[] = {
+    ROCKSDB_FIELD_INFO("DEADLOCK_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("TRANSACTION_ID", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO("CF_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("WAITING_KEY", FN_REFLEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("LOCK_TYPE", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("INDEX_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("TABLE_NAME", NAME_LEN + 1, MYSQL_TYPE_STRING, 0),
+    ROCKSDB_FIELD_INFO("ROLLED_BACK", sizeof(ulonglong), MYSQL_TYPE_LONGLONG,
+                       0),
+    ROCKSDB_FIELD_INFO_END};
+
+/* Fill the information_schema.rocksdb_trx virtual table */
+static int rdb_i_s_deadlock_info_fill_table(
+    my_core::THD *const thd, my_core::TABLE_LIST *const tables,
+    my_core::Item *const cond MY_ATTRIBUTE((__unused__))) {
+  DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(thd != nullptr);
+  DBUG_ASSERT(tables != nullptr);
+  DBUG_ASSERT(tables->table != nullptr);
+  DBUG_ASSERT(tables->table->field != nullptr);
+
+  static const std::string str_exclusive("EXCLUSIVE");
+  static const std::string str_shared("SHARED");
+
+  int ret = 0;
+  rocksdb::DB *const rdb = rdb_get_rocksdb_db();
+
+  if (!rdb) {
+    DBUG_RETURN(ret);
+  }
+
+  const std::vector<Rdb_deadlock_info> &all_dl_info = rdb_get_deadlock_info();
+
+  ulonglong id = 0;
+  for (const auto &info : all_dl_info) {
+    for (const auto &trx_info : info.path) {
+      tables->table->field[RDB_DEADLOCK_FIELD::DEADLOCK_ID]->store(id, true);
+      tables->table->field[RDB_DEADLOCK_FIELD::TRANSACTION_ID]->store(
+          trx_info.trx_id, true);
+      tables->table->field[RDB_DEADLOCK_FIELD::CF_NAME]->store(
+          trx_info.cf_name.c_str(), trx_info.cf_name.length(),
+          system_charset_info);
+      tables->table->field[RDB_DEADLOCK_FIELD::WAITING_KEY]->store(
+          trx_info.waiting_key.c_str(), trx_info.waiting_key.length(),
+          system_charset_info);
+      if (trx_info.exclusive_lock) {
+        tables->table->field[RDB_DEADLOCK_FIELD::LOCK_TYPE]->store(
+            str_exclusive.c_str(), str_exclusive.length(), system_charset_info);
+      } else {
+        tables->table->field[RDB_DEADLOCK_FIELD::LOCK_TYPE]->store(
+            str_shared.c_str(), str_shared.length(), system_charset_info);
+      }
+      tables->table->field[RDB_DEADLOCK_FIELD::INDEX_NAME]->store(
+          trx_info.index_name.c_str(), trx_info.index_name.length(),
+          system_charset_info);
+      tables->table->field[RDB_DEADLOCK_FIELD::TABLE_NAME]->store(
+          trx_info.table_name.c_str(), trx_info.table_name.length(),
+          system_charset_info);
+      tables->table->field[RDB_DEADLOCK_FIELD::ROLLED_BACK]->store(
+          trx_info.trx_id == info.victim_trx_id, true);
+
+      /* Tell MySQL about this row in the virtual table */
+      ret = static_cast<int>(
+          my_core::schema_table_store_record(thd, tables->table));
+
+      if (ret != 0) {
+        break;
+      }
+    }
+    id++;
+  }
+
+  DBUG_RETURN(ret);
+}
+
+/* Initialize the information_schema.rocksdb_trx_info virtual table */
+static int rdb_i_s_deadlock_info_init(void *const p) {
+  DBUG_ENTER_FUNC();
+
+  DBUG_ASSERT(p != nullptr);
+
+  my_core::ST_SCHEMA_TABLE *schema;
+
+  schema = (my_core::ST_SCHEMA_TABLE *)p;
+
+  schema->fields_info = rdb_i_s_deadlock_info_fields_info;
+  schema->fill_table = rdb_i_s_deadlock_info_fill_table;
+
+  DBUG_RETURN(0);
+}
+
 static int rdb_i_s_deinit(void *p MY_ATTRIBUTE((__unused__))) {
   DBUG_ENTER_FUNC();
   DBUG_RETURN(0);
@@ -1687,6 +1737,22 @@ struct st_mysql_plugin rdb_i_s_trx_info = {
     "RocksDB transaction information",
     PLUGIN_LICENSE_GPL,
     rdb_i_s_trx_info_init,
+    nullptr,
+    0x0001,  /* version number (0.1) */
+    nullptr, /* status variables */
+    nullptr, /* system variables */
+    nullptr, /* config options */
+    0,       /* flags */
+};
+
+struct st_mysql_plugin rdb_i_s_deadlock_info = {
+    MYSQL_INFORMATION_SCHEMA_PLUGIN,
+    &rdb_i_s_info,
+    "ROCKSDB_DEADLOCK",
+    "Facebook",
+    "RocksDB transaction information",
+    PLUGIN_LICENSE_GPL,
+    rdb_i_s_deadlock_info_init,
     nullptr,
     0x0001,  /* version number (0.1) */
     nullptr, /* status variables */

@@ -127,13 +127,26 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info,
 
     if (is_variable_size)
     {
-      /* Check whether we have any variable size records past key data */
       uint has_variable_fields= 0;
 
-      fixed_data_length= create_info->fixed_data_size;
       fixed_column_count= create_info->fixed_key_fieldnr;
 
-      for (i= create_info->fixed_key_fieldnr; i < create_info->columns; i++)
+      /* Check whether we have any BLOB columns before key data, as currently
+      this is not supported */
+      for (i= 0; i < fixed_column_count; i++)
+      {
+        HP_COLUMNDEF *column= create_info->columndef + i;
+        if (is_blob_column(column))
+        {
+          my_error(ER_TABLE_CANT_HANDLE_BLOB, MYF(0));
+          goto err;
+        }
+      }
+
+      /* Check whether we have any variable size records past key data */
+      fixed_data_length= create_info->fixed_data_size;
+      DBUG_ASSERT(i == create_info->fixed_key_fieldnr);
+      for (; i < create_info->columns; i++)
       {
         HP_COLUMNDEF *column= create_info->columndef + i;
 	if ((column->type == MYSQL_TYPE_VARCHAR &&

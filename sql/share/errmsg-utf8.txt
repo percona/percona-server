@@ -6734,7 +6734,7 @@ ER_GTID_UNSAFE_CREATE_SELECT
   eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
+  eng "Statement violates GTID consistency: Under statement binary log mode CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."
@@ -7681,6 +7681,9 @@ ER_XA_RETRY
 ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
   eng "Function %s failed due to: %s."
 
+ER_BINLOG_UNSAFE_XA
+  eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
+
 ER_COMPRESSED_COLUMN_USED_AS_KEY
   eng "Compressed column '%-.192s' is not allowed in the key list"
 
@@ -7765,7 +7768,7 @@ ER_RDB_STATUS_MSG
   eng "%s, Status error %d received from RocksDB: %s"
 
 ER_RDB_TTL_UNSUPPORTED
-  eng "TTL support is currently disabled when table has secondary indexes or hidden PK."
+  eng "TTL support is currently disabled when table has a hidden PK."
 
 ER_RDB_TTL_COL_FORMAT
   eng "TTL column (%s) in MyRocks must be an unsigned non-null 64-bit integer, exist inside the table, and have an accompanying ttl duration."

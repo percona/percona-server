@@ -3087,3 +3087,17 @@ void Relay_log_info::detach_engine_ha_data(THD *thd)
   plugin_foreach(thd, detach_native_trx,
                  MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
 }
+
+void* Relay_log_info::operator new(size_t request)
+{
+  void* ptr;
+  if (posix_memalign(&ptr, __alignof__(Relay_log_info), sizeof(Relay_log_info))) {
+    throw std::bad_alloc();
+  }
+  return ptr;
+}
+
+void Relay_log_info::operator delete(void * ptr) {
+  free(ptr);
+}
+

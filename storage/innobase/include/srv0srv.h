@@ -45,6 +45,7 @@ Created 10/10/1995 Heikki Tuuri
 
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/psi.h"
+#include "sql_thd_internal_api.h"
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
@@ -137,6 +138,9 @@ struct srv_stats_t {
 	ulint_ctr_64_t		n_rows_inserted;
 
 	ulint_ctr_1_t		n_lock_max_wait_time;
+
+	/** Number of buffered aio requests submitted */
+	ulint_ctr_64_t		n_aio_submitted;
 };
 
 extern const char*	srv_main_thread_op_info;
@@ -562,6 +566,9 @@ extern ulong srv_sync_array_size;
 
 /* print all user-level transactions deadlocks to mysqld stderr */
 extern my_bool srv_print_all_deadlocks;
+
+/* print lock wait timeout info to mysqld stderr */
+extern my_bool srv_print_lock_wait_timeout_info;
 
 extern my_bool	srv_cmp_per_index_enabled;
 
@@ -1095,6 +1102,11 @@ struct export_var_t{
 #endif /* UNIV_DEBUG */
 	ulint innodb_sec_rec_cluster_reads;	/*!< srv_sec_rec_cluster_reads */
 	ulint innodb_sec_rec_cluster_reads_avoided; /*!< srv_sec_rec_cluster_reads_avoided */
+
+	ulint innodb_buffered_aio_submitted;
+
+	fragmentation_stats_t innodb_fragmentation_stats;/*!< Fragmentation
+						statistics */
 };
 
 /** Thread slot in the thread table.  */

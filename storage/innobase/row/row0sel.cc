@@ -3292,8 +3292,8 @@ row_sel_store_mysql_rec(
 	const ulint*	offsets,
 	bool		clust_templ_for_sec)
 {
-	ulint			i;
-	std::vector<ulint>	template_col;
+	ulint				i;
+	std::vector<const dict_col_t*>	template_col;
 	DBUG_ENTER("row_sel_store_mysql_rec");
 
 	ut_ad(rec_clust || index == prebuilt->index);
@@ -3307,13 +3307,24 @@ row_sel_store_mysql_rec(
 		mem_heap_empty(prebuilt->compress_heap);
 
 	if (clust_templ_for_sec) {
-		/* Store all clustered index field of
+		/* Store all clustered index column of
 		secondary index record. */
-		for (i = 0; i < dict_index_get_n_fields(
-				prebuilt->index); i++) {
+
+		ut_ad(dict_index_is_clust(index));
+
+		for (i = 0; i < dict_index_get_n_fields(prebuilt->index); i++) {
 			ulint   sec_field = dict_index_get_nth_field_pos(
 				index, prebuilt->index, i);
-			template_col.push_back(sec_field);
+
+			if (sec_field == ULINT_UNDEFINED) {
+				template_col.push_back(NULL);
+				continue;
+			}
+
+			const dict_field_t*	field = dict_index_get_nth_field(
+						index, sec_field);
+			const dict_col_t*	col = dict_field_get_col(field);
+			template_col.push_back(col);
 		}
 	}
 
@@ -3396,10 +3407,13 @@ row_sel_store_mysql_rec(
 		      == 0 || templ->rec_field_is_prefix);
 
 		if (clust_templ_for_sec) {
-			std::vector<ulint>::iterator    it;
+			std::vector<const dict_col_t*>::iterator    it;
+			const dict_field_t*	field = dict_index_get_nth_field(
+							index, field_no);
+			const dict_col_t*	col = dict_field_get_col(field);
 
 			it = std::find(template_col.begin(),
-				       template_col.end(), field_no);
+				       template_col.end(), col);
 
 			if (it == template_col.end()) {
 				continue;
@@ -5227,13 +5241,17 @@ rec_loop:
 
 	if (page_rec_is_supremum(rec)) {
 
+		DBUG_EXECUTE_IF("compare_end_range",
+				if (end_loop < 100) {
+					end_loop = 100;
+				});
 		/** Compare the last record of the page with end range
 		passed to InnoDB when there is no ICP and number of
 		loops in row_search_mvcc for rows found but not
 		reporting due to search views etc. */
 		if (prev_rec != NULL
 		    && prebuilt->m_mysql_handler->end_range != NULL
-		    && prebuilt->idx_cond == false && end_loop >= 100) {
+		    && prebuilt->idx_cond == NULL && end_loop >= 100) {
 
 			dict_index_t*	key_index = prebuilt->index;
 			bool		clust_templ_for_sec = false;
@@ -5266,7 +5284,7 @@ rec_loop:
 
 					/** In case of prebuilt->fetch,
 					set the error in prebuilt->end_range. */
-					if (prebuilt->n_fetch_cached > 0) {
+					if (next_buf != NULL) {
 						prebuilt->m_end_range = true;
 					}
 

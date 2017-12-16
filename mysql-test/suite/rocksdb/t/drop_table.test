@@ -1,11 +1,14 @@
 --source include/have_rocksdb.inc
 
+call mtr.add_suppression("Column family 'cf1' not found");
+call mtr.add_suppression("Column family 'rev:cf2' not found");
+call mtr.add_suppression("LibRocksDB");
+
 # Start from clean slate
 set global rocksdb_compact_cf = 'cf1';
 set global rocksdb_compact_cf = 'rev:cf2';
 set global rocksdb_signal_drop_index_thread = 1;
 --source include/restart_mysqld.inc
---exec truncate --size=0 $MYSQLTEST_VARDIR/log/mysqld.1.err
 
 CREATE TABLE t1 (
   a int not null,
@@ -97,11 +100,6 @@ let $wait_condition = select count(*) = 0
                       as c from information_schema.rocksdb_global_info
                       where TYPE = 'DDL_DROP_INDEX_ONGOING';
 --source include/wait_condition.inc
-
-# Get list of all indices needing to be dropped
-# Check total compacted-away rows for all indices
-# Check that all indices have been successfully dropped
---exec perl suite/rocksdb/t/drop_table_compactions.pl $MYSQLTEST_VARDIR/log/mysqld.1.err
 
 # Cleanup
 drop table t1;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Full Text Search interface
 #include "row0mysql.h"
 #include "row0upd.h"
 #include "dict0types.h"
+#include "dict0stats_bg.h"
 #include "row0sel.h"
 #include "fts0fts.h"
 #include "fts0priv.h"
@@ -833,18 +834,38 @@ fts_drop_index(
 
 			err = fts_drop_index_tables(trx, index);
 
-			fts_free(table);
-
+			for(;;) {
+				bool retry = false;
+				if (index->index_fts_syncing) {
+					retry = true;
+				}
+				if (!retry){
+					 fts_free(table);
+					break;
+				}
+				DICT_BG_YIELD(trx);
+			}
 			return(err);
 		}
 
-		current_doc_id = table->fts->cache->next_doc_id;
-		first_doc_id = table->fts->cache->first_doc_id;
-		fts_cache_clear(table->fts->cache);
-		fts_cache_destroy(table->fts->cache);
-		table->fts->cache = fts_cache_create(table);
-		table->fts->cache->next_doc_id = current_doc_id;
-		table->fts->cache->first_doc_id = first_doc_id;
+			for(;;) {
+				bool retry = false;
+				if (index->index_fts_syncing) {
+                                        retry = true;
+                                }
+                                if (!retry){
+					current_doc_id = table->fts->cache->next_doc_id;
+					first_doc_id = table->fts->cache->first_doc_id;
+					fts_cache_clear(table->fts->cache);
+					fts_cache_destroy(table->fts->cache);
+					table->fts->cache = fts_cache_create(table);
+					table->fts->cache->next_doc_id = current_doc_id;
+					table->fts->cache->first_doc_id = first_doc_id;
+					break;
+                                }
+				DICT_BG_YIELD(trx);
+			}
+
 	} else {
 		fts_cache_t*            cache = table->fts->cache;
 		fts_index_cache_t*      index_cache;
@@ -854,9 +875,17 @@ fts_drop_index(
 		index_cache = fts_find_index_cache(cache, index);
 
 		if (index_cache != NULL) {
-			if (index_cache->words) {
-				fts_words_free(index_cache->words);
-				rbt_free(index_cache->words);
+			for(;;) {
+                                bool retry = false;
+                                if (index->index_fts_syncing) {
+                                        retry = true;
+                                }
+				if (!retry && index_cache->words) {
+					fts_words_free(index_cache->words);
+					rbt_free(index_cache->words);
+					break;
+				}
+				DICT_BG_YIELD(trx);
 			}
 
 			ib_vector_remove(cache->indexes, *(void**) index_cache);
@@ -1195,11 +1224,13 @@ fts_tokenizer_word_get(
 
 	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 
+	ut_ad(current_thd != NULL);
 	/* If it is a stopword, do not index it */
 	if (!fts_check_token(text,
 		    cache->stopword_info.cached_stopword,
 		    index_cache->index->is_ngram,
-		    index_cache->charset)) {
+		    index_cache->charset,
+		    thd_has_ft_ignore_stopwords(current_thd))) {
 
 		return(NULL);
 	}
@@ -4695,6 +4726,16 @@ begin_sync:
 		index_cache = static_cast<fts_index_cache_t*>(
 			ib_vector_get(cache->indexes, i));
 
+		if (index_cache->index->to_be_dropped
+		    || index_cache->index->table->to_be_dropped) {
+			continue;
+		}
+
+		index_cache->index->index_fts_syncing = true;
+		DBUG_EXECUTE_IF("fts_instrument_sync_sleep_drop_waits",
+                        os_thread_sleep(10000000);
+                        );
+
 		error = fts_sync_index(sync, index_cache);
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
@@ -4732,6 +4773,16 @@ end_sync:
 	}
 
 	rw_lock_x_lock(&cache->lock);
+	/* Clear fts syncing flags of any indexes incase sync is
+	interrupeted */
+	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+		fts_index_cache_t*      index_cache;
+		index_cache = static_cast<fts_index_cache_t*>(
+			ib_vector_get(cache->indexes, i));
+			if (index_cache->index->index_fts_syncing == true) {
+				index_cache->index->index_fts_syncing = false;
+			}
+		}
 	sync->interrupted = false;
 	sync->in_progress = false;
 	os_event_set(sync->event);
@@ -4786,6 +4837,7 @@ or greater than fts_max_token_size.
 @param[in]	stopwords	stopwords rb tree
 @param[in]	is_ngram	is ngram parser
 @param[in]	cs		token charset
+@param[in]	skip		true if the check should be skipped
 @retval	true	if it is not stopword and length in range
 @retval	false	if it is stopword or lenght not in range */
 bool
@@ -4793,9 +4845,14 @@ fts_check_token(
 	const fts_string_t*		token,
 	const ib_rbt_t*			stopwords,
 	bool				is_ngram,
-	const CHARSET_INFO*		cs)
+	const CHARSET_INFO*		cs,
+	bool				skip)
 {
 	ut_ad(cs != NULL || stopwords == NULL);
+
+	if (skip) {
+		return(true);
+	}
 
 	if (!is_ngram) {
 		ib_rbt_bound_t  parent;
@@ -4898,8 +4955,10 @@ fts_add_token(
 	/* Ignore string whose character number is less than
 	"fts_min_token_size" or more than "fts_max_token_size" */
 
+	ut_ad(current_thd != NULL);
 	if (fts_check_token(&str, NULL, result_doc->is_ngram,
-			    result_doc->charset)) {
+			    result_doc->charset,
+			    thd_has_ft_ignore_stopwords(current_thd))) {
 
 		mem_heap_t*	heap;
 		fts_string_t	t_str;

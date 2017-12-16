@@ -903,6 +903,10 @@ static MYSQL_THDVAR_STR(tmpdir,
   "Directory for temporary non-tablespace files.",
   innodb_tmpdir_validate, NULL, NULL);
 
+static MYSQL_THDVAR_BOOL(ft_ignore_stopwords, PLUGIN_VAR_OPCMDARG,
+  "Instruct FTS to ignore stopwords.",
+  NULL, NULL, FALSE);
+
 static SHOW_VAR innodb_status_variables[]= {
   {"background_log_sync",
   (char*) &export_vars.innodb_background_log_sync,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -1062,6 +1066,24 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_sec_rec_cluster_reads,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"secondary_index_triggered_cluster_reads_avoided",
   (char*) &export_vars.innodb_sec_rec_cluster_reads_avoided, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"buffered_aio_submitted",
+  (char*) &export_vars.innodb_buffered_aio_submitted,	  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+
+  {"scan_pages_contiguous",
+  (char*) &export_vars.innodb_fragmentation_stats.scan_pages_contiguous,
+  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scan_pages_disjointed",
+  (char*) &export_vars.innodb_fragmentation_stats.scan_pages_disjointed,
+  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scan_pages_total_seek_distance",
+  (char*) &export_vars.innodb_fragmentation_stats.scan_pages_total_seek_distance,
+  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scan_data_size",
+  (char*) &export_vars.innodb_fragmentation_stats.scan_data_size,
+  SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"scan_deleted_recs_size",
+  (char*) &export_vars.innodb_fragmentation_stats.scan_deleted_recs_size,
+  SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
@@ -1830,6 +1852,16 @@ thd_lock_wait_timeout(
 	/* According to <mysql/plugin.h>, passing thd == NULL
 	returns the global value of the session variable. */
 	return(THDVAR(thd, lock_wait_timeout));
+}
+
+/** Is FT ignore stopwords variable set.
+@param thd Thread object
+@return true if ft_ignore_stopwords is set, false otherwise. */
+bool
+thd_has_ft_ignore_stopwords(THD* thd)
+{
+	bool res = THDVAR(thd, ft_ignore_stopwords);
+	return(res);
 }
 
 /******************************************************************//**
@@ -3083,6 +3115,7 @@ ha_innobase::ha_innobase(
 			  | HA_GENERATED_COLUMNS
 			  | HA_ATTACHABLE_TRX_COMPATIBLE
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
+			  | HA_ONLINE_ANALYZE
 		  ),
 	m_start_of_scan(),
 	m_num_write_row(),
@@ -8039,7 +8072,8 @@ ha_innobase::innobase_lock_autoinc(void)
 				break;
 			}
 		}
-		/* Fall through to old style locking. */
+		// fallthrough
+		// to old style locking.
 
 	case AUTOINC_OLD_STYLE_LOCKING:
 		DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used",
@@ -11046,15 +11080,7 @@ err_col:
 
 		const char*	encrypt = m_create_info->encrypt_type.str;
 
-		if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)
-		    && m_create_info->encrypt_type.length > 0
-		    && !Encryption::is_none(encrypt)) {
-
-			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-			err = DB_UNSUPPORTED;
-			dict_mem_table_free(table);
-
-		} else if (!Encryption::is_none(encrypt)) {
+		if (!Encryption::is_none(encrypt)) {
 			/* Set the encryption flag. */
 			byte*			master_key = NULL;
 			ulint			master_key_id;
@@ -11680,6 +11706,68 @@ create_table_info_t::create_option_compression_is_valid()
 	return(true);
 }
 
+/** Validate ENCRYPTION option.
+@return true if valid, false if not. */
+bool
+create_table_info_t::create_option_encryption_is_valid() const
+{
+	ulint	space_id;
+
+	if (m_create_info->encrypt_type.length > 0) {
+		dberr_t		err;
+
+		err = Encryption::validate(m_create_info->encrypt_type.str);
+
+		if (err == DB_UNSUPPORTED) {
+			my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+			return(false);
+		}
+	}
+
+	bool table_is_encrypted =
+		!Encryption::is_none(m_create_info->encrypt_type.str);
+
+	if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
+		&& table_is_encrypted) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Unsupported encryption option for"
+			" temporary tables.", MYF(0));
+		return(false);
+	} else if (m_use_shared_space) {
+		space_id = fil_space_get_id_by_name(m_create_info->tablespace);
+
+		/* Space id already validated by
+		create_option_tablespace_is_valid */
+		ut_a(space_id != ULINT_UNDEFINED);
+	} else if (!m_use_file_per_table) {
+		space_id = TRX_SYS_SPACE;
+	} else {
+		return(true);
+	}
+
+	ulint	fsp_flags = fil_space_get_flags(space_id);
+
+	bool tablespace_is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
+	const char *tablespace_name = m_create_info->tablespace != NULL ?
+		m_create_info->tablespace : reserved_system_space_name;
+
+	if (table_is_encrypted && !tablespace_is_encrypted) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Tablespace `%s` cannot contain an"
+			" ENCRYPTED table.", MYF(0), tablespace_name);
+		return(false);
+	}
+
+	if (!table_is_encrypted && tablespace_is_encrypted) {
+		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: Tablespace `%s` can contain only an"
+			" ENCRYPTED tables.", MYF(0), tablespace_name);
+		return(false);
+	}
+
+	return(true);
+}
+
 /** Validate the create options. Check that the options KEY_BLOCK_SIZE,
 ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE are compatible with
 each other and other settings.  These CREATE OPTIONS are not validated
@@ -11704,6 +11792,11 @@ create_table_info_t::create_options_are_invalid()
 	and is compatible with this table */
 	if (!create_option_tablespace_is_valid()) {
 		return("TABLESPACE");
+	}
+
+	/* Validate encryption parameter even if strict_mode is OFF. */
+	if (!create_option_encryption_is_valid()) {
+		return("ENCRYPTION");
 	}
 
 	/* If innodb_strict_mode is not set don't do any more validation.
@@ -11860,18 +11953,6 @@ create_table_info_t::create_options_are_invalid()
 	/* Validate the page compression parameter. */
 	if (!create_option_compression_is_valid()) {
 		return("COMPRESSION");
-	}
-
-	/* Check the encryption option. */
-	if (ret == NULL && m_create_info->encrypt_type.length > 0) {
-		dberr_t		err;
-
-		err = Encryption::validate(m_create_info->encrypt_type.str);
-
-		if (err == DB_UNSUPPORTED) {
-			my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
-			ret = "ENCRYPTION";
-		}
 	}
 
 	return(ret);
@@ -12061,9 +12142,7 @@ create_table_info_t::innobase_table_flags()
 			DBUG_RETURN(false);
 		}
 
-		if (m_use_shared_space
-		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
-		    || !m_use_file_per_table) {
+		if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 			if (!Encryption::is_none(encryption)) {
 				/* Can't encrypt shared tablespace */
 				my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
@@ -12233,7 +12312,8 @@ index_bad:
 			break;
 		}
 		zip_allowed = false;
-		/* fall through to set row_type = DYNAMIC */
+		// fallthrough
+		// to set row_type = DYNAMIC
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
@@ -12242,6 +12322,7 @@ index_bad:
 			m_thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=DYNAMIC.");
+		// fallthrough
 	case ROW_TYPE_DYNAMIC:
 		innodb_row_format = REC_FORMAT_DYNAMIC;
 		break;
@@ -13505,6 +13586,17 @@ validate_create_tablespace_info(
 		}
 	}
 
+	if (alter_info->encrypt) {
+		dberr_t		err;
+
+		err = Encryption::validate(alter_info->encrypt_type.str);
+
+		if (err == DB_UNSUPPORTED) {
+			my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+			return(HA_WRONG_CREATE_OPTION);
+		}
+	}
+
 	/* Validate the ADD DATAFILE name. */
 	char*	filepath = mem_strdup(alter_info->data_file_name);
 	os_normalize_path(filepath);
@@ -13648,6 +13740,8 @@ innobase_create_tablespace(
 	bool	zipped = (zip_size != UNIV_PAGE_SIZE);
 	page_size_t	page_size(zip_size, UNIV_PAGE_SIZE, zipped);
 	bool atomic_blobs = page_size.is_compressed();
+	bool is_encrypted = (alter_info->encrypt
+		&& !Encryption::is_none(alter_info->encrypt_type.str));
 
 	/* Create the filespace flags */
 	ulint	fsp_flags = fsp_flags_init(
@@ -13655,7 +13749,8 @@ innobase_create_tablespace(
 		atomic_blobs,	/* needed only for compressed tables */
 		false,		/* This is not a file-per-table tablespace */
 		true,		/* This is a general shared tablespace */
-		false);		/* Temporary General Tablespaces not allowed */
+		false,		/* Temporary General Tablespaces not allowed */
+		is_encrypted);	/* Create encrypted tablespace if needed */
 	tablespace.set_flags(fsp_flags);
 
 	err = dict_build_tablespace(&tablespace);
@@ -21514,6 +21609,13 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   "Print all deadlocks to MySQL error log (off by default)",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_BOOL(
+  print_lock_wait_timeout_info,
+  srv_print_lock_wait_timeout_info,
+  PLUGIN_VAR_OPCMDARG,
+  "Print lock wait timeout info to MySQL error log (off by default)",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_ULONG(compression_failure_threshold_pct,
   zip_failure_threshold_pct, PLUGIN_VAR_OPCMDARG,
   "If the compression failure rate of a table is greater than this number"
@@ -21808,6 +21910,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(cleaner_lsn_age_factor),
   MYSQL_SYSVAR(empty_free_list_algorithm),
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(print_lock_wait_timeout_info),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(max_undo_log_size),
@@ -21837,6 +21940,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(parallel_doublewrite_path),
   MYSQL_SYSVAR(compressed_columns_zip_level),
   MYSQL_SYSVAR(compressed_columns_threshold),
+  MYSQL_SYSVAR(ft_ignore_stopwords),
   NULL
 };
 

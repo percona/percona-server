@@ -106,6 +106,13 @@ flag is cleared and the x-lock released by an i/o-handler thread.
 @param[in] mode		BUF_READ_IBUF_PAGES_ONLY, ...,
 @param[in] page_id	page id
 @param[in] unzip	true=request uncompressed page
+@param[in] should_buffer
+			whether to buffer an aio request.
+			AIO read ahead uses this. If you plan to
+			use this parameter, make sure you remember to
+			call os_aio_dispatch_read_array_submit()
+			when you're ready to commit all your requests.
+
 @return 1 if a read request was queued, 0 if the page already resided
 in buf_pool, or if the page is in the doublewrite buffer blocks in
 which case it is never read into the pool, or if the tablespace does
@@ -120,7 +127,8 @@ buf_read_page_low(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	bool			unzip,
-	trx_t*			trx)
+	trx_t*			trx,
+	bool			should_buffer)
 {
 	buf_page_t*	bpage;
 
@@ -182,11 +190,23 @@ buf_read_page_low(
 		dst = ((buf_block_t*) bpage)->frame;
 	}
 
+	/* This debug code is only for 5.7. In trunk, with newDD,
+	the space->name is no longer same as table name. */
+	DBUG_EXECUTE_IF("innodb_invalid_read_after_truncate",
+		fil_space_t*	space = fil_space_get(page_id.space());
+
+		if (space != NULL && strcmp(space->name, "test/t1") == 0
+		    && page_id.page_no() == space->size - 1) {
+			type = IORequest::READ;
+			sync = true;
+		}
+	);
+
 	IORequest	request(type | IORequest::READ);
 
 	*err = _fil_io(
 		request, sync, page_id, page_size, 0, page_size.physical(),
-		dst, bpage, trx);
+		dst, bpage, trx, should_buffer);
 
 	if (sync) {
 		thd_wait_end(NULL);
@@ -326,6 +346,17 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
+		/* This debug code is only for 5.7. In trunk, with newDD,
+		the space->name is no longer same as table name. */
+		DBUG_EXECUTE_IF("innodb_invalid_read_after_truncate",
+			fil_space_t*	space = fil_space_get(page_id.space());
+
+			if (space != NULL
+			    && strcmp(space->name, "test/t1") == 0) {
+				high = space->size;
+				goto read_ahead;
+			}
+		);
 
 		rw_lock_t* hash_lock;
 
@@ -379,7 +410,7 @@ read_ahead:
 				&err, false,
 				IORequest::DO_NOT_WAKE,
 				ibuf_mode,
-				cur_page_id, page_size, false, trx);
+				cur_page_id, page_size, false, trx, false);
 
 			if (err == DB_TABLESPACE_DELETED) {
 				ib::warn() << "Random readahead trying to"
@@ -439,7 +470,7 @@ buf_read_page(
 
 	count = buf_read_page_low(
 		&err, true,
-		0, BUF_READ_ANY_PAGE, page_id, page_size, false, trx);
+		0, BUF_READ_ANY_PAGE, page_id, page_size, false, trx, false);
 
 	srv_stats.buf_pool_reads.add(count);
 
@@ -475,7 +506,7 @@ buf_read_page_background(
 		&err, sync,
 		IORequest::DO_NOT_WAKE | IORequest::IGNORE_MISSING,
 		BUF_READ_ANY_PAGE,
-		page_id, page_size, false, NULL);
+		page_id, page_size, false, NULL, false);
 
 	srv_stats.buf_pool_reads.add(count);
 
@@ -754,7 +785,8 @@ buf_read_ahead_linear(
 			count += buf_read_page_low(
 				&err, false,
 				IORequest::DO_NOT_WAKE,
-				ibuf_mode, cur_page_id, page_size, false, trx);
+				ibuf_mode, cur_page_id, page_size, false,
+				trx, true);
 
 			if (err == DB_TABLESPACE_DELETED) {
 				ib::warn() << "linear readahead trying to"
@@ -765,6 +797,7 @@ buf_read_ahead_linear(
 			}
 		}
 	}
+	os_aio_dispatch_read_array_submit();
 
 	/* In simulated aio we wake the aio handler threads only after
 	queuing all aio requests, in native aio the following call does
@@ -841,7 +874,7 @@ buf_read_ibuf_merge_pages(
 				  sync && (i + 1 == n_stored),
 				  0,
 				  BUF_READ_ANY_PAGE, page_id, page_size,
-				  true, NULL);
+				  true, NULL, false);
 
 		if (err == DB_TABLESPACE_DELETED) {
 			/* We have deleted or are deleting the single-table
@@ -918,13 +951,13 @@ buf_read_recv_pages(
 				&err, true,
 				0,
 				BUF_READ_ANY_PAGE,
-				cur_page_id, page_size, true, NULL);
+				cur_page_id, page_size, true, NULL, false);
 		} else {
 			buf_read_page_low(
 				&err, false,
 				IORequest::DO_NOT_WAKE,
 				BUF_READ_ANY_PAGE,
-				cur_page_id, page_size, true, NULL);
+				cur_page_id, page_size, true, NULL, false);
 		}
 	}
 

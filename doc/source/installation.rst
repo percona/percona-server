@@ -12,6 +12,7 @@ This page provides the information on how to you can install |Percona Server|. F
 * :ref:`installing_from_source_tarball`
 * :ref:`source_from_git`
 * :ref:`compile_from_source`
+* :ref:`docker`
 
 Before installing, you might want to read the :doc:`release-notes/release-notes_index`.
 
@@ -20,7 +21,7 @@ Before installing, you might want to read the :doc:`release-notes/release-notes_
 Installing |Percona Server| from Repositories
 =============================================
 
-|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommend way of installing where possible.
+|Percona| provides repositories for :program:`yum` (``RPM`` packages for *Red Hat*, *CentOS* and *Amazon Linux AMI*) and :program:`apt` (:file:`.deb` packages for *Ubuntu* and *Debian*) for software such as |Percona Server|, |Percona XtraBackup|, and *Percona Toolkit*. This makes it easy to install and update your software and its dependencies through your operating system's package manager. This is the recommended way of installing where possible.
 
 Following guides describe the installation process for using the official Percona repositories for :file:`.deb` and :file:`.rpm` packages.
 
@@ -156,3 +157,9 @@ packages for all Debian and Ubuntu releases.
 .. note::
 
   :ref:`pam_plugin` is not built with the server by default. In order to build the Percona Server with PAM plugin, additional option :option:`-DWITH_PAM=ON` should be used.
+
+.. toctree::
+   :hidden:
+
+   installation/docker
+

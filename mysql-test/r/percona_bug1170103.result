@@ -1,9 +1,17 @@
 CREATE TABLE t(a INT) ENGINE=InnoDB;
 INSERT INTO t VALUES (1), (2), (3);
 SET @old_query_cache_size=@@query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET @old_query_cache_type=@@query_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_size=1024*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type=1;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 SELECT * FROM t;
 a
 1
@@ -15,5 +23,9 @@ a
 2
 3
 SET GLOBAL query_cache_size=@old_query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type=@old_query_cache_type;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 DROP TABLE t;

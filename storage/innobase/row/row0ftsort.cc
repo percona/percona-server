@@ -520,7 +520,8 @@ row_merge_fts_doc_tokenize(
 
 		/* Ignore string whose character number is less than
 		"fts_min_token_size" or more than "fts_max_token_size" */
-		if (!fts_check_token(&str, NULL, is_ngram, NULL)) {
+		if (!fts_check_token(&str, NULL, is_ngram, NULL,
+				     t_ctx->ignore_stopwords)) {
 			if (parser != NULL) {
 				UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
 				ut_free(fts_token);
@@ -540,7 +541,8 @@ row_merge_fts_doc_tokenize(
 		/* if "cached_stopword" is defined, ignore words in the
 		stopword list */
 		if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram,
-				     doc->charset)) {
+				     doc->charset,
+				     t_ctx->ignore_stopwords)) {
 			if (parser != NULL) {
 				UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
 				ut_free(fts_token);
@@ -746,11 +748,12 @@ fts_parallel_tokenization(
 	fts_tokenize_ctx_t	t_ctx;
 	ulint			retried = 0;
 	dberr_t			error = DB_SUCCESS;
+	THD*			thd =
+		psort_info->psort_common->trx->mysql_thd;
 
-	ut_ad(psort_info->psort_common->trx->mysql_thd != NULL);
+	ut_ad(thd != NULL);
 
-	const char*		path = thd_innodb_tmpdir(
-		psort_info->psort_common->trx->mysql_thd);
+	const char*		path = thd_innodb_tmpdir(thd);
 
 	ut_ad(psort_info);
 
@@ -778,6 +781,7 @@ fts_parallel_tokenization(
 	row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
 	t_ctx.cached_stopword = table->fts->cache->stopword_info.cached_stopword;
+	t_ctx.ignore_stopwords = thd_has_ft_ignore_stopwords(thd);
 	processed = TRUE;
 loop:
 	while (doc_item) {

@@ -294,6 +294,12 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
+/**
+  There is no need to evict the table from the table definition cache having
+  run ANALYZE TABLE on it
+ */
+#define HA_ONLINE_ANALYZE             (1LL << 48)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
@@ -593,6 +599,8 @@ class st_alter_tablespace : public Sql_alloc
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
+  bool encrypt;
+  LEX_STRING encrypt_type;
   bool is_tablespace_command()
   {
     return ts_cmd_type == CREATE_TABLESPACE      ||
@@ -623,6 +631,8 @@ class st_alter_tablespace : public Sql_alloc
     wait_until_completed= TRUE;
     ts_comment= NULL;
     ts_access_mode= TS_NOT_DEFINED;
+    encrypt= false;
+    encrypt_type = LEX_STRING();
   }
 };
 
@@ -3056,9 +3066,18 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
+      int error;
       DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+
+      error = ha_rnd_init(FALSE);
+      if (error != 0)
+            return error;
+
       position(record);
-      return ha_rnd_pos(record, ref);
+      error = ha_rnd_pos(record, ref);
+      ha_rnd_end();
+      return error;
+
     }
   virtual int read_first_row(uchar *buf, uint primary_key);
   virtual ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key)

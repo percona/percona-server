@@ -23,6 +23,7 @@
 #include <cinttypes>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -90,6 +91,25 @@ struct Rdb_trx_info {
 };
 
 std::vector<Rdb_trx_info> rdb_get_all_trx_info();
+
+/*
+ * class for exporting deadlock transaction information for
+ * information_schema.rocksdb_deadlock
+ */
+struct Rdb_deadlock_info {
+  struct Rdb_dl_trx_info {
+    ulonglong trx_id;
+    std::string cf_name;
+    std::string waiting_key;
+    bool exclusive_lock;
+    std::string index_name;
+    std::string table_name;
+  };
+  std::vector <Rdb_dl_trx_info> path;
+  ulonglong victim_trx_id;
+};
+
+std::vector<Rdb_deadlock_info> rdb_get_deadlock_info();
 
 /*
   This is
@@ -192,16 +212,15 @@ const char *const RDB_TTL_COL_QUALIFIER = "ttl_col";
   CPU-s and derive the values from there. This however has its own set of
   problems and we'll choose simplicity for now.
 */
-#define MAX_BACKGROUND_COMPACTIONS 64
-#define MAX_BACKGROUND_FLUSHES 64
+constexpr int MAX_BACKGROUND_JOBS = 64;
 
-#define DEFAULT_SUBCOMPACTIONS 1
-#define MAX_SUBCOMPACTIONS 64
+constexpr int DEFAULT_SUBCOMPACTIONS = 1;
+constexpr int MAX_SUBCOMPACTIONS = 64;
 
 /*
-  Default value for rocksdb_sst_mgr_rate_bytes_per_sec = 64 MB.
+  Default value for rocksdb_sst_mgr_rate_bytes_per_sec = 0 (disabled).
 */
-constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 64 * 1024 * 1024;
+constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
 
 /*
   Defines the field sizes for serializing XID object to a string representation.
@@ -238,6 +257,12 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 64 * 1024 * 1024;
   enabled.
 */
 #define ROCKSDB_SIZEOF_TTL_RECORD sizeof(longlong)
+
+/*
+  Maximum index prefix length in bytes.
+*/
+constexpr uint MAX_INDEX_COL_LEN_LARGE = 3072;
+constexpr uint MAX_INDEX_COL_LEN_SMALL = 767;
 
 /*
   MyRocks specific error codes. NB! Please make sure that you will update
@@ -296,6 +321,12 @@ struct Rdb_table_handler {
   /* Stores cumulative table statistics */
   my_io_perf_atomic_t m_io_perf_read;
   Rdb_atomic_perf_counters m_table_perf_context;
+
+  /* Stores cached memtable estimate statistics */
+  std::atomic_uint m_mtcache_lock;
+  uint64_t m_mtcache_count;
+  uint64_t m_mtcache_size;
+  uint64_t m_mtcache_last_update;
 };
 
 class Rdb_key_def;
@@ -340,6 +371,7 @@ enum operation_type : int {
   ROWS_READ,
   ROWS_UPDATED,
   ROWS_EXPIRED,
+  ROWS_HIDDEN_NO_SNAPSHOT,
   ROWS_MAX
 };
 
@@ -360,6 +392,8 @@ struct st_global_stats {
   ib_counter_t<ulonglong, 64, RDB_INDEXER> system_rows[ROWS_MAX];
 
   ib_counter_t<ulonglong, 64, RDB_INDEXER> queries[QUERIES_MAX];
+
+  ib_counter_t<ulonglong, 64, RDB_INDEXER> covered_secondary_key_lookups;
 };
 
 /* Struct used for exporting status to MySQL */
@@ -369,6 +403,7 @@ struct st_export_stats {
   ulonglong rows_read;
   ulonglong rows_updated;
   ulonglong rows_expired;
+  ulonglong rows_hidden_no_snapshot;
 
   ulonglong system_rows_deleted;
   ulonglong system_rows_inserted;
@@ -377,12 +412,35 @@ struct st_export_stats {
 
   ulonglong queries_point;
   ulonglong queries_range;
+
+  ulonglong covered_secondary_key_lookups;
 };
 
 /* Struct used for exporting RocksDB memory status */
 struct st_memory_stats {
   ulonglong memtable_total;
   ulonglong memtable_unflushed;
+};
+
+/* Struct used for exporting RocksDB IO stalls stats */
+struct st_io_stall_stats {
+  ulonglong level0_slowdown;
+  ulonglong level0_slowdown_with_compaction;
+  ulonglong level0_numfiles;
+  ulonglong level0_numfiles_with_compaction;
+  ulonglong stop_for_pending_compaction_bytes;
+  ulonglong slowdown_for_pending_compaction_bytes;
+  ulonglong memtable_compaction;
+  ulonglong memtable_slowdown;
+  ulonglong total_stop;
+  ulonglong total_slowdown;
+
+  st_io_stall_stats()
+      : level0_slowdown(0), level0_slowdown_with_compaction(0),
+        level0_numfiles(0), level0_numfiles_with_compaction(0),
+        stop_for_pending_compaction_bytes(0),
+        slowdown_for_pending_compaction_bytes(0), memtable_compaction(0),
+        memtable_slowdown(0), total_stop(0), total_slowdown(0) {}
 };
 
 } // namespace myrocks
@@ -492,7 +550,13 @@ class ha_rocksdb : public my_core::handler {
   /*
     Pointer to the original TTL timestamp value (8 bytes) during UPDATE.
   */
-  const char *m_ttl_bytes;
+  char m_ttl_bytes[ROCKSDB_SIZEOF_TTL_RECORD];
+  /*
+    The TTL timestamp value can change if the explicit TTL column is
+    updated. If we detect this when updating the PK, we indicate it here so
+    we know we must always update any SK's.
+  */
+  bool m_ttl_bytes_updated;
 
   /* rowkey of the last record we've read, in StorageFormat. */
   String m_last_rowkey;
@@ -506,7 +570,7 @@ class ha_rocksdb : public my_core::handler {
     This is used only when we get the record with rocksdb's Get() call (The
     other option is when we get a rocksdb::Slice from an iterator)
   */
-  std::string m_retrieved_record;
+  rocksdb::PinnableSlice m_retrieved_record;
 
   /* Type of locking to apply to rows */
   enum { RDB_LOCK_NONE, RDB_LOCK_READ, RDB_LOCK_WRITE } m_lock_rows;
@@ -533,7 +597,9 @@ class ha_rocksdb : public my_core::handler {
   bool m_update_scope_is_valid;
 
   /* SST information used for bulk loading the primary key */
-  std::shared_ptr<Rdb_sst_info> m_sst_info;
+  std::unique_ptr<Rdb_sst_info> m_sst_info;
+  /* External merge sorts for bulk load: key ID -> merge sort instance */
+  std::unordered_map<GL_INDEX_ID, Rdb_index_merge> m_key_merge;
   Rdb_transaction *m_bulk_load_tx;
   /* Mutex to protect finalizing bulk load */
   mysql_mutex_t m_bulk_load_mutex;
@@ -566,16 +632,17 @@ class ha_rocksdb : public my_core::handler {
   rocksdb::Status
   get_for_update(Rdb_transaction *const tx,
                  rocksdb::ColumnFamilyHandle *const column_family,
-                 const rocksdb::Slice &key, std::string *const value) const;
+                 const rocksdb::Slice &key,
+                 rocksdb::PinnableSlice *value) const;
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
-                       const uint rowid_size)
+                       const uint rowid_size, const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
-                       const uint rowid_size)
+                       const uint rowid_size, const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
     return get_row_by_rowid(buf, reinterpret_cast<const char *>(rowid),
-                            rowid_size);
+                            rowid_size, skip_ttl_check);
   }
 
   void update_auto_incr_val();
@@ -623,6 +690,13 @@ class ha_rocksdb : public my_core::handler {
 
   /* Setup field_decoders based on type of scan and table->read_set */
   void setup_read_decoders();
+
+  /*
+    For the active index, indicates which columns must be covered for the
+    current lookup to be covered. If the bitmap field is null, that means this
+    index does not cover the current lookup for any record.
+   */
+  MY_BITMAP m_lookup_bitmap = {nullptr, 0, 0, nullptr, nullptr};
 
   /*
     Number of bytes in on-disk (storage) record format that are used for
@@ -673,8 +747,12 @@ public:
              my_core::TABLE_SHARE *const table_arg);
   ~ha_rocksdb() {
     int err MY_ATTRIBUTE((__unused__));
-    err = finalize_bulk_load();
-    DBUG_ASSERT(err == 0);
+    err = finalize_bulk_load(false);
+    if (err != 0) {
+      sql_print_error("RocksDB: Error %d finalizing bulk load while closing "
+                      "handler.",
+                      err);
+    }
     mysql_mutex_destroy(&m_bulk_load_mutex);
   }
 
@@ -725,7 +803,7 @@ public:
                 HA_REC_NOT_IN_SEQ | HA_CAN_INDEX_BLOBS |
                 (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
-                HA_PARTIAL_COLUMN_READ);
+                HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);
   }
 
   bool init_with_fields() override;
@@ -842,11 +920,7 @@ public:
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint max_supported_key_part_length() const override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN(2048);
-  }
+  uint max_supported_key_part_length() const override;
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle
@@ -1028,6 +1102,14 @@ private:
                                        rocksdb::Slice *const packed_rec)
       MY_ATTRIBUTE((__nonnull__));
 
+  bool should_hide_ttl_rec(const Rdb_key_def &kd,
+                           const rocksdb::Slice &ttl_rec_val,
+                           const int64_t curr_ts)
+      MY_ATTRIBUTE((__warn_unused_result__));
+  void rocksdb_skip_expired_records(const Rdb_key_def &kd,
+                                    rocksdb::Iterator *const iter,
+                                    bool seek_backward);
+
   int index_first_intern(uchar *buf)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int index_last_intern(uchar *buf)
@@ -1048,7 +1130,7 @@ private:
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_and_lock_sk(const uint &key_id,
                         const struct update_row_info &row_info,
-                        bool *const found) const
+                        bool *const found)
       MY_ATTRIBUTE((__warn_unused_result__));
   int check_uniqueness_and_lock(const struct update_row_info &row_info,
                                 bool *const pk_changed)
@@ -1060,7 +1142,8 @@ private:
                          struct unique_sk_buf_info *sk_info)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int bulk_load_key(Rdb_transaction *const tx, const Rdb_key_def &kd,
-                    const rocksdb::Slice &key, const rocksdb::Slice &value)
+                    const rocksdb::Slice &key, const rocksdb::Slice &value,
+                    bool sort)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int update_pk(const Rdb_key_def &kd, const struct update_row_info &row_info,
                 const bool &pk_changed) MY_ATTRIBUTE((__warn_unused_result__));
@@ -1073,18 +1156,22 @@ private:
 
   int read_key_exact(const Rdb_key_def &kd, rocksdb::Iterator *const iter,
                      const bool &using_full_key,
-                     const rocksdb::Slice &key_slice) const
+                     const rocksdb::Slice &key_slice,
+                     const int64_t ttl_filter_ts)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int read_before_key(const Rdb_key_def &kd, const bool &using_full_key,
-                      const rocksdb::Slice &key_slice)
+                      const rocksdb::Slice &key_slice,
+                      const int64_t ttl_filter_ts)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
-  int read_after_key(const Rdb_key_def &kd, const rocksdb::Slice &key_slice)
+  int read_after_key(const Rdb_key_def &kd, const rocksdb::Slice &key_slice,
+                     const int64_t ttl_filter_ts)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   int position_to_correct_key(
       const Rdb_key_def &kd, const enum ha_rkey_function &find_flag,
       const bool &full_key_match, const uchar *const key,
       const key_part_map &keypart_map, const rocksdb::Slice &key_slice,
-      bool *const move_forward) MY_ATTRIBUTE((__warn_unused_result__));
+      bool *const move_forward, const int64_t ttl_filter_ts)
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int read_row_from_primary_key(uchar *const buf)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
@@ -1157,7 +1244,7 @@ public:
     DBUG_ENTER_FUNC();
 
     /* Free blob data */
-    m_retrieved_record.clear();
+    m_retrieved_record.Reset();
 
     DBUG_RETURN(HA_EXIT_SUCCESS);
   }
@@ -1228,7 +1315,8 @@ public:
                              my_core::Alter_inplace_info *const ha_alter_info,
                              bool commit) override;
 
-  int finalize_bulk_load() MY_ATTRIBUTE((__warn_unused_result__));
+  int finalize_bulk_load(bool print_client_error = true)
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   void set_use_read_free_rpl(const char *const whitelist);
 
@@ -1298,5 +1386,4 @@ private:
   Rdb_inplace_alter_ctx(const Rdb_inplace_alter_ctx &);
   Rdb_inplace_alter_ctx &operator=(const Rdb_inplace_alter_ctx &);
 };
-
 } // namespace myrocks

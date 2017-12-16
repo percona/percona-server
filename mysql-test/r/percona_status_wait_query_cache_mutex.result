@@ -1,7 +1,15 @@
 SET GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 SET DEBUG_SYNC='after_query_cache_mutex SIGNAL mutex_locked WAIT_FOR unlock_mutex';
 SELECT "mutex_locked_query" as action;
@@ -12,6 +20,8 @@ SET DEBUG_SYNC='now WAIT_FOR try_lock_mutex';
 SELECT SQL_NO_CACHE state FROM INFORMATION_SCHEMA.PROCESSLIST WHERE info='SELECT "try_lock_mutex_query" as action';
 state
 Waiting on query cache mutex
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SET DEBUG_SYNC='now SIGNAL unlock_mutex';
 action
 mutex_locked_query
@@ -19,3 +29,5 @@ action
 try_lock_mutex_query
 SET DEBUG_SYNC= "RESET";
 SET GLOBAL query_cache_size=default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

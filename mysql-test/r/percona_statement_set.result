@@ -869,11 +869,10 @@ COMMIT;
 SET SESSION lock_wait_timeout = @old_lock_wait_timeout;
 Test for bug 1387951: SET STATEMENT ... FOR <statement> crashes server
 if <statement> is RW in a RO transaction
-SET @old_tx_read_only = @@session.tx_read_only;
-SET SESSION tx_read_only = TRUE;
+SET SESSION transaction_read_only = TRUE;
 SET STATEMENT myisam_repair_threads=0 FOR OPTIMIZE TABLE t0;
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
-SET SESSION tx_read_only = @old_tx_read_only;
+SET SESSION transaction_read_only = FALSE;
 Test for bug 1412423: SET STATEMENT ... FOR <statement> crashes server
 if <statement> needs to re-open a temp table and fails
 CREATE TEMPORARY TABLE t3 (a INT PRIMARY KEY) ENGINE=InnoDB;

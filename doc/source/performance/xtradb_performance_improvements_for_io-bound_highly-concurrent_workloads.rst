@@ -132,6 +132,8 @@ further governed by the exact value set: if it's set to ``O_DSYNC``, the
 parallel doublewrite is opened with ``O_SYNC`` flag too. Further, if it's one
 of ``O_DSYNC``, ``O_DIRECT_NO_FSYNC``, or ``ALL_O_DIRECT``, then the
 doublewrite file is not flushed after a batch of writes to it is completed.
+With other :variable:`innodb_flush_method` values the doublewrite buffer is
+flushed only if setting ``O_DIRECT`` has failed.
 
 .. variable:: innodb_parallel_doublewrite_path
 

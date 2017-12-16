@@ -1,10 +1,18 @@
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 drop table if exists t1;
 create table t1 (a int not null);
 insert into t1 values (1),(2),(3);
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 ( select * from t1 );
 a
@@ -19,3 +27,5 @@ a
 ;
 DROP TABLE t1;
 SET GLOBAL query_cache_size= default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

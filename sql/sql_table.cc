@@ -1221,12 +1221,13 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           break;
       }
       DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
-      /*
-        Fall through and perform the rename action of the replace
-        action. We have already indicated the success of the delete
-        action in the log entry by stepping up the phase.
-      */
     }
+    // fallthrough
+    /*
+    and perform the rename action of the replace
+    action. We have already indicated the success of the delete
+    action in the log entry by stepping up the phase.
+    */
     case DDL_LOG_RENAME_ACTION:
     {
       error= TRUE;
@@ -2121,9 +2122,15 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       Here we are sure that the tmp table exists and will set the flag based on
       table transactional type.
     */
-    if (is_temporary_table(table)
-        && table->table->should_binlog_drop_if_temp())
+    if (is_temporary_table(table) && table->table->should_binlog_drop_if_temp()
+        && drop_temporary
+        && (thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt))
     {
+      const bool ret= handle_gtid_consistency_violation(
+        thd, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION);
+      if (!ret)
+        DBUG_RETURN(true);
+
       if (table->table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
         have_trans_tmp_table= 1;
       else if (table->table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
@@ -7430,7 +7437,8 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
   case Alter_info::LEAVE_AS_IS:
     if (!indexes_were_disabled)
       break;
-    /* fall-through: disabled indexes */
+    // fallthrough
+    // disabled indexes
   case Alter_info::DISABLE:
     error= table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }

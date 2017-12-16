@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/22/2017
+.\"      Date: 09/13/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "06/22/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -339,9 +339,9 @@ Display result set metadata\&.
 \fB\-\-comments\fR,
 \fB\-c\fR
 .sp
-Whether to preserve comments in statements sent to the server\&. The default is
+Whether to strip or preserve comments in statements sent to the server\&. The default is
 \fB\-\-skip\-comments\fR
-(discard comments), enable with
+(strip comments), enable with
 \fB\-\-comments\fR
 (preserve comments)\&.
 .if n \{\
@@ -365,6 +365,8 @@ client with a version of the server that understands optimizer hints, invoke
 with the
 \fB\-\-comments\fR
 option\&.
+.sp
+Comment stripping is deprecated as of MySQL 5\&.7\&.20\&. This feature and the options to control it will be removed in a future MySQL release\&.
 .sp .5v
 .RE
 .RE
@@ -396,7 +398,7 @@ Compress all information sent between the client and the server if both support 
 Indicate to the server that the client can handle sandbox mode if the account used to connect has an expired password\&. This can be useful for noninteractive invocations of
 \fBmysql\fR
 because normally the server disconnects noninteractive clients that attempt to connect using an account with an expired password\&. (See
-Section\ \&6.3.7, \(lqPassword Expiration and Sandbox Mode\(rq\&.) This option was added in MySQL 5\&.7\&.2\&.
+Section\ \&6.3.8, \(lqPassword Expiration and Sandbox Mode\(rq\&.) This option was added in MySQL 5\&.7\&.2\&.
 .RE
 .sp
 .RS 4
@@ -474,7 +476,7 @@ Print debugging information and memory and CPU usage statistics when the program
 \fB\-\-default\-auth=\fR\fB\fIplugin\fR\fR
 .sp
 A hint about the client\-side authentication plugin to use\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1033,7 +1035,7 @@ The directory in which to look for plugins\&. Specify this option if the
 option is used to specify an authentication plugin but
 \fBmysql\fR
 does not find it\&. See
-Section\ \&6.3.8, \(lqPluggable Authentication\(rq\&.
+Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1223,7 +1225,7 @@ As of MySQL 5\&.7\&.5, this option is deprecated and will be removed in a future
 \fBNote\fR
 .ps -1
 .br
-Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them is removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
+Passwords that use the pre\-4\&.1 hashing method are less secure than passwords that use the native password hashing method and should be avoided\&. Pre\-4\&.1 passwords are deprecated and support for them was removed in MySQL 5\&.7\&.5\&. For account upgrade instructions, see
 Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mysql_old_password Plugin\(rq\&.
 .sp .5v
 .RE
@@ -1239,15 +1241,15 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .\}
 \fB\-\-server\-public\-key\-path=\fR\fBfile_name\fR
 .sp
-The path name to a file containing the server RSA public key\&. The file must be in PEM format\&. The public key is used for RSA encryption of the client password for connections to the server made using accounts that authenticate with the
+The path name to a file containing the same RSA public key used by the server\&. The file must be in PEM format\&. The public key is required for for RSA key pair\-based password exchange\&. This option is used by clients that connect to the server using an account that authenticates with the
 sha256_password
-plugin\&. This option is ignored for client accounts that do not authenticate with that plugin\&. It is also ignored if password encryption is not needed, as is the case when the client connects to the server using an SSL connection\&.
+plugin\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not needed, as is the case when the client connects to the server using a secure connection\&.
 .sp
 The server sends the public key to the client as needed, so it is not necessary to use this option for RSA password encryption to occur\&. It is more efficient to do so because then the server need not send the key\&.
 .sp
-For additional discussion regarding use of the
+For information about the
 sha256_password
-plugin, including how to get the RSA public key, see
+plugin, see
 Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
 .sp
 This option is available only if MySQL was built using OpenSSL\&.
@@ -1374,7 +1376,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1460,7 +1462,7 @@ the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
 The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
-Section\ \&6.4.3, \(lqSecure Connection Protocols and Ciphers\(rq\&.
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .sp
 This option was added in MySQL 5\&.7\&.10\&.
 .RE
@@ -1872,7 +1874,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&27.8.17, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&27.8.16, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&23.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2116,7 +2118,7 @@ Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
 Section\ \&27.8.7.3, \(lqmysql_change_user()\(rq) and see
-Section\ \&27.8.16, \(lqControlling Automatic Reconnection Behavior\(rq)\&.
+Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq)\&.
 .sp
 This example shows how
 resetconnection
@@ -3709,7 +3711,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&27.8.16, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

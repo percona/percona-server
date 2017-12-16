@@ -1,4 +1,4 @@
-set session tx_isolation='READ-COMMITTED';
+set session transaction_isolation='READ-COMMITTED';
 CREATE TABLE t1 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
 INSERT INTO t1 (a,b) VALUES (100,'foobar'),(1,'z'),(200,'bar');
 CREATE TABLE t2 (a INT, b CHAR(8), pk INT AUTO_INCREMENT PRIMARY KEY) ENGINE=ROCKSDB;
@@ -39,6 +39,8 @@ a	b	pk
 200	bar	3
 200	bar	6
 200	bar	6
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warnings:
 SELECT SQL_SMALL_RESULT SQL_NO_CACHE t1.a FROM t1, t2;
 a
 1
@@ -59,6 +61,8 @@ a
 200
 200
 200
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
+Warnings:
 SELECT SQL_BIG_RESULT SQL_CALC_FOUND_ROWS DISTINCT(t2.a) 
 FROM t1 t1_1, t2, t1 t1_2;
 a
@@ -69,6 +73,8 @@ SELECT FOUND_ROWS();
 FOUND_ROWS()
 3
 SET GLOBAL query_cache_size = 1024*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SELECT SQL_CACHE * FROM t1, t2;
 a	b	pk	a	b	pk
 1	z	2	1	z	2
@@ -89,7 +95,11 @@ a	b	pk	a	b	pk
 200	bar	6	1	z	2
 200	bar	6	100	foobar	1
 200	bar	6	200	bar	3
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warnings:
 SET GLOBAL query_cache_size = 1048576;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SELECT a+10 AS field1, CONCAT(b,':',b) AS field2 FROM t1 
 WHERE b > 'b' AND a IS NOT NULL 
 GROUP BY 2 DESC, field1 ASC

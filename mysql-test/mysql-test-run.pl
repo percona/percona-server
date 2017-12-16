@@ -176,8 +176,9 @@ my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,"
   ."group_replication,x,"
   ."query_response_time,audit_log,json,connection_control,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
-  ."tokudb.rpl,"
-  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars";
+  ."tokudb.rpl,tokudb.perfschema,"
+  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
+  ."keyring_vault";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -7215,6 +7216,7 @@ sub valgrind_exit_reports() {
 }
 
 sub run_ctest() {
+  $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   my $olddir= getcwd();
   chdir ($bindir) or die ("Could not chdir to $bindir");
   my $tinfo;

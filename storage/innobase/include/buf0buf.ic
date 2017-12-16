@@ -1298,8 +1298,8 @@ buf_page_release_zip(
 			rw_lock_s_unlock(&block->debug_latch);
 		}
 	}
-		/* Fall through */
 #endif /* UNIV_DEBUG */
+		// fallthrough
 
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:

@@ -82,9 +82,9 @@ drop table t1;
 --echo # Issue #214: subqueries cause crash
 --echo #
 create TABLE t1(a int,b int,c int,primary key(a,b)) engine=rocksdb
-    partition by list (b*a) (partition x1 values in (1) tablespace ts1,
-                             partition x2 values in (3,11,5,7) tablespace ts2,
-                             partition x3 values in (16,8,5+19,70-43) tablespace ts3);
+    partition by list (b*a) (partition x1 values in (1),
+                             partition x2 values in (3,11,5,7),
+                             partition x3 values in (16,8,5+19,70-43));
 create table t2(b binary(2)) engine=rocksdb;
 set session optimizer_switch=5;
 insert into t1(a,b) values(1,7);

@@ -69,6 +69,7 @@ public:
 };
 
 struct Rdb_collation_codec;
+struct Rdb_index_info;
 
 /*
   C-style "virtual table" allowing different handling of packing logic based
@@ -105,8 +106,8 @@ const size_t RDB_CHECKSUM_CHUNK_SIZE = 2 * RDB_CHECKSUM_SIZE + 1;
 const char RDB_CHECKSUM_DATA_TAG = 0x01;
 
 /*
-  Unpack data is variable length. It is a 1 tag-byte plus a
-  two byte length field. The length field includes the header as well.
+  Unpack data is variable length. The header is 1 tag-byte plus a two byte
+  length field. The length field includes the header as well.
 */
 const char RDB_UNPACK_DATA_TAG = 0x02;
 const size_t RDB_UNPACK_DATA_LEN_SIZE = sizeof(uint16_t);
@@ -114,11 +115,23 @@ const size_t RDB_UNPACK_HEADER_SIZE =
     sizeof(RDB_UNPACK_DATA_TAG) + RDB_UNPACK_DATA_LEN_SIZE;
 
 /*
+  This header format is 1 tag-byte plus a two byte length field plus a two byte
+  covered bitmap. The length field includes the header size.
+*/
+const char RDB_UNPACK_COVERED_DATA_TAG = 0x03;
+const size_t RDB_UNPACK_COVERED_DATA_LEN_SIZE = sizeof(uint16_t);
+const size_t RDB_COVERED_BITMAP_SIZE = sizeof(uint16_t);
+const size_t RDB_UNPACK_COVERED_HEADER_SIZE =
+    sizeof(RDB_UNPACK_COVERED_DATA_TAG) + RDB_UNPACK_COVERED_DATA_LEN_SIZE +
+    RDB_COVERED_BITMAP_SIZE;
+
+/*
   Data dictionary index info field sizes.
 */
 constexpr size_t RDB_SIZEOF_INDEX_INFO_VERSION = sizeof(uint16);
 constexpr size_t RDB_SIZEOF_INDEX_TYPE = sizeof(uchar);
 constexpr size_t RDB_SIZEOF_KV_VERSION = sizeof(uint16);
+constexpr size_t RDB_SIZEOF_INDEX_FLAGS = sizeof(uint32);
 
 // Possible return values for rdb_index_field_unpack_t functions.
 enum {
@@ -185,7 +198,8 @@ public:
                    const bool &should_store_row_debug_checksums,
                    const longlong &hidden_pk_id = 0, uint n_key_parts = 0,
                    uint *const n_null_fields = nullptr,
-                   uint *const ttl_pk_offset = nullptr) const;
+                   uint *const ttl_pk_offset = nullptr,
+                   const char *const ttl_bytes = nullptr) const;
   /* Pack the hidden primary key into mem-comparable form. */
   uint pack_hidden_pk(const longlong &hidden_pk_id,
                       uchar *const packed_tuple) const;
@@ -241,6 +255,17 @@ public:
       return false;
 
     return true;
+  }
+
+  void get_lookup_bitmap(const TABLE *table, MY_BITMAP *map) const;
+
+  bool covers_lookup(TABLE *const table,
+                     const rocksdb::Slice *const unpack_info,
+                     const MY_BITMAP *const map) const;
+
+  inline bool use_covered_bitmap_format() const {
+    return m_index_type == INDEX_TYPE_SECONDARY &&
+           m_kv_format_version >= SECONDARY_FORMAT_VERSION_UPDATE3;
   }
 
   /*
@@ -300,6 +325,8 @@ public:
     return m_prefix_extractor.get();
   }
 
+  static size_t get_unpack_header_size(char tag);
+
   Rdb_key_def &operator=(const Rdb_key_def &) = delete;
   Rdb_key_def(const Rdb_key_def &k);
   Rdb_key_def(uint indexnr_arg, uint keyno_arg,
@@ -307,8 +334,8 @@ public:
               uint16_t index_dict_version_arg, uchar index_type_arg,
               uint16_t kv_format_version_arg, bool is_reverse_cf_arg,
               bool is_per_partition_cf, const char *name,
-              Rdb_index_stats stats = Rdb_index_stats(),
-              uint64 ttl_duration = 0);
+              Rdb_index_stats stats = Rdb_index_stats(), uint32 index_flags = 0,
+              uint32 ttl_rec_offset = UINT_MAX, uint64 ttl_duration = 0);
   ~Rdb_key_def();
 
   enum {
@@ -324,6 +351,16 @@ public:
     REVERSE_CF_FLAG = 1,
     AUTO_CF_FLAG = 2,  // Deprecated
     PER_PARTITION_CF_FLAG = 4,
+  };
+
+  // bit flags which denote myrocks specific fields stored in the record
+  // currently only used for TTL.
+  enum INDEX_FLAG {
+    TTL_FLAG = 1 << 0,
+
+    // MAX_FLAG marks where the actual record starts
+    // This flag always needs to be set to the last index flag enum.
+    MAX_FLAG = TTL_FLAG << 1,
   };
 
   // Set of flags to ignore when comparing two CF-s and determining if
@@ -369,8 +406,12 @@ public:
     INDEX_INFO_VERSION_VERIFY_KV_FORMAT,
     // This changes the data format to include a 8 byte TTL duration for tables
     INDEX_INFO_VERSION_TTL,
+    // This changes the data format to include a bitmap before the TTL duration
+    // which will indicate in the future whether TTL or other special fields
+    // are turned on or off.
+    INDEX_INFO_VERSION_FIELD_FLAGS,
     // This normally point to the latest (currently it does).
-    INDEX_INFO_VERSION_LATEST = INDEX_INFO_VERSION_TTL,
+    INDEX_INFO_VERSION_LATEST = INDEX_INFO_VERSION_FIELD_FLAGS,
   };
 
   // MyRocks index types
@@ -409,7 +450,16 @@ public:
     //    an inefficient where data that was a multiple of 8 bytes in length
     //    had an extra 9 bytes of encoded data.
     SECONDARY_FORMAT_VERSION_UPDATE2 = 12,
-    SECONDARY_FORMAT_VERSION_LATEST = SECONDARY_FORMAT_VERSION_UPDATE2,
+    // This change includes support for TTL
+    //  - This means that when TTL is specified for the table an 8-byte TTL
+    //    field is prepended in front of each value.
+    SECONDARY_FORMAT_VERSION_TTL = 13,
+    SECONDARY_FORMAT_VERSION_LATEST = SECONDARY_FORMAT_VERSION_TTL,
+    // This change includes support for covering SK lookups for varchars.  A
+    // 2-byte bitmap is added after the tag-byte to unpack_info only for
+    // records which have covered varchar columns. Currently waiting before
+    // enabling in prod.
+    SECONDARY_FORMAT_VERSION_UPDATE3 = 65535,
   };
 
   void setup(const TABLE *const table, const Rdb_tbl_def *const tbl_def);
@@ -422,6 +472,14 @@ public:
                               std::string *ttl_column, uint *ttl_field_offset,
                               bool skip_checks = false);
   inline bool has_ttl() const { return m_ttl_duration > 0; }
+
+  static bool has_index_flag(uint32 index_flags, enum INDEX_FLAG flag);
+  static uint32 calculate_index_flag_offset(uint32 index_flags,
+                                            enum INDEX_FLAG flag,
+                                            uint *const field_length = nullptr);
+  void write_index_flag_field(Rdb_string_writer *const buf,
+                              const uchar *const val,
+                              enum INDEX_FLAG flag) const;
 
   static const std::string
   gen_qualifier_for_table(const char *const qualifier,
@@ -574,6 +632,10 @@ public:
                                    SECONDARY_FORMAT_VERSION_UPDATE2);
   }
 
+  static inline bool is_unpack_data_tag(char c) {
+    return c == RDB_UNPACK_DATA_TAG || c == RDB_UNPACK_COVERED_DATA_TAG;
+  }
+
  private:
 #ifndef DBUG_OFF
   inline bool is_storage_available(const int &offset, const int &needed) const {
@@ -613,8 +675,26 @@ public:
   std::string m_name;
   mutable Rdb_index_stats m_stats;
 
-  /* TTL default value and corresponding column to apply TTL to in table */
+  /*
+    Bitmap containing information about whether TTL or other special fields
+    are enabled for the given index.
+  */
+  uint32 m_index_flags_bitmap;
+
+  /*
+    How much space in bytes the index flag fields occupy.
+  */
+  uint32 m_total_index_flags_length;
+
+  /*
+    Offset in the records where the 8-byte TTL is stored (UINT_MAX if no TTL)
+  */
+  uint32 m_ttl_rec_offset;
+
+  /* Default TTL duration */
   uint64 m_ttl_duration;
+
+  /* TTL column (if defined by user, otherwise implicit TTL is used) */
   std::string m_ttl_column;
 
  private:
@@ -724,6 +804,13 @@ public:
   // spaces in the upack_info
   bool m_unpack_info_uses_two_bytes;
 
+  /*
+    True implies that an index-only read is always possible for this field.
+    False means an index-only read may be possible depending on the record and
+    field type.
+  */
+  bool m_covered;
+
   const std::vector<uchar> *space_xfrm;
   size_t space_xfrm_len;
   size_t space_mb_len;
@@ -827,7 +914,8 @@ public:
 
   bool uses_variable_len_encoding() const {
     return (m_field_type == MYSQL_TYPE_BLOB ||
-            m_field_type == MYSQL_TYPE_VARCHAR);
+            m_field_type == MYSQL_TYPE_VARCHAR ||
+            m_field_type == MYSQL_TYPE_JSON);
   }
 };
 
@@ -1000,6 +1088,8 @@ public:
     return m_sequence.get_and_update_next_number(dict);
   }
 
+  const std::string safe_get_table_name(const GL_INDEX_ID &gl_index_id);
+
   /* Walk the data dictionary */
   int scan_for_tables(Rdb_tables_scanner *tables_scanner);
 
@@ -1039,6 +1129,7 @@ private:
   key: Rdb_key_def::INDEX_INFO(0x2) + cf_id + index_id
   value: version, index_type, kv_format_version, ttl_duration
   index_type is 1 byte, version and kv_format_version are 2 bytes.
+  index_flags is 4 bytes.
   ttl_duration is 8 bytes.
 
   3. CF id => CF flags
@@ -1126,16 +1217,13 @@ public:
   rocksdb::Iterator *new_iterator() const;
 
   /* Internal Index id => CF */
-  void add_or_update_index_cf_mapping(rocksdb::WriteBatch *batch,
-                                      const uchar index_type,
-                                      const uint16_t kv_version,
-                                      const uint index_id, const uint cf_id,
-                                      const uint64 ttl_duration) const;
+  void
+  add_or_update_index_cf_mapping(rocksdb::WriteBatch *batch,
+                                 struct Rdb_index_info *const index_info) const;
   void delete_index_info(rocksdb::WriteBatch *batch,
                          const GL_INDEX_ID &index_id) const;
   bool get_index_info(const GL_INDEX_ID &gl_index_id,
-                      uint16_t *index_dict_version, uchar *index_type,
-                      uint16_t *kv_version, uint64 *ttl_duration) const;
+                      struct Rdb_index_info *const index_info) const;
 
   /* CF id => CF flags */
   void add_cf_flags(rocksdb::WriteBatch *const batch, const uint &cf_id,
@@ -1211,6 +1299,15 @@ public:
   void add_stats(rocksdb::WriteBatch *const batch,
                  const std::vector<Rdb_index_stats> &stats) const;
   Rdb_index_stats get_stats(GL_INDEX_ID gl_index_id) const;
+};
+
+struct Rdb_index_info {
+  GL_INDEX_ID m_gl_index_id;
+  uint16_t m_index_dict_version = 0;
+  uchar m_index_type = 0;
+  uint16_t m_kv_version = 0;
+  uint32 m_index_flags = 0;
+  uint64 m_ttl_duration = 0;
 };
 
 } // namespace myrocks

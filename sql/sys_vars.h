@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2118,6 +2118,13 @@ public:
 };
 
 
+/**
+  Class representing the 'tx_isolation' system variable. This
+  variable can also be indirectly set using 'SET TRANSACTION ISOLATION
+  LEVEL'. This variable is deprecated and will be removed in a
+  future release. 'transaction_isolation' is used an alternative
+  instead.
+*/
 class Sys_var_tx_isolation: public Sys_var_enum
 {
 public:
@@ -2126,9 +2133,12 @@ public:
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
           enum binlog_status_enum binlog_status_arg,
-          on_check_function on_check_func)
+          on_check_function on_check_func,
+          on_update_function on_update_func=0,
+          const char *substitute=0)
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
-                  values, def_val, lock, binlog_status_arg, on_check_func)
+                  values, def_val, lock, binlog_status_arg, on_check_func,
+                  on_update_func, substitute)
   {}
   virtual bool session_update(THD *thd, set_var *var);
 };
@@ -2136,7 +2146,9 @@ public:
 
 /**
   Class representing the tx_read_only system variable for setting
-  default transaction access mode.
+  default transaction access mode. This variable is deprecated
+  and will be removed in future release. 'transaction_read_only'
+  is used as an alternative instead.
 
   Note that there is a special syntax - SET TRANSACTION READ ONLY
   (or READ WRITE) that sets the access mode for the next transaction
@@ -2150,9 +2162,12 @@ public:
                        ptrdiff_t off, size_t size, CMD_LINE getopt,
                        my_bool def_val, PolyLock *lock,
                        enum binlog_status_enum binlog_status_arg,
-                       on_check_function on_check_func)
+                       on_check_function on_check_func,
+                       on_update_function on_update_func=0,
+                       const char *substitute=0)
     :Sys_var_mybool(name_arg, comment, flag_args, off, size, getopt,
-                    def_val, lock, binlog_status_arg, on_check_func)
+                    def_val, lock, binlog_status_arg, on_check_func,
+                    on_update_func, substitute)
   {}
   virtual bool session_update(THD *thd, set_var *var);
 };
@@ -2202,9 +2217,11 @@ public:
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           const char *values[], uint def_val, PolyLock *lock,
-          enum binlog_status_enum binlog_status_arg)
+          enum binlog_status_enum binlog_status_arg,
+          on_check_function on_check_func=0
+          )
     :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
-                  values, def_val, lock, binlog_status_arg, NULL)
+                  values, def_val, lock, binlog_status_arg, on_check_func, NULL)
   {}
   virtual bool global_update(THD *thd, set_var *var);
 };
@@ -2789,7 +2806,7 @@ public:
                             mi->get_channel(), mi->is_auto_position()));
         if (mi != NULL && mi->is_auto_position())
         {
-          char buf[512];
+          char buf[550];
           sprintf(buf, "replication channel '%.192s' is configured "
                   "in AUTO_POSITION mode. Execute "
                   "CHANGE MASTER TO MASTER_AUTO_POSITION = 0 "

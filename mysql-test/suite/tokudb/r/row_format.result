@@ -30,7 +30,7 @@ Warnings:
 Warning	1478	TokuDB: invalid ROW_FORMAT specifier.
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name like 'tdb76_%' ORDER BY table_name;
 table_name	row_format	engine
-tdb76_1	tokudb_zlib	TokuDB
+tdb76_1	tokudb_zstd	TokuDB
 tdb76_2	tokudb_quicklz	TokuDB
 tdb76_3	tokudb_lzma	TokuDB
 tdb76_4	tokudb_uncompressed	TokuDB
@@ -38,10 +38,10 @@ tdb76_5	tokudb_zlib	TokuDB
 tdb76_6	tokudb_lzma	TokuDB
 tdb76_7	tokudb_quicklz	TokuDB
 tdb76_8	tokudb_snappy	TokuDB
-tdb76_compact	tokudb_zlib	TokuDB
-tdb76_compressed	tokudb_zlib	TokuDB
-tdb76_dynamic	tokudb_zlib	TokuDB
-tdb76_redundant	tokudb_zlib	TokuDB
+tdb76_compact	tokudb_zstd	TokuDB
+tdb76_compressed	tokudb_zstd	TokuDB
+tdb76_dynamic	tokudb_zstd	TokuDB
+tdb76_redundant	tokudb_zstd	TokuDB
 DROP TABLE tdb76_1, tdb76_2, tdb76_3, tdb76_4, tdb76_5, tdb76_6, tdb76_7, tdb76_8, tdb76_compact, tdb76_redundant, tdb76_dynamic, tdb76_compressed;
 SELECT table_name, row_format, engine FROM information_schema.tables WHERE table_name like 'tokudb_row_format_test%' ORDER BY table_name;
 table_name	row_format	engine

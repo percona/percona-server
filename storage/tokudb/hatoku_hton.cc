@@ -1984,8 +1984,8 @@ mysql_declare_plugin(tokudb)
         MYSQL_STORAGE_ENGINE_PLUGIN,
         &tokudb_storage_engine,
         tokudb_hton_name,
-        "Percona",
-        "Percona TokuDB Storage Engine with Fractal Tree(tm) Technology",
+        "XeLabs",
+        "XeLabs TokuDB Storage Engine with Fractal Tree(tm) Technology",
         PLUGIN_LICENSE_GPL,
         tokudb_init_func,          /* plugin init */
         tokudb_done_func,          /* plugin deinit */

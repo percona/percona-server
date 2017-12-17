@@ -3053,8 +3053,8 @@ int init_common_variables()
 
   log_warnings= log_error_verbosity - 1; // backward compatibility
 
-  sql_print_information("%s (mysqld %s) starting as process %lu ...",
-                        my_progname, server_version, (ulong) getpid());
+  sql_print_information("%s (mysqld %s%s) starting as process %lu ...",
+                        my_progname, server_version, MYSQL_COMPILATION_COMMENT, (ulong) getpid());
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -3062,8 +3062,8 @@ int init_common_variables()
     unireg_abort(MYSQLD_SUCCESS_EXIT);
 #endif /*!EMBEDDED_LIBRARY*/
 
-  DBUG_PRINT("info",("%s  Ver %s for %s on %s\n",my_progname,
-         server_version, SYSTEM_TYPE,MACHINE_TYPE));
+  DBUG_PRINT("info",("%s  Ver %s%s for %s on %s\n",my_progname,
+         server_version, MYSQL_COMPILATION_COMMENT, SYSTEM_TYPE,MACHINE_TYPE));
 
 #ifdef HAVE_LINUX_LARGE_PAGES
   /* Initialize large page size */

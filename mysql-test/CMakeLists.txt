@@ -42,11 +42,6 @@ INSTALL(
       RENAME LICENSE.mysql-test
       OPTIONAL
       )
-    INSTALL(FILES ${CMAKE_SOURCE_DIR}/README
-      DESTINATION ${INSTALL_DOCREADMEDIR}
-      COMPONENT TestReadme
-      RENAME README-test
-      )
   ENDIF()
 ENDIF()
 

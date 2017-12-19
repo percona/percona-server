@@ -1,0 +1,38 @@
+language: cpp
+
+# sources  list: https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json,
+# packages list: https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
+
+matrix:
+  include:
+    - os: linux
+      compiler: clang
+      addons:
+        apt:
+          sources: [ 'ubuntu-toolchain-r-test', 'kalakris-cmake', 'llvm-toolchain-trusty-5.0']
+          packages: [ 'g++-5', 'libstdc++-5-dev', 'cmake','dh-autoreconf','libcrypto++-dev', 'libssl-dev', 'libaio-dev', 'libncurses5-dev', 'bison' ]
+      env: MATRIX_EVAL="CC=gcc-5 && CXX=g++-5"
+
+# container-based builds
+sudo: true
+
+before_install:
+  - env
+  - eval "${MATRIX_EVAL}"
+  - export SRC_DIR="`pwd`"
+  - echo never | sudo tee /sys/kernel/mm/transparent_hugepage/enabled > /dev/null
+
+before_script:
+  - rm -rf CMakeFiles/ cmake_install.cmake CMakeCache.txt
+
+script:
+  - $CXX --version
+  - cmake --version
+  - git submodule update
+  - git submodule init
+  - cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_CONFIG=mysql_release -DFEATURE_SET=community -DWITH_EMBEDDED_SERVER=OFF -DWITHOUT_ROCKSDB_STORAGE_ENGINE=1 -DWITH_TOKUDB_STORAGE_ENGINE=1 -DTOKUDB_VERSION=7.5.6 -DWITH_BOOST=extra/boost/boost_1_59_0.tar.gz
+  - make -j16
+
+notifications:
+  email:
+    - overred.shuttler@gmail.com

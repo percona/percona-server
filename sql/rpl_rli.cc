@@ -602,8 +602,12 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       }
       else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
+        Format_description_log_event *old= rli_description_event;
         DBUG_PRINT("info",("found Format_description_log_event"));
-        set_rli_description_event((Format_description_log_event *)ev);
+        Format_description_log_event *new_fdev=
+          static_cast<Format_description_log_event*>(ev);
+        new_fdev->copy_crypto_data(*old);
+        set_rli_description_event(new_fdev);
         /*
           As ev was returned by read_log_event, it has passed is_valid(), so
           my_malloc() in ctor worked, no need to check again.
@@ -626,6 +630,16 @@ int Relay_log_info::init_relay_log_pos(const char* log,
           position (argument 'pos') or until you find an event other than
           Previous-GTIDs, Rotate or Format_desc.
         */
+      }
+      else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+      {
+        if (rli_description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+        {
+          *errmsg= "Unable to set up decryption of binlog.";
+          delete ev;
+          goto err;
+        }
+        delete ev;
       }
       else
       {

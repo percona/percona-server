@@ -595,6 +595,7 @@ char *mysql_data_home= const_cast<char*>(".");
 const char *mysql_real_data_home_ptr= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
+my_bool encrypt_binlog;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
@@ -4499,6 +4500,15 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  if (encrypt_binlog && (!opt_master_verify_checksum ||
+      binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+      binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_UNDEF))
+  {
+    sql_print_error("BINLOG_ENCRYPTION requires MASTER_VERIFY_CHECKSUM = ON and "
+                    "BINLOG_CHECKSUM to be turned ON.");
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   /// @todo: this looks suspicious, revisit this /sven
   enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
 
@@ -5144,6 +5154,11 @@ int mysqld_main(int argc, char **argv)
 
     (prev_gtids_ev.common_footer)->checksum_alg=
       static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
+
+    Binlog_crypt_data *crypto_data= mysql_bin_log.get_crypto_data();
+
+    if (crypto_data->is_enabled())
+      prev_gtids_ev.event_encrypter.enable_encryption(crypto_data);
 
     if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
       unireg_abort(MYSQLD_ABORT_EXIT);

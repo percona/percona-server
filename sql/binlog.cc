@@ -40,6 +40,7 @@
 
 #include <list>
 #include <string>
+#include "my_rnd.h"
 
 using std::max;
 using std::min;
@@ -1032,6 +1033,8 @@ public:
       checksum--;
   }
 
+  Event_encrypter event_encrypter;
+
   /**
     Write part of an event to disk.
 
@@ -1068,6 +1071,11 @@ public:
     if (*buf_len_p == 0)
       DBUG_RETURN(false);
 
+    size_t len= *event_len_p;
+    uchar *pos= *buf_p;
+
+    bool is_header= (*event_len_p == 0);
+    
     // This is the beginning of an event
     if (*event_len_p == 0)
     {
@@ -1092,16 +1100,34 @@ public:
 
       // Store end_log_pos
       int4store(*buf_p + LOG_POS_OFFSET, end_log_pos);
-    }
+      DBUG_ASSERT(output_cache == mysql_bin_log.get_log_file());
 
+      len= *event_len_p;
+
+      if (event_encrypter.is_encryption_enabled())
+      {
+        uint32 write_bytes= std::min<uint32>(*buf_len_p, *event_len_p);
+        len= write_bytes;
+        DBUG_ASSERT(write_bytes > 0);
+        
+        // update the checksum
+        if (have_checksum)
+          checksum= my_checksum(checksum, *buf_p, write_bytes);
+
+        if (event_encrypter.init(output_cache, pos, len))
+          DBUG_RETURN(true);
+      }
+    }
+    
     // write the buffer
-    uint32 write_bytes= std::min<uint32>(*buf_len_p, *event_len_p);
+    uint32 write_bytes= std::min<uint32>(*buf_len_p, len);
     DBUG_ASSERT(write_bytes > 0);
-    if (my_b_write(output_cache, *buf_p, write_bytes))
+    if (event_encrypter.encrypt_and_write(output_cache, pos, write_bytes))
       DBUG_RETURN(true);
 
-    // update the checksum
-    if (have_checksum)
+    if (event_encrypter.is_encryption_enabled() && is_header)
+      write_bytes+=4;
+    else if (have_checksum)
       checksum= my_checksum(checksum, *buf_p, write_bytes);
 
     // Step positions.
@@ -1110,18 +1136,20 @@ public:
     *event_len_p-= write_bytes;
     thd->binlog_bytes_written+= write_bytes;
 
-    if (have_checksum)
+    if (*event_len_p == 0)
     {
       // store checksum
-      if (*event_len_p == 0)
+      if (have_checksum)
       {
-        char checksum_buf[BINLOG_CHECKSUM_LEN];
+        uchar checksum_buf[BINLOG_CHECKSUM_LEN];
         int4store(checksum_buf, checksum);
-        if (my_b_write(output_cache, checksum_buf, BINLOG_CHECKSUM_LEN))
+        if (event_encrypter.encrypt_and_write(output_cache, checksum_buf, BINLOG_CHECKSUM_LEN))
           DBUG_RETURN(true);
         thd->binlog_bytes_written+= BINLOG_CHECKSUM_LEN;
         checksum= initial_checksum;
       }
+      if (event_encrypter.is_encryption_enabled() && event_encrypter.finish(output_cache))
+        DBUG_RETURN(true);
     }
 
     DBUG_RETURN(false);
@@ -1576,6 +1604,9 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
       correct.
     */
     Binlog_event_writer writer(mysql_bin_log.get_log_file(), thd);
+
+    if (mysql_bin_log.get_crypto_data()->is_enabled())
+      writer.event_encrypter.enable_encryption(mysql_bin_log.get_crypto_data());
 
     /* The GTID ownership process might set the commit_error */
     error= (thd->commit_error == THD::CE_FLUSH_ERROR);
@@ -3223,29 +3254,50 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       Read the first event in case it's a Format_description_log_event, to
       know the format. If there's no such event, we are 3.23 or 4.x. This
       code, like before, can't read 3.23 binlogs.
+      Also read the second event, in case it's a Start_encryption_log_event.
       This code will fail on a mixed relay log (one which has Format_desc then
       Rotate then Format_desc).
     */
-    ev= Log_event::read_log_event(&log, (mysql_mutex_t*)0, description_event,
-                                   opt_master_verify_checksum);
-    if (ev)
+
+    my_off_t scan_pos= BIN_LOG_HEADER_SIZE;
+    while (scan_pos < pos)
     {
+      ev= Log_event::read_log_event(&log, (mysql_mutex_t*)0, description_event,
+                                    opt_master_verify_checksum);
+      scan_pos= my_b_tell(&log);
+      if (ev == NULL || (ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
+          !ev->is_valid()))
+      {
+        errmsg = "Wrong offset or I/O error";
+        goto err;
+      }
       if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
         delete description_event;
         description_event= (Format_description_log_event*) ev;
+        if (!description_event->is_valid())
+        {
+          errmsg="Invalid Format_description event; could be out of memory";
+          goto err;
+        }
       }
       else
+      {
+        if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+        {
+          if (description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+          {
+            delete ev;
+            errmsg= "Could not initialize decryption of binlog.";
+            goto err;
+          }
+        }
         delete ev;
+        break;
+      }
     }
 
     my_b_seek(&log, pos);
-
-    if (!description_event->is_valid())
-    {
-      errmsg="Invalid Format_description event; could be out of memory";
-      goto err;
-    }
 
     for (event_count = 0;
          (ev = Log_event::read_log_event(&log, (mysql_mutex_t*) 0,
@@ -3253,9 +3305,6 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                          opt_master_verify_checksum)); )
     {
       DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
-      if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
-        description_event->common_footer->checksum_alg=
-                           ev->common_footer->checksum_alg;
       if (event_count >= limit_start &&
 	 ev->net_send(protocol, linfo.log_file_name, pos))
       {
@@ -3264,8 +3313,29 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
 	goto err;
       }
 
+      if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
+      {
+        Format_description_log_event* new_fdle=
+          static_cast<Format_description_log_event*>(ev);
+        new_fdle->copy_crypto_data(*description_event);
+        delete description_event;
+        description_event= new_fdle;
+      }
+      else
+      {
+        if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+        {
+          if (description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+          {
+            errmsg= "Error starting decryption";
+            delete ev;
+            goto err;
+          }
+        }
+        delete ev;
+      }
+
       pos = my_b_tell(&log);
-      delete ev;
 
       if (++event_count >= limit_end || pos >= end_pos)
 	break;
@@ -3892,6 +3962,8 @@ read_gtids_and_update_trx_parser_from_relaylog(
     DBUG_RETURN(false);
   }
 
+  fd_ev_p->reset_crypto();
+
   /*
     Seek for Previous_gtids_log_event and Gtid_log_event events to
     gather information what has been processed so far.
@@ -3989,12 +4061,15 @@ read_gtids_and_update_trx_parser_from_relaylog(
       }
     }
 
+    Format_description_log_event *new_fd_ev_p= NULL;
     switch (ev->get_type_code())
     {
     case binary_log::FORMAT_DESCRIPTION_EVENT:
+      new_fd_ev_p= static_cast<Format_description_log_event*>(ev);
+      new_fd_ev_p->copy_crypto_data(*fd_ev_p);
       if (fd_ev_p != &fd_ev)
         delete fd_ev_p;
-      fd_ev_p= (Format_description_log_event *)ev;
+      fd_ev_p= new_fd_ev_p;
       break;
     case binary_log::ROTATE_EVENT:
       // do nothing; just accept this event and go to next
@@ -4059,6 +4134,10 @@ read_gtids_and_update_trx_parser_from_relaylog(
       }
       break;
     }
+    case binary_log::START_ENCRYPTION_EVENT:
+      if (fd_ev_p->start_decryption((Start_encryption_log_event*) ev))
+        sql_print_warning("Error initializing decryption while reading GTIDs from relaylog");
+      break;
     case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     default:
       /*
@@ -4194,6 +4273,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     DBUG_RETURN(TRUNCATED);
   }
 
+  fd_ev_p->reset_crypto();
+
   /*
     Seek for Previous_gtids_log_event and Gtid_log_event events to
     gather information what has been processed so far.
@@ -4211,12 +4292,15 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     event_counter++;
 #endif
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
+    Format_description_log_event *new_fd_ev_p= NULL;
     switch (ev->get_type_code())
     {
     case binary_log::FORMAT_DESCRIPTION_EVENT:
+      new_fd_ev_p= static_cast<Format_description_log_event*>(ev);
+      new_fd_ev_p->copy_crypto_data(*fd_ev_p);
       if (fd_ev_p != &fd_ev)
         delete fd_ev_p;
-      fd_ev_p= (Format_description_log_event *)ev;
+      fd_ev_p= new_fd_ev_p;
       break;
     case binary_log::ROTATE_EVENT:
       // do nothing; just accept this event and go to next
@@ -4324,6 +4408,15 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       }
       break;
     }
+    case binary_log::START_ENCRYPTION_EVENT:
+    {
+      if (fd_ev_p->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+        sql_print_warning("Error initializing decryption while reading GTIDs from binary log");
+      // in case start_decryption fails next call to read_log_event will fail too
+      // this failure will be handled outside the loop
+      break;
+    }
+
     case binary_log::ANONYMOUS_GTID_LOG_EVENT:
     {
       /*
@@ -4996,6 +5089,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     s.common_footer->checksum_alg= static_cast<enum_binlog_checksum_alg>
                                      (binlog_checksum_options);
 
+  crypto.disable();
   DBUG_ASSERT((s.common_footer)->checksum_alg !=
                binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   if (!s.is_valid())
@@ -5007,6 +5101,31 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   if (s.write(&log_file))
     goto err;
   bytes_written+= s.common_header->data_written;
+
+  if (encrypt_binlog)
+  {
+    uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
+    if (my_rand_buffer(nonce, sizeof(nonce)))
+      goto err;
+
+    Start_encryption_log_event sele(1, 0, nonce);
+    sele.common_footer->checksum_alg= s.common_footer->checksum_alg;
+    if (write_to_file(&sele))
+    {
+      sql_print_error("Failed to write Start_encryption event to binary log and thus "
+                      "failed to initialize binlog encryption.");
+      goto err;
+    }
+    bytes_written+= sele.common_header->data_written;
+
+    if (crypto.init(sele.crypto_scheme, 0, nonce))
+    {
+      sql_print_error("Failed to fetch percona_binlog key from keyring and thus "
+                      "failed to initialize binlog encryption.");
+      goto err;
+    }
+  }
+
   /*
     We need to revisit this code and improve it.
     See further comments in the mysqld.
@@ -5051,7 +5170,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       global_sid_lock->unlock();
     prev_gtids_ev.common_footer->checksum_alg=
                                    (s.common_footer)->checksum_alg;
-    if (prev_gtids_ev.write(&log_file))
+    if (write_to_file(&prev_gtids_ev))
       goto err;
     bytes_written+= prev_gtids_ev.common_header->data_written;
   }
@@ -5092,7 +5211,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
       prev_gtids_ev.common_footer->checksum_alg=
                                    (s.common_footer)->checksum_alg;
-      if (prev_gtids_ev.write(&log_file))
+      if (write_to_file(&prev_gtids_ev))
         goto err;
       bytes_written+= prev_gtids_ev.common_header->data_written;
     }
@@ -5124,7 +5243,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     /* Don't set log_pos in event header */
     extra_description_event->set_artificial_event();
 
-    if (extra_description_event->write(&log_file))
+    if (write_to_file(extra_description_event))
       goto err;
     bytes_written+= extra_description_event->common_header->data_written;
   }
@@ -6824,6 +6943,12 @@ void MYSQL_BIN_LOG::dec_prep_xids(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+int MYSQL_BIN_LOG::write_to_file(Log_event* event)
+{
+  if (crypto.is_enabled())
+    event->event_encrypter.enable_encryption(&crypto);
+  return event->write(&log_file);
+}
 
 /*
   Wrappers around new_file_impl to avoid using argument
@@ -6949,7 +7074,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                 binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
     if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event",
                         (error=1), FALSE) ||
-       (error= r.write(&log_file)))
+       (error= write_to_file(&r)))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
@@ -7160,7 +7285,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
 
   // write data
   bool error = false;
-  if (ev->write(&log_file) == 0)
+  if (write_to_file(ev) == 0)
   {
     bytes_written+= ev->common_header->data_written;
     error= after_append_to_relay_log(mi);
@@ -7172,8 +7297,7 @@ bool MYSQL_BIN_LOG::append_event(Log_event* ev, Master_info *mi)
   DBUG_RETURN(error);
 }
 
-
-bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
+bool MYSQL_BIN_LOG::append_buffer(uchar* buf, size_t len, Master_info *mi)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::append_buffer");
 
@@ -7183,16 +7307,34 @@ bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
   mysql_mutex_assert_owner(&LOCK_log);
 
   // write data
-  bool error= false;
-  if (my_b_append(&log_file,(uchar*) buf,len) == 0)
+  uchar *ebuf= NULL;
+  
+  if (crypto.is_enabled())
   {
-    bytes_written += len;
-    error= after_append_to_relay_log(mi);
-  }
-  else
-    error= true;
+    ebuf= reinterpret_cast<uchar*>(my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(MY_WME)));
+    if (!ebuf ||
+        encrypt_event(my_b_append_tell(&log_file), crypto, buf, ebuf, len))
+    {
+      if (ebuf != NULL)
+        my_free(ebuf);
+      DBUG_RETURN(true);
+    }
 
-  DBUG_RETURN(error);
+    buf= ebuf;
+  }
+
+  if (my_b_append(&log_file,(uchar*) buf,len))
+  {
+    if (ebuf != NULL)
+      my_free(ebuf);
+    DBUG_RETURN(true);
+  }
+
+  if (ebuf != NULL)
+    my_free(ebuf);
+
+  bytes_written += len;
+  DBUG_RETURN(after_append_to_relay_log(mi));
 }
 #endif // ifdef HAVE_REPLICATION
 
@@ -7813,7 +7955,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     else
       mysql_mutex_assert_owner(&LOCK_log);
     /* Write an incident event into binlog directly. */
-    error= ev->write(&log_file);
+    error= write_to_file(ev);
     /*
       Write an error to log. So that user might have a chance
       to be alerted and explore incident details.
@@ -8145,7 +8287,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
                                        (binlog_checksum_options);
       DBUG_ASSERT(!is_relay_log ||
                   relay_log_checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-      s.write(&log_file);
+      write_to_file(&s);
       bytes_written+= s.common_header->data_written;
       flush_io_cache(&log_file);
       update_binlog_end_pos();
@@ -9778,7 +9920,13 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
       if (!x || my_hash_insert(&xids, x))
         goto err2;
     }
-
+    else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT &&
+             fdle->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+    {
+      sql_print_warning("Error initializing decryption while crash_recovery.");
+      goto err2;
+    }
+  
     /*
       Recorded valid position for the crashed binlog file
       which did not contain incorrect events. The following

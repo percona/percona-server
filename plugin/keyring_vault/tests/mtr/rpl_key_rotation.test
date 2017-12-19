@@ -16,6 +16,13 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped")
 
 --source generate_default_conf_files.inc
 
+# Create mount points
+--let MOUNT_POINT_SERVICE_OP=CREATE
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
+--source mount_point_service.inc
+--let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
+--source mount_point_service.inc
+
 --connection slave
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
@@ -116,16 +123,18 @@ DROP TABLE t1,t2,t3,t4;
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
 
+# Delete mount points
+--let MOUNT_POINT_SERVICE_OP=DELETE
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_1
 --connection master
---source vault_cleanup.inc
+--source mount_point_service.inc
 --connection slave
---source vault_cleanup.inc
+--source mount_point_service.inc
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE_2
 --connection master
---source vault_cleanup.inc
+--source mount_point_service.inc
 --connection slave
---source vault_cleanup.inc
+--source mount_point_service.inc
 
 #reset keyring_vault_config variable to null
 UNINSTALL PLUGIN keyring_vault;

@@ -35,6 +35,7 @@ namespace keyring
     std::set<Secure_string> optional_value;
 
     ILogger *logger;
+    static const size_t max_file_size;
   };
 
 } // namespace keyring

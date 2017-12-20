@@ -3,6 +3,7 @@
 #include "mock_logger.h"
 #include "vault_credentials_parser.h"
 #include <fstream>
+#include "test_utils.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring
@@ -48,6 +49,9 @@ namespace keyring__vault_credentials_parser_unittest
 
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
       log(MY_ERROR_LEVEL, StrEq("Could not open file with credentials.")));
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
+      log(MY_ERROR_LEVEL, StrEq("File '/.there_no_such_file' not found (Errcode: 2 - No such file or directory)")));
+
     std::string file_url = "/.there_no_such_file";
     Vault_credentials vault_credentials;
     EXPECT_TRUE(vault_credentials_parser.parse(file_url, &vault_credentials));
@@ -70,7 +74,7 @@ namespace keyring__vault_credentials_parser_unittest
     myfile.close();
 
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not read secret_mount_point from the configuration file.")));
+      log(MY_ERROR_LEVEL, StrEq("Empty file with credentials.")));
     std::string file_url = "./credentials";
 
     Vault_credentials vault_credentials;
@@ -282,5 +286,10 @@ namespace keyring__vault_credentials_parser_unittest
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  MY_INIT(argv[0]);
+  my_testing::setup_server_for_unit_tests();
+  int ret= RUN_ALL_TESTS();
+  my_testing::teardown_server_for_unit_tests();
+
+  return ret;
 }

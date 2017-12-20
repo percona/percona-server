@@ -9,6 +9,7 @@
 #include "generate_credential_file.h"
 #include "uuid.h"
 #include "vault_mount.h"
+#include "test_utils.h"
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring
@@ -55,6 +56,8 @@ namespace keyring__vault_io_unittest
     std::string credential_file_name("./some_funny_name");
     Vault_io vault_io(logger, vault_curl, vault_parser);
     remove(credential_file_name.c_str());
+    EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
+      log(MY_ERROR_LEVEL, StrEq("File './some_funny_name' not found (Errcode: 2 - No such file or directory)")));
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
       log(MY_ERROR_LEVEL, StrEq("Could not open file with credentials.")));
     EXPECT_TRUE(vault_io.init(&credential_file_name));
@@ -605,6 +608,8 @@ namespace keyring__vault_io_unittest
 int main(int argc, char **argv) {
 
   ::testing::InitGoogleTest(&argc, argv);
+  MY_INIT(argv[0]);
+  my_testing::setup_server_for_unit_tests();
   curl_global_init(CURL_GLOBAL_DEFAULT);
 
   //create unique secret mount point for this test suite
@@ -641,5 +646,7 @@ int main(int argc, char **argv) {
   curl_easy_cleanup(keyring__vault_io_unittest::curl);
   curl_global_cleanup();
   delete keyring__vault_io_unittest::logger;
+  my_testing::teardown_server_for_unit_tests();
+
   return ret;
 }

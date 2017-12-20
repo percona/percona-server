@@ -12,6 +12,8 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault. Vault has returned the following error\\(s\\): \\[\"permission denied\"\\]'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '.*' not found");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not read file with credentials.'");
 
 --source generate_default_conf_files.inc
 

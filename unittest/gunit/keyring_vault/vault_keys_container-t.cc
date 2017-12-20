@@ -101,9 +101,8 @@ namespace keyring__vault_keys_container_unittest
     myfile.close();
 
     IKeyring_io *vault_io = new Vault_io(logger, vault_curl, vault_parser);
-
     EXPECT_CALL(*(reinterpret_cast<Mock_logger*>(logger)),
-      log(MY_ERROR_LEVEL, StrEq("Could not read secret_mount_point from the configuration file.")));
+      log(MY_ERROR_LEVEL, StrEq("Empty file with credentials.")));
     EXPECT_TRUE(vault_keys_container->init(vault_io, "empty_credential.conf"));
     delete sample_key; // unused in this test
 

@@ -1,5 +1,6 @@
 #include <my_global.h>
 #include <mysql/plugin_keyring.h>
+#include <sql_class.h>
 #include "keyring.h"
 #include "vault_keys_container.h"
 #include "vault_parser.h"
@@ -148,6 +149,10 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
         " file. Please also make sure Vault is running and accessible."
         " The keyring_vault will stay unusable until correct configuration file gets"
         " provided.");
+
+      if (current_thd != NULL)
+        push_warning(current_thd, Sql_condition::SL_WARNING, 42000,
+        	     "keyring_vault initialization failure. Please check the server log.");
       return 0;
     }
     is_keys_container_initialized = TRUE;

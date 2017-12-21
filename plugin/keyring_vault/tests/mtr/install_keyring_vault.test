@@ -5,6 +5,7 @@ call mtr.add_suppression("\\[Error\\] Plugin keyring_vault reported: 'keyring_va
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
 
 --source generate_default_conf_files.inc
+--source is_vault_server_up.inc
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --error ER_UNKNOWN_SYSTEM_VARIABLE

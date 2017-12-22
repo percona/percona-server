@@ -193,6 +193,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const
 TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
   {
@@ -579,11 +580,13 @@ TABLE_FIELD_TYPE mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] =
     { C_STRING_WITH_LEN("utf8") }
   }
 };
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 const TABLE_FIELD_DEF
   mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
@@ -602,6 +605,7 @@ const TABLE_FIELD_DEF
 const TABLE_FIELD_DEF
   mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
                                 mysql_tables_priv_table_fields};
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")

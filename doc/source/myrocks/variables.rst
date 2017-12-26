@@ -1584,10 +1584,18 @@ only one manifest file is used.
   :default: ``1000``
 
 Specifies the maximum number of file handles opened by MyRocks.
-Default value is also the maximum, making it practically unlimited:
-all opened files remain open. If :variable:`rocksdb_max_open_files`
-value is greater than ``open_files_limit``, it will be reset
-to ``open_files_limit``.
+Values in the range between ``0`` and ``open_files_limit`` 
+are taken as they are. If :variable:`rocksdb_max_open_files` value is 
+greater than ``open_files_limit``, it will be reset to 1/2 of 
+``open_files_limit``, and a warning will be emitted to the ``mysqld``
+error log. A value of ``-2`` denotes auto tuning: just sets 
+:variable:`rocksdb_max_open_files` value to 1/2 of ``open_files_limit``. 
+Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
+
+.. warning::
+
+  Setting :variable:`rocksdb_max_open_files` to ``-1`` is dangerous, 
+  as server may quickly run out of file handles in this case.
 
 .. variable:: rocksdb_max_row_locks
 

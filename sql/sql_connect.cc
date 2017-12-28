@@ -902,6 +902,10 @@ void release_user_connection(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+void refresh_concurrent_conn_stats()
+{
+}
+
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /*

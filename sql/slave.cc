@@ -69,7 +69,12 @@ MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 char* slave_load_tmpdir = 0;
+#endif /* HAVE_REPLICATION */
+
 Master_info *active_mi= 0;
+
+#ifdef HAVE_REPLICATION
+
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
@@ -1034,6 +1039,9 @@ const char *print_slave_db_safe(const char* db)
   DBUG_RETURN((db ? db : ""));
 }
 
+#endif /* HAVE_REPLICATION */
+
+
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                                  const char *default_val)
 {
@@ -1105,6 +1113,8 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
   DBUG_RETURN(1);
 }
 
+
+#ifdef HAVE_REPLICATION
 
 /**
    A master info read method

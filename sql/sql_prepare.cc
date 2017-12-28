@@ -2288,7 +2288,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -2745,7 +2747,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -2926,7 +2930,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -3058,7 +3064,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;

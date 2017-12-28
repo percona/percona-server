@@ -5954,6 +5954,9 @@ static void add_user_option(String *grant, ulong value, const char *name)
   }
 }
 
+#endif /*NO_EMBEDDED_ACCESS_CHECKS */
+
+
 const char *command_array[]=
 {
   "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "RELOAD",
@@ -5971,6 +5974,9 @@ TYPELIB utility_user_privileges_typelib=
   command_array,
   NULL
 };
+
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 uint command_lengths[]=
 {
@@ -8195,6 +8201,13 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
   return error;
 }
 
+#else
+
+my_bool acl_is_utility_user(const char *user, const char *host,
+                            const char *ip)
+{
+  return FALSE;
+}
 
 #endif /*NO_EMBEDDED_ACCESS_CHECKS */
 

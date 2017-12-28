@@ -1225,18 +1225,6 @@ static MYSQL_SYSVAR_ULONGLONG(buffer_size, audit_log_buffer_size,
   "if FILE handler is used.",
   NULL, NULL, 1048576UL, 4096UL, ULONGLONG_MAX, 4096UL);
 
-static
-void audit_log_num_rows_threshold_update(
-          MYSQL_THD thd MY_ATTRIBUTE((unused)),
-          struct st_mysql_sys_var *var MY_ATTRIBUTE((unused)),
-          void *var_ptr MY_ATTRIBUTE((unused)),
-          const void *save)
-{
-  ulonglong new_val= *(ulonglong *)(save);
-
-  audit_log_num_rows_threshold= new_val;
-}
-
 
 static MYSQL_SYSVAR_ULONGLONG(num_rows_threshold, audit_log_num_rows_threshold,
   PLUGIN_VAR_OPCMDARG,

@@ -1874,6 +1874,7 @@ Resets MyRocks internal statistics dynamically
 .. variable:: rocksdb_rpl_skip_tx_api
 
   :version 5.7.19-17: Implemented
+  :version 5.7.20-19: Variable removed
   :cli: ``--rocksdb-rpl-skip-tx-api``
   :dyn: No
   :scope: Global

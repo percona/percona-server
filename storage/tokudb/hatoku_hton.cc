@@ -1059,15 +1059,30 @@ static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
     int r = 0;
+    THD *thd = current_thd;
     DB_TXN* txn = NULL;
     TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
+    bool do_commit = true;
 
     r = db_env->get_txn_from_xid(db_env, toku_xid, &txn);
     if (r) { goto cleanup; }
 
-    r = txn->commit(txn, 0);
-    if (r) { goto cleanup; }
+    if (thd) {
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
+        if (trx) {
+            TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "txn %p all_txn %p", txn, trx->all);
+            if (txn == trx->all) {
+                do_commit = false;
+                r = tokudb_commit(hton, thd, true);
+            }
+        }
+    }
+    if (do_commit) {
+        r = txn->commit(txn, 0);
+        if (r) { goto cleanup; }
+    }
 
     r = 0;
 cleanup:
@@ -1078,15 +1093,30 @@ cleanup:
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
     int r = 0;
+    THD *thd = current_thd;
     DB_TXN* txn = NULL;
     TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
+    bool do_commit = true;
 
     r = db_env->get_txn_from_xid(db_env, toku_xid, &txn);
     if (r) { goto cleanup; }
 
-    r = txn->abort(txn);
-    if (r) { goto cleanup; }
+    if (thd) {
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
+        if (trx) {
+            TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "txn %p all_txn %p", txn, trx->all);
+            if (txn == trx->all) {
+                do_commit = false;
+                r = tokudb_rollback(hton, thd, true);
+            }
+        }
+    }
+    if (do_commit) {
+        r = txn->abort(txn);
+        if (r) { goto cleanup; }
+    }
 
     r = 0;
 cleanup:

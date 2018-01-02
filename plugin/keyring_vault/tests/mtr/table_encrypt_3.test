@@ -1,3 +1,4 @@
+--source include/big_test.inc
 --source include/have_keyring_vault_plugin.inc
 --source generate_default_conf_files.inc
 

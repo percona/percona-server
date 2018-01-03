@@ -184,6 +184,24 @@ System Variables
 This variable is used to define the location of the
 :ref:`keyring_vault_plugin` configuration file.
 
+.. variable:: encrypt_binlog
+
+  :version 5.7.20-19: Implemented
+  :cli: ``--encrypt-binlog``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+This variable turns on binary and relay logs
+encryption. It requires both
+`master_verify_checksum
+<https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_master_verify_checksum>`_ 
+and `binlog_checksum
+<https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_checksum>`_ 
+variables to be turned ``ON``.
+
+
 Other reading
 -------------
 

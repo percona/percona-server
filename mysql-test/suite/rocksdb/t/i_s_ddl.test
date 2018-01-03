@@ -1,9 +1,10 @@
 --source include/have_rocksdb.inc
 
 #
-# Information Schema DDL
+# Information Schema Data Dictionary/DDL information
 #
-
+--let i_s_plugin=rocksdb_ddl
+--source suite/rocksdb/include/i_s_basic.inc
 
 CREATE TABLE is_ddl_t1 (i INT, j INT, k INT, l INT,
                         PRIMARY KEY (i), KEY (j), KEY (k, l) COMMENT 'kl_cf')

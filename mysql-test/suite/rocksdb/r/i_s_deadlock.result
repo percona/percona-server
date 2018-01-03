@@ -1,3 +1,14 @@
+show create table information_schema.rocksdb_cfstats;
+Table	Create Table
+ROCKSDB_CFSTATS	CREATE TEMPORARY TABLE `ROCKSDB_CFSTATS` (
+  `CF_NAME` varchar(193) NOT NULL DEFAULT '',
+  `STAT_TYPE` varchar(193) NOT NULL DEFAULT '',
+  `VALUE` bigint(8) NOT NULL DEFAULT '0'
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+uninstall plugin rocksdb;
+select * from information_schema.rocksdb_cfstats;
+ERROR HY000: Plugin 'ROCKSDB' is not loaded
+# restart
 set @prior_lock_wait_timeout = @@rocksdb_lock_wait_timeout;
 set @prior_deadlock_detect = @@rocksdb_deadlock_detect;
 set @prior_max_latest_deadlocks = @@rocksdb_max_latest_deadlocks;
@@ -6,18 +17,6 @@ set global rocksdb_lock_wait_timeout = 10000;
 # Clears deadlock buffer of any prior deadlocks.
 set global rocksdb_max_latest_deadlocks = 0;
 set global rocksdb_max_latest_deadlocks = @prior_max_latest_deadlocks;
-show create table information_schema.rocksdb_deadlock;
-Table	Create Table
-ROCKSDB_DEADLOCK	CREATE TEMPORARY TABLE `ROCKSDB_DEADLOCK` (
-  `DEADLOCK_ID` bigint(8) NOT NULL DEFAULT '0',
-  `TRANSACTION_ID` bigint(8) NOT NULL DEFAULT '0',
-  `CF_NAME` varchar(193) NOT NULL DEFAULT '',
-  `WAITING_KEY` varchar(513) NOT NULL DEFAULT '',
-  `LOCK_TYPE` varchar(193) NOT NULL DEFAULT '',
-  `INDEX_NAME` varchar(193) NOT NULL DEFAULT '',
-  `TABLE_NAME` varchar(193) NOT NULL DEFAULT '',
-  `ROLLED_BACK` bigint(8) NOT NULL DEFAULT '0'
-) ENGINE=MEMORY DEFAULT CHARSET=utf8
 create table t (i int primary key) engine=rocksdb;
 insert into t values (1), (2), (3);
 select * from information_schema.rocksdb_deadlock;

@@ -6181,7 +6181,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;

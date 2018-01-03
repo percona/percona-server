@@ -3,6 +3,8 @@
 #
 # Information Schema index file map
 #
+--let i_s_plugin=rocksdb_index_file_map
+--source suite/rocksdb/include/i_s_basic.inc
 
 CREATE TABLE t1 (i INT PRIMARY KEY, j INT, INDEX(j)) ENGINE = ROCKSDB;
 CREATE TABLE t2 (k INT PRIMARY KEY, l INT REFERENCES t1.i) ENGINE = ROCKSDB;

@@ -1,3 +1,21 @@
+show create table information_schema.rocksdb_index_file_map;
+Table	Create Table
+ROCKSDB_INDEX_FILE_MAP	CREATE TEMPORARY TABLE `ROCKSDB_INDEX_FILE_MAP` (
+  `COLUMN_FAMILY` int(4) NOT NULL DEFAULT '0',
+  `INDEX_NUMBER` int(4) NOT NULL DEFAULT '0',
+  `SST_NAME` varchar(193) NOT NULL DEFAULT '',
+  `NUM_ROWS` bigint(8) NOT NULL DEFAULT '0',
+  `DATA_SIZE` bigint(8) NOT NULL DEFAULT '0',
+  `ENTRY_DELETES` bigint(8) NOT NULL DEFAULT '0',
+  `ENTRY_SINGLEDELETES` bigint(8) NOT NULL DEFAULT '0',
+  `ENTRY_MERGES` bigint(8) NOT NULL DEFAULT '0',
+  `ENTRY_OTHERS` bigint(8) NOT NULL DEFAULT '0',
+  `DISTINCT_KEYS_PREFIX` varchar(400) NOT NULL DEFAULT ''
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+uninstall plugin rocksdb;
+select * from information_schema.rocksdb_index_file_map;
+ERROR HY000: Plugin 'ROCKSDB' is not loaded
+# restart
 CREATE TABLE t1 (i INT PRIMARY KEY, j INT, INDEX(j)) ENGINE = ROCKSDB;
 CREATE TABLE t2 (k INT PRIMARY KEY, l INT REFERENCES t1.i) ENGINE = ROCKSDB;
 INSERT INTO t1 VALUES (1,2), (2,4), (3,6), (4,8), (5,10);

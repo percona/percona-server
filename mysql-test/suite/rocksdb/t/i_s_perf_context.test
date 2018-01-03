@@ -1,8 +1,14 @@
 --source include/have_rocksdb.inc
 
 #
-# Information Schema perf context
+# Information Schema performance context statistics and performance context
+# global statictocs
 #
+--let i_s_plugin=rocksdb_perf_context
+--source suite/rocksdb/include/i_s_basic.inc
+
+--let i_s_plugin=rocksdb_perf_context_global
+--source suite/rocksdb/include/i_s_basic.inc
 
 SET @prior_rocksdb_perf_context_level = @@rocksdb_perf_context_level;
 SET GLOBAL rocksdb_perf_context_level=3;

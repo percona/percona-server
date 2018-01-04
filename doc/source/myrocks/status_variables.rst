@@ -92,9 +92,9 @@ The following global status variables are available:
      - Numeric
    * - :variable:`rocksdb_block_cache_miss`
      - Numeric
-   * - :variable:`rocksdb_block_cachecompressed_hit`
+   * - :variable:`rocksdb_block_cache_compressed_hit`
      - Numeric
-   * - :variable:`rocksdb_block_cachecompressed_miss`
+   * - :variable:`rocksdb_block_cache_compressed_miss`
      - Numeric
    * - :variable:`rocksdb_bloom_filter_prefix_checked`
      - Numeric
@@ -124,7 +124,7 @@ The following global status variables are available:
      - Numeric
    * - :variable:`rocksdb_get_hit_l2_and_up`
      - Numeric
-   * - :variable:`rocksdb_getupdatessince_calls`
+   * - :variable:`rocksdb_get_updates_since_calls`
      - Numeric
    * - :variable:`rocksdb_iter_bytes_read`
      - Numeric
@@ -381,11 +381,11 @@ block from block cache.
 
 This variable shows the total number of block cache misses.
 
-.. variable:: rocksdb_block_cachecompressed_hit
+.. variable:: rocksdb_block_cache_compressed_hit
 
 This variable shows the number of hits in the compressed block cache.
 
-.. variable:: rocksdb_block_cachecompressed_miss
+.. variable:: rocksdb_block_cache_compressed_miss
 
 This variable shows the number of misses in the compressed block cache.
 
@@ -451,7 +451,7 @@ This variable shows the number of ``Get()`` queries served by L1.
 
 This variable shows the number of ``Get()`` queries served by L2 and up.
 
-.. variable:: rocksdb_getupdatessince_calls
+.. variable:: rocksdb_get_updates_since_calls
 
 This variable shows the number of calls to ``GetUpdatesSince`` function.
 Useful to keep track of transaction log iterator refreshes

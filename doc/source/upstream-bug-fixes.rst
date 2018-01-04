@@ -5,6 +5,12 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with...                    |
+|:Launchpad bug: :bug:`1722789`                                                                               |
+|:Upstream state: Verified (checked on 2018-01-04)                                                            |
+|:Fix Released: :rn:`5.7.20-19`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`87065` - Release lock on table statistics after query plan created                 |
 |:Launchpad bug: :bug:`1689736`                                                                               |
 |:Upstream state: Open (checked on 2017-12-14)                                                                |
@@ -57,6 +63,12 @@
 |:Launchpad bug: :bug:`1668602`                                                                               |
 |:Upstream state: Closed                                                                                      |
 |:Fix Released: :rn:`5.7.18-14`                                                                               |
+|:Upstream fix: N/A                                                                                           | 
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`85158` - heartbeats/fakerotate cause a forced sync_master_info                     |
+|:Launchpad bug: :bug:`1708033`                                                                               |
+|:Upstream state: Open (checked on 2018-01-04)                                                                |
+|:Fix Released: :rn:`5.7.20-19`                                                                               |
 |:Upstream fix: N/A                                                                                           | 
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`85141` - Write/fsync amplification w/ duplicate GTIDs                              |
@@ -513,6 +525,12 @@
 |:Launchpad bug: :bug:`1354988`                                                                               |
 |:Upstream state: Verified (checked on 2017-12-14)                                                            |
 |:Fix Released: :rn:`5.7.10-1`                                                                                |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`53588` - Blackhole : Specified key was too long; max key length is 1000 bytes      |
+|:Launchpad bug: :bug:`1733049`                                                                               |
+|:Upstream state: No Feedback (checked on 2018-01-04)                                                         |
+|:Fix Released: :rn:`5.7.20-19`                                                                               |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`49120` - mysqldump should have flag to delay creating indexes for innodb plugin... |

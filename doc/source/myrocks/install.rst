@@ -4,8 +4,6 @@
 Percona MyRocks Installation Guide
 ==================================
 
-.. warning:: Percona MyRocks is currently experimental
-   and not recommended for production.
 
 Percona MyRocks is distributed as a separate package
 that can be enabled as a plugin for Percona Server 5.7 and later versions.

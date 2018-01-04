@@ -178,6 +178,7 @@ Percona MyRocks
    Server Variables <myrocks/variables>
    Status Variables <myrocks/status_variables>
    myrocks/gap_locks_detection
+   myrocks/data_loading
 
 Reference
 =========

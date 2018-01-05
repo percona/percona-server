@@ -5532,8 +5532,9 @@ rdb_is_index_collation_supported(const my_core::Field *const field) {
   /* Handle [VAR](CHAR|BINARY) or TEXT|BLOB */
   if (type == MYSQL_TYPE_VARCHAR || type == MYSQL_TYPE_STRING ||
       type == MYSQL_TYPE_BLOB || type == MYSQL_TYPE_JSON) {
-    return RDB_INDEX_COLLATIONS.find(field->charset()) !=
-           RDB_INDEX_COLLATIONS.end();
+    return (RDB_INDEX_COLLATIONS.find(field->charset()) !=
+           RDB_INDEX_COLLATIONS.end()) ||
+           rdb_is_collation_supported(field->charset());
   }
   return true;
 }
@@ -5656,18 +5657,13 @@ int ha_rocksdb::create_cfs(
         if (!rdb_is_index_collation_supported(
                 table_arg->key_info[i].key_part[part].field) &&
             !rdb_collation_exceptions->match(tablename_sys)) {
-          std::string collation_err;
-          for (const auto &coll : RDB_INDEX_COLLATIONS) {
-            if (collation_err != "") {
-              collation_err += ", ";
-            }
-            collation_err += coll->name;
-          }
-          my_error(ER_UNSUPPORTED_COLLATION, MYF(0),
-                   tbl_def_arg->full_tablename().c_str(),
-                   table_arg->key_info[i].key_part[part].field->field_name,
-                   collation_err.c_str());
-          DBUG_RETURN(HA_EXIT_FAILURE);
+          push_warning_printf(
+              ha_thd(), Sql_condition::SL_WARNING, HA_ERR_INTERNAL_ERROR,
+              "Indexed column %s.%s uses a collation that does not allow "
+              "index-only access in secondary key and has reduced disk space "
+              "efficiency in primary key.",
+              tbl_def_arg->full_tablename().c_str(),
+              table_arg->key_info[i].key_part[part].field->field_name);
         }
       }
     }
@@ -11488,9 +11484,13 @@ const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type) {
 // In case of core dump generation we want this function NOT to be optimized
 // so that we can capture as much data as possible to debug the root cause
 // more efficiently.
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-
+#if defined(DBUG_OFF)
+#ifdef __clang__
+MY_ATTRIBUTE((optnone))
+#else
+MY_ATTRIBUTE((optimize("O0")))
+#endif
+#endif
 void rdb_handle_io_error(const rocksdb::Status status,
                          const RDB_IO_ERROR_TYPE err_type) {
   if (status.IsIOError()) {
@@ -11541,8 +11541,6 @@ void rdb_handle_io_error(const rocksdb::Status status,
     }
   }
 }
-
-#pragma GCC pop_options
 
 Rdb_dict_manager *rdb_get_dict_manager(void) { return &dict_manager; }
 

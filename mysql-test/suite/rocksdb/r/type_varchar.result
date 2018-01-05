@@ -821,3 +821,13 @@ email_i	1
 drop table t;
 set global rocksdb_checksums_pct = @save_rocksdb_checksums_pct;
 set session rocksdb_verify_row_debug_checksums = @save_rocksdb_verify_row_debug_checksums;
+create table t (h varchar(31) character set utf8 collate utf8_bin not null, i varchar(19) collate latin1_bin not null, primary key(i), key(h)) engine=rocksdb;
+insert into t(i,h) values('a','b');
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+alter table t modify h varchar(31) character set cp1257 collate cp1257_bin not null;
+check table t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+drop table t;

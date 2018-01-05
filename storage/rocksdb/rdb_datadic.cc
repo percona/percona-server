@@ -1507,6 +1507,18 @@ int Rdb_key_def::unpack_record(TABLE *const table, uchar *const buf,
       }
       if ((this->*fpi->m_skip_func)(fpi, field, &reader))
         return HA_ERR_ROCKSDB_CORRUPT_DATA;
+
+      // If this is a space padded varchar, we need to skip the indicator
+      // bytes for trailing bytes. They're useless since we can't restore the
+      // field anyway.
+      //
+      // There is a special case for prefixed varchars where we do not
+      // generate unpack info, because we know prefixed varchars cannot be
+      // unpacked. In this case, it is not necessary to skip.
+      if (fpi->m_skip_func == &Rdb_key_def::skip_variable_space_pad &&
+          !fpi->m_unpack_info_stores_value) {
+        unp_reader.read(fpi->m_unpack_info_uses_two_bytes ? 2 : 1);
+      }
     }
   }
 
@@ -2921,7 +2933,7 @@ std::array<const Rdb_collation_codec *, MY_ALL_CHARSETS_SIZE>
     rdb_collation_data;
 mysql_mutex_t rdb_collation_data_mutex;
 
-static bool rdb_is_collation_supported(const my_core::CHARSET_INFO *const cs) {
+bool rdb_is_collation_supported(const my_core::CHARSET_INFO *const cs) {
   return (cs->coll == &my_collation_8bit_simple_ci_handler);
 }
 
@@ -2962,11 +2974,11 @@ rdb_init_collation_mapping(const my_core::CHARSET_INFO *const cs) {
           }
         }
 
-        cur->m_make_unpack_info_func = {
+        cur->m_make_unpack_info_func = {{
             &Rdb_key_def::make_unpack_simple_varchar,
-            &Rdb_key_def::make_unpack_simple};
-        cur->m_unpack_func = {&Rdb_key_def::unpack_simple_varchar_space_pad,
-                              &Rdb_key_def::unpack_simple};
+            &Rdb_key_def::make_unpack_simple}};
+        cur->m_unpack_func = {{&Rdb_key_def::unpack_simple_varchar_space_pad,
+                              &Rdb_key_def::unpack_simple}};
       } else {
         // Out of luck for now.
       }
@@ -4160,6 +4172,10 @@ bool Rdb_ddl_manager::rename(const std::string &from, const std::string &to,
   new_rec->m_auto_incr_val =
       rec->m_auto_incr_val.load(std::memory_order_relaxed);
   new_rec->m_key_descr_arr = rec->m_key_descr_arr;
+
+  new_rec->m_hidden_pk_val =
+      rec->m_hidden_pk_val.load(std::memory_order_relaxed);
+
   // so that it's not free'd when deleting the old rec
   rec->m_key_descr_arr = nullptr;
 

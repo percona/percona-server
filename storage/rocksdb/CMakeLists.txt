@@ -66,13 +66,17 @@ CHECK_CXX_SOURCE_COMPILES("
 #include <cstdint>
 #include <nmmintrin.h>
 int main() {
-  volatile uint32_t x = _mm_crc32_u32(0, 0);
+  volatile uint32_t x __attribute__((unused)) = _mm_crc32_u32(0, 0);
 }
 " HAVE_SSE42)
 IF (HAVE_SSE42)
   ADD_DEFINITIONS(-DHAVE_SSE42)
 ELSE ()
-  MESSAGE(${MYROCKS_STATUS_MODE} "No SSE42 support found. Not building MyRocks")
+  IF (ALLOW_NO_SSE42)
+    MESSAGE(WARNING "No SSE42 support found and ALLOW_NO_SSE42 specified, building MyRocks but without SSE42/FastCRC32 support")
+  ELSE ()
+    MESSAGE(FATAL_ERROR "No SSE42 support found. Not building MyRocks")
+  ENDIF ()
 ENDIF ()
 
 IF(UNIX)

@@ -1069,6 +1069,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  TOKU_UNCOMPRESSED_SYM
 %token  TOKU_ZLIB_SYM
 %token  TOKU_SNAPPY_SYM
+%token  TOKU_ZSTD_SYM
 %token  TOKU_QUICKLZ_SYM
 %token  TOKU_LZMA_SYM
 %token  TOKU_FAST_SYM
@@ -6277,6 +6278,7 @@ row_types:
         | TOKU_UNCOMPRESSED_SYM { $$= ROW_TYPE_TOKU_UNCOMPRESSED; }
         | TOKU_ZLIB_SYM         { $$= ROW_TYPE_TOKU_ZLIB; }
         | TOKU_SNAPPY_SYM       { $$= ROW_TYPE_TOKU_SNAPPY; }
+        | TOKU_ZSTD_SYM         { $$= ROW_TYPE_TOKU_ZSTD; }
         | TOKU_QUICKLZ_SYM      { $$= ROW_TYPE_TOKU_QUICKLZ; }
         | TOKU_LZMA_SYM         { $$= ROW_TYPE_TOKU_LZMA; }
         | TOKU_FAST_SYM         { $$= ROW_TYPE_TOKU_FAST; }
@@ -13882,6 +13884,7 @@ keyword_sp:
         | TOKU_UNCOMPRESSED_SYM    {}
         | TOKU_ZLIB_SYM            {}
         | TOKU_SNAPPY_SYM          {}
+        | TOKU_ZSTD_SYM            {}
         | TOKU_QUICKLZ_SYM         {}
         | TOKU_LZMA_SYM            {}
         | TOKU_SMALL_SYM           {}

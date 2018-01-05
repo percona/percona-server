@@ -421,6 +421,7 @@ mkdir release
            -DWITH_PAM=1 \
            -DWITH_ROCKSDB=1 \
            -DWITH_INNODB_MEMCACHED=1 \
+           -DWITH_SCALABILITY_METRICS=ON \
            -DWITH_ZLIB=system \
            -DWITH_SCALABILITY_METRICS=ON \
            %{?ssl_option} \
@@ -520,6 +521,12 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M %{!?el5:-N} -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "Percona Server" -u 27 mysql >/dev/null 2>&1 || :
+if [ $1 -ge 1 ]; then
+  if [ ! -f /etc/my.cnf -a -f /etc/my.cnf_back_before_remove -a ! -L /etc/my.cnf ]; then
+    mv /etc/my.cnf_back_before_remove /etc/my.cnf
+    echo "    /etc/my.cnf was restored from backup file my.cnf_back_before_remove"
+  fi
+fi
 
 %post -n Percona-Server-server%{product_suffix}
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
@@ -545,7 +552,31 @@ else
 fi
 if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]
 then
-  rm -f /etc/my.cnf
+  cat > /tmp/my.cnf << EOL
+[mysqld]
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+# Settings user and group are ignored when systemd is used.
+# If you need to run mysqld under a different user or group,
+# customize your systemd unit file for mariadb according to the
+# instructions in http://fedoraproject.org/wiki/Systemd
+
+[mysqld_safe]
+log-error=/var/log/mariadb/mariadb.log
+pid-file=/var/run/mariadb/mariadb.pid
+
+#
+# include all files from the config directory
+#
+!includedir /etc/my.cnf.d
+
+EOL
+  if cmp -s "/etc/my.cnf" "/tmp/my.cnf"
+  then
+    rm -f /etc/my.cnf /tmp/my.cnf
+  fi
 fi
 if [ ! -f /etc/my.cnf ]
 then
@@ -605,6 +636,14 @@ for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
   fi
 done
 /sbin/ldconfig
+
+
+%preun -n Percona-Server-shared-compat%{product_suffix} 
+if [ -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
+    cp -p /etc/my.cnf /etc/my.cnf_back_before_remove
+    echo "    The beckup of my.cnf file was created as /etc/my.cnf_back_before_remove"
+fi
+
 
 %postun -n Percona-Server-shared-compat%{product_suffix}
 for lib in libmysqlclient{.so.18.0.0,.so.18,_r.so.18.0.0,_r.so.18}; do
@@ -671,9 +710,9 @@ fi
 %config(noreplace) %{_sysconfdir}/percona-server.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
-%if 0%{?rhel} > 6
-%config(noreplace) %{_sysconfdir}/my.cnf
-%endif
+#%if 0%{?rhel} > 6
+#%config(noreplace) %{_sysconfdir}/my.cnf
+#%endif
 
 
 %attr(755, root, root) %{_bindir}/innochecksum

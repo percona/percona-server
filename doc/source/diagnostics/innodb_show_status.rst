@@ -71,6 +71,41 @@ output.
 Specifies the number of locks held to print for each |InnoDB| transaction in
 ``SHOW ENGINE INNODB STATUS``.
 
+.. variable:: innodb_print_lock_wait_timeout_info
+
+     :version 5.7.20-18: Implemented
+     :cli: Yes
+     :conf: Yes
+     :scope: Global
+     :dyn: Yes
+     :vartype: Boolean
+     :default: ``OFF``
+
+Makes |InnoDB| to write information about all lock wait timeout errors 
+into the log file. 
+
+This allows to find out details about the failed transaction, and, most 
+importantly, the blocking transaction. Query string can be obtained from 
+:table:`performance_schema.events_statements_current` table, based on the 
+``PROCESSLIST_ID`` field, which corresponds to ``thread_id`` from the log
+output.
+
+Taking into account that blocking transaction is often a multiple statement 
+one, folowing query can be used to obtain blocking thread statements history:
+
+.. code-block:: mysql
+
+   SELECT s.SQL_TEXT FROM performance_schema.events_statements_history s
+   INNER JOIN performance_schema.threads t ON t.THREAD_ID = s.THREAD_ID
+   WHERE t.PROCESSLIST_ID = %d
+   UNION
+   SELECT s.SQL_TEXT FROM performance_schema.events_statements_current s
+   INNER JOIN performance_schema.threads t ON t.THREAD_ID = s.THREAD_ID
+   WHERE t.PROCESSLIST_ID = %d;
+
+(PROCESSLIST_ID in this example is exactly the thread id from error log
+output).
+
 
 Status Variables
 ================

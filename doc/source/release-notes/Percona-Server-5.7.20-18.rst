@@ -76,6 +76,9 @@ Bugs Fixed
 * |TokuDB| would encode already encoded database name for a directory name.
   Bug fixed :tdbbug:`74`.
 
+* Optimizer would pick wrong index for |TokuDB| tables having a hot created
+  index, unless ``ALTER TABLE`` was run. Bug fixed :tdbbug:`35`.
+
 Other bugs fixed: :bug:`1720810`, :tdbbug:`83`, :tdbbug:`80`, and :tdbbug:`75`.
 
 MyRocks Changes

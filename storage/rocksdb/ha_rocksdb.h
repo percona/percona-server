@@ -1386,4 +1386,75 @@ private:
   Rdb_inplace_alter_ctx(const Rdb_inplace_alter_ctx &);
   Rdb_inplace_alter_ctx &operator=(const Rdb_inplace_alter_ctx &);
 };
+
+/*
+  Helper class to control access/init to handlerton instance.
+  Contains a flag that is set if the handlerton is in an initialized, usable
+  state, plus a reader-writer lock to protect it without serializing reads.
+  Since we don't have static initializers for the opaque mysql_rwlock type,
+  use constructor and destructor functions to create and destroy
+  the lock before and after main(), respectively.
+*/
+struct Rdb_hton_init_state {
+  struct Scoped_lock {
+    Scoped_lock(Rdb_hton_init_state& state, bool write) : m_state(state) {
+      if (write)
+        m_state.lock_write();
+      else
+        m_state.lock_read();
+    }
+    ~Scoped_lock() {
+      m_state.unlock();
+    }
+  private:
+    Scoped_lock(const Scoped_lock& sl) : m_state(sl.m_state) {}
+    void operator=(const Scoped_lock&) {}
+
+    Rdb_hton_init_state& m_state;
+  };
+
+  Rdb_hton_init_state() : m_initialized(false) {
+    /*
+      m_rwlock can not be instrumented as it must be initialized before
+      mysql_mutex_register() call to protect some globals from race condition.
+    */
+    mysql_rwlock_init(0, &m_rwlock);
+  }
+
+  ~Rdb_hton_init_state() {
+    mysql_rwlock_destroy(&m_rwlock);
+  }
+
+  void lock_read() {
+    mysql_rwlock_rdlock(&m_rwlock);
+  }
+
+  void lock_write() {
+    mysql_rwlock_wrlock(&m_rwlock);
+  }
+
+  void unlock() {
+    mysql_rwlock_unlock(&m_rwlock);
+  }
+
+  /*
+    Must be called with either a read or write lock held, unable to enforce
+    behavior as mysql_rwlock has no means of determining if a thread has a lock
+  */
+  bool initialized() const {
+    return m_initialized;
+  }
+
+  /*
+    Must be called with only a write lock held, unable to enforce behavior as
+    mysql_rwlock has no means of determining if a thread has a lock
+  */
+  void set_initialized(bool init) {
+    m_initialized = init;
+  }
+
+private:
+  mysql_rwlock_t m_rwlock;
+  bool m_initialized;
+};
 } // namespace myrocks

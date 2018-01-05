@@ -152,6 +152,7 @@ static std::shared_ptr<Rdb_tbl_prop_coll_factory> properties_collector_factory;
 Rdb_dict_manager dict_manager;
 Rdb_cf_manager cf_manager;
 Rdb_ddl_manager ddl_manager;
+Rdb_hton_init_state hton_init_state;
 
 /**
   MyRocks background thread control
@@ -3526,6 +3527,10 @@ static int rocksdb_init_func(void *const p) {
   // Validate the assumption about the size of ROCKSDB_SIZEOF_HIDDEN_PK_COLUMN.
   static_assert(sizeof(longlong) == 8, "Assuming that longlong is 8 bytes.");
 
+  // Lock the handlertons initialized status flag for writing
+  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
+  SHIP_ASSERT(!rdb_get_hton_init_state()->initialized());
+
   init_rocksdb_psi_keys();
 
   rocksdb_hton = (handlerton *)p;
@@ -3644,6 +3649,7 @@ static int rocksdb_init_func(void *const p) {
     // NO_LINT_DEBUG
     sql_print_error("RocksDB: rocksdb_flush_log_at_trx_commit needs to be 0 "
                     "to use allow_mmap_writes");
+    rdb_open_tables.free_hash();
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -3671,6 +3677,7 @@ static int rocksdb_init_func(void *const p) {
     } else {
       rdb_open_tables.free_hash();
       rdb_log_status_error(status, "Error listing column families");
+      rdb_open_tables.free_hash();
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
   } else
@@ -3728,11 +3735,13 @@ static int rocksdb_init_func(void *const p) {
       // NO_LINT_DEBUG
       sql_print_error("RocksDB: Persistent cache returned error: (%s)",
                       status.getState());
+      rdb_open_tables.free_hash();
       DBUG_RETURN(HA_EXIT_FAILURE);
     }
     rocksdb_tbl_options->persistent_cache = pcache;
   } else if (strlen(rocksdb_persistent_cache_path)) {
     sql_print_error("RocksDB: Must specify rocksdb_persistent_cache_size_mb");
+    rdb_open_tables.free_hash();
     DBUG_RETURN(HA_EXIT_FAILURE);
   }
 
@@ -3894,6 +3903,9 @@ static int rocksdb_init_func(void *const p) {
   // has been successfully initialized.
   commit_latency_stats = new rocksdb::HistogramImpl();
 
+  // succeeded, set the init status flag
+  rdb_get_hton_init_state()->set_initialized(true);
+
   sql_print_information("RocksDB instance opened");
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -3906,6 +3918,12 @@ static int rocksdb_done_func(void *const p) {
   DBUG_ENTER_FUNC();
 
   int error = 0;
+
+  // If we finalize the storage engine plugin, it is no longer initialized.
+  // Grab a writer lock for the duration of the call, so we can clear the flag
+  // and destroy the handlerton and global state in isolation.
+  Rdb_hton_init_state::Scoped_lock state_lock(*rdb_get_hton_init_state(), true);
+  SHIP_ASSERT(rdb_get_hton_init_state()->initialized());
 
   // signal the drop index thread to stop
   rdb_drop_idx_thread.signal(true);
@@ -3985,6 +4003,9 @@ static int rocksdb_done_func(void *const p) {
   rocksdb_stats = nullptr;
 
   my_error_unregister(HA_ERR_ROCKSDB_FIRST, HA_ERR_ROCKSDB_LAST);
+
+  // clear the initialized flag and unlock
+  rdb_get_hton_init_state()->set_initialized(false);
 
   DBUG_RETURN(error);
 }
@@ -11505,6 +11526,10 @@ void rdb_handle_io_error(const rocksdb::Status status,
 Rdb_dict_manager *rdb_get_dict_manager(void) { return &dict_manager; }
 
 Rdb_ddl_manager *rdb_get_ddl_manager(void) { return &ddl_manager; }
+
+Rdb_hton_init_state *rdb_get_hton_init_state(void) {
+  return &hton_init_state;
+}
 
 void rocksdb_set_compaction_options(my_core::THD *const thd
                                     MY_ATTRIBUTE((__unused__)),

@@ -4500,13 +4500,19 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (encrypt_binlog && (!opt_master_verify_checksum ||
-      binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
-      binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_UNDEF))
-  {
-    sql_print_error("BINLOG_ENCRYPTION requires MASTER_VERIFY_CHECKSUM = ON and "
-                    "BINLOG_CHECKSUM to be turned ON.");
-    unireg_abort(MYSQLD_ABORT_EXIT);
+  if (encrypt_binlog)
+  { 
+    if (!opt_master_verify_checksum ||
+        binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+        binlog_checksum_options == binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
+    {
+      sql_print_error("BINLOG_ENCRYPTION requires MASTER_VERIFY_CHECKSUM = ON and "
+                      "BINLOG_CHECKSUM to be turned ON.");
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+    if (!opt_bin_log)
+      sql_print_information("binlog and relay log encryption enabled without binary logging being enabled. "
+                            "If relay logs are in use, they will be encrypted.");
   }
 
   /// @todo: this looks suspicious, revisit this /sven

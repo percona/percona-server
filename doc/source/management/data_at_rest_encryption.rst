@@ -80,6 +80,46 @@ Trying to add unencrypted table to this table space will result in an error:
   |Percona XtraBackup| currently doesn't support backup of encrypted general
   tablespaces.
 
+Binary log encryption
+=====================
+
+A new option, implemented since |Percona Server| :rn:`5.7.20-19`, is
+encryption of binary and relay logs, triggered by the
+:variable:`encrypt_binlog` variable.
+
+Besides turning :variable:`encrypt_binlog` ``ON``, this feature requires both
+`master_verify_checksum
+<https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_master_verify_checksum>`_
+and `binlog_checksum
+<https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_checksum>`_
+variables to be turned ``ON``.
+
+While replicating, master sends the stream of decrypted binary log events to a
+slave (SSL connections can be set up to encrypt them in transport). That said,
+masters and slaves use separate keyring storages and are free to use differing
+keyring plugins.
+
+Dumping of encrypted binary logs involves decryption, and can be done using
+``mysqlbinlog`` with ``--read-from-remote-server`` option.
+
+.. note:: Taking into account that ``--read-from-remote-server`` option  is only
+   relevant to binary logs, encrypted relay logs can not be dumped/decrypted
+   in this way.
+
+System Variables
+----------------
+
+.. variable:: encrypt_binlog
+
+  :version 5.7.20-19: Implemented
+  :cli: ``--encrypt-binlog``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+The variable turns on binary and relay logs encryption.
+
 .. _keyring_vault_plugin:
 
 Keyring Vault plugin
@@ -183,24 +223,6 @@ System Variables
 
 This variable is used to define the location of the
 :ref:`keyring_vault_plugin` configuration file.
-
-.. variable:: encrypt_binlog
-
-  :version 5.7.20-19: Implemented
-  :cli: ``--encrypt-binlog``
-  :dyn: No
-  :scope: Global
-  :vartype: Boolean
-  :default: ``OFF``
-
-This variable turns on binary and relay logs
-encryption. It requires both
-`master_verify_checksum
-<https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_master_verify_checksum>`_ 
-and `binlog_checksum
-<https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html#sysvar_binlog_checksum>`_ 
-variables to be turned ``ON``.
-
 
 Other reading
 -------------

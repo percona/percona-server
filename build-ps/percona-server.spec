@@ -525,7 +525,7 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
 /bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 if [ ! -e /var/log/mysqld.log ]; then
-    /bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log
+    /usr/bin/install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log
 fi
 #/bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}

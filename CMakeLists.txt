@@ -211,6 +211,7 @@ INCLUDE(protobuf)
 INCLUDE(mysql_version)
 INCLUDE(libutils)
 INCLUDE(dtrace)
+INCLUDE(jemalloc)
 INCLUDE(plugin)
 INCLUDE(install_macros)
 INCLUDE(install_layout)
@@ -535,6 +536,9 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
+IF(NOT WITH_DEBUG)
+  CHECK_JEMALLOC()
+ENDIF()
 
 # Check for SYS_thread_selfid system call
 CHECK_C_SOURCE_COMPILES("

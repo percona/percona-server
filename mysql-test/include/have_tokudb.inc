@@ -1,10 +1,4 @@
-#
-# Check if server has support for loading plugins
-#
-if (`SELECT @@have_dynamic_loading != 'YES'`) {
-  --skip TokuDB requires dynamic loading
-}
-
-if (!$TOKUDB) {
-  --skip TokuDB requires the environment variable \$TOKUDB to be set (normally done by mtr)
+if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.ENGINES WHERE engine = 'tokudb' AND support IN ('YES', 'DEFAULT', 'ENABLED')`)
+{
+  --skip Test requires TokuDB.
 }

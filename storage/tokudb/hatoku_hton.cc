@@ -289,6 +289,14 @@ static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("%p", p);
     int r;
 
+    // tokudb row status variable init
+    memset(&toku_row_status, 0, sizeof(toku_row_status));
+    toku_row_status.last_monitor_time = time(NULL);
+    toku_row_status.inserted = create_partitioned_counter();
+    toku_row_status.deleted = create_partitioned_counter();
+    toku_row_status.updated = create_partitioned_counter();
+    toku_row_status.read = create_partitioned_counter();
+
     // 3938: lock the handlerton's initialized status flag for writing
     rwlock_t_lock_write(tokudb_hton_initialized_lock);
 
@@ -307,7 +315,6 @@ static int tokudb_init_func(void *p) {
 
     db_env = NULL;
     tokudb_hton = (handlerton*)p;
-
     if (tokudb::sysvars::check_jemalloc) {
         typedef int (*mallctl_type)(
             const char*,
@@ -756,6 +763,15 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
         tokudb_primary_key_bytes_inserted = NULL;
     }
 
+    if (toku_row_status.inserted)
+        destroy_partitioned_counter(toku_row_status.inserted);
+    if (toku_row_status.deleted)
+        destroy_partitioned_counter(toku_row_status.deleted);
+    if (toku_row_status.updated)
+        destroy_partitioned_counter(toku_row_status.updated);
+    if (toku_row_status.read)
+        destroy_partitioned_counter(toku_row_status.read);
+
 #if TOKU_THDVAR_MEMALLOC_BUG
     delete_tree(&tokudb_map);
 #endif
@@ -810,13 +826,17 @@ bool tokudb_flush_logs(handlerton * hton, bool binlog_group_commit) {
             goto exit;
         }
     }
-    // if we are either in 'FLUSH LOGS', or, we are not in 'FLUSH LOGS' but in
-    // binlog_group_commit and we are in high durability, flush 'em
-    else if (!binlog_group_commit ||
-             (tokudb::sysvars::fsync_log_period == 0 &&
-              tokudb::sysvars::commit_sync(NULL))) {
-        error = db_env->log_flush(db_env, NULL);
-        assert_always(error == 0);
+    else {
+        /* If !binlog_group_commit, we got invoked by FLUSH LOGS or similar.
+           Else, we got invoked by binlog group commit during flush stage. */
+        if (binlog_group_commit && (tokudb::sysvars::fsync_log_period > 0)) {
+            /* if fsync_log_period>0
+               Do not flush the redo log during binlog group commit. */
+            goto exit;
+        } else {
+            error = db_env->log_flush(db_env, NULL);
+            assert_always(error == 0);
+        }
     }
 
 exit:
@@ -981,7 +1001,7 @@ static bool tokudb_sync_on_prepare(THD* thd) {
 }   
 
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%u", all);
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     int r = 0;
 
@@ -1009,6 +1029,22 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
         r = txn->xa_prepare(txn, &thd_xid, syncflag);
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_prepare_after", DBUG_SUICIDE(););
+
+        // XA log entries can be interleaved in the binlog since XA prepare on the master
+        // flushes to the binlog.  There can be log entries from different clients pushed
+        // into the binlog before XA commit is executed on the master.  Therefore, the slave
+        // thread must be able to juggle multiple XA transactions.  Tokudb does this by
+        // zapping the client transaction context on the slave when executing the XA prepare
+        // and expecting to process XA commit with commit_by_xid (which supplies the XID so
+        // that the transaction can be looked up and committed).
+        if (r == 0 && all && thd->slave_thread) {
+            TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "zap txn context %u", thd_sql_command(thd));
+            if (thd_sql_command(thd) == SQLCOM_XA_PREPARE) {
+                trx->all = NULL;
+                trx->sub_sp_level = NULL;
+                trx->sp_level = NULL;
+            }
+        }
     } else {
         TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "nothing to prepare %d", all);
     }
@@ -1039,6 +1075,7 @@ static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
     int r = 0;
     DB_TXN* txn = NULL;
     TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
@@ -1058,6 +1095,7 @@ cleanup:
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
+    TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
     int r = 0;
     DB_TXN* txn = NULL;
     TOKU_XA_XID* toku_xid = (TOKU_XA_XID*)xid;
@@ -1326,6 +1364,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     const int bufsiz = 1024;
     char buf[bufsiz];
 
+    double time_elapsed;
+    time_t current_time;
+
 #if MYSQL_VERSION_ID < 50500
     {
         sys_var* version = intern_find_sys_var("version", 0, false);
@@ -1439,6 +1480,46 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
             tokudb_primary_key_bytes_inserted);
         snprintf(buf, bufsiz, "%" PRIu64, bytes_inserted);
         STATPRINT("handlerton: primary key bytes inserted", buf);
+        
+        /* tokudb row status */
+        uint64_t inserted = toku_row_status.inserted_old;
+        uint64_t updated = toku_row_status.updated_old;
+        uint64_t deleted = toku_row_status.deleted_old;
+        uint64_t read = toku_row_status.read_old;
+
+        current_time = time(NULL);
+        time_elapsed = difftime(current_time, toku_row_status.last_monitor_time);
+        if (time_elapsed >= 1.00) {
+            inserted = read_partitioned_counter(toku_row_status.inserted);
+            toku_row_status.inserts = ((inserted - toku_row_status.inserted_old) / time_elapsed);
+            toku_row_status.inserted_old = inserted;
+
+            updated = read_partitioned_counter(toku_row_status.updated);
+            toku_row_status.updates = ((updated - toku_row_status.updated_old) / time_elapsed);
+            toku_row_status.updated_old = updated;
+
+            deleted = read_partitioned_counter(toku_row_status.deleted);
+            toku_row_status.deletes = ((deleted - toku_row_status.deleted_old) / time_elapsed);
+            toku_row_status.deleted_old = deleted;
+
+            read = read_partitioned_counter(toku_row_status.read);
+            toku_row_status.reads = ((read - toku_row_status.read_old) / time_elapsed);
+            toku_row_status.read_old = read;
+
+            toku_row_status.last_monitor_time = time(NULL);
+        }
+
+        snprintf(buf, bufsiz, "Number of rows inserted %" PRIu64 ", updated %" PRIu64 ", deleted %" PRIu64 ", read %" PRIu64 "\n"
+                "%.2f inserts/s, %.2f updates/s, %.2f deletes/s, %.2f reads/s",
+                inserted,
+                updated,
+                deleted,
+                read,
+                toku_row_status.inserts,
+                toku_row_status.updates,
+                toku_row_status.deletes,
+                toku_row_status.reads);
+        STATPRINT("row: operation status", buf);
     }  
     if (error) { set_my_errno(error); }
     TOKUDB_DBUG_RETURN(error);
@@ -1921,8 +2002,8 @@ mysql_declare_plugin(tokudb)
         MYSQL_STORAGE_ENGINE_PLUGIN,
         &tokudb_storage_engine,
         tokudb_hton_name,
-        "Percona",
-        "Percona TokuDB Storage Engine with Fractal Tree(tm) Technology",
+        "XeLabs",
+        "XeLabs TokuDB Storage Engine with Fractal Tree(tm) Technology",
         PLUGIN_LICENSE_GPL,
         tokudb_init_func,          /* plugin init */
         tokudb_done_func,          /* plugin deinit */

@@ -29,11 +29,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "tokudb_status.h"
 #include "tokudb_card.h"
 #include "ha_tokudb.h"
+#include "partitioned_counter.h"
 #include "sql_db.h"
 
 pfs_key_t ha_tokudb_mutex_key;
 pfs_key_t num_DBs_lock_key;
-
 HASH TOKUDB_SHARE::_open_tables;
 tokudb::thread::mutex_t TOKUDB_SHARE::_open_tables_mutex;
 
@@ -42,6 +42,8 @@ static const char* ha_tokudb_exts[] = {
     NullS
 };
 
+// row status
+tokudb_row_status toku_row_status;
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
@@ -4172,6 +4174,7 @@ int ha_tokudb::write_row(uchar * record) {
     if (!error) {
         added_rows++;
         trx->stmt_progress.inserted++;
+        increment_partitioned_counter(toku_row_status.inserted, 1);
         track_progress(thd);
     }
 cleanup:
@@ -4358,6 +4361,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     else if (!error) {
         updated_rows++;
         trx->stmt_progress.updated++;
+        increment_partitioned_counter(toku_row_status.updated, 1);
         track_progress(thd);
     }
 
@@ -4448,6 +4452,7 @@ int ha_tokudb::delete_row(const uchar * record) {
     } else {
         deleted_rows++;
         trx->stmt_progress.deleted++;
+        increment_partitioned_counter(toku_row_status.deleted, 1);
         track_progress(thd);
     }
 cleanup:
@@ -5111,6 +5116,7 @@ int ha_tokudb::index_read(
         TOKUDB_HANDLER_TRACE("error:%d:%d", error, find_flag);
     }
     trx->stmt_progress.queried++;
+    increment_partitioned_counter(toku_row_status.read, 1);
     track_progress(thd);
 
 cleanup:
@@ -5673,6 +5679,7 @@ int ha_tokudb::get_next(
         tokudb_trx_data* trx =
             static_cast<tokudb_trx_data*>(thd_get_ha_data(thd, tokudb_hton));
         trx->stmt_progress.queried++;
+        increment_partitioned_counter(toku_row_status.read, 1);
         track_progress(thd);
         if (thd_killed(thd))
             error = ER_ABORTING_CONNECTION;
@@ -5757,6 +5764,7 @@ int ha_tokudb::index_first(uchar * buf) {
     }
     if (trx) {
         trx->stmt_progress.queried++;
+        increment_partitioned_counter(toku_row_status.read, 1);
     }
     track_progress(thd);
     maybe_index_scan = true;    
@@ -5801,6 +5809,7 @@ int ha_tokudb::index_last(uchar * buf) {
 
     if (trx) {
         trx->stmt_progress.queried++;
+        increment_partitioned_counter(toku_row_status.read, 1);
     }
     track_progress(thd);
     maybe_index_scan = true;
@@ -6884,7 +6893,7 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
         // show create table asks us to update this create_info, this makes it
         // so we'll always show what compression type we're using
         create_info->row_type = get_row_type();
-        if (create_info->row_type == ROW_TYPE_TOKU_ZLIB &&
+        if (create_info->row_type == ROW_TYPE_TOKU_ZSTD &&
             tokudb::sysvars::hide_default_row_format(ha_thd()) != 0) {
             create_info->row_type = ROW_TYPE_DEFAULT;
         }

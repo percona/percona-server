@@ -53,6 +53,8 @@ inline tokudb::sysvars::row_format_t toku_compression_method_to_row_format(
         return tokudb::sysvars::SRV_ROW_FORMAT_ZLIB;
     case TOKU_SNAPPY_METHOD:
         return tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY;
+    case TOKU_ZSTD_METHOD:
+        return tokudb::sysvars::SRV_ROW_FORMAT_ZSTD;
     case TOKU_QUICKLZ_METHOD:
         return tokudb::sysvars::SRV_ROW_FORMAT_QUICKLZ;
     case TOKU_LZMA_METHOD:
@@ -79,8 +81,10 @@ inline toku_compression_method row_format_to_toku_compression_method(
         return TOKU_QUICKLZ_METHOD;
     case tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY:
         return TOKU_SNAPPY_METHOD;
-    case tokudb::sysvars::SRV_ROW_FORMAT_ZLIB:
+    case tokudb::sysvars::SRV_ROW_FORMAT_ZSTD:
     case tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT:
+        return TOKU_ZSTD_METHOD;
+    case tokudb::sysvars::SRV_ROW_FORMAT_ZLIB:
         return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
     case tokudb::sysvars::SRV_ROW_FORMAT_LZMA:
     case tokudb::sysvars::SRV_ROW_FORMAT_SMALL:
@@ -100,6 +104,8 @@ inline enum row_type row_format_to_row_type(
         return ROW_TYPE_TOKU_ZLIB;
     case tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY:
         return ROW_TYPE_TOKU_SNAPPY;
+    case tokudb::sysvars::SRV_ROW_FORMAT_ZSTD:
+        return ROW_TYPE_TOKU_ZSTD;
     case tokudb::sysvars::SRV_ROW_FORMAT_QUICKLZ:
         return ROW_TYPE_TOKU_QUICKLZ;
     case tokudb::sysvars::SRV_ROW_FORMAT_LZMA:
@@ -125,6 +131,8 @@ inline tokudb::sysvars::row_format_t row_type_to_row_format(
         return tokudb::sysvars::SRV_ROW_FORMAT_ZLIB;
     case ROW_TYPE_TOKU_SNAPPY:
         return tokudb::sysvars::SRV_ROW_FORMAT_SNAPPY;
+    case ROW_TYPE_TOKU_ZSTD:
+        return tokudb::sysvars::SRV_ROW_FORMAT_ZSTD;
     case ROW_TYPE_TOKU_QUICKLZ:
         return tokudb::sysvars::SRV_ROW_FORMAT_QUICKLZ;
     case ROW_TYPE_TOKU_LZMA:
@@ -199,5 +207,26 @@ void tokudb_split_dname(
 void tokudb_pretty_left_key(const DB* db, const DBT* key, String* out);
 void tokudb_pretty_right_key(const DB* db, const DBT* key, String* out);
 const char *tokudb_get_index_name(DB* db);
+
+/* row status */
+struct tokudb_row_status {
+    PARTITIONED_COUNTER inserted;
+    uint64_t inserted_old;
+    double inserts;
+
+    PARTITIONED_COUNTER updated;
+    uint64_t updated_old;
+    double updates;
+
+    PARTITIONED_COUNTER deleted;
+    uint64_t deleted_old;
+    double deletes;
+
+    PARTITIONED_COUNTER read;
+    uint64_t read_old;
+    double reads;
+
+    time_t last_monitor_time;
+};
 
 #endif //#ifdef _HATOKU_HTON

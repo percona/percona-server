@@ -388,11 +388,13 @@ static uint32_t fill_dynamic_row_mutator(
             memcpy(pos, &num_bytes, sizeof(num_bytes));
             pos += sizeof(num_bytes);
             if (is_add && !is_null_default) {
-                uint curr_field_offset = field_offset(curr_field, src_table);
-                memcpy(
-                    pos,
-                    src_table->s->default_values + curr_field_offset,
-                    num_bytes);
+                if (curr_field->has_insert_default_function()) {
+                    curr_field->set_default();
+                    memcpy(pos, curr_field->ptr, num_bytes);
+                } else {
+                    uint curr_field_offset = field_offset(curr_field, src_table);
+                    memcpy(pos, src_table->s->default_values + curr_field_offset, num_bytes);
+                }
                 pos += num_bytes;
             }
         } else if (is_variable_field(src_kc_info, curr_index)) {

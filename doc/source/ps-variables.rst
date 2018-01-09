@@ -147,6 +147,11 @@ System Variables
      - Yes
      - Global
      - Yes
+   * - :variable:`innodb_print_lock_wait_timeout_info`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`innodb_show_locks_held`
      - Yes
      - Yes

@@ -3159,7 +3159,16 @@ public:
       insert_id_for_cur_row;
   }
 
+  /*
+     This function allows the storage engine to adust the create_info before
+     the frm is written based on it.
+     This can be used for example to modify the create statement based on a
+     storage engine specific setting.
+   */
+  virtual void adjust_create_info_for_frm(HA_CREATE_INFO *create_info) {}
+
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
+
   int check_old_types();
   virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }

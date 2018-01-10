@@ -2682,6 +2682,16 @@ Encryption::is_none(const char* algorithm)
 	return(false);
 }
 
+/** Check if the NO algorithm was explicitly specified.
+@param[in]      algorithm       Encryption algorithm to check
+@return true if no algorithm explicitly requested */
+bool
+Encryption::none_explicitly_specified(const char* algorithm)
+{
+	return (algorithm != NULL && 
+	        innobase_strcasecmp(algorithm, "n") == 0);
+}
+
 /** Check the encryption option and set it
 @param[in]	option		encryption option
 @param[in/out]	encryption	The encryption algorithm
@@ -11706,6 +11716,13 @@ create_table_info_t::create_option_compression_is_valid()
 	return(true);
 }
 
+enum srv_encrypt_tables_values {
+  SRV_ENCRYPT_TABLES_OFF = 0,
+  SRV_ENCRYPT_TABLES_ON = 1,
+  SRV_ENCRYPT_TABLES_FORCE = 2,
+};
+static const char* srv_encrypt_tables_names[] = { "OFF", "ON", "FORCE", 0 };
+
 /** Validate ENCRYPTION option.
 @return true if valid, false if not. */
 bool
@@ -11726,6 +11743,14 @@ create_table_info_t::create_option_encryption_is_valid() const
 
 	bool table_is_encrypted =
 		!Encryption::is_none(m_create_info->encrypt_type.str);
+
+	if (srv_encrypt_tables == SRV_ENCRYPT_TABLES_FORCE
+	  && Encryption::none_explicitly_specified(m_create_info->encrypt_type.str)) {
+		my_printf_error(ER_INVALID_ENCRYPTION_OPTION,
+			"InnoDB: Only ENCRYPTED tables can be created with "
+			"innodb_encrypt_tables=FORCE.", MYF(0));
+		return(false);
+	}
 
 	if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
 		&& table_is_encrypted) {
@@ -11956,6 +11981,19 @@ create_table_info_t::create_options_are_invalid()
 	}
 
 	return(ret);
+}
+
+static const LEX_STRING yes_string = { C_STRING_WITH_LEN("Y") };
+void
+ha_innobase::adjust_create_info_for_frm(
+	HA_CREATE_INFO*	create_info)
+{
+		if (create_info->encrypt_type.length == 0
+			&& create_info->encrypt_type.str == NULL
+			&& srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF
+			) {
+				create_info->encrypt_type = yes_string;
+			}
 }
 
 /*****************************************************************//**
@@ -21005,6 +21043,22 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment,
   "Data file autoextend increment in megabytes",
   NULL, NULL, 64L, 1L, 1000L, 0);
 
+static TYPELIB srv_encrypt_tables_typelib = {
+	array_elements(srv_encrypt_tables_names)-1, 0, srv_encrypt_tables_names,
+	NULL
+};
+static MYSQL_SYSVAR_ENUM(encrypt_tables, srv_encrypt_tables,
+			 PLUGIN_VAR_OPCMDARG,
+			 "Enable encryption for tables. "
+			 "When turned ON, all tables are created encrypted unless otherwise "
+			 "specified. When it's set to FORCE, only encrypted tables can be created."
+			 "The FORCE setting also disables non inplace alteration of unencrypted,"
+			 " tables without encrypting them in the process.",
+			 NULL,
+			 NULL,
+			 0,
+			 &srv_encrypt_tables_typelib);
+
 /** Validate the requested buffer pool size.  Also, reserve the necessary
 memory needed for buffer pool resize.
 @param[in]	thd	thread handle
@@ -21941,6 +21995,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compressed_columns_zip_level),
   MYSQL_SYSVAR(compressed_columns_threshold),
   MYSQL_SYSVAR(ft_ignore_stopwords),
+  MYSQL_SYSVAR(encrypt_tables),
   NULL
 };
 

@@ -1,0 +1,237 @@
+create tablespace ts_unencrypted1 add datafile 'ts_unencrypted1.ibd' engine=innodb;
+create tablespace ts_encrypted1 add datafile 'ts_encrypted1.ibd' engine=innodb encryption="Y";
+create tablespace ts_encrypted2 add datafile 'ts_encrypted2.ibd' engine=innodb encryption="Y";
+call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("Plugin keyring_file reported");
+create table t1_default_explicit_on (a int) engine=innodb encryption="Y";
+create table t2_default_explicit_off (a int) engine=innodb encryption="N";
+set global innodb_encrypt_tables='ON';
+create table t3_on_default (a int) engine=innodb;
+create table t4_on_explicit_off (a int) engine=innodb encryption="N";
+create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
+ERROR HY000: InnoDB: Tablespace `ts_unencrypted1` cannot contain an ENCRYPTED table.
+set global innodb_encrypt_tables='FORCE';
+create table t5_force_explicit_off (a int) engine=innodb encryption="N";
+ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+create table t6_force_default (a int) engine=innodb;
+create table t6_force_default_dup like t6_force_default;
+create table t7_partitioned (a int, primary key(a))
+engine=innodb tablespace ts_encrypted1
+partition by range (a) partitions 2 (
+partition p1 values less than (20),
+partition p2 values less than (40) tablespace ts_encrypted2);
+create table t_unencrypted_tablespace (a text) tablespace ts_unencrypted1 ENGINE="InnoDB";
+ERROR HY000: InnoDB: Tablespace `ts_unencrypted1` cannot contain an ENCRYPTED table.
+set global innodb_encrypt_tables='OFF';
+create table t5_off_explicit_off (a int) engine=innodb encryption="N";
+create table t5_off_explicit_off_dup like t5_off_explicit_off;
+create table t7_partitioned_fail (a int, primary key(a))
+engine=innodb tablespace ts_encrypted1
+partition by range (a) partitions 2 (
+partition p1 values less than (20),
+partition p2 values less than (40) tablespace ts_encrypted2);
+ERROR HY000: InnoDB: Tablespace `ts_encrypted1` can contain only an ENCRYPTED tables.
+set global innodb_encrypt_tables='FORCE';
+insert into t1_default_explicit_on values (42);
+insert into t2_default_explicit_off values (42);
+insert into t3_on_default values (42);
+insert into t4_on_explicit_off values (42);
+insert into t5_off_explicit_off values (42);
+insert into t6_force_default values (42);
+show create table t1_default_explicit_on;
+Table	Create Table
+t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t2_default_explicit_off;
+Table	Create Table
+t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t3_on_default;
+Table	Create Table
+t3_on_default	CREATE TABLE `t3_on_default` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t4_on_explicit_off;
+Table	Create Table
+t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t5_off_explicit_off;
+Table	Create Table
+t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t6_force_default;
+Table	Create Table
+t6_force_default	CREATE TABLE `t6_force_default` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t6_force_default_dup;
+Table	Create Table
+t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t5_off_explicit_off_dup;
+Table	Create Table
+t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t7_partitioned;
+Table	Create Table
+t7_partitioned	CREATE TABLE `t7_partitioned` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
+alter table t1_default_explicit_on encryption="N";
+ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+alter table t2_default_explicit_off encryption="Y";
+alter table t2_default_explicit_off encryption="N";
+ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+alter table t3_on_default;
+alter table t4_on_explicit_off encryption="N";
+ERROR HY000: InnoDB: Only ENCRYPTED tables can be created with innodb_encrypt_tables=FORCE.
+set global innodb_encrypt_tables='ON';
+alter table t1_default_explicit_on encryption="N", ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+alter table t1_default_explicit_on encryption="Y", ALGORITHM=INPLACE;
+alter table t1_default_explicit_on encryption="N";
+alter table t2_default_explicit_off encryption="N";
+alter table t3_on_default encryption="N", ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+alter table t3_on_default encryption="Y", ALGORITHM=INPLACE;
+alter table t3_on_default encryption="N";
+alter table t4_on_explicit_off ALGORITHM=INPLACE;
+alter table t4_on_explicit_off encryption="N";
+alter table t6_force_default encryption="N", ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter encryption attribute by inplace algorithm.. Try ALGORITHM=COPY.
+alter table t4_on_explicit_off change a b int;
+set global innodb_encrypt_tables='FORCE';
+alter table t4_on_explicit_off change b a int;
+show create table t1_default_explicit_on;
+Table	Create Table
+t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t2_default_explicit_off;
+Table	Create Table
+t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t3_on_default;
+Table	Create Table
+t3_on_default	CREATE TABLE `t3_on_default` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t4_on_explicit_off;
+Table	Create Table
+t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t5_off_explicit_off;
+Table	Create Table
+t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t6_force_default;
+Table	Create Table
+t6_force_default	CREATE TABLE `t6_force_default` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t6_force_default_dup;
+Table	Create Table
+t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t5_off_explicit_off_dup;
+Table	Create Table
+t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t7_partitioned;
+Table	Create Table
+t7_partitioned	CREATE TABLE `t7_partitioned` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts_encrypted1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p1 VALUES LESS THAN (20) TABLESPACE = `ts_encrypted1` ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (40) TABLESPACE = `ts_encrypted2` ENGINE = InnoDB) */
+flush tables;
+show create table t1_default_explicit_on;
+Table	Create Table
+t1_default_explicit_on	CREATE TABLE `t1_default_explicit_on` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t2_default_explicit_off;
+Table	Create Table
+t2_default_explicit_off	CREATE TABLE `t2_default_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t3_on_default;
+Table	Create Table
+t3_on_default	CREATE TABLE `t3_on_default` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t4_on_explicit_off;
+Table	Create Table
+t4_on_explicit_off	CREATE TABLE `t4_on_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t5_off_explicit_off;
+Table	Create Table
+t5_off_explicit_off	CREATE TABLE `t5_off_explicit_off` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+show create table t6_force_default;
+Table	Create Table
+t6_force_default	CREATE TABLE `t6_force_default` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t6_force_default_dup;
+Table	Create Table
+t6_force_default_dup	CREATE TABLE `t6_force_default_dup` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='Y'
+show create table t5_off_explicit_off_dup;
+Table	Create Table
+t5_off_explicit_off_dup	CREATE TABLE `t5_off_explicit_off_dup` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='N'
+select * from t1_default_explicit_on;
+a
+42
+select * from t2_default_explicit_off;
+a
+42
+select * from t3_on_default;
+a
+42
+select * from t4_on_explicit_off;
+a
+42
+select * from t5_off_explicit_off;
+a
+42
+select * from t6_force_default;
+a
+42
+drop table t1_default_explicit_on;
+drop table t2_default_explicit_off;
+drop table t3_on_default;
+drop table t4_on_explicit_off;
+drop table t5_off_explicit_off;
+drop table t6_force_default;
+drop table t6_force_default_dup;
+drop table t5_off_explicit_off_dup;
+drop table t7_partitioned;
+drop tablespace ts_encrypted1;
+drop tablespace ts_encrypted2;
+set global innodb_encrypt_tables=OFF;

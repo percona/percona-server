@@ -216,6 +216,7 @@ public:
 
 	ha_rows estimate_rows_upper_bound();
 
+	virtual void adjust_create_info_for_frm(HA_CREATE_INFO *create_info);
 	void update_create_info(HA_CREATE_INFO* create_info);
 
 	int create(

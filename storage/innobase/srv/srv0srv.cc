@@ -397,6 +397,8 @@ ulong	srv_n_purge_threads = 4;
 /* the number of pages to purge in one batch */
 ulong	srv_purge_batch_size = 20;
 
+ulong srv_encrypt_tables = 0;
+
 /* Internal setting for "innodb_stats_method". Decides how InnoDB treats
 NULL value when collecting statistics. By default, it is set to
 SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */

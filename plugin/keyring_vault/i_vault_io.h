@@ -10,6 +10,7 @@ class IVault_io : public IKeyring_io
 {
 public:
   virtual my_bool retrieve_key_type_and_data(IKey *key) = 0;
+  virtual void set_curl_timeout(uint timeout) = 0;
   
   virtual ~IVault_io() {}
 };

@@ -18,6 +18,11 @@ public:
 
   my_bool init(IKeyring_io* keyring_io, std::string keyring_storage_url);
   virtual IKey* fetch_key(IKey *key);
+  virtual void set_curl_timeout(uint timeout)
+  {
+    DBUG_ASSERT(vault_io != NULL);
+    vault_io->set_curl_timeout(timeout);
+  }
 
 private:
   virtual my_bool flush_to_backup();

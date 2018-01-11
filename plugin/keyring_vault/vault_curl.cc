@@ -1,5 +1,6 @@
 #include <my_global.h>
 #include <boost/scope_exit.hpp>
+#include <boost/core/noncopyable.hpp>
 #include <algorithm>
 #include "my_rdtsc.h"
 #include "sql_error.h"
@@ -37,6 +38,21 @@ class Thd_wait_end_guard
         was_thd_wait_started = false;
       }
     }
+};
+
+class Curl_session_guard : private boost::noncopyable
+{
+public:
+  Curl_session_guard(CURL *curl)
+    : curl(curl)
+  {}
+  ~Curl_session_guard()
+  {
+    if (curl != NULL)
+      curl_easy_cleanup(curl);
+  }
+private:
+  CURL *curl;
 };
 
 static size_t write_response_memory(void *contents, size_t size, size_t nmemb, void *userp)
@@ -131,23 +147,9 @@ bool Vault_curl::init(const Vault_credentials &vault_credentials)
   return false;
 }
 
-bool Vault_curl::reset_curl_session()
+bool Vault_curl::setup_curl_session(CURL *curl)
 {
   CURLcode curl_res = CURLE_OK;
-  if (unlikely(curl == NULL))
-  {
-    curl = curl_easy_init();
-    if (curl == NULL)
-    {
-      logger->log(MY_ERROR_LEVEL, "Could not create CURL session");
-      return true;
-    }
-    return false; 
-  }
-  else
-  {
-    curl_easy_reset(curl);
-  }
   read_data_ss.str("");
   read_data_ss.clear();
   curl_errbuf[0] = '\0';
@@ -190,7 +192,15 @@ bool Vault_curl::list_keys(Secure_string *response)
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; // silence unused variable error
 
-  if (reset_curl_session() ||
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL, (vault_url + "?list=true").c_str())) != CURLE_OK ||
       (curl_res = curl_easy_perform(curl)) != CURLE_OK ||
       (curl_res = curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code)) != CURLE_OK)
@@ -249,8 +259,16 @@ bool Vault_curl::write_key(const Vault_key &key, Secure_string *response)
 
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; //silence unused variable error
-  
-  if (reset_curl_session() ||
+
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL,
                                    key_url.c_str())) != CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postdata.c_str())) != CURLE_OK ||
@@ -273,7 +291,15 @@ bool Vault_curl::read_key(const Vault_key &key, Secure_string *response)
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; // silence unused variable error
 
-  if (reset_curl_session() ||
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL,
                                    key_url.c_str())) != CURLE_OK ||
       (curl_res = curl_easy_perform(curl)) != CURLE_OK)
@@ -294,8 +320,15 @@ bool Vault_curl::delete_key(const Vault_key &key, Secure_string *response)
 
   Thd_wait_end_guard thd_wait_end_guard;
   (void)thd_wait_end_guard; // silence unused variable error
-  
-  if (reset_curl_session() ||
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
+  {
+    logger->log(MY_ERROR_LEVEL, "Cannot initialize curl session");
+    return true;
+  }
+  Curl_session_guard curl_session_guard(curl);
+
+  if (setup_curl_session(curl) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_URL, key_url.c_str())) !=
       CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE")) != CURLE_OK ||

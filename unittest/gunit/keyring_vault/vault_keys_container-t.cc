@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <mysql/plugin_keyring.h>
+#include <boost/scope_exit.hpp>
 #include "vault_keys_container.h"
 #include "mock_logger.h"
 #include "vault_io.h"
@@ -33,7 +34,6 @@ namespace keyring__vault_keys_container_unittest
   using ::testing::WithArgs;
   using ::testing::Invoke;
 
-  CURL *curl = NULL;
   static std::string uuid = generate_uuid();
   static std::string credential_file_url = "./keyring_vault.conf";
   ILogger *logger;
@@ -50,7 +50,7 @@ namespace keyring__vault_keys_container_unittest
       sample_key = new Vault_key((uuid+"Roberts_key").c_str(), "AES", "Robert", sample_key_data.c_str(), sample_key_data.length());
 
       vault_keys_container = new Vault_keys_container(logger);
-      vault_curl = new Vault_curl(logger, curl);
+      vault_curl = new Vault_curl(logger);
       vault_parser = new Vault_parser(logger);
     }
     virtual void TearDown()
@@ -788,14 +788,21 @@ int main(int argc, char **argv)
 
   //create unique secret mount point for this test suite
   curl_global_init(CURL_GLOBAL_DEFAULT);
-  keyring__vault_keys_container_unittest::curl = curl_easy_init();
-  if (keyring__vault_keys_container_unittest::curl == NULL)
+  CURL *curl = curl_easy_init();
+  if (curl == NULL)
   {
     std::cout << "Could not initialize CURL session" << std::endl;
+    curl_global_cleanup();
     return 1; 
   }
+  BOOST_SCOPE_EXIT(&curl)
+  {
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+  } BOOST_SCOPE_EXIT_END
+
   keyring__vault_keys_container_unittest::logger = new keyring::Mock_logger();
-  keyring::Vault_mount vault_mount(keyring__vault_keys_container_unittest::curl, keyring__vault_keys_container_unittest::logger);
+  keyring::Vault_mount vault_mount(curl, keyring__vault_keys_container_unittest::logger);
 
   if (generate_credential_file(keyring__vault_keys_container_unittest::credential_file_url, CORRECT, keyring__vault_keys_container_unittest::uuid))
   {
@@ -820,8 +827,6 @@ int main(int argc, char **argv)
   {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  curl_easy_cleanup(keyring__vault_keys_container_unittest::curl);
-  curl_global_cleanup();
   delete keyring__vault_keys_container_unittest::logger;
 
   my_testing::teardown_server_for_unit_tests();

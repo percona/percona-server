@@ -13,32 +13,13 @@ using keyring::Vault_keys_container;
 using keyring::Vault_curl;
 using keyring::Logger;
 
-CURL *curl = NULL;
 mysql_rwlock_t LOCK_keyring;
 
-static bool init_curl()
-{
-  curl_global_init(CURL_GLOBAL_ALL);
-  curl = curl_easy_init();
-  if (curl == NULL)
-  {
-    logger->log(MY_ERROR_LEVEL, "Could not create CURL session");
-    return true;
-  }
-  return false;
-}
-
-static void cleanup_curl()
-{
-  if (curl != NULL)
-    curl_easy_cleanup(curl);
-  curl_global_cleanup();
-}
 
 static bool reset_curl()
 {
-  cleanup_curl();
-  return init_curl();
+  curl_global_cleanup();
+  return curl_global_init(CURL_GLOBAL_ALL) != 0;
 }
 
 static void handle_std_bad_alloc_exception(const std::string &message_prefix)
@@ -81,7 +62,7 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
       logger->log(MY_ERROR_LEVEL, "Cannot set keyring_vault_config_file");
       return 1;
     }
-    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
     IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl.get(), vault_parser.get()));
     vault_curl.release();
@@ -129,12 +110,12 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
     if (init_keyring_locks())
       return 1;
 
-    if (init_curl())
+    if (curl_global_init(CURL_GLOBAL_ALL) != 0)
       return 1;
 
     logger.reset(new Logger(plugin_info));
     keys.reset(new Vault_keys_container(logger.get()));
-    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), curl));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
     IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl.get(),
                                           vault_parser.get());
@@ -156,13 +137,13 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
   catch (const std::bad_alloc &e)
   {
     handle_std_bad_alloc_exception("keyring_vault initialization failure");
-    cleanup_curl();
+    curl_global_cleanup();
     return 1;
   }
   catch (...)
   {
     handle_unknown_exception("keyring_vault initialization failure");
-    cleanup_curl();
+    curl_global_cleanup();
     return 1;
   }
 }
@@ -174,7 +155,7 @@ int keyring_vault_deinit(void *arg MY_ATTRIBUTE((unused)))
   keyring_file_data.reset();
   mysql_rwlock_destroy(&LOCK_keyring);
 
-  cleanup_curl();
+  curl_global_cleanup();
   return 0;
 }
 

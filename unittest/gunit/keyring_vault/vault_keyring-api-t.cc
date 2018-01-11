@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <sql_plugin_ref.h>
+#include <boost/scope_exit.hpp>
 #include <fstream>
 #include "vault_keyring.cc"
 #include "keyring_impl.cc"
@@ -348,15 +349,22 @@ int main(int argc, char **argv)
   MY_INIT(argv[0]);
   my_testing::setup_server_for_unit_tests();
 
-  //create unique secret mount point for this test suite
   curl_global_init(CURL_GLOBAL_DEFAULT);
   CURL *curl = curl_easy_init();
   if (curl == NULL)
   {
     std::cout << "Could not initialize CURL session" << std::endl;
+    curl_global_cleanup();
     return 1; 
   }
+  BOOST_SCOPE_EXIT(&curl)
+  {
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+  } BOOST_SCOPE_EXIT_END
+
   ILogger *logger = new keyring::Mock_logger();
+  //create unique secret mount point for this test suite
   keyring::Vault_mount vault_mount(curl, logger);
 
   keyring__api_unittest::keyring_filename= new char[strlen("./keyring_vault.conf")+1];
@@ -385,8 +393,6 @@ int main(int argc, char **argv)
   {
     std::cout << "Could not unmount secret backend" << std::endl;
   }
-  curl_easy_cleanup(curl);
-  curl_global_cleanup();
   delete logger;
   delete[] keyring__api_unittest::keyring_filename;
 

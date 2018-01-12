@@ -78,17 +78,13 @@ namespace myrocks {
 
   Use the power of SHIP_ASSERT() wisely.
 */
-#ifndef abort_with_stack_traces
-#define abort_with_stack_traces abort
-#endif
-
 #ifndef SHIP_ASSERT
-#define SHIP_ASSERT(expr)                                               \
-  do {                                                                  \
-    if (!(expr)) {                                                      \
-      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);  \
-      abort_with_stack_traces();                                        \
-    }                                                                   \
+#define SHIP_ASSERT(expr)                                                      \
+  do {                                                                         \
+    if (!(expr)) {                                                             \
+      my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);         \
+      abort();                                                                 \
+    }                                                                          \
   } while (0)
 #endif  // SHIP_ASSERT
 
@@ -240,7 +236,7 @@ inline void rdb_check_mutex_call_result(const char *function_name,
 
     // This will hopefully result in a meaningful stack trace which we can use
     // to efficiently debug the root cause.
-    abort_with_stack_traces();
+    abort();
   }
 }
 

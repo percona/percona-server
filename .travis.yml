@@ -1,0 +1,89 @@
+# Ubuntu 14.04
+dist: trusty
+sudo: required
+language: c
+matrix:
+  include:
+    - env: COMMAND=clang-test
+      script:
+        - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py
+        - chmod a+x clang-format-diff.py
+        - git diff -U0 --no-color HEAD^1 | ./clang-format-diff.py -p1 >_GIT_DIFF
+        - '[ ! -s _GIT_DIFF ] && echo The last git commit is clang-formatted || cat _GIT_DIFF'
+
+    - env: GCC=gcc-4.8   CXX=g++-4.8     LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system"
+    - env: GCC=gcc-7     CXX=g++-7       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-7     CXX=g++-7       LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1"           PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
+    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=clang-5.0 LLVM=llvm-toolchain-trusty-5.0
+    # only for pull requests
+    - env: GCC=gcc-5     CXX=g++-5       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-5     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-6     CXX=g++-6       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-6     PPA=ubuntu-toolchain-r/test
+    - env: GCC=clang-4.0 CXX=clang++-4.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=clang-4.0 PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
+    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1"           PACKAGES=clang-5.0 LLVM=llvm-toolchain-trusty-5.0
+
+script:
+  - export CC=$GCC
+  - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
+  - echo PACKAGES=$PACKAGES PPA=$PPA LLVM=$LLVM JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
+
+  # Jobs with a number >= 6 are done only for a pull request
+  - if [ $JOB_NUMBER -ge 6 ] && [ "$TRAVIS_EVENT_TYPE" != "pull_request" ]; then 
+       echo Finishing as this is not a pull request; 
+       travis_terminate 0; 
+    fi
+
+  # Update required LLVM and Ubuntu Toolchain repositories
+  - if [ "$LLVM" != "" ]; then
+       curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
+       echo "deb http://apt.llvm.org/trusty/ $LLVM main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+    fi
+  - if [ "$PPA" != "" ]; then
+       sudo -E apt-add-repository -y "ppa:$PPA";
+    fi
+  - if [ "$LLVM" != "" ] || [ "$PPA" != "" ]; then
+       sudo -E apt-get -yq update &>> ~/apt-get-update.log;
+    fi 
+
+  # Download dependencies
+  - PACKAGES="$PACKAGES cmake cmake-curses-gui libaio-dev libssl-dev libncurses5-dev libevent-dev bison"
+  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $PACKAGES
+  - mkdir bin; cd bin
+  - $CC -v
+  - $CXX -v
+
+  # Test "RelWithDebInfo" compilation
+  - cmake ..
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DMYSQL_MAINTAINER_MODE=ON
+    -DBUILD_CONFIG=mysql_release
+    -DFEATURE_SET=community
+    -DENABLE_DTRACE=OFF
+    -DWITH_SSL=$LIBTYPE
+    -DWITH_ZLIB=$LIBTYPE
+    -DWITH_LIBEVENT=$LIBTYPE
+    -DENABLE_DOWNLOADS=1
+    -DDOWNLOAD_BOOST=1
+    -DWITH_BOOST=../deps
+    -DWITHOUT_TOKUDB=ON
+    -DWITHOUT_ROCKSDB=ON
+     $CMAKE_OPT
+  - make -j2
+
+  # Test "Debug" compilation
+  - rm -rf *
+  - cmake ..
+    -DCMAKE_BUILD_TYPE=Debug
+    -DMYSQL_MAINTAINER_MODE=ON
+    -DBUILD_CONFIG=mysql_release
+    -DFEATURE_SET=community
+    -DENABLE_DTRACE=OFF
+    -DWITH_SSL=$LIBTYPE
+    -DWITH_ZLIB=$LIBTYPE
+    -DWITH_LIBEVENT=$LIBTYPE
+    -DENABLE_DOWNLOADS=1
+    -DDOWNLOAD_BOOST=1
+    -DWITH_BOOST=../deps
+    -DWITHOUT_TOKUDB=ON
+    -DWITHOUT_ROCKSDB=ON
+     $CMAKE_OPT
+  - make -j2

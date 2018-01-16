@@ -68,8 +68,8 @@ struct trx_extra_t {
 
 int trx_callback(
     DB_TXN* txn,
-    iterate_row_locks_callback iterate_locks,
-    void* locks_extra,
+    iterate_row_locks_callback TOKUDB_UNUSED(iterate_locks),
+    void* TOKUDB_UNUSED(locks_extra),
     void *extra) {
 
     uint64_t txn_id = txn->id64(txn);
@@ -90,7 +90,7 @@ int trx_callback(
 }
 
 #if MYSQL_VERSION_ID >= 50600
-int trx_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int trx_fill_table(THD* thd, TABLE_LIST* tables, Item* TOKUDB_UNUSED(cond)) {
 #else
 int trx_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
 #endif
@@ -120,7 +120,7 @@ int trx_init(void* p) {
     return 0;
 }
 
-int trx_done(void* p) {
+int trx_done(void* TOKUDB_UNUSED(p)) {
     return 0;
 }
 
@@ -225,7 +225,7 @@ int lock_waits_callback(
 }
 
 #if MYSQL_VERSION_ID >= 50600
-int lock_waits_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int lock_waits_fill_table(THD* thd, TABLE_LIST* tables, Item* TOKUDB_UNUSED(cond)) {
 #else
 int lock_waits_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
 #endif
@@ -258,7 +258,7 @@ int lock_waits_init(void* p) {
     return 0;
 }
 
-int lock_waits_done(void *p) {
+int lock_waits_done(void *TOKUDB_UNUSED(p)) {
     return 0;
 }
 
@@ -368,7 +368,7 @@ int locks_callback(
 }
 
 #if MYSQL_VERSION_ID >= 50600
-int locks_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int locks_fill_table(THD* thd, TABLE_LIST* tables, Item* TOKUDB_UNUSED(cond)) {
 #else
 int locks_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
 #endif
@@ -398,7 +398,7 @@ int locks_init(void* p) {
     return 0;
 }
 
-int locks_done(void* p) {
+int locks_done(void* TOKUDB_UNUSED(p)) {
     return 0;
 }
 
@@ -511,7 +511,7 @@ cleanup:
 }
 
 #if MYSQL_VERSION_ID >= 50600
-int file_map_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int file_map_fill_table(THD* thd, TABLE_LIST* tables, Item* TOKUDB_UNUSED(cond)) {
 #else
 int file_map_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
 #endif
@@ -541,7 +541,7 @@ int file_map_init(void* p) {
     return 0;
 }
 
-int file_map_done(void* p) {
+int file_map_done(void* TOKUDB_UNUSED(p)) {
     return 0;
 }
 
@@ -716,7 +716,7 @@ cleanup:
 }
 
 #if MYSQL_VERSION_ID >= 50600
-int fractal_tree_info_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+ int fractal_tree_info_fill_table(THD* thd, TABLE_LIST* tables, Item* TOKUDB_UNUSED(cond)) {
 #else
 int fractal_tree_info_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
 #endif
@@ -749,7 +749,7 @@ int fractal_tree_info_init(void* p) {
     return 0;
 }
 
-int fractal_tree_info_done(void* p) {
+int fractal_tree_info_done(void* TOKUDB_UNUSED(p)) {
     return 0;
 }
 
@@ -1010,7 +1010,7 @@ cleanup:
 int fractal_tree_block_map_fill_table(
     THD* thd,
     TABLE_LIST* tables,
-    Item* cond) {
+    Item* TOKUDB_UNUSED(cond)) {
 #else
 int fractal_tree_block_map_fill_table(
     THD* thd,
@@ -1046,7 +1046,7 @@ int fractal_tree_block_map_init(void* p) {
     return 0;
 }
 
-int fractal_tree_block_map_done(void *p) {
+int fractal_tree_block_map_done(void *TOKUDB_UNUSED(p)) {
     return 0;
 }
 
@@ -1152,7 +1152,7 @@ int report_background_job_status(TABLE *table, THD *thd) {
 }
 
 #if MYSQL_VERSION_ID >= 50600
-int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, Item *TOKUDB_UNUSED(cond)) {
 #else
 int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
 #endif
@@ -1182,7 +1182,7 @@ int background_job_status_init(void* p) {
     return 0;
 }
 
-int background_job_status_done(void* p) {
+int background_job_status_done(void* TOKUDB_UNUSED(p)) {
     return 0;
 }
 

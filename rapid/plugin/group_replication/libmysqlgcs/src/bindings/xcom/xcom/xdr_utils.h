@@ -25,7 +25,9 @@ extern "C" {
 /**
     Initialize an array
  */
-#define def_init_xdr_array(name) static inline void init_##name##_array(name##_array *x)
+#define def_init_xdr_array(name) \
+  MY_ATTRIBUTE((unused)) \
+  static inline void init_##name##_array(name##_array *x)
 #define init_xdr_array(name)                                                 \
   def_init_xdr_array(name) {                                                 \
     x->name##_array_len = 2;                                                 \
@@ -35,7 +37,9 @@ extern "C" {
 /**
     Free the contents of an array
  */
-#define def_free_xdr_array(name) static inline void free_##name##_array(name##_array *x)
+#define def_free_xdr_array(name) \
+  MY_ATTRIBUTE((unused)) \
+  static inline void free_##name##_array(name##_array *x)
 #define free_xdr_array(name)\
 def_free_xdr_array(name)\
 {\
@@ -62,6 +66,7 @@ def_free_xdr_array(name)\
     Define a set function for an array
  */
 #define def_set_xdr_array(name) \
+  MY_ATTRIBUTE((unused)) \
   static inline void set_##name(name##_array *x, name a, u_int n)
 #define set_xdr_array(name)          \
   def_set_xdr_array(name) {          \
@@ -73,7 +78,9 @@ def_free_xdr_array(name)\
 /**
     Define a get function for an array
  */
-#define def_get_xdr_array(name) static inline name get_##name(name##_array *x, u_int n)
+#define def_get_xdr_array(name) \
+  MY_ATTRIBUTE((unused)) \
+  static inline name get_##name(name##_array *x, u_int n)
 #define get_xdr_array(name)                     \
   def_get_xdr_array(name)                       \
   {                                             \
@@ -87,6 +94,7 @@ def_free_xdr_array(name)\
     Define a function to clone an array
  */
 #define def_clone_xdr_array(name) \
+  MY_ATTRIBUTE((unused)) \
   static inline name##_array clone_##name##_array(name##_array x)
 #define clone_xdr_array(name)                                                \
   def_clone_xdr_array(name) {                                                \

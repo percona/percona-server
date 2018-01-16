@@ -215,7 +215,6 @@ void TOKUDB_SHARE::destroy() {
     TOKUDB_SHARE_DBUG_VOID_RETURN();
 }
 TOKUDB_SHARE* TOKUDB_SHARE::get_share(const char* table_name,
-                                      TABLE_SHARE* table_share,
                                       THR_LOCK_DATA* data,
                                       bool create_new) {
     mutex_t_lock(_open_tables_mutex);
@@ -436,7 +435,7 @@ const char *ha_tokudb::table_type() const {
     return tokudb_hton_name;
 } 
 
-const char *ha_tokudb::index_type(uint inx) {
+const char *ha_tokudb::index_type(uint inx MY_ATTRIBUTE((unused))) {
     return "BTREE";
 }
 
@@ -497,7 +496,7 @@ ulonglong ha_tokudb::table_flags() const {
 // Returns a bit mask of capabilities of the key or its part specified by 
 // the arguments. The capabilities are defined in sql/handler.h.
 //
-ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
+ulong ha_tokudb::index_flags(uint idx, uint part MY_ATTRIBUTE((unused)), bool all_parts MY_ATTRIBUTE((unused))) const {
     TOKUDB_HANDLER_DBUG_ENTER("");
     assert_always(table_share);
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
@@ -541,12 +540,11 @@ typedef struct index_read_info {
 // want to actually do anything with the data, hence
 // callback does nothing
 //
-static int smart_dbt_do_nothing (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_do_nothing (DBT const *key MY_ATTRIBUTE((unused)), DBT const *row MY_ATTRIBUTE((unused)), void *context MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
-static int
-smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->extract_hidden_primary_key(info->keynr, key);
     return info->ha->read_row_callback(info->buf,info->keynr,row,key);
@@ -555,8 +553,7 @@ smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, void *conte
 //
 // Smart DBT callback function in case where we have a covering index
 //
-static int
-smart_dbt_callback_keyread(DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_callback_keyread(DBT const *key, DBT  const *row MY_ATTRIBUTE((unused)), void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->extract_hidden_primary_key(info->keynr, key);
     info->ha->read_key_only(info->buf,info->keynr,key);
@@ -589,7 +586,7 @@ smart_dbt_callback_ir_keyread(DBT const *key, DBT  const *row, void *context) {
 }
 
 static int
-smart_dbt_callback_lookup(DBT const *key, DBT  const *row, void *context) {
+smart_dbt_callback_lookup(DBT const *key, DBT  const *row MY_ATTRIBUTE((unused)), void *context) {
     INDEX_READ_INFO ir_info = (INDEX_READ_INFO)context;
     ir_info->cmp = ir_info->smart_dbt_info.ha->prefix_cmp_dbts(ir_info->smart_dbt_info.keynr, ir_info->orig_key, key);
     return 0;
@@ -1033,7 +1030,7 @@ cleanup:
 
 static inline int tokudb_generate_row(
     DB *dest_db, 
-    DB *src_db,
+    DB *src_db MY_ATTRIBUTE((unused)),
     DBT *dest_key, 
     DBT *dest_val,
     const DBT *src_key, 
@@ -1898,7 +1895,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     }
 
     // lookup or create share
-    share = TOKUDB_SHARE::get_share(name, table_share, &lock, true);
+    share = TOKUDB_SHARE::get_share(name, &lock, true);
     assert_always(share);
 
     if (share->state() != TOKUDB_SHARE::OPENED) {
@@ -2124,7 +2121,7 @@ int ha_tokudb::remove_frm_data(DB *db, DB_TXN *txn) {
     return remove_from_status(db, hatoku_frm_data, txn);
 }
 
-static int smart_dbt_callback_verify_frm (DBT const *key, DBT  const *row, void *context) {
+static int smart_dbt_callback_verify_frm (DBT const *key MY_ATTRIBUTE((unused)), DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
     stored_frm->size = row->size;
     stored_frm->data = (uchar *)tokudb::memory::malloc(row->size, MYF(MY_WME));
@@ -3402,21 +3399,23 @@ int ha_tokudb::bulk_insert_poll(void* extra, float progress) {
 #endif
     return 0;
 }
-void ha_tokudb::loader_add_index_err(DB* db,
-                                     int i,
+
+void ha_tokudb::loader_add_index_err(DB* db MY_ATTRIBUTE((unused)),
+                                     int i MY_ATTRIBUTE((unused)),
                                      int err,
-                                     DBT* key,
-                                     DBT* val,
+                                     DBT* key MY_ATTRIBUTE((unused)),
+                                     DBT* val MY_ATTRIBUTE((unused)),
                                      void* error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert_always(context->ha);
     context->ha->set_loader_error(err);
 }
-void ha_tokudb::loader_dup(DB* db,
-                           int i,
+
+void ha_tokudb::loader_dup(DB* db MY_ATTRIBUTE((unused)),
+                           int i MY_ATTRIBUTE((unused)),
                            int err,
                            DBT* key,
-                           DBT* val,
+                           DBT* val MY_ATTRIBUTE((unused)),
                            void* error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert_always(context->ha);
@@ -3432,7 +3431,7 @@ void ha_tokudb::loader_dup(DB* db,
 // this is guaranteed to be called.
 //
 int ha_tokudb::end_bulk_insert(bool abort) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%u", abort);
     int error = 0;
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
@@ -3886,7 +3885,7 @@ void ha_tokudb::set_main_dict_put_flags(
 }
 
 int ha_tokudb::insert_row_to_main_dictionary(
-    uchar* record,
+    uchar* record MY_ATTRIBUTE((unused)),
     DBT* pk_key,
     DBT* pk_val,
     DB_TXN* txn) {
@@ -4774,7 +4773,7 @@ int ha_tokudb::index_end() {
 
 
 int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
-    TOKUDB_HANDLER_DBUG_ENTER("");
+    TOKUDB_HANDLER_DBUG_ENTER("%d %d %u", error, err_to_return, keynr);
     if (error) {
         error = map_to_handler_error(error);
         last_cursor_error = error;
@@ -6952,7 +6951,7 @@ int ha_tokudb::write_key_name_to_status(DB* status_block, char* key_name, DB_TXN
 // some tracing moved out of ha_tokudb::create, because ::create was
 // getting cluttered
 //
-void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
+void ha_tokudb::trace_create_table_info(TABLE * form) {
     uint i;
     //
     // tracing information about what type of table we are creating
@@ -7366,7 +7365,7 @@ int ha_tokudb::create(
     }
 
     /* do some tracing */
-    trace_create_table_info(name,form);
+    trace_create_table_info(form);
 
     /* Create status.tokudb and save relevant metadata */
     make_name(newname, newname_len, name, "status");
@@ -7487,7 +7486,7 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::discard_or_import_tablespace(my_bool discard) {
+int ha_tokudb::discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused))) {
     /*
     if (discard) {
         my_errno=HA_ERR_WRONG_COMMAND;
@@ -7686,7 +7685,7 @@ cleanup:
 //
 int ha_tokudb::delete_table(const char *name) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", name);
-    TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(name, NULL, NULL, false);
+    TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(name, NULL, false);
     if (share) {
         share->unlock();
         share->release();
@@ -7748,7 +7747,7 @@ static bool tokudb_check_db_dir_exist_from_table_name(const char *table_name) {
 //
 int ha_tokudb::rename_table(const char *from, const char *to) {
     TOKUDB_HANDLER_DBUG_ENTER("%s %s", from, to);
-    TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(from, NULL, NULL, false);
+    TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(from, NULL, false);
     if (share) {
         share->unlock();
         share->release();
@@ -8607,7 +8606,7 @@ void ha_tokudb::restore_add_index(
 // With a transaction, drops dictionaries associated with indexes in key_num
 //
 int ha_tokudb::drop_indexes(
-    TABLE* table_arg,
+    TABLE* table_arg MY_ATTRIBUTE((unused)),
     uint* key_num,
     uint num_of_keys,
     KEY* key_info,
@@ -8671,7 +8670,7 @@ cleanup:
 // prepare_drop_index and alter_table_phase2
 //
 void ha_tokudb::restore_drop_indexes(
-    TABLE* table_arg,
+    TABLE* table_arg MY_ATTRIBUTE((unused)),
     uint* key_num,
     uint num_of_keys) {
 

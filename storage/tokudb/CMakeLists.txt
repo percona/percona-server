@@ -101,8 +101,11 @@ IF(DEFINED TOKUDB_NOPATCH_CONFIG)
     ADD_DEFINITIONS("-DTOKUDB_NOPATCH_CONFIG=${TOKUDB_NOPATCH_CONFIG}")
 ENDIF()
 
+message(STATUS "tokudb ${CMAKE_CXX_FLAGS}")
 prepend_cflags_if_supported(-Wno-missing-field-initializers)
+# append_cflags_if_supported(-Werror=unused-parameter)
 append_cflags_if_supported(-Wno-vla)
+message(STATUS "tokudb ${CMAKE_CXX_FLAGS}")
 
 IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/PerconaFT/")
     IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ft-index/")

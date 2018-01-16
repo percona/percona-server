@@ -158,7 +158,7 @@ inline toku_compression_method row_type_to_toku_compression_method(
 void tokudb_checkpoint_lock(THD * thd);
 void tokudb_checkpoint_unlock(THD * thd);
 
-inline uint64_t tokudb_get_lock_wait_time_callback(uint64_t default_wait_time) {
+inline uint64_t tokudb_get_lock_wait_time_callback(uint64_t default_wait_time MY_ATTRIBUTE((unused))) {
     THD *thd = current_thd;
     return tokudb::sysvars::lock_timeout(thd);
 }
@@ -168,7 +168,7 @@ inline uint64_t tokudb_get_loader_memory_size_callback(void) {
     return tokudb::sysvars::loader_memory_size(thd);
 }
 
-inline uint64_t tokudb_get_killed_time_callback(uint64_t default_killed_time) {
+inline uint64_t tokudb_get_killed_time_callback(uint64_t default_killed_time MY_ATTRIBUTE((unused))) {
     THD *thd = current_thd;
     return tokudb::sysvars::killed_time(thd);
 }
@@ -178,7 +178,7 @@ inline int tokudb_killed_callback(void) {
     return thd_killed(thd);
 }
 
-inline bool tokudb_killed_thd_callback(void *extra, uint64_t deleted_rows) {
+inline bool tokudb_killed_thd_callback(void *extra, uint64_t deleted_rows MY_ATTRIBUTE((unused))) {
     THD *thd = static_cast<THD *>(extra);
     return thd_killed(thd) != 0;
 }

@@ -144,7 +144,7 @@ struct tokudb_map_pair {
 static int tokudb_map_pair_cmp(void *custom_arg, const void *a, const void *b) {
 #else
 static int tokudb_map_pair_cmp(
-    const void* custom_arg,
+    const void* custom_arg MY_ATTRIBUTE((unused)),
     const void* a,
     const void* b) {
 #endif
@@ -676,7 +676,7 @@ error:
 }
 
 static int tokudb_done_func(void* p) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", p);
     tokudb::memory::free(toku_global_status_variables);
     toku_global_status_variables = NULL;
     tokudb::memory::free(toku_global_status_rows);
@@ -692,7 +692,7 @@ static handler* tokudb_create_handler(
 }
 
 int tokudb_end(handlerton* hton, ha_panic_function type) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p %u", hton, type);
     int error = 0;
     
     // 3938: if we finalize the storage engine plugin, it is no longer
@@ -768,6 +768,7 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
 }
 
 static int tokudb_close_connection(handlerton* hton, THD* thd) {
+    TOKUDB_DBUG_ENTER("%p", hton);
     int error = 0;
     tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, tokudb_hton);
     if (trx && trx->checkpoint_lock_taken) {
@@ -786,17 +787,17 @@ static int tokudb_close_connection(handlerton* hton, THD* thd) {
     }
     mutex_t_unlock(tokudb_map_mutex);
 #endif
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 void tokudb_kill_connection(handlerton *hton, THD *thd) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", hton);
     db_env->kill_waiter(db_env, thd);
     DBUG_VOID_RETURN;
 }
 
-bool tokudb_flush_logs(handlerton * hton, bool binlog_group_commit) {
-    TOKUDB_DBUG_ENTER("");
+bool tokudb_flush_logs(handlerton *hton, bool binlog_group_commit) {
+    TOKUDB_DBUG_ENTER("%p", hton);
     int error;
     bool result = 0;
 
@@ -889,8 +890,9 @@ extern "C" enum durability_properties thd_get_durability_property(
 #endif
 
 // Determine if an fsync is used when a transaction is committed.  
-static bool tokudb_sync_on_commit(THD* thd, tokudb_trx_data* trx, DB_TXN* txn) {
+static bool tokudb_sync_on_commit(THD* thd, DB_TXN* txn) {
 #if MYSQL_VERSION_ID >= 50600
+    std::ignore = txn;
     // Check the client durability property which is set during 2PC
     if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
         return false;
@@ -913,7 +915,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DB_TXN *this_txn = *txn;
     if (this_txn) {
         uint32_t syncflag =
-            tokudb_sync_on_commit(thd, trx, this_txn) ? 0 : DB_TXN_NOSYNC;
+            tokudb_sync_on_commit(thd, this_txn) ? 0 : DB_TXN_NOSYNC;
         TOKUDB_TRACE_FOR_FLAGS(
             TOKUDB_DEBUG_TXN,
             "commit trx %u txn %p syncflag %u",
@@ -1033,7 +1035,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
 }
 
 static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", hton);
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     int r = 0;
     if (len == 0 || xid_list == NULL) {
@@ -1053,7 +1055,7 @@ static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
 }
 
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", hton);
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
     int r = 0;
@@ -1073,7 +1075,7 @@ cleanup:
 }
 
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
-    TOKUDB_DBUG_ENTER("");
+    TOKUDB_DBUG_ENTER("%p", hton);
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
     int r = 0;
@@ -1251,7 +1253,7 @@ static int tokudb_discover2(
 }
 
 static int tokudb_discover3(
-    handlerton* hton,
+    handlerton* hton MY_ATTRIBUTE((unused)),
     THD* thd,
     const char* db,
     const char* name,
@@ -1521,7 +1523,7 @@ cleanup:
 }
 
 static bool tokudb_show_status(
-    handlerton* hton,
+    handlerton* hton MY_ATTRIBUTE((unused)),
     THD* thd,
     stat_print_fn* stat_print,
     enum ha_stat_type stat_type) {
@@ -1549,7 +1551,7 @@ static void tokudb_handle_fatal_signal(
 #endif
 
 static void tokudb_print_error(
-    const DB_ENV* db_env,
+    const DB_ENV* db_env MY_ATTRIBUTE((unused)),
     const char* db_errpfx,
     const char* buffer) {
     sql_print_error("%s: %s", db_errpfx, buffer);
@@ -1662,7 +1664,7 @@ static bool tokudb_txn_id_to_client_id(
 #endif
 
 static void tokudb_pretty_key(
-    const DB* db,
+    const DB* db MY_ATTRIBUTE((unused)),
     const DBT* key,
     const char* default_key,
     String* out) {
@@ -1813,7 +1815,7 @@ static void tokudb_lock_timeout_callback(
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case,
 // and prefixed with "TOKUDB_"
-static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
+static int show_tokudb_vars(THD *thd MY_ATTRIBUTE((unused)), SHOW_VAR *var, char *buff MY_ATTRIBUTE((unused))) {
     TOKUDB_DBUG_ENTER("");
 
     int error;

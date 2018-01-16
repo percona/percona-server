@@ -344,8 +344,8 @@ static inline uint32_t copy_toku_blob(
 }
 
 static int tokudb_hcad_update_fun(
-    DB* db,
-    const DBT* key,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key MY_ATTRIBUTE((unused)),
     const DBT* old_val,
     const DBT* extra,
     void (*set_val)(const DBT* new_val, void* set_extra),
@@ -762,8 +762,8 @@ cleanup:
 // Expand the variable offset array in the old row given the update mesage
 // in the extra.
 static int tokudb_expand_variable_offsets(
-    DB* db,
-    const DBT* key,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key MY_ATTRIBUTE((unused)),
     const DBT* old_val,
     const DBT* extra,
     void (*set_val)(const DBT* new_val, void* set_extra),
@@ -841,8 +841,8 @@ cleanup:
 
 // Expand an int field in a old row given the expand message in the extra.
 static int tokudb_expand_int_field(
-    DB* db,
-    const DBT* key,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key MY_ATTRIBUTE((unused)),
     const DBT* old_val,
     const DBT* extra,
     void (*set_val)(const DBT* new_val, void* set_extra),
@@ -938,8 +938,8 @@ cleanup:
 
 // Expand a char field in a old row given the expand message in the extra.
 static int tokudb_expand_char_field(
-    DB* db,
-    const DBT* key,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key MY_ATTRIBUTE((unused)),
     const DBT* old_val,
     const DBT* extra,
     void (*set_val)(const DBT* new_val, void* set_extra),
@@ -1498,8 +1498,8 @@ static uint8_t *consume_uint8_array(tokudb::buffer &b, uint32_t array_size) {
 }
 
 static int tokudb_expand_blobs(
-    DB* db,
-    const DBT* key_dbt,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key_dbt MY_ATTRIBUTE((unused)),
     const DBT* old_val_dbt,
     const DBT* extra,
     void (*set_val)(const DBT* new_val_dbt, void* set_extra),
@@ -1551,7 +1551,7 @@ static int tokudb_expand_blobs(
 // the old value and put the result in the new value.
 static void apply_1_updates(
     tokudb::value_map& vd,
-    tokudb::buffer& new_val,
+    tokudb::buffer& new_val MY_ATTRIBUTE((unused)),
     tokudb::buffer& old_val,
     tokudb::buffer& extra_val) {
 
@@ -1629,8 +1629,8 @@ static void apply_1_updates(
 // Simple update handler. Decode the update message, apply the update operations
 // to the old value, and set the new value.
 static int tokudb_update_1_fun(
-    DB* db,
-    const DBT* key_dbt,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key_dbt MY_ATTRIBUTE((unused)),
     const DBT* old_val_dbt,
     const DBT* extra,
     void (*set_val)(const DBT* new_val_dbt, void* set_extra),
@@ -1686,8 +1686,8 @@ static int tokudb_update_1_fun(
 // Otherwise, apply the update operations to the old value, and then set the
 // new value.
 static int tokudb_upsert_1_fun(
-    DB* db,
-    const DBT* key_dbt,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key_dbt MY_ATTRIBUTE((unused)),
     const DBT* old_val_dbt,
     const DBT* extra,
     void (*set_val)(const DBT* new_val_dbt, void* set_extra),
@@ -1752,7 +1752,7 @@ static int tokudb_upsert_1_fun(
 // old value and put the result in the new value.
 static void apply_2_updates(
     tokudb::value_map& vd,
-    tokudb::buffer& new_val,
+    tokudb::buffer& new_val MY_ATTRIBUTE((unused)),
     tokudb::buffer& old_val,
     tokudb::buffer& extra_val) {
 
@@ -1857,8 +1857,8 @@ static void apply_2_updates(
 // Simple update handler. Decode the update message, apply the update
 // operations to the old value, and set the new value.
 static int tokudb_update_2_fun(
-    DB* db,
-    const DBT* key_dbt,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key_dbt MY_ATTRIBUTE((unused)),
     const DBT* old_val_dbt,
     const DBT* extra,
     void (*set_val)(const DBT* new_val_dbt, void* set_extra),
@@ -1900,8 +1900,8 @@ static int tokudb_update_2_fun(
 // Otherwise, apply the update operations to the old value, and then set the
 // new value.
 static int tokudb_upsert_2_fun(
-    DB* db,
-    const DBT* key_dbt,
+    DB* db MY_ATTRIBUTE((unused)),
+    const DBT* key_dbt MY_ATTRIBUTE((unused)),
     const DBT* old_val_dbt,
     const DBT* extra,
     void (*set_val)(const DBT* new_val_dbt, void* set_extra),

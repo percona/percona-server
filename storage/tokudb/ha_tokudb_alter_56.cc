@@ -165,13 +165,11 @@ static int find_changed_fields(
 static bool change_length_is_supported(
     TABLE* table,
     TABLE* altered_table,
-    Alter_inplace_info* ha_alter_info,
     tokudb_alter_ctx* ctx);
 
 static bool change_type_is_supported(
     TABLE* table,
     TABLE* altered_table,
-    Alter_inplace_info* ha_alter_info,
     tokudb_alter_ctx* ctx);
 
 // The ha_alter_info->handler_flags can not be trusted.
@@ -448,7 +446,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
         if (change_length_is_supported(
                 table,
                 altered_table,
-                ha_alter_info, ctx)) {
+                ctx)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     } else if ((ctx->handler_flags
@@ -468,7 +466,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
         if (change_type_is_supported(
                 table,
                 altered_table,
-                ha_alter_info, ctx)) {
+                ctx)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     } else if (only_flags(
@@ -539,7 +537,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
 
 // Prepare for the alter operations
 bool ha_tokudb::prepare_inplace_alter_table(
-    TABLE* altered_table,
+    TABLE* altered_table MY_ATTRIBUTE((unused)),
     Alter_inplace_info* ha_alter_info) {
 
     TOKUDB_HANDLER_DBUG_ENTER("");
@@ -669,7 +667,7 @@ bool ha_tokudb::inplace_alter_table(
 }
 
 int ha_tokudb::alter_table_add_index(
-    TABLE* altered_table,
+    TABLE* altered_table MY_ATTRIBUTE((unused)),
     Alter_inplace_info* ha_alter_info) {
 
     // sort keys in add index order
@@ -743,7 +741,7 @@ static bool find_index_of_key(
 }
 
 int ha_tokudb::alter_table_drop_index(
-    TABLE* altered_table,
+    TABLE* altered_table MY_ATTRIBUTE((unused)),
     Alter_inplace_info* ha_alter_info) {
 
     KEY *key_info = table->key_info;
@@ -893,7 +891,7 @@ int ha_tokudb::alter_table_add_or_drop_column(
 // If abort then abort the alter transaction and try to rollback the
 //    non-transactional changes.
 bool ha_tokudb::commit_inplace_alter_table(
-    TABLE* altered_table,
+    TABLE* altered_table MY_ATTRIBUTE((unused)),
     Alter_inplace_info* ha_alter_info,
     bool commit) {
 
@@ -1146,9 +1144,6 @@ static bool field_in_key_of_table(TABLE *table, Field *field) {
 static bool change_varchar_length_is_supported(
     Field* old_field,
     Field* new_field,
-    TABLE* table,
-    TABLE* altered_table,
-    Alter_inplace_info* ha_alter_info,
     tokudb_alter_ctx* ctx) {
 
     if (old_field->real_type() != MYSQL_TYPE_VARCHAR || 
@@ -1172,7 +1167,6 @@ static bool change_varchar_length_is_supported(
 static bool change_length_is_supported(
     TABLE* table,
     TABLE* altered_table,
-    Alter_inplace_info* ha_alter_info,
     tokudb_alter_ctx* ctx) {
 
     if (table->s->fields != altered_table->s->fields)
@@ -1195,9 +1189,6 @@ static bool change_length_is_supported(
         if (!change_varchar_length_is_supported(
                 old_field,
                 new_field,
-                table,
-                altered_table,
-                ha_alter_info,
                 ctx))
             return false;
     }
@@ -1483,8 +1474,6 @@ int ha_tokudb::alter_table_expand_blobs(
 
 // Return true if two fixed length fields can be changed inplace
 static bool change_fixed_length_is_supported(
-    TABLE* table,
-    TABLE* altered_table,
     Field* old_field,
     Field* new_field,
     tokudb_alter_ctx* ctx) {
@@ -1500,8 +1489,6 @@ static bool change_fixed_length_is_supported(
 }
 
 static bool change_blob_length_is_supported(
-    TABLE* table,
-    TABLE* altered_table,
     Field* old_field,
     Field* new_field,
     tokudb_alter_ctx* ctx) {
@@ -1540,9 +1527,6 @@ static bool is_int_type(enum_field_types t) {
 static bool change_field_type_is_supported(
     Field* old_field,
     Field* new_field,
-    TABLE* table,
-    TABLE* altered_table,
-    Alter_inplace_info* ha_alter_info,
     tokudb_alter_ctx* ctx) {
 
     enum_field_types old_type = old_field->real_type();
@@ -1552,8 +1536,6 @@ static bool change_field_type_is_supported(
         if (is_int_type(new_type) &&
             is_unsigned(old_field) == is_unsigned(new_field))
             return change_fixed_length_is_supported(
-                table,
-                altered_table,
                 old_field,
                 new_field,
                 ctx);
@@ -1565,8 +1547,6 @@ static bool change_field_type_is_supported(
             old_field->binary() == new_field->binary() && 
             old_field->charset()->number == new_field->charset()->number)
             return change_fixed_length_is_supported(
-                table,
-                altered_table,
                 old_field,
                 new_field,
                 ctx);
@@ -1579,14 +1559,9 @@ static bool change_field_type_is_supported(
         return change_varchar_length_is_supported(
             old_field,
             new_field,
-            table,
-            altered_table,
-            ha_alter_info,
             ctx);
     } else if (old_type == MYSQL_TYPE_BLOB && new_type == MYSQL_TYPE_BLOB) {
         return change_blob_length_is_supported(
-            table,
-            altered_table,
             old_field,
             new_field,
             ctx);
@@ -1598,7 +1573,6 @@ static bool change_field_type_is_supported(
 static bool change_type_is_supported(
     TABLE* table,
     TABLE* altered_table,
-    Alter_inplace_info* ha_alter_info,
     tokudb_alter_ctx* ctx) {
 
     if (table->s->null_bytes != altered_table->s->null_bytes)
@@ -1617,9 +1591,6 @@ static bool change_type_is_supported(
         if (!change_field_type_is_supported(
                 old_field,
                 new_field,
-                table,
-                altered_table,
-                ha_alter_info,
                 ctx))
             return false;            
     }
@@ -1631,7 +1602,7 @@ static bool change_type_is_supported(
 // Return the new descriptor in the row_descriptor DBT.
 // Return non-zero on error.
 int ha_tokudb::new_row_descriptor(
-    TABLE* table,
+    TABLE* table MY_ATTRIBUTE((unused)),
     TABLE* altered_table,
     Alter_inplace_info* ha_alter_info,
     uint32_t idx,

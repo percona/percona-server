@@ -79,7 +79,6 @@ public:
     // doesn't exist, otherwise will return NULL if an existing is not found.
     static TOKUDB_SHARE* get_share(
         const char* table_name,
-        TABLE_SHARE* table_share,
         THR_LOCK_DATA* data,
         bool create_new);
 
@@ -706,7 +705,7 @@ private:
         toku_compression_method compression_method
         );
     int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, toku_compression_method compression_method);
-    void trace_create_table_info(const char *name, TABLE * form);
+    void trace_create_table_info(TABLE * form);
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info, int lock_flags);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);

@@ -51,6 +51,14 @@ class Item;
 typedef void * MYSQL_PLUGIN;
 
 #include <mysql/services.h>
+#ifndef MYSQL_ABI_CHECK
+#ifndef __WIN__
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */
+#endif /* !__STDC_FORMAT_MACROS */
+#include <inttypes.h>
+#endif /* !__WIN__ */
+#endif /* !MYSQL_ABI_CHECK */
 
 #define MYSQL_XIDDATASIZE 128
 /**

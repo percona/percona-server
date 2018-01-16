@@ -2962,11 +2962,11 @@ rdb_init_collation_mapping(const my_core::CHARSET_INFO *const cs) {
           }
         }
 
-        cur->m_make_unpack_info_func = {
+        cur->m_make_unpack_info_func = {{
             &Rdb_key_def::make_unpack_simple_varchar,
-            &Rdb_key_def::make_unpack_simple};
-        cur->m_unpack_func = {&Rdb_key_def::unpack_simple_varchar_space_pad,
-                              &Rdb_key_def::unpack_simple};
+            &Rdb_key_def::make_unpack_simple}};
+        cur->m_unpack_func = {{&Rdb_key_def::unpack_simple_varchar_space_pad,
+                              &Rdb_key_def::unpack_simple}};
       } else {
         // Out of luck for now.
       }

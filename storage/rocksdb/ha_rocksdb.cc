@@ -11466,9 +11466,9 @@ const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type) {
 // In case of core dump generation we want this function NOT to be optimized
 // so that we can capture as much data as possible to debug the root cause
 // more efficiently.
-#pragma GCC push_options
-#pragma GCC optimize("O0")
-
+#if defined(DBUG_OFF)
+MY_ATTRIBUTE((optnone))
+#endif
 void rdb_handle_io_error(const rocksdb::Status status,
                          const RDB_IO_ERROR_TYPE err_type) {
   if (status.IsIOError()) {
@@ -11516,8 +11516,6 @@ void rdb_handle_io_error(const rocksdb::Status status,
     }
   }
 }
-
-#pragma GCC pop_options
 
 Rdb_dict_manager *rdb_get_dict_manager(void) { return &dict_manager; }
 

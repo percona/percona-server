@@ -107,6 +107,7 @@ static int EVP_CipherInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
   return 1;
 }
 
+#ifndef NDEBUG
 static int EVP_CIPHER_CTX_key_length(const EVP_CIPHER_CTX *ctx)
 {
   return ctx->key_len;
@@ -116,6 +117,7 @@ static int EVP_CIPHER_CTX_iv_length(const EVP_CIPHER_CTX *ctx)
 {
   return ctx->flags & EVP_CIPH_ECB_MODE ? 0 : TaoCrypt::AES::BLOCK_SIZE;
 }
+#endif
 
 static void do_whole_blocks(EVP_CIPHER_CTX *ctx, uchar *out, int *outl,
                             const uchar *in, int inl)

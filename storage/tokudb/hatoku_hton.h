@@ -90,9 +90,9 @@ inline toku_compression_method row_format_to_toku_compression_method(
     }
 }
 
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 inline enum row_type row_format_to_row_type(
     tokudb::sysvars::row_format_t row_format) {
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     switch (row_format) {
     case tokudb::sysvars::SRV_ROW_FORMAT_UNCOMPRESSED:
         return ROW_TYPE_TOKU_UNCOMPRESSED;
@@ -111,13 +111,18 @@ inline enum row_type row_format_to_row_type(
     case tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT:
         return ROW_TYPE_DEFAULT;
     }
-#endif
     return ROW_TYPE_DEFAULT;
 }
+#else
+inline enum row_type row_format_to_row_type(
+    tokudb::sysvars::row_format_t TOKUDB_UNUSED(row_format)) {
+    return ROW_TYPE_DEFAULT;
+}
+#endif
 
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 inline tokudb::sysvars::row_format_t row_type_to_row_format(
     enum row_type type) {
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     switch (type) {
     case ROW_TYPE_TOKU_UNCOMPRESSED:
         return tokudb::sysvars::SRV_ROW_FORMAT_UNCOMPRESSED;
@@ -138,9 +143,14 @@ inline tokudb::sysvars::row_format_t row_type_to_row_format(
     default:
         return tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT;
     }
-#endif
     return tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT;
 }
+#else
+inline tokudb::sysvars::row_format_t row_type_to_row_format(
+    enum row_type TOKUDB_UNUSED(type)) {
+    return tokudb::sysvars::SRV_ROW_FORMAT_DEFAULT;
+}
+#endif
 
 inline enum row_type toku_compression_method_to_row_type(
     toku_compression_method method) {

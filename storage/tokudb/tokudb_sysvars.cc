@@ -141,8 +141,8 @@ static MYSQL_SYSVAR_UINT(
     0);
 
 static void checkpointing_period_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    THD* TOKUDB_UNUSED(thd),
+    st_mysql_sys_var* TOKUDB_UNUSED(sys_var),
     void* var,
     const void* save) {
 
@@ -165,8 +165,8 @@ static MYSQL_SYSVAR_UINT(
     0);
 
 static void cleaner_iterations_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    THD* TOKUDB_UNUSED(thd),
+    st_mysql_sys_var* TOKUDB_UNUSED(sys_var),
     void* var,
     const void* save) {
 
@@ -189,8 +189,8 @@ static MYSQL_SYSVAR_ULONG(
     0);
 
 static void cleaner_period_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    THD* TOKUDB_UNUSED(thd),
+    st_mysql_sys_var* TOKUDB_UNUSED(sys_var),
     void* var,
     const void * save) {
 
@@ -274,8 +274,8 @@ static MYSQL_SYSVAR_BOOL(
     FALSE);
 
 static void enable_partial_eviction_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    THD* TOKUDB_UNUSED(thd),
+    st_mysql_sys_var* TOKUDB_UNUSED(sys_var),
     void* var,
     const void* save) {
 
@@ -307,8 +307,8 @@ static MYSQL_SYSVAR_INT(
     0);
 
 static void fsync_log_period_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    THD* TOKUDB_UNUSED(thd),
+    st_mysql_sys_var* TOKUDB_UNUSED(sys_var),
     void* var,
     const void* save) {
 
@@ -401,8 +401,8 @@ static MYSQL_SYSVAR_UINT(
     ~0U,
     0);
 
-static void tokudb_dir_per_db_update(THD* thd,
-                                     struct st_mysql_sys_var* sys_var,
+static void tokudb_dir_per_db_update(THD* TOKUDB_UNUSED(thd),
+                                     struct st_mysql_sys_var* TOKUDB_UNUSED(sys_var),
                                      void* var, const void* save) {
     my_bool *value = (my_bool *) var;
     *value = *(const my_bool *) save;
@@ -553,7 +553,7 @@ static MYSQL_THDVAR_BOOL(
 
 static void checkpoint_lock_update(
     THD* thd,
-    st_mysql_sys_var* var,
+    st_mysql_sys_var* TOKUDB_UNUSED(var),
     void* var_ptr,
     const void* save) {
 
@@ -880,8 +880,8 @@ static const char* deprecated_tokudb_support_xa_off =
 
 static void support_xa_update(
     THD* thd,
-    st_mysql_sys_var* var,
-    void* var_ptr,
+    st_mysql_sys_var* TOKUDB_UNUSED(var),
+    void* TOKUDB_UNUSED(var_ptr),
     const void* save) {
     my_bool tokudb_support_xa = *static_cast<const my_bool*>(save);
     push_warning(thd,
@@ -935,7 +935,7 @@ static void dir_cmd_set_error(THD *thd,
     THDVAR_SET(thd, dir_cmd_last_error_string, buff);
 }
 
-static int dir_cmd_check(THD* thd, struct st_mysql_sys_var* var,
+static int dir_cmd_check(THD* thd, struct st_mysql_sys_var* TOKUDB_UNUSED(var),
                          void* save, struct st_mysql_value* value) {
     int error = 0;
     dir_cmd_set_error(thd, error, "");

@@ -537,7 +537,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
 
 // Prepare for the alter operations
 bool ha_tokudb::prepare_inplace_alter_table(
-    TABLE* altered_table MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(altered_table),
     Alter_inplace_info* ha_alter_info) {
 
     TOKUDB_HANDLER_DBUG_ENTER("");
@@ -667,7 +667,7 @@ bool ha_tokudb::inplace_alter_table(
 }
 
 int ha_tokudb::alter_table_add_index(
-    TABLE* altered_table MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(altered_table),
     Alter_inplace_info* ha_alter_info) {
 
     // sort keys in add index order
@@ -741,7 +741,7 @@ static bool find_index_of_key(
 }
 
 int ha_tokudb::alter_table_drop_index(
-    TABLE* altered_table MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(altered_table),
     Alter_inplace_info* ha_alter_info) {
 
     KEY *key_info = table->key_info;
@@ -891,7 +891,7 @@ int ha_tokudb::alter_table_add_or_drop_column(
 // If abort then abort the alter transaction and try to rollback the
 //    non-transactional changes.
 bool ha_tokudb::commit_inplace_alter_table(
-    TABLE* altered_table MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(altered_table),
     Alter_inplace_info* ha_alter_info,
     bool commit) {
 
@@ -1602,7 +1602,7 @@ static bool change_type_is_supported(
 // Return the new descriptor in the row_descriptor DBT.
 // Return non-zero on error.
 int ha_tokudb::new_row_descriptor(
-    TABLE* table MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(table),
     TABLE* altered_table,
     Alter_inplace_info* ha_alter_info,
     uint32_t idx,

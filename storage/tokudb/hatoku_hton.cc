@@ -144,7 +144,7 @@ struct tokudb_map_pair {
 static int tokudb_map_pair_cmp(void *custom_arg, const void *a, const void *b) {
 #else
 static int tokudb_map_pair_cmp(
-    const void* custom_arg MY_ATTRIBUTE((unused)),
+    const void* TOKUDB_UNUSED(custom_arg),
     const void* a,
     const void* b) {
 #endif
@@ -1235,7 +1235,7 @@ static int tokudb_discover2(
 }
 
 static int tokudb_discover3(
-    handlerton* hton MY_ATTRIBUTE((unused)),
+    handlerton* TOKUDB_UNUSED(hton),
     THD* thd,
     const char* db,
     const char* name,
@@ -1505,7 +1505,7 @@ cleanup:
 }
 
 static bool tokudb_show_status(
-    handlerton* hton MY_ATTRIBUTE((unused)),
+    handlerton* TOKUDB_UNUSED(hton),
     THD* thd,
     stat_print_fn* stat_print,
     enum ha_stat_type stat_type) {
@@ -1533,7 +1533,7 @@ static void tokudb_handle_fatal_signal(
 #endif
 
 static void tokudb_print_error(
-    const DB_ENV* db_env MY_ATTRIBUTE((unused)),
+    const DB_ENV* TOKUDB_UNUSED(db_env),
     const char* db_errpfx,
     const char* buffer) {
     sql_print_error("%s: %s", db_errpfx, buffer);
@@ -1646,7 +1646,7 @@ static bool tokudb_txn_id_to_client_id(
 #endif
 
 static void tokudb_pretty_key(
-    const DB* db MY_ATTRIBUTE((unused)),
+    const DB* TOKUDB_UNUSED(db),
     const DBT* key,
     const char* default_key,
     String* out) {
@@ -1797,7 +1797,7 @@ static void tokudb_lock_timeout_callback(
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case,
 // and prefixed with "TOKUDB_"
-static int show_tokudb_vars(THD *thd MY_ATTRIBUTE((unused)), SHOW_VAR *var, char *buff MY_ATTRIBUTE((unused))) {
+static int show_tokudb_vars(THD *TOKUDB_UNUSED(thd), SHOW_VAR *var, char *TOKUDB_UNUSED(buff)) {
     TOKUDB_DBUG_ENTER("");
 
     int error;

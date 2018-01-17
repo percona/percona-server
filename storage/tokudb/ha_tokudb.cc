@@ -435,7 +435,7 @@ const char *ha_tokudb::table_type() const {
     return tokudb_hton_name;
 } 
 
-const char *ha_tokudb::index_type(uint inx MY_ATTRIBUTE((unused))) {
+const char *ha_tokudb::index_type(uint TOKUDB_UNUSED(inx)) {
     return "BTREE";
 }
 
@@ -496,7 +496,7 @@ ulonglong ha_tokudb::table_flags() const {
 // Returns a bit mask of capabilities of the key or its part specified by 
 // the arguments. The capabilities are defined in sql/handler.h.
 //
-ulong ha_tokudb::index_flags(uint idx, uint part MY_ATTRIBUTE((unused)), bool all_parts MY_ATTRIBUTE((unused))) const {
+ulong ha_tokudb::index_flags(uint idx, uint TOKUDB_UNUSED(part), bool TOKUDB_UNUSED(all_parts)) const {
     TOKUDB_HANDLER_DBUG_ENTER("");
     assert_always(table_share);
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER |
@@ -540,7 +540,7 @@ typedef struct index_read_info {
 // want to actually do anything with the data, hence
 // callback does nothing
 //
-static int smart_dbt_do_nothing (DBT const *key MY_ATTRIBUTE((unused)), DBT const *row MY_ATTRIBUTE((unused)), void *context MY_ATTRIBUTE((unused))) {
+static int smart_dbt_do_nothing (DBT const *TOKUDB_UNUSED(key), DBT const *TOKUDB_UNUSED(row), void *TOKUDB_UNUSED(context)) {
   return 0;
 }
 
@@ -553,7 +553,7 @@ static int smart_dbt_callback_rowread_ptquery (DBT const *key, DBT  const *row, 
 //
 // Smart DBT callback function in case where we have a covering index
 //
-static int smart_dbt_callback_keyread(DBT const *key, DBT  const *row MY_ATTRIBUTE((unused)), void *context) {
+static int smart_dbt_callback_keyread(DBT const *key, DBT  const *TOKUDB_UNUSED(row), void *context) {
     SMART_DBT_INFO info = (SMART_DBT_INFO)context;
     info->ha->extract_hidden_primary_key(info->keynr, key);
     info->ha->read_key_only(info->buf,info->keynr,key);
@@ -586,7 +586,7 @@ smart_dbt_callback_ir_keyread(DBT const *key, DBT  const *row, void *context) {
 }
 
 static int
-smart_dbt_callback_lookup(DBT const *key, DBT  const *row MY_ATTRIBUTE((unused)), void *context) {
+smart_dbt_callback_lookup(DBT const *key, DBT  const *TOKUDB_UNUSED(row), void *context) {
     INDEX_READ_INFO ir_info = (INDEX_READ_INFO)context;
     ir_info->cmp = ir_info->smart_dbt_info.ha->prefix_cmp_dbts(ir_info->smart_dbt_info.keynr, ir_info->orig_key, key);
     return 0;
@@ -1030,7 +1030,7 @@ cleanup:
 
 static inline int tokudb_generate_row(
     DB *dest_db, 
-    DB *src_db MY_ATTRIBUTE((unused)),
+    DB *TOKUDB_UNUSED(src_db),
     DBT *dest_key, 
     DBT *dest_val,
     const DBT *src_key, 
@@ -2123,7 +2123,7 @@ int ha_tokudb::remove_frm_data(DB *db, DB_TXN *txn) {
     return remove_from_status(db, hatoku_frm_data, txn);
 }
 
-static int smart_dbt_callback_verify_frm (DBT const *key MY_ATTRIBUTE((unused)), DBT  const *row, void *context) {
+static int smart_dbt_callback_verify_frm (DBT const *TOKUDB_UNUSED(key), DBT  const *row, void *context) {
     DBT* stored_frm = (DBT *)context;
     stored_frm->size = row->size;
     stored_frm->data = (uchar *)tokudb::memory::malloc(row->size, MYF(MY_WME));
@@ -3402,22 +3402,22 @@ int ha_tokudb::bulk_insert_poll(void* extra, float progress) {
     return 0;
 }
 
-void ha_tokudb::loader_add_index_err(DB* db MY_ATTRIBUTE((unused)),
-                                     int i MY_ATTRIBUTE((unused)),
+void ha_tokudb::loader_add_index_err(DB* TOKUDB_UNUSED(db),
+                                     int TOKUDB_UNUSED(i),
                                      int err,
-                                     DBT* key MY_ATTRIBUTE((unused)),
-                                     DBT* val MY_ATTRIBUTE((unused)),
+                                     DBT* TOKUDB_UNUSED(key),
+                                     DBT* TOKUDB_UNUSED(val),
                                      void* error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert_always(context->ha);
     context->ha->set_loader_error(err);
 }
 
-void ha_tokudb::loader_dup(DB* db MY_ATTRIBUTE((unused)),
-                           int i MY_ATTRIBUTE((unused)),
+void ha_tokudb::loader_dup(DB* TOKUDB_UNUSED(db),
+                           int TOKUDB_UNUSED(i),
                            int err,
                            DBT* key,
-                           DBT* val MY_ATTRIBUTE((unused)),
+                           DBT* TOKUDB_UNUSED(val),
                            void* error_extra) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)error_extra;
     assert_always(context->ha);
@@ -3906,7 +3906,7 @@ void ha_tokudb::set_main_dict_put_flags(
 }
 
 int ha_tokudb::insert_row_to_main_dictionary(
-    uchar* record MY_ATTRIBUTE((unused)),
+    uchar* TOKUDB_UNUSED(record),
     DBT* pk_key,
     DBT* pk_val,
     DB_TXN* txn) {
@@ -7520,7 +7520,7 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::discard_or_import_tablespace(my_bool discard MY_ATTRIBUTE((unused))) {
+int ha_tokudb::discard_or_import_tablespace(my_bool TOKUDB_UNUSED(discard)) {
     /*
     if (discard) {
         my_errno=HA_ERR_WRONG_COMMAND;
@@ -8640,7 +8640,7 @@ void ha_tokudb::restore_add_index(
 // With a transaction, drops dictionaries associated with indexes in key_num
 //
 int ha_tokudb::drop_indexes(
-    TABLE* table_arg MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(table_arg),
     uint* key_num,
     uint num_of_keys,
     KEY* key_info,
@@ -8704,7 +8704,7 @@ cleanup:
 // prepare_drop_index and alter_table_phase2
 //
 void ha_tokudb::restore_drop_indexes(
-    TABLE* table_arg MY_ATTRIBUTE((unused)),
+    TABLE* TOKUDB_UNUSED(table_arg),
     uint* key_num,
     uint num_of_keys) {
 

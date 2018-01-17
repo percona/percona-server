@@ -353,8 +353,9 @@ main();
 
 sub is_core_dump {
   my $core_name= shift;
-  # Name beginning with core, not ending in .gz, or ending with .dmp on Windows
-  return (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
+  # Name beginning with core, not ending in .gz, .c, nor .log, or ending with
+  # .dmp on Windows
+  return (($core_name =~ /^core/ and $core_name !~ /\.gz$|\.c$|\.log$/)
           or (IS_WINDOWS and $core_name =~ /\.dmp$/));
 }
 

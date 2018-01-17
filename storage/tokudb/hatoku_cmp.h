@@ -355,7 +355,7 @@ static uint32_t create_toku_clustering_val_pack_descriptor (
     );
 
 static inline bool is_key_clustering(
-    void* row_desc MY_ATTRIBUTE((unused)),
+    void* TOKUDB_UNUSED(row_desc),
     uint32_t row_desc_size
     ) 
 {
@@ -386,7 +386,7 @@ static uint32_t create_toku_secondary_key_pack_descriptor (
 
 static inline bool is_key_pk(
     void* row_desc,
-    uint32_t row_desc_size MY_ATTRIBUTE((unused))
+    uint32_t TOKUDB_UNUSED(row_desc_size)
     ) 
 {
     uchar* buf = (uchar *)row_desc;

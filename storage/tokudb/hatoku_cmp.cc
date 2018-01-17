@@ -1869,8 +1869,8 @@ static uint32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_S
 
 static uint32_t pack_desc_pk_offset_info(
     uchar* buf, 
-    KEY_AND_COL_INFO* kc_info MY_ATTRIBUTE((unused)),
-    TABLE_SHARE* table_share MY_ATTRIBUTE((unused)),
+    KEY_AND_COL_INFO* TOKUDB_UNUSED(kc_info),
+    TABLE_SHARE* TOKUDB_UNUSED(table_share),
     KEY_PART_INFO* key_part, 
     KEY* prim_key,
     uchar* pk_info
@@ -2001,7 +2001,7 @@ static uint32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info,
     return pos - buf;
 }
 
-static uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info MY_ATTRIBUTE((unused)), TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+static uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* TOKUDB_UNUSED(kc_info), TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];

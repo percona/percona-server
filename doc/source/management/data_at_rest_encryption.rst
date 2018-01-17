@@ -145,6 +145,13 @@ option:
 It should be loaded this way to be able to facilitate recovery for encrypted
 tables.
 
+.. warning::
+
+  If server should be started with several plugins loaded early,
+  ``--early-plugin-load`` should contain their list separated by semicolons. Also
+  it's a good practice to put this list in double quotes so that semicolons
+  do not create problems when executed in a script.
+
 Apart from installing plugin you also need to set the
 :variable:`keyring_vault_config` variable. This variable should point to the
 keyring_vault configuration file, whose contents are discussed below.

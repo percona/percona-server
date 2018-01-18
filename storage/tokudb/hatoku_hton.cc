@@ -310,7 +310,6 @@ static int tokudb_init_func(void *p) {
     count = array_elements(all_tokudb_rwlocks);
     mysql_rwlock_register("tokudb", all_tokudb_rwlocks, count);
 
-    tokudb_map_mutex.reinit(tokudb_map_mutex_key);
 #endif /* HAVE_PSI_INTERFACE */
 
     db_env = NULL;

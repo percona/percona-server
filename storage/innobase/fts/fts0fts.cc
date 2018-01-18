@@ -5037,7 +5037,7 @@ fts_process_token(
 
 	ret = innobase_mysql_fts_get_token(
 		doc->charset, doc->text.f_str + start_pos,
-		doc->text.f_str + doc->text.f_len, &str);
+		doc->text.f_str + doc->text.f_len, false, &str);
 
 	position = start_pos + ret - str.f_len + add_pos;
 
@@ -5104,7 +5104,7 @@ fts_tokenize_document_internal(
 		inc = innobase_mysql_fts_get_token(
 			const_cast<CHARSET_INFO*>(param->cs),
 			reinterpret_cast<byte*>(doc) + i,
-			reinterpret_cast<byte*>(doc) + len,
+			reinterpret_cast<byte*>(doc) + len, false,
 			&str);
 
 		if (str.f_len > 0) {

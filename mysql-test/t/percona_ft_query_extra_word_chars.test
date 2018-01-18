@@ -1,0 +1,60 @@
+#
+# Test functionality of ft_query_extra_word_chars option with MyISAM
+#
+--source include/have_myisam.inc
+
+--let $ft_query_extra_word_chars = setup
+--source include/percona_ft_query_extra_word_chars.inc
+
+--echo #
+--echo # Prepare test tables for MyISAM using ngram parser
+--echo #
+
+CREATE TABLE fts_ngram (id INT PRIMARY KEY AUTO_INCREMENT,
+                 a TEXT COLLATE utf8mb4_bin, FULLTEXT KEY a(a) WITH PARSER ngram)
+                 ENGINE=MyISAM;
+
+INSERT INTO fts_ngram SELECT * FROM words;
+
+SET SESSION ft_query_extra_word_chars = ON;
+
+CREATE TABLE fts_ngram_2 LIKE fts_ngram;
+
+INSERT INTO fts_ngram_2 SELECT * FROM words;
+
+--echo # Test querying MyISAM in natural language mode, ngram parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_ngram', 'nl');
+
+--echo # Test that querying the other MyISAM table gives identical results
+CALL run_queries('fts_ngram_2', 'nl');
+
+--echo # Test querying MyISAM in natural language mode, ngram parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_ngram', 'nl');
+
+--echo # Test that querying the other MyISAM table gives identical results
+CALL run_queries('fts_ngram_2', 'nl');
+
+--echo # Test querying MyISAM in boolean mode, ngram parser, extra chars off
+SET SESSION ft_query_extra_word_chars = OFF;
+CALL run_queries('fts_ngram', 'bool');
+
+--echo # Test that querying the other MyISAM table gives identical results
+CALL run_queries('fts_ngram_2', 'bool');
+
+--echo # Test querying MyISAM in boolean mode, ngram parser, extra chars on
+SET SESSION ft_query_extra_word_chars = ON;
+CALL run_queries('fts_ngram', 'bool');
+
+--echo # Test that querying the other MyISAM table gives identical results
+CALL run_queries('fts_ngram_2', 'bool');
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE fts_ngram, fts_ngram_2;
+
+--let $ft_query_extra_word_chars = cleanup
+--source include/percona_ft_query_extra_word_chars.inc

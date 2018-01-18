@@ -1765,6 +1765,13 @@ static Sys_var_charptr Sys_ft_stopword_file(
        READ_ONLY GLOBAL_VAR(ft_stopword_file), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0));
 
+static Sys_var_mybool Sys_ft_query_extra_word_chars(
+       "ft_query_extra_word_chars",
+       "If enabled, all non-whitespace characters are considered word symbols "
+       "for full text search queries",
+       SESSION_VAR(ft_query_extra_word_chars), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE));
+
 static Sys_var_mybool Sys_ignore_builtin_innodb(
        "ignore_builtin_innodb",
        "IGNORED. This option will be removed in future releases. "

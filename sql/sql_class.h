@@ -622,6 +622,8 @@ typedef struct system_variables
     'COLUMN_TYPE' field.
   */
   my_bool show_old_temporals;
+
+  my_bool ft_query_extra_word_chars;
 } SV;
 
 

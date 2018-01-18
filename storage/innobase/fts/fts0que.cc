@@ -1623,6 +1623,8 @@ fts_query_match_phrase_terms(
 	byte*			ptr = *start;
 	const ib_vector_t*	tokens = phrase->tokens;
 	ulint			distance = phrase->distance;
+	const bool		extra_word_chars
+		= thd_get_ft_query_extra_word_chars();
 
 	/* We check only from the second term onwards, since the first
 	must have matched otherwise we wouldn't be here. */
@@ -1635,7 +1637,7 @@ fts_query_match_phrase_terms(
 
 		ret = innobase_mysql_fts_get_token(
 			phrase->charset, ptr,
-			const_cast<byte*>(end), &match);
+			const_cast<byte*>(end), extra_word_chars, &match);
 
 		if (match.f_len > 0) {
 			/* Get next token to match. */
@@ -1711,6 +1713,9 @@ fts_proximity_is_word_in_range(
 	ut_ad(proximity_pos->n_pos == proximity_pos->min_pos.size());
 	ut_ad(proximity_pos->n_pos == proximity_pos->max_pos.size());
 
+	const bool		extra_word_chars
+		= thd_get_ft_query_extra_word_chars();
+
 	/* Search each matched position pair (with min and max positions)
 	and count the number of words in the range */
 	for (ulint i = 0; i < proximity_pos->n_pos; i++) {
@@ -1727,7 +1732,7 @@ fts_proximity_is_word_in_range(
 			len = innobase_mysql_fts_get_token(
 				phrase->charset,
 				start + cur_pos,
-				start + total_len, &str);
+				start + total_len, extra_word_chars, &str);
 
 			if (len == 0) {
 				break;
@@ -1885,6 +1890,10 @@ fts_query_match_phrase(
 
 	ut_a(phrase->match->start < ib_vector_size(positions));
 
+	const bool		extra_word_chars
+		= phrase->parser
+		? false : thd_get_ft_query_extra_word_chars();
+
 	for (i = phrase->match->start; i < ib_vector_size(positions); ++i) {
 		ulint		pos;
 		byte*		ptr = start;
@@ -1933,7 +1942,8 @@ fts_query_match_phrase(
 			match.f_str = ptr;
 			ret = innobase_mysql_fts_get_token(
 				phrase->charset, start + pos,
-				const_cast<byte*>(end), &match);
+				const_cast<byte*>(end), extra_word_chars,
+				&match);
 
 			if (match.f_len == 0) {
 				break;
@@ -2649,6 +2659,10 @@ fts_query_phrase_split(
 		term_node = node->list.head;
 	}
 
+	const bool		extra_word_chars
+		= node->type == FTS_AST_TEXT
+		? thd_get_ft_query_extra_word_chars() : false;
+
 	while (true) {
 		fts_cache_t*	cache = query->index->table->fts->cache;
 		ulint		cur_len;
@@ -2664,7 +2678,7 @@ fts_query_phrase_split(
 				reinterpret_cast<const byte*>(phrase.f_str)
 				+ cur_pos,
 				reinterpret_cast<const byte*>(phrase.f_str)
-				+ len,
+				+ len, extra_word_chars,
 				&result_str);
 
 			if (cur_len == 0) {

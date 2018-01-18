@@ -57,7 +57,13 @@ typedef void * MYSQL_PLUGIN;
 
 #ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
-#endif
+#ifndef __WIN__
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */
+#endif /* !__STDC_FORMAT_MACROS */
+#include <inttypes.h>
+#endif /* !__WIN__ */
+#endif /* !MYSQL_ABI_CHECK */
 
 #define MYSQL_XIDDATASIZE 128
 /**

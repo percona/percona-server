@@ -26,6 +26,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ifndef _HA_TOKUDB_H
 #define _HA_TOKUDB_H
 
+#if TOKU_USE_OPEN_TABLES_MAP
+#include <string>
+#include <unordered_map>
+#endif
 #include "hatoku_hton.h"
 #include "hatoku_cmp.h"
 #include "tokudb_background.h"
@@ -273,7 +277,11 @@ public:
     uint32_t num_DBs;
 
 private:
+#if TOKU_USE_OPEN_TABLES_MAP
+    static std::unordered_map<std::string,TOKUDB_SHARE*> _open_tables;
+#else
     static HASH _open_tables;
+#endif
     static tokudb::thread::mutex_t _open_tables_mutex;
 
     static uchar* hash_get_key(

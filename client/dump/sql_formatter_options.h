@@ -56,7 +56,12 @@ public:
   bool m_suppress_create_database;
   bool m_timezone_consistent;
   bool m_skip_definer;
-  enum enum_gtid_purged_mode m_gtid_purged;
+  // Storing m_gtid_purged as an ulong, because its setter code treats it as a
+  // long variable.
+  // Storing it as an enum causes issues on some systems beacuse of endianness,
+  // and only works because of the alignment of the next pointer on 64 bit
+  // systems.
+  ulong m_gtid_purged;
   const Mysql_chain_element_options* m_mysql_chain_element_options;
 
   const TYPELIB* get_gtid_purged_mode_typelib()

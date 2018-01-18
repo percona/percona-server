@@ -115,6 +115,28 @@ Slave_reporting_capability::report(loglevel level, int err_code,
 }
 
 void
+Slave_reporting_capability::Error::update_timestamp()
+{
+  struct tm tm_tmp;
+  struct tm *start;
+
+  skr= my_time(0);
+  localtime_r(&skr, &tm_tmp);
+  start=&tm_tmp;
+
+  my_snprintf(timestamp,
+              sizeof(timestamp),
+              "%02d%02d%02d %02d:%02d:%02d",
+              start->tm_year % 100,
+              start->tm_mon+1,
+              start->tm_mday,
+              start->tm_hour,
+              start->tm_min,
+              start->tm_sec);
+  timestamp[15]= '\0';
+}
+
+void
 Slave_reporting_capability::va_report(loglevel level, int err_code,
                                       const char *prefix_msg,
                                       const char *msg, va_list args) const
@@ -154,7 +176,9 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
     break;
   default:
     DBUG_ASSERT(0);                            // should not come here
-    return;          // don't crash production builds, just do nothing
+    // don't crash production builds, just do nothing
+    mysql_mutex_unlock(&err_lock);
+    return;
   }
   curr_buff= pbuff;
   if (prefix_msg)

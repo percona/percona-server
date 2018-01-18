@@ -22,8 +22,15 @@ INCLUDE (CheckCXXCompilerFlag)
 check_cxx_compiler_flag (-std=c++11 HAVE_STDCXX11)
 
 IF (HAVE_STDCXX11)
-  STRING (REPLACE "-std=gnu++03" "" COMMON_CXX_FLAGS ${COMMON_CXX_FLAGS})
-  STRING (REPLACE "-std=gnu++03" "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-  STRING (REPLACE "-std=gnu++03" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-  SET (CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+  IF ("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" VERSION_GREATER "3.1")
+    SET (CMAKE_CXX_FLAGS "-Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+  ELSE ()
+    # CMAKE_CXX_STANDARD was introduced in CMake 3.1, it will be ignored by older CMake
+    SET (CMAKE_CXX_FLAGS "--std=c++11 -Wno-deprecated-declarations ${CMAKE_CXX_FLAGS}")
+  ENDIF()
 ENDIF ()
+
+
+SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_EXTENSIONS OFF)
+SET(CMAKE_CXX_STANDARD_REQUIRED ON)

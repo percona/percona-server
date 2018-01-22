@@ -50,7 +50,7 @@ namespace keyring__vault_keys_container_unittest
       sample_key = new Vault_key((uuid+"Roberts_key").c_str(), "AES", "Robert", sample_key_data.c_str(), sample_key_data.length());
 
       vault_keys_container = new Vault_keys_container(logger);
-      vault_curl = new Vault_curl(logger);
+      vault_curl = new Vault_curl(logger, 0);
       vault_parser = new Vault_parser(logger);
     }
     virtual void TearDown()
@@ -309,6 +309,7 @@ namespace keyring__vault_keys_container_unittest
     MOCK_METHOD0(get_serializer, ISerializer*());
     MOCK_METHOD1(get_serialized_object, my_bool(ISerialized_object **serialized_object));
     MOCK_METHOD0(has_next_serialized_object, my_bool());
+    MOCK_METHOD1(set_curl_timeout, void(uint timeout));
   };
 
   class Mock_serialized_object : public ISerialized_object

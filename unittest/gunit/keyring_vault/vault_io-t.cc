@@ -41,7 +41,7 @@ namespace keyring__vault_io_unittest
   protected:
     virtual void SetUp()
     {
-      vault_curl = new Vault_curl(logger);
+      vault_curl = new Vault_curl(logger, 0);
       vault_parser = new Vault_parser(logger);
     }
 
@@ -142,7 +142,7 @@ namespace keyring__vault_io_unittest
     // *****
 
     // Now fetch two keys with separate Vault_io
-    Vault_curl *vault_curl2 = new Vault_curl(logger);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
     EXPECT_FALSE(vault_io_for_fetching.init(&credential_file_url));
@@ -197,7 +197,7 @@ namespace keyring__vault_io_unittest
     // *****
 
     // Now fetch two keys with separate Vault_io - incorrect key should have been ignored
-    Vault_curl *vault_curl2 = new Vault_curl(logger);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io_for_fetching(logger, vault_curl2, vault_parser2);
 
@@ -285,7 +285,7 @@ namespace keyring__vault_io_unittest
     key_to_remove.set_key_operation(REMOVE_KEY);
     EXPECT_FALSE(vault_io.flush_to_storage(&key_to_remove));
 
-    Vault_curl *vault_curl2 = new Vault_curl(logger);
+    Vault_curl *vault_curl2 = new Vault_curl(logger, 0);
     Vault_parser *vault_parser2 = new Vault_parser(logger);
     Vault_io vault_io2(logger, vault_curl2, vault_parser2);
     EXPECT_FALSE(vault_io2.init(&credential_file_url));
@@ -302,6 +302,7 @@ namespace keyring__vault_io_unittest
     MOCK_METHOD2(write_key, bool(const Vault_key &key, Secure_string *response));
     MOCK_METHOD2(read_key, bool(const Vault_key &key, Secure_string *response));
     MOCK_METHOD2(delete_key, bool(const Vault_key &key, Secure_string *response));
+    MOCK_METHOD1(set_timeout, void(uint timeout));
   };
 
   TEST_F(Vault_io_test, ErrorFromVaultCurlOnVaultIOInit)

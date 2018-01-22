@@ -16,6 +16,7 @@ public:
   virtual bool write_key(const Vault_key &key, Secure_string *response) = 0;
   virtual bool read_key(const Vault_key &key, Secure_string *response) = 0;
   virtual bool delete_key(const Vault_key &key, Secure_string *response) = 0;
+  virtual void set_timeout(uint timeout) = 0;
 
   virtual ~IVault_curl() {};
 };

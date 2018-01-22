@@ -40,6 +40,9 @@ static void handle_unknown_exception(const std::string &message_prefix)
     logger->log(MY_ERROR_LEVEL, error_message.c_str());
 }
 
+static char *keyring_vault_config_file= NULL;
+static uint keyring_vault_timeout= 0;
+
 int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
                             struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
                             void *save, st_mysql_value *value)
@@ -63,7 +66,7 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
       logger->log(MY_ERROR_LEVEL, "Cannot set keyring_vault_config_file");
       return 1;
     }
-    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), keyring_vault_timeout));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
     IKeyring_io *keyring_io(new Vault_io(logger.get(), vault_curl.get(), vault_parser.get()));
     vault_curl.release();
@@ -85,7 +88,6 @@ int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
   return(0);
 }
 
-static char *keyring_vault_config_file= NULL;
 static MYSQL_SYSVAR_STR(
   config,                                                      /* name       */
   keyring_vault_config_file,                                   /* value      */
@@ -96,8 +98,33 @@ static MYSQL_SYSVAR_STR(
   ""                                                           /* default    */
 );
 
+static void update_keyring_vault_timeout(MYSQL_THD thd,
+                                         st_mysql_sys_var *var,
+                                         void *ptr,
+                                         const void *val)
+{
+  DBUG_ASSERT(dynamic_cast<Vault_keys_container*>(keys.get()) != NULL);
+  *reinterpret_cast<uint*>(ptr)= *reinterpret_cast<const uint*>(val);
+  dynamic_cast<Vault_keys_container*>(keys.get())->set_curl_timeout(*static_cast<const uint*>(val));
+}
+
+static MYSQL_SYSVAR_UINT(
+  timeout,                                                     /* name       */
+  keyring_vault_timeout,                                       /* value      */
+  PLUGIN_VAR_OPCMDARG,                                         /* flags      */
+  "The keyring_vault - Vault server connection timeout",       /* comment    */
+  NULL,                                                        /* check()    */
+  update_keyring_vault_timeout,                                /* update()   */
+  15,                                                          /* default    */
+  0,                                                           /* min        */
+  86400,                                                       /* max - 24h  */
+  0                                                            /* blocksize  */
+);
+
+
 static struct st_mysql_sys_var *keyring_vault_system_variables[]= {
   MYSQL_SYSVAR(config),
+  MYSQL_SYSVAR(timeout),
   NULL
 };
 
@@ -116,7 +143,7 @@ static int keyring_vault_init(MYSQL_PLUGIN plugin_info)
 
     logger.reset(new Logger(plugin_info));
     keys.reset(new Vault_keys_container(logger.get()));
-    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get()));
+    boost::movelib::unique_ptr<IVault_curl> vault_curl(new Vault_curl(logger.get(), keyring_vault_timeout));
     boost::movelib::unique_ptr<IVault_parser> vault_parser(new Vault_parser(logger.get()));
     IKeyring_io *keyring_io= new Vault_io(logger.get(), vault_curl.get(),
                                           vault_parser.get());

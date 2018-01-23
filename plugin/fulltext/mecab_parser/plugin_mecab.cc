@@ -318,8 +318,11 @@ mecab_parser_parse(
 		uchar*		start = reinterpret_cast<uchar*>(doc);
 		uchar*		end = start + doc_length;
 		FT_WORD		word = {NULL, 0, 0};
+		const bool	extra_word_chars =
+			thd_get_ft_query_extra_word_chars();
 
-		while (fts_get_word(param->cs, &start, end, &word, &bool_info)) {
+		while (fts_get_word(param->cs, extra_word_chars, &start, end,
+				    &word, &bool_info)) {
 			/* Don't convert term with wildcard. */
 			if (bool_info.type == FT_TOKEN_WORD
 			    && !bool_info.trunc) {

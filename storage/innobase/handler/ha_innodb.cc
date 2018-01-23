@@ -77,6 +77,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #include "fts0plugin.h"
 #include "fts0priv.h"
+#include "fts0tokenize.h"	// true_word_char
 #include "fts0types.h"
 #include "ibuf0ibuf.h"
 #include "lock0lock.h"
@@ -7228,10 +7229,6 @@ innobase_fts_casedn_str(
 	}
 }
 
-#define true_word_char(c, ch) ((c) & (_MY_U | _MY_L | _MY_NMR) || (ch) == '_')
-
-#define misc_word_char(X)       0
-
 /*************************************************************//**
 Get the next token from the given string and store it in *token.
 It is mostly copied from MyISAM's doc parsing function ft_simple_get_word()
@@ -7243,6 +7240,9 @@ innobase_mysql_fts_get_token(
 	const byte*	start,		/*!< in: start of text */
 	const byte*	end,		/*!< in: one character past end of
 					text */
+	bool		extra_word_chars,/*!< in: whether consider all
+					non-whitespace characters to be word
+					characters */
 	fts_string_t*	token)		/*!< out: token's text */
 {
 	int		mbl;
@@ -7264,7 +7264,7 @@ innobase_mysql_fts_get_token(
 		mbl = cs->cset->ctype(
 			cs, &ctype, doc, (const uchar*) end);
 
-		if (true_word_char(ctype, *doc)) {
+		if (true_word_char(ctype, extra_word_chars, *doc)) {
 			break;
 		}
 
@@ -7282,7 +7282,7 @@ innobase_mysql_fts_get_token(
 
 		mbl = cs->cset->ctype(
 			cs, &ctype, (uchar*) doc, (uchar*) end);
-		if (true_word_char(ctype, *doc)) {
+		if (true_word_char(ctype, extra_word_chars, *doc)) {
 			mwc = 0;
 		} else if (!misc_word_char(*doc) || mwc) {
 			break;

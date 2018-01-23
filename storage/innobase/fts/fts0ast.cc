@@ -90,6 +90,8 @@ fts_ast_create_node_term(
 	fts_ast_node_t*         node = NULL;
 	fts_ast_node_t*		node_list = NULL;
 	fts_ast_node_t*		first_node = NULL;
+	const bool		extra_word_chars =
+		thd_get_ft_query_extra_word_chars();
 
 	/* Scan the incoming string and filter out any "non-word" characters */
 	while (cur_pos < len) {
@@ -99,7 +101,8 @@ fts_ast_create_node_term(
 		cur_len = innobase_mysql_fts_get_token(
 			state->charset,
 			reinterpret_cast<const byte*>(ptr->str) + cur_pos,
-			reinterpret_cast<const byte*>(ptr->str) + len, &str);
+			reinterpret_cast<const byte*>(ptr->str) + len,
+			extra_word_chars, &str);
 
 		if (cur_len == 0) {
 			break;

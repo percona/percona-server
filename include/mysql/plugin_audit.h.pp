@@ -129,6 +129,7 @@ void thd_set_ha_data(void* thd, const struct handlerton *hton,
 int thd_command(const void* thd);
 long long thd_start_time(const void* thd);
 void thd_kill(unsigned long id);
+int thd_get_ft_query_extra_word_chars(void);
 #include "mysql/mysql_lex_string.h"
 struct st_mysql_lex_string
 {

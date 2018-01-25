@@ -4501,6 +4501,8 @@ int mysqld_main(int argc, char **argv)
   sys_var_init();
   ulong requested_open_files;
   adjust_related_options(&requested_open_files);
+  // moved signal initialization here so that PFS thread inherited signal mask
+  my_init_signals();
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
@@ -4603,8 +4605,6 @@ int mysqld_main(int argc, char **argv)
 
   if (init_common_variables())
     unireg_abort(MYSQLD_ABORT_EXIT);        // Will do exit
-
-  my_init_signals();
 
   size_t guardize= 0;
 #ifndef _WIN32

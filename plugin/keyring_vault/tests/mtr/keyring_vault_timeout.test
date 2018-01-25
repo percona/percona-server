@@ -8,6 +8,7 @@ call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'CURL retur
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not retrieve list of keys from Vault.'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Error while loading keyring content. The keyring might be malformed'");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'CURL returned this error code: 28 with error message : connect\\(\\) timed out!'");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '' not found");
 
 --let $KEYRING_CONF_FILE_1=$MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault_incorrect_server.conf
 --let $KEYRING_CONF_TEMPLATE_FILE=$MYSQL_TEST_DIR/std_data/keyring_vault_confs/keyring_vault_incorrect_server.conf

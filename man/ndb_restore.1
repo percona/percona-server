@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 11/23/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.5
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "09/13/2017" "MySQL 5\&.5" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "11/23/2017" "MySQL 5\&.5" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1184,7 +1184,7 @@ This option is intended to complement the
 option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
-Section\ \&17.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
 .sp
 \fBndb_restore\fR
 reports any truncation of data that it performs during lossy conversions once per attribute and column\&.
@@ -1381,12 +1381,12 @@ T}:T{
 128
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 1024
 T}
@@ -1686,12 +1686,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 65535
 T}
@@ -1738,7 +1738,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&17.4.1.10.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .sp
 Attribute promotion by
 \fBndb_restore\fR
@@ -2356,12 +2356,12 @@ T}:T{
 1
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 255
 T}

@@ -5121,7 +5121,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (crypto.init(sele.crypto_scheme, 0, nonce))
     {
       sql_print_error("Failed to fetch percona_binlog key from keyring and thus "
-                      "failed to initialize binlog encryption.");
+                      "failed to initialize binlog encryption. Have you enabled "
+                      "keyring plugin?");
       goto err;
     }
   }
@@ -5306,9 +5307,12 @@ err:
 #endif
   if (binlog_error_action == ABORT_SERVER)
   {
-    exec_binlog_error_action_abort("Either disk is full or file system is read "
-                                   "only while opening the binlog. Aborting the"
-                                   " server.");
+    std::string err_msg= "Either disk is full or file system is read only ";
+    if (encrypt_binlog)
+      err_msg+= "or encryption failed ";
+    err_msg+= "while opening the binlog. Aborting the server.";
+
+    exec_binlog_error_action_abort(err_msg.c_str());
   }
   else
   {

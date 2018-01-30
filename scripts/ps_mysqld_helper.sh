@@ -6,6 +6,7 @@ else
     SYSTEMD_ENV_FILE="/etc/default/mysql"
 fi
 enable_thp() {
+    STATUS_THP_SYSTEM=0
     if [ -f /sys/kernel/mm/transparent_hugepage/enabled ]; then
         CONTENT_TRANSHP=$(</sys/kernel/mm/transparent_hugepage/enabled)
         STATUS_THP_SYSTEM=$(echo $CONTENT_TRANSHP | grep -cv '\[never\]')
@@ -36,7 +37,7 @@ enable_jemalloc(){
             break
         fi
     done
-    if [ ! -z ${JEMALLOC_LOCATION} ]; then
+    if [ "x${JEMALLOC_LOCATION}" != "x0" ]; then
         STATUS_JEMALLOC_CONFIG=$(grep -c -e "LD_PRELOAD=.*libjemalloc.so.1" ${SYSTEMD_ENV_FILE})
         if [ $STATUS_JEMALLOC_CONFIG = 0 ]; then
             echo "LD_PRELOAD=${JEMALLOC_LOCATION}" >> ${SYSTEMD_ENV_FILE}

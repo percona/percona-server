@@ -981,6 +981,13 @@
    fun:tls_get_addr_tail
 }
 
+{
+   lzma encoder prepare bug
+   Memcheck:Cond
+   fun:lz_encoder_prepare
+   fun:lzma_lz_encoder_init
+}
+
 #supress warnings from openssl random generator
 
 {

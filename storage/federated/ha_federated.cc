@@ -401,7 +401,6 @@ static const int bulk_padding= 64;              // bytes "overhead" in packet
 
 /* Variables used when chopping off trailing characters */
 static const uint sizeof_trailing_comma= sizeof(", ") - 1;
-static const uint sizeof_trailing_closeparen= sizeof(") ") - 1;
 static const uint sizeof_trailing_and= sizeof(" AND ") - 1;
 static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 
@@ -827,7 +826,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
         user:@hostname:port/db/table
         Then password is a null string, so set to NULL
       */
-      if ((share->password[0] == '\0'))
+      if (share->password[0] == '\0')
         share->password= NULL;
     }
     else

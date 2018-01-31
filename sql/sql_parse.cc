@@ -4031,8 +4031,8 @@ end_with_restore_list:
     LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
     if (!grant_user)
       goto error;
-    if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
+    compile_time_assert(sizeof(thd->security_ctx->priv_user) / sizeof(void*) > 1);
+    if (!strcmp(thd->security_ctx->priv_user, grant_user->user.str) ||
         !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
     {
       res = mysql_show_grants(thd, grant_user);

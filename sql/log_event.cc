@@ -1164,7 +1164,7 @@ failed my_b_read"));
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? slave_max_allowed_packet:~(ulong)0;
+  ulong max_allowed_packet= thd ? slave_max_allowed_packet:~(ulong)0;
 #endif
 
   if (data_len > max_allowed_packet)
@@ -2400,8 +2400,9 @@ bool Query_log_event::write(IO_CACHE* file)
       user= thd->get_invoker_user();
       host= thd->get_invoker_host();
     }
-    else if (thd->security_ctx->priv_user)
+    else
     {
+      compile_time_assert(sizeof(thd->security_ctx->priv_user) / sizeof(void*) > 1);
       Security_context *ctx= thd->security_ctx;
 
       user.length= strlen(ctx->priv_user);

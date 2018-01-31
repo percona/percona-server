@@ -101,24 +101,7 @@ public:
 
     }
 
-    void update_timestamp()
-    {
-      struct tm tm_tmp;
-      struct tm *start;
-
-      skr= my_time(0);
-      localtime_r(&skr, &tm_tmp);
-      start=&tm_tmp;
-
-      sprintf(timestamp, "%02d%02d%02d %02d:%02d:%02d",
-              start->tm_year % 100,
-              start->tm_mon+1,
-              start->tm_mday,
-              start->tm_hour,
-              start->tm_min,
-              start->tm_sec);
-      timestamp[15]= '\0';
-    }
+    void update_timestamp();
 
     /** Error code */
     uint32 number;

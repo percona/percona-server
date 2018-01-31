@@ -613,9 +613,9 @@ class ha_rocksdb : public my_core::handler {
                       Rdb_tbl_def *const tbl_def_arg,
                       const TABLE *const old_table_arg = nullptr,
                       const Rdb_tbl_def *const old_tbl_def_arg = nullptr) const
-      MY_ATTRIBUTE((__nonnull__(2, 3), __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   int secondary_index_read(const int keyno, uchar *const buf)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   void setup_iterator_for_rnd_scan();
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *const slice)
       MY_ATTRIBUTE((__nonnull__)) {
@@ -625,8 +625,7 @@ class ha_rocksdb : public my_core::handler {
                     enum ha_rkey_function find_flag) const
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *slice,
-                           const bool use_all_keys, const uint eq_cond_len)
-      MY_ATTRIBUTE((__nonnull__));
+                           const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
 
   rocksdb::Status
@@ -637,7 +636,7 @@ class ha_rocksdb : public my_core::handler {
 
   int get_row_by_rowid(uchar *const buf, const char *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   int get_row_by_rowid(uchar *const buf, const uchar *const rowid,
                        const uint rowid_size, const bool skip_ttl_check = true)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__)) {
@@ -650,15 +649,15 @@ class ha_rocksdb : public my_core::handler {
   longlong update_hidden_pk_val();
   int load_hidden_pk_value() MY_ATTRIBUTE((__warn_unused_result__));
   int read_hidden_pk_id_from_rowkey(longlong *const hidden_pk_id)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   bool can_use_single_delete(const uint &index) const
       MY_ATTRIBUTE((__warn_unused_result__));
   bool skip_unique_check() const MY_ATTRIBUTE((__warn_unused_result__));
   bool commit_in_the_middle() MY_ATTRIBUTE((__warn_unused_result__));
   bool do_bulk_commit(Rdb_transaction *const tx)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   bool has_hidden_pk(const TABLE *const table) const
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   void update_row_stats(const operation_type &type);
 
@@ -709,7 +708,7 @@ class ha_rocksdb : public my_core::handler {
   int alloc_key_buffers(const TABLE *const table_arg,
                         const Rdb_tbl_def *const tbl_def_arg,
                         bool alloc_alter_buffers = false)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   void free_key_buffers();
 
   // the buffer size should be at least 2*Rdb_key_def::INDEX_NUMBER_SIZE
@@ -837,7 +836,7 @@ public:
   }
 
   int rename_table(const char *const from, const char *const to) override
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int convert_blob_from_storage_format(my_core::Field_blob *const blob,
                                        Rdb_string_reader *const reader,
@@ -857,7 +856,7 @@ public:
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
                                          const rocksdb::Slice *const value,
                                          uchar *const buf)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int convert_record_from_storage_format(const rocksdb::Slice *const key,
                                          uchar *const buf)
@@ -874,27 +873,27 @@ public:
   static const char *get_key_name(const uint index,
                                   const TABLE *const table_arg,
                                   const Rdb_tbl_def *const tbl_def_arg)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   static const char *get_key_comment(const uint index,
                                      const TABLE *const table_arg,
                                      const Rdb_tbl_def *const tbl_def_arg)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   static const std::string get_table_comment(const TABLE *const table_arg)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   static bool is_hidden_pk(const uint index, const TABLE *const table_arg,
                            const Rdb_tbl_def *const tbl_def_arg)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   static uint pk_index(const TABLE *const table_arg,
                        const Rdb_tbl_def *const tbl_def_arg)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   static bool is_pk(const uint index, const TABLE *table_arg,
                     const Rdb_tbl_def *tbl_def_arg)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   /** @brief
     unireg.cc will call max_supported_record_length(), max_supported_keys(),
     max_supported_key_parts(), uint max_supported_key_length()
@@ -1070,33 +1069,32 @@ private:
 
   int create_cfs(const TABLE *const table_arg, Rdb_tbl_def *const tbl_def_arg,
                  std::array<struct key_def_cf_info, MAX_INDEXES + 1> *const cfs)
-      const MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      const MY_ATTRIBUTE((__warn_unused_result__));
 
   int create_key_def(const TABLE *const table_arg, const uint &i,
                      const Rdb_tbl_def *const tbl_def_arg,
                      std::shared_ptr<Rdb_key_def> *const new_key_def,
                      const struct key_def_cf_info &cf_info) const
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int create_inplace_key_defs(
       const TABLE *const table_arg, Rdb_tbl_def *vtbl_def_arg,
       const TABLE *const old_table_arg,
       const Rdb_tbl_def *const old_tbl_def_arg,
       const std::array<key_def_cf_info, MAX_INDEXES + 1> &cfs) const
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   std::unordered_map<std::string, uint>
   get_old_key_positions(const TABLE *table_arg, const Rdb_tbl_def *tbl_def_arg,
                         const TABLE *old_table_arg,
-                        const Rdb_tbl_def *old_tbl_def_arg) const
-      MY_ATTRIBUTE((__nonnull__));
+                        const Rdb_tbl_def *old_tbl_def_arg) const;
 
   int compare_key_parts(const KEY *const old_key,
-                        const KEY *const new_key) const;
-  MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+                        const KEY *const new_key) const
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int compare_keys(const KEY *const old_key, const KEY *const new_key) const
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int convert_record_to_storage_format(const struct update_row_info &row_info,
                                        rocksdb::Slice *const packed_rec)
@@ -1111,13 +1109,13 @@ private:
                                     bool seek_backward);
 
   int index_first_intern(uchar *buf)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   int index_last_intern(uchar *buf)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   enum icp_result check_index_cond() const;
   int find_icp_matching_index_rec(const bool &move_forward, uchar *const buf)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   void calc_updated_indexes();
   int update_write_row(const uchar *const old_data, const uchar *const new_data,
@@ -1158,7 +1156,7 @@ private:
                      const bool &using_full_key,
                      const rocksdb::Slice &key_slice,
                      const int64_t ttl_filter_ts)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   int read_before_key(const Rdb_key_def &kd, const bool &using_full_key,
                       const rocksdb::Slice &key_slice,
                       const int64_t ttl_filter_ts)
@@ -1174,10 +1172,10 @@ private:
       MY_ATTRIBUTE((__warn_unused_result__));
 
   int read_row_from_primary_key(uchar *const buf)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   int read_row_from_secondary_key(uchar *const buf, const Rdb_key_def &kd,
                                   bool move_forward)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int calc_eq_cond_len(const Rdb_key_def &kd,
                        const enum ha_rkey_function &find_flag,
@@ -1188,7 +1186,7 @@ private:
       MY_ATTRIBUTE((__warn_unused_result__));
 
   Rdb_tbl_def *get_table_if_exists(const char *const tablename)
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+      MY_ATTRIBUTE((__warn_unused_result__));
   void read_thd_vars(THD *const thd) MY_ATTRIBUTE((__nonnull__));
   const char *thd_rocksdb_tmpdir()
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
@@ -1278,8 +1276,7 @@ public:
     DBUG_RETURN(FALSE);
   }
 
-  bool get_error_message(const int error, String *const buf) override
-      MY_ATTRIBUTE((__nonnull__));
+  bool get_error_message(const int error, String *const buf) override;
 
   static int rdb_error_to_mysql(const rocksdb::Status &s,
                                 const char *msg = nullptr)

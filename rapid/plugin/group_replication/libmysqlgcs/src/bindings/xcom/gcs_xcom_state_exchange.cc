@@ -300,8 +300,10 @@ void Gcs_xcom_state_exchange::reset_with_flush()
 
 void Gcs_xcom_state_exchange::reset()
 {
+#ifndef NDEBUG
   Gcs_xcom_communication_interface *binding_broadcaster=
     static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
+#endif
   assert(binding_broadcaster->number_buffered_messages() == 0);
 
   m_configuration_id= null_synode;

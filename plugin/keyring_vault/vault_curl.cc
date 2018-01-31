@@ -17,7 +17,9 @@ static const size_t max_response_size = 32000000;
 static MY_TIMER_INFO curl_timer_info;
 static ulonglong last_ping_time;
 static bool was_thd_wait_started = false;
+#ifndef NDEBUG
 static const ulonglong slow_connection_threshold = 100; // [ms]
+#endif
 
 class Thd_wait_end_guard
 {

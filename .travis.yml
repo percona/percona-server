@@ -14,12 +14,12 @@ matrix:
     - env: GCC=gcc-4.8   CXX=g++-4.8     LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system"
     - env: GCC=gcc-7     CXX=g++-7       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
     - env: GCC=gcc-7     CXX=g++-7       LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1"           PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
-    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=clang-5.0 LLVM=llvm-toolchain-trusty-5.0
+    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
     # only for pull requests
     - env: GCC=gcc-5     CXX=g++-5       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-5     PPA=ubuntu-toolchain-r/test
     - env: GCC=gcc-6     CXX=g++-6       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-6     PPA=ubuntu-toolchain-r/test
-    - env: GCC=clang-4.0 CXX=clang++-4.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=clang-4.0 PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
-    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1"           PACKAGES=clang-5.0 LLVM=llvm-toolchain-trusty-5.0
+    - env: GCC=clang-4.0 CXX=clang++-4.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES="clang-4.0 llvm-4.0-dev" PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
+    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1"           PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
 
 script:
   - export CC=$GCC

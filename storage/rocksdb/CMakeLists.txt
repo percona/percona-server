@@ -43,6 +43,10 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ENDIF()
 ENDIF()
 
+# Relax unused variable warnings
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
+
 # check that compiler supports cxx11 and set options
 INCLUDE (check_stdcxx11)
 IF (!HAVE_STDCXX11)

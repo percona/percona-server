@@ -1093,6 +1093,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       /* Warn about password being set in non ssl connection */
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
       uint ssl_mode;
+      ssl_mode= 0;
       if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
           ssl_mode <= SSL_MODE_PREFERRED)
       {

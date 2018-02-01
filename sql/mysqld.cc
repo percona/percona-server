@@ -594,6 +594,7 @@ Time_zone *default_tz;
 char *mysql_data_home= const_cast<char*>(".");
 const char *mysql_real_data_home_ptr= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
+char server_version_suffix[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 my_bool encrypt_binlog;
 
@@ -8266,6 +8267,9 @@ static void set_server_version(void)
       static_cast<int>(sizeof("-asan")))
     end= my_stpcpy(end, "-asan");
 #endif
+
+  DBUG_ASSERT(end < server_version + SERVER_VERSION_LENGTH);
+  my_stpcpy(server_version_suffix, server_version + strlen(MYSQL_SERVER_VERSION));
 }
 
 

@@ -15,7 +15,7 @@ diff -rup old/client/CMakeLists.txt new/client/CMakeLists.txt
  SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 -TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
 +TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
- 
+ ADD_DEPENDENCIES(mysqltest GenError)
  
  MYSQL_ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
 -TARGET_LINK_LIBRARIES(mysqlcheck perconaserverclient)

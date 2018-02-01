@@ -354,7 +354,7 @@ void my_thread_end()
       tmp->dbug= NULL;
     }
     free(tmp);
-
+    set_mysys_thread_var(NULL);
     /*
       Decrement counter for number of running threads. We are using this
       in my_thread_global_end() to wait until all threads have called
@@ -367,7 +367,6 @@ void my_thread_end()
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
   }
-  set_mysys_thread_var(NULL);
 #endif
 }
 

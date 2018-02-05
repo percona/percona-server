@@ -189,7 +189,6 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
 
-
 # Include the platform-specific file. To allow exceptions, this code
 # looks for files in order of how specific they are. If there is, for
 # example, a generic Linux.cmake and a version-specific
@@ -326,7 +325,7 @@ ENDIF()
 
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
-  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"
+  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins -fsanitize-blacklist=${CMAKE_CURRENT_SOURCE_DIR}/cmake/msan-blacklist.txt"
                      WITH_MSAN_OK)
   IF(NOT WITH_MSAN_OK)
     MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")

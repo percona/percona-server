@@ -2,6 +2,12 @@
 dist: trusty
 sudo: required
 language: c
+env:
+  global:
+    - MAINTAINER_MODE=ON
+    - WITHOUT_TOKUDB=ON
+    - WITHOUT_ROCKSDB=ON
+    - WITH_MECAB=system
 matrix:
   include:
     - env: COMMAND=clang-test
@@ -20,11 +26,14 @@ matrix:
     - env: GCC=gcc-6     CXX=g++-6       LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES=g++-6     PPA=ubuntu-toolchain-r/test
     - env: GCC=clang-4.0 CXX=clang++-4.0 LIBTYPE=system  CMAKE_OPT="-DWITH_READLINE=system" PACKAGES="clang-4.0 llvm-4.0-dev" PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
     - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1"           PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
+    - os: osx
+      osx_image: xcode9.2
+      env: LIBTYPE=bundled GCC=clang CXX=clang++ MAINTAINER_MODE=OFF WITHOUT_TOKUDB=ON WITHOUT_ROCKSDB=ON WITH_MECAB=
 
 script:
   - export CC=$GCC
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
-  - echo PACKAGES=$PACKAGES PPA=$PPA LLVM=$LLVM JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
+  - echo PACKAGES=$PACKAGES PPA=$PPA LLVM=$LLVM JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST MAINTAINER_MODE=$MAINTAINER_MODE WITHOUT_TOKUDB=$WITHOUT_TOKUDB
 
   # Jobs with a number >= 6 are done only for a pull request
   - if [ $JOB_NUMBER -ge 6 ] && [ "$TRAVIS_EVENT_TYPE" != "pull_request" ]; then 
@@ -33,20 +42,22 @@ script:
     fi
 
   # Update required LLVM and Ubuntu Toolchain repositories
-  - if [ "$LLVM" != "" ]; then
+  - if [[ "$LLVM" != "" ]]; then
        curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
        echo "deb http://apt.llvm.org/trusty/ $LLVM main" | sudo tee -a /etc/apt/sources.list > /dev/null;
     fi
-  - if [ "$PPA" != "" ]; then
+  - if [[ "$PPA" != "" ]]; then
        sudo -E apt-add-repository -y "ppa:$PPA";
     fi
-  - if [ "$LLVM" != "" ] || [ "$PPA" != "" ]; then
-       sudo -E apt-get -yq update &>> ~/apt-get-update.log;
+  - if [[ "$LLVM" != "" ]] || [[ "$PPA" != "" ]]; then
+       sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
     fi 
 
   # Download dependencies
-  - PACKAGES="$PACKAGES cmake cmake-curses-gui libaio-dev libssl-dev libncurses5-dev libevent-dev bison libmecab-dev"
-  - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $PACKAGES
+  - if [[ "$TRAVIS_OS_NAME" != "osx" ]]; then
+       export PACKAGES="$PACKAGES cmake cmake-curses-gui libaio-dev libssl-dev libncurses5-dev libevent-dev bison libmecab-dev";
+       sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $PACKAGES;
+    fi
   - mkdir bin; cd bin
   - $CC -v
   - $CXX -v
@@ -54,19 +65,19 @@ script:
   # Test "RelWithDebInfo" compilation
   - cmake ..
     -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    -DMYSQL_MAINTAINER_MODE=ON
+    -DMYSQL_MAINTAINER_MODE=$MAINTAINER_MODE
     -DBUILD_CONFIG=mysql_release
     -DFEATURE_SET=community
     -DENABLE_DTRACE=OFF
     -DWITH_SSL=$LIBTYPE
     -DWITH_ZLIB=$LIBTYPE
     -DWITH_LIBEVENT=$LIBTYPE
-    -DWITH_MECAB=system
+    -DWITH_MECAB=$WITH_MECAB
+    -DWITHOUT_TOKUDB=$WITHOUT_TOKUDB
+    -DWITHOUT_ROCKSDB=$WITHOUT_ROCKSDB
     -DENABLE_DOWNLOADS=1
     -DDOWNLOAD_BOOST=1
     -DWITH_BOOST=../deps
-    -DWITHOUT_TOKUDB=ON
-    -DWITHOUT_ROCKSDB=ON
      $CMAKE_OPT
   - make -j2
 
@@ -74,18 +85,18 @@ script:
   - rm -rf *
   - cmake ..
     -DCMAKE_BUILD_TYPE=Debug
-    -DMYSQL_MAINTAINER_MODE=ON
+    -DMYSQL_MAINTAINER_MODE=$MAINTAINER_MODE
     -DBUILD_CONFIG=mysql_release
     -DFEATURE_SET=community
     -DENABLE_DTRACE=OFF
     -DWITH_SSL=$LIBTYPE
     -DWITH_ZLIB=$LIBTYPE
-    -DWITH_MECAB=system
+    -DWITH_MECAB=$WITH_MECAB
     -DWITH_LIBEVENT=$LIBTYPE
+    -DWITHOUT_TOKUDB=$WITHOUT_TOKUDB
+    -DWITHOUT_ROCKSDB=$WITHOUT_ROCKSDB
     -DENABLE_DOWNLOADS=1
     -DDOWNLOAD_BOOST=1
     -DWITH_BOOST=../deps
-    -DWITHOUT_TOKUDB=ON
-    -DWITHOUT_ROCKSDB=ON
      $CMAKE_OPT
   - make -j2

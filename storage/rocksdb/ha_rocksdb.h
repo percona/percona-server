@@ -38,6 +38,7 @@
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"
+#include "rocksdb/merge_operator.h"
 #include "rocksdb/perf_context.h"
 #include "rocksdb/sst_file_manager.h"
 #include "rocksdb/statistics.h"
@@ -257,6 +258,8 @@ constexpr uint64_t DEFAULT_SST_MGR_RATE_BYTES_PER_SEC = 0;
   enabled.
 */
 #define ROCKSDB_SIZEOF_TTL_RECORD sizeof(longlong)
+
+#define ROCKSDB_SIZEOF_AUTOINC_VALUE sizeof(longlong)
 
 /*
   Maximum index prefix length in bytes.
@@ -541,6 +544,12 @@ class ha_rocksdb : public my_core::handler {
   uchar *m_dup_sk_packed_tuple;
   uchar *m_dup_sk_packed_tuple_old;
 
+  /* Buffers used for passing upper/bound eq conditions. */
+  uchar *m_eq_cond_lower_bound;
+  uchar *m_eq_cond_upper_bound;
+  rocksdb::Slice m_eq_cond_lower_bound_slice;
+  rocksdb::Slice m_eq_cond_upper_bound_slice;
+
   /*
     Temporary space for packing VARCHARs (we provide it to
     pack_record()/pack_index_tuple() calls).
@@ -597,12 +606,7 @@ class ha_rocksdb : public my_core::handler {
   bool m_update_scope_is_valid;
 
   /* SST information used for bulk loading the primary key */
-  std::unique_ptr<Rdb_sst_info> m_sst_info;
-  /* External merge sorts for bulk load: key ID -> merge sort instance */
-  std::unordered_map<GL_INDEX_ID, Rdb_index_merge> m_key_merge;
-  Rdb_transaction *m_bulk_load_tx;
-  /* Mutex to protect finalizing bulk load */
-  mysql_mutex_t m_bulk_load_mutex;
+  std::shared_ptr<Rdb_sst_info> m_sst_info;
 
   /*
     MySQL index number for duplicate key error
@@ -617,13 +621,17 @@ class ha_rocksdb : public my_core::handler {
   int secondary_index_read(const int keyno, uchar *const buf)
       MY_ATTRIBUTE((__warn_unused_result__));
   void setup_iterator_for_rnd_scan();
-  void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *const slice)
-      MY_ATTRIBUTE((__nonnull__)) {
-    setup_scan_iterator(kd, slice, false, 0);
-  }
   bool is_ascending(const Rdb_key_def &keydef,
                     enum ha_rkey_function find_flag) const
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+  void setup_iterator_bounds(const Rdb_key_def &kd,
+                             const rocksdb::Slice &eq_cond);
+  bool can_use_bloom_filter(THD *thd, const Rdb_key_def &kd,
+                            const rocksdb::Slice &eq_cond,
+                            const bool use_all_keys);
+  bool check_bloom_and_set_bounds(THD *thd, const Rdb_key_def &kd,
+                                  const rocksdb::Slice &eq_cond,
+                                  const bool use_all_keys);
   void setup_scan_iterator(const Rdb_key_def &kd, rocksdb::Slice *slice,
                            const bool use_all_keys, const uint eq_cond_len);
   void release_scan_iterator(void);
@@ -644,8 +652,13 @@ class ha_rocksdb : public my_core::handler {
                             rowid_size, skip_ttl_check);
   }
 
-  void update_auto_incr_val();
   void load_auto_incr_value();
+  ulonglong load_auto_incr_value_from_index();
+  void update_auto_incr_val(ulonglong val);
+  void update_auto_incr_val_from_field();
+  rocksdb::Status get_datadic_auto_incr(Rdb_transaction *const tx,
+                                        const GL_INDEX_ID &gl_index_id,
+                                        ulonglong *new_val) const;
   longlong update_hidden_pk_val();
   int load_hidden_pk_value() MY_ATTRIBUTE((__warn_unused_result__));
   int read_hidden_pk_id_from_rowkey(longlong *const hidden_pk_id)
@@ -686,6 +699,12 @@ class ha_rocksdb : public my_core::handler {
     just always decoded in full currently)
   */
   std::vector<READ_FIELD> m_decoders_vect;
+
+  /*
+    This tells if any field which is part of the key needs to be unpacked and
+    decoded.
+   */
+  bool m_key_requested = false;
 
   /* Setup field_decoders based on type of scan and table->read_set */
   void setup_read_decoders();
@@ -752,7 +771,6 @@ public:
                       "handler.",
                       err);
     }
-    mysql_mutex_destroy(&m_bulk_load_mutex);
   }
 
   /** @brief
@@ -777,10 +795,9 @@ public:
   const char **bas_ext() const override;
 
   /*
-    See if this is the same base table - this should only be true for different
-    partitions of the same table.
+    Returns the name of the table's base name
   */
-  bool same_table(const ha_rocksdb &other) const;
+  const std::string &get_table_basename() const;
 
   /** @brief
     This is a list of flags that indicate what functionality the storage engine
@@ -1188,8 +1205,6 @@ private:
   Rdb_tbl_def *get_table_if_exists(const char *const tablename)
       MY_ATTRIBUTE((__warn_unused_result__));
   void read_thd_vars(THD *const thd) MY_ATTRIBUTE((__nonnull__));
-  const char *thd_rocksdb_tmpdir()
-      MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
 
   bool contains_foreign_key(THD *const thd)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
@@ -1198,6 +1213,9 @@ private:
       TABLE *const table_arg,
       const std::unordered_set<std::shared_ptr<Rdb_key_def>> &indexes)
       MY_ATTRIBUTE((__nonnull__, __warn_unused_result__));
+
+  int finalize_bulk_load(bool print_client_error = true)
+      MY_ATTRIBUTE((__warn_unused_result__));
 
 public:
   int index_init(uint idx, bool sorted) override
@@ -1312,9 +1330,6 @@ public:
                              my_core::Alter_inplace_info *const ha_alter_info,
                              bool commit) override;
 
-  int finalize_bulk_load(bool print_client_error = true)
-      MY_ATTRIBUTE((__warn_unused_result__));
-
   void set_use_read_free_rpl(const char *const whitelist);
 
 public:
@@ -1363,18 +1378,22 @@ struct Rdb_inplace_alter_ctx : public my_core::inplace_alter_handler_ctx {
   /* Stores number of keys to drop */
   const uint m_n_dropped_keys;
 
+  /* Stores the largest current auto increment value in the index */
+  const ulonglong m_max_auto_incr;
+
   Rdb_inplace_alter_ctx(
       Rdb_tbl_def *new_tdef, std::shared_ptr<Rdb_key_def> *old_key_descr,
       std::shared_ptr<Rdb_key_def> *new_key_descr, uint old_n_keys,
       uint new_n_keys,
       std::unordered_set<std::shared_ptr<Rdb_key_def>> added_indexes,
       std::unordered_set<GL_INDEX_ID> dropped_index_ids, uint n_added_keys,
-      uint n_dropped_keys)
+      uint n_dropped_keys, ulonglong max_auto_incr)
       : my_core::inplace_alter_handler_ctx(), m_new_tdef(new_tdef),
         m_old_key_descr(old_key_descr), m_new_key_descr(new_key_descr),
         m_old_n_keys(old_n_keys), m_new_n_keys(new_n_keys),
         m_added_indexes(added_indexes), m_dropped_index_ids(dropped_index_ids),
-        m_n_added_keys(n_added_keys), m_n_dropped_keys(n_dropped_keys) {}
+        m_n_added_keys(n_added_keys), m_n_dropped_keys(n_dropped_keys),
+        m_max_auto_incr(max_auto_incr) {}
 
   ~Rdb_inplace_alter_ctx() {}
 
@@ -1454,4 +1473,8 @@ private:
   mysql_rwlock_t m_rwlock;
   bool m_initialized;
 };
+
+// file name indicating RocksDB data corruption
+std::string rdb_corruption_marker_file_name();
+
 } // namespace myrocks

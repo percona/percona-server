@@ -6,15 +6,53 @@ INSERT INTO t1 VALUES (5);
 --replace_column 3 # 6 # 7 # 8 # 9 # 10 #
 SHOW TABLE STATUS LIKE 't1';
 
---error ER_WARN_DATA_OUT_OF_RANGE
-INSERT INTO t1 VALUES ('538647864786478647864');
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
 --replace_column 3 # 6 # 7 # 8 # 9 # 10 #
 SHOW TABLE STATUS LIKE 't1';
 
 INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SHOW TABLE STATUS LIKE 't1';
+
+INSERT INTO t1 VALUES (10);
+SELECT * FROM t1;
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SHOW TABLE STATUS LIKE 't1';
+
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SHOW TABLE STATUS LIKE 't1';
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (pk TINYINT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=ROCKSDB;
+
+INSERT INTO t1 VALUES (5);
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SHOW TABLE STATUS LIKE 't1';
+
+INSERT INTO t1 VALUES (127);
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SELECT * FROM t1;
+SHOW TABLE STATUS LIKE 't1';
+
 --error ER_DUP_ENTRY
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SHOW TABLE STATUS LIKE 't1';
+
 INSERT INTO t1 VALUES(6);
 SELECT * FROM t1 ORDER BY pk;
+--replace_column 3 # 6 # 7 # 8 # 9 # 10 #
+SHOW TABLE STATUS LIKE 't1';
+
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES ();
+SELECT * FROM t1;
 --replace_column 3 # 6 # 7 # 8 # 9 # 10 #
 SHOW TABLE STATUS LIKE 't1';
 

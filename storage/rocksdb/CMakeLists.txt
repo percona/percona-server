@@ -133,6 +133,8 @@ SET(ROCKSDB_LIB_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/compress/zstdmt_compress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/huf_decompress.c
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/decompress/zstd_decompress.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/divsufsort.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder/zdict.c
 )
 
 INCLUDE_DIRECTORIES(
@@ -143,6 +145,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/lz4/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/common
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zstd/lib/dictBuilder
 )
 
 ADD_DEFINITIONS(-DROCKSDB_PLATFORM_POSIX -DROCKSDB_LIB_IO_POSIX -DZLIB -DLZ4

@@ -11,7 +11,8 @@ ROCKSDB_DDL	CREATE TEMPORARY TABLE `ROCKSDB_DDL` (
   `KV_FORMAT_VERSION` smallint(2) NOT NULL DEFAULT '0',
   `TTL_DURATION` bigint(8) NOT NULL DEFAULT '0',
   `INDEX_FLAGS` bigint(8) NOT NULL DEFAULT '0',
-  `CF` varchar(193) NOT NULL DEFAULT ''
+  `CF` varchar(193) NOT NULL DEFAULT '',
+  `AUTO_INCREMENT` bigint(8) unsigned DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 uninstall plugin rocksdb;
 select * from information_schema.rocksdb_ddl;

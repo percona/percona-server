@@ -23,6 +23,7 @@ INDEX i6(key6),
 INDEX i7(key7),
 INDEX i8(key8)
 );
+set global rocksdb_force_flush_memtable_now=1;
 analyze table t0;
 Table	Op	Msg_type	Msg_text
 test.t0	analyze	status	OK
@@ -1045,6 +1046,7 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
 select key1a, key1b, key2a, key2b, key3a, key3b from t1;
 insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
 select key1a, key1b, key2a, key2b, key3a, key3b from t1;
+set global rocksdb_force_flush_memtable_now=1;
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -1812,6 +1814,7 @@ INSERT INTO t2 VALUES
 (103,4,4,'1900-01-01','1900-01-01','15:32:04','15:32:04','2001-03-06 10:00:37','2001-03-06 10:00:37','d','d'),
 (104,8,7,'2009-02-13','2009-02-13','20:25:36','20:25:36','2004-08-15 00:00:00','2004-08-15 00:00:00','z','z'),
 (105,8,6,'2008-03-25','2008-03-25','21:33:53','21:33:53','2006-10-12 06:13:06','2006-10-12 06:13:06','s','s');
+set global rocksdb_force_flush_memtable_now=1;
 analyze table t1;
 analyze table t2;
 UPDATE t1 SET col_time_nokey = 25

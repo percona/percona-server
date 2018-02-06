@@ -33,6 +33,7 @@ FOREACH(test ${TESTS})
     SET(SRC_FILES ${test}-t.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keyring_key.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_container.cc
+            ${CMAKE_SOURCE_DIR}/plugin/keyring/common/keys_iterator.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_keys_list.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_key.cc
             ${CMAKE_SOURCE_DIR}/plugin/keyring_vault/vault_io.cc

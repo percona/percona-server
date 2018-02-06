@@ -1381,7 +1381,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       maybe_null= (args[0]->maybe_null || args[1]->maybe_null ||
                    args[2]->maybe_null);
     }
-    // fallthrough
+    // Fall through.
   case 2:
     {
       // Validate options argument
@@ -1392,7 +1392,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       }
       maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
     }
-    // fallthrough
+    // Fall through.
   case 1:
     {
       /*

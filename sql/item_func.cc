@@ -2380,7 +2380,7 @@ my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value)
     return decimal_value;
   case E_DEC_DIV_ZERO:
     signal_divide_by_null();
-    // fallthrough
+    // Fall through.
   default:
     null_value= 1;
     return 0;

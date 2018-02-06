@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/26/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1239,20 +1239,18 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-server\-public\-key\-path=\fR\fBfile_name\fR
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name to a file containing the same RSA public key used by the server\&. The file must be in PEM format\&. The public key is required for for RSA key pair\-based password exchange\&. This option is used by clients that connect to the server using an account that authenticates with the
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
 sha256_password
-plugin\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not needed, as is the case when the client connects to the server using a secure connection\&.
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
-The server sends the public key to the client as needed, so it is not necessary to use this option for RSA password encryption to occur\&. It is more efficient to do so because then the server need not send the key\&.
+This option is available only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
 plugin, see
 Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
-.sp
-This option is available only if MySQL was built using OpenSSL\&.
 .RE
 .sp
 .RS 4
@@ -1266,7 +1264,7 @@ This option is available only if MySQL was built using OpenSSL\&.
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -1761,7 +1759,7 @@ or loaded using the
 source
 command)\&.
 .PP
-Each command has both a long and short form\&. The long form is not case sensitive; the short form is\&. The long form can be followed by an optional semicolon terminator, but the short form should not\&.
+Each command has both a long and short form\&. The long form is not case\-sensitive; the short form is\&. The long form can be followed by an optional semicolon terminator, but the short form should not\&.
 .PP
 The use of short\-form commands within multiple\-line
 /* \&.\&.\&. */
@@ -3715,7 +3713,7 @@ Section\ \&27.8.20, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

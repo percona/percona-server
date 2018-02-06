@@ -4,6 +4,10 @@
 #include "vault_credentials_parser.h"
 #include <fstream>
 #include "test_utils.h"
+#include "i_keys_container.h"
+#include <boost/move/unique_ptr.hpp>
+
+boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring

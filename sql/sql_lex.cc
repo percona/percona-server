@@ -1408,7 +1408,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	yylval->lex_str.length=2;
 	return NULL_SYM;
       }
-      // fallthrough
+      // Fall through.
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
       if (c == '-' && lip->yyPeek() == '-' &&
@@ -1483,14 +1483,14 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
-      // fallthrough
+      // Fall through.
     case MY_LEX_IDENT_OR_BIN:
       if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
       }
-      // fallthrough
+      // Fall through.
     case MY_LEX_IDENT:
       const char *start;
       if (use_mb(cs))
@@ -1850,6 +1850,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       }
       // fallthrough
       /* " used for strings */
+      // Fall through.
     case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
       {

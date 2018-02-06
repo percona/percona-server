@@ -11,6 +11,9 @@
 #include "uuid.h"
 #include "vault_mount.h"
 #include "test_utils.h"
+#include "i_keys_container.h"
+
+boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 
 #if defined(HAVE_PSI_INTERFACE)
 namespace keyring

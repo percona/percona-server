@@ -484,10 +484,10 @@ row_ins_cascade_calc_update_vec(
 	mem_heap_t*	heap,		/*!< in: memory heap to use as
 					temporary storage */
 	trx_t*		trx,		/*!< in: update transaction */
-	ibool*		fts_col_affected,
+	ibool*		fts_col_affected)
 					/*!< out: is FTS column affected */
-	upd_node_t*	cascade)	/*!< in: cascade update node */
 {
+	upd_node_t*     cascade         = node->cascade_node;
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
@@ -710,13 +710,13 @@ row_ins_cascade_calc_update_vec(
 			fts_get_next_doc_id(table, next_doc_id);
 			doc_id = fts_update_doc_id(table, ufield, next_doc_id);
 			n_fields_updated++;
-			cascade->fts_next_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 		} else  {
 			if (doc_id_updated) {
 				ut_ad(new_doc_id);
-				cascade->fts_next_doc_id = new_doc_id;
+				fts_trx_add_op(trx, table, new_doc_id,
+					       FTS_INSERT, NULL);
 			} else {
-				cascade->fts_next_doc_id = FTS_NULL_DOC_ID;
 				ib::error() << "FTS Doc ID must be updated"
 					" along with FTS indexed column for"
 					" table " << table->name;
@@ -1121,20 +1121,15 @@ row_ins_foreign_check_on_constraint(
 		DBUG_RETURN(DB_ROW_IS_REFERENCED);
 	}
 
-	cascade = row_create_update_node_for_mysql(table, node->cascade_heap);
-	que_node_set_parent(cascade, node);
+	if (node->cascade_node == NULL) {
+		node->cascade_heap = mem_heap_create(128);
+		node->cascade_node = row_create_update_node_for_mysql(
+			table, node->cascade_heap);
+		que_node_set_parent(node->cascade_node, node);
 
-	/* For the cascaded operation, all the update nodes are allocated in
-	the same heap.  All the update nodes will point to the same heap.
-	This heap is owned by the first update node. And it must be freed
-	only in the first update node */
-	cascade->cascade_heap = node->cascade_heap;
-	cascade->cascade_upd_nodes = node->cascade_upd_nodes;
-	cascade->new_upd_nodes = node->new_upd_nodes;
-	cascade->processed_cascades = node->processed_cascades;
-
+	}
+	cascade = node->cascade_node;
 	cascade->table = table;
-
 	cascade->foreign = foreign;
 
 	if (node->is_delete
@@ -1277,17 +1272,8 @@ row_ins_foreign_check_on_constraint(
 	if (node->is_delete
 	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
 	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
-		if (table->fts) {
-
-			/* For the clause ON DELETE SET NULL, the cascade
-			operation is actually an update operation with the new
-			values being null.  For FTS, this means that the old
-			values be deleted and no new values to be added.*/
-			cascade->fts_next_doc_id = FTS_NULL_DOC_ID;
-		}
 
 		update = cascade->update;
 
@@ -1322,7 +1308,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		if (fts_col_affacted) {
-			cascade->fts_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 
 		if (foreign->v_cols != NULL
@@ -1350,7 +1336,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		if (fts_col_affacted) {
-			cascade->fts_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
@@ -1361,8 +1347,8 @@ row_ins_foreign_check_on_constraint(
 		foreign->n_fields first fields in rec to new values */
 
 		n_to_update = row_ins_cascade_calc_update_vec(
-			node, foreign, cascade->cascade_heap,
-			trx, &fts_col_affacted, cascade);
+			node, foreign, tmp_heap,
+			trx, &fts_col_affacted);
 
 
 		if (foreign->v_cols != NULL
@@ -1405,7 +1391,7 @@ row_ins_foreign_check_on_constraint(
 		/* Mark the old Doc ID as deleted */
 		if (fts_col_affacted) {
 			ut_ad(table->fts);
-			cascade->fts_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
@@ -1426,11 +1412,8 @@ row_ins_foreign_check_on_constraint(
 
 	cascade->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	node->new_upd_nodes->push_back(cascade);
-
-	os_atomic_increment_ulint(&table->n_foreign_key_checks_running, 1);
-
-	ut_ad(foreign->foreign_table->n_foreign_key_checks_running > 0);
+	err = row_update_cascade_for_mysql(thr, cascade,
+                                           foreign->foreign_table);
 
 	/* Release the data dictionary latch for a while, so that we do not
 	starve other threads from doing CREATE TABLE etc. if we have a huge
@@ -1457,7 +1440,6 @@ row_ins_foreign_check_on_constraint(
 	DBUG_RETURN(err);
 
 nonstandard_exit_func:
-	que_graph_free_recursive(cascade);
 
 	if (tmp_heap) {
 		mem_heap_free(tmp_heap);
@@ -1893,7 +1875,6 @@ do_possible_lock_wait:
 
 			goto exit_func;
 		}
-
 	}
 
 
@@ -1939,6 +1920,7 @@ row_ins_check_foreign_constraints(
 
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
+			dict_table_t*   foreign_table = foreign->foreign_table;
 			dict_table_t*	referenced_table
 						= foreign->referenced_table;
 
@@ -1955,6 +1937,11 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
+                        if (referenced_table) {
+				os_atomic_increment_ulint(
+					&foreign_table->n_foreign_key_checks_running, 1);
+                        }
+
 			/* NOTE that if the thread ends up waiting for a lock
 			we will release dict_operation_lock temporarily!
 			But the counter on the table protects the referenced
@@ -1962,6 +1949,11 @@ row_ins_check_foreign_constraints(
 
 			err = row_ins_check_foreign_constraint(
 				TRUE, foreign, table, entry, thr);
+
+                        if (referenced_table) {
+				os_atomic_decrement_ulint(
+					&foreign_table->n_foreign_key_checks_running, 1);
+                        }
 
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);

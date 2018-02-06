@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/26/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -256,12 +256,12 @@ T}:T{
 none
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 48
 T}
@@ -1064,7 +1064,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.20\-ndb\-7\&.5\&.8"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.20\-ndb\-7\&.5\&.9"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1171,7 +1171,8 @@ attribute, as shown here:
 .RS 4
 .\}
 .nf
-<param name="ExecuteOnComputer" comment="HostName" type="string" \fIdeprecated="true"\fR/>
+<param name="NoOfDiskPagesToDiskAfterRestartACC" comment="DiskCheckpointSpeed"
+       type="unsigned" default="20" min="1" max="4294967039" \fIdeprecated="true"\fR/>
 .fi
 .if n \{\
 .RE
@@ -1321,7 +1322,7 @@ To produce a connection string that can be used by data, SQL, and API nodes to c
 .nf
 shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e
 \-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
-192\&.168\&.0\&.179:1186
+198\&.51\&.100\&.179:1186
 .fi
 .if n \{\
 .RE
@@ -1351,10 +1352,10 @@ parameters:
 .\}
 .nf
 shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=id,host,datamemory,indexmemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
-1 : 192\&.168\&.0\&.193 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-2 : 192\&.168\&.0\&.112 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-3 : 192\&.168\&.0\&.176 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-4 : 192\&.168\&.0\&.119 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+1 : 198\&.51\&.100\&.193 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+2 : 198\&.51\&.100\&.112 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+3 : 198\&.51\&.100\&.176 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+4 : 198\&.51\&.100\&.119 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
 .fi
 .if n \{\
 .RE
@@ -1383,7 +1384,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-host=192\&.168\&.0\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
+shell> \fB\&./ndb_config \-\-host=198\&.51\&.100\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
 3:ndbd
 5:ndb_mgmd
 .fi
@@ -1402,7 +1403,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

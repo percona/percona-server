@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/26/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -110,9 +110,9 @@ client:
 .nf
 mysql> \fBUSE myinnodb;\fR
 mysql> \fBSELECT * INTO OUTFILE \*(Aq/tmp/myndb_table\&.csv\*(Aq\fR
-mysql>  \fBFIELDS TERMINATED BY \*(Aq,\*(Aq OPTIONALLY ENCLOSED BY \*(Aq"\*(Aq ESCAPED BY \*(Aq\e\e\*(Aq\fR
-mysql>  \fBLINES TERMINATED BY \*(Aq\en\*(Aq\fR
-mysql>  \fBFROM myinnodbtable;\fR
+     >  \fBFIELDS TERMINATED BY \*(Aq,\*(Aq OPTIONALLY ENCLOSED BY \*(Aq"\*(Aq ESCAPED BY \*(Aq\e\e\*(Aq\fR
+     >  \fBLINES TERMINATED BY \*(Aq\en\*(Aq\fR
+     >  \fBFROM myinnodbtable;\fR
 mysql> \fBCREATE DATABASE myndb;\fR
 mysql> \fBUSE myndb;\fR
 mysql> \fBCREATE TABLE myndb_table LIKE myinnodb\&.myinnodb_table;\fR
@@ -271,12 +271,12 @@ T}:T{
 1
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -327,12 +327,12 @@ T}:T{
 1
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -383,12 +383,12 @@ T}:T{
 1024
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -439,12 +439,12 @@ T}:T{
 1
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -535,12 +535,12 @@ T}:T{
 1
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -657,12 +657,12 @@ T}:T{
 1000
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -897,12 +897,12 @@ T}:T{
 1
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -951,12 +951,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1005,12 +1005,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1116,12 +1116,12 @@ T}:T{
 2
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1216,12 +1216,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1270,12 +1270,12 @@ T}:T{
 2
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1408,12 +1408,12 @@ T}:T{
 256
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1462,12 +1462,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1568,12 +1568,12 @@ T}:T{
 2
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1622,12 +1622,12 @@ T}:T{
 4096
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1676,12 +1676,12 @@ T}:T{
 64
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1730,12 +1730,12 @@ T}:T{
 1000
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1784,12 +1784,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1882,12 +1882,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -1936,12 +1936,12 @@ T}:T{
 262144
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -2035,12 +2035,12 @@ T}:T{
 10
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -2089,12 +2089,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 4294967295
 T}
@@ -2146,12 +2146,12 @@ T}:T{
 0
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 0
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 2
 T}
@@ -2173,7 +2173,7 @@ was added in NDB 7\&.6\&.2\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

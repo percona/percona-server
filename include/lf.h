@@ -59,19 +59,19 @@ typedef struct {
   lf_pinbox_free_func *free_func;
   void *free_func_arg;
   uint free_ptr_offset;
-  uint32 volatile pinstack_top_ver;         /* this is a versioned pointer */
-  uint32 volatile pins_in_array;            /* number of elements in array */
+  uint64 volatile pinstack_top_ver;         /* this is a versioned pointer */
+  uint64 volatile pins_in_array;            /* number of elements in array */
 } LF_PINBOX;
 
 typedef struct st_lf_pins {
   void * volatile pin[LF_PINBOX_PINS];
   LF_PINBOX *pinbox;
   void  *purgatory;
-  uint32 purgatory_count;
-  uint32 volatile link;
+  uint64 purgatory_count;
+  uint64 volatile link;
 /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
-#if SIZEOF_INT*2+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
-  char pad[64-sizeof(uint32)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
+#if 2*8+SIZEOF_CHARP*(LF_PINBOX_PINS+2) != 64
+  char pad[64-sizeof(uint64)*2-sizeof(void*)*(LF_PINBOX_PINS+2)];
 #endif
 } LF_PINS;
 

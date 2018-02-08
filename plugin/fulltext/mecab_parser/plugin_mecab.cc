@@ -35,12 +35,6 @@ static char*	mecab_rc_file;
 static const char*	mecab_min_supported_version = "0.993";
 static const char*	mecab_max_supported_version = "0.996";
 
-#if defined(BUNDLE_MECAB)
-static const bool bundle_mecab= true;
-#else
-static const bool bundle_mecab= false;
-#endif
-
 /** Set MeCab parser charset.
 @param[in]	charset charset string
 @retval	true	on success

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -528,9 +528,12 @@ User_var_event(const char* buf, unsigned int event_len,
   size_t bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
   bool old_pre_checksum_fd= description_event->is_version_before_checksum();
-  const int checksum_length = (old_pre_checksum_fd || description_event->footer()->checksum_alg == BINLOG_CHECKSUM_ALG_OFF) ? 0 : BINLOG_CHECKSUM_LEN;
-  size_t data_written= (header()->data_written- checksum_length);
-  BAPI_ASSERT(bytes_read == data_written || (bytes_read == data_written - 1));
+  bool checksum_verify= (old_pre_checksum_fd ||
+                         (description_event->footer()->checksum_alg ==
+                          BINLOG_CHECKSUM_ALG_OFF));
+  size_t data_written= (header()->data_written- checksum_verify);
+  BAPI_ASSERT(((bytes_read == data_written) ? false : true) ||
+              ((bytes_read == data_written - 1) ? false : true));
 #endif
     if ((header()->data_written - bytes_read) > 0)
     {

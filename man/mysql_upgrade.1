@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/26/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -164,6 +164,12 @@ Some upgrade incompatibilities may require special handling before you upgrade y
 Section\ \&2.11.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
+.PP
+Running
+\fBmysql_upgrade\fR
+is not recommended with a MySQL Server that is running with global transaction identifiers (GTIDs) enabled\&. This is because
+\fBmysql_upgrade\fR
+can make changes to system tables that use the MyISAM storage engine, which is non\-transactional\&.
 .PP
 To use
 \fBmysql_upgrade\fR, make sure that the server is running\&. Then invoke it like this to check and repair tables and to upgrade the system tables:
@@ -796,7 +802,7 @@ Section\ \&4.2.2, \(lqConnecting to the MySQL Server\(rq\&.
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -961,32 +967,11 @@ By default, binary logging by
 is disabled\&. Invoke the program with
 \fB\-\-write\-binlog\fR
 if you want its actions to be written to the binary log\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-this option is not recommended on MySQL Servers running with
-\fB\-\-gtid\-mode=ON\fR
-because
-\fBmysql_upgrade\fR
-can make changes to system tables that use the
-MyISAM
-storage engine, which is non\-transactional\&.
-.sp .5v
-.RE
 .RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

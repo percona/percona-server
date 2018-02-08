@@ -47,7 +47,7 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 19
+#define PERCONA_INNODB_VERSION 20
 #endif
 
 /* The following is the InnoDB version as shown in

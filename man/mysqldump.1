@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/26/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "09/13/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1367,7 +1367,7 @@ respectively\&. These are the master server coordinates from which the slave sho
 .ps -1
 .br
 Inconsistencies in the sequence of transactions from the relay log which have been executed can cause the wrong position to be used\&. See
-Section\ \&16.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
+Section\ \&16.4.1.33, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
@@ -1521,6 +1521,16 @@ Add a SET statement to the output if GTIDs are
 T}
 .TE
 .sp 1
+A partial dump from a server that is using GTID\-based replication requires the
+\fB\-\-set\-gtid\-purged={ON|OFF}\fR
+option to be specified\&. Use
+ON
+if the intention is to deploy a new replication slave using only some of the data from the dumped server\&. Use
+OFF
+if the intention is to repair a table by copying it within a topology\&. Use
+OFF
+if the intention is to copy a table between replication topologies that are disjoint and will remain so\&.
+.sp
 The
 \fB\-\-set\-gtid\-purged\fR
 option has the following effect on binary logging when the dump file is reloaded:
@@ -2501,7 +2511,7 @@ table, but makes the dump operation take considerably longer\&.
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -2818,7 +2828,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

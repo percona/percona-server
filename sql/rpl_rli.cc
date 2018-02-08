@@ -1867,14 +1867,18 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   if (rows_query_ev)
   {
     /*
-      thd->m_query_string now points to the data from
-      rli->rows_query_ev->m_rows_query
-      (see  Rows_query_log_event::do_apply_event()), don't let it point
-      to unallocated memory, reset query string first
+      In order to avoid invalid memory access, THD::reset_query() should be
+      called before deleting the rows_query event.
     */
     info_thd->reset_query();
     delete rows_query_ev;
     rows_query_ev= NULL;
+    DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev",
+                    {
+                      const char action[]="now SIGNAL deleted_rows_query_ev WAIT_FOR go_ahead";
+                      DBUG_ASSERT(!debug_sync_set_action(info_thd,
+                                                       STRING_WITH_LEN(action)));
+                    };);
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);

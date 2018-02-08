@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1571,7 +1571,7 @@ bool double_quote(const char *cptr, size_t length, String *buf)
         return true;                          /* purecov: inspected */
     }
     else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
-             (cptr[i] < 0x1f))
+             (cptr[i] <= 0x1f))
     {
       /*
         Unprintable control character, use hex a hexadecimal number.
@@ -3065,8 +3065,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_int(b_dec, get_int());
       }
-    default:
-      ;
+    default:;
     }
     break;
   case Json_dom::J_UINT:
@@ -3086,8 +3085,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
           return 1;                           /* purecov: inspected */
         return -compare_json_decimal_uint(b_dec, get_uint());
       }
-    default:
-      ;
+    default:;
     }
     break;
   case Json_dom::J_DOUBLE:
@@ -3108,8 +3106,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
             return 1;                         /* purecov: inspected */
           return -compare_json_decimal_double(other_dec, get_double());
         }
-      default:
-        ;
+      default:;
       }
       break;
     }
@@ -3138,8 +3135,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         return compare_json_decimal_uint(a_dec, other.get_uint());
       case Json_dom::J_DOUBLE:
         return compare_json_decimal_double(a_dec, other.get_double());
-      default:
-        ;
+      default:;
       }
       break;
     }

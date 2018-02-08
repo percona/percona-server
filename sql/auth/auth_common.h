@@ -602,7 +602,7 @@ bool acl_check_host(const char *host, const char *ip);
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log= NULL);
+                                     std::set<LEX_USER *> *extra_users= NULL);
 void mysql_rewrite_grant(THD *thd, String *rlb);
 
 /* sql_user */
@@ -621,7 +621,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
-                                      bool is_privileged_user);
+                                      bool is_privileged_user,
+                                      const char * cmd);
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);

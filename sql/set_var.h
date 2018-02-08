@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -377,7 +377,7 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list,
                       bool free_joins = true);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
-
+bool keyring_access_test();
 sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd);
 bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *ls);
 void update_parser_max_mem_size();

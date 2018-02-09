@@ -45,7 +45,7 @@ script:
     fi 
 
   # Download dependencies
-  - PACKAGES="$PACKAGES cmake cmake-curses-gui libaio-dev libssl-dev libncurses5-dev libevent-dev bison"
+  - PACKAGES="$PACKAGES cmake cmake-curses-gui libaio-dev libssl-dev libncurses5-dev libevent-dev bison libmecab-dev"
   - sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $PACKAGES
   - mkdir bin; cd bin
   - $CC -v
@@ -61,6 +61,7 @@ script:
     -DWITH_SSL=$LIBTYPE
     -DWITH_ZLIB=$LIBTYPE
     -DWITH_LIBEVENT=$LIBTYPE
+    -DWITH_MECAB=system
     -DENABLE_DOWNLOADS=1
     -DDOWNLOAD_BOOST=1
     -DWITH_BOOST=../deps
@@ -79,6 +80,7 @@ script:
     -DENABLE_DTRACE=OFF
     -DWITH_SSL=$LIBTYPE
     -DWITH_ZLIB=$LIBTYPE
+    -DWITH_MECAB=system
     -DWITH_LIBEVENT=$LIBTYPE
     -DENABLE_DOWNLOADS=1
     -DDOWNLOAD_BOOST=1

@@ -4328,7 +4328,7 @@ int Rdb_ddl_manager::scan_for_tables(Rdb_tables_scanner *const tables_scanner) {
   return ret;
 }
 
-bool Rdb_dict_manager::init(rocksdb::DB *const rdb_dict,
+bool Rdb_dict_manager::init(rocksdb::TransactionDB *const rdb_dict,
                             Rdb_cf_manager *const cf_manager) {
   DBUG_ASSERT(rdb_dict != nullptr);
   DBUG_ASSERT(cf_manager != nullptr);
@@ -4402,7 +4402,9 @@ int Rdb_dict_manager::commit(rocksdb::WriteBatch *const batch,
   int res = HA_EXIT_SUCCESS;
   rocksdb::WriteOptions options;
   options.sync = sync;
-  rocksdb::Status s = m_db->Write(options, batch);
+  rocksdb::TransactionDBWriteOptimizations optimize;
+  optimize.skip_concurrency_control = true;
+  rocksdb::Status s = m_db->Write(options, optimize, batch);
   res = !s.ok(); // we return true when something failed
   if (res) {
     rdb_handle_io_error(s, RDB_IO_ERROR_DICT_COMMIT);

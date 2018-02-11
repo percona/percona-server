@@ -5,7 +5,19 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
-|:Upstream bug: :mysqlbug:`82967`                                                                             |  
+|:Upstream bug: :mysqlbug:`53588` - Blackhole: Specified key was too long; max key length is 1000 bytes       |
+|:Launchpad bug: :bug:`173049`                                                                                |
+|:Upstream state: Verified                                                                                    |
+|:Fix Released: :rn:`5.6.39-83.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`77637` - mysql 5.6.25 compiled warning                                             |
+|:Launchpad bug: :bug:`1660628`                                                                               |
+|:Upstream state: Verified (checked on 2018-02-12)                                                            |
+|:Fix Released: :rn:`5.6.39-83.1`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`82967`                                                                             |
 |:Launchpad bug: :bug:`1622992`                                                                               |
 |:Upstream state: N/A                                                                                         |
 |:Fix Released: :rn:`5.6.37-82.2`                                                                             |
@@ -63,6 +75,12 @@
 |:Launchpad bug: :bug:`1688698`                                                                               |
 |:Upstream state: N/A                                                                                         |
 |:Fix Released: :rn:`5.6.36-82.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with...                    |
+|:Launchpad bug: :bug:`1722789`                                                                               |
+|:Upstream state: Verified (checked on 2018-01-04)                                                            |
+|:Fix Released: :rn:`5.6.39-83.1`                                                                             |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`81467` - innodb_fts.sync_block test unstable due to slow query log nondeterminism  |

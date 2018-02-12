@@ -104,7 +104,7 @@ class Fake_TABLE: public TABLE
   void initialize()
   {
     TABLE *as_table= static_cast<TABLE*>(this);
-    memset(as_table, 0, sizeof(*as_table));
+    memset(static_cast<void*>(as_table), 0, sizeof(*as_table));
     s= &table_share;
     in_use= current_thd;
     null_row= '\0';

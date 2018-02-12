@@ -316,7 +316,8 @@ static int sql_get_null(void *ctx)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  strncpy(pctx->sql_str_value[row][col], "[NULL]", sizeof("[NULL]")-1);
+  strncpy(pctx->sql_str_value[row][col], "[NULL]",
+          sizeof(pctx->sql_str_value[0][0]));
   pctx->sql_str_len[row][col]=  sizeof("[NULL]")-1;
 
   DBUG_RETURN(false);

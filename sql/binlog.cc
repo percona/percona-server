@@ -2743,7 +2743,7 @@ public:
     mysql_mutex_lock(&thd->LOCK_thd_data);
     if ((linfo = thd->current_linfo))
     {
-      if(!memcmp(m_log_name, linfo->log_file_name, m_log_name_len))
+      if(!strncmp(m_log_name, linfo->log_file_name, m_log_name_len))
       {
         sql_print_warning("file %s was not purged because it was being read"
                           "by thread number %u", m_log_name, thd->thread_id());
@@ -9180,8 +9180,9 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    char err_buff[MYSQL_ERRMSG_SIZE];
-    sprintf(err_buff, "%s Hence aborting the server.", errmsg);
+    static const char format_err[]= "%s Hence aborting the server.";
+    char err_buff[MYSQL_ERRMSG_SIZE + sizeof(format_err)];
+    snprintf(err_buff, sizeof(err_buff), format_err, errmsg);
     exec_binlog_error_action_abort(err_buff);
   }
   else

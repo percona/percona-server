@@ -197,10 +197,6 @@ at a time */
 extern ib_mutex_t	page_zip_stat_per_index_mutex;
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
-
-/* prototypes for new functions added to ha_innodb.cc */
-bool	innobase_get_slow_log();
-
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
 /* Mutex for locking srv_dict_tmpfile. Only created if !srv_read_only_mode.

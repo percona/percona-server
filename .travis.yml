@@ -14,26 +14,37 @@ matrix:
         - git diff -U0 --no-color HEAD^1 | ./clang-format-diff.py -p1 >_GIT_DIFF
         - '[ ! -s _GIT_DIFF ] && echo The last git commit is clang-formatted || cat _GIT_DIFF'
 
-    - env: GCC=gcc-4.8   CXX=g++-4.8     LIBTYPE=system
-    - env: GCC=gcc-7     CXX=g++-7       LIBTYPE=system  PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
-    - env: GCC=gcc-7     CXX=g++-7       LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1" PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
-    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=system  PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
+    - env: GCC=gcc-4.8   CXX=g++-4.8     BUILD=Debug           LIBTYPE=system
+    - env: GCC=gcc-4.8   CXX=g++-4.8     BUILD=RelWithDebInfo  LIBTYPE=system
+    - env: GCC=gcc-7     CXX=g++-7       BUILD=Debug           LIBTYPE=system  PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-7     CXX=g++-7       BUILD=RelWithDebInfo  LIBTYPE=system  PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-7     CXX=g++-7       BUILD=Debug           LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1" PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-7     CXX=g++-7       BUILD=RelWithDebInfo  LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1" PACKAGES=g++-7     PPA=ubuntu-toolchain-r/test
+    - env: GCC=clang-5.0 CXX=clang++-5.0 BUILD=Debug           LIBTYPE=system  PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
+    - env: GCC=clang-5.0 CXX=clang++-5.0 BUILD=RelWithDebInfo  LIBTYPE=system  PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
     # only for pull requests
-    - env: GCC=gcc-5     CXX=g++-5       LIBTYPE=system  PACKAGES=g++-5     PPA=ubuntu-toolchain-r/test
-    - env: GCC=gcc-6     CXX=g++-6       LIBTYPE=system  PACKAGES=g++-6     PPA=ubuntu-toolchain-r/test
-    - env: GCC=clang-4.0 CXX=clang++-4.0 LIBTYPE=system  PACKAGES="clang-4.0 llvm-4.0-dev" PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
-    - env: GCC=clang-5.0 CXX=clang++-5.0 LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1" PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
+    - env: GCC=gcc-5     CXX=g++-5       BUILD=Debug           LIBTYPE=system  PACKAGES=g++-5     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-5     CXX=g++-5       BUILD=RelWithDebInfo  LIBTYPE=system  PACKAGES=g++-5     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-6     CXX=g++-6       BUILD=Debug           LIBTYPE=system  PACKAGES=g++-6     PPA=ubuntu-toolchain-r/test
+    - env: GCC=gcc-6     CXX=g++-6       BUILD=RelWithDebInfo  LIBTYPE=system  PACKAGES=g++-6     PPA=ubuntu-toolchain-r/test
+    - env: GCC=clang-4.0 CXX=clang++-4.0 BUILD=Debug           LIBTYPE=system  PACKAGES="clang-4.0 llvm-4.0-dev" PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
+    - env: GCC=clang-4.0 CXX=clang++-4.0 BUILD=RelWithDebInfo  LIBTYPE=system  PACKAGES="clang-4.0 llvm-4.0-dev" PPA=ubuntu-toolchain-r/test LLVM=llvm-toolchain-trusty-4.0
+    - env: GCC=clang-5.0 CXX=clang++-5.0 BUILD=Debug           LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1" PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
+    - env: GCC=clang-5.0 CXX=clang++-5.0 BUILD=RelWithDebInfo  LIBTYPE=bundled CMAKE_OPT="-DWITH_PAM=1" PACKAGES="clang-5.0 llvm-5.0-dev" LLVM=llvm-toolchain-trusty-5.0
     - os: osx
       osx_image: xcode9.2
-      env: LIBTYPE=bundled GCC=clang CXX=clang++ MAINTAINER_MODE=OFF
+      env: BUILD=Debug LIBTYPE=bundled GCC=clang CXX=clang++ MAINTAINER_MODE=OFF
+    - os: osx
+      osx_image: xcode9.2
+      env: BUILD=RelWithDebInfo LIBTYPE=bundled GCC=clang CXX=clang++ MAINTAINER_MODE=OFF
 
 script:
   - export CC=$GCC
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
   - echo PACKAGES=$PACKAGES PPA=$PPA LLVM=$LLVM JOB_NUMBER=$JOB_NUMBER TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST MAINTAINER_MODE=$MAINTAINER_MODE
 
-  # Jobs with a number >= 6 are done only for a pull request
-  - if [ $JOB_NUMBER -ge 6 ] && [ "$TRAVIS_EVENT_TYPE" != "pull_request" ]; then 
+  # Jobs with a number >= 10 are done only for a pull request
+  - if [ $JOB_NUMBER -ge 10 ] && [ "$TRAVIS_EVENT_TYPE" != "pull_request" ]; then
        echo Finishing as this is not a pull request; 
        travis_terminate 0; 
     fi
@@ -59,9 +70,9 @@ script:
   - $CC -v
   - $CXX -v
 
-  # Test "RelWithDebInfo" compilation
+  # Test $BUILD compilation 
   - cmake ..
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DCMAKE_BUILD_TYPE=$BUILD
     -DMYSQL_MAINTAINER_MODE=$MAINTAINER_MODE
     -DBUILD_CONFIG=mysql_release
     -DFEATURE_SET=community
@@ -71,15 +82,3 @@ script:
     $CMAKE_OPT
   - make -j2
 
-  # Test "Debug" compilation
-  - rm -rf *
-  - cmake ..
-    -DCMAKE_BUILD_TYPE=Debug
-    -DMYSQL_MAINTAINER_MODE=$MAINTAINER_MODE
-    -DBUILD_CONFIG=mysql_release
-    -DFEATURE_SET=community
-    -DENABLE_DTRACE=OFF
-    -DWITH_SSL=$LIBTYPE
-    -DWITH_ZLIB=$LIBTYPE
-    $CMAKE_OPT
-  - make -j2

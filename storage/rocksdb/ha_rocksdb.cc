@@ -11929,7 +11929,11 @@ const char *get_rdb_io_error_string(const RDB_IO_ERROR_TYPE err_type) {
 // so that we can capture as much data as possible to debug the root cause
 // more efficiently.
 #if defined(DBUG_OFF)
+#ifdef __clang__
 MY_ATTRIBUTE((optnone))
+#else
+MY_ATTRIBUTE((optimize("O0")))
+#endif
 #endif
 void rdb_handle_io_error(const rocksdb::Status status,
                          const RDB_IO_ERROR_TYPE err_type) {

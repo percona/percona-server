@@ -181,10 +181,7 @@ CREATE TABLE t3 (
   PRIMARY KEY (t3_id),
   KEY _field_133 (_field_133),
   KEY _field_135 (_field_135),
-  KEY _field_139 (_field_139),
-  KEY _field_142 (_field_142),
-  KEY _field_145 (_field_145),
-  KEY _field_148 (_field_148)
+  KEY _field_139 (_field_139)
 );
 
 

@@ -453,6 +453,7 @@ void QueryStripComments::set(const char* query, uint query_length, uint addition
           break;
         }
       }
+      // fallthrough
     case '#':
       {
         do
@@ -1754,6 +1755,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
           {
             break;
           }
+          // fallthrough
         case '#':
           do
           {
@@ -2007,7 +2009,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
-                    table_list.db, table_list.alias));
+                    tmptable->s->db.str, tmptable->s->table_name.str));
         unlock();
         /*
           We should not store result of this query because it contain

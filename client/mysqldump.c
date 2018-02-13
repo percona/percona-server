@@ -2156,6 +2156,7 @@ static void print_xml_comment(FILE *xml_file, size_t len,
     case '-':
       if (*(comment_string + 1) == '-')         /* Only one hyphen allowed. */
         break;
+      // fallthrough
     default:
       fputc(*comment_string, xml_file);
       break;
@@ -2751,7 +2752,7 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
       Check only the first (for PRIMARY KEY) or the second (for secondary keys)
       quoted identifier.
     */
-    if ((idnum == 1 + MY_TEST(type != KEY_TYPE_PRIMARY)))
+    if (idnum == 1 + MY_TEST(type != KEY_TYPE_PRIMARY))
       break;
 
     keydef= to + 1;

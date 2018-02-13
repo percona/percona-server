@@ -3116,6 +3116,8 @@ int handler::ha_index_next(uchar * buf)
     update_index_stats(active_index);
   }
 
+  DEBUG_SYNC(ha_thd(), "handler_ha_index_next_end");
+
   DBUG_RETURN(result);
 }
 

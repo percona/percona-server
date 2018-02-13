@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1033,6 +1033,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	yylval->lex_str.length=2;
 	return NULL_SYM;
       }
+      // fallthrough
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
       if (c == '-' && lip->yyPeek() == '-' &&
@@ -1096,12 +1097,14 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
+      // fallthrough
     case MY_LEX_IDENT_OR_BIN:
       if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
       }
+      // fallthrough
     case MY_LEX_IDENT:
       const char *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -1444,6 +1447,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_USER_VARIABLE_DELIMITER;
 	break;
       }
+      // fallthrough
       /* " used for strings */
     case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
@@ -3007,7 +3011,7 @@ void Query_tables_list::destroy_query_tables_list()
 
 LEX::LEX()
   :result(0), option_type(OPT_DEFAULT), is_change_password(false),
-  is_set_password_sql(false), is_lex_started(0)
+  is_set_password_sql(false), is_lex_started(0),in_update_value_clause(false)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),

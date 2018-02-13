@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -805,6 +805,7 @@ public:
         is_handled= FALSE;
         break;
       }
+      // fallthrough
     case ER_COLUMNACCESS_DENIED_ERROR:
     case ER_VIEW_NO_EXPLAIN: /* Error was anonymized, ignore all the same. */
     case ER_PROCACCESS_DENIED_ERROR:
@@ -8110,7 +8111,7 @@ bool get_schema_tables_result(JOIN *join,
   {
     JOIN_TAB *const tab= join->join_tab + i;
     if (!tab->table || !tab->table->pos_in_table_list)
-      break;
+      continue;
 
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_information_schema_tables())

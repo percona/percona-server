@@ -116,16 +116,8 @@ public:
       best_loose_scan_start_key - same
       Not initializing them causes compiler warnings with g++ at -O1 or higher,
       but initializing them would cause a 2% CPU time loss in a 20-table plan
-      search. So we initialize only if warnings would stop the build.
+      search.
     */
-#ifdef COMPILE_FLAG_WERROR
-    bound_sj_equalities=       0;
-    quick_max_loose_keypart=   0;
-    best_loose_scan_key=       0;
-    best_loose_scan_records=   0;
-    best_max_loose_keypart=    0;
-    best_loose_scan_start_key= NULL;
-#endif
   }
 
   void init(JOIN_TAB *s, table_map remaining_tables,
@@ -324,6 +316,10 @@ public:
     }
   }
 
+// See the comment at Loose_scan_opt::Loose_scan_opt for why this warning has
+// been left in the code intentionally
+MY_DISABLE_WARN_MAYBE_UNINITIALIZED
+
   void save_to_position(JOIN_TAB *tab, POSITION *pos)
   {
     pos->read_time=       best_loose_scan_cost;
@@ -342,6 +338,9 @@ public:
                                                      "(range/index access)"));
     }
   }
+
+MY_RESTORE_WARN_MAYBE_UNINITIALIZED
+
 };
 
 

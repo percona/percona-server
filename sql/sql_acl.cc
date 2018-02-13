@@ -66,6 +66,10 @@
         "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
 
+#if defined(HAVE_OPENSSL)
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
+#endif /* HAVE_OPENSSL */
+
 using std::min;
 using std::max;
 
@@ -193,6 +197,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const
 TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
   {
@@ -579,11 +584,13 @@ TABLE_FIELD_TYPE mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] =
     { C_STRING_WITH_LEN("utf8") }
   }
 };
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 const TABLE_FIELD_DEF
   mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
@@ -602,6 +609,7 @@ const TABLE_FIELD_DEF
 const TABLE_FIELD_DEF
   mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
                                 mysql_tables_priv_table_fields};
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -2987,7 +2995,7 @@ bool change_password(THD *thd, const char *host, const char *user,
 
   mysql_mutex_assert_owner(&acl_cache->lock);
   table->use_all_columns();
-  DBUG_ASSERT(host != '\0');
+  DBUG_ASSERT(host != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
@@ -3424,7 +3432,7 @@ update_user_table(THD *thd, TABLE *table,
   if (!is_user_table_positioned)
   {
     table->use_all_columns();
-    DBUG_ASSERT(host != '\0');
+    DBUG_ASSERT(host != NULL);
     table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
 					       system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
@@ -3573,7 +3581,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   }
 
   table->use_all_columns();
-  DBUG_ASSERT(combo->host.str != '\0');
+  DBUG_ASSERT(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -3664,7 +3672,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     old_row_exists = 0;
     restore_record(table,s->default_values);
-    DBUG_ASSERT(combo->host.str != '\0');
+    DBUG_ASSERT(combo->host.str != NULL);
     table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -5725,6 +5733,9 @@ int digest_password(THD *thd, LEX_USER *user_record)
   */
   if (user_record->plugin.str == sha256_password_plugin_name.str)
   {
+    if (user_record->password.length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
+      return 1;
+
     char *buff=  (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
     if (buff == NULL)
       return 1;
@@ -11628,6 +11639,10 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   It transparently extracts the client plugin data, if embedded into
   a client authentication handshake packet, and handles plugin negotiation
   with the client, if necessary.
+
+  RETURN
+    -1          Protocol failure
+    >= 0        Success and also the packet length
 */
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
@@ -12598,7 +12613,13 @@ private:
         filesize= ftell(key_file);
         fseek(key_file, 0, SEEK_SET);
         *key_text_buffer= new char[filesize+1];
-        (void) fread(*key_text_buffer, filesize, 1, key_file);
+        const size_t read_size = fread(*key_text_buffer, filesize, 1, key_file);
+        if (read_size != 1)
+        {
+          delete[] key_text_buffer;
+          key_text_buffer= NULL;
+          return true;
+        }
         (*key_text_buffer)[filesize]= '\0';
       }
       fclose(key_file);
@@ -12849,8 +12870,12 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   /*
     If first packet is a 0 byte then the client isn't sending any password
     else the client will send a password.
+
+    The original intention was that the password is a string[NUL] but this
+    never got enforced properly so now we have to accept that an empty packet
+    is a blank password, thus the check for pkt_len == 0 has to be made too.
   */
-  if (pkt_len == 1 && *pkt == 0)
+  if ((pkt_len == 0 || pkt_len == 1) && *pkt == 0)
   {
     info->password_used= PASSWORD_USED_NO;
     /*
@@ -12938,6 +12963,9 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     DBUG_RETURN(CR_ERROR);
 #endif
   } // if(!my_vio_is_encrypter())
+
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)

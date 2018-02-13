@@ -4850,7 +4850,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     thd->db, thd->db_length,
                                                     thd->charset());
         THD_STAGE_INFO(thd, stage_init);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query(), thd->query_length());
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
@@ -7838,18 +7837,9 @@ User_var_log_event(const char* buf, uint event_len,
     uint bytes_read= ((val + val_len) - start);
 #ifndef DBUG_OFF
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
+    const int checksum_length = (old_pre_checksum_fd || description_event->checksum_alg == BINLOG_CHECKSUM_ALG_OFF) ? 0 : BINLOG_CHECKSUM_LEN;
 #endif
-    DBUG_ASSERT((bytes_read == data_written -
-                 (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN)
-                ||
-                (bytes_read == data_written -1 -
-                 (old_pre_checksum_fd ||
-                  (description_event->checksum_alg ==
-                   BINLOG_CHECKSUM_ALG_OFF)) ?
-                 0 : BINLOG_CHECKSUM_LEN));
+    DBUG_ASSERT(bytes_read == data_written - checksum_length || bytes_read == data_written - checksum_length - 1);
     if ((data_written - bytes_read) > 0)
     {
       flags= (uint) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
@@ -10479,20 +10469,19 @@ Rows_log_event::next_record_scan(bool first_read)
     if (!first_read)
     {
       /*
-        if we fail to fetch next record corresponding to an index value, we
+        if we fail to fetch next record corresponding to a key value, we
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
-      error= table->file->ha_index_next(table->record[0]);
+      error= table->file->ha_index_next_same(table->record[0], m_key,
+                                             m_key_info->key_length);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+      {
         /*
-          if we are out of rows for this particular key value
-          or we have jumped to the next key value, we reposition the
-          marker according to the next key value that we have in the
-          list.
+          if we are out of rows for this particular key value, we reposition the
+          marker according to the next key value that we have in the list.
          */
-        if ((error) ||
-            (key_cmp(m_key_info->key_part, m_key, m_key_info->key_length) != 0))
+        if (error)
         {
           if (m_itr != m_distinct_keys.end())
           {
@@ -10503,6 +10492,7 @@ Rows_log_event::next_record_scan(bool first_read)
           else
             error= HA_ERR_KEY_NOT_FOUND;
         }
+      }
     }
 
     if (first_read)
@@ -10705,12 +10695,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     if (m_table->file->inited && (error= m_table->file->ha_index_end()))
       goto end;
 
-    if ((error= m_table->file->ha_rnd_init(FALSE)))
-      goto end;
-
     error= m_table->file->rnd_pos_by_record(m_table->record[0]);
-
-    m_table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
@@ -10845,7 +10830,11 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli)
 
   /* create an empty entry to add to the hash table */
   HASH_ROW_ENTRY* entry= m_hash.make_entry();
-
+  if (entry == NULL)
+  {
+    error= 1;
+    goto end;
+  }
   /* Prepare the record, unpack and save positions. */
   entry->positions->bi_start= m_curr_row;        // save the bi start pos
   prepare_record(m_table, &m_cols, false);

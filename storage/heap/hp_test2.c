@@ -75,6 +75,7 @@ int main(int argc, char *argv[])
   hp_create_info.min_records= (ulong) recant/2;
   hp_create_info.columns= 4;
   hp_create_info.columndef= columndef;
+  hp_create_info.fixed_key_fieldnr= 4;
   hp_create_info.fixed_data_size= 39;
 
   write_count=update=opt_delete=0;

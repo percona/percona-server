@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1233,12 +1233,13 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           break;
       }
       DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
-      /*
-        Fall through and perform the rename action of the replace
-        action. We have already indicated the success of the delete
-        action in the log entry by stepping up the phase.
-      */
     }
+    // fallthrough
+    /*
+    and perform the rename action of the replace
+    action. We have already indicated the success of the delete
+    action in the log entry by stepping up the phase.
+    */
     case DDL_LOG_RENAME_ACTION:
     {
       error= TRUE;
@@ -6712,7 +6713,8 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
   case Alter_info::LEAVE_AS_IS:
     if (!indexes_were_disabled)
       break;
-    /* fall-through: disabled indexes */
+    // fallthrough
+    // disabled indexes
   case Alter_info::DISABLE:
     error= table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }
@@ -8609,7 +8611,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
    till this point for the alter operation.
   */
   if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
-      check_fk_parent_table_access(thd, create_info, alter_info))
+      check_fk_parent_table_access(thd, alter_ctx.new_db,
+                                   create_info, alter_info))
     DBUG_RETURN(true);
 
   /*

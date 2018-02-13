@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -767,8 +767,9 @@ multi_delete::initialize_tables(JOIN *join)
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }
-  if (thd->lex->current_select->has_ft_funcs() && init_ftfuncs(thd, thd->lex->current_select, 1))
-    DBUG_RETURN(true);
+  if (thd->lex->current_select->has_ft_funcs() &&
+      init_ftfuncs(thd, thd->lex->current_select, 1))
+     DBUG_RETURN(true);
 
   DBUG_RETURN(thd->is_fatal_error != 0);
 }

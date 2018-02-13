@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqladmin\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/02/2017
+.\"      Date: 12/09/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLADMIN\FR" "1" "06/02/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLADMIN\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -78,7 +78,9 @@ Create a new database named
 .\}
 debug
 .sp
-Tell the server to write debug information to the error log\&. Format and content of this information is subject to change\&.
+Tell the server to write debug information to the error log\&. The connected user must have the
+SUPER
+privilege\&. Format and content of this information is subject to change\&.
 .sp
 This includes information about the Event Scheduler\&. See
 Section\ \&20.4.5, \(lqEvent Scheduler Status\(rq\&.
@@ -202,6 +204,10 @@ Flush the thread cache\&.
 kill \fIid\fR,\fIid\fR,\&.\&.\&.
 .sp
 Kill server threads\&. If multiple thread ID values are given, there must be no spaces in the list\&.
+.sp
+To kill threads belonging to other users, the connected user must have the
+SUPER
+privilege\&.
 .RE
 .sp
 .RS 4
@@ -237,7 +243,27 @@ for the account that you use with
 for connecting to the server\&. Thus, the next time you invoke
 \fBmysqladmin\fR
 (or any other client program) using the same account, you will need to specify the new password\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+Setting a password using
+\fBmysqladmin\fR
+should be considered
+\fIinsecure\fR\&. On some systems, your password becomes visible to system status programs such as
+\fBps\fR
+that may be invoked by other users to display command lines\&. MySQL clients typically overwrite the command\-line password argument with zeros during their initialization sequence\&. However, there is still a brief interval during which the value is visible\&. Also, on some systems this overwriting strategy is ineffective and the password remains visible to
+\fBps\fR\&. (SystemV Unix systems and perhaps others are subject to this problem\&.)
+.sp .5v
+.RE
 If the
 \fInew_password\fR
 value contains spaces or other characters that are special to your command interpreter, you need to enclose it within quotation marks\&. On Windows, be sure to use double quotation marks rather than single quotation marks; single quotation marks are not stripped from the password, but rather are interpreted as part of the password\&. For example:
@@ -1123,7 +1149,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&6.4.5, \(lqCommand Options for Secure Connections\(rq\&.
+Section\ \&6.4.2, \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
 .RS 4

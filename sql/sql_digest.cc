@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -460,7 +460,8 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
         }
       } while (found_unary);
     }
-    /* fall through, for case NULL_SYM below */
+    // fallthrough
+    // for case NULL_SYM below
     case LEX_HOSTNAME:
     case TEXT_STRING:
     case NCHAR_STRING:

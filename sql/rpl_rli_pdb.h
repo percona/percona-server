@@ -437,6 +437,10 @@ public:
       gaq_index= val;
   };
 
+  // overridden new and delete operators for 64 byte alignment
+  static void* operator new(size_t request);
+  static void operator delete(void * ptr);
+
 protected:
 
   virtual void do_report(loglevel level, int err_code,

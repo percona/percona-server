@@ -2493,3 +2493,17 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
     }
   }
 }
+
+void* Relay_log_info::operator new(size_t request)
+{
+  void* ptr;
+  if (posix_memalign(&ptr, __alignof__(Relay_log_info), sizeof(Relay_log_info))) {
+    throw std::bad_alloc();
+  }
+  return ptr;
+}
+
+void Relay_log_info::operator delete(void * ptr) {
+  free(ptr);
+}
+

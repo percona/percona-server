@@ -460,6 +460,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - Yes
      - Global, Session
+   * - :variable:`rocksdb_two_write_queues`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_trace_sst_api`
      - Yes
      - Yes
@@ -915,7 +919,9 @@ Allowed range is up to ``2000000`` (two million).
   :default: ``ON``
 
 When enabled this variable allows/encourages threads that are using
-two-phase commit to ``prepare`` in parallel.
+two-phase commit to ``prepare`` in parallel. Variable has been
+deprecated in the |Percona Server| 5.7.21-20, as it has been
+renamed in upstream to :variable:`rocksdb_two_write_queues`.
 
 .. variable:: rocksdb_create_checkpoint
 
@@ -2073,6 +2079,18 @@ Specifies the path to the directory for temporary files during DDL operations.
 Specifies whether to generate trace output in the log
 for each call to ``SstFileWriter``.
 Disabled by default.
+
+.. variable:: rocksdb_two_write_queues
+
+  :version 5.7.21-20: Implemented
+  :cli: ``--rocksdb-two_write_queues``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``ON``
+
+When enabled this variable allows/encourages threads that are using
+two-phase commit to ``prepare`` in parallel.
 
 .. variable:: rocksdb_unsafe_for_binlog
 

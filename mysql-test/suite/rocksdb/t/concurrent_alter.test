@@ -1,8 +1,11 @@
 --source include/have_rocksdb.inc
+--source include/big_test.inc
 
 #
 # Generate concurrent requests to alter a table using mysqlslap
 #
+set @orig_max_connections=@@global.max_connections;
+set @@global.max_connections=500;
 
 CREATE DATABASE mysqlslap;
 
@@ -30,3 +33,5 @@ SHOW CREATE TABLE a1;
 --remove_file $MYSQL_TMP_DIR/concurrent_alter.sh
 
 DROP DATABASE mysqlslap;
+
+set @@global.max_connections=@orig_max_connections;

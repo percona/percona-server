@@ -192,6 +192,10 @@ The following global status variables are available:
      - Numeric
    * - :variable:`rocksdb_rate_limit_delay_millis`
      - Numeric
+   * - :variable:`rocksdb_row_lock_deadlocks`
+     - Numeric
+   * - :variable:`rocksdb_row_lock_wait_timeouts`
+     - Numeric
    * - :variable:`rocksdb_snapshot_conflict_errors`
      - Numeric
    * - :variable:`rocksdb_stall_l0_file_count_limit_slowdowns`
@@ -591,6 +595,14 @@ database.
 .. variable:: rocksdb_rate_limit_delay_millis
 
 This variable isn't used anymore and will be removed in future releases.
+
+.. variable:: rocksdb_row_lock_deadlocks
+
+This variable shows the total number of deadlocks that have been detected since the instance was started.
+
+.. variable:: rocksdb_row_lock_wait_timeouts
+
+This variable shows the total number of row lock wait timeouts that have been detected since the instance was started.
 
 .. variable:: rocksdb_snapshot_conflict_errors
 

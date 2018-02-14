@@ -612,6 +612,16 @@ System Variables
      - Yes
      - Global
      - Yes
+   * - :variable:`version_comment`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`version_suffix`
+     - Yes
+     - Yes
+     - Global
+     - Yes
 
 Status Variables
 ================

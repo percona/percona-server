@@ -3966,7 +3966,7 @@ fseg_free_step_not_header(
 
 	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	const page_size_t	page_size(space->flags);
-	buf_block_t*		iblock;
+	buf_block_t*		iblock = NULL;
 
 	inode = fseg_inode_get(header, space_id, page_size, mtr, &iblock);
 	SRV_CORRUPT_TABLE_CHECK(inode,

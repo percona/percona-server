@@ -3,6 +3,8 @@
 # rocksdb_strict_collation_exceptions
 --source include/have_rocksdb.inc
 
+call mtr.add_suppression("Invalid pattern");
+
 # ci non-indexed column is allowed
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT) ENGINE=ROCKSDB CHARSET UTF8;
 DROP TABLE t1;

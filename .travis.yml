@@ -3,8 +3,18 @@ dist: trusty
 sudo: required
 language: cpp
 
+cache:
+  ccache: true
+  directories:
+    - $HOME/.ccache
+    - /usr/local/Cellar          # cache homebrew packages for macOS
+
 env:
   global:
+    - CCACHE_DIR=$HOME/.ccache
+    - CCACHE_COMPRESS=1
+    - CCACHE_MAXSIZE=500M
+    - CCACHE_CPP2=1
     - MAINTAINER_MODE=ON
 
 matrix:
@@ -77,7 +87,7 @@ script:
   - JOB_NUMBER=$(echo $TRAVIS_JOB_NUMBER | sed -e 's:[0-9][0-9]*\.\(.*\):\1:')
   - echo PACKAGES=$PACKAGES MAINTAINER_MODE=$MAINTAINER_MODE JOB_NUMBER=$JOB_NUMBER TRAVIS_REPO_SLUG=$TRAVIS_REPO_SLUG TRAVIS_BRANCH=$TRAVIS_BRANCH TRAVIS_EVENT_TYPE=$TRAVIS_EVENT_TYPE TRAVIS_PULL_REQUEST=$TRAVIS_PULL_REQUEST
 
-  # Perform all Travis jobs or only jobs that are included on ENV_VAR_JOB_NUMBERS list if it's defined
+  # Perform all Travis jobs or only jobs that are included in ENV_VAR_JOB_NUMBERS list if it's defined
   - JOB_NUMBERS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24";
   - if [[ "$ENV_VAR_JOB_NUMBERS" != "" ]]; then
        JOB_NUMBERS=$ENV_VAR_JOB_NUMBERS;
@@ -88,29 +98,36 @@ script:
        travis_terminate 0; 
     fi
 
-  # Update required LLVM and Ubuntu Toolchain repositories
+  # Configure required LLVM and Ubuntu Toolchain repositories
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$CC" == "clang" ]]; then
        PACKAGES="$PACKAGES llvm-$VERSION-dev";
        curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
        echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
-       sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
     fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$CC" == "gcc" ]]; then
        sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
-       sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
     fi
 
-  # Download dependencies
+  # Update list of packages and download dependencies
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      CC=$CC-$VERSION;
-      CXX=$CXX-$VERSION;
-      sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev || travis_terminate 1;
+       CC=$CC-$VERSION;
+       CXX=$CXX-$VERSION;
+       sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
+       sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev || travis_terminate 1;
+       sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
+       sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
+    else
+       brew update;
+       brew install ccache;
+       brew link ccache;
+       export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi
+
+  # Test Debug or RelWithDebInfo compilation
   - mkdir bin; cd bin
   - $CC -v
   - $CXX -v
-
-  # Test Debug or RelWithDebInfo compilation
+  - ccache --version
   - cmake ..
     -DCMAKE_BUILD_TYPE=$BUILD
     -DMYSQL_MAINTAINER_MODE=$MAINTAINER_MODE
@@ -121,4 +138,5 @@ script:
     -DWITH_ZLIB=$LIBTYPE
     $CMAKE_OPT
   - make -j2
+  - ccache --show-stats
 

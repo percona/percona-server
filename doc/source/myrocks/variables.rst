@@ -90,7 +90,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Global
    * - :variable:`rocksdb_bytes_per_sync`
      - Yes
-     - No
+     - Yes
      - Global
    * - :variable:`rocksdb_cache_index_and_filter_blocks`
      - Yes
@@ -498,7 +498,7 @@ Also, all variables can exist in one or both of the following scopes:
      - Global, Session
    * - :variable:`rocksdb_wal_bytes_per_sync`
      - Yes
-     - No
+     - Yes
      - Global
    * - :variable:`rocksdb_wal_dir`
      - Yes
@@ -741,8 +741,9 @@ Allowed range is from ``1`` to ``1073741824``.
 .. variable:: rocksdb_bytes_per_sync
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-20: Changed to dynamic
   :cli: ``--rocksdb-bytes-per-sync``
-  :dyn: No
+  :dyn: Yes
   :scope: Global
   :vartype: Numeric
   :default: ``0``
@@ -2183,8 +2184,9 @@ Disabled by default.
 .. variable:: rocksdb_wal_bytes_per_sync
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-20: Changed to dynamic
   :cli: ``--rocksdb-wal-bytes-per-sync``
-  :dyn: No
+  :dyn: Yes
   :scope: Global
   :vartype: Numeric
   :default: ``0``

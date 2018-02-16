@@ -5223,7 +5223,7 @@ static void abort_process(int pid, const char *path)
 
 void do_shutdown_server(struct st_command *command)
 {
-  long timeout=90;
+  long timeout=180;
   int pid, error= 0;
   std::string ds_file_name;
   MYSQL* mysql = &cur_con->mysql;

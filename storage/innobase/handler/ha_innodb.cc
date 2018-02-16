@@ -1085,6 +1085,11 @@ static SHOW_VAR innodb_status_variables[]= {
   {"scan_deleted_recs_size",
   (char*) &export_vars.innodb_fragmentation_stats.scan_deleted_recs_size,
   SHOW_LONG, SHOW_SCOPE_GLOBAL},
+
+  {"scrub_log",
+   (char*) &export_vars.innodb_scrub_log,
+   SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
@@ -21716,6 +21721,19 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
+static MYSQL_SYSVAR_BOOL(scrub_log, srv_scrub_log,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable background redo log (ib_logfile0, ib_logfile1...) scrubbing",
+  0, 0, 0);
+
+static MYSQL_SYSVAR_ULONGLONG(scrub_log_speed, innodb_scrub_log_speed,
+  PLUGIN_VAR_OPCMDARG,
+  "Background redo log scrubbing speed in bytes/sec",
+  NULL, NULL,
+  256,              /* 256 bytes/sec, corresponds to 2000 ms scrub_log_interval */
+  1,                /* min */
+  50000, 0);        /* 50Kbyte/sec, corresponds to 10 ms scrub_log_interval */
+
 const char *corrupt_table_action_names[]=
 {
   "assert", /* 0 */
@@ -21952,6 +21970,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(compressed_columns_zip_level),
   MYSQL_SYSVAR(compressed_columns_threshold),
   MYSQL_SYSVAR(ft_ignore_stopwords),
+  MYSQL_SYSVAR(scrub_log),
+  MYSQL_SYSVAR(scrub_log_speed),
   NULL
 };
 

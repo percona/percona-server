@@ -238,6 +238,10 @@ log_make_checkpoint_at(
 	lsn_t			lsn,
 	bool			write_always);
 
+void
+log_ensure_scrubbing_thread(void);
+
+
 /****************************************************************//**
 Makes a checkpoint at the latest lsn and writes it to first page of each
 data file in the database, so that we know that the file spaces contain
@@ -831,6 +835,14 @@ lsn_t
 log_group_calc_lsn_offset(
 	lsn_t			lsn,
 	const log_group_t*	group);
+
+/* log scrubbing speed, in bytes/sec */
+extern ulonglong innodb_scrub_log_speed;
+
+/** Event to wake up log_scrub_thread */
+extern os_event_t	log_scrub_event;
+/** Whether log_scrub_thread is active */
+extern bool		log_scrub_thread_active;
 
 #ifndef UNIV_NONINL
 #include "log0log.ic"

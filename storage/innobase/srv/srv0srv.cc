@@ -99,6 +99,8 @@ bool	srv_buf_resize_thread_active = false;
 
 ibool	srv_dict_stats_thread_active = FALSE;
 
+my_bool	srv_scrub_log;
+
 const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -1807,6 +1809,8 @@ srv_export_innodb_status(void)
 
 	thd_get_fragmentation_stats(current_thd,
 		&export_vars.innodb_fragmentation_stats);
+
+	export_vars.innodb_scrub_log = srv_stats.n_log_scrubs;
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }

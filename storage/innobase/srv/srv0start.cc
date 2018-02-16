@@ -495,6 +495,8 @@ create_log_files(
 	recv_reset_logs(lsn);
 	log_mutex_exit();
 
+	log_ensure_scrubbing_thread();
+
 	return(DB_SUCCESS);
 }
 
@@ -1314,6 +1316,10 @@ srv_shutdown_all_bg_threads()
 			if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
 				/* d. Wakeup purge threads. */
 				srv_purge_wakeup();
+			}
+
+			if (log_scrub_thread_active) {
+				os_event_set(log_scrub_event);
 			}
 		}
 

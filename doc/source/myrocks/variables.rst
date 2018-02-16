@@ -1240,6 +1240,7 @@ Possible values:
 .. variable:: rocksdb_flush_memtable_on_analyze
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-20: Variable removed
   :cli: ``--rocksdb-flush-memtable-on-analyze``
   :dyn: Yes
   :scope: Global, Session

@@ -67,6 +67,8 @@ NOT FOUND /table2_to_encrypt/ in master-bin.0*
 #####################################################
 # Part 3: restart master again without encryption
 #####################################################
+call mtr.add_suppression("Failed to fetch percona_binlog key \\(version 0\\) from keyring and thus failed to initialize binlog encryption.");
+call mtr.add_suppression("Error initializing decryption while reading GTIDs from binary log");
 call mtr.add_suppression("Found invalid Format description event in binary log");
 include/rpl_restart_server.inc [server_number=1]
 connection server_1;
@@ -104,6 +106,7 @@ connection master;
 include/save_master_pos.inc
 connection master;
 connection slave;
+call mtr.add_suppression("Slave I/O for channel '': Got fatal error 1236 from master when reading data from binary log: 'Could not decrypt binlog: encryption key error;");
 include/wait_for_slave_io_error.inc [errno=1236]
 connection slave;
 connection slave;

@@ -14,27 +14,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#ifndef MYSQL_VAULT_BASE64_H
-#define MYSQL_VAULT_BASE64_H
+#ifndef MYSQL_KEYRING_SECURE_STRING
+#define MYSQL_KEYRING_SECURE_STRING
 
-#include <my_global.h>
-#include "secure_string.h"
+#include "keyring_memory.h"
+#include <sstream>
 
 namespace keyring
 {
-  class Vault_base64
-  {
-  public :
-    enum Base64Format
-    {
-      SINGLE_LINE,
-      MULTI_LINE
-    };
-    static bool encode(const void *src, size_t src_len, Secure_string *encoded, Base64Format format);
-    static bool decode(const Secure_string &src, Secure_string *dst);
-    // It is caller responsibility to delete memory allocated with delete[]
-    static bool decode(const Secure_string &src, char **dst, uint64 *dst_length);
-  };
+  typedef std::basic_string<char, std::char_traits<char>, Secure_allocator<char> > Secure_string;
+  typedef std::basic_ostringstream<char, std::char_traits<char>, Secure_allocator<char> > Secure_ostringstream;
+  typedef std::basic_istringstream<char, std::char_traits<char>, Secure_allocator<char> > Secure_istringstream;
 }
 
-#endif // MYSQL_VAULT_BASE64_H
+#endif // MYSQL_KEYRING_SECURE_STRING

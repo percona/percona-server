@@ -1530,6 +1530,25 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   DBUG_PRINT("info", ("binlog_version: %d", description_event->binlog_version));
   DBUG_DUMP("data", (unsigned char*) buf, event_len);
 
+#ifdef MYSQL_CLIENT
+    static bool was_start_encryption_event = false;
+    if (was_start_encryption_event)
+    {
+      // We know that binlog is encrypted (as we read Start_encryption event) and we know that
+      // client applications cannot decrypt encrypted binlogs as they have no access to
+      // keyring. Thus we return Unknown_event for all encrypted events when force is used
+      // and close mysqlbinlog when no force.
+      if (!force_opt)
+      {
+        *error= "No point in reading encrypted binlog - quitting. "
+                "Start mysqlbinlog with --force if you want to attempt "
+                "to read encrypted binlog without decryption.";
+        DBUG_RETURN(0);
+      }
+      DBUG_RETURN(new Unknown_log_event);
+    }
+#endif
+
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
       event_len != uint4korr(buf+EVENT_LEN_OFFSET))
@@ -1766,6 +1785,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case binary_log::START_ENCRYPTION_EVENT:
       ev = new Start_encryption_log_event(buf, event_len, description_event);
+#ifdef MYSQL_CLIENT
+      was_start_encryption_event= true;
+#endif
       break;
     case binary_log::ROWS_QUERY_LOG_EVENT:
       ev= new Rows_query_log_event(buf, event_len, description_event);
@@ -5579,6 +5601,21 @@ Format_description_log_event(const char* buf, uint event_len,
                   post_header_len[binary_log::UPDATE_ROWS_EVENT_V1-1]=
                   post_header_len[binary_log::DELETE_ROWS_EVENT_V1-1]= 6;);
   reset_crypto();
+}
+
+bool Format_description_log_event::start_decryption(Start_encryption_log_event* sele)
+{
+  DBUG_ASSERT(!crypto_data.is_enabled());
+
+  if (!sele->is_valid())
+    return true;
+  if (crypto_data.init(sele->crypto_scheme, sele->key_version, sele->nonce))
+  {
+    sql_print_error("Failed to fetch percona_binlog key (version %u) from keyring and thus "
+                     "failed to initialize binlog encryption.", sele->key_version);
+    return true;
+  }
+  return false;
 }
 
 #ifndef MYSQL_CLIENT

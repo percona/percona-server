@@ -1,3 +1,19 @@
+/* Copyright (c) 2018 Percona LLC and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU General Public License
+   as published by the Free Software Foundation; version 2 of
+   the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
 #ifndef BINLOG_CRYPT_DATA_H
 #define BINLOG_CRYPT_DATA_H
 
@@ -37,9 +53,15 @@ public:
   {
     return key_length;
   }
+  uint get_key_version() const
+  {
+    return key_version;
+  }
 
-  void free_key();
+  void free_key(uchar *&key, size_t &key_length);
   bool init(uint sch, uint kv, const uchar* nonce);
+  bool init_with_loaded_key(uint sch, const uchar* nonce);
+  bool load_latest_binlog_key();
   void set_iv(uchar* iv, uint32 offs) const;
 
 private:

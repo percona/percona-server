@@ -5110,7 +5110,17 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (my_rand_buffer(nonce, sizeof(nonce)))
       goto err;
 
-    Start_encryption_log_event sele(1, 0, nonce);
+    if (crypto.load_latest_binlog_key())
+    {
+      sql_print_error("Failed to fetch percona_binlog key from keyring and thus "
+                      "failed to initialize binlog encryption. Have you enabled "
+                      "keyring plugin?");
+      goto err;
+    }
+    DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions",
+                    { static uint next_key_version = 0;
+                      DBUG_ASSERT(crypto.get_key_version() == next_key_version++);});
+    Start_encryption_log_event sele(1, crypto.get_key_version(), nonce);
     sele.common_footer->checksum_alg= s.common_footer->checksum_alg;
     if (write_to_file(&sele))
     {
@@ -5120,11 +5130,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     }
     bytes_written+= sele.common_header->data_written;
 
-    if (crypto.init(sele.crypto_scheme, 0, nonce))
+    if (crypto.init_with_loaded_key(sele.crypto_scheme, nonce))
     {
-      sql_print_error("Failed to fetch percona_binlog key from keyring and thus "
-                      "failed to initialize binlog encryption. Have you enabled "
-                      "keyring plugin?");
+      sql_print_error("Failed to initialize binlog encryption.");
       goto err;
     }
   }

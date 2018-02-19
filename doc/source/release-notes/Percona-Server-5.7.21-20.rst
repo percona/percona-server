@@ -42,7 +42,7 @@ Bugs Fixed
   by fixing the bug :psbug:`264` in |Percona Server| :rn:`5.7.20-19`). Bugs
   fixed :psbug:`2284` and :psbug:`2286`.
 
-* A bunch of fixes where introduced to remove GCC 7 compilation warnings for
+* A bunch of fixes was introduced to remove GCC 7 compilation warnings for
   the |Percona Server| build. Bugs fixed :psbug:`3780` (upstream
   :mysqlbug:`89420`, :mysqlbug:`89421`, and :mysqlbug:`89422`).
 

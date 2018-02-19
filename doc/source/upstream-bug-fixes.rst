@@ -5,6 +5,30 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89598` - plugin_mecab.cc:54:19: warning: unused variable 'bundle_mecab'            |
+|:Launchpad bug: :jirabug:`PS-3804`                                                                           |
+|:Upstream state: Verified (checked on 2018-02-15)                                                            |
+|:Fix Released: :rn:`5.7.21-20`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89422` - Dangerous enum-ulong casts in sql_formatter_options                       |
+|:Launchpad bug: :jirabug:`PS-3780`                                                                           |
+|:Upstream state: Verified (checked on 2018-02-15)                                                            |
+|:Fix Released: :rn:`5.7.21-20`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89421` - Missing mutex_unlock in Slave_reporting_capability::va_report             |
+|:Launchpad bug: :jirabug:`PS-3780`                                                                           |
+|:Upstream state: Verified (checked on 2018-02-15)                                                            |
+|:Fix Released: :rn:`5.7.21-20`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89420` - Enforcing C++03 mode in non debug builds                                  |
+|:Launchpad bug: :jirabug:`PS-3780`                                                                           |
+|:Upstream state: Open (checked on 2018-02-15)                                                                |
+|:Fix Released: :rn:`5.7.21-20`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with...                    |
 |:Launchpad bug: :bug:`1722789`                                                                               |
 |:Upstream state: Verified (checked on 2018-01-04)                                                            |
@@ -28,6 +52,12 @@
 |:Upstream state: N/A                                                                                         |
 |:Fix Released: :rn:`5.7.18-14`                                                                               |
 |:Upstream fix: N/A                                                                                           | 
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`86164` - Fulltext search can not find word which contains punctuation marks        |
+|:Launchpad bug: :bug:`1689268`                                                                               |
+|:Upstream state: Verified (checked on 2018-02-15)                                                            |
+|:Fix Released: :rn:`5.7.21-20`                                                                               |
+|:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`86016` - Make MTR show core dump stacktraces from unit tests too                   |
 |:Launchpad bug: :bug:`1684601`                                                                               |

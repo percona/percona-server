@@ -48,6 +48,10 @@ Also, all variables can exist in one or both of the following scopes:
      - Yes
      - No
      - Global
+   * - :variable:`rocksdb_allow_to_start_after_corruption`
+     - Yes
+     - No
+     - Global
    * - :variable:`rocksdb_allow_mmap_reads`
      - Yes
      - No
@@ -580,6 +584,24 @@ Enabled by default.
 
 Specifies whether to allow multiple writers to update memtables in parallel.
 Disabled by default.
+
+.. variable:: rocksdb_allow_to_start_after_corruption
+
+  :version 5.7.21-20: Implemented
+  :cli: ``--rocksdb_allow_to_start_after_corruption``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+Specifies whether to allow server to restart once MyRocks reported data
+corruption. Disabled by default. 
+
+Once corruption is detected server writes marker file (named
+ROCKSDB_CORRUPTED) in the data directory and aborts. If marker file exists,
+then mysqld exits on startup with an error message. The restart failure will
+continue until the problem is solved or until mysqld is started with this
+variable turned on in the command line.
 
 .. note:: Not all memtables support concurrent writes.
 

@@ -208,6 +208,10 @@ void threadpool_remove_connection(THD *thd)
 
   thd->release_resources();
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+#endif
+
   Global_THD_manager::get_instance()->remove_thd(thd);
   Connection_handler_manager::dec_connection_count(false);
   delete thd;

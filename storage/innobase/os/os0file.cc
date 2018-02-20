@@ -3186,9 +3186,7 @@ os_file_get_last_error_low(
 		}
 		break;
 	case EINTR:
-		if (srv_use_native_aio) {
-			return(OS_FILE_AIO_INTERRUPTED);
-		}
+		return(OS_FILE_AIO_INTERRUPTED);
 		break;
 	case EACCES:
 		return(OS_FILE_ACCESS_VIOLATION);
@@ -3449,15 +3447,10 @@ os_file_create_simple_func(
 		if (file.m_file == -1) {
 			*success = false;
 
-			if (errno == EINTR) {
-				/* Handle signal interruptions correctly */
-				retry = true;
-			} else {
-				retry = os_file_handle_error(
-					name,
-					create_mode == OS_FILE_OPEN
-					? "open" : "create");
-			}
+			retry = os_file_handle_error(
+				name,
+				create_mode == OS_FILE_OPEN
+				? "open" : "create");
 		} else {
 			*success = true;
 			retry = false;

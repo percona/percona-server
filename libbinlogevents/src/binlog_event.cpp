@@ -19,7 +19,6 @@
 
 #include <algorithm>
 #include <stdint.h>
-#include "my_dbug.h"
 
 const unsigned char checksum_version_split[3]= {5, 6, 1};
 const unsigned long checksum_version_product=
@@ -33,6 +32,7 @@ namespace binary_log_debug
   bool debug_checksum_test= false;
   bool debug_simulate_invalid_address= false;
   bool debug_pretend_version_50034_in_binlog= false;
+  bool debug_expect_unknown_event= false;
 }
 
 namespace binary_log
@@ -199,7 +199,10 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   // The below type_code assert is correct and needed in 99% of time. In normal testing we do not
   // anticipate type_code to be of unknown value. This is why we only skip this assert when
   // debug variable expect_Unknown_event is set.
-  DBUG_EXECUTE_IF("expect_Unknown_event", return;);
+#ifndef DBUG_OFF
+  if (binary_log_debug::debug_expect_unknown_event)
+    return;
+#endif
   BAPI_ASSERT(type_code < ENUM_END_EVENT || flags & LOG_EVENT_IGNORABLE_F);
 }
 

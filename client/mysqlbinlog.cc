@@ -3196,6 +3196,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     char llbuff[21];
     my_off_t old_off = my_b_tell(file);
 
+    binary_log_debug::debug_expect_unknown_event=
+      DBUG_EVALUATE_IF("expect_Unknown_event", true, false);
+
     Log_event* ev = Log_event::read_log_event(file, glob_description_event,
                                               opt_verify_binlog_checksum,
                                               rewrite_db_filter);

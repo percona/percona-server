@@ -797,6 +797,15 @@ bool mysql_update(THD *thd,
         check_constant_expressions(values))
       read_removal= table->check_read_removal(qep_tab.quick()->index);
 
+    error= table->file->ha_fast_update(thd, fields, values, conds);
+    if (error == 0)
+      error= -1; // error < 0 means really no error at all (see below)
+    else if (error != ENOTSUP)
+    {
+      table->file->print_error(error, MYF(0));
+      error= 1;
+    }
+    else
     while (true)
     {
       error= info.read_record(&info);

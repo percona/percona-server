@@ -1163,6 +1163,9 @@ public:
     void rpl_after_update_rows();
     bool rpl_lookup_rows();
 
+  /* For MyRocks Writebatch Replication validation */
+    bool rpl_can_handle_stm_event() const;
+
   /*
     -------------------------------------------------------------------------
     MODULE partitioning specific handler API

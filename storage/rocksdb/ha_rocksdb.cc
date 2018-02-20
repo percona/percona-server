@@ -667,6 +667,11 @@ static MYSQL_THDVAR_STR(
     "on the slave (i.e. not lookup a row during replication)",
     nullptr, nullptr, "");
 
+static MYSQL_SYSVAR_BOOL(
+    rpl_skip_tx_api, rpl_skip_tx_api_var, PLUGIN_VAR_RQCMDARG,
+    "Use write batches for replication thread instead of tx api", nullptr,
+    nullptr, FALSE);
+
 static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read, PLUGIN_VAR_RQCMDARG,
                          "Skip using bloom filter for reads", nullptr, nullptr,
                          FALSE);
@@ -1484,6 +1489,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(trace_sst_api),
     MYSQL_SYSVAR(commit_in_the_middle),
     MYSQL_SYSVAR(read_free_rpl_tables),
+    MYSQL_SYSVAR(rpl_skip_tx_api),
     MYSQL_SYSVAR(bulk_load_size),
     MYSQL_SYSVAR(merge_buf_size),
     MYSQL_SYSVAR(enable_bulk_load_api),
@@ -4677,6 +4683,10 @@ bool ha_rocksdb::init_with_fields() {
   cached_table_flags = table_flags();
 
   DBUG_RETURN(false); /* Ok */
+}
+
+bool ha_rocksdb::rpl_can_handle_stm_event() const {
+  return !(rpl_skip_tx_api_var && !super_read_only);
 }
 
 /*

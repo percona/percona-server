@@ -6293,6 +6293,15 @@ bool ha_partition::rpl_lookup_rows()
   return m_file[0]->rpl_lookup_rows();
 }
 
+/*
+  Query storage engine to see if it can support handling specific replication
+  method in its current configuration.
+*/
+bool ha_partition::rpl_can_handle_stm_event() const
+{
+  return m_file[0]->rpl_can_handle_stm_event();
+}
+
 struct st_mysql_storage_engine partition_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 

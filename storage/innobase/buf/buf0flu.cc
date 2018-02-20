@@ -3273,15 +3273,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			n_flushed_last = 0;
 		}
 
-		if (ut_time_ms() > next_loop_time
-		    && ret_sleep != OS_SYNC_TIME_EXCEEDED)
-
-			/* If our LRU flush took too long, skip the rest only
-			if the last iteration completed in time, otherwise we'd
-			be LRU flushing all the time, even if e.g. a sync flush
-			is waiting. */
-			ret_sleep = OS_SYNC_TIME_EXCEEDED;
-		else if (ret_sleep != OS_SYNC_TIME_EXCEEDED
+		if (ret_sleep != OS_SYNC_TIME_EXCEEDED
 		    && srv_flush_sync
 		    && buf_flush_sync_lsn > 0) {
 			/* woke up for flush_sync */

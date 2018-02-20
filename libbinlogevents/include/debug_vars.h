@@ -30,6 +30,7 @@ namespace binary_log_debug
   extern bool debug_query_mts_corrupt_db_names;
   extern bool debug_simulate_invalid_address;
   extern bool debug_pretend_version_50034_in_binlog;
+  extern bool debug_expect_unknown_event;
   // TODO(WL#7546):Add variables here as we move methods into libbinlogevent
   // from the server while implementing the WL#7546(Moving binlog event
   // encoding into a separate package)

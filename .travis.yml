@@ -5,16 +5,16 @@ language: cpp
 
 cache:
   ccache: true
+  timeout: 600
   directories:
     - $HOME/.ccache
-    - /usr/local/Cellar          # cache homebrew packages for macOS
-    - $TRAVIS_BUILD_DIR/deps     # cache boost
+    - $TRAVIS_BUILD_DIR/deps     # cache Boost libraries
 
 env:
   global:
     - CCACHE_DIR=$HOME/.ccache
     - CCACHE_COMPRESS=1
-    - CCACHE_MAXSIZE=500M
+    - CCACHE_MAXSIZE=500Mi
     - CCACHE_CPP2=1
     - MAINTAINER_MODE=ON
     - WITHOUT_TOKUDB=ON
@@ -31,7 +31,8 @@ matrix:
         - git diff -U0 --no-color HEAD^1 | ./clang-format-diff.py -p1 >_GIT_DIFF
         - '[ ! -s _GIT_DIFF ] && echo The last git commit is clang-formatted || cat _GIT_DIFF'
     # 2
-    - os: osx
+    - compiler: clang
+      os: osx
       osx_image: xcode9.2
       env:              BUILD=RelWithDebInfo  MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON  WITHOUT_ROCKSDB=ON  WITH_MECAB=
     # 3
@@ -59,7 +60,8 @@ matrix:
     - compiler: gcc
       env: VERSION=4.8  BUILD=RelWithDebInfo
     # 11
-    - os: osx
+    - compiler: clang
+      os: osx
       osx_image: xcode9.2
       env:              BUILD=Debug           MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON  WITHOUT_ROCKSDB=ON  WITH_MECAB=
     # 12
@@ -131,6 +133,8 @@ script:
   - $CC -v
   - $CXX -v
   - ccache --version
+  - ccache --print-config;
+    ccache --zero-stats;
 
   - echo -- Perform Debug or RelWithDebInfo compilation;
     if [[ "$INVERTED" == "ON" ]]; then

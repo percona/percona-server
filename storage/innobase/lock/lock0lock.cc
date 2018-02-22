@@ -5333,7 +5333,6 @@ lock_trx_table_locks_find(
 		ut_a(lock_get_type_low(lock) & LOCK_TABLE);
 		ut_a(lock->un_member.tab_lock.table != NULL);
 	}
-	// } TODO broken
 
 	trx_mutex_exit(trx);
 

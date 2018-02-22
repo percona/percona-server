@@ -22900,7 +22900,7 @@ innodb_buffer_pool_size_validate(
 		return(1);
 	}
 
-	if(srv_buf_pool_size == static_cast<ulint>(intbuf)) {
+	if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
 		/* nothing to do */
 		return(0);
 	}

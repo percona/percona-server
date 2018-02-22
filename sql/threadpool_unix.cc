@@ -568,7 +568,7 @@ static void* timer_thread(void *param)
     struct timespec ts;
     int err;
 
-    set_timespec_nsec(&ts, timer->tick_interval*1000000);
+    set_timespec_nsec(&ts, timer->tick_interval * 1000000ULL);
     mysql_mutex_lock(&timer->mutex);
     err= mysql_cond_timedwait(&timer->cond, &timer->mutex, &ts);
     if (timer->shutdown)

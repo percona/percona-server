@@ -10417,29 +10417,30 @@ int ha_rocksdb::optimize(THD *const thd, HA_CHECK_OPT *const check_opt) {
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
 
-int ha_rocksdb::calculate_stats(const TABLE *const table_arg, THD *const thd,
-                                HA_CHECK_OPT *const check_opt) {
+static int calculate_stats(
+    const std::unordered_map<GL_INDEX_ID, std::shared_ptr<const Rdb_key_def>>
+        &to_recalc,
+    bool include_memtables) {
   DBUG_ENTER_FUNC();
 
   // find per column family key ranges which need to be queried
   std::unordered_map<rocksdb::ColumnFamilyHandle *, std::vector<rocksdb::Range>>
       ranges;
-  std::unordered_set<GL_INDEX_ID> ids_to_check;
-  std::vector<uchar> buf(table_arg->s->keys * 2 *
-                         Rdb_key_def::INDEX_NUMBER_SIZE);
   std::unordered_map<GL_INDEX_ID, Rdb_index_stats> stats;
-  for (uint i = 0; i < table_arg->s->keys; i++) {
-    const auto bufp = &buf[i * 2 * Rdb_key_def::INDEX_NUMBER_SIZE];
-    const Rdb_key_def &kd = *m_key_descr_arr[i];
-    const GL_INDEX_ID index_id = kd.get_gl_index_id();
-    ranges[kd.get_cf()].push_back(get_range(i, bufp));
+  std::vector<uchar> buf(to_recalc.size() * 2 * Rdb_key_def::INDEX_NUMBER_SIZE);
 
-    ids_to_check.insert(index_id);
+  uchar *bufp = buf.data();
+  for (const auto &it : to_recalc) {
+    const GL_INDEX_ID index_id = it.first;
+    auto &kd = it.second;
+    ranges[kd->get_cf()].push_back(myrocks::get_range(*kd, bufp));
+    bufp += 2 * Rdb_key_def::INDEX_NUMBER_SIZE;
+
     // Initialize the stats to 0. If there are no files that contain
     // this gl_index_id, then 0 should be stored for the cached stats.
     stats[index_id] = Rdb_index_stats(index_id);
-    DBUG_ASSERT(kd.get_key_parts() > 0);
-    stats[index_id].m_distinct_keys_per_prefix.resize(kd.get_key_parts());
+    DBUG_ASSERT(kd->get_key_parts() > 0);
+    stats[index_id].m_distinct_keys_per_prefix.resize(kd->get_key_parts());
   }
 
   // get RocksDB table properties for these ranges
@@ -10472,61 +10473,62 @@ int ha_rocksdb::calculate_stats(const TABLE *const table_arg, THD *const thd,
         other SQL tables, it can be that we're only seeing a small fraction
         of table's entries (and so we can't update statistics based on that).
       */
-      if (ids_to_check.find(it1.m_gl_index_id) == ids_to_check.end())
+      if (stats.find(it1.m_gl_index_id) == stats.end()) {
         continue;
+      }
 
-      auto kd = ddl_manager.safe_find(it1.m_gl_index_id);
-      DBUG_ASSERT(kd != nullptr);
-      stats[it1.m_gl_index_id].merge(it1, true, kd->max_storage_fmt_length());
+      auto it_index = to_recalc.find(it1.m_gl_index_id);
+      DBUG_ASSERT(it_index != to_recalc.end());
+      if (it_index == to_recalc.end()) {
+        continue;
+      }
+      stats[it1.m_gl_index_id].merge(
+          it1, true, it_index->second->max_storage_fmt_length());
     }
     num_sst++;
   }
 
-  //  calculate memtable cardinality
-  Rdb_tbl_card_coll cardinality_collector(rocksdb_table_stats_sampling_pct);
-  auto read_opts = rocksdb::ReadOptions();
-  read_opts.read_tier = rocksdb::ReadTier::kMemtableTier;
-  for (uint i = 0; i < table_arg->s->keys; i++) {
-    const Rdb_key_def &kd = *m_key_descr_arr[i];
-    Rdb_index_stats &stat = stats[kd.get_gl_index_id()];
+  if (include_memtables) {
+    // calculate memtable cardinality
+    Rdb_tbl_card_coll cardinality_collector(rocksdb_table_stats_sampling_pct);
+    auto read_opts = rocksdb::ReadOptions();
+    read_opts.read_tier = rocksdb::ReadTier::kMemtableTier;
+    for (const auto &it_kd : to_recalc) {
+      const std::shared_ptr<const Rdb_key_def> &kd = it_kd.second;
+      Rdb_index_stats &stat = stats[kd->get_gl_index_id()];
 
-    uchar r_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2];
-    auto r = get_range(i, r_buf);
-    uint64_t memtableCount;
-    uint64_t memtableSize;
-    rdb->GetApproximateMemTableStats(kd.get_cf(), r, &memtableCount,
-                                     &memtableSize);
-    if (memtableCount < (uint64_t)stat.m_rows / 10) {
-      // skip tables that already have enough stats from SST files to reduce
-      // overhead and avoid degradation of big tables stats by sampling from
-      // relatively tiny (less than 10% of full data set) memtable dataset
-      continue;
-    }
-
-    std::unique_ptr<rocksdb::Iterator> it = std::unique_ptr<rocksdb::Iterator>(
-        rdb->NewIterator(read_opts, kd.get_cf()));
-
-    uchar *first_key;
-    uint key_size;
-    if (is_pk(i, table, m_tbl_def)) {
-      first_key = m_pk_packed_tuple;
-    } else {
-      first_key = m_sk_packed_tuple;
-    }
-    kd.get_first_key(first_key, &key_size);
-    rocksdb::Slice first_index_key((const char *)first_key, key_size);
-
-    cardinality_collector.Reset();
-    for (it->Seek(first_index_key); is_valid(it.get()); it->Next()) {
-      const rocksdb::Slice key = it->key();
-      if (!kd.covers_key(key)) {
-        break;  // end of this index
+      uchar r_buf[Rdb_key_def::INDEX_NUMBER_SIZE * 2];
+      auto r = myrocks::get_range(*kd, r_buf);
+      uint64_t memtableCount;
+      uint64_t memtableSize;
+      rdb->GetApproximateMemTableStats(kd->get_cf(), r, &memtableCount,
+                                       &memtableSize);
+      if (memtableCount < (uint64_t)stat.m_rows / 10) {
+        // skip tables that already have enough stats from SST files to reduce
+        // overhead and avoid degradation of big tables stats by sampling from
+        // relatively tiny (less than 10% of full data set) memtable dataset
+        continue;
       }
-      stat.m_rows++;
 
-      cardinality_collector.ProcessKey(key, &kd, &stat);
+      std::unique_ptr<rocksdb::Iterator> it =
+          std::unique_ptr<rocksdb::Iterator>(
+              rdb->NewIterator(read_opts, kd->get_cf()));
+
+      rocksdb::Slice first_index_key((const char *)r_buf,
+                                     Rdb_key_def::INDEX_NUMBER_SIZE);
+
+      cardinality_collector.Reset();
+      for (it->Seek(first_index_key); is_valid(it.get()); it->Next()) {
+        const rocksdb::Slice key = it->key();
+        if (!kd->covers_key(key)) {
+          break;  // end of this index
+        }
+        stat.m_rows++;
+
+        cardinality_collector.ProcessKey(key, kd.get(), &stat);
+      }
+      cardinality_collector.AdjustStats(&stat);
     }
-    cardinality_collector.AdjustStats(&stat);
   }
 
   // set and persist new stats
@@ -10544,8 +10546,18 @@ int ha_rocksdb::calculate_stats(const TABLE *const table_arg, THD *const thd,
 int ha_rocksdb::analyze(THD *const thd, HA_CHECK_OPT *const check_opt) {
   DBUG_ENTER_FUNC();
 
-  if (table && calculate_stats(table, thd, check_opt) != HA_EXIT_SUCCESS) {
-    DBUG_RETURN(HA_ADMIN_FAILED);
+  if (table) {
+    std::unordered_map<GL_INDEX_ID, std::shared_ptr<const Rdb_key_def>>
+        ids_to_check;
+    for (uint i = 0; i < table->s->keys; i++) {
+      ids_to_check.insert(std::make_pair(m_key_descr_arr[i]->get_gl_index_id(),
+                                         m_key_descr_arr[i]));
+    }
+
+    int res = calculate_stats(ids_to_check, true);
+    if (res != HA_EXIT_SUCCESS) {
+      DBUG_RETURN(HA_ADMIN_FAILED);
+    }
   }
 
   DBUG_RETURN(HA_ADMIN_OK);
@@ -11401,18 +11413,6 @@ bool ha_rocksdb::commit_inplace_alter_table(
     dict_manager.finish_indexes_operation(
         create_index_ids, Rdb_key_def::DDL_CREATE_INDEX_ONGOING);
 
-    /*
-      We need to recalculate the index stats here manually.  The reason is that
-      the secondary index does not exist inside
-      m_index_num_to_keydef until it is committed to the data dictionary, which
-      prevents us from updating the stats normally as the ddl_manager cannot
-      find the proper gl_index_ids yet during adjust_stats calls.
-    */
-    if (calculate_stats(altered_table, nullptr, nullptr)) {
-      /* Failed to update index statistics, should never happen */
-      DBUG_ASSERT(0);
-    }
-
     rdb_drop_idx_thread.signal();
   }
 
@@ -11924,6 +11924,42 @@ void Rdb_background_thread::run() {
       const rocksdb::Status s = rdb->FlushWAL(true);
       if (!s.ok()) {
         rdb_handle_io_error(s, RDB_IO_ERROR_BG_THREAD);
+      }
+    }
+
+    // Recalculate statistics for indexes.
+    if (rocksdb_stats_recalc_rate) {
+      std::unordered_map<GL_INDEX_ID, std::shared_ptr<const Rdb_key_def>>
+          to_recalc;
+
+      if (rdb_indexes_to_recalc.empty()) {
+        struct Rdb_index_collector : public Rdb_tables_scanner {
+          int add_table(Rdb_tbl_def *tdef) override {
+            for (uint i = 0; i < tdef->m_key_count; i++) {
+              rdb_indexes_to_recalc.push_back(
+                  tdef->m_key_descr_arr[i]->get_gl_index_id());
+            }
+            return HA_EXIT_SUCCESS;
+          }
+        } collector;
+        ddl_manager.scan_for_tables(&collector);
+      }
+
+      while (to_recalc.size() < rocksdb_stats_recalc_rate &&
+             !rdb_indexes_to_recalc.empty()) {
+        const auto index_id = rdb_indexes_to_recalc.back();
+        rdb_indexes_to_recalc.pop_back();
+
+        std::shared_ptr<const Rdb_key_def> keydef =
+            ddl_manager.safe_find(index_id);
+
+        if (keydef) {
+          to_recalc.insert(std::make_pair(keydef->get_gl_index_id(), keydef));
+        }
+      }
+
+      if (!to_recalc.empty()) {
+        calculate_stats(to_recalc, false);
       }
     }
 

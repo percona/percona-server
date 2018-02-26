@@ -91,7 +91,8 @@ typedef enum {
   KEY_TYPE_NONE,
   KEY_TYPE_PRIMARY,
   KEY_TYPE_UNIQUE,
-  KEY_TYPE_NON_UNIQUE
+  KEY_TYPE_NON_UNIQUE,
+  KEY_TYPE_CONSTRAINT
 } key_type_t;
 
 /* Maximum number of fields per table */
@@ -230,7 +231,8 @@ TYPELIB compatible_mode_typelib= {array_elements(compatible_mode_names) - 1,
 HASH ignore_table;
 static HASH processed_compression_dictionaries;
 
-static LIST *skipped_keys_list;
+static LIST *skipped_keys_list = NULL;
+static LIST *alter_constraints_list = NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -2927,42 +2929,6 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
 
 
 /*
-  Find a node in the skipped keys list whose name matches a quoted
-  identifier specified as 'id_from' and 'id_to' arguments.
-*/
-
-static LIST *find_matching_skipped_key(const char *id_from,
-                                       const char *id_to)
-{
-  LIST *list;
-  size_t id_len;
-
-  id_len= id_to - id_from + 1;
-  DBUG_ASSERT(id_len > 2);
-
-  for (list= skipped_keys_list; list; list= list_rest(list))
-  {
-    const char *keydef;
-    const char *keyname_from;
-    const char *keyname_to;
-    size_t keyname_len;
-
-    keydef= list->data;
-
-    if ((keyname_from= parse_quoted_identifier(keydef, &keyname_to)))
-    {
-      keyname_len= keyname_to - keyname_from + 1;
-
-      if (id_len == keyname_len &&
-          !strncmp(keyname_from, id_from, id_len))
-        return list;
-    }
-  }
-
-  return NULL;
-}
-
-/*
   Remove secondary/foreign key definitions from a given SHOW CREATE TABLE string
   and store them into a temporary list to be used later.
 
@@ -2977,8 +2943,8 @@ static LIST *find_matching_skipped_key(const char *id_from,
 
     Stores all lines starting with "KEY" or "UNIQUE KEY"
     into skipped_keys_list and removes them from the input string.
-    Ignoring FOREIGN KEYS constraints when creating the table is ok, because
-    mysqldump sets foreign_key_checks to 0 anyway.
+    Stores all CONSTRAINT/FOREIGN KEYS declarations into
+    alter_constraints_list and removes them from the input string.
 */
 
 static void skip_secondary_keys(char *create_str, my_bool has_pk)
@@ -2989,9 +2955,6 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
   char *autoinc_column= NULL;
   my_bool has_autoinc= FALSE;
   key_type_t type;
-  const char *constr_from;
-  const char *constr_to;
-  LIST *keydef_node;
   my_bool keys_processed= FALSE;
 
   strend= create_str + strlen(create_str);
@@ -3012,45 +2975,8 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
     c= *tmp;
     *tmp= '\0'; /* so strstr() only processes the current line */
 
-    if (!strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1) &&
-        (constr_from= parse_quoted_identifier(ptr, &constr_to)) &&
-        (keydef_node= find_matching_skipped_key(constr_from, constr_to)))
-    {
-      char *keydef;
-      size_t keydef_len;
-
-      /*
-        There's a skipped key with the same name as the constraint name.  Let's
-        put it back before the current constraint definition and remove from the
-        skipped keys list.
-      */
-      keydef= keydef_node->data;
-      /* 
-        The original key definition had the following format
-        "  <keydef>,\n"
-        ("  " (two spaces) followed by key definition, followed by ",\n").
-        For instance "  KEY `a` (`a`),\n".
-        Therefore, when the definition was removed, the data was shifted by
-        strlen(keydef) + 4 characters.
-      */
-      keydef_len= strlen(keydef) + 4;
-
-      memmove(orig_ptr + keydef_len, orig_ptr, strend - orig_ptr + 1);
-      memcpy(orig_ptr, "  ", 2);
-      memcpy(orig_ptr + 2, keydef, keydef_len - 4);
-      memcpy(orig_ptr + keydef_len - 2, ",\n", 2);
-
-      skipped_keys_list= list_delete(skipped_keys_list, keydef_node);
-      my_free(keydef);
-      my_free(keydef_node);
-
-      strend+= keydef_len;
-      orig_ptr+= keydef_len;
-      ptr+= keydef_len;
-      tmp+= keydef_len;
-
-      type= KEY_TYPE_NONE;
-    }
+    if (!strncmp(ptr, "CONSTRAINT ", sizeof("CONSTRAINT ") - 1))
+      type= KEY_TYPE_CONSTRAINT;
     else if (!strncmp(ptr, "UNIQUE KEY ", sizeof("UNIQUE KEY ") - 1))
       type= KEY_TYPE_UNIQUE;
     else if (!strncmp(ptr, "KEY ", sizeof("KEY ") - 1))
@@ -3064,9 +2990,9 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
       contains_autoinc_column(autoinc_column, ptr, type) : FALSE;
 
     /* Is it a secondary index definition? */
-    if (c == '\n' &&
+    if (c == '\n' && !has_autoinc &&
         ((type == KEY_TYPE_UNIQUE && (pk_processed || !has_pk)) ||
-         type == KEY_TYPE_NON_UNIQUE) && !has_autoinc)
+         type == KEY_TYPE_NON_UNIQUE || type == KEY_TYPE_CONSTRAINT))
     {
       char *data, *end= tmp - 1;
 
@@ -3074,7 +3000,11 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
       if (*end == ',')
         end--;
       data= my_strndup(PSI_NOT_INSTRUMENTED, ptr, end - ptr + 1, MYF(MY_FAE));
-      skipped_keys_list= list_cons(data, skipped_keys_list);
+
+      if (type == KEY_TYPE_CONSTRAINT)
+        alter_constraints_list= list_cons(data, alter_constraints_list);
+      else
+        skipped_keys_list= list_cons(data, skipped_keys_list);
 
       memmove(orig_ptr, tmp + 1, strend - tmp);
       ptr= orig_ptr;
@@ -4392,35 +4322,6 @@ static char *alloc_query_str(size_t size)
 
 
 /*
-  Perform delayed secondary index creation for --innodb-optimize-keys.
-*/
-
-static void restore_secondary_keys(char *table)
-{
-    if (skipped_keys_list)
-    {
-      uint keys;
-      skipped_keys_list= list_reverse(skipped_keys_list);
-      fprintf(md_result_file, "ALTER TABLE %s ", table);
-      for (keys= list_length(skipped_keys_list); keys > 0; keys--)
-      {
-        LIST *node= skipped_keys_list;
-        char *def= node->data;
-
-        fprintf(md_result_file, "ADD %s%s", def, (keys > 1) ? ", " : ";\n");
-
-        skipped_keys_list= list_delete(skipped_keys_list, node);
-        my_free(def);
-        my_free(node);
-      }
-
-      DBUG_ASSERT(skipped_keys_list == NULL);
-    }
-}
-
-
-
-/*
   Dump delayed secondary index definitions when --innodb-optimize-keys is used.
 */
 
@@ -4428,27 +4329,56 @@ static void dump_skipped_keys(const char *table)
 {
   uint keys;
 
-  if (!skipped_keys_list)
+  if (!skipped_keys_list && !alter_constraints_list)
     return;
 
   verbose_msg("-- Dumping delayed secondary index definitions for table %s\n",
               table);
 
-  skipped_keys_list= list_reverse(skipped_keys_list);
-  fprintf(md_result_file, "ALTER TABLE %s ", table);
-  for (keys= list_length(skipped_keys_list); keys > 0; keys--)
+  if (skipped_keys_list)
   {
-    LIST *node= skipped_keys_list;
-    char *def= node->data;
+    uint sk_list_len= list_length(skipped_keys_list);
+    skipped_keys_list= list_reverse(skipped_keys_list);
+    fprintf(md_result_file, "ALTER TABLE %s%s", table,
+            (sk_list_len > 1) ? "\n" : " ");
 
-    fprintf(md_result_file, "ADD %s%s", def, (keys > 1) ? ", " : ";\n");
+    for (keys= sk_list_len; keys > 0; keys--)
+    {
+      LIST *node= skipped_keys_list;
+      char *def= node->data;
 
-    skipped_keys_list= list_delete(skipped_keys_list, node);
-    my_free(def);
-    my_free(node);
+      fprintf(md_result_file, "%sADD %s%s", (sk_list_len > 1) ? "  " : "",
+              def, (keys > 1) ? ",\n" : ";\n");
+
+      skipped_keys_list= list_delete(skipped_keys_list, node);
+      my_free(def);
+      my_free(node);
+    }
+  }
+
+  if (alter_constraints_list)
+  {
+    uint ac_list_len= list_length(alter_constraints_list);
+    alter_constraints_list= list_reverse(alter_constraints_list);
+    fprintf(md_result_file, "ALTER TABLE %s%s", table,
+            (ac_list_len > 1) ? "\n" : " ");
+
+    for (keys= ac_list_len; keys > 0; keys--)
+    {
+      LIST *node= alter_constraints_list;
+      char *def= node->data;
+
+      fprintf(md_result_file, "%sADD %s%s", (ac_list_len > 1) ? "  " : "",
+              def, (keys > 1) ? ",\n" : ";\n");
+
+      alter_constraints_list= list_delete(alter_constraints_list, node);
+      my_free(def);
+      my_free(node);
+    }
   }
 
   DBUG_ASSERT(skipped_keys_list == NULL);
+  DBUG_ASSERT(alter_constraints_list == NULL);
 }
 
 
@@ -4515,7 +4445,6 @@ static void dump_table(char *table, char *db)
 
     verbose_msg("-- Skipping dump data for table '%s', --no-data was used\n",
                 table);
-    restore_secondary_keys(opt_quoted_table);
     DBUG_VOID_RETURN;
   }
 

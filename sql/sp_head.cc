@@ -1767,10 +1767,10 @@ bool sp_head::show_routine_code(THD *thd)
     */
     if (ip != i->get_ip())
     {
-      const char *format= "Instruction at position %u has m_ip=%u";
+      const char format[]= "Instruction at position %u has m_ip=%u";
       char tmp[sizeof(format) + 2 * sizeof(uint) + 1];
 
-      sprintf(tmp, format, ip, i->get_ip());
+      snprintf(tmp, sizeof(tmp), format, ip, i->get_ip());
       /*
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.

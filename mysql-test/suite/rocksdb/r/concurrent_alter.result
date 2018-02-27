@@ -1,6 +1,5 @@
 set @orig_max_connections=@@global.max_connections;
 set @@global.max_connections=500;
-call mtr.add_suppression("Too many connections");
 CREATE DATABASE mysqlslap;
 use mysqlslap;
 CREATE TABLE a1 (a int, b int) ENGINE=ROCKSDB;

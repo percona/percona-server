@@ -433,7 +433,8 @@ static void rocksdb_set_wal_bytes_per_sync(THD *thd,
 // Options definitions
 //////////////////////////////////////////////////////////////////////////////
 static constexpr ulong RDB_MAX_LOCK_WAIT_SECONDS = 1024 * 1024 * 1024;
-static constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024;
+static constexpr ulong RDB_MAX_ROW_LOCKS = 1024 * 1024 * 1024;
+static constexpr ulong RDB_DEFAULT_ROW_LOCKS = 1024 * 1024;
 static constexpr ulong RDB_DEFAULT_BULK_LOAD_SIZE = 1000;
 static constexpr ulong RDB_MAX_BULK_LOAD_SIZE = 1024 * 1024 * 1024;
 static constexpr size_t RDB_DEFAULT_MERGE_BUF_SIZE = 64 * 1024 * 1024;
@@ -679,7 +680,7 @@ static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_ULONG(max_row_locks, PLUGIN_VAR_RQCMDARG,
                           "Maximum number of locks a transaction can have",
                           nullptr, nullptr,
-                          /*default*/ RDB_MAX_ROW_LOCKS,
+                          /*default*/ RDB_DEFAULT_ROW_LOCKS,
                           /*min*/ 1,
                           /*max*/ RDB_MAX_ROW_LOCKS, 0);
 

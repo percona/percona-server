@@ -34,6 +34,7 @@ Created 2011-05-26 Marko Makela
 #include "dict0types.h"
 #include "trx0types.h"
 #include "que0types.h"
+#include "os0file.h"
 
 class ut_stage_alter_t;
 
@@ -254,6 +255,51 @@ ulint
 row_log_estimate_work(
 	const dict_index_t*	index);
 #endif /* HAVE_PSI_STAGE_INTERFACE */
+
+/** Find out if temporary log files encrypted.
+@return true if temporary log file should be encrypted, false if not */
+MY_ATTRIBUTE((warn_unused_result))
+bool
+log_tmp_is_encrypted();
+
+/** Check the row log encryption is enabled or not.
+It will enable the row log encryption. */
+void
+log_tmp_enable_encryption_if_set();
+
+/** Encrypt a temporary file block.
+@param[in]	src		block to encrypt
+@param[in]	size		size of the block
+@param[out]	dst		destination block
+@param[in]	offs		offset to block
+@param[in]	space_id	tablespace id
+@return whether the operation succeeded */
+MY_ATTRIBUTE((warn_unused_result))
+bool
+log_tmp_block_encrypt(
+/*==================*/
+	const byte*		src_block,
+	ulint			size,
+	byte*			dst_block,
+	os_offset_t		offs,
+	ulint			space_id);
+
+/** Decrypt a temporary file block.
+@param[in]	src		block to decrypt
+@param[in]	size		size of the block
+@param[out]	dst		destination block
+@param[in]	offs		offset to block
+@param[in]	space_id	tablespace id
+@return whether the operation succeeded */
+MY_ATTRIBUTE((warn_unused_result))
+bool
+log_tmp_block_decrypt(
+/*==================*/
+	const byte*		src_block,
+	ulint			size,
+	byte*			dst_block,
+	os_offset_t		offs,
+	ulint			space_id);
 
 #ifndef UNIV_NONINL
 #include "row0log.ic"

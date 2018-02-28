@@ -55,7 +55,9 @@ static inline my_thread_os_id_t my_thread_os_id()
     and to not use SYS_gettid on Mac OSX,
     as SYS_gettid has a different meaning compared to linux gettid().
   */
-  return syscall(SYS_thread_selfid);
+  uint64_t tid64;
+  pthread_threadid_np(NULL, &tid64);
+  return (my_thread_os_id_t)tid64;
 #else
 #ifdef HAVE_SYS_GETTID
   /*

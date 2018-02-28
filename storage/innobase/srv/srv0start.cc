@@ -2701,6 +2701,9 @@ files_checked:
 		srv_start_state_set(SRV_START_STATE_MASTER);
 	}
 
+	/* Enable row log encryption if it is set */
+	log_tmp_enable_encryption_if_set();
+
 	if (!srv_read_only_mode
 	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 

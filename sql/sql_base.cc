@@ -10254,7 +10254,14 @@ inline Join_node::Join_node(const TABLE_LIST* table,
                             Item* cond, const ORDER* order)
 {
   max_sort_length= current_thd->variables.max_sort_length;
-  add_table(table->table);
+  if (table->table)
+  {
+    add_table(table->table);
+  }
+  else
+  {
+    add_join_list(table->view_tables);
+  }
   add_ordered_columns(order);
   add_const_equi_columns(cond);
 }

@@ -1231,6 +1231,19 @@ srv_open_tmp_tablespace(
 		it stays open until shutdown. */
 		if (fil_space_open(tmp_space->name())) {
 
+			if (srv_tmp_tablespace_encrypt) {
+
+				fil_space_t*	space =
+					fil_space_get(temp_space_id);
+				space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
+				err = fil_set_encryption(space->id,
+							 Encryption::AES,
+							 NULL,
+							 NULL);
+				ut_a(err == DB_SUCCESS);
+			}
+
 			/* Initialize the header page */
 			mtr_start(&mtr);
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);

@@ -10690,7 +10690,7 @@ create_table_info_t::create_table_def()
 {
 	dict_table_t*	table;
 	ulint		n_cols;
-	dberr_t		err;
+	dberr_t		err = DB_SUCCESS;
 	ulint		col_type;
 	ulint		col_len;
 	ulint		nulls_allowed;
@@ -11014,6 +11014,9 @@ err_col:
 	needed in SYSTEM tables. */
 	if (dict_table_is_temporary(table)) {
 
+		fil_space_t* space = fil_space_get(srv_tmp_space.space_id());
+		bool force_encrypt = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+
 		if (m_create_info->compress.length > 0) {
 
 			push_warning_printf(
@@ -11027,18 +11030,44 @@ err_col:
 			dict_mem_table_free(table);
 		} else if (m_create_info->encrypt_type.length > 0
 			   && !Encryption::is_none(
-				   m_create_info->encrypt_type.str)) {
+				   m_create_info->encrypt_type.str)
+			   && !force_encrypt) {
 
 			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
 			err = DB_UNSUPPORTED;
 			dict_mem_table_free(table);
 		} else {
+			if (force_encrypt) {
+				/* force encryption for temporary tables */
+				byte*			master_key = NULL;
+				ulint			master_key_id;
+				Encryption::Version	version;
 
-			/* Get a new table ID */
-			dict_table_assign_new_id(table, m_trx);
+				/* Check if keyring is ready. */
+				Encryption::get_master_key(&master_key_id,
+							   &master_key,
+							   &version);
 
-			/* Create temp tablespace if configured. */
-			err = dict_build_tablespace_for_table(table);
+				if (master_key == NULL) {
+					my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
+						 MYF(0));
+					err = DB_UNSUPPORTED;
+					dict_mem_table_free(table);
+				} else {
+					my_free(master_key);
+					DICT_TF2_FLAG_SET(table,
+							  DICT_TF2_ENCRYPTION);
+				}
+			}
+
+			if (err == DB_SUCCESS) {
+
+				/* Get a new table ID */
+				dict_table_assign_new_id(table, m_trx);
+
+				/* Create temp tablespace if configured. */
+				err = dict_build_tablespace_for_table(table);
+			}
 
 			if (err == DB_SUCCESS) {
 				/* Temp-table are maintained in memory and so
@@ -21448,6 +21477,11 @@ static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
   "Path to files and their sizes making temp-tablespace.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_BOOL(temp_tablespace_encrypt, srv_tmp_tablespace_encrypt,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable or disable encryption of temporary tablespace.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Directory where undo tablespace files live, this path can be absolute.",
@@ -21768,6 +21802,14 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable the sync debug checks",
   NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONG(master_encrypt_debug,
+  srv_master_encrypt_debug,
+  PLUGIN_VAR_OPCMDARG,
+  "Set 1 to pause master thread in the middle of the enabling of "
+  "temporary tablespace encryption. Once paused, master thread will set it 2. "
+  "Change it back to 0 to resume master thread.",
+  NULL, NULL, 0, 0, UINT_MAX32, 0);
 #endif /* UNIV_DEBUG */
 
 const char *corrupt_table_action_names[]=
@@ -21837,6 +21879,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(kill_idle_transaction),
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(temp_data_file_path),
+  MYSQL_SYSVAR(temp_tablespace_encrypt),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(stats_include_delete_marked),
@@ -22000,6 +22043,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(dict_stats_disabled_debug),
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
+  MYSQL_SYSVAR(master_encrypt_debug),
 #endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(parallel_doublewrite_path),

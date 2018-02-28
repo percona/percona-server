@@ -1,0 +1,50 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--source include/count_sessions.inc
+
+connect (other1,localhost,root,,test);
+connection other1;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+INSERT INTO t01 VALUES (1), (2), (3);
+
+connection default;
+
+SET GLOBAL innodb_master_encrypt_debug = 1;
+
+SET GLOBAL innodb_temp_tablespace_encrypt = ON;
+
+# wait until master thread paused
+--let $wait_condition= SELECT @@innodb_master_encrypt_debug = 2
+--source include/wait_condition.inc
+
+connect (other2,localhost,root,,test);
+connection other2;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+INSERT INTO t01 VALUES (1), (2), (3);
+
+disconnect other2;
+
+connect (other2,localhost,root,,test);
+connection other2;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+INSERT INTO t01 VALUES (1), (2), (3);
+
+connection default;
+
+# resume master thread
+SET GLOBAL innodb_master_encrypt_debug = 0;
+
+disconnect other2;
+
+disconnect other1;
+
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+INSERT INTO t01 VALUES (1), (2), (3);
+
+SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
+
+--source include/wait_until_count_sessions.inc

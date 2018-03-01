@@ -1,5 +1,10 @@
-[row]
+[row-write-committed]
 binlog-format=row
+loose-rocksdb_write_policy=write_committed
+
+[row-write-prepared]
+binlog-format=row
+loose-rocksdb_write_policy=write_prepared
 
 [stmt]
 binlog-format=statement

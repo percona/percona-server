@@ -1,4 +1,5 @@
 --source include/have_rocksdb.inc
+--source ../include/have_write_committed.inc
 --source include/count_sessions.inc
 
 #

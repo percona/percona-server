@@ -507,7 +507,7 @@ static my_bool rpl_skip_tx_api_var = FALSE;
 static my_bool rocksdb_print_snapshot_conflict_queries = FALSE;
 static my_bool rocksdb_large_prefix = FALSE;
 static my_bool rocksdb_allow_to_start_after_corruption = FALSE;
-static uint32_t rocksdb_write_policy =
+static uint64_t rocksdb_write_policy =
     rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
 static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
 
@@ -538,6 +538,14 @@ static std::unique_ptr<rocksdb::DBOptions> rocksdb_db_options =
     rdb_init_rocksdb_db_options();
 
 static std::shared_ptr<rocksdb::RateLimiter> rocksdb_rate_limiter;
+
+/* This enum needs to be kept up to date with rocksdb::TxnDBWritePolicy */
+static const char *write_policy_names[] = {"write_committed", "write_prepared",
+                                           "write_unprepared", NullS};
+
+static TYPELIB write_policy_typelib = {array_elements(write_policy_names) - 1,
+                                       "write_policy_typelib",
+                                       write_policy_names, nullptr};
 
 /* This enum needs to be kept up to date with rocksdb::InfoLogLevel */
 static const char *info_log_level_names[] = {"debug_level", "info_level",
@@ -785,12 +793,11 @@ static MYSQL_SYSVAR_BOOL(
     "DBOptions::manual_wal_flush for RocksDB", nullptr, nullptr,
     rocksdb_db_options->manual_wal_flush);
 
-static MYSQL_SYSVAR_UINT(write_policy, rocksdb_write_policy,
+static MYSQL_SYSVAR_ENUM(write_policy, rocksdb_write_policy,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                          "DBOptions::write_policy for RocksDB", nullptr,
                          nullptr, rocksdb::TxnDBWritePolicy::WRITE_COMMITTED,
-                         rocksdb::TxnDBWritePolicy::WRITE_COMMITTED,
-                         rocksdb::TxnDBWritePolicy::WRITE_UNPREPARED, 0);
+                         &write_policy_typelib);
 
 static MYSQL_SYSVAR_BOOL(
     create_missing_column_families,
@@ -5967,10 +5974,13 @@ int ha_rocksdb::rdb_error_to_mysql(const rocksdb::Status &s,
   }
 
   if (opt_msg) {
-    my_error(ER_RDB_STATUS_MSG, MYF(0), opt_msg, s.code(),
-             s.ToString().c_str());
+    std::string concatenated_error =
+        s.ToString() + " (" + std::string(opt_msg) + ")";
+    my_error(ER_GET_ERRMSG, MYF(0), s.code(), concatenated_error.c_str(),
+             rocksdb_hton_name);
   } else {
-    my_error(ER_RDB_STATUS_GENERAL, MYF(0), s.code(), s.ToString().c_str());
+    my_error(ER_GET_ERRMSG, MYF(0), s.code(), s.ToString().c_str(),
+             rocksdb_hton_name);
   }
 
   return err;

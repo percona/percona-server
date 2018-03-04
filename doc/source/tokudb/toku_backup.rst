@@ -73,6 +73,8 @@ To run |Percona TokuBackup|, the backup destination directory must exist, be wri
 
 .. note:: Setting the :variable:`tokudb_backup_dir` variable automatically starts the backup process to the specified directory. Percona TokuBackup will take full backup each time, currently there is no incremental backup option
 
+If you get any error on this step (e.g. caused by some misconfiguration), the `Reporting Errors`_ section explains how to find out the reason.
+
 Restoring From Backup
 ---------------------
 

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/09/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "09/13/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -767,12 +767,12 @@ T}
 T}:T{
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 255
 T}
@@ -794,28 +794,28 @@ file (where we have omitted most of the configuration parameters that are not re
 .nf
 [ndbd]
 NodeId = 1
-HostName = 192\&.168\&.0\&.101
+HostName = 198\&.51\&.100\&.101
 [ndbd]
 NodeId = 2
-HostName = 192\&.168\&.0\&.102
+HostName = 198\&.51\&.100\&.102
 [ndbd]
 NodeId = 3
-HostName = 192\&.168\&.0\&.103
+HostName = 198\&.51\&.100\&.103
 [ndbd]
 NodeId = 4
-HostName = 192\&.168\&.0\&.104
+HostName = 198\&.51\&.100\&.104
 [ndb_mgmd]
 NodeId = 10
-HostName = 192\&.168\&.0\&.150
+HostName = 198\&.51\&.100\&.150
 [ndb_mgmd]
 NodeId = 11
-HostName = 192\&.168\&.0\&.151
+HostName = 198\&.51\&.100\&.151
 [api]
 NodeId = 20
-HostName = 192\&.168\&.0\&.200
+HostName = 198\&.51\&.100\&.200
 [api]
 NodeId = 21
-HostName = 192\&.168\&.0\&.201
+HostName = 198\&.51\&.100\&.201
 .fi
 .if n \{\
 .RE
@@ -823,7 +823,7 @@ HostName = 192\&.168\&.0\&.201
 .sp
 Assume that you wish to start this cluster using only the management server having node ID
 10
-and running on the host having the IP address 192\&.168\&.0\&.150\&. (Suppose, for example, that the host computer on which you intend to the other management server is temporarily unavailable due to a hardware failure, and you are waiting for it to be repaired\&.) To start the cluster in this way, use a command line on the machine at 192\&.168\&.0\&.150 to enter the following command:
+and running on the host having the IP address 198\&.51\&.100\&.150\&. (Suppose, for example, that the host computer on which you intend to the other management server is temporarily unavailable due to a hardware failure, and you are waiting for it to be repaired\&.) To start the cluster in this way, use a command line on the machine at 198\&.51\&.100\&.150 to enter the following command:
 .sp
 .if n \{\
 .RS 4
@@ -848,7 +848,7 @@ You can then start each of the cluster\*(Aqs data nodes in the usual way\&. If y
 .RS 4
 .\}
 .nf
-shell> \fBndbd \-c 192\&.168\&.0\&.150,192\&.168\&.0\&.151\fR
+shell> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 .fi
 .if n \{\
 .RE

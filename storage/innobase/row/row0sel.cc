@@ -2759,7 +2759,7 @@ row_sel_field_store_in_mysql_format_func(
 	case DATA_SYS:
 		/* These column types should never be shipped to MySQL. */
 		ut_ad(0);
-
+		break;
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_FLOAT:
@@ -2821,7 +2821,7 @@ row_sel_store_mysql_field_func(
 {
 	const byte*	data;
 	ulint		len;
-	ulint		clust_field_no;
+	ulint		clust_field_no = 0;
 	bool		clust_templ_for_sec = (sec_field_no != ULINT_UNDEFINED);
 
 	ut_ad(prebuilt->default_rec);

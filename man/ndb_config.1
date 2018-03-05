@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/09/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "09/13/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -256,12 +256,12 @@ T}:T{
 none
 T}
 :T{
-\fBMin Value\fR
+\fBMinimum\fR
 T}:T{
 1
 T}
 :T{
-\fBMax Value\fR
+\fBMaximum\fR
 T}:T{
 48
 T}
@@ -1017,7 +1017,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.38\-ndb\-7\&.3\&.19"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.38\-ndb\-7\&.3\&.20"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -1248,7 +1248,7 @@ To produce a connection string that can be used by data, SQL, and API nodes to c
 .nf
 shell> \fB\&./ndb_config \-\-config\-file=usr/local/mysql/cluster\-data/config\&.ini \e
 \-\-query=hostname,portnumber \-\-fields=: \-\-rows=, \-\-type=ndb_mgmd\fR
-192\&.168\&.0\&.179:1186
+198\&.51\&.100\&.179:1186
 .fi
 .if n \{\
 .RE
@@ -1278,10 +1278,10 @@ parameters:
 .\}
 .nf
 shell> \fB\&./ndb_config \-\-type=ndbd \-\-query=id,host,datamemory,indexmemory,datadir \-f \*(Aq : \*(Aq \-r \*(Aq\en\*(Aq\fR
-1 : 192\&.168\&.0\&.193 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-2 : 192\&.168\&.0\&.112 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-3 : 192\&.168\&.0\&.176 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
-4 : 192\&.168\&.0\&.119 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+1 : 198\&.51\&.100\&.193 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+2 : 198\&.51\&.100\&.112 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+3 : 198\&.51\&.100\&.176 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
+4 : 198\&.51\&.100\&.119 : 83886080 : 18874368 : /usr/local/mysql/cluster\-data
 .fi
 .if n \{\
 .RE
@@ -1310,7 +1310,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fB\&./ndb_config \-\-host=192\&.168\&.0\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
+shell> \fB\&./ndb_config \-\-host=198\&.51\&.100\&.176 \-f : \-r \*(Aq\en\*(Aq \-q id,type\fR
 3:ndbd
 5:ndb_mgmd
 .fi

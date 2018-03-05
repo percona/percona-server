@@ -66,6 +66,10 @@
         "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
 
+#if defined(HAVE_OPENSSL)
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
+#endif /* HAVE_OPENSSL */
+
 using std::min;
 using std::max;
 
@@ -193,6 +197,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const
 TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
   {
@@ -579,11 +584,13 @@ TABLE_FIELD_TYPE mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] =
     { C_STRING_WITH_LEN("utf8") }
   }
 };
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 const TABLE_FIELD_DEF
   mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
@@ -602,6 +609,7 @@ const TABLE_FIELD_DEF
 const TABLE_FIELD_DEF
   mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
                                 mysql_tables_priv_table_fields};
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -5725,6 +5733,9 @@ int digest_password(THD *thd, LEX_USER *user_record)
   */
   if (user_record->plugin.str == sha256_password_plugin_name.str)
   {
+    if (user_record->password.length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
+      return 1;
+
     char *buff=  (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
     if (buff == NULL)
       return 1;
@@ -12952,6 +12963,9 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     DBUG_RETURN(CR_ERROR);
 #endif
   } // if(!my_vio_is_encrypter())
+
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)

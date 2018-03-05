@@ -1,0 +1,226 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Loading the MySQL World sample database
+--echo # PS-260: An optimizer bug caused a crash when loading this SQL
+--echo #
+
+--disable_query_log
+--disable_result_log
+--echo # Loading data
+drop database if exists world;
+create database world;
+use world;
+CREATE TABLE `city` (
+  `ID` INT(11) NOT NULL AUTO_INCREMENT,
+  `Name` CHAR(35) NOT NULL DEFAULT '',
+  `CountryCode` CHAR(3) NOT NULL DEFAULT '',
+  `District` CHAR(20) NOT NULL DEFAULT '',
+  `Population` INT(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`ID`),
+  KEY `CountryCode` (`CountryCode`)
+) ENGINE=InnoDB AUTO_INCREMENT=4080 DEFAULT CHARSET=latin1;
+INSERT INTO `city` VALUES (1,'Kabul','AFG','Kabol',1780000);
+INSERT INTO `city` VALUES (2,'Qandahar','AFG','Qandahar',237500);
+INSERT INTO `city` VALUES (3,'Herat','AFG','Herat',186800);
+INSERT INTO `city` VALUES (4,'Mazar-e-Sharif','AFG','Balkh',127800);
+INSERT INTO `city` VALUES (5,'Amsterdam','NLD','Noord-Holland',731200);
+INSERT INTO `city` VALUES (6,'Rotterdam','NLD','Zuid-Holland',593321);
+INSERT INTO `city` VALUES (7,'Haag','NLD','Zuid-Holland',440900);
+INSERT INTO `city` VALUES (8,'Utrecht','NLD','Utrecht',234323);
+INSERT INTO `city` VALUES (9,'Eindhoven','NLD','Noord-Brabant',201843);
+INSERT INTO `city` VALUES (10,'Tilburg','NLD','Noord-Brabant',193238);
+INSERT INTO `city` VALUES (11,'Groningen','NLD','Groningen',172701);
+INSERT INTO `city` VALUES (12,'Breda','NLD','Noord-Brabant',160398);
+INSERT INTO `city` VALUES (13,'Apeldoorn','NLD','Gelderland',153491);
+INSERT INTO `city` VALUES (14,'Nijmegen','NLD','Gelderland',152463);
+INSERT INTO `city` VALUES (15,'Enschede','NLD','Overijssel',149544);
+INSERT INTO `city` VALUES (16,'Haarlem','NLD','Noord-Holland',148772);
+INSERT INTO `city` VALUES (17,'Almere','NLD','Flevoland',142465);
+INSERT INTO `city` VALUES (18,'Arnhem','NLD','Gelderland',138020);
+INSERT INTO `city` VALUES (19,'Zaanstad','NLD','Noord-Holland',135621);
+INSERT INTO `city` VALUES (20,'´s-Hertogenbosch','NLD','Noord-Brabant',129170);
+INSERT INTO `city` VALUES (21,'Amersfoort','NLD','Utrecht',126270);
+INSERT INTO `city` VALUES (22,'Maastricht','NLD','Limburg',122087);
+INSERT INTO `city` VALUES (23,'Dordrecht','NLD','Zuid-Holland',119811);
+INSERT INTO `city` VALUES (24,'Leiden','NLD','Zuid-Holland',117196);
+INSERT INTO `city` VALUES (25,'Haarlemmermeer','NLD','Noord-Holland',110722);
+INSERT INTO `city` VALUES (26,'Zoetermeer','NLD','Zuid-Holland',110214);
+INSERT INTO `city` VALUES (27,'Emmen','NLD','Drenthe',105853);
+INSERT INTO `city` VALUES (28,'Zwolle','NLD','Overijssel',105819);
+INSERT INTO `city` VALUES (29,'Ede','NLD','Gelderland',101574);
+INSERT INTO `city` VALUES (30,'Delft','NLD','Zuid-Holland',95268);
+INSERT INTO `city` VALUES (31,'Heerlen','NLD','Limburg',95052);
+INSERT INTO `city` VALUES (32,'Alkmaar','NLD','Noord-Holland',92713);
+INSERT INTO `city` VALUES (33,'Willemstad','ANT','Curaçao',2345);
+INSERT INTO `city` VALUES (34,'Tirana','ALB','Tirana',270000);
+INSERT INTO `city` VALUES (35,'Alger','DZA','Alger',2168000);
+INSERT INTO `city` VALUES (36,'Oran','DZA','Oran',609823);
+INSERT INTO `city` VALUES (37,'Constantine','DZA','Constantine',443727);
+INSERT INTO `city` VALUES (38,'Annaba','DZA','Annaba',222518);
+INSERT INTO `city` VALUES (39,'Batna','DZA','Batna',183377);
+INSERT INTO `city` VALUES (40,'Sétif','DZA','Sétif',179055);
+INSERT INTO `city` VALUES (41,'Sidi Bel Abbès','DZA','Sidi Bel Abbès',153106);
+INSERT INTO `city` VALUES (42,'Skikda','DZA','Skikda',128747);
+INSERT INTO `city` VALUES (43,'Biskra','DZA','Biskra',128281);
+INSERT INTO `city` VALUES (44,'Blida (el-Boulaida)','DZA','Blida',127284);
+INSERT INTO `city` VALUES (45,'Béjaïa','DZA','Béjaïa',117162);
+INSERT INTO `city` VALUES (46,'Mostaganem','DZA','Mostaganem',115212);
+INSERT INTO `city` VALUES (47,'Tébessa','DZA','Tébessa',112007);
+INSERT INTO `city` VALUES (48,'Tlemcen (Tilimsen)','DZA','Tlemcen',110242);
+INSERT INTO `city` VALUES (49,'Béchar','DZA','Béchar',107311);
+INSERT INTO `city` VALUES (50,'Tiaret','DZA','Tiaret',100118);
+INSERT INTO `city` VALUES (51,'Ech-Chleff (el-Asnam)','DZA','Chlef',96794);
+INSERT INTO `city` VALUES (52,'Ghardaïa','DZA','Ghardaïa',89415);
+INSERT INTO `city` VALUES (53,'Tafuna','ASM','Tutuila',5200);
+INSERT INTO `city` VALUES (54,'Fagatogo','ASM','Tutuila',2323);
+INSERT INTO `city` VALUES (55,'Andorra la Vella','AND','Andorra la Vella',21189);
+INSERT INTO `city` VALUES (56,'Luanda','AGO','Luanda',2022000);
+INSERT INTO `city` VALUES (57,'Huambo','AGO','Huambo',163100);
+INSERT INTO `city` VALUES (58,'Lobito','AGO','Benguela',130000);
+INSERT INTO `city` VALUES (59,'Benguela','AGO','Benguela',128300);
+INSERT INTO `city` VALUES (60,'Namibe','AGO','Namibe',118200);
+INSERT INTO `city` VALUES (61,'South Hill','AIA','',961);
+INSERT INTO `city` VALUES (62,'The Valley','AIA','',595);
+INSERT INTO `city` VALUES (63,'Saint John´s','ATG','St John',24000);
+INSERT INTO `city` VALUES (64,'Dubai','ARE','Dubai',669181);
+INSERT INTO `city` VALUES (65,'Abu Dhabi','ARE','Abu Dhabi',398695);
+INSERT INTO `city` VALUES (66,'Sharja','ARE','Sharja',320095);
+INSERT INTO `city` VALUES (67,'al-Ayn','ARE','Abu Dhabi',225970);
+INSERT INTO `city` VALUES (68,'Ajman','ARE','Ajman',114395);
+INSERT INTO `city` VALUES (69,'Buenos Aires','ARG','Distrito Federal',2982146);
+INSERT INTO `city` VALUES (70,'La Matanza','ARG','Buenos Aires',1266461);
+INSERT INTO `city` VALUES (71,'Córdoba','ARG','Córdoba',1157507);
+INSERT INTO `city` VALUES (72,'Rosario','ARG','Santa Fé',907718);
+INSERT INTO `city` VALUES (73,'Lomas de Zamora','ARG','Buenos Aires',622013);
+INSERT INTO `city` VALUES (74,'Quilmes','ARG','Buenos Aires',559249);
+INSERT INTO `city` VALUES (75,'Almirante Brown','ARG','Buenos Aires',538918);
+INSERT INTO `city` VALUES (76,'La Plata','ARG','Buenos Aires',521936);
+INSERT INTO `city` VALUES (77,'Mar del Plata','ARG','Buenos Aires',512880);
+INSERT INTO `city` VALUES (78,'San Miguel de Tucumán','ARG','Tucumán',470809);
+INSERT INTO `city` VALUES (79,'Lanús','ARG','Buenos Aires',469735);
+INSERT INTO `city` VALUES (80,'Merlo','ARG','Buenos Aires',463846);
+INSERT INTO `city` VALUES (81,'General San Martín','ARG','Buenos Aires',422542);
+INSERT INTO `city` VALUES (82,'Salta','ARG','Salta',367550);
+INSERT INTO `city` VALUES (83,'Moreno','ARG','Buenos Aires',356993);
+INSERT INTO `city` VALUES (84,'Santa Fé','ARG','Santa Fé',353063);
+INSERT INTO `city` VALUES (85,'Avellaneda','ARG','Buenos Aires',353046);
+INSERT INTO `city` VALUES (86,'Tres de Febrero','ARG','Buenos Aires',352311);
+INSERT INTO `city` VALUES (87,'Morón','ARG','Buenos Aires',349246);
+INSERT INTO `city` VALUES (88,'Florencio Varela','ARG','Buenos Aires',315432);
+INSERT INTO `city` VALUES (89,'San Isidro','ARG','Buenos Aires',306341);
+INSERT INTO `city` VALUES (90,'Tigre','ARG','Buenos Aires',296226);
+INSERT INTO `city` VALUES (91,'Malvinas Argentinas','ARG','Buenos Aires',290335);
+INSERT INTO `city` VALUES (92,'Vicente López','ARG','Buenos Aires',288341);
+INSERT INTO `city` VALUES (93,'Berazategui','ARG','Buenos Aires',276916);
+INSERT INTO `city` VALUES (94,'Corrientes','ARG','Corrientes',258103);
+INSERT INTO `city` VALUES (95,'San Miguel','ARG','Buenos Aires',248700);
+INSERT INTO `city` VALUES (96,'Bahía Blanca','ARG','Buenos Aires',239810);
+INSERT INTO `city` VALUES (97,'Esteban Echeverría','ARG','Buenos Aires',235760);
+INSERT INTO `city` VALUES (98,'Resistencia','ARG','Chaco',229212);
+INSERT INTO `city` VALUES (99,'José C. Paz','ARG','Buenos Aires',221754);
+INSERT INTO `city` VALUES (100,'Paraná','ARG','Entre Rios',207041);
+INSERT INTO `city` VALUES (101,'Godoy Cruz','ARG','Mendoza',206998);
+INSERT INTO `city` VALUES (102,'Posadas','ARG','Misiones',201273);
+INSERT INTO `city` VALUES (103,'Guaymallén','ARG','Mendoza',200595);
+INSERT INTO `city` VALUES (104,'Santiago del Estero','ARG','Santiago del Estero',189947);
+INSERT INTO `city` VALUES (105,'San Salvador de Jujuy','ARG','Jujuy',178748);
+INSERT INTO `city` VALUES (106,'Hurlingham','ARG','Buenos Aires',170028);
+INSERT INTO `city` VALUES (107,'Neuquén','ARG','Neuquén',167296);
+INSERT INTO `city` VALUES (108,'Ituzaingó','ARG','Buenos Aires',158197);
+INSERT INTO `city` VALUES (109,'San Fernando','ARG','Buenos Aires',153036);
+INSERT INTO `city` VALUES (110,'Formosa','ARG','Formosa',147636);
+INSERT INTO `city` VALUES (111,'Las Heras','ARG','Mendoza',145823);
+INSERT INTO `city` VALUES (112,'La Rioja','ARG','La Rioja',138117);
+INSERT INTO `city` VALUES (113,'San Fernando del Valle de Cata','ARG','Catamarca',134935);
+INSERT INTO `city` VALUES (114,'Río Cuarto','ARG','Córdoba',134355);
+INSERT INTO `city` VALUES (115,'Comodoro Rivadavia','ARG','Chubut',124104);
+INSERT INTO `city` VALUES (116,'Mendoza','ARG','Mendoza',123027);
+INSERT INTO `city` VALUES (117,'San Nicolás de los Arroyos','ARG','Buenos Aires',119302);
+INSERT INTO `city` VALUES (118,'San Juan','ARG','San Juan',119152);
+INSERT INTO `city` VALUES (119,'Escobar','ARG','Buenos Aires',116675);
+INSERT INTO `city` VALUES (120,'Concordia','ARG','Entre Rios',116485);
+INSERT INTO `city` VALUES (121,'Pilar','ARG','Buenos Aires',113428);
+INSERT INTO `city` VALUES (122,'San Luis','ARG','San Luis',110136);
+INSERT INTO `city` VALUES (123,'Ezeiza','ARG','Buenos Aires',99578);
+INSERT INTO `city` VALUES (124,'San Rafael','ARG','Mendoza',94651);
+INSERT INTO `city` VALUES (125,'Tandil','ARG','Buenos Aires',91101);
+INSERT INTO `city` VALUES (126,'Yerevan','ARM','Yerevan',1248700);
+INSERT INTO `city` VALUES (127,'Gjumri','ARM','irak',211700);
+INSERT INTO `city` VALUES (128,'Vanadzor','ARM','Lori',172700);
+INSERT INTO `city` VALUES (129,'Oranjestad','ABW','',29034);
+INSERT INTO `city` VALUES (130,'Sydney','AUS','New South Wales',3276207);
+INSERT INTO `city` VALUES (131,'Melbourne','AUS','Victoria',2865329);
+INSERT INTO `city` VALUES (132,'Brisbane','AUS','Queensland',1291117);
+INSERT INTO `city` VALUES (133,'Perth','AUS','West Australia',1096829);
+INSERT INTO `city` VALUES (134,'Adelaide','AUS','South Australia',978100);
+INSERT INTO `city` VALUES (135,'Canberra','AUS','Capital Region',322723);
+INSERT INTO `city` VALUES (136,'Gold Coast','AUS','Queensland',311932);
+INSERT INTO `city` VALUES (137,'Newcastle','AUS','New South Wales',270324);
+INSERT INTO `city` VALUES (138,'Central Coast','AUS','New South Wales',227657);
+INSERT INTO `city` VALUES (139,'Wollongong','AUS','New South Wales',219761);
+INSERT INTO `city` VALUES (140,'Hobart','AUS','Tasmania',126118);
+INSERT INTO `city` VALUES (141,'Geelong','AUS','Victoria',125382);
+INSERT INTO `city` VALUES (142,'Townsville','AUS','Queensland',109914);
+INSERT INTO `city` VALUES (143,'Cairns','AUS','Queensland',92273);
+INSERT INTO `city` VALUES (144,'Baku','AZE','Baki',1787800);
+INSERT INTO `city` VALUES (145,'Gäncä','AZE','Gäncä',299300);
+INSERT INTO `city` VALUES (146,'Sumqayit','AZE','Sumqayit',283000);
+INSERT INTO `city` VALUES (147,'Mingäçevir','AZE','Mingäçevir',93900);
+INSERT INTO `city` VALUES (148,'Nassau','BHS','New Providence',172000);
+INSERT INTO `city` VALUES (149,'al-Manama','BHR','al-Manama',148000);
+INSERT INTO `city` VALUES (150,'Dhaka','BGD','Dhaka',3612850);
+INSERT INTO `city` VALUES (151,'Chittagong','BGD','Chittagong',1392860);
+INSERT INTO `city` VALUES (152,'Khulna','BGD','Khulna',663340);
+INSERT INTO `city` VALUES (153,'Rajshahi','BGD','Rajshahi',294056);
+INSERT INTO `city` VALUES (154,'Narayanganj','BGD','Dhaka',202134);
+INSERT INTO `city` VALUES (155,'Rangpur','BGD','Rajshahi',191398);
+INSERT INTO `city` VALUES (156,'Mymensingh','BGD','Dhaka',188713);
+INSERT INTO `city` VALUES (157,'Barisal','BGD','Barisal',170232);
+INSERT INTO `city` VALUES (158,'Tungi','BGD','Dhaka',168702);
+INSERT INTO `city` VALUES (159,'Jessore','BGD','Khulna',139710);
+INSERT INTO `city` VALUES (160,'Comilla','BGD','Chittagong',135313);
+INSERT INTO `city` VALUES (161,'Nawabganj','BGD','Rajshahi',130577);
+INSERT INTO `city` VALUES (162,'Dinajpur','BGD','Rajshahi',127815);
+INSERT INTO `city` VALUES (163,'Bogra','BGD','Rajshahi',120170);
+INSERT INTO `city` VALUES (164,'Sylhet','BGD','Sylhet',117396);
+INSERT INTO `city` VALUES (165,'Brahmanbaria','BGD','Chittagong',109032);
+INSERT INTO `city` VALUES (166,'Tangail','BGD','Dhaka',106004);
+INSERT INTO `city` VALUES (167,'Jamalpur','BGD','Dhaka',103556);
+INSERT INTO `city` VALUES (168,'Pabna','BGD','Rajshahi',103277);
+INSERT INTO `city` VALUES (169,'Naogaon','BGD','Rajshahi',101266);
+INSERT INTO `city` VALUES (170,'Sirajganj','BGD','Rajshahi',99669);
+INSERT INTO `city` VALUES (171,'Narsinghdi','BGD','Dhaka',98342);
+INSERT INTO `city` VALUES (172,'Saidpur','BGD','Rajshahi',96777);
+INSERT INTO `city` VALUES (173,'Gazipur','BGD','Dhaka',96717);
+INSERT INTO `city` VALUES (174,'Bridgetown','BRB','St Michael',6070);
+INSERT INTO `city` VALUES (175,'Antwerpen','BEL','Antwerpen',446525);
+INSERT INTO `city` VALUES (176,'Gent','BEL','East Flanderi',224180);
+INSERT INTO `city` VALUES (177,'Charleroi','BEL','Hainaut',200827);
+INSERT INTO `city` VALUES (178,'Liège','BEL','Liège',185639);
+INSERT INTO `city` VALUES (179,'Bruxelles [Brussel]','BEL','Bryssel',133859);
+INSERT INTO `city` VALUES (180,'Brugge','BEL','West Flanderi',116246);
+INSERT INTO `city` VALUES (181,'Schaerbeek','BEL','Bryssel',105692);
+INSERT INTO `city` VALUES (182,'Namur','BEL','Namur',105419);
+INSERT INTO `city` VALUES (183,'Mons','BEL','Hainaut',90935);
+INSERT INTO `city` VALUES (184,'Belize City','BLZ','Belize City',55810);
+INSERT INTO `city` VALUES (185,'Belmopan','BLZ','Cayo',7105);
+INSERT INTO `city` VALUES (186,'Cotonou','BEN','Atlantique',536827);
+INSERT INTO `city` VALUES (187,'Porto-Novo','BEN','Ouémé',194000);
+INSERT INTO `city` VALUES (188,'Djougou','BEN','Atacora',134099);
+INSERT INTO `city` VALUES (189,'Parakou','BEN','Borgou',103577);
+INSERT INTO `city` VALUES (190,'Saint George','BMU','Saint George´s',1800);
+INSERT INTO `city` VALUES (191,'Hamilton','BMU','Hamilton',1200);
+INSERT INTO `city` VALUES (192,'Thimphu','BTN','Thimphu',22000);
+INSERT INTO `city` VALUES (193,'Santa Cruz de la Sierra','BOL','Santa Cruz',935361);
+INSERT INTO `city` VALUES (194,'La Paz','BOL','La Paz',758141);
+INSERT INTO `city` VALUES (195,'El Alto','BOL','La Paz',534466);
+INSERT INTO `city` VALUES (196,'Cochabamba','BOL','Cochabamba',482800);
+INSERT INTO `city` VALUES (197,'Oruro','BOL','Oruro',223553);
+INSERT INTO `city` VALUES (198,'Sucre','BOL','Chuquisaca',178426);
+INSERT INTO `city` VALUES (199,'Potosí','BOL','Potosí',140642);
+INSERT INTO `city` VALUES (200,'Tarija','BOL','Tarija',125255);
+drop database world;
+--enable_result_log
+--enable_query_log
+

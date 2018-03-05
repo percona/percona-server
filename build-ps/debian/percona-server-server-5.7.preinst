@@ -99,7 +99,7 @@ case "$1" in
 		# but use the one from system mysql-common package
 		# so we need to disable options that don't work for 5.7
 		MYSQLCONFIG=/etc/mysql/my.cnf
-		if [ -f ${MYSQLCONFIG} ];
+		if [ -f ${MYSQLCONFIG} -a ! -L ${MYSQLCONFIG} ];
 		then
 			cp -f ${MYSQLCONFIG} /etc/mysql/my.cnf.old
 			sed -e '/^key_buffer[^_-]/s/^/#/g' -i ${MYSQLCONFIG}

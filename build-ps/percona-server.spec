@@ -192,7 +192,8 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       Percona-Server-shared%{product_suffix} Percona-Server-client%{product_suffix} 
+Requires(pre):  Percona-Server-shared%{product_suffix}
+Requires:	Percona-Server-client%{product_suffix} 
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
@@ -270,7 +271,7 @@ Provides:       mysql-libs = %{version}-%{release}
 Provides:       mysql-libs%{?_isa} = %{version}-%{release}
 Provides:       mysql-shared
 %if 0%{?rhel} > 6
-Requires:       Percona-Server-shared-compat%{product_suffix}
+Requires(pre):  Percona-Server-shared-compat%{product_suffix}
 %endif
 
 %description -n Percona-Server-shared%{product_suffix}
@@ -458,9 +459,9 @@ install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/mysqld_safe.cnf %{buildroot}%{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
  
-%if 0%{?rhel} > 6
-  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
-%endif
+#%if 0%{?rhel} > 6
+#  install -D -m 0644 $MBD/%{src_dir}/build-ps/rpm/percona-server.cnf %{buildroot}%{_sysconfdir}/my.cnf
+#%endif
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 %if 0%{?systemd}
 %else
@@ -538,33 +539,45 @@ fi
       /sbin/chkconfig --add mysql
   fi
 %endif
+
+%if 0%{?rhel} > 6
+  MYCNF_PACKAGE="mariadb-libs"
+%else
+  MYCNF_PACKAGE="mysql-libs"
+%endif
+
 if [ -e /etc/my.cnf ]; then
-    MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep Name | awk '{print $3}')
-else
-    MYCNF_PACKAGE='mariadb-libs'
+  MYCNF_PACKAGE=$(rpm -qi `rpm -qf /etc/my.cnf` | grep -m 1 Name | awk '{print $3}')
 fi
-if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" ]
-then
-  rm -f /etc/my.cnf
+if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+  MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/etc/my.cnf' | awk '{print $1}' | grep -c 5)
+  if [ "$MODIFIED" == 0 ]; then
+    mv /etc/my.cnf /etc/my.cnf.old
+  fi
 fi
-if [ ! -f /etc/my.cnf ]
-then
+if [ ! -f /etc/my.cnf ]; then
+  rm -rf /etc/my.cnf
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
 else
-  echo " -------------"
-  echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
-  echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
-  echo "   *  Once it is done please execute the following commands:"
-  echo " rm -rf /etc/my.cnf"
-  echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
-  echo " -------------"
-  cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
-  if [ $cnflog = 0 -a -f /etc/my.cnf ]; then
-    sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
-  fi
-  cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
-  if [ $cnfpid = 0 -a -f /etc/my.cnf ]; then
-    sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
+  if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
+      rm -rf /etc/my.cnf
+      update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+  else
+      echo " -------------"
+      echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
+      echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+      echo "   *  Once it is done please execute the following commands:"
+      echo " rm -rf /etc/my.cnf"
+      echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
+      echo " -------------"
+      cnflog=$(/usr/bin/my_print_defaults mysqld|grep -c log-error)
+      if [ $cnflog = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
+          sed -i "/^\[mysqld\]$/a log-error=/var/log/mysqld.log" /etc/my.cnf
+      fi
+      cnfpid=$(/usr/bin/my_print_defaults mysqld|grep -c pid-file)
+      if [ $cnfpid = 0 -a -f /etc/my.cnf -a ! -L /etc/my.cnf ]; then
+          sed -i "/^\[mysqld\]$/a pid-file=/var/run/mysqld/mysqld.pid" /etc/my.cnf
+      fi
   fi
 fi
 echo "Percona Server is distributed with several useful UDF (User Defined Function) from Percona Toolkit."
@@ -672,7 +685,8 @@ fi
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld.cnf
 %config(noreplace) %{_sysconfdir}/percona-server.conf.d/mysqld_safe.cnf
 %if 0%{?rhel} > 6
-%config(noreplace) %{_sysconfdir}/my.cnf
+#%ghost %config(noreplace) %{_sysconfdir}/my.cnf
+%ghost %{_sysconfdir}/my.cnf
 %endif
 
 

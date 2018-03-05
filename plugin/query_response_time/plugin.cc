@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,  USA */
 
+#ifndef MYSQL_SERVER
 #define MYSQL_SERVER
+#endif
 #include <sql_class.h>
 #include <table.h>
 #include <sql_show.h>

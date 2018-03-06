@@ -165,11 +165,30 @@ except that you must specify at least one of the following:
      It is recommended to set a random password
      using the :variable:`MYSQL_RANDOM_ROOT_PASSWORD` variable.
 
+.. variable:: MYSQL_ROOT_PASSWORD_FILE
+
+  Specifies a file that will be read for the root user account.
+  This can be a mounted file when you run your container. This
+  can also be used in the scope of the Docker Secrets (Swarm mode)
+  functionality.
+
 .. variable:: MYSQL_USER
 
   Specifies the name for the user with full access to the database
   specified by the :variable:`MYSQL_DATABASE` variable.
   Setting the :variable:`MYSQL_PASSWORD` variable is also required.
+
+.. variable:: INIT_TOKUDB
+
+  Specifies whether to allow the container to be started with
+  enabled TokuDB engine. Disabled by default. To enable, set
+  ``INIT_TOKUDB=yes``.
+
+.. variable:: INIT_ROCKSDB
+
+  Specifies whether to allow the container to be started with
+  enabled RocksDB engine. Disabled by default. To enable, set
+  ``INIT_ROCKSDB=yes``.
 
 Storing Data
 ============

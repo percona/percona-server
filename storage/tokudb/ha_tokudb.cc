@@ -24,13 +24,19 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include "ha_tokudb.h"
-#include "hatoku_cmp.h"
 #include "hatoku_hton.h"
-#include "sql_db.h"
+
+#include "hatoku_cmp.h"
+
 #include "tokudb_buffer.h"
-#include "tokudb_card.h"
+
 #include "tokudb_status.h"
+
+#include "tokudb_card.h"
+
+#include "ha_tokudb.h"
+
+#include "sql/sql_db.h"
 
 pfs_key_t ha_tokudb_mutex_key;
 pfs_key_t num_DBs_lock_key;

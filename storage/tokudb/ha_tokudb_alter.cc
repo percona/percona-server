@@ -24,8 +24,8 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ident \
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
-#include <sql_array.h>
-#include <sql_base.h>
+#include "sql/sql_array.h"
+#include "sql/sql_base.h"
 
 #include <vector>
 

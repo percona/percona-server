@@ -27,7 +27,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ifndef _TOKUDB_DIR_CMD_H
 #define _TOKUDB_DIR_CMD_H
 
-#include <sql_class.h>
+#include "sql/sql_class.h"
 
 namespace tokudb {
 

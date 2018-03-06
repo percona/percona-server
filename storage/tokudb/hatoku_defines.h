@@ -27,18 +27,29 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #ifndef _HATOKU_DEFINES_H
 #define _HATOKU_DEFINES_H
 
-#include <my_config.h>
+#include "my_config.h"
 #define MYSQL_SERVER 1
-#include <binlog.h>
-#include "debug_sync.h"
-#include "handler.h"
-#include "item_cmpfunc.h"
-#include "log.h"
 #include "mysql_version.h"
-#include "sql_class.h"
-#include "sql_show.h"
-#include "sql_table.h"
-#include "table.h"
+
+#include "sql/current_thd.h"
+#include "sql/debug_sync.h"
+#include "sql/handler.h"
+#include "sql/item_cmpfunc.h"
+#include "sql/mysqld.h"
+#include "sql/sql_class.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"
+#include "sql/sql_table.h"
+#include "sql/sql_thd_internal_api.h"
+#include "sql/table.h"
+
+#include "my_icp.h"
+#include "my_thread.h"
+#include "mysql/psi/mysql_cond.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_thread.h"
 
 #undef PACKAGE
 #undef VERSION
@@ -52,7 +63,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #else
 #endif
 
-#include <mysql/plugin.h>
+#include "mysql/plugin.h"
 
 #include <ctype.h>
 #include <stdint.h>

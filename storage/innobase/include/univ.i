@@ -432,6 +432,7 @@ macro ULINTPF. */
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
 # define UINT32PF	"%lu"
+# define UINT32PFS	"lu"
 # define UINT64PF	"%llu"
 # define UINT64PFx	"%016llx"
 typedef unsigned __int64 ib_uint64_t;
@@ -439,6 +440,7 @@ typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
 # define UINT32PF	"%" PRIu32
+# define UINT32PFS	PRIu32
 # define UINT64PF	"%" PRIu64
 # define INT64PF	"%" PRIi64
 # define UINT64PFx	"%016" PRIx64
@@ -451,12 +453,14 @@ typedef uint32_t ib_uint32_t;
 #ifdef _WIN64
 typedef unsigned __int64	ulint;
 typedef __int64			lint;
-# define ULINTPF		UINT64PF
+# define ULINTPFS		"llu"
 #else
 typedef unsigned long int	ulint;
 typedef long int		lint;
-# define ULINTPF		"%lu"
+# define ULINTPFS		"lu"
 #endif /* _WIN64 */
+
+#define ULINTPF			"%" ULINTPFS
 
 #ifndef _WIN32
 #if SIZEOF_LONG != SIZEOF_VOIDP
@@ -486,6 +490,16 @@ typedef long int		lint;
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t		ib_id_t;
 #define IB_ID_MAX		IB_UINT64_MAX
+
+/** Page number */
+typedef uint32_t		page_no_t;
+/** Tablespace identifier */
+typedef uint32_t		space_id_t;
+
+#define SPACE_ID_PF UINT32PF
+#define SPACE_ID_PFS UINT32PFS
+#define PAGE_NO_PF UINT32PF
+#define PAGE_ID_PF "page " SPACE_ID_PF ":" PAGE_NO_PF
 
 /** This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

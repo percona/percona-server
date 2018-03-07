@@ -29,9 +29,9 @@ Created Aug 11, 2011 Vasil Dimov
 #include "ut0rnd.h"
 
 #ifndef UNIV_INNOCHECKSUM
-
 #include "srv0srv.h"
 #endif /* !UNIV_INNOCHECKSUM */
+
 #include "buf0types.h"
 
 /** the macro MYSQL_SYSVAR_ENUM() requires "long unsigned int" and if we

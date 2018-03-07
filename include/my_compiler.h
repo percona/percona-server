@@ -26,6 +26,8 @@
 
 #include <stddef.h> /* size_t */
 
+#include "my_config.h"
+
 #if defined __GNUC__
 /*
   Convenience macro to test the minimum required GCC version.

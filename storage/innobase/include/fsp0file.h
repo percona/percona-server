@@ -33,12 +33,12 @@ Created 2013-7-26 by Kevin Lewis
 #include <vector>
 
 /** Types of raw partitions in innodb_data_file_path */
-enum device_t {
+typedef enum device_t {
 	SRV_NOT_RAW = 0,	/*!< Not a raw partition */
 	SRV_NEW_RAW,		/*!< A 'newraw' partition, only to be
 				initialized */
 	SRV_OLD_RAW		/*!< An initialized raw partition */
-};
+} device_t;
 
 /** Data file control information. */
 class Datafile {

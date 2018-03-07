@@ -60,6 +60,8 @@ Created 1/8/1996 Heikki Tuuri
 /* Forward declaration. */
 struct ib_rbt_t;
 
+#endif /* !UNIV_INNOCHECKSUM */
+
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
 /* @{ */
@@ -116,8 +118,6 @@ are described in fsp0fsp.h. */
 /** This bitmask is used in SYS_TABLES.N_COLS to set and test whether
 the Compact page format is used, i.e ROW_FORMAT != REDUNDANT */
 #define DICT_N_COLS_COMPACT	0x80000000UL
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 /** Width of the COMPACT flag */
 #define DICT_TF_WIDTH_COMPACT		1
@@ -1865,5 +1865,5 @@ dict_col_get_spatial_status(
 #include "dict0mem.ic"
 #endif
 
-#endif /* dict0mem_h */
 #endif /* !UNIV_INNOCHECKSUM */
+#endif /* dict0mem_h */

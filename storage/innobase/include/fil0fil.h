@@ -731,6 +731,12 @@ void
 fil_space_close(
 	const char*	name);
 
+/** Close each fil_node_t of a fil_space_t if open.
+@param[in]	id	space id */
+void
+fil_space_close_by_id(
+	ulint	id);
+
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
 @param[in]	id	space id

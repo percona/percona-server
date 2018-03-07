@@ -436,7 +436,8 @@ dict_build_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
 	ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-	bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+	bool ret = fsp_header_init(
+		space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 	mtr_commit(&mtr);
 
 	if (!ret) {
@@ -546,7 +547,7 @@ dict_build_tablespace_for_table(
 
 		bool ret = fsp_header_init(table->space,
 					   FIL_IBD_FILE_INITIAL_SIZE,
-					   &mtr);
+					   &mtr, false);
 
 		mtr_commit(&mtr);
 		if (!ret) {

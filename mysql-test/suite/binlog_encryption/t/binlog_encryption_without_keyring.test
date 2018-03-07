@@ -35,7 +35,7 @@ RESET MASTER;
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/binlog_encryption_without_keyring.err
 --let SEARCH_PATTERN= Binary logging not possible. Message: Either disk is full or file system is read only or encryption failed while opening the binlog. Aborting the server.
 --source include/search_pattern_in_file.inc
---let SEARCH_PATTERN= Failed to fetch percona_binlog key from keyring and thus failed to initialize binlog encryption. Have you enabled keyring plugin?
+--let SEARCH_PATTERN= Failed to fetch or create percona_binlog key from/in keyring and thus failed to initialize binlog encryption. Have you enabled keyring plugin?
 --source include/search_pattern_in_file.inc
 
 --let $restart_parameters=

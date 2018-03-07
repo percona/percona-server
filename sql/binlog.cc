@@ -4979,6 +4979,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
   DBUG_PRINT("enter",("base filename: %s", log_name));
+  const char *log_to_encrypt= is_relay_log ? "relay_log" : "binlog";
 
   mysql_mutex_assert_owner(get_log_lock());
 
@@ -5112,9 +5113,9 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
     if (crypto.load_latest_binlog_key())
     {
-      sql_print_error("Failed to fetch percona_binlog key from keyring and thus "
-                      "failed to initialize binlog encryption. Have you enabled "
-                      "keyring plugin?");
+      sql_print_error("Failed to fetch or create percona_binlog key from/in keyring and thus "
+                      "failed to initialize %s encryption. Have you enabled "
+                      "keyring plugin?", log_to_encrypt);
       goto err;
     }
     DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions",
@@ -5125,14 +5126,14 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     if (write_to_file(&sele))
     {
       sql_print_error("Failed to write Start_encryption event to binary log and thus "
-                      "failed to initialize binlog encryption.");
+                      "failed to initialize %s encryption.", log_to_encrypt);
       goto err;
     }
     bytes_written+= sele.common_header->data_written;
 
     if (crypto.init_with_loaded_key(sele.crypto_scheme, nonce))
     {
-      sql_print_error("Failed to initialize binlog encryption.");
+      sql_print_error("Failed to initialize %s encryption.", log_to_encrypt);
       goto err;
     }
   }
@@ -5320,7 +5321,9 @@ err:
     std::string err_msg= "Either disk is full or file system is read only ";
     if (encrypt_binlog)
       err_msg+= "or encryption failed ";
-    err_msg+= "while opening the binlog. Aborting the server.";
+    err_msg+= "while opening the ";
+    err_msg+= log_to_encrypt;
+    err_msg+= ". Aborting the server.";
 
     exec_binlog_error_action_abort(err_msg.c_str());
   }

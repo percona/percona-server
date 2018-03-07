@@ -1,7 +1,7 @@
 source include/have_log_bin.inc;
 source include/have_debug.inc;
 
-call mtr.add_suppression("Failed to fetch percona_binlog key from keyring and thus failed to initialize binlog encryption.");
+call mtr.add_suppression("Failed to fetch or create percona_binlog key from/in keyring and thus failed to initialize binlog encryption. Have you enabled keyring plugin?");
 call mtr.add_suppression("Could not use ./master-bin.000002 for logging");
 call mtr.add_suppression("Could not open ./master-bin.000002 for logging");
 

@@ -21,15 +21,23 @@ case "$1" in
         FILE=$(readlink -e /etc/mysql/my.cnf)
         PKG=$(dpkg -S $FILE | cut -d: -f 1)
         CONF_EXISTS=0 
-        if [ "$PKG" = "mysql-common" -o "$PKG" = "mariadb-common" ]; then
+        if [ "$PKG" = "mysql-common" -o "$PKG" = "mariadb-common" -o "$PKG" = "percona-server-common" ]; then
             MODIFIED=$(debsums --all $PKG | grep $FILE | awk '{print $2}')
             if [ $MODIFIED = "OK" ]; then
-                if [ "$PKG" = "mariadb-common" ]; then
+                if [ "$PKG" = "mariadb-common" -o "$PKG" = "mysql-common" ]; then
                     for DIR in $(grep 'includedir' $FILE | awk '{print $2}'); do
                         if [ -d $DIR ]; then
                             COUNT=$(ls $DIR | wc -l)
                             if [ $COUNT > 0 ]; then
-                                CONF_EXISTS=1
+                                for file in $(ls $DIR); do
+                                    modified=$(debsums --all $PKG | grep $file | awk '{print $2}')
+                                    if [ $MODIFIED = "OK" ]; then
+                                        CONF_EXISTS=0
+                                    else
+                                        CONF_EXISTS=1
+                                        break
+                                    fi
+                                done
                             fi
                         fi
                     done
@@ -45,6 +53,7 @@ case "$1" in
             fi
         fi
         if [ ! -f /etc/mysql/my.cnf -o -L /etc/mysql/my.cnf ]; then
+            rm -rf /etc/mysql/my.cnf
             update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
         else
             print_message

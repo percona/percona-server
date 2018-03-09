@@ -274,15 +274,8 @@ public:
     uint32_t num_DBs;
 
 private:
-    static HASH _open_tables;
+    static std::unordered_map<std::string, TOKUDB_SHARE*> _open_tables;
     static tokudb::thread::mutex_t _open_tables_mutex;
-
-    static uchar* hash_get_key(
-        TOKUDB_SHARE* share,
-        size_t* length,
-        TOKUDB_UNUSED(my_bool not_used));
-
-    static void hash_free_element(TOKUDB_SHARE* share);
 
     //*********************************
     // Spans open-close-open

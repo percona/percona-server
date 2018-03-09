@@ -134,18 +134,29 @@ script:
 
   - echo -- Perform Debug or RelWithDebInfo compilation;
     if [[ "$INVERTED" == "ON" ]]; then
-       CMAKE_OPT="-DWITH_SSL=system -DWITH_ZLIB=bundled -DWITH_READLINE=OFF $CMAKE_OPT";
+       CMAKE_OPT="
+         -DWITH_EMBEDDED_SERVER=OFF
+         -DWITH_READLINE=OFF
+         -DWITH_SSL=system
+         -DWITH_ZLIB=bundled
+         -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
+         -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF
+         -DWITH_EXAMPLE_STORAGE_ENGINE=ON
+         -DWITH_FEDERATED_STORAGE_ENGINE=OFF
+         -DWITH_INNOBASE_STORAGE_ENGINE=OFF
+         -DWITH_PARTITION_STORAGE_ENGINE=OFF
+       ";
     fi;
-    echo -- BUILD=$BUILD  MAINTAINER_MODE=$MAINTAINER_MODE  CMAKE_OPT=\"$CMAKE_OPT\";
+    echo -- BUILD=$BUILD  MAINTAINER_MODE=$MAINTAINER_MODE  CMAKE_OPT=\"$CMAKE_OPT\"  ENV_VAR_CMAKE_OPT=\"$ENV_VAR_CMAKE_OPT\";
     cmake ..
       -DCMAKE_BUILD_TYPE=$BUILD
       -DMYSQL_MAINTAINER_MODE=$MAINTAINER_MODE
       -DBUILD_CONFIG=mysql_release
       -DFEATURE_SET=community
       -DENABLE_DTRACE=OFF
-      -DWITH_EXAMPLE_STORAGE_ENGINE=ON
       -DWITH_PAM=ON
       $CMAKE_OPT
+      $ENV_VAR_CMAKE_OPT
   - make -j2
   - ccache --show-stats
 

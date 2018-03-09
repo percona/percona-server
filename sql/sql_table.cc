@@ -2032,10 +2032,12 @@ err:
   }
 
 end:
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (old_part_info)
   {
     lpt->table->file->set_part_info(old_part_info, false);
   }
+#endif
   DBUG_RETURN(error);
 }
 
@@ -10058,7 +10060,7 @@ static bool check_engine(THD *thd, const char *db_name,
     !(create_info->db_type->partition_flags &&
     (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION));
 #else
-  #define check_compress_columns true
+  #define check_compressed_columns true
 #endif
 
   if (check_compressed_columns && alter_info->has_compressed_columns() &&

@@ -6386,11 +6386,9 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         /* QQQ We have to start a master transaction */
         // DBUG_PRINT("trans", ("starting transaction all "));
         uint32_t txn_begin_flags = toku_iso_to_txn_flag(toku_iso_level);
-#if 50614 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
         if (thd_tx_is_read_only(thd)) {
             txn_begin_flags |= DB_TXN_READ_ONLY;
         }
-#endif
         if ((error = txn_begin(db_env, NULL, &trx->all, txn_begin_flags, thd))) {
             goto cleanup;
         }

@@ -2,4 +2,3 @@ mvcc-19: tokutek
 mvcc-20: tokutek
 mvcc-27: tokutek
 storage_engine_default: tokudb is not the default storage engine
-tokudb_mrr : https://jira.percona.com/browse/TDB-135 : TokuDB 5.7 missing mrr implementation

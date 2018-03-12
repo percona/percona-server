@@ -4750,7 +4750,7 @@ int ha_tokudb::index_end() {
     invalidate_bulk_fetch();
     invalidate_icp();
     doing_bulk_fetch = false;
-    close_dsmrr();
+    ds_mrr.dsmrr_close();
     
     TOKUDB_HANDLER_DBUG_RETURN(0);
 }
@@ -6320,7 +6320,7 @@ int ha_tokudb::reset() {
     key_read = false;
     using_ignore = false;
     using_ignore_no_key = false;
-    reset_dsmrr();
+    ds_mrr.reset();
     invalidate_icp();
     TOKUDB_HANDLER_DBUG_RETURN(0);
 }
@@ -8914,22 +8914,6 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
     last_dup_key = primary_key;
 }
 
-void ha_tokudb::close_dsmrr() {
-#ifdef MARIADB_BASE_VERSION
-    ds_mrr.dsmrr_close();
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-    ds_mrr.dsmrr_close();
-#endif
-}
-
-void ha_tokudb::reset_dsmrr() {
-#ifdef MARIADB_BASE_VERSION
-    ds_mrr.dsmrr_close();
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-    ds_mrr.reset();
-#endif
-}
-
 // we cache the information so we can do filtering ourselves,
 // but as far as MySQL knows, we are not doing any filtering,
 // so if we happen to miss filtering a row that does not match
@@ -9011,15 +8995,11 @@ bool ha_tokudb::rpl_lookup_rows() {
 #include "ha_tokudb_alter_55.cc"
 #include "ha_tokudb_alter_56.cc"
 
-// mrr
-#ifdef MARIADB_BASE_VERSION
-#include  "ha_tokudb_mrr_maria.cc"
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-#include  "ha_tokudb_mrr_mysql.cc"
-#endif
-
 // key comparisons
 #include "hatoku_cmp.cc"
+
+// mrr
+#include "ha_tokudb_mrr_mysql.cc"
 
 // handlerton
 #include "hatoku_hton.cc"

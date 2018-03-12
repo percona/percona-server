@@ -35,6 +35,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "log.h"
 #include "sql_class.h"
 #include "sql_show.h"
+#include "item_cmpfunc.h"
 #include "discover.h"
 #include <binlog.h>
 #include "debug_sync.h"

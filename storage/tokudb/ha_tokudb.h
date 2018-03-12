@@ -1037,15 +1037,28 @@ private:
 #if TOKU_INCLUDE_WRITE_FRM_DATA
     int write_frm_data(const uchar *frm_data, size_t frm_len);
 #endif
-#if TOKU_INCLUDE_UPSERT
 private:
-    int fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds);
-    bool check_fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds);
-    int send_update_message(List<Item> &update_fields, List<Item> &update_values, Item *conds, DB_TXN *txn);
-    int upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
-    bool check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
-    int send_upsert_message(THD *thd, List<Item> &update_fields, List<Item> &update_values, DB_TXN *txn);
-#endif
+    MY_NODISCARD int fast_update(THD *thd,
+                                 List<Item> &update_fields,
+                                 List<Item> &update_values,
+                                 Item *conds);
+    MY_NODISCARD bool check_fast_update(THD *thd,
+                                        List<Item> &update_fields,
+                                        List<Item> &update_values,
+                                        Item *conds);
+    MY_NODISCARD int send_update_message(List<Item> &update_fields,
+                                         List<Item> &update_values,
+                                         Item *conds,
+                                         DB_TXN *txn);
+    MY_NODISCARD int upsert(THD *thd,
+                            List<Item> &update_fields,
+                            List<Item> &update_values);
+    MY_NODISCARD bool check_upsert(THD *thd,
+                                   List<Item> &update_fields,
+                                   List<Item> &update_values);
+    MY_NODISCARD int send_upsert_message(List<Item> &update_fields,
+                                         List<Item> &update_values,
+                                         DB_TXN *txn);
 public:
     // mysql sometimes retires a txn before a cursor that references the txn is closed.
     // for example, commit is sometimes called before index_end.  the following methods

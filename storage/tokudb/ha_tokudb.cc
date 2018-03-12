@@ -1640,7 +1640,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
 
 #if WITH_PARTITION_STORAGE_ENGINE
     // verify frm data for non-partitioned tables
-    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
+    if (table->part_info == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
         if (error)
             goto exit;
@@ -7386,7 +7386,7 @@ int ha_tokudb::create(
     }
 
 #if WITH_PARTITION_STORAGE_ENGINE
-    if (TOKU_PARTITION_WRITE_FRM_DATA || form->part_info == NULL) {
+    if (form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) {
             goto cleanup;
@@ -8991,9 +8991,8 @@ bool ha_tokudb::rpl_lookup_rows() {
 // fast updates
 #include "ha_tokudb_update.cc"
 
-// alter table code for various mysql distros
-#include "ha_tokudb_alter_55.cc"
-#include "ha_tokudb_alter_56.cc"
+// alter table
+#include "ha_tokudb_alter.cc"
 
 // key comparisons
 #include "hatoku_cmp.cc"

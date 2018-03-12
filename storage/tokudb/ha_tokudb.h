@@ -881,7 +881,6 @@ public:
     Item* idx_cond_push(uint keyno, class Item* idx_cond);
     void cancel_pushed_idx_cond();
 
-#if TOKU_INCLUDE_ALTER_56
  public:
     enum_alter_inplace_result check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     bool prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
@@ -900,15 +899,6 @@ public:
     int new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor);
 
  public:
-#endif
-#if TOKU_INCLUDE_ALTER_55
-public:
-    // Returns true of the 5.6 inplace alter table interface is used.
-    bool try_hot_alter_table();
-
-    // Used by the partition storage engine to provide new frm data for the table.
-    int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
-#endif
 
  private:
   int tokudb_add_index(TABLE* table_arg,

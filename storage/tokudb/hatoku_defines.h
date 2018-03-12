@@ -80,18 +80,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
 
-#ifdef MARIADB_BASE_VERSION
-// In MariaDB 5.3, thread progress reporting was introduced.
-// Only include that functionality if we're using maria 5.3 +
-#define HA_TOKUDB_HAS_THD_PROGRESS 1
-
-// MariaDB supports thdvar memalloc correctly
-#define TOKU_THDVAR_MEMALLOC_BUG 0
-#else
 // MySQL does not support thdvar memalloc correctly
 // see http://bugs.mysql.com/bug.php?id=71759
 #define TOKU_THDVAR_MEMALLOC_BUG 1
-#endif
 
 #if !defined(HA_CLUSTERING)
 #define HA_CLUSTERING 0
@@ -107,18 +98,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #if !defined(HA_OPTION_CREATE_FROM_ENGINE)
 #define HA_OPTION_CREATE_FROM_ENGINE 0
-#endif
-
-// In older (< 5.5) versions of MySQL and MariaDB, it is necessary to 
-// use a read/write lock on the key_file array in a table share, 
-// because table locks do not protect the race of some thread closing 
-// a table and another calling ha_tokudb::info()
-//
-// In version 5.5 and, a higher layer "metadata lock" was introduced
-// to synchronize threads that open, close, call info(), etc on tables.
-// In these versions, we don't need the key_file lock
-#if MYSQL_VERSION_ID < 50500
-#define HA_TOKUDB_NEEDS_KEY_FILE_LOCK
 #endif
 
 //

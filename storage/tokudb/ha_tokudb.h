@@ -782,11 +782,7 @@ public:
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
-#if MYSQL_VERSION_ID >= 100000
-    void start_bulk_insert(ha_rows rows, uint flags);
-#else
     void start_bulk_insert(ha_rows rows);
-#endif
     static int bulk_insert_poll(void* extra, float progress);
     static void loader_add_index_err(DB* db,
                                      int i,

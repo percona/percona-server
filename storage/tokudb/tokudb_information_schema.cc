@@ -89,11 +89,7 @@ int trx_callback(
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int trx_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
-#else
-int trx_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
 
@@ -136,13 +132,8 @@ st_mysql_plugin trx = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                      /* config options */
     0,                         /* flags */
-#endif
 };
 
 
@@ -224,11 +215,7 @@ int lock_waits_callback(
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int lock_waits_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
-#else
-int lock_waits_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
 
@@ -274,13 +261,8 @@ st_mysql_plugin lock_waits = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                       /* status variables */
     NULL,                       /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                       /* config options */
     0,                          /* flags */
-#endif
 };
 
 
@@ -367,11 +349,7 @@ int locks_callback(
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int locks_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
-#else
-int locks_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
 
@@ -414,13 +392,8 @@ st_mysql_plugin locks = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                       /* status variables */
     NULL,                       /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                       /* config options */
     0,                         /* flags */
-#endif
 };
 
 
@@ -510,11 +483,7 @@ cleanup:
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int file_map_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
-#else
-int file_map_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -557,13 +526,8 @@ st_mysql_plugin file_map = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                       /* status variables */
     NULL,                       /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                       /* config options */
     0,                          /* flags */
-#endif
 };
 
 
@@ -715,11 +679,7 @@ cleanup:
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int fractal_tree_info_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
-#else
-int fractal_tree_info_fill_table(THD* thd, TABLE_LIST* tables, COND* cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -765,13 +725,8 @@ st_mysql_plugin fractal_tree_info = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                           /* status variables */
     NULL,                           /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                           /* config options */
     0,                              /* flags */
-#endif
 };
 
 
@@ -1006,17 +961,10 @@ cleanup:
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int fractal_tree_block_map_fill_table(
     THD* thd,
     TABLE_LIST* tables,
     Item* cond) {
-#else
-int fractal_tree_block_map_fill_table(
-    THD* thd,
-    TABLE_LIST* tables,
-    COND* cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -1062,13 +1010,8 @@ st_mysql_plugin fractal_tree_block_map = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                      /* config options */
     0,                         /* flags */
-#endif
 };
 
 
@@ -1151,11 +1094,7 @@ int report_background_job_status(TABLE *table, THD *thd) {
     return error;
 }
 
-#if MYSQL_VERSION_ID >= 50600
 int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
-#else
-int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
-#endif
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -1198,13 +1137,8 @@ st_mysql_plugin background_job_status = {
     TOKUDB_PLUGIN_VERSION,
     NULL,                      /* status variables */
     NULL,                      /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-    tokudb::sysvars::version,
-    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
     NULL,                      /* config options */
     0,                         /* flags */
-#endif
 };
 
 } // namespace information_schema

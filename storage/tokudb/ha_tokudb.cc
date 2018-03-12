@@ -459,19 +459,6 @@ static inline bool do_ignore_flag_optimization(
     return do_opt;
 }
 
-#if TOKU_INCLUDE_EXTENDED_KEYS
-static inline uint get_ext_key_parts(const KEY *key) {
-#if (50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
-    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
-    return key->actual_key_parts;
-#elif defined(MARIADB_BASE_VERSION)
-    return key->ext_key_parts;
-#else
-#error
-#endif
-}
-#endif
-
 ulonglong ha_tokudb::table_flags() const {
     return int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 }
@@ -2086,13 +2073,8 @@ int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
     size_t frm_len = 0;
     int error = 0;
 
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-    error = table_share->read_frm_image((const uchar**)&frm_data,&frm_len);
-    if (error) { goto cleanup; }
-#else    
     error = readfrm(frm_name,&frm_data,&frm_len);
     if (error) { goto cleanup; }
-#endif
     
     error = write_to_status(db,hatoku_frm_data,frm_data,(uint)frm_len, txn);
     if (error) { goto cleanup; }
@@ -2126,17 +2108,10 @@ int ha_tokudb::verify_frm_data(const char* frm_name, DB_TXN* txn) {
     HA_METADATA_KEY curr_key = hatoku_frm_data;
 
     // get the frm data from MySQL
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-    error = table_share->read_frm_image((const uchar**)&mysql_frm_data,&mysql_frm_len);
-    if (error) { 
-        goto cleanup;
-    }
-#else
     error = readfrm(frm_name,&mysql_frm_data,&mysql_frm_len);
     if (error) { 
         goto cleanup; 
     }
-#endif
 
     key.data = &curr_key;
     key.size = sizeof(curr_key);
@@ -2632,12 +2607,10 @@ uint32_t ha_tokudb::place_key_into_mysql_buff(
             }
             record[null_offset] &= ~key_part->field->null_bit;
         }
-#if !defined(MARIADB_BASE_VERSION)
         //
         // HOPEFULLY TEMPORARY
         //
         assert_always(table->s->db_low_byte_first);
-#endif
         pos = unpack_toku_key_field(
             record + field_offset(key_part->field, table),
             pos,
@@ -2703,12 +2676,10 @@ uint32_t ha_tokudb::place_key_into_dbt_buff(
             }
             *curr_buff++ = NONNULL_COL_VAL;        // Store NOT NULL marker
         }
-#if !defined(MARIADB_BASE_VERSION)
         //
         // HOPEFULLY TEMPORARY
         //
         assert_always(table->s->db_low_byte_first);
-#endif
         //
         // accessing field_offset(key_part->field) instead off key_part->offset
         // because key_part->offset is SET INCORRECTLY in add_index
@@ -2913,9 +2884,7 @@ DBT* ha_tokudb::pack_key(
             *buff++ = NONNULL_COL_VAL;
             offset = 1;         // Data is at key_ptr+1
         }
-#if !defined(MARIADB_BASE_VERSION)
         assert_always(table->s->db_low_byte_first);
-#endif
         buff = pack_key_toku_key_field(
             buff,
             (uchar *) key_ptr + offset,
@@ -2985,9 +2954,7 @@ DBT* ha_tokudb::pack_ext_key(
             *buff++ = NONNULL_COL_VAL;
             offset = 1;         // Data is at key_ptr+1
         }
-#if !defined(MARIADB_BASE_VERSION)
         assert_always(table->s->db_low_byte_first);
-#endif
         buff = pack_key_toku_key_field(
             buff,
             (uchar *) key_ptr + offset,
@@ -3001,7 +2968,11 @@ DBT* ha_tokudb::pack_ext_key(
 
     if (key_length > 0) {
         assert_always(key_part == end);
-        end = key_info->key_part + get_ext_key_parts(key_info);
+#if defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
+        end = key_info->key_part + key_info->actual_key_parts;
+#else
+        end = key_info->key_part;
+#endif // defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
 
         // pack PK in order of PK key parts
         for (uint pk_index = 0;
@@ -3298,13 +3269,8 @@ cleanup:
     return ret_val;
 }
 
-#if MYSQL_VERSION_ID >= 100000
-void ha_tokudb::start_bulk_insert(ha_rows rows, uint flags) {
-    TOKUDB_HANDLER_DBUG_ENTER("%llu %u txn %p", (unsigned long long) rows, flags, transaction);
-#else
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
     TOKUDB_HANDLER_DBUG_ENTER("%llu txn %p", (unsigned long long) rows, transaction);
-#endif
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     delay_updating_ai_metadata = true;
@@ -4006,11 +3972,6 @@ int ha_tokudb::write_row(uchar * record) {
     // auto timestamp
     //
     ha_statistic_increment(&SSV::ha_write_count);
-#if MYSQL_VERSION_ID < 50600
-    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT) {
-        table->timestamp_field->set_time();
-    }
-#endif
     if (table->next_number_field && record == table->record[0]) {
         error = update_auto_increment();
         if (error)
@@ -4216,11 +4177,6 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     memset((void *) &old_prim_row, 0, sizeof(old_prim_row));
 
     ha_statistic_increment(&SSV::ha_update_count);
-#if MYSQL_VERSION_ID < 50600
-    if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE) {
-        table->timestamp_field->set_time();
-    }
-#endif
     //
     // check to see if some value for the auto increment column that is bigger
     // than anything else til now is being used. If so, update the metadata to reflect it
@@ -5233,11 +5189,7 @@ enum icp_result ha_tokudb::toku_handler_index_cond_check(
     enum icp_result res;
     if (end_range) {
         int cmp;
-#ifdef MARIADB_BASE_VERSION
-        cmp = compare_key2(end_range);
-#else
         cmp = compare_key_icp(end_range);
-#endif
         if (cmp > 0) {
             return ICP_OUT_OF_RANGE;
         }
@@ -7257,14 +7209,6 @@ int ha_tokudb::create(
     THD* thd = ha_thd();
 
     memset(&kc_info, 0, sizeof(kc_info));
-
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100999
-    // TokuDB does not support discover_table_names() and writes no files
-    // in the database directory, so automatic filename-based
-    // discover_table_names() doesn't work either. So, it must force .frm
-    // file to disk.
-    form->s->write_frm_image();
-#endif
 
 #if TOKU_INCLUDE_OPTION_STRUCTS
     const tokudb::sysvars::format_t row_format =

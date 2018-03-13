@@ -2140,12 +2140,16 @@ static Sys_var_ulong Sys_net_write_timeout(
        ON_UPDATE(fix_net_write_timeout));
 
 // Sync kill_idle_transaction and innodb_kill_idle_transaction values
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 extern long srv_kill_idle_transaction;
+#endif
 
 static bool fix_kill_idle_transaction(sys_var *self, THD *thd,
                                       enum_var_type type)
 {
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   srv_kill_idle_transaction= kill_idle_transaction_timeout;
+#endif
   return false;
 }
 

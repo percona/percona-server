@@ -4050,6 +4050,7 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
   Auxiliary function which allows to check if freshly created .FRM
   file for table can be opened.
@@ -4093,6 +4094,7 @@ static bool check_if_created_table_can_be_opened(THD *thd,
   (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
   return result;
 }
+#endif
 
 
 /*

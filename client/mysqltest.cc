@@ -10321,10 +10321,10 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->typelib.type_names=(const char **)
 	  my_malloc(((PC_MALLOC-MALLOC_OVERHEAD)/
 		     (sizeof(char *)+sizeof(*pa->flag))*
-		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME))))
+		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME | MY_ZEROFILL))))
       DBUG_RETURN(-1);
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
-				     MYF(MY_WME))))
+				     MYF(MY_WME | MY_ZEROFILL))))
     {
       my_free(pa->typelib.type_names);
       DBUG_RETURN (-1);

@@ -34,7 +34,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 pfs_key_t ha_tokudb_mutex_key;
 pfs_key_t num_DBs_lock_key;
 
-HASH TOKUDB_SHARE::_open_tables;
+std::unordered_map<std::string, TOKUDB_SHARE*> TOKUDB_SHARE::_open_tables;
 tokudb::thread::mutex_t TOKUDB_SHARE::_open_tables_mutex;
 
 static const char* ha_tokudb_exts[] = {
@@ -139,30 +139,18 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
 }
 
 
-uchar* TOKUDB_SHARE::hash_get_key(
-    TOKUDB_SHARE* share,
-    size_t* length,
-    TOKUDB_UNUSED(my_bool not_used)) {
-
-    *length = share->_full_table_name.length();
-    return (uchar *) share->_full_table_name.c_ptr();
-}
-void TOKUDB_SHARE::hash_free_element(TOKUDB_SHARE* share) {
-    share->destroy();
-    delete share;
-}
 void TOKUDB_SHARE::static_init() {
-    my_hash_init(
-        &_open_tables,
-        table_alias_charset,
-        32,
-        0,
-        0,
-        (my_hash_get_key)hash_get_key,
-        (my_hash_free_key)hash_free_element, 0);
+    assert_always(_open_tables.size() == 0);
 }
 void TOKUDB_SHARE::static_destroy() {
-    my_hash_free(&_open_tables);
+    for (auto it = _open_tables.cbegin(); it != _open_tables.cend(); it++) {
+        TOKUDB_TRACE("_open_tables %s %p", it->first.c_str(), it->second);
+        TOKUDB_SHARE* share = it->second;
+        share->destroy();
+        delete share;
+    }
+    _open_tables.clear();
+    assert_always(_open_tables.size() == 0);
 }
 const char* TOKUDB_SHARE::get_state_string(share_state_t state) {
     static const char* state_string[] = {
@@ -217,12 +205,14 @@ TOKUDB_SHARE* TOKUDB_SHARE::get_share(const char* table_name,
                                       TABLE_SHARE* table_share,
                                       THR_LOCK_DATA* data,
                                       bool create_new) {
+    std::string find_table_name(table_name);
     mutex_t_lock(_open_tables_mutex);
-    int error = 0;
-    uint length = (uint)strlen(table_name);
-    TOKUDB_SHARE* share = (TOKUDB_SHARE*)my_hash_search(
-        &_open_tables, (uchar*)table_name, length);
-
+    auto it = _open_tables.find(find_table_name);
+    TOKUDB_SHARE *share = nullptr;
+    if (it != _open_tables.end()) {
+        share = it->second;
+        assert_always(strcmp(table_name, share->full_table_name()) == 0);
+    }
     TOKUDB_TRACE_FOR_FLAGS(
         TOKUDB_DEBUG_SHARE,
         "existing share[%s] %s:share[%p]",
@@ -240,14 +230,7 @@ TOKUDB_SHARE* TOKUDB_SHARE::get_share(const char* table_name,
 
         share->init(table_name);
 
-        error = my_hash_insert(&_open_tables, (uchar*)share);
-        if (error) {
-            free_key_and_col_info(&share->kc_info);
-            share->destroy();
-            tokudb::memory::free((uchar*)share);
-            share = NULL;
-            goto exit;
-        }
+        _open_tables.insert({find_table_name, share});
     }
 
     share->addref();
@@ -268,7 +251,8 @@ void TOKUDB_SHARE::drop_share(TOKUDB_SHARE* share) {
                            share->_use_count);
 
     mutex_t_lock(_open_tables_mutex);
-    my_hash_delete(&_open_tables, (uchar*)share);
+    size_t n = _open_tables.erase(std::string(share->full_table_name()));
+    assert_always(n == 1);
     mutex_t_unlock(_open_tables_mutex);
 }
 TOKUDB_SHARE::share_state_t TOKUDB_SHARE::addref() {

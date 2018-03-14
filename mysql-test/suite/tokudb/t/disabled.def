@@ -26,3 +26,4 @@ fast_upsert_int : https://tokutek.atlassian.net/browse/DB-871
 fast_upsert_key : https://tokutek.atlassian.net/browse/DB-871
 fast_upsert_sqlmode : https://tokutek.atlassian.net/browse/DB-871
 fast_upsert_values : https://tokutek.atlassian.net/browse/DB-871
+tokudb_mrr : https://jira.percona.com/browse/TDB-135 : TokuDB 5.7 missing mrr implementation

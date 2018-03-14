@@ -60,6 +60,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "misc.h"
 #endif
 
+#include <string>
+#include <unordered_map>
+
 #include "db.h"
 #include "toku_os.h"
 #include "toku_time.h"

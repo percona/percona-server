@@ -1060,6 +1060,7 @@ private:
     int do_optimize(THD *thd);
     int map_to_handler_error(int error);
 
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 public:
     void rpl_before_write_rows();
     void rpl_after_write_rows();
@@ -1072,6 +1073,7 @@ private:
     bool in_rpl_write_rows;
     bool in_rpl_delete_rows;
     bool in_rpl_update_rows;
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 };
 
 #if TOKU_INCLUDE_OPTION_STRUCTS

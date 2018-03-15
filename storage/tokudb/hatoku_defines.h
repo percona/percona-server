@@ -91,6 +91,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_RFR 1
 #else
 #error
 #endif
@@ -117,6 +118,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #endif
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
+#define TOKU_INCLUDE_RFR 1
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 // mysql 5.5 and mariadb 5.5

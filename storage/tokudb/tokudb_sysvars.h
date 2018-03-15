@@ -132,11 +132,13 @@ my_bool     prelock_empty(THD* thd);
 uint        read_block_size(THD* thd);
 uint        read_buf_size(THD* thd);
 row_format_t row_format(THD *thd);
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 my_bool     rpl_check_readonly(THD* thd);
 my_bool     rpl_lookup_rows(THD* thd);
 ulonglong   rpl_lookup_rows_delay(THD* thd);
 my_bool     rpl_unique_checks(THD* thd);
 ulonglong   rpl_unique_checks_delay(THD* thd);
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 my_bool     support_xa(THD* thd);
 
 extern st_mysql_sys_var* system_variables[];

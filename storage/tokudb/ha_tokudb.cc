@@ -1245,7 +1245,9 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     tokudb_active_index = MAX_KEY;
     invalidate_icp();
     trx_handler_list.data = this;
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
     in_rpl_write_rows = in_rpl_delete_rows = in_rpl_update_rows = false;
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
     TOKUDB_HANDLER_DBUG_VOID_RETURN;
 }
 
@@ -3659,7 +3661,8 @@ cleanup:
     return error;
 }
 
-static void maybe_do_unique_checks_delay(THD *thd) {
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
+static void maybe_do_unique_checks_delay_fn(THD *thd) {
     if (thd->slave_thread) {
         uint64_t delay_ms = tokudb::sysvars::rpl_unique_checks_delay(thd);
         if (delay_ms)
@@ -3667,11 +3670,19 @@ static void maybe_do_unique_checks_delay(THD *thd) {
     }
 }
 
+#define maybe_do_unique_checks_delay(__thd) \
+    (maybe_do_unique_checks_delay_fn(__thd))
+
+#define maybe_do_unique_checks_delay_if_flags_set( \
+    __thd, __flags_set, __flags_check)             \
+    { if (((__flags_set) & DB_OPFLAGS_MASK) ==     \
+         (__flags_check)) maybe_do_unique_checks_delay_fn(__thd); }
+
 static bool need_read_only(THD *thd) {
     return opt_readonly || !tokudb::sysvars::rpl_check_readonly(thd);
 }
 
-static bool do_unique_checks(THD *thd, bool do_rpl_event) {
+static bool do_unique_checks_fn(THD *thd, bool do_rpl_event) {
     if (do_rpl_event &&
         thd->slave_thread &&
         need_read_only(thd) &&
@@ -3681,6 +3692,26 @@ static bool do_unique_checks(THD *thd, bool do_rpl_event) {
         return !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
     }
 }
+
+#define do_unique_checks(__thd, __flags) \
+    (do_unique_checks_fn(__thd, __flags))
+
+#else
+
+#define maybe_do_unique_checks_delay(__thd) ((void)0)
+
+#define maybe_do_unique_checks_delay_if_flags_set( \
+    __thd, __flags_set, __flags_check)             \
+    ((void)0)
+
+static bool do_unique_checks_fn(THD *thd) {
+    return !thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS);
+}
+
+#define do_unique_checks(__thd, _flags) \
+    (do_unique_checks_fn(__thd))
+
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 
 int ha_tokudb::do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd) {
     int error = 0;
@@ -3876,8 +3907,7 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     set_main_dict_put_flags(thd, true, &put_flags);
 
     // for test, make unique checks have a very long duration
-    if ((put_flags & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)
-        maybe_do_unique_checks_delay(thd);
+    maybe_do_unique_checks_delay_if_flags_set(thd, put_flags, DB_NOOVERWRITE);
 
     error = share->file->put(share->file, txn, pk_key, pk_val, put_flags);
     if (error) {
@@ -3896,8 +3926,7 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
     uint32_t flags = mult_put_flags[primary_key];
 
     // for test, make unique checks have a very long duration
-    if ((flags & DB_OPFLAGS_MASK) == DB_NOOVERWRITE)
-        maybe_do_unique_checks_delay(thd);
+    maybe_do_unique_checks_delay_if_flags_set(thd, flags, DB_NOOVERWRITE);
 
     // the insert ignore optimization uses DB_NOOVERWRITE_NO_ERROR, 
     // which is not allowed with env->put_multiple. 
@@ -5909,14 +5938,16 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     ha_statistic_increment(&SSV::ha_read_rnd_count);
     tokudb_active_index = MAX_KEY;
 
-    // test rpl slave by inducing a delay before the point query
     THD *thd = ha_thd();
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
+    // test rpl slave by inducing a delay before the point query
     if (thd->slave_thread && (in_rpl_delete_rows || in_rpl_update_rows)) {
         DBUG_EXECUTE_IF("tokudb_crash_if_rpl_looks_up_row", DBUG_ASSERT(0););
         uint64_t delay_ms = tokudb::sysvars::rpl_lookup_rows_delay(thd);
         if (delay_ms)
             usleep(delay_ms * 1000);
     }
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 
     info.ha = this;
     info.buf = buf;
@@ -8921,6 +8952,7 @@ void ha_tokudb::remove_from_trx_handler_list() {
     trx->handlers = list_delete(trx->handlers, &trx_handler_list);
 }
 
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 void ha_tokudb::rpl_before_write_rows() {
     in_rpl_write_rows = true;
 }
@@ -8951,6 +8983,7 @@ bool ha_tokudb::rpl_lookup_rows() {
     else
         return tokudb::sysvars::rpl_lookup_rows(ha_thd());
 }
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 
 // table admin 
 #include "ha_tokudb_admin.cc"

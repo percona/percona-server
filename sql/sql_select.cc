@@ -276,7 +276,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 #if defined(__linux__)
   pid_t pid;
 #endif
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 #if defined(__linux__)
   if(lex->disable_flashcache && cachedev_fd > 0)
@@ -14814,7 +14814,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
 static int
 join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 {
-  reg1 uint i;
+  uint i;
   uint length, blobs;
   size_t size;
   CACHE_FIELD *copy,**blob_ptr;
@@ -17159,7 +17159,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
-        register uint length;
+        uint length;
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),
 					    system_charset_info));
@@ -17179,7 +17179,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       else if (tab->type == JT_NEXT)
       {
 	KEY *key_info=table->key_info+ tab->index;
-        register uint length;
+        uint length;
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),cs));
         length= longlong2str(key_info->key_length, keylen_str_buf, 10) - 

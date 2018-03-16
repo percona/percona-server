@@ -5832,7 +5832,7 @@ build_template(
 		if (UNIV_LIKELY(templ_type == ROW_MYSQL_REC_FIELDS)) {
 			/* Decide which columns we should fetch
 			and which we can skip. */
-			register const ibool	index_contains_field =
+			const ibool	index_contains_field =
 				dict_index_contains_col_or_prefix(index, i);
 
 			if (!index_contains_field && prebuilt->read_just_key) {

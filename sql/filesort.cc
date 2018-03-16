@@ -424,7 +424,7 @@ static size_t char_array_size(uint fields, uint length)
 static uchar **make_char_array(uchar **old_pos, uint fields,
                                uint length, myf my_flag)
 {
-  register uchar **pos;
+  uchar **pos;
   uchar *char_pos;
   DBUG_ENTER("make_char_array");
 
@@ -737,7 +737,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
 */
 
 static int
-write_keys(SORTPARAM *param, register uchar **sort_keys, uint count,
+write_keys(SORTPARAM *param, uchar **sort_keys, uint count,
            IO_CACHE *buffpek_pointers, IO_CACHE *tempfile)
 {
   size_t sort_length, rec_length;
@@ -800,12 +800,12 @@ static inline void store_length(uchar *to, uint length, uint pack_length)
 
 /** Make a sort-key from record. */
 
-static void make_sortkey(register SORTPARAM *param,
-			 register uchar *to, uchar *ref_pos)
+static void make_sortkey(SORTPARAM *param,
+			 uchar *to, uchar *ref_pos)
 {
-  reg3 Field *field;
-  reg1 SORT_FIELD *sort_field;
-  reg5 uint length;
+  Field *field;
+  SORT_FIELD *sort_field;
+  uint length;
 
   for (sort_field=param->local_sortorder ;
        sort_field != param->end ;
@@ -1043,7 +1043,7 @@ static void make_sortkey(register SORTPARAM *param,
 
 static void register_used_fields(SORTPARAM *param)
 {
-  reg1 SORT_FIELD *sort_field;
+  SORT_FIELD *sort_field;
   TABLE *table=param->sort_form;
   MY_BITMAP *bitmap= table->read_set;
 
@@ -1108,7 +1108,7 @@ static bool save_index(SORTPARAM *param, uchar **sort_keys, uint count,
 int merge_many_buff(SORTPARAM *param, uchar *sort_buffer,
 		    BUFFPEK *buffpek, uint *maxbuffer, IO_CACHE *t_file)
 {
-  register uint i;
+  uint i;
   IO_CACHE t_file2,*from_file,*to_file,*temp;
   BUFFPEK *lastbuff;
   DBUG_ENTER("merge_many_buff");
@@ -1166,7 +1166,7 @@ cleanup:
 uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 		    uint rec_length)
 {
-  register uint count;
+  uint count;
   uint length;
 
   if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
@@ -1418,7 +1418,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
     }
     else
     {
-      register uchar *end;
+      uchar *end;
       strpos= buffpek->key+offset;
       for (end= strpos+buffpek->mem_count*rec_length ;
            strpos != end ;
@@ -1492,7 +1492,7 @@ static uint
 sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
            bool *multi_byte_charset)
 {
-  reg2 uint length;
+  uint length;
   CHARSET_INFO *cs;
   *multi_byte_charset= 0;
 

@@ -40,49 +40,55 @@ matrix:
       env: VERSION=5.0  BUILD=RelWithDebInfo
     # 5
     - compiler: clang
-      env: VERSION=5.0  BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=6.0  BUILD=RelWithDebInfo
     # 6
-    - compiler: gcc
-      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
+    - compiler: clang
+      env: VERSION=6.0  BUILD=RelWithDebInfo  INVERTED=ON
     # 7
     - compiler: gcc
-      env: VERSION=7    BUILD=RelWithDebInfo
+      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
     # 8
     - compiler: gcc
-      env: VERSION=6    BUILD=RelWithDebInfo
+      env: VERSION=7    BUILD=RelWithDebInfo
     # 9
     - compiler: gcc
-      env: VERSION=5    BUILD=RelWithDebInfo
+      env: VERSION=6    BUILD=RelWithDebInfo
     # 10
     - compiler: gcc
-      env: VERSION=4.8  BUILD=RelWithDebInfo
+      env: VERSION=5    BUILD=RelWithDebInfo
     # 11
+    - compiler: gcc
+      env: VERSION=4.8  BUILD=RelWithDebInfo
+    # 12
     - compiler: clang
       os: osx
       osx_image: xcode9.2
       env:              BUILD=Debug           MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON
-    # 12
-    - compiler: clang
-      env: VERSION=4.0  BUILD=Debug
     # 13
     - compiler: clang
-      env: VERSION=5.0  BUILD=Debug
+      env: VERSION=4.0  BUILD=Debug
     # 14
     - compiler: clang
-      env: VERSION=5.0  BUILD=Debug           INVERTED=ON
+      env: VERSION=5.0  BUILD=Debug
     # 15
-    - compiler: gcc
-      env: VERSION=7    BUILD=Debug           INVERTED=ON
+    - compiler: clang
+      env: VERSION=6.0  BUILD=Debug
     # 16
-    - compiler: gcc
-      env: VERSION=7    BUILD=Debug
+    - compiler: clang
+      env: VERSION=6.0  BUILD=Debug           INVERTED=ON
     # 17
     - compiler: gcc
-      env: VERSION=6    BUILD=Debug
+      env: VERSION=7    BUILD=Debug           INVERTED=ON
     # 18
     - compiler: gcc
-      env: VERSION=5    BUILD=Debug
+      env: VERSION=7    BUILD=Debug
     # 19
+    - compiler: gcc
+      env: VERSION=6    BUILD=Debug
+    # 20
+    - compiler: gcc
+      env: VERSION=5    BUILD=Debug
+    # 21
     - compiler: gcc
       env: VERSION=4.8  BUILD=Debug
 
@@ -106,6 +112,7 @@ script:
        PACKAGES="llvm-$VERSION-dev $PACKAGES";
        curl -sSL "http://apt.llvm.org/llvm-snapshot.gpg.key" | sudo -E apt-key add -;
        echo "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-$VERSION main" | sudo tee -a /etc/apt/sources.list > /dev/null;
+       sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test;
     fi;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]] && [[ "$CC" == "gcc" ]]; then
        sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";

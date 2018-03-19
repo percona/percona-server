@@ -36,7 +36,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "sql_class.h"
 #include "sql_show.h"
 #include "item_cmpfunc.h"
-#include "discover.h"
 #include <binlog.h>
 #include "debug_sync.h"
 
@@ -79,6 +78,11 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
+#define TOKU_INCLUDE_DISCOVER_FRM 1
+
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#include "discover.h"
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM 
 
 // MySQL does not support thdvar memalloc correctly
 // see http://bugs.mysql.com/bug.php?id=71759

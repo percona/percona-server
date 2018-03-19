@@ -852,9 +852,8 @@ static MYSQL_THDVAR_ULONGLONG(
     ~0ULL,
     1);
 
-#if TOKU_INCLUDE_UPSERT
 static MYSQL_THDVAR_BOOL(
-    disable_slow_update,
+    enable_fast_update,
     PLUGIN_VAR_THDLOCAL,
     "disable slow update",
     NULL,
@@ -862,13 +861,12 @@ static MYSQL_THDVAR_BOOL(
     false);
 
 static MYSQL_THDVAR_BOOL(
-    disable_slow_upsert,
+    enable_fast_upsert,
     PLUGIN_VAR_THDLOCAL,
     "disable slow upsert",
     NULL,
     NULL,
     false);
-#endif
 
 static const char* deprecated_tokudb_support_xa =
     "Using tokudb_support_xa is deprecated and the "
@@ -1037,12 +1035,8 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(rpl_lookup_rows_delay),
     MYSQL_SYSVAR(rpl_unique_checks),
     MYSQL_SYSVAR(rpl_unique_checks_delay),
-
-#if TOKU_INCLUDE_UPSERT
-    MYSQL_SYSVAR(disable_slow_update),
-    MYSQL_SYSVAR(disable_slow_upsert),
-#endif
-
+    MYSQL_SYSVAR(enable_fast_update),
+    MYSQL_SYSVAR(enable_fast_upsert),
     MYSQL_SYSVAR(support_xa),
 
 #if TOKUDB_DEBUG
@@ -1097,14 +1091,13 @@ my_bool disable_prefetching(THD* thd) {
 my_bool disable_slow_alter(THD* thd) {
     return (THDVAR(thd, disable_slow_alter) != 0);
 }
-#if TOKU_INCLUDE_UPSERT
-my_bool disable_slow_update(THD* thd) {
-    return (THDVAR(thd, disable_slow_update) != 0);
+my_bool enable_fast_update(THD* thd) {
+    return (THDVAR(thd, enable_fast_update) != 0);
 }
-my_bool disable_slow_upsert(THD* thd) {
-    return (THDVAR(thd, disable_slow_upsert) != 0);
+my_bool enable_fast_upsert(THD* thd) {
+    return (THDVAR(thd, enable_fast_upsert) != 0);
 }
-#endif
+
 empty_scan_mode_t empty_scan(THD* thd) {
     return (empty_scan_mode_t)THDVAR(thd, empty_scan);
 }

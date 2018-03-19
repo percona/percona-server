@@ -1082,7 +1082,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
 #endif
-      error= write_record(thd, table, &info, &update);
+    {
+      error= table->file->ha_upsert(thd,
+                                    update_fields,
+                                    update_values);
+      if (error == ENOTSUP)
+        error= write_record(thd, table, &info, &update);
+    }
     if (error)
       break;
     thd->get_stmt_da()->inc_current_row_for_warning();

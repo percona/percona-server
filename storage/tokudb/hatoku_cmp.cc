@@ -52,13 +52,9 @@ static bool field_valid_for_tokudb_table(Field* field) {
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_FLOAT:
-#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
-    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
-    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
-#endif
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_STRING:
@@ -183,14 +179,6 @@ static TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
-#ifdef MARIADB_BASE_VERSION
-        // case to handle fractional seconds in MariaDB
-        // 
-        if (field->key_type() == HA_KEYTYPE_BINARY) {
-            ret_val = toku_type_fixbinary;
-            goto exit;
-        }
-#endif
         ret_val = toku_type_int;
         goto exit;
     case MYSQL_TYPE_DOUBLE:
@@ -199,13 +187,9 @@ static TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_FLOAT:
         ret_val = toku_type_float;
         goto exit;
-#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
-    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
-    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
-#endif
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_BIT:
         ret_val = toku_type_fixbinary;
@@ -689,11 +673,7 @@ static inline uchar* pack_toku_blob(
     uint32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
     uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
     uint32_t max_num_bytes,
-#if MYSQL_VERSION_ID >= 50600
     const CHARSET_INFO* charset
-#else
-    CHARSET_INFO* charset
-#endif
     ) 
 {
     uint32_t length = 0;
@@ -845,11 +825,7 @@ static inline uchar* pack_toku_varstring(
     uint32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
     uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
     uint32_t max_num_bytes,
-#if MYSQL_VERSION_ID >= 50600
     const CHARSET_INFO *charset
-#else
-    CHARSET_INFO* charset
-#endif
     ) 
 {
     uint32_t length = 0;
@@ -3124,13 +3100,9 @@ static bool fields_are_same_type(Field* a, Field* b) {
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIMESTAMP:
-#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
-    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799) || \
-    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_TIME2:
-#endif
         // length
         if (a->pack_length() != b->pack_length()) {
             retval = false;

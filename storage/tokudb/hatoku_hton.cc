@@ -98,13 +98,6 @@ static int tokudb_release_savepoint(
     handlerton* hton,
     THD* thd,
     void* savepoint);
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-static int tokudb_discover_table(handlerton *hton, THD* thd, TABLE_SHARE *ts);
-static int tokudb_discover_table_existence(
-    handlerton* hton,
-    const char* db,
-    const char* name);
-#endif
 static int tokudb_discover(
     handlerton* hton,
     THD* thd,
@@ -140,14 +133,10 @@ struct tokudb_map_pair {
     THD* thd;
     char *last_lock_timeout;
 };
-#if 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
-static int tokudb_map_pair_cmp(void *custom_arg, const void *a, const void *b) {
-#else
 static int tokudb_map_pair_cmp(
     const void* custom_arg,
     const void* a,
     const void* b) {
-#endif
 
     const struct tokudb_map_pair *a_key = (const struct tokudb_map_pair *) a;
     const struct tokudb_map_pair *b_key = (const struct tokudb_map_pair *) b;
@@ -380,14 +369,9 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->savepoint_rollback = tokudb_rollback_to_savepoint;
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
 
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-    tokudb_hton->discover_table = tokudb_discover_table;
-    tokudb_hton->discover_table_existence = tokudb_discover_table_existence;
-#else
     tokudb_hton->discover = tokudb_discover;
 #if defined(MYSQL_HANDLERTON_INCLUDE_DISCOVER2)
     tokudb_hton->discover2 = tokudb_discover2;
-#endif
 #endif
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
@@ -883,23 +867,14 @@ static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
     }
 }
 
-#if MYSQL_VERSION_ID >= 50600
 extern "C" enum durability_properties thd_get_durability_property(
     const MYSQL_THD thd);
-#endif
 
 // Determine if an fsync is used when a transaction is committed.  
 static bool tokudb_sync_on_commit(THD* thd, tokudb_trx_data* trx, DB_TXN* txn) {
-#if MYSQL_VERSION_ID >= 50600
     // Check the client durability property which is set during 2PC
     if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
         return false;
-#endif
-#if defined(MARIADB_BASE_VERSION)
-    // Check is the txn is prepared and the binlog is open
-    if (txn->is_prepared(txn) && mysql_bin_log.is_open())
-        return false;
-#endif
     if (tokudb::sysvars::fsync_log_period > 0)
         return false;
     return tokudb::sysvars::commit_sync(thd) != 0;
@@ -1186,39 +1161,6 @@ static int tokudb_release_savepoint(
     TOKUDB_DBUG_RETURN(error);
 }
 
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-static int tokudb_discover_table(handlerton *hton, THD* thd, TABLE_SHARE *ts) {
-    uchar *frmblob = 0;
-    size_t frmlen;
-    int res= tokudb_discover3(
-        hton,
-        thd,
-        ts->db.str,
-        ts->table_name.str,
-        ts->normalized_path.str,
-        &frmblob,
-        &frmlen);
-    if (!res)
-        res= ts->init_from_binary_frm_image(thd, true, frmblob, frmlen);
-    
-    my_free(frmblob);
-    // discover_table should returns HA_ERR_NO_SUCH_TABLE for "not exists"
-    return res == ENOENT ? HA_ERR_NO_SUCH_TABLE : res;
-}
-
-static int tokudb_discover_table_existence(
-    handlerton* hton,
-    const char* db,
-    const char* name) {
-
-    uchar *frmblob = 0;
-    size_t frmlen;
-    int res= tokudb_discover(hton, current_thd, db, name, &frmblob, &frmlen);
-    my_free(frmblob);
-    return res != ENOENT;
-}
-#endif
-
 static int tokudb_discover(
     handlerton* hton,
     THD* thd,
@@ -1268,23 +1210,9 @@ static int tokudb_discover3(
     DBT value = {};
     bool do_commit = false;
 
-#if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-    tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, tokudb_hton);
-    if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE &&
-        trx &&
-        trx->sub_sp_level) {
-        do_commit = false;
-        txn = trx->sub_sp_level;
-    } else {
-        error = txn_begin(db_env, 0, &txn, 0, thd);
-        if (error) { goto cleanup; }
-        do_commit = true;
-    }
-#else
     error = txn_begin(db_env, 0, &txn, 0, thd);
     if (error) { goto cleanup; }
     do_commit = true;
-#endif
 
     error = open_status_dictionary(&status_db, path, txn);
     if (error) { goto cleanup; }
@@ -1344,19 +1272,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     const int bufsiz = 1024;
     char buf[bufsiz];
 
-#if MYSQL_VERSION_ID < 50500
-    {
-        sys_var* version = intern_find_sys_var("version", 0, false);
-        snprintf(
-            buf,
-            bufsiz,
-            "%s",
-            version->value_ptr(thd,
-            (enum_var_type)0,
-            (LEX_STRING*)NULL));
-        STATPRINT("Version", buf);
-    }
-#endif
     error = db_env->get_engine_status_num_rows (db_env, &max_rows);
     TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
     error = db_env->get_engine_status(
@@ -1930,11 +1845,7 @@ static void tokudb_backtrace(void) {
 }
 #endif
 
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-maria_declare_plugin(tokudb) 
-#else
 mysql_declare_plugin(tokudb) 
-#endif
     {
         MYSQL_STORAGE_ENGINE_PLUGIN,
         &tokudb_storage_engine,
@@ -1947,13 +1858,8 @@ mysql_declare_plugin(tokudb)
         TOKUDB_PLUGIN_VERSION,
         toku_global_status_variables_export,  /* status variables */
         tokudb::sysvars::system_variables,   /* system variables */
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-        tokudb::sysvars::version,
-        MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
-#else
         NULL,                      /* config options */
         0,                         /* flags */
-#endif
     },
     tokudb::information_schema::trx,
     tokudb::information_schema::lock_waits,
@@ -1962,8 +1868,4 @@ mysql_declare_plugin(tokudb)
     tokudb::information_schema::fractal_tree_info,
     tokudb::information_schema::fractal_tree_block_map,
     tokudb::information_schema::background_job_status
-#ifdef MARIA_PLUGIN_INTERFACE_VERSION
-maria_declare_plugin_end;
-#else
 mysql_declare_plugin_end;
-#endif

@@ -560,14 +560,6 @@ static bool clustering_keys_exist(TABLE *table) {
     return false;
 }
 
-static bool is_strict_mode(THD* thd) {
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-    return thd->is_strict_mode();
-#else
-    return tokudb_test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
-#endif
-}
-
 // Check if an update operation can be handled by this storage engine.
 // Return true if it can.
 bool ha_tokudb::check_fast_update(
@@ -580,7 +572,7 @@ bool ha_tokudb::check_fast_update(
         return false;
 
     // avoid strict mode arithmetic overflow issues
-    if (is_strict_mode(thd))
+    if (thd->is_strict_mode())
         return false;
 
     // no triggers
@@ -1002,7 +994,7 @@ bool ha_tokudb::check_upsert(
         return false;
 
     // avoid strict mode arithmetic overflow issues
-    if (is_strict_mode(thd))
+    if (thd->is_strict_mode())
         return false;
 
     // no triggers

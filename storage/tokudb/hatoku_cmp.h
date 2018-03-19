@@ -202,12 +202,7 @@ static inline const uchar* unpack_toku_field_blob(uchar *to_mysql, const uchar* 
 }
 
 static inline uint get_null_offset(TABLE* table, Field* field) {
-#if (50606 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
-    (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
     return field->null_offset(table->record[0]);
-#else
-    return (uint) ((uchar*) field->null_ptr - (uchar*) table->record[0]);
-#endif
 }
 
 typedef enum {

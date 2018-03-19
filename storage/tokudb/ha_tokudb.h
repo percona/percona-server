@@ -438,13 +438,8 @@ private:
     THR_LOCK_DATA lock;         ///< MySQL lock
     TOKUDB_SHARE *share;        ///< Shared lock info
 
-#ifdef MARIADB_BASE_VERSION
-    // MariaDB version of MRR
-    DsMrr_impl ds_mrr;
-#elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     // MySQL version of MRR
     DsMrr_impl ds_mrr;
-#endif
 
     // For ICP. Cache our own copies
     Item* toku_pushed_idx_cond;
@@ -787,11 +782,7 @@ public:
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
-#if MYSQL_VERSION_ID >= 100000
-    void start_bulk_insert(ha_rows rows, uint flags);
-#else
     void start_bulk_insert(ha_rows rows);
-#endif
     static int bulk_insert_poll(void* extra, float progress);
     static void loader_add_index_err(DB* db,
                                      int i,
@@ -873,31 +864,7 @@ public:
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
-#ifdef MARIADB_BASE_VERSION
-
-// MariaDB MRR introduced in 5.5, API changed in MariaDB 10.0
-#if MYSQL_VERSION_ID >= 100000
-#define COST_VECT Cost_estimate
-#endif
-
-    int multi_range_read_init(RANGE_SEQ_IF* seq,
-                              void* seq_init_param,
-                              uint n_ranges, uint mode,
-                              HANDLER_BUFFER *buf);
-    int multi_range_read_next(range_id_t *range_info);
-    ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
-                                        void *seq_init_param, 
-                                        uint n_ranges, uint *bufsz,
-                                        uint *flags, COST_VECT *cost);
-    ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                  uint key_parts, uint *bufsz, 
-                                  uint *flags, COST_VECT *cost);
-    int multi_range_read_explain_info(uint mrr_mode, char *str, size_t size);
-
-#else
-
 // MySQL  MRR introduced in 5.6
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                               uint n_ranges, uint mode, HANDLER_BUFFER *buf);
     int multi_range_read_next(char **range_info);
@@ -907,14 +874,9 @@ public:
                                         uint *flags, Cost_estimate *cost);
     ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                   uint *bufsz, uint *flags, Cost_estimate *cost);
-#endif
-
-#endif
-
     Item* idx_cond_push(uint keyno, class Item* idx_cond);
     void cancel_pushed_idx_cond();
 
-#if TOKU_INCLUDE_ALTER_56
  public:
     enum_alter_inplace_result check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     bool prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
@@ -933,15 +895,6 @@ public:
     int new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor);
 
  public:
-#endif
-#if TOKU_INCLUDE_ALTER_55
-public:
-    // Returns true of the 5.6 inplace alter table interface is used.
-    bool try_hot_alter_table();
-
-    // Used by the partition storage engine to provide new frm data for the table.
-    int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
-#endif
 
  private:
   int tokudb_add_index(TABLE* table_arg,
@@ -1024,8 +977,6 @@ private:
     void invalidate_bulk_fetch();
     void invalidate_icp();
     int delete_all_rows_internal();
-    void close_dsmrr();
-    void reset_dsmrr();
     
 #if TOKU_INCLUDE_WRITE_FRM_DATA
     int write_frm_data(const uchar *frm_data, size_t frm_len);

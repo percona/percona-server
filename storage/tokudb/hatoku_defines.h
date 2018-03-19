@@ -36,7 +36,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "sql_class.h"
 #include "sql_show.h"
 #include "item_cmpfunc.h"
-#include "discover.h"
 #include <binlog.h>
 #include "debug_sync.h"
 
@@ -87,6 +86,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_OPTION_STRUCTS 1
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
 #define TOKU_CLUSTERING_IS_COVERING 1
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 
 #elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 // mysql 5.7 with no patches
@@ -95,6 +95,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 #else
 #error
 #endif
@@ -121,6 +122,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #endif
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
 // mysql 5.5 and mariadb 5.5
@@ -139,11 +141,17 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING 1
 #endif
 #define TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL 0
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 
 #else
 #error
 
 #endif
+
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#include "discover.h"
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+
 
 #ifdef MARIADB_BASE_VERSION
 // In MariaDB 5.3, thread progress reporting was introduced.

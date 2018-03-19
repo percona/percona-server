@@ -1625,7 +1625,8 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
         goto exit;
     }
 
-#if WITH_PARTITION_STORAGE_ENGINE
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     // verify frm data for non-partitioned tables
     if (table->part_info == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
@@ -1641,7 +1642,8 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
     error = verify_frm_data(table->s->path.str, txn);
     if (error)
         goto exit;
-#endif
+#endif // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
     error =
         initialize_key_and_col_info(
@@ -2066,6 +2068,7 @@ cleanup:
     return error;
 }
 
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
     TOKUDB_HANDLER_DBUG_ENTER("%p %p %s", db, txn, frm_name);
 
@@ -2142,6 +2145,7 @@ cleanup:
     tokudb::memory::free(stored_frm.data);
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
 //
 // Updates status.tokudb with a new max value used for the auto increment column
@@ -7329,7 +7333,8 @@ int ha_tokudb::create(
         goto cleanup;
     }
 
-#if WITH_PARTITION_STORAGE_ENGINE
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     if (form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) {
@@ -7341,7 +7346,8 @@ int ha_tokudb::create(
     if (error) {
         goto cleanup;
     }
-#endif
+#endif // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
     error = allocate_key_and_col_info(form->s, &kc_info);
     if (error) {

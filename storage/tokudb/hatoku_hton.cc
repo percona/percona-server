@@ -98,6 +98,7 @@ static int tokudb_release_savepoint(
     handlerton* hton,
     THD* thd,
     void* savepoint);
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 static int tokudb_discover(
     handlerton* hton,
     THD* thd,
@@ -121,6 +122,7 @@ static int tokudb_discover3(
     char* path,
     uchar** frmblob,
     size_t* frmlen);
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 handlerton* tokudb_hton;
 
 const char* ha_tokudb_ext = ".tokudb";
@@ -369,10 +371,12 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->savepoint_rollback = tokudb_rollback_to_savepoint;
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
 
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
     tokudb_hton->discover = tokudb_discover;
 #if defined(MYSQL_HANDLERTON_INCLUDE_DISCOVER2)
     tokudb_hton->discover2 = tokudb_discover2;
-#endif
+#endif // MYSQL_HANDLERTON_INCLUDE_DISCOVER2
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
     tokudb_hton->prepare = tokudb_xa_prepare;
@@ -1161,6 +1165,7 @@ static int tokudb_release_savepoint(
     TOKUDB_DBUG_RETURN(error);
 }
 
+#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 static int tokudb_discover(
     handlerton* hton,
     THD* thd,
@@ -1244,6 +1249,7 @@ cleanup:
     }
     TOKUDB_DBUG_RETURN(error);
 }
+#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
 
 #define STATPRINT(legend, val) if (legend != NULL && val != NULL) \

@@ -806,6 +806,7 @@ static MYSQL_THDVAR_ENUM(
     SRV_ROW_FORMAT_ZLIB,
     &tokudb_row_format_typelib);
 
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 static MYSQL_THDVAR_BOOL(
     rpl_check_readonly,
     PLUGIN_VAR_THDLOCAL,
@@ -851,6 +852,7 @@ static MYSQL_THDVAR_ULONGLONG(
     0,
     ~0ULL,
     1);
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 
 static MYSQL_THDVAR_BOOL(
     enable_fast_update,
@@ -1030,11 +1032,13 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(read_block_size),
     MYSQL_SYSVAR(read_buf_size),
     MYSQL_SYSVAR(row_format),
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
     MYSQL_SYSVAR(rpl_check_readonly),
     MYSQL_SYSVAR(rpl_lookup_rows),
     MYSQL_SYSVAR(rpl_lookup_rows_delay),
     MYSQL_SYSVAR(rpl_unique_checks),
     MYSQL_SYSVAR(rpl_unique_checks_delay),
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
     MYSQL_SYSVAR(enable_fast_update),
     MYSQL_SYSVAR(enable_fast_upsert),
     MYSQL_SYSVAR(support_xa),
@@ -1149,6 +1153,7 @@ uint read_buf_size(THD* thd) {
 row_format_t row_format(THD *thd) {
     return (row_format_t) THDVAR(thd, row_format);
 }
+#if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 my_bool rpl_check_readonly(THD* thd) {
     return (THDVAR(thd, rpl_check_readonly) != 0);
 }
@@ -1164,6 +1169,7 @@ my_bool rpl_unique_checks(THD* thd) {
 ulonglong rpl_unique_checks_delay(THD* thd) {
     return THDVAR(thd, rpl_unique_checks_delay);
 }
+#endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 my_bool support_xa(THD* thd) {
     return (THDVAR(thd, support_xa) != 0);
 }

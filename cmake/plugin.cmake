@@ -100,8 +100,13 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET(WITH_${plugin} 1)
   ELSEIF(WITHOUT_${plugin}_STORAGE_ENGINE OR WITH_NONE OR ${plugin}_DISABLED)
     SET(WITHOUT_${plugin} 1)
-    SET(WITH_${plugin}_STORAGE_ENGINE 0)
     SET(WITH_${plugin} 0)
+    IF(WITH_${plugin}_STORAGE_ENGINE)
+      # if there is a cached/global WITH_${plugin}_STORAGE_ENGINE=ON then overwrite it
+      SET(WITH_${plugin}_STORAGE_ENGINE 0 CACHE BOOL "Don't build ${plugin}" FORCE)
+    ELSE()
+      SET(WITH_${plugin}_STORAGE_ENGINE 0)
+    ENDIF()
   ENDIF()
   
   

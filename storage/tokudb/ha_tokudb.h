@@ -984,7 +984,7 @@ class ha_tokudb : public handler {
    public:
     // delete all rows from the table
     // effect: all dictionaries, including the main and indexes, should be empty
-    int discard_or_import_tablespace(my_bool discard);
+    int discard_or_import_tablespace(bool discard);
     int truncate();
     int delete_all_rows();
     void extract_hidden_primary_key(uint keynr, DBT const* found_key);

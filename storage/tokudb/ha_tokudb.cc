@@ -7284,7 +7284,7 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::discard_or_import_tablespace(TOKUDB_UNUSED(my_bool discard)) {
+int ha_tokudb::discard_or_import_tablespace(TOKUDB_UNUSED(bool discard)) {
     /*
     if (discard) {
         my_errno=HA_ERR_WRONG_COMMAND;

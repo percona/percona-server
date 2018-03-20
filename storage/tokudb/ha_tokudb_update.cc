@@ -494,7 +494,7 @@ static bool check_point_update(Item* conds, TABLE* table) {
     // use a bitmap of the primary key fields to keep track of those fields
     // that are covered by the where conditions
     MY_BITMAP pk_fields;
-    if (bitmap_init(&pk_fields, NULL, table->s->fields, FALSE))  // 1 -> failure
+    if (bitmap_init(&pk_fields, NULL, table->s->fields, false))  // 1 -> failure
         return false;
     KEY* key = &table->s->key_info[table->s->primary_key];
     for (uint i = 0; i < key->user_defined_key_parts; i++)

@@ -62,58 +62,58 @@ namespace tokudb {
         extern ulonglong cache_size;
         extern uint cachetable_pool_threads;
         extern int cardinality_scale_percent;
-        extern my_bool checkpoint_on_flush_logs;
+        extern bool checkpoint_on_flush_logs;
         extern uint checkpoint_pool_threads;
         extern uint checkpointing_period;
         extern ulong cleaner_iterations;
         extern ulong cleaner_period;
         extern uint client_pool_threads;
-        extern my_bool compress_buffers_before_eviction;
+        extern bool compress_buffers_before_eviction;
         extern char* data_dir;
         extern ulong debug;
-        extern my_bool directio;
-        extern my_bool enable_partial_eviction;
+        extern bool directio;
+        extern bool enable_partial_eviction;
         extern int fs_reserve_percent;
         extern uint fsync_log_period;
         extern char* log_dir;
         extern ulonglong max_lock_memory;
         extern uint read_status_frequency;
-        extern my_bool strip_frm_data;
+        extern bool strip_frm_data;
         extern char* tmp_dir;
         extern uint write_status_frequency;
-        extern my_bool dir_per_db;
+        extern bool dir_per_db;
         extern char* version;
-        extern my_bool check_jemalloc;
+        extern bool check_jemalloc;
 
 #if defined(TOKUDB_DEBUG)
         // used to control background job manager
-        extern my_bool debug_pause_background_job_manager;
+        extern bool debug_pause_background_job_manager;
 #endif  // defined(TOKUDB_DEBUG)
 
         // session/thread
-        my_bool alter_print_error(THD* thd);
+        bool alter_print_error(THD* thd);
         double analyze_delete_fraction(THD* thd);
-        my_bool analyze_in_background(THD* thd);
+        bool analyze_in_background(THD* thd);
         analyze_mode_t analyze_mode(THD* thd);
         ulonglong analyze_throttle(THD* thd);
         ulonglong analyze_time(THD* thd);
         ulonglong auto_analyze(THD* thd);
         uint block_size(THD* thd);
-        my_bool bulk_fetch(THD* thd);
-        my_bool commit_sync(THD* thd);
-        my_bool create_index_online(THD* thd);
-        my_bool disable_hot_alter(THD* thd);
-        my_bool disable_prefetching(THD* thd);
-        my_bool disable_slow_alter(THD* thd);
+        bool bulk_fetch(THD* thd);
+        bool commit_sync(THD* thd);
+        bool create_index_online(THD* thd);
+        bool disable_hot_alter(THD* thd);
+        bool disable_prefetching(THD* thd);
+        bool disable_slow_alter(THD* thd);
 #if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-        my_bool enable_fast_update(THD* thd);
-        my_bool enable_fast_upsert(THD* thd);
+        bool enable_fast_update(THD* thd);
+        bool enable_fast_upsert(THD* thd);
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
         empty_scan_mode_t empty_scan(THD* thd);
         uint fanout(THD* thd);
-        my_bool hide_default_row_format(THD* thd);
+        bool hide_default_row_format(THD* thd);
         ulonglong killed_time(THD* thd);
-        my_bool load_save_space(THD* thd);
+        bool load_save_space(THD* thd);
         char* last_lock_timeout(THD* thd);
         void set_last_lock_timeout(THD* thd, char* last);
         ulonglong loader_memory_size(THD* thd);
@@ -123,19 +123,19 @@ namespace tokudb {
         const char* optimize_index_name(THD* thd);
         ulonglong optimize_throttle(THD* thd);
         void set_pk_insert_mode(THD* thd, uint mode);
-        my_bool prelock_empty(THD* thd);
+        bool prelock_empty(THD* thd);
         uint read_block_size(THD* thd);
         uint read_buf_size(THD* thd);
         row_format_t row_format(THD* thd);
 #if defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-        my_bool rpl_check_readonly(THD* thd);
-        my_bool rpl_lookup_rows(THD* thd);
+        bool rpl_check_readonly(THD* thd);
+        bool rpl_lookup_rows(THD* thd);
         ulonglong rpl_lookup_rows_delay(THD* thd);
-        my_bool rpl_unique_checks(THD* thd);
+        bool rpl_unique_checks(THD* thd);
         ulonglong rpl_unique_checks_delay(THD* thd);
 #endif  // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-        my_bool support_xa(THD* thd);
-        void set_support_xa(THD* thd, my_bool xa);
+        bool support_xa(THD* thd);
+        void set_support_xa(THD* thd, bool xa);
 
         extern st_mysql_sys_var* system_variables[];
 

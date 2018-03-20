@@ -345,10 +345,12 @@ void TOKUDB_SHARE::update_row_count(THD* thd,
             // analyze_standard will unlock _mutex regardless of success/failure
             int ret = analyze_standard(thd, NULL);
             if (TOKUDB_UNLIKELY(ret == 0 && tokudb::sysvars::debug > 0)) {
-                sql_print_information("%s - succeeded.", msg);
+                LogPluginErrMsg(INFORMATION_LEVEL, 0, "%s - succeeded.", msg);
             } else if (TOKUDB_UNLIKELY(ret != 0)) {
-                sql_print_information(
-                    "%s - failed, likely a job already running.", msg);
+                LogPluginErrMsg(INFORMATION_LEVEL,
+                                0,
+                                "%s - failed, likely a job already running.",
+                                msg);
             }
         }
     }
@@ -4775,13 +4777,17 @@ int ha_tokudb::read_full_row(uchar* buf) {
         } else if (error == DB_NOTFOUND) {
             error = HA_ERR_CRASHED;
             if (tokudb_active_index < share->_keys) {
-                sql_print_error(
+                LogPluginErrMsg(
+                    ERROR_LEVEL,
+                    0,
                     "ha_tokudb::read_full_row on table %s cound not locate "
                     "record in PK that matches record found in key %s",
                     share->full_table_name(),
                     share->_key_descriptors[tokudb_active_index]._name);
             } else {
-                sql_print_error(
+                LogPluginErrMsg(
+                    ERROR_LEVEL,
+                    0,
                     "ha_tokudb::read_full_row on table %s cound not locate "
                     "record in PK that matches record found in key %d",
                     share->full_table_name(),
@@ -7146,13 +7152,15 @@ int ha_tokudb::create(const char* name,
     for (uint32_t i = 0; i < form->s->fields; i++) {
         Field* field = table_share->field[i];
         if (!field_valid_for_tokudb_table(field)) {
-            sql_print_error(
-                "Table %s has an invalid field %s, that was created "
-                "with an old version of MySQL. This field is no longer supported. "
-                "This is probably due to an alter table engine=TokuDB. To load this "
-                "table, do a dump and load",
-                name,
-                field->field_name);
+            LogPluginErrMsg(ERROR_LEVEL,
+                            0,
+                            "Table %s has an invalid field %s, that was "
+                            "created with an old version of MySQL. This field "
+                            "is no longer supported. This is probably due to "
+                            "an alter table engine=TokuDB. To load this "
+                            "table, do a dump and load",
+                            name,
+                            field->field_name);
             error = HA_ERR_UNSUPPORTED;
             goto cleanup;
         }
@@ -7513,7 +7521,9 @@ int ha_tokudb::delete_table(const char* name) {
     if (TOKUDB_LIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) ==
                       0) &&
         error == DB_LOCK_NOTGRANTED) {
-        sql_print_error(
+        LogPluginErrMsg(
+            ERROR_LEVEL,
+            0,
             "Could not delete table %s because another transaction has "
             "accessed the table. To drop the table, make sure no "
             "transactions touch the table.",
@@ -7573,18 +7583,21 @@ int ha_tokudb::rename_table(const char* from, const char* to) {
     int error;
     bool to_db_dir_exist = tokudb_check_db_dir_exist_from_table_name(to);
     if (!to_db_dir_exist) {
-        sql_print_error(
-            "Could not rename table from %s to %s because "
-            "destination db does not exist",
-            from,
-            to);
+        LogPluginErrMsg(ERROR_LEVEL,
+                        0,
+                        "Could not rename table from %s to %s because "
+                        "destination db does not exist",
+                        from,
+                        to);
         error = HA_ERR_DEST_SCHEMA_NOT_EXIST;
     } else {
         error = delete_or_rename_table(from, to, false);
         if (TOKUDB_LIKELY(
                 TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) == 0) &&
             error == DB_LOCK_NOTGRANTED) {
-            sql_print_error(
+            LogPluginErrMsg(
+                ERROR_LEVEL,
+                0,
                 "Could not rename table from %s to %s because another transaction "
                 "has accessed the table. To rename the table, make sure no "
                 "transactions touch the table.",
@@ -8337,7 +8350,9 @@ cleanup:
     if (TOKUDB_LIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) ==
                       0) &&
         error == DB_LOCK_NOTGRANTED) {
-        sql_print_error(
+        LogPluginErrMsg(
+            ERROR_LEVEL,
+            0,
             "Could not add indexes to table %s because another transaction has "
             "accessed the table. To add indexes, make sure no transactions "
             "touch the table.",
@@ -8454,7 +8469,9 @@ cleanup:
     if (TOKUDB_LIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) ==
                       0) &&
         error == DB_LOCK_NOTGRANTED) {
-        sql_print_error(
+        LogPluginErrMsg(
+            ERROR_LEVEL,
+            0,
             "Could not drop indexes from table %s because another transaction "
             "has accessed the table. To drop indexes, make sure no "
             "transactions touch the table.",
@@ -8678,7 +8695,9 @@ cleanup:
     if (TOKUDB_LIKELY(TOKUDB_DEBUG_FLAGS(TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS) ==
                       0) &&
         error == DB_LOCK_NOTGRANTED) {
-        sql_print_error(
+        LogPluginErrMsg(
+            ERROR_LEVEL,
+            0,
             "Could not truncate table %s because another transaction has "
             "accessed the table. To truncate the table, make sure no "
             "transactions touch the table.",

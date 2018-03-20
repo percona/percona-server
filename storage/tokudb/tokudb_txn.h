@@ -120,8 +120,11 @@ inline void commit_txn(DB_TXN* txn, uint32_t flags) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "commit txn %p", txn);
     int r = txn->commit(txn, flags);
     if (r != 0) {
-        sql_print_error(
-            "tried committing transaction %p and got error code %d", txn, r);
+        LogPluginErrMsg(ERROR_LEVEL,
+                        0,
+                        "Tried committing transaction %p and got error code %d",
+                        txn,
+                        r);
     }
     assert_always(r == 0);
 }
@@ -130,8 +133,11 @@ inline void abort_txn(DB_TXN* txn) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_TXN, "abort txn %p", txn);
     int r = txn->abort(txn);
     if (r != 0) {
-        sql_print_error(
-            "tried aborting transaction %p and got error code %d", txn, r);
+        LogPluginErrMsg(ERROR_LEVEL,
+                        0,
+                        "Tried aborting transaction %p and got error code %d",
+                        txn,
+                        r);
     }
     assert_always(r == 0);
 }

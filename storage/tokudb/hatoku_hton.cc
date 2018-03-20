@@ -53,6 +53,10 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } * SP_INFO, SP_INFO_T;
 
+static SERVICE_TYPE(registry) * reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) * log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) * log_bs = nullptr;
+
 static handler* tokudb_create_handler(handlerton* hton,
                                       TABLE_SHARE* table,
                                       MEM_ROOT* mem_root);
@@ -207,52 +211,21 @@ static TOKU_ENGINE_STATUS_ROW_S* toku_global_status_rows = NULL;
 static void handle_ydb_error(int error) {
     switch (error) {
         case TOKUDB_HUGE_PAGES_ENABLED:
-            sql_print_error(
-                "************************************************************");
-            sql_print_error(
-                "                                                            ");
-            sql_print_error(
-                "                        @@@@@@@@@@@                         ");
-            sql_print_error(
-                "                      @@'         '@@                       ");
-            sql_print_error(
-                "                     @@    _     _  @@                      ");
-            sql_print_error(
-                "                     |    (.)   (.)  |                      ");
-            sql_print_error(
-                "                     |             ` |                      ");
-            sql_print_error(
-                "                     |        >    ' |                      ");
-            sql_print_error(
-                "                     |     .----.    |                      ");
-            sql_print_error(
-                "                     ..   |.----.|  ..                      ");
-            sql_print_error(
-                "                      ..  '      ' ..                       ");
-            sql_print_error(
-                "                        .._______,.                         ");
-            sql_print_error(
-                "                                                            ");
-            sql_print_error(
-                "%s will not run with transparent huge pages enabled.        ",
-                tokudb_hton_name);
-            sql_print_error(
-                "Please disable them to continue.                            ");
-            sql_print_error(
-                "(echo never > /sys/kernel/mm/transparent_hugepage/enabled)  ");
-            sql_print_error(
-                "                                                            ");
-            sql_print_error(
-                "************************************************************");
+            LogPluginErrMsg(ERROR_LEVEL,
+                            0,
+                            "Can not run with transparent huge pages enabled. "
+                            "Please disable them to continue. (echo never > "
+                            "/sys/kernel/mm/transparent_hugepage/enabled)");
             break;
         case TOKUDB_UPGRADE_FAILURE:
-            sql_print_error(
-                "%s upgrade failed. A clean shutdown of the previous version is "
-                "required.",
-                tokudb_hton_name);
+            LogPluginErrMsg(
+                ERROR_LEVEL,
+                0,
+                "Upgrade failed. A clean shutdown of the previous version is "
+                "required.");
             break;
         default:
-            sql_print_error("%s unknown error %d", tokudb_hton_name, error);
+            LogPluginErrMsg(ERROR_LEVEL, 0, "Unknown error %d", error);
             break;
     }
 }
@@ -274,7 +247,13 @@ static int tokudb_init_func(void* p) {
     // 3938: lock the handlerton's initialized status flag for writing
     rwlock_t_lock_write(tokudb_hton_initialized_lock);
 
-#ifdef HAVE_PSI_INTERFACE
+    // Initialize error logging service.
+    if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) {
+        tokudb_hton_initialized_lock.unlock();
+        DBUG_RETURN(true);
+    }
+
+#if defined(HAVE_PSI_INTERFACE)
     /* Register TokuDB mutex keys with MySQL performance schema */
     int count;
 
@@ -295,9 +274,9 @@ static int tokudb_init_func(void* p) {
         mallctl_type mallctl_func;
         mallctl_func = (mallctl_type)dlsym(RTLD_DEFAULT, "mallctl");
         if (!mallctl_func) {
-            sql_print_error(
-                "%s is not initialized because jemalloc is not loaded",
-                tokudb_hton_name);
+            LogPluginErrMsg(ERROR_LEVEL,
+                            0,
+                            "Not initialized because jemalloc is not loaded");
             goto error;
         }
         char* ver;
@@ -305,17 +284,17 @@ static int tokudb_init_func(void* p) {
         mallctl_func("version", &ver, &len, NULL, 0);
         /* jemalloc 2.2.5 crashes mysql-test */
         if (strcmp(ver, "2.3.") < 0) {
-            sql_print_error(
-                "%s is not initialized because jemalloc is older than 2.3.0",
-                tokudb_hton_name);
+            LogPluginErrMsg(
+                ERROR_LEVEL,
+                0,
+                "Not initialized because jemalloc is older than 2.3.0");
             goto error;
         }
     }
 
     r = tokudb_set_product_name();
     if (r) {
-        sql_print_error(
-            "%s can not set product name error %d", tokudb_hton_name, r);
+        LogPluginErrMsg(ERROR_LEVEL, 0, "Can not set product name error %d", r);
         goto error;
     }
 
@@ -602,6 +581,8 @@ error:
         db_env = 0;
     }
 
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+
     // 3938: failed to initialized, drop the flag and lock
     tokudb_hton_initialized = 0;
     tokudb_hton_initialized_lock.unlock();
@@ -616,6 +597,7 @@ static int tokudb_done_func(TOKUDB_UNUSED(void* p)) {
     toku_global_status_rows = NULL;
     tokudb_map_mutex.deinit();
     toku_ydb_destroy();
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -675,9 +657,10 @@ int tokudb_end(TOKUDB_UNUSED(handlerton* hton),
         error = db_env->close(db_env,
                               total_prepared > 0 ? TOKUFT_DIRTY_SHUTDOWN : 0);
         if (error != 0 && total_prepared > 0) {
-            sql_print_error(
-                "%s: %ld prepared txns still live, please shutdown, error %d",
-                tokudb_hton_name,
+            LogPluginErrMsg(
+                ERROR_LEVEL,
+                0,
+                "%ld prepared txns still live, please shutdown, error %d",
                 total_prepared,
                 error);
         } else
@@ -782,11 +765,11 @@ static void commit_txn_with_progress(DB_TXN* txn, uint32_t flags, THD* thd) {
     info.thd = thd;
     int r = txn->commit_with_progress(txn, flags, txn_progress_func, &info);
     if (r != 0) {
-        sql_print_error(
-            "%s: tried committing transaction %p and got error code %d",
-            tokudb_hton_name,
-            txn,
-            r);
+        LogPluginErrMsg(ERROR_LEVEL,
+                        0,
+                        "Tried committing transaction %p and got error code %d",
+                        txn,
+                        r);
     }
     assert_always(r == 0);
     thd_proc_info(thd, orig_proc_info);
@@ -798,11 +781,11 @@ static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
     info.thd = thd;
     int r = txn->abort_with_progress(txn, txn_progress_func, &info);
     if (r != 0) {
-        sql_print_error(
-            "%s: tried aborting transaction %p and got error code %d",
-            tokudb_hton_name,
-            txn,
-            r);
+        LogPluginErrMsg(ERROR_LEVEL,
+                        0,
+                        "Tried aborting transaction %p and got error code %d",
+                        txn,
+                        r);
     }
     assert_always(r == 0);
     thd_proc_info(thd, orig_proc_info);
@@ -1370,7 +1353,7 @@ static bool tokudb_show_status(TOKUDB_UNUSED(handlerton* hton),
 static void tokudb_print_error(TOKUDB_UNUSED(const DB_ENV* db_env),
                                const char* db_errpfx,
                                const char* buffer) {
-    sql_print_error("%s: %s", db_errpfx, buffer);
+    LogPluginErrMsg(ERROR_LEVEL, 0, "%s: %s", db_errpfx, buffer);
 }
 
 static void tokudb_cleanup_log_files(void) {
@@ -1541,11 +1524,11 @@ static void tokudb_lock_timeout_callback(DB* db,
         }
         // dump to stderr
         if (lock_timeout_debug & 2) {
-            sql_print_error(
-                "%s: lock timeout %s", tokudb_hton_name, log_str.c_ptr());
+            LogPluginErrMsg(ERROR_LEVEL, 0, "Lock timeout %s", log_str.c_ptr());
             LEX_CSTRING qs = thd->query();
-            sql_print_error("%s: requesting_thread_id:%" PRIu64 " q:%.*s",
-                            tokudb_hton_name,
+            LogPluginErrMsg(ERROR_LEVEL,
+                            0,
+                            "Requesting_thread_id:%" PRIu64 " q:%.*s",
                             static_cast<uint64_t>(mysql_thread_id),
                             (int)qs.length,
                             qs.str);

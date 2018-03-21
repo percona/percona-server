@@ -1144,8 +1144,11 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
 }
 
 // Prepare for the alter operations
-bool ha_tokudb::prepare_inplace_alter_table(TOKUDB_UNUSED(TABLE* altered_table),
-                                            Alter_inplace_info* ha_alter_info) {
+bool ha_tokudb::prepare_inplace_alter_table(
+    TOKUDB_UNUSED(TABLE* altered_table),
+    Alter_inplace_info* ha_alter_info,
+    TOKUDB_UNUSED(const dd::Table* old_table_ref),
+    TOKUDB_UNUSED(dd::Table* new_table_ref)) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     tokudb_alter_ctx* ctx =
         static_cast<tokudb_alter_ctx*>(ha_alter_info->handler_ctx);
@@ -1156,8 +1159,11 @@ bool ha_tokudb::prepare_inplace_alter_table(TOKUDB_UNUSED(TABLE* altered_table),
 }
 
 // Execute the alter operations.
-bool ha_tokudb::inplace_alter_table(TABLE* altered_table,
-                                    Alter_inplace_info* ha_alter_info) {
+bool ha_tokudb::inplace_alter_table(
+    TABLE* altered_table,
+    Alter_inplace_info* ha_alter_info,
+    TOKUDB_UNUSED(const dd::Table* old_table_ref),
+    TOKUDB_UNUSED(dd::Table* new_table_ref)) {
     TOKUDB_HANDLER_DBUG_ENTER("");
 
     int error = 0;
@@ -1449,7 +1455,9 @@ bool ha_tokudb::commit_inplace_alter_table(
     TOKUDB_UNUSED(TABLE* altered_table),
 #endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
     Alter_inplace_info* ha_alter_info,
-    bool commit) {
+    bool commit,
+    TOKUDB_UNUSED(const dd::Table* old_table_def),
+    TOKUDB_UNUSED(dd::Table* new_table_def)) {
 
     TOKUDB_HANDLER_DBUG_ENTER("");
 

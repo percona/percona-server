@@ -44,8 +44,6 @@ pfs_key_t num_DBs_lock_key;
 std::unordered_map<std::string, TOKUDB_SHARE*> TOKUDB_SHARE::_open_tables;
 tokudb::thread::mutex_t TOKUDB_SHARE::_open_tables_mutex;
 
-static const char* ha_tokudb_exts[] = {ha_tokudb_ext, NullS};
-
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
@@ -399,16 +397,6 @@ void TOKUDB_SHARE::set_cardinality_counts_in_table(TABLE* table) {
     }
 
 const char* ha_tokudb::table_type() const { return tokudb_hton_name; }
-
-const char* ha_tokudb::index_type(TOKUDB_UNUSED(uint inx)) { return "BTREE"; }
-
-/*
- *  returns NULL terminated file extension string
- */
-const char** ha_tokudb::bas_ext() const {
-    TOKUDB_HANDLER_DBUG_ENTER("");
-    DBUG_RETURN(ha_tokudb_exts);
-}
 
 static inline bool is_insert_ignore(THD* thd) {
     //
@@ -1705,7 +1693,10 @@ exit:
 //      0 on success
 //      1 on error
 //
-int ha_tokudb::open(const char* name, int mode, uint test_if_locked) {
+int ha_tokudb::open(const char* name,
+                    int mode,
+                    uint test_if_locked,
+                    TOKUDB_UNUSED(const dd::Table* table_def)) {
     TOKUDB_HANDLER_DBUG_ENTER("%s %o %u", name, mode, test_if_locked);
     THD* thd = ha_thd();
 
@@ -7097,7 +7088,8 @@ cleanup:
 //
 int ha_tokudb::create(const char* name,
                       TABLE* form,
-                      HA_CREATE_INFO* create_info) {
+                      HA_CREATE_INFO* create_info,
+                      TOKUDB_UNUSED(dd::Table* table_def)) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", name);
 
     int error;
@@ -7292,7 +7284,9 @@ cleanup:
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
-int ha_tokudb::discard_or_import_tablespace(TOKUDB_UNUSED(bool discard)) {
+int ha_tokudb::discard_or_import_tablespace(
+    TOKUDB_UNUSED(bool discard),
+    TOKUDB_UNUSED(dd::Table* table_def)) {
     /*
     if (discard) {
         my_errno=HA_ERR_WRONG_COMMAND;
@@ -7504,7 +7498,8 @@ cleanup:
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::delete_table(const char* name) {
+int ha_tokudb::delete_table(const char* name,
+                            TOKUDB_UNUSED(const dd::Table* table_def)) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", name);
     TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(name, NULL, false);
     if (share) {
@@ -7569,7 +7564,10 @@ static bool tokudb_check_db_dir_exist_from_table_name(const char* table_name) {
 //      0 on success
 //      error otherwise
 //
-int ha_tokudb::rename_table(const char* from, const char* to) {
+int ha_tokudb::rename_table(const char* from,
+                            const char* to,
+                            TOKUDB_UNUSED(const dd::Table* from_table_def),
+                            TOKUDB_UNUSED(dd::Table* to_table_def)) {
     TOKUDB_HANDLER_DBUG_ENTER("%s %s", from, to);
     TOKUDB_SHARE* share = TOKUDB_SHARE::get_share(from, NULL, false);
     if (share) {
@@ -8605,8 +8603,7 @@ cleanup:
     return error;
 }
 
-// for 5.5
-int ha_tokudb::truncate() {
+int ha_tokudb::truncate(TOKUDB_UNUSED(dd::Table* table_def)) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     int error = delete_all_rows_internal();
     TOKUDB_HANDLER_DBUG_RETURN(error);

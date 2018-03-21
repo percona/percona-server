@@ -79,7 +79,6 @@ public:
     // doesn't exist, otherwise will return NULL if an existing is not found.
     static TOKUDB_SHARE* get_share(
         const char* table_name,
-        TABLE_SHARE* table_share,
         THR_LOCK_DATA* data,
         bool create_new);
 
@@ -661,7 +660,7 @@ private:
     DBT *pack_ext_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
 #endif
     bool key_changed(uint keynr, const uchar * old_row, const uchar * new_row);
-    int handle_cursor_error(int error, int err_to_return, uint keynr);
+    int handle_cursor_error(int error, int err_to_return);
     DBT *get_pos(DBT * to, uchar * pos);
  
     int open_main_dictionary(const char* name, bool is_read_only, DB_TXN* txn);
@@ -706,12 +705,12 @@ private:
         toku_compression_method compression_method
         );
     int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, toku_compression_method compression_method);
-    void trace_create_table_info(const char *name, TABLE * form);
+    void trace_create_table_info(TABLE* form);
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info, int lock_flags);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
     void set_main_dict_put_flags(THD* thd, bool opt_eligible, uint32_t* put_flags);
-    int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
+    int insert_row_to_main_dictionary(DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     void test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
     uint32_t fill_row_mutator(
@@ -928,8 +927,8 @@ public:
     bool inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     bool commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit);
  private:
-    int alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
-    int alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    int alter_table_add_index(Alter_inplace_info* ha_alter_info);
+    int alter_table_drop_index(Alter_inplace_info* ha_alter_info);
     int alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
@@ -937,7 +936,10 @@ public:
     int alter_table_expand_blobs(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *kc_info);
-    int new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor);
+    int new_row_descriptor(TABLE* altered_table,
+                           Alter_inplace_info* ha_alter_info,
+                           uint32_t idx,
+                           DBT* row_descriptor);
 
  public:
 #endif
@@ -962,12 +964,8 @@ public:
                          uint num_of_keys,
                          bool incremented_numDBs,
                          bool modified_DBs);
-  int drop_indexes(TABLE* table_arg,
-                   uint* key_num,
-                   uint num_of_keys,
-                   KEY* key_info,
-                   DB_TXN* txn);
-  void restore_drop_indexes(TABLE* table_arg, uint* key_num, uint num_of_keys);
+  int drop_indexes(uint* key_num, uint num_of_keys, KEY* key_info, DB_TXN* txn);
+  void restore_drop_indexes(uint* key_num, uint num_of_keys);
 
  public:
     // delete all rows from the table
@@ -1044,7 +1042,9 @@ private:
     int send_update_message(List<Item> &update_fields, List<Item> &update_values, Item *conds, DB_TXN *txn);
     int upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
     bool check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
-    int send_upsert_message(THD *thd, List<Item> &update_fields, List<Item> &update_values, DB_TXN *txn);
+    int send_upsert_message(List<Item>& update_fields,
+                            List<Item>& update_values,
+                            DB_TXN* txn);
 #endif
 public:
     // mysql sometimes retires a txn before a cursor that references the txn is closed.

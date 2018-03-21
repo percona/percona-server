@@ -130,7 +130,7 @@ static void dump_item_list(const char* h, List<Item> &l) {
 }
 
 // Find a Field by its Item name
-static Field* find_field_by_name(TABLE* table, Item* item) {
+static Field* find_field_by_name(TOKUDB_UNUSED(TABLE* table), Item* item) {
     if (item->type() != Item::FIELD_ITEM)
         return NULL;
     Item_field* field_item = static_cast<Item_field*>(item);
@@ -191,12 +191,9 @@ static uint32_t var_field_index(
     return v_index;    
 }
 
-static uint32_t blob_field_index(
-    TABLE* table,
-    KEY_AND_COL_INFO* kc_info,
-    uint idx,
-    uint field_num) {
-
+static uint32_t blob_field_index(TABLE* table,
+                                 KEY_AND_COL_INFO* kc_info,
+                                 uint field_num) {
     assert_always(field_num < table->s->fields);
     uint b_index;
     for (b_index = 0; b_index < kc_info->num_blobs; b_index++) {
@@ -773,11 +770,7 @@ static void marshall_update(
         update_operation = '=';
         field_type = lhs_field->binary() ? UPDATE_TYPE_BLOB : UPDATE_TYPE_TEXT;
         offset =
-            blob_field_index(
-                table,
-                &share->kc_info,
-                table->s->primary_key,
-                lhs_field->field_index);
+            blob_field_index(table, &share->kc_info, lhs_field->field_index);
         v_str = *rhs_item->val_str(&v_str);
         v_length = v_str.length();
         if (v_length >= lhs_field->max_data_length()) {
@@ -973,8 +966,8 @@ int ha_tokudb::upsert(
         error = ENOTSUP;
         goto check_error;
     }
-    
-    error = send_upsert_message(thd, update_fields, update_values, transaction);
+
+    error = send_upsert_message(update_fields, update_values, transaction);
     if (error != 0) {
         goto check_error;
     }
@@ -1035,11 +1028,9 @@ bool ha_tokudb::check_upsert(
 
 // Generate an upsert message and send it into the primary tree.
 // Return 0 if successful.
-int ha_tokudb::send_upsert_message(
-    THD* thd,
-    List<Item>& update_fields,
-    List<Item>& update_values,
-    DB_TXN* txn) {
+int ha_tokudb::send_upsert_message(List<Item>& update_fields,
+                                   List<Item>& update_values,
+                                   DB_TXN* txn) {
     int error = 0;
 
     // generate primary key

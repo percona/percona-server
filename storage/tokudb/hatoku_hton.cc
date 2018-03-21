@@ -723,7 +723,7 @@ bool tokudb_flush_logs(TOKUDB_UNUSED(handlerton* hton),
     if (!binlog_group_commit && tokudb::sysvars::checkpoint_on_flush_logs) {
         error = db_env->txn_checkpoint(db_env, 0, 0, 0);
         if (error) {
-            my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+            my_error(ER_ERROR_DURING_FLUSH_LOGS, MYF(0), error);
             result = 1;
             goto exit;
         }
@@ -1362,7 +1362,7 @@ static void tokudb_cleanup_log_files(void) {
     int error;
 
     if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0)))
-        my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+        my_error(ER_ERROR_DURING_FLUSH_LOGS, MYF(0), error);
 
     if ((error = db_env->log_archive(db_env, &names, 0)) != 0) {
         DBUG_PRINT("error", ("log_archive failed (error %d)", error));

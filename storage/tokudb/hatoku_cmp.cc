@@ -881,7 +881,7 @@ static inline int cmp_toku_string(uchar* a_buf,
     charset = get_charset_from_num(charset_number);
 
     ret_val = charset->coll->strnncollsp(
-        charset, a_buf, a_num_bytes, b_buf, b_num_bytes, 0);
+        charset, a_buf, a_num_bytes, b_buf, b_num_bytes);
     return ret_val;
 }
 

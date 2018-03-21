@@ -77,8 +77,8 @@ static int tokudb_commit(handlerton* hton, THD* thd, bool all);
 static int tokudb_rollback(handlerton* hton, THD* thd, bool all);
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all);
 static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len);
-static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
-static int tokudb_rollback_by_xid(handlerton* hton, XID* xid);
+static xa_status_code tokudb_commit_by_xid(handlerton* hton, XID* xid);
+static xa_status_code tokudb_rollback_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_to_savepoint(handlerton* hton,
                                         THD* thd,
                                         void* savepoint);
@@ -943,7 +943,8 @@ static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton* hton),
     TOKUDB_DBUG_RETURN((int)num_returned);
 }
 
-static int tokudb_commit_by_xid(TOKUDB_UNUSED(handlerton* hton), XID* xid) {
+static xa_status_code tokudb_commit_by_xid(TOKUDB_UNUSED(handlerton* hton),
+                                           XID* xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
@@ -964,10 +965,16 @@ static int tokudb_commit_by_xid(TOKUDB_UNUSED(handlerton* hton), XID* xid) {
     r = 0;
 cleanup:
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", r);
-    TOKUDB_DBUG_RETURN(r);
+    if (TOKUDB_UNLIKELY(
+            (tokudb::sysvars::debug & TOKUDB_DEBUG_RETURN) ||
+            (r != 0 && (tokudb::sysvars::debug & TOKUDB_DEBUG_ERROR)))) {
+        TOKUDB_TRACE("return %d", r);
+    }
+    DBUG_RETURN(r == 0 ? XA_OK : XAER_RMERR);
 }
 
-static int tokudb_rollback_by_xid(TOKUDB_UNUSED(handlerton* hton), XID* xid) {
+static xa_status_code tokudb_rollback_by_xid(TOKUDB_UNUSED(handlerton* hton),
+                                             XID* xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
@@ -988,7 +995,12 @@ static int tokudb_rollback_by_xid(TOKUDB_UNUSED(handlerton* hton), XID* xid) {
     r = 0;
 cleanup:
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", r);
-    TOKUDB_DBUG_RETURN(r);
+    if (TOKUDB_UNLIKELY(
+            (tokudb::sysvars::debug & TOKUDB_DEBUG_RETURN) ||
+            (r != 0 && (tokudb::sysvars::debug & TOKUDB_DEBUG_ERROR)))) {
+        TOKUDB_TRACE("return %d", r);
+    }
+    DBUG_RETURN(r == 0 ? XA_OK : XAER_RMERR);
 }
 
 static int tokudb_savepoint(handlerton* hton, THD* thd, void* savepoint) {

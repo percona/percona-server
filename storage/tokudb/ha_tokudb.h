@@ -984,6 +984,7 @@ private:
     int write_frm_data(const uchar *frm_data, size_t frm_len);
 #endif
 private:
+#if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
     MY_NODISCARD int fast_update(THD *thd,
                                  List<Item> &update_fields,
                                  List<Item> &update_values,
@@ -1005,6 +1006,7 @@ private:
     MY_NODISCARD int send_upsert_message(List<Item> &update_fields,
                                          List<Item> &update_values,
                                          DB_TXN *txn);
+#endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
 public:
     // mysql sometimes retires a txn before a cursor that references the txn is closed.
     // for example, commit is sometimes called before index_end.  the following methods

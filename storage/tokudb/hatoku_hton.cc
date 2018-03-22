@@ -128,7 +128,7 @@ static int tokudb_discover3(
     char* path,
     uchar** frmblob,
     size_t* frmlen);
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 handlerton* tokudb_hton;
 
 const char* ha_tokudb_ext = ".tokudb";
@@ -389,9 +389,9 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->discover = tokudb_discover;
 #if defined(MYSQL_HANDLERTON_INCLUDE_DISCOVER2)
     tokudb_hton->discover2 = tokudb_discover2;
-#endif // MYSQL_HANDLERTON_INCLUDE_DISCOVER2
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
-#endif // 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
+#endif  // MYSQL_HANDLERTON_INCLUDE_DISCOVER2
+#endif  // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
 #if TOKU_INCLUDE_XA
@@ -1325,7 +1325,7 @@ cleanup:
     }
     TOKUDB_DBUG_RETURN(error);
 }
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
 
 #define STATPRINT(legend, val) if (legend != NULL && val != NULL) \

@@ -695,9 +695,11 @@ class ha_tokudb : public handler {
 
     int update_max_auto_inc(DB* db, ulonglong val);
     int remove_key_name_from_status(DB* status_block,
-                                    char* key_name,
+                                    const char* key_name,
                                     DB_TXN* txn);
-    int write_key_name_to_status(DB* status_block, char* key_name, DB_TXN* txn);
+    int write_key_name_to_status(DB* status_block,
+                                 const char* key_name,
+                                 DB_TXN* txn);
     int write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn);
     void init_auto_increment();
     bool can_replace_into_be_fast(TABLE_SHARE* table_share,
@@ -909,7 +911,7 @@ class ha_tokudb : public handler {
     void print_error(int error, myf errflag);
     uint8 table_cache_type() { return HA_CACHE_TBL_TRANSACT; }
     bool primary_key_is_clustered() const { return true; }
-    int cmp_ref(const uchar* ref1, const uchar* ref2);
+    int cmp_ref(const uchar* ref1, const uchar* ref2) const;
     bool check_if_incompatible_data(HA_CREATE_INFO* info, uint table_changes);
 
     // MySQL  MRR introduced in 5.6

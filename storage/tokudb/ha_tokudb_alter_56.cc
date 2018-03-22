@@ -644,20 +644,24 @@ bool ha_tokudb::inplace_alter_table(
         error = do_optimize(ha_thd());
     }
 
+
+#if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 #if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
     (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
-#if WITH_PARTITION_STORAGE_ENGINE
+#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     if (error == 0 &&
         (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL)) {
 #else
     if (error == 0) {
-#endif
+#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
         error = write_frm_data(
             share->status_block,
             ctx->alter_txn,
             altered_table->s->path.str);
     }
-#endif
+#endif  // (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) ||
+        // (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
+#endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
     bool result = false; // success
     if (error) {
@@ -911,13 +915,14 @@ bool ha_tokudb::commit_inplace_alter_table(
             ha_alter_info->group_commit_ctx = NULL;
         }
 #endif
+#if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 #if (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599) || \
     (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
-#if WITH_PARTITION_STORAGE_ENGINE
+#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
 #else
         if (true) {
-#endif
+#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
             int error = write_frm_data(
                 share->status_block,
                 ctx->alter_txn,
@@ -928,7 +933,9 @@ bool ha_tokudb::commit_inplace_alter_table(
                 print_error(error, MYF(0));
             }
         }
-#endif
+#endif  // (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599) ||
+        // (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
+#endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
     }
 
     if (!commit) {

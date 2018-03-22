@@ -1631,7 +1631,7 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
         goto exit;
     }
 
-#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 #if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     // verify frm data for non-partitioned tables
     if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
@@ -1648,8 +1648,8 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
     error = verify_frm_data(table->s->path.str, txn);
     if (error)
         goto exit;
-#endif // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
+#endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
     error =
         initialize_key_and_col_info(
@@ -2070,7 +2070,7 @@ cleanup:
     return error;
 }
 
-#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 int ha_tokudb::write_frm_data(DB* db, DB_TXN* txn, const char* frm_name) {
     TOKUDB_HANDLER_DBUG_ENTER("%p %p %s", db, txn, frm_name);
 
@@ -2159,7 +2159,7 @@ cleanup:
     tokudb::memory::free(stored_frm.data);
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
 //
 // Updates status.tokudb with a new max value used for the auto increment column
@@ -7358,7 +7358,7 @@ int ha_tokudb::create(
         goto cleanup;
     }
 
-#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 #if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     if (TOKU_PARTITION_WRITE_FRM_DATA || form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
@@ -7371,8 +7371,8 @@ int ha_tokudb::create(
     if (error) {
         goto cleanup;
     }
-#endif // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
+#endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
     error = allocate_key_and_col_info(form->s, &kc_info);
     if (error) {

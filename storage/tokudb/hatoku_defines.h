@@ -72,21 +72,34 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma interface               /* gcc class implementation */
 #endif
 
+// TOKU_INCLUDE_WRITE_FRM_DATA, TOKU_PARTITION_WRITE_FRM_DATA, and
+// TOKU_INCLUDE_DISCOVER_FRM all work together as two opposing sides
+// of the same functionality. The 'WRITE' includes functionality to
+// write a copy of every tables .frm data into the tables status dictionary on
+// CREATE or ALTER. When WRITE is in, the .frm data is also verified whenever a
+// table is opened.
+//
+// The 'DISCOVER' then implements the MySQL table discovery API which reads
+// this same data and returns it back to MySQL.
+// In most cases, they should all be in or out without mixing. There may be
+// extreme cases though where one side (WRITE) is supported but perhaps
+// 'DISCOVERY' may not be, thus the need for individual indicators.
+
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
 // mariadb 10.0
 #define TOKU_USE_DB_TYPE_TOKUDB 1
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_INCLUDE_XA 1
-#define TOKU_INCLUDE_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_WRITE_FRM_DATA 1
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 #if defined(MARIADB_BASE_VERSION)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_INCLUDE_OPTION_STRUCTS 1
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
 #define TOKU_CLUSTERING_IS_COVERING 1
-#define TOKU_INCLUDE_DISCOVER_FRM 1
 
 #elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 // mysql 5.7 with no patches
@@ -94,6 +107,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_USE_DB_TYPE_UNKNOWN 1
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
+#define TOKU_INCLUDE_WRITE_FRM_DATA 1
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
 #define TOKU_INCLUDE_DISCOVER_FRM 1
 #define TOKU_INCLUDE_RFR 1
@@ -108,22 +122,24 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_ALTER_56 1    
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_INCLUDE_XA 0
+#define TOKU_INCLUDE_WRITE_FRM_DATA 1
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 #else
 // mysql 5.6 with tokutek patches
 #define TOKU_USE_DB_TYPE_TOKUDB 1           // has DB_TYPE_TOKUDB patch
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 // has tokudb row format compression patch
 #define TOKU_INCLUDE_XA 1                   // has patch that fixes TC_LOG_MMAP code
+#define TOKU_INCLUDE_WRITE_FRM_DATA 1
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
-#define TOKU_INCLUDE_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 #define TOKU_INCLUDE_UPSERT 1               // has tokudb upsert patch
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
-#define TOKU_INCLUDE_DISCOVER_FRM 1
 #define TOKU_INCLUDE_RFR 1
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
@@ -133,8 +149,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_ALTER_55 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
 #define TOKU_INCLUDE_XA 1
-#define TOKU_PARTITION_WRITE_FRM_DATA 1
 #define TOKU_INCLUDE_WRITE_FRM_DATA 1
+#define TOKU_PARTITION_WRITE_FRM_DATA 1
+#define TOKU_INCLUDE_DISCOVER_FRM 1
 #define TOKU_INCLUDE_UPSERT 1
 #if defined(MARIADB_BASE_VERSION)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
@@ -143,7 +160,6 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING 1
 #endif
 #define TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL 0
-#define TOKU_INCLUDE_DISCOVER_FRM 1
 
 #else
 #error
@@ -152,7 +168,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 #include "discover.h"
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 
 
 #ifdef MARIADB_BASE_VERSION

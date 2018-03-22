@@ -8972,7 +8972,9 @@ bool ha_tokudb::rpl_lookup_rows() {
 #include "tokudb_update_fun.cc"
 
 // fast updates
+#if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
 #include "ha_tokudb_update.cc"
+#endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
 
 // alter table
 #include "ha_tokudb_alter.cc"

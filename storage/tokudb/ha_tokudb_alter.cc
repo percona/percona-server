@@ -935,7 +935,7 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
     THD* thd = ha_thd();
 
     // setup context
-    tokudb_alter_ctx* ctx = new tokudb_alter_ctx;
+    tokudb_alter_ctx* ctx = new (*THR_MALLOC) tokudb_alter_ctx;
     ha_alter_info->handler_ctx = ctx;
     ctx->handler_flags =
         fix_handler_flags(thd, table, altered_table, ha_alter_info);

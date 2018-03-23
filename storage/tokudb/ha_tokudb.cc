@@ -6184,7 +6184,7 @@ int ha_tokudb::info(uint flag) {
 
     if (flag & HA_STATUS_AUTO && table->found_next_number_field) {
         THD* thd = table->in_use;
-        struct system_variables* variables = &thd->variables;
+        struct System_variables* variables = &thd->variables;
         stats.auto_increment_value =
             share->last_auto_increment + variables->auto_increment_increment;
     }

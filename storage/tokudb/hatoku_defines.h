@@ -105,10 +105,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
-#define TOKU_INCLUDE_WRITE_FRM_DATA 1
-#define TOKU_INCLUDE_DISCOVER_FRM 1
-#define TOKU_INCLUDE_RFR 1
-#define TOKU_INCLUDE_UPSERT 1
+#define TOKU_INCLUDE_WRITE_FRM_DATA 0
+#define TOKU_INCLUDE_DISCOVER_FRM 0
+#define TOKU_INCLUDE_RFR 0
+#define TOKU_INCLUDE_UPSERT 0
 
 #if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
 #include "discover.h"

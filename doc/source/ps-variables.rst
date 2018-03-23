@@ -172,6 +172,16 @@ System Variables
      - Yes
      - Global
      - Yes
+   * - :variable:`keyring_vault_config`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+   * - :variable:`keyring_vault_timeout`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`log_slow_filter`
      - Yes
      - Yes

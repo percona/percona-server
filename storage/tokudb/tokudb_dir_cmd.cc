@@ -51,7 +51,7 @@ namespace tokudb {
         ;
         table_arg.str = const_cast<char *>(table);
         table_arg.length = strlen(table);
-        Table_ident table_ident(thd, db_arg, table_arg, true);
+        Table_ident table_ident(db_arg, table_arg);
         thd->lex->select_lex->add_table_to_list(
             thd, &table_ident, NULL, 1, TL_UNLOCK, MDL_EXCLUSIVE, 0, 0, 0);
         /* The lock will be released at the end of mysq_execute_command() */

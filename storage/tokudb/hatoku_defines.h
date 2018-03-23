@@ -72,12 +72,24 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #pragma interface               /* gcc class implementation */
 #endif
 
+// TOKU_INCLUDE_WRITE_FRM_DATA and TOKU_INCLUDE_DISCOVER_FRM work together as
+// two opposing sides of the same functionality. The 'WRITE' includes
+// functionality to write a copy of every tables .frm data into the tables
+// status dictionary on CREATE or ALTER. When WRITE is in, the .frm data is
+// also verified whenever a table is opened.
+//
+// The 'DISCOVER' then implements the MySQL table discovery API which reads
+// this same data and returns it back to MySQL.
+// In most cases, they should all be in or out without mixing. There may be
+// extreme cases though where one side (WRITE) is supported but perhaps
+// 'DISCOVERY' may not be, thus the need for individual indicators.
 #define TOKU_USE_DB_TYPE_TOKUDB 1           // has DB_TYPE_TOKUDB patch
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 // has tokudb row format compression patch
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
 #define TOKU_OPTIMIZE_WITH_RECREATE 1
+#define TOKU_INCLUDE_WRITE_FRM_DATA 1
 #define TOKU_INCLUDE_DISCOVER_FRM 1
 #define TOKU_INCLUDE_RFR 1
 #define TOKU_INCLUDE_UPSERT 1

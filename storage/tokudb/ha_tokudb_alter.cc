@@ -1240,11 +1240,11 @@ bool ha_tokudb::inplace_alter_table(
         error = do_optimize(ha_thd());
     }
 
-#if WITH_PARTITION_STORAGE_ENGINE
+#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     if (error == 0 && (altered_table->part_info == NULL)) {
 #else
     if (error == 0) {
-#endif
+#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
         error = write_frm_data(
             share->status_block,
             ctx->alter_txn,

@@ -658,11 +658,11 @@ private:
     int estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn);
     bool has_auto_increment_flag(uint* index);
 
-#if defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
     int write_frm_data(DB* db, DB_TXN* txn, const char* frm_name);
     int verify_frm_data(const char* frm_name, DB_TXN* trans);
     int remove_frm_data(DB *db, DB_TXN *txn);
-#endif // defined(TOKU_INCLUDE_DISCOVER_FRM) && TOKU_INCLUDE_DISCOVER_FRM
+#endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
     int write_to_status(DB* db, HA_METADATA_KEY curr_key_data, void* data, uint size, DB_TXN* txn);
     int remove_from_status(DB* db, HA_METADATA_KEY curr_key_data, DB_TXN* txn);
@@ -980,9 +980,6 @@ private:
     void invalidate_icp();
     int delete_all_rows_internal();
     
-#if TOKU_INCLUDE_WRITE_FRM_DATA
-    int write_frm_data(const uchar *frm_data, size_t frm_len);
-#endif
 private:
 #if defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
     MY_NODISCARD int fast_update(THD *thd,

@@ -261,7 +261,7 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
+      result = !strncmp(log_name, linfo->log_file_name, log_name_len);
       mysql_mutex_unlock(&linfo->lock);
       if (result)
 	break;

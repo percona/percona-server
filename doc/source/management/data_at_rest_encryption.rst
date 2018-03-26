@@ -244,7 +244,7 @@ This variable is used to define the location of the
 This variable allows to set the duration in seconds for the Vault server
 connection timeout. Default value is ``15``. Allowed range is from ``1``
 second to ``86400`` seconds (24 hours). The timeout can be also completely
-disabled by setting this variable to ``0``.
+disabled to wait infinite amount of time by setting this variable to ``0``.
 
 Other reading
 -------------

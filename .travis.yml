@@ -34,7 +34,7 @@ matrix:
     - compiler: clang
       os: osx
       osx_image: xcode9.2
-      env:              BUILD=RelWithDebInfo  MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON  WITHOUT_ROCKSDB=ON  WITH_MECAB=
+      env:              BUILD=RelWithDebInfo  MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON  WITHOUT_ROCKSDB=ON  WITH_MECAB= CMAKE_OPT="-DWITH_PROTOBUF=system"
     # 3
     - compiler: clang
       env: VERSION=4.0  BUILD=RelWithDebInfo
@@ -66,7 +66,7 @@ matrix:
     - compiler: clang
       os: osx
       osx_image: xcode9.2
-      env:              BUILD=Debug           MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON  WITHOUT_ROCKSDB=ON  WITH_MECAB=
+      env:              BUILD=Debug           MAINTAINER_MODE=OFF  WITHOUT_TOKUDB=ON  WITHOUT_ROCKSDB=ON  WITH_MECAB= CMAKE_OPT="-DWITH_PROTOBUF=system"
     # 13
     - compiler: clang
       env: VERSION=4.0  BUILD=Debug
@@ -131,7 +131,7 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
        brew update;
-       brew install ccache;
+       brew install ccache protobuf;
        brew link ccache;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi

@@ -6,7 +6,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1 MIN_ROWS=8
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=8
 include/assert.inc [underlying ft file name not changed after alter min_rows]
 alter table t1 max_rows = 100;
 show create table t1;
@@ -15,7 +15,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1 MIN_ROWS=8 MAX_ROWS=100
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=8 MAX_ROWS=100
 include/assert.inc [underlying ft file name not changed after alter max_rows]
 alter table t1 avg_row_length = 100;
 show create table t1;
@@ -24,7 +24,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100
 include/assert.inc [underlying ft file name not changed after alter avg_row_length]
 alter table t1 pack_keys = 1;
 show create table t1;
@@ -33,14 +33,16 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(30) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1
 include/assert.inc [underlying ft file name not changed after alter pack_keys]
 alter table t1 character set = utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1
 include/assert.inc [underlying ft file name not changed after alter character set]
@@ -51,7 +53,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1
 include/assert.inc [underlying ft file name not changed after alter data directory]
@@ -62,7 +64,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1
 include/assert.inc [underlying ft file name not changed after alter index directory]
@@ -71,7 +73,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 CHECKSUM=1
 include/assert.inc [underlying ft file name not changed after alter checksum]
@@ -80,7 +82,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1
 include/assert.inc [underlying ft file name not changed after alter delay_key_write]
@@ -89,7 +91,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 COMMENT='test table'
 include/assert.inc [underlying ft file name not changed after alter comment]
@@ -98,7 +100,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 COMMENT='test table'
 include/assert.inc [underlying ft file name not changed after alter password]
@@ -107,7 +109,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter connection]
@@ -116,7 +118,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter key_block_size]
@@ -125,7 +127,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter stats_persistent]
@@ -134,7 +136,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter stats_auto_recalc]
@@ -143,7 +145,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter stats_sample_pages]
@@ -153,7 +155,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `foo` */ ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter tablespace]
@@ -163,7 +165,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `foo` */ ENGINE=TokuDB DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMPRESSION='zlib' COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter tablespace]
@@ -172,7 +174,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `foo` */ ENGINE=TokuDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=1 CHECKSUM=1 DELAY_KEY_WRITE=1 KEY_BLOCK_SIZE=32 COMPRESSION='zlib' COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter auto_increment]
@@ -181,7 +183,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `foo` */ ENGINE=TokuDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=TOKUDB_LZMA KEY_BLOCK_SIZE=32 COMPRESSION='zlib' COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name not changed after alter compression method]
@@ -190,11 +192,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) CHARACTER SET latin1 DEFAULT NULL,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) /*!50100 TABLESPACE `foo` */ ENGINE=TokuDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8 MIN_ROWS=8 MAX_ROWS=100 AVG_ROW_LENGTH=100 PACK_KEYS=1 STATS_PERSISTENT=1 STATS_AUTO_RECALC=1 STATS_SAMPLE_PAGES=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=TOKUDB_LZMA KEY_BLOCK_SIZE=32 COMPRESSION='zlib' COMMENT='test table' CONNECTION='127.0.0.1:3306'
 include/assert.inc [underlying ft file name changed after alter engine type]
 alter table t1 convert to character set utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

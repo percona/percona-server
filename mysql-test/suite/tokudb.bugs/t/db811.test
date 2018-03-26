@@ -1,7 +1,6 @@
 # DB-811 test that alter table t2 updates both the schema (FRM) and the data (tokudb files)
 
 source include/have_tokudb.inc;
-source include/have_innodb.inc;
 source include/have_partition.inc;
 disable_warnings;
 drop table if exists t2,t3,t4;

@@ -1,4 +1,3 @@
---source include/have_innodb.inc
 --source include/have_tokudb.inc
 --source include/big_test.inc
 

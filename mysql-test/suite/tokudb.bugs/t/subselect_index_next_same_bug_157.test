@@ -3,7 +3,6 @@
 # indexsubselect::exec function would assert.
 
 source include/have_tokudb.inc;
-source include/have_innodb.inc;
 
 disable_warnings;
 drop table if exists C, CC, D;

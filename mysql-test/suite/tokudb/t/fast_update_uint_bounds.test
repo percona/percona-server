@@ -1,5 +1,4 @@
 source include/have_tokudb.inc;
-source include/have_innodb.inc;
 
 create table tt (id int primary key, x int unsigned) engine = tokudb;
 insert into tt values (1,0),(2,pow(2,32)-1);

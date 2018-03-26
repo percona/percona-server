@@ -2,7 +2,6 @@
 # test that char field primary keys are fast
 
 source include/have_tokudb.inc;
-source include/have_innodb.inc;
 
 set tokudb_enable_fast_update=1;
 source ../include/setup_fast_update_upsert.inc;

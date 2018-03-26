@@ -1,6 +1,5 @@
 # DB-805 test that conversion of t1 from innodb to tokudb can write rows
 source include/have_tokudb.inc;
-source include/have_innodb.inc;
 disable_warnings;
 drop table if exists t1,t3;
 enable_warnings;

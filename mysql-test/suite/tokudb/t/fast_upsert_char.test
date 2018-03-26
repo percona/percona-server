@@ -1,5 +1,4 @@
 source include/have_tokudb.inc;
-source include/have_innodb.inc;
 
 set tokudb_enable_fast_upsert=1;
 source ../include/setup_fast_update_upsert.inc;

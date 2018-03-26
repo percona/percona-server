@@ -2,8 +2,6 @@
 # Make sure FTI instrumentation is on, execute base DDL, DML queries
 # and make sure there is no crash.
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
 --source include/have_tokudb.inc
 
 SELECT COUNT(*) > 0 FROM performance_schema.setup_consumers

@@ -1,5 +1,4 @@
 # verify that duplicate savepoint names in innodb and tokudb work the same
-source include/have_innodb.inc;
 source include/have_tokudb.inc;
 disable_warnings;
 drop table if exists ti;

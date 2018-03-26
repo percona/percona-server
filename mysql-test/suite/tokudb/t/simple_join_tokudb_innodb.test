@@ -1,5 +1,4 @@
 # simple join tokudb and innodb
---source include/have_innodb.inc
 --source include/have_tokudb.inc
 
 --disable_warnings

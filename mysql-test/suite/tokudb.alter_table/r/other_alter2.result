@@ -60,8 +60,8 @@ foo	CREATE TABLE `foo` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
   KEY `d` (`d`),
-  CLUSTERING KEY `b` (`b`)
-) ENGINE=TokuDB DEFAULT CHARSET=latin1
+  KEY `b` (`b`)
+) ENGINE=TokuDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table foo_isam;
 Table	Create Table
 foo_isam	CREATE TABLE `foo_isam` (
@@ -79,7 +79,7 @@ foo_isam	CREATE TABLE `foo_isam` (
   UNIQUE KEY `c` (`c`),
   KEY `d` (`d`),
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table foo change column aa aa int NOT NULL;
 alter table foo_isam change column aa aa int NOT NULL;
 include/diff_tables.inc [test.foo, test.foo_isam]

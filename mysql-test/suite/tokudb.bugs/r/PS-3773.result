@@ -6,4 +6,5 @@ SET GLOBAL debug = "+d,tokudb_fake_db_notfound_error_in_read_full_row";
 SELECT * FROM t1 WHERE b = 2;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 DROP TABLE t1;
+Pattern "ha_tokudb::read_full_row on table" found
 # restart

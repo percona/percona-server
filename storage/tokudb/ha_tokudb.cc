@@ -4846,21 +4846,37 @@ int ha_tokudb::read_full_row(uchar * buf) {
     // assumes key is stored in this->last_key
     //
 
-    error = share->file->getf_set(
-        share->file, 
-        transaction, 
-        cursor_flags, 
-        &last_key, 
-        smart_dbt_callback_rowread_ptquery, 
-        &info
-        );
+    error = share->file->getf_set(share->file,
+                                  transaction,
+                                  cursor_flags,
+                                  &last_key,
+                                  smart_dbt_callback_rowread_ptquery,
+                                  &info);
+
+    DBUG_EXECUTE_IF("tokudb_fake_db_notfound_error_in_read_full_row", {
+        error = DB_NOTFOUND;
+    });
 
     if (error) {
         if (error == DB_LOCK_NOTGRANTED) {
             error = HA_ERR_LOCK_WAIT_TIMEOUT;
+        } else if (error == DB_NOTFOUND) {
+            error = HA_ERR_CRASHED;
+            if (tokudb_active_index < share->_keys) {
+                sql_print_error(
+                    "ha_tokudb::read_full_row on table %s cound not locate "
+                    "record in PK that matches record found in key %s",
+                    share->full_table_name(),
+                    share->_key_descriptors[tokudb_active_index]._name);
+            } else {
+                sql_print_error(
+                    "ha_tokudb::read_full_row on table %s cound not locate "
+                    "record in PK that matches record found in key %d",
+                    share->full_table_name(),
+                    tokudb_active_index);
+            }
         }
         table->status = STATUS_NOT_FOUND;
-        TOKUDB_HANDLER_DBUG_RETURN(error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
     }
 
     TOKUDB_HANDLER_DBUG_RETURN(error);

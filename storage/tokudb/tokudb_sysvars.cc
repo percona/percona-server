@@ -58,10 +58,10 @@ uint        client_pool_threads = 0;
 my_bool     compress_buffers_before_eviction = TRUE;
 char*       data_dir = NULL;
 ulong       debug = 0;
-#if TOKUDB_DEBUG
+#if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 // used to control background job manager
 my_bool     debug_pause_background_job_manager = FALSE;
-#endif
+#endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 my_bool     directio = FALSE;
 my_bool     enable_partial_eviction = TRUE;
 int         fs_reserve_percent = 0;
@@ -76,10 +76,12 @@ my_bool     dir_per_db = TRUE;
 char*       version = (char*) TOKUDB_VERSION_STR;
 
 // file system reserve as a percentage of total disk space
-#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
+#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
+    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 char*       gdb_path = NULL;
 my_bool     gdb_on_fatal = FALSE;
-#endif
+#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
+        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
 my_bool        check_jemalloc = TRUE;
 
@@ -254,7 +256,7 @@ static MYSQL_SYSVAR_ULONG(
     ~0UL,
     0);
 
-#if TOKUDB_DEBUG
+#if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 static MYSQL_SYSVAR_BOOL(
     debug_pause_background_job_manager,
     debug_pause_background_job_manager,
@@ -263,7 +265,7 @@ static MYSQL_SYSVAR_BOOL(
     NULL,
     NULL,
     FALSE);
-#endif // TOKUDB_DEBUG
+#endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 
 static MYSQL_SYSVAR_BOOL(
     directio,
@@ -413,7 +415,8 @@ static MYSQL_SYSVAR_BOOL(dir_per_db, dir_per_db,
     0, "TokuDB store ft files in db directories",
     NULL, tokudb_dir_per_db_update, TRUE);
 
-#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
+#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
+    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static MYSQL_SYSVAR_STR(
     gdb_path,
     gdb_path,
@@ -431,7 +434,8 @@ static MYSQL_SYSVAR_BOOL(
     NULL,
     NULL,
     true);
-#endif
+#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
+        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
 static MYSQL_SYSVAR_BOOL(
     check_jemalloc,
@@ -995,10 +999,12 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(dir_per_db),
-#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
+#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
+    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
     MYSQL_SYSVAR(gdb_path),
     MYSQL_SYSVAR(gdb_on_fatal),
-#endif
+#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
+        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
     MYSQL_SYSVAR(check_jemalloc),
 
@@ -1047,9 +1053,9 @@ st_mysql_sys_var* system_variables[] = {
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
     MYSQL_SYSVAR(support_xa),
 
-#if TOKUDB_DEBUG
-   MYSQL_SYSVAR(debug_pause_background_job_manager),
-#endif // TOKUDB_DEBUG
+#if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
+    MYSQL_SYSVAR(debug_pause_background_job_manager),
+#endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
     MYSQL_SYSVAR(dir_cmd_last_error),
     MYSQL_SYSVAR(dir_cmd_last_error_string),
     MYSQL_SYSVAR(dir_cmd),

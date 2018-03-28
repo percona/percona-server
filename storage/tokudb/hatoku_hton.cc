@@ -28,6 +28,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #define TOKU_METADB_NAME "tokudb_meta"
 
+#if defined(HAVE_PSI_MUTEX_INTERFACE)
 static pfs_key_t tokudb_map_mutex_key;
 
 static PSI_mutex_info all_tokudb_mutexes[] = {
@@ -38,6 +39,7 @@ static PSI_mutex_info all_tokudb_mutexes[] = {
 static PSI_rwlock_info all_tokudb_rwlocks[] = {
     {&num_DBs_lock_key, "num_DBs_lock", 0},
 };
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 typedef struct savepoint_info {
     DB_TXN* txn;

@@ -1844,16 +1844,6 @@ static SHOW_VAR toku_global_status_variables_export[]= {
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
-#if TOKU_INCLUDE_BACKTRACE
-#include <execinfo.h>
-static void tokudb_backtrace(void) {
-    const int N_POINTERS = 30;
-    void *backtrace_pointers[N_POINTERS];
-    int n = backtrace(backtrace_pointers, N_POINTERS);
-    backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
-}
-#endif
-
 mysql_declare_plugin(tokudb) 
     {
         MYSQL_STORAGE_ENGINE_PLUGIN,

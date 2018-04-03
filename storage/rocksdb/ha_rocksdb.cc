@@ -101,6 +101,7 @@ static st_io_stall_stats io_stall_stats;
 const std::string DEFAULT_CF_NAME("default");
 const std::string DEFAULT_SYSTEM_CF_NAME("__system__");
 const std::string PER_INDEX_CF_NAME("$per_index_cf");
+static std::vector<GL_INDEX_ID> rdb_indexes_to_recalc;
 
 /**
   Updates row counters based on the table type and operation type.
@@ -510,6 +511,7 @@ static my_bool rocksdb_allow_to_start_after_corruption = FALSE;
 static uint64_t rocksdb_write_policy =
     rocksdb::TxnDBWritePolicy::WRITE_COMMITTED;
 static my_bool rocksdb_error_on_suboptimal_collation = FALSE;
+static uint32_t rocksdb_stats_recalc_rate = 0;
 
 std::atomic<uint64_t> rocksdb_row_lock_deadlocks(0);
 std::atomic<uint64_t> rocksdb_row_lock_wait_timeouts(0);
@@ -1496,6 +1498,13 @@ static MYSQL_SYSVAR_UINT(
     RDB_DEFAULT_TBL_STATS_SAMPLE_PCT, /* everything */ 0,
     /* max */ RDB_TBL_STATS_SAMPLE_PCT_MAX, 0);
 
+static MYSQL_SYSVAR_UINT(
+    stats_recalc_rate, rocksdb_stats_recalc_rate, PLUGIN_VAR_RQCMDARG,
+    "The number of indexes per second to recalculate statistics for. 0 to "
+    "disable background recalculation.",
+    nullptr, nullptr, 0 /* default value */, 0 /* min value */,
+    UINT_MAX /* max value */, 0);
+
 static MYSQL_SYSVAR_BOOL(
     large_prefix, rocksdb_large_prefix, PLUGIN_VAR_RQCMDARG,
     "Support large index prefix length of 3072 bytes. If off, the maximum "
@@ -1657,6 +1666,7 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(large_prefix),
     MYSQL_SYSVAR(allow_to_start_after_corruption),
     MYSQL_SYSVAR(error_on_suboptimal_collation),
+    MYSQL_SYSVAR(stats_recalc_rate),
     nullptr};
 
 static rocksdb::WriteOptions
@@ -10461,8 +10471,8 @@ static int calculate_stats(
         it.first, &it.second[0], it.second.size(), &props);
     DBUG_ASSERT(props.size() >= old_size);
     if (!status.ok()) {
-      DBUG_RETURN(
-          rdb_error_to_mysql(status, "Could not access RocksDB properties"));
+      DBUG_RETURN(ha_rocksdb::rdb_error_to_mysql(
+          status, "Could not access RocksDB properties"));
     }
   }
 

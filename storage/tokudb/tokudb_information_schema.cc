@@ -66,12 +66,10 @@ struct trx_extra_t {
     TABLE *table;
 };
 
-int trx_callback(
-    DB_TXN* txn,
-    iterate_row_locks_callback iterate_locks,
-    void* locks_extra,
-    void *extra) {
-
+int trx_callback(DB_TXN* txn,
+                 TOKUDB_UNUSED(iterate_row_locks_callback iterate_locks),
+                 TOKUDB_UNUSED(void* locks_extra),
+                 void* extra) {
     uint64_t txn_id = txn->id64(txn);
     uint64_t client_id;
     txn->get_client_id(txn, &client_id, NULL);
@@ -89,7 +87,7 @@ int trx_callback(
     return error;
 }
 
-int trx_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int trx_fill_table(THD* thd, TABLE_LIST* tables, TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
 
@@ -116,7 +114,7 @@ int trx_init(void* p) {
     return 0;
 }
 
-int trx_done(void* p) {
+int trx_done(TOKUDB_UNUSED(void* p)) {
     return 0;
 }
 
@@ -179,13 +177,13 @@ int lock_waits_callback(
     size_t dname_length = strlen(dname);
     table->field[2]->store(dname, dname_length, system_charset_info);
     String left_str;
-    tokudb_pretty_left_key(db, left_key, &left_str);
+    tokudb_pretty_left_key(left_key, &left_str);
     table->field[3]->store(
         left_str.ptr(),
         left_str.length(),
         system_charset_info);
     String right_str;
-    tokudb_pretty_right_key(db, right_key, &right_str);
+    tokudb_pretty_right_key(right_key, &right_str);
     table->field[4]->store(
         right_str.ptr(),
         right_str.length(),
@@ -215,7 +213,9 @@ int lock_waits_callback(
     return error;
 }
 
-int lock_waits_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int lock_waits_fill_table(THD* thd,
+                          TABLE_LIST* tables,
+                          TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
 
@@ -245,7 +245,7 @@ int lock_waits_init(void* p) {
     return 0;
 }
 
-int lock_waits_done(void *p) {
+int lock_waits_done(TOKUDB_UNUSED(void *p)) {
     return 0;
 }
 
@@ -313,14 +313,14 @@ int locks_callback(
         table->field[2]->store(dname, dname_length, system_charset_info);
 
         String left_str;
-        tokudb_pretty_left_key(db, &left_key, &left_str);
+        tokudb_pretty_left_key(&left_key, &left_str);
         table->field[3]->store(
             left_str.ptr(),
             left_str.length(),
             system_charset_info);
 
         String right_str;
-        tokudb_pretty_right_key(db, &right_key, &right_str);
+        tokudb_pretty_right_key(&right_key, &right_str);
         table->field[4]->store(
             right_str.ptr(),
             right_str.length(),
@@ -349,7 +349,7 @@ int locks_callback(
     return error;
 }
 
-int locks_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int locks_fill_table(THD* thd, TABLE_LIST* tables, TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
 
@@ -376,7 +376,7 @@ int locks_init(void* p) {
     return 0;
 }
 
-int locks_done(void* p) {
+int locks_done(TOKUDB_UNUSED(void* p)) {
     return 0;
 }
 
@@ -483,7 +483,9 @@ cleanup:
     return error;
 }
 
-int file_map_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int file_map_fill_table(THD* thd,
+                        TABLE_LIST* tables,
+                        TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -510,7 +512,7 @@ int file_map_init(void* p) {
     return 0;
 }
 
-int file_map_done(void* p) {
+int file_map_done(TOKUDB_UNUSED(void* p)) {
     return 0;
 }
 
@@ -679,7 +681,9 @@ cleanup:
     return error;
 }
 
-int fractal_tree_info_fill_table(THD* thd, TABLE_LIST* tables, Item* cond) {
+int fractal_tree_info_fill_table(THD* thd,
+                                 TABLE_LIST* tables,
+                                 TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -709,7 +713,7 @@ int fractal_tree_info_init(void* p) {
     return 0;
 }
 
-int fractal_tree_info_done(void* p) {
+int fractal_tree_info_done(TOKUDB_UNUSED(void* p)) {
     return 0;
 }
 
@@ -964,7 +968,7 @@ cleanup:
 int fractal_tree_block_map_fill_table(
     THD* thd,
     TABLE_LIST* tables,
-    Item* cond) {
+    TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -994,7 +998,7 @@ int fractal_tree_block_map_init(void* p) {
     return 0;
 }
 
-int fractal_tree_block_map_done(void *p) {
+int fractal_tree_block_map_done(TOKUDB_UNUSED(void *p)) {
     return 0;
 }
 
@@ -1094,7 +1098,9 @@ int report_background_job_status(TABLE *table, THD *thd) {
     return error;
 }
 
-int background_job_status_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+int background_job_status_fill_table(THD* thd,
+                                     TABLE_LIST* tables,
+                                     TOKUDB_UNUSED(Item* cond)) {
     TOKUDB_DBUG_ENTER("");
     int error;
     TABLE* table = tables->table;
@@ -1121,7 +1127,7 @@ int background_job_status_init(void* p) {
     return 0;
 }
 
-int background_job_status_done(void* p) {
+int background_job_status_done(TOKUDB_UNUSED(void* p)) {
     return 0;
 }
 

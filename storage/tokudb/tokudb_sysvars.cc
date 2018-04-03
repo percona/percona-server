@@ -141,11 +141,10 @@ static MYSQL_SYSVAR_UINT(
     0);
 
 static void checkpointing_period_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    TOKUDB_UNUSED(THD* thd),
+    TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
     void* var,
     const void* save) {
-
     uint* cp = (uint*)var;
     *cp = *(const uint*)save;
     int r = db_env->checkpointing_set_period(db_env, *cp);
@@ -164,12 +163,10 @@ static MYSQL_SYSVAR_UINT(
     ~0U,
     0);
 
-static void cleaner_iterations_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
-    void* var,
-    const void* save) {
-
+static void cleaner_iterations_update(TOKUDB_UNUSED(THD* thd),
+                                      TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
+                                      void* var,
+                                      const void* save) {
     ulong* ci = (ulong*)var;
     *ci = *(const ulong*)save;
     int r = db_env->cleaner_set_iterations(db_env, *ci);
@@ -188,12 +185,10 @@ static MYSQL_SYSVAR_ULONG(
     ~0UL,
     0);
 
-static void cleaner_period_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
-    void* var,
-    const void * save) {
-
+static void cleaner_period_update(TOKUDB_UNUSED(THD* thd),
+                                  TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
+                                  void* var,
+                                  const void* save) {
     ulong* cp = (ulong*)var;
     *cp = *(const ulong*)save;
     int r = db_env->cleaner_set_period(db_env, *cp);
@@ -274,11 +269,10 @@ static MYSQL_SYSVAR_BOOL(
     FALSE);
 
 static void enable_partial_eviction_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
+    TOKUDB_UNUSED(THD* thd),
+    TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
     void* var,
     const void* save) {
-
     my_bool* epe = (my_bool*)var;
     *epe = *(const my_bool*)save;
     int r = db_env->evictor_set_enable_partial_eviction(db_env, *epe);
@@ -306,12 +300,10 @@ static MYSQL_SYSVAR_INT(
     100,
     0);
 
-static void fsync_log_period_update(
-    THD* thd,
-    st_mysql_sys_var* sys_var,
-    void* var,
-    const void* save) {
-
+static void fsync_log_period_update(TOKUDB_UNUSED(THD* thd),
+                                    TOKUDB_UNUSED(st_mysql_sys_var* sys_var),
+                                    void* var,
+                                    const void* save) {
     uint* flp = (uint*)var;
     *flp = *(const uint*)save;
     db_env->change_fsync_log_period(db_env, *flp);
@@ -401,9 +393,11 @@ static MYSQL_SYSVAR_UINT(
     ~0U,
     0);
 
-static void tokudb_dir_per_db_update(THD* thd,
-                                     struct st_mysql_sys_var* sys_var,
-                                     void* var, const void* save) {
+static void tokudb_dir_per_db_update(
+    TOKUDB_UNUSED(THD* thd),
+    TOKUDB_UNUSED(struct st_mysql_sys_var* sys_var),
+    void* var,
+    const void* save) {
     my_bool *value = (my_bool *) var;
     *value = *(const my_bool *) save;
     db_env->set_dir_per_db(db_env, *value);
@@ -551,12 +545,10 @@ static MYSQL_THDVAR_BOOL(
     NULL,
     true);
 
-static void checkpoint_lock_update(
-    THD* thd,
-    st_mysql_sys_var* var,
-    void* var_ptr,
-    const void* save) {
-
+static void checkpoint_lock_update(TOKUDB_UNUSED(THD* thd),
+                                   TOKUDB_UNUSED(st_mysql_sys_var* var),
+                                   void* var_ptr,
+                                   const void* save) {
     my_bool* val = (my_bool*)var_ptr;
     *val= *(my_bool*)save ? true : false;
     if (*val) {
@@ -937,8 +929,10 @@ static void dir_cmd_set_error(THD *thd,
     THDVAR_SET(thd, dir_cmd_last_error_string, buff);
 }
 
-static int dir_cmd_check(THD* thd, struct st_mysql_sys_var* var,
-                         void* save, struct st_mysql_value* value) {
+static int dir_cmd_check(THD* thd,
+                         TOKUDB_UNUSED(struct st_mysql_sys_var* var),
+                         void* save,
+                         struct st_mysql_value* value) {
     int error = 0;
     dir_cmd_set_error(thd, error, "");
 

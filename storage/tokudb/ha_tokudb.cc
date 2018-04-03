@@ -466,7 +466,7 @@ static inline bool do_ignore_flag_optimization(
     return do_opt;
 }
 
-#if TOKU_INCLUDE_EXTENDED_KEYS
+#if defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
 static inline uint get_ext_key_parts(const KEY *key) {
 #if (50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
     (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
@@ -477,7 +477,7 @@ static inline uint get_ext_key_parts(const KEY *key) {
 #error
 #endif
 }
-#endif
+#endif  // defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
 
 ulonglong ha_tokudb::table_flags() const {
     return int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
@@ -2881,11 +2881,11 @@ DBT* ha_tokudb::pack_key(
         key_length,
         key_length > 0 ? key_ptr[0] : 0,
         inf_byte);
-#if TOKU_INCLUDE_EXTENDED_KEYS
+#if defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
     if (keynr != primary_key && !tokudb_test(hidden_primary_key)) {
         DBUG_RETURN(pack_ext_key(key, keynr, buff, key_ptr, key_length, inf_byte));
     }
-#endif
+#endif  // defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
     KEY* key_info = &table->key_info[keynr];
     KEY_PART_INFO* key_part = key_info->key_part;
     KEY_PART_INFO* end = key_part + key_info->user_defined_key_parts;
@@ -2930,7 +2930,7 @@ DBT* ha_tokudb::pack_key(
     DBUG_RETURN(key);
 }
 
-#if TOKU_INCLUDE_EXTENDED_KEYS
+#if defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
 DBT* ha_tokudb::pack_ext_key(
     DBT* key,
     uint keynr,
@@ -3036,7 +3036,7 @@ DBT* ha_tokudb::pack_ext_key(
     dbug_tmp_restore_column_map(table->write_set, old_map);
     DBUG_RETURN(key);
 }
-#endif
+#endif  // defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
 
 //
 // get max used hidden primary key value
@@ -4618,10 +4618,10 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     }
     tokudb_active_index = keynr;
 
-#if TOKU_CLUSTERING_IS_COVERING
+#if defined(TOKU_CLUSTERING_IS_COVERING) && TOKU_CLUSTERING_IS_COVERING
     if (keynr < table->s->keys && table->key_info[keynr].option_struct->clustering)
         key_read = false;
-#endif
+#endif  // defined(TOKU_CLUSTERING_IS_COVERING) && TOKU_CLUSTERING_IS_COVERING
 
     last_cursor_error = 0;
     range_lock_grabbed = false;
@@ -6106,11 +6106,11 @@ void ha_tokudb::position(const uchar * record) {
 int ha_tokudb::info(uint flag) {
     TOKUDB_HANDLER_DBUG_ENTER("%d", flag);
     int error = 0;
-#if TOKU_CLUSTERING_IS_COVERING
+#if defined(TOKU_CLUSTERING_IS_COVERING) && TOKU_CLUSTERING_IS_COVERING
     for (uint i=0; i < table->s->keys; i++)
         if (key_is_clustering(&table->key_info[i]))
             table->covering_keys.set_bit(i);
-#endif
+#endif  // defined(TOKU_CLUSTERING_IS_COVERING) && TOKU_CLUSTERING_IS_COVERING
     DB_TXN* txn = NULL;
     if (flag & HA_STATUS_VARIABLE) {
         stats.records = share->row_count() + share->rows_from_locked_table;
@@ -6684,12 +6684,14 @@ static toku_compression_method get_compression_method(DB* file) {
     return method;
 }
 
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
+#if defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) && \
+    TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 enum row_type ha_tokudb::get_row_type() const {
     toku_compression_method compression_method = get_compression_method(share->file);
     return toku_compression_method_to_row_type(compression_method);
 }
-#endif
+#endif  // defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) &&
+        // TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 
 static int create_sub_table(
     const char* table_name,
@@ -6814,7 +6816,8 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
             create_info->auto_increment_value = stats.auto_increment_value;
         }
     }
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
+#if defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) && \
+    TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     if (!(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
         // show create table asks us to update this create_info, this makes it
         // so we'll always show what compression type we're using
@@ -6824,7 +6827,8 @@ void ha_tokudb::update_create_info(HA_CREATE_INFO* create_info) {
             create_info->row_type = ROW_TYPE_DEFAULT;
         }
     }
-#endif
+#endif  // defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) &&
+        // TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 }
 
 //
@@ -7220,7 +7224,7 @@ int ha_tokudb::create(
     form->s->write_frm_image();
 #endif
 
-#if TOKU_INCLUDE_OPTION_STRUCTS
+#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
     const tokudb::sysvars::format_t row_format =
         (tokudb::sysvars::row_format_t)form->s->option_struct->row_format;
 #else
@@ -7246,7 +7250,7 @@ int ha_tokudb::create(
                          "TokuDB: invalid ROW_FORMAT specifier.");
         }
     }
-#endif
+#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
     const toku_compression_method compression_method =
         row_format_to_toku_compression_method(row_format);
 

@@ -147,7 +147,7 @@ struct tokudb_map_pair {
 static int tokudb_map_pair_cmp(void *custom_arg, const void *a, const void *b) {
 #else
 static int tokudb_map_pair_cmp(
-    const void* custom_arg,
+    TOKUDB_UNUSED(const void* custom_arg),
     const void* a,
     const void* b) {
 #endif
@@ -684,7 +684,7 @@ error:
     DBUG_RETURN(true);
 }
 
-static int tokudb_done_func(void* p) {
+static int tokudb_done_func(TOKUDB_UNUSED(void* p)) {
     TOKUDB_DBUG_ENTER("");
     tokudb::memory::free(toku_global_status_variables);
     toku_global_status_variables = NULL;
@@ -700,7 +700,8 @@ static handler* tokudb_create_handler(
     return new(mem_root) ha_tokudb(hton, table);
 }
 
-int tokudb_end(handlerton* hton, ha_panic_function type) {
+int tokudb_end(TOKUDB_UNUSED(handlerton* hton),
+               TOKUDB_UNUSED(ha_panic_function type)) {
     TOKUDB_DBUG_ENTER("");
     int error = 0;
     
@@ -780,7 +781,7 @@ int tokudb_end(handlerton* hton, ha_panic_function type) {
     TOKUDB_DBUG_RETURN(error);
 }
 
-static int tokudb_close_connection(handlerton* hton, THD* thd) {
+static int tokudb_close_connection(TOKUDB_UNUSED(handlerton* hton), THD* thd) {
     int error = 0;
     tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, tokudb_hton);
     if (trx && trx->checkpoint_lock_taken) {
@@ -802,13 +803,13 @@ static int tokudb_close_connection(handlerton* hton, THD* thd) {
     return error;
 }
 
-void tokudb_kill_connection(handlerton *hton, THD *thd) {
+void tokudb_kill_connection(TOKUDB_UNUSED(handlerton* hton), THD* thd) {
     TOKUDB_DBUG_ENTER("");
     db_env->kill_waiter(db_env, thd);
     DBUG_VOID_RETURN;
 }
 
-bool tokudb_flush_logs(handlerton * hton) {
+bool tokudb_flush_logs(TOKUDB_UNUSED(handlerton* hton)) {
     TOKUDB_DBUG_ENTER("");
     int error;
     bool result = 0;
@@ -900,7 +901,7 @@ extern "C" enum durability_properties thd_get_durability_property(
 #endif
 
 // Determine if an fsync is used when a transaction is committed.  
-static bool tokudb_sync_on_commit(THD* thd, tokudb_trx_data* trx, DB_TXN* txn) {
+static bool tokudb_sync_on_commit(THD* thd) {
 #if MYSQL_VERSION_ID >= 50600
     // Check the client durability property which is set during 2PC
     if (thd_get_durability_property(thd) == HA_IGNORE_DURABILITY)
@@ -923,8 +924,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
-        uint32_t syncflag =
-            tokudb_sync_on_commit(thd, trx, this_txn) ? 0 : DB_TXN_NOSYNC;
+        uint32_t syncflag = tokudb_sync_on_commit(thd) ? 0 : DB_TXN_NOSYNC;
         TOKUDB_TRACE_FOR_FLAGS(
             TOKUDB_DEBUG_TXN,
             "commit trx %u txn %p syncflag %u",
@@ -1040,7 +1040,9 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_RETURN(r);
 }
 
-static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
+static int tokudb_xa_recover(TOKUDB_UNUSED(handlerton* hton),
+                             XID* xid_list,
+                             uint len) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     int r = 0;
@@ -1060,7 +1062,7 @@ static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len) {
     TOKUDB_DBUG_RETURN((int)num_returned);
 }
 
-static int tokudb_commit_by_xid(handlerton* hton, XID* xid) {
+static int tokudb_commit_by_xid(TOKUDB_UNUSED(handlerton* hton), XID* xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
@@ -1080,7 +1082,7 @@ cleanup:
     TOKUDB_DBUG_RETURN(r);
 }
 
-static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid) {
+static int tokudb_rollback_by_xid(TOKUDB_UNUSED(handlerton* hton), XID* xid) {
     TOKUDB_DBUG_ENTER("");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "xid %p", xid);
@@ -1261,15 +1263,13 @@ static int tokudb_discover2(
     return tokudb_discover3(hton, thd, db, name, path, frmblob, frmlen);
 }
 
-static int tokudb_discover3(
-    handlerton* hton,
-    THD* thd,
-    const char* db,
-    const char* name,
-    char* path,
-    uchar** frmblob,
-    size_t* frmlen) {
-
+static int tokudb_discover3(TOKUDB_UNUSED(handlerton* hton),
+                            THD* thd,
+                            const char* db,
+                            const char* name,
+                            char* path,
+                            uchar** frmblob,
+                            size_t* frmlen) {
     TOKUDB_DBUG_ENTER("%s %s %s", db, name, path);
     int error;
     DB* status_db = NULL;
@@ -1533,7 +1533,7 @@ cleanup:
 }
 
 static bool tokudb_show_status(
-    handlerton* hton,
+    TOKUDB_UNUSED(handlerton* hton),
     THD* thd,
     stat_print_fn* stat_print,
     enum ha_stat_type stat_type) {
@@ -1560,10 +1560,9 @@ static void tokudb_handle_fatal_signal(
 }
 #endif
 
-static void tokudb_print_error(
-    const DB_ENV* db_env,
-    const char* db_errpfx,
-    const char* buffer) {
+static void tokudb_print_error(TOKUDB_UNUSED(const DB_ENV* db_env),
+                               const char* db_errpfx,
+                               const char* buffer) {
     sql_print_error("%s: %s", db_errpfx, buffer);
 }
 
@@ -1674,7 +1673,6 @@ static bool tokudb_txn_id_to_client_id(
 #endif
 
 static void tokudb_pretty_key(
-    const DB* db,
     const DBT* key,
     const char* default_key,
     String* out) {
@@ -1696,12 +1694,12 @@ static void tokudb_pretty_key(
     }
 }
 
-void tokudb_pretty_left_key(const DB* db, const DBT* key, String* out) {
-    tokudb_pretty_key(db, key, "-infinity", out);
+void tokudb_pretty_left_key(const DBT* key, String* out) {
+    tokudb_pretty_key(key, "-infinity", out);
 }
 
-void tokudb_pretty_right_key(const DB* db, const DBT* key, String* out) {
-    tokudb_pretty_key(db, key, "+infinity", out);
+void tokudb_pretty_right_key(const DBT* key, String* out) {
+    tokudb_pretty_key(key, "+infinity", out);
 }
 
 const char* tokudb_get_index_name(DB* db) {
@@ -1748,20 +1746,20 @@ static void tokudb_lock_timeout_callback(
         log_str.append_ulonglong(blocking_txnid);
         if (tokudb_equal_key(left_key, right_key)) {
             String key_str;
-            tokudb_pretty_key(db, left_key, "?", &key_str);
+            tokudb_pretty_key(left_key, "?", &key_str);
             log_str.append(", \"key\":");
             log_str.append("\"");
             log_str.append(key_str);
             log_str.append("\"");
         } else {
             String left_str;
-            tokudb_pretty_left_key(db, left_key, &left_str);
+            tokudb_pretty_left_key(left_key, &left_str);
             log_str.append(", \"key_left\":");
             log_str.append("\"");
             log_str.append(left_str);
             log_str.append("\"");
             String right_str;
-            tokudb_pretty_right_key(db, right_key, &right_str);
+            tokudb_pretty_right_key(right_key, &right_str);
             log_str.append(", \"key_right\":");
             log_str.append("\"");
             log_str.append(right_str);
@@ -1825,7 +1823,9 @@ static void tokudb_lock_timeout_callback(
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case,
 // and prefixed with "TOKUDB_"
-static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
+static int show_tokudb_vars(TOKUDB_UNUSED(THD* thd),
+                            SHOW_VAR* var,
+                            TOKUDB_UNUSED(char* buff)) {
     TOKUDB_DBUG_ENTER("");
 
     int error;

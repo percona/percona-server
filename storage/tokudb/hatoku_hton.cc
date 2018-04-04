@@ -68,11 +68,6 @@ static bool tokudb_show_status(
     THD* thd,
     stat_print_fn* print,
     enum ha_stat_type);
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-static void tokudb_handle_fatal_signal(handlerton* hton, THD* thd, int sig);
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static int tokudb_close_connection(handlerton* hton, THD* thd);
 static void tokudb_kill_connection(handlerton *hton, THD *thd);
 static int tokudb_commit(handlerton* hton, THD* thd, bool all);
@@ -379,11 +374,6 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-    tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
@@ -1446,20 +1436,6 @@ static bool tokudb_show_status(
     }
     return false;
 }
-
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-static void tokudb_handle_fatal_signal(
-    TOKUDB_UNUSED(handlerton* hton),
-    TOKUDB_UNUSD(THD* thd),
-    int sig) {
-
-    if (tokudb_gdb_on_fatal) {
-        db_env_try_gdb_stack_trace(tokudb_gdb_path);
-    }
-}
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
 static void tokudb_print_error(TOKUDB_UNUSED(const DB_ENV* db_env),
                                const char* db_errpfx,

@@ -83,14 +83,6 @@ extern char*        tmp_dir;
 extern uint         write_status_frequency;
 extern my_bool      dir_per_db;
 extern char*        version;
-
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-extern char*        gdb_path;
-extern my_bool      gdb_on_fatal;
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-
 extern my_bool         check_jemalloc;
 
 #if TOKUDB_DEBUG

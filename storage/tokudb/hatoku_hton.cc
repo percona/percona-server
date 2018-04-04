@@ -1506,51 +1506,6 @@ struct st_mysql_storage_engine tokudb_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION
 };
 
-#if defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) && \
-    TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
-struct tokudb_search_txn_extra {
-    bool match_found;
-    uint64_t match_txn_id;
-    uint64_t match_client_id;
-};
-
-static int tokudb_search_txn_callback(
-    DB_TXN* txn,
-    iterate_row_locks_callback iterate_locks,
-    void* locks_extra,
-    void* extra) {
-
-    uint64_t txn_id = txn->id64(txn);
-    uint64_t client_id = txn->get_client_id(txn);
-    struct tokudb_search_txn_extra* e =
-        reinterpret_cast<struct tokudb_search_txn_extra*>(extra);
-    if (e->match_txn_id == txn_id) {
-        e->match_found = true;
-        e->match_client_id = client_id;
-        return 1;
-    }
-    return 0;
-}
-
-static bool tokudb_txn_id_to_client_id(
-    THD* thd,
-    uint64_t blocking_txnid,
-    uint64_t* blocking_client_id) {
-
-    struct tokudb_search_txn_extra e = {
-        false,
-        blocking_txnid,
-        0
-    };
-    db_env->iterate_live_transactions(db_env, tokudb_search_txn_callback, &e);
-    if (e.match_found) {
-        *blocking_client_id = e.match_client_id;
-    }
-    return e.match_found;
-}
-#endif  // defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) &&
-        // TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
-
 static void tokudb_pretty_key(
     const DBT* key,
     const char* default_key,
@@ -1674,29 +1629,6 @@ static void tokudb_lock_timeout_callback(
                 static_cast<uint64_t>(mysql_thread_id),
                 (int)qs.length,
                 qs.str);
-#if defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) && \
-    TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
-            uint64_t blocking_thread_id = 0;
-            if (tokudb_txn_id_to_client_id(
-                    thd,
-                    blocking_txnid,
-                    &blocking_thread_id)) {
-
-                String blocking_qs;
-                if (get_thread_query_string(
-                        blocking_thread_id,
-                        blocking_qs) == 0) {
-
-                    sql_print_error(
-                        "%s: blocking_thread_id:%" PRIu64 " q:%.*s",
-                        tokudb_hton_name,
-                        blocking_thread_id,
-                        blocking_qs.length(),
-                        blocking_qs.c_ptr());
-                }
-            }
-#endif  // defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) &&
-        // TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
         }
     }
 }

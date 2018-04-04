@@ -51,18 +51,6 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
-#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
-ha_create_table_option tokudb_table_options[] = {
-    HA_TOPTION_SYSVAR("compression", row_format, row_format),
-    HA_TOPTION_END
-};
-
-ha_create_table_option tokudb_index_options[] = {
-    HA_IOPTION_BOOL("clustering", clustering, 0),
-    HA_IOPTION_END
-};
-#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
-
 static handler* tokudb_create_handler(
     handlerton* hton,
     TABLE_SHARE* table,
@@ -396,11 +384,6 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
 #endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
         // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-
-#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
-    tokudb_hton->table_options = tokudb_table_options;
-    tokudb_hton->index_options = tokudb_index_options;
-#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
 
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;

@@ -7259,10 +7259,6 @@ int ha_tokudb::create(
 
     memset(&kc_info, 0, sizeof(kc_info));
 
-#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
-    const tokudb::sysvars::format_t row_format =
-        (tokudb::sysvars::row_format_t)form->s->option_struct->row_format;
-#else
     // TDB-76 : CREATE TABLE ... LIKE ... does not use source row_format on
     //          target table
     // Original code would only use create_info->row_type if
@@ -7285,7 +7281,6 @@ int ha_tokudb::create(
                          "TokuDB: invalid ROW_FORMAT specifier.");
         }
     }
-#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
     const toku_compression_method compression_method =
         row_format_to_toku_compression_method(row_format);
 

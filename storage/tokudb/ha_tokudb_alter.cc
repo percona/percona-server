@@ -1062,13 +1062,6 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(
                     Alter_inplace_info::CHANGE_CREATE_OPTION)) {
 
         HA_CREATE_INFO* create_info = ha_alter_info->create_info;
-#if TOKU_INCLUDE_OPTION_STRUCTS
-        // set the USED_ROW_FORMAT flag for use later in this file for changes
-        // in the table's compression
-        if (create_info->option_struct->row_format !=
-            table_share->option_struct->row_format)
-            create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
-#endif
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             // do a sanity check that the table is what we think it is
@@ -1186,14 +1179,8 @@ bool ha_tokudb::inplace_alter_table(
         assert_always(error == 0);
 
         // Set the new compression
-#if TOKU_INCLUDE_OPTION_STRUCTS
-        toku_compression_method method =
-            row_format_to_toku_compression_method(
-                (tokudb::sysvars::row_format_t)create_info->option_struct->row_format);
-#else
         toku_compression_method method =
             row_type_to_toku_compression_method(create_info->row_type);
-#endif
         uint32_t curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
         for (uint32_t i = 0; i < curr_num_DBs; i++) {
             db = share->key_file[i];

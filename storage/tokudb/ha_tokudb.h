@@ -1034,25 +1034,9 @@ private:
 #endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 };
 
-#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
-struct ha_table_option_struct {
-    uint row_format;
-};
-
-struct ha_index_option_struct {
-    bool clustering;
-};
-
-static inline bool key_is_clustering(const KEY *key) {
-    return (key->flags & HA_CLUSTERING) || (key->option_struct && key->option_struct->clustering);
-}
-
-#else
-
 static inline bool key_is_clustering(const KEY *key) {
     return key->flags & HA_CLUSTERING;
 }
-#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
 
 #endif // _HA_TOKUDB_H
 

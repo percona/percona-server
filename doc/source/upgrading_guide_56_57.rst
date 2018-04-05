@@ -146,7 +146,7 @@ You can now start the ``mysql`` service:
 
 and use ``mysql_upgrade`` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
 
-.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps_tokudb_admin --enable`` before running ``mysql_upgrade`` otherwise you'll get errors.
+.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 
@@ -326,7 +326,7 @@ As the schema of the grant table has changed, the server must be started without
 
 and use :file:`mysql_upgrade` to migrate to the new grant tables, it will rebuild the indexes needed and do the modifications needed: 
 
-.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps_tokudb_admin --enable`` before running ``mysql_upgrade`` otherwise you'll get errors.
+.. note:: If you're using |TokuDB| storage engine you'll need re-enable the storage engine plugin by running the: ``ps-admin --enable-tokudb`` before running ``mysql_upgrade`` otherwise you'll get errors.
 
 .. code-block:: bash
 

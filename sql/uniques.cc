@@ -1,4 +1,6 @@
 /* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -391,7 +393,9 @@ Unique::reset()
   if (elements)
   {
     file_ptrs.clear();
-    reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
+    MY_ATTRIBUTE((unused)) int reinit_res=
+      reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
+    DBUG_ASSERT(reinit_res == 0);
   }
   elements= 0;
 }
@@ -680,7 +684,6 @@ bool Unique::get(TABLE *table)
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,
 		       MYF(MY_WME))))
     return 1;
-  reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
 
   Sort_param sort_param;
   sort_param.max_rows= elements;

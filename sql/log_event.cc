@@ -1,5 +1,7 @@
 /*
    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1891,6 +1893,7 @@ void Log_event::print_header(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
                              bool is_more MY_ATTRIBUTE((unused)))
 {
+  MY_ATTRIBUTE((unused)) int write_res;
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
   DBUG_ENTER("Log_event::print_header");
@@ -1942,7 +1945,8 @@ void Log_event::print_header(IO_CACHE* file,
                     ptr[7], ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13],
                     ptr[14], ptr[15], ptr[16], ptr[17], ptr[18]);
       DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar*) emit_buf, bytes_written);
+      write_res= my_b_write(file, (uchar*) emit_buf, bytes_written);
+      DBUG_ASSERT(write_res == 0);
       ptr += LOG_EVENT_MINIMAL_HEADER_LEN;
       hexdump_from += LOG_EVENT_MINIMAL_HEADER_LEN;
     }
@@ -1972,7 +1976,8 @@ void Log_event::print_header(IO_CACHE* file,
                       (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                       hex_string, char_string);
         DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-	my_b_write(file, (uchar*) emit_buf, bytes_written);
+        write_res= my_b_write(file, (uchar*) emit_buf, bytes_written);
+        DBUG_ASSERT(write_res == 0);
 	hex_string[0]= 0;
 	char_string[0]= 0;
 	c= char_string;
@@ -1993,13 +1998,15 @@ void Log_event::print_header(IO_CACHE* file,
                     (unsigned long) (hexdump_from + (i & 0xfffffff0)),
                     hex_string, char_string);
       DBUG_ASSERT(static_cast<size_t>(bytes_written) < sizeof(emit_buf));
-      my_b_write(file, (uchar*) emit_buf, bytes_written);
+      write_res= my_b_write(file, (uchar*) emit_buf, bytes_written);
+      DBUG_ASSERT(write_res == 0);
     }
     /*
       need a # to prefix the rest of printouts for example those of
       Rows_log_event::print_helper().
     */
-    my_b_write(file, reinterpret_cast<const uchar*>("# "), 2);
+    write_res= my_b_write(file, reinterpret_cast<const uchar*>("# "), 2);
+    DBUG_ASSERT(write_res == 0);
   }
   DBUG_VOID_RETURN;
 }
@@ -2017,17 +2024,22 @@ void Log_event::print_header(IO_CACHE* file,
 static void
 my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
 {
+  MY_ATTRIBUTE((unused)) int write_res;
   const uchar *s;
   my_b_printf(file, "'");
   for (s= ptr; length > 0 ; s++, length--)
   {
     if (*s > 0x1F && *s != '\'' && *s != '\\')
-      my_b_write(file, s, 1);
+    {
+      write_res= my_b_write(file, s, 1);
+      DBUG_ASSERT(write_res == 0);
+    }
     else
     {
       uchar hex[10];
       size_t len= my_snprintf((char*) hex, sizeof(hex), "%s%02x", "\\x", *s);
-      my_b_write(file, hex, len);
+      write_res = my_b_write(file, hex, len);
+      DBUG_ASSERT(write_res == 0);
     }
   }
   my_b_printf(file, "'");
@@ -2048,7 +2060,9 @@ my_b_write_bit(IO_CACHE *file, const uchar *ptr, uint nbits)
   for (bitnum= skip_bits ; bitnum < nbits8; bitnum++)
   {
     int is_set= (ptr[(bitnum) / 8] >> (7 - bitnum % 8))  & 0x01;
-    my_b_write(file, (const uchar*) (is_set ? "1" : "0"), 1);
+    MY_ATTRIBUTE((unused)) int write_res=
+      my_b_write(file, (const uchar*) (is_set ? "1" : "0"), 1);
+    DBUG_ASSERT(write_res == 0);
   }
   my_b_printf(file, "'");
 }
@@ -2276,7 +2290,8 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       struct timeval tm;
       my_timestamp_from_binary(&tm, ptr, meta);
       int buflen= my_timeval_to_str(&tm, buf, meta);
-      my_b_write(file, buf, buflen);
+      if (my_b_write(file, reinterpret_cast<const uchar*>(buf), buflen))
+        return 0;
       return my_timestamp_binary_length(meta);
     }
 
@@ -4358,7 +4373,9 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   end= my_stpcpy(end, print_event_info->delimiter);
   *end++='\n';
   DBUG_ASSERT(end < buff + sizeof(buff));
-  my_b_write(file, (uchar*) buff, (uint) (end-buff));
+  MY_ATTRIBUTE((unused)) int write_res=
+    my_b_write(file, (uchar*) buff, (uint) (end-buff));
+  DBUG_ASSERT(write_res == 0);
   if ((!print_event_info->thread_id_printed ||
        ((common_header->flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
         thread_id != print_event_info->thread_id)))
@@ -4507,7 +4524,9 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   DBUG_EXECUTE_IF ("simulate_file_write_error",
                    {head->write_pos= head->write_end- 500;});
   print_query_header(head, print_event_info);
-  my_b_write(head, (uchar*) query, q_len);
+  MY_ATTRIBUTE((unused)) int write_res=
+    my_b_write(head, (uchar*)query, q_len);
+  DBUG_ASSERT(write_res == 0);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
@@ -6691,7 +6710,11 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   print_header(head, print_event_info, FALSE);
   my_b_printf(head, "\tRotate to ");
   if (new_log_ident)
-    my_b_write(head, (uchar*) new_log_ident, (uint)ident_len);
+  {
+    MY_ATTRIBUTE((unused)) int write_res=
+      my_b_write(head, (uchar*) new_log_ident, (uint)ident_len);
+    DBUG_ASSERT(write_res == 0);
+  }
   my_b_printf(head, "  pos: %s\n", llstr(pos, buf));
 }
 #endif /* MYSQL_CLIENT */
@@ -7939,7 +7962,9 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   quoted_len= my_strmov_quoted_identifier((char *) quoted_id,
                                           (const char *) name_id);
   quoted_id[quoted_len]= '\0';
-  my_b_write(head, (uchar*) quoted_id, quoted_len);
+  MY_ATTRIBUTE((unused)) int write_res=
+    my_b_write(head, (uchar*) quoted_id, quoted_len);
+  DBUG_ASSERT(write_res == 0);
 
   if (is_null)
   {
@@ -9146,6 +9171,7 @@ void Execute_load_query_log_event::print(FILE* file,
                                          PRINT_EVENT_INFO* print_event_info,
                                          const char *local_fname)
 {
+  MY_ATTRIBUTE((unused)) int write_res;
   IO_CACHE *const head= &print_event_info->head_cache;
 
   print_query_header(head, print_event_info);
@@ -9159,19 +9185,22 @@ void Execute_load_query_log_event::print(FILE* file,
 
   if (local_fname)
   {
-    my_b_write(head, (uchar*) query, fn_pos_start);
+    write_res= my_b_write(head, (uchar*) query, fn_pos_start);
+    DBUG_ASSERT(write_res == 0);
     my_b_printf(head, " LOCAL INFILE ");
     pretty_print_str(head, local_fname, strlen(local_fname));
 
     if (dup_handling == binary_log::LOAD_DUP_REPLACE)
       my_b_printf(head, " REPLACE");
     my_b_printf(head, " INTO");
-    my_b_write(head, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
+    write_res= my_b_write(head, (uchar*) query + fn_pos_end, q_len-fn_pos_end);
+    DBUG_ASSERT(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
   else
   {
-    my_b_write(head, (uchar*) query, q_len);
+    write_res= my_b_write(head, (uchar*) query, q_len);
+    DBUG_ASSERT(write_res == 0);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
 

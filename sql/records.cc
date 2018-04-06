@@ -245,7 +245,8 @@ bool init_read_record(READ_RECORD *info,THD *thd,
     }
 
     info->io_cache=tempfile;
-    reinit_io_cache(info->io_cache,READ_CACHE,0L,0,0);
+    if (reinit_io_cache(info->io_cache, READ_CACHE, 0L, 0, 0))
+      goto err;
     info->ref_pos=table->file->ref;
     if (!table->file->inited &&
         (error= table->file->ha_rnd_init(0)))

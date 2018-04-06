@@ -338,7 +338,13 @@ static int examine_log(char * file_name, char **table_names)
     }
   }
 
-  init_io_cache(&cache,file,0,READ_CACHE,start_offset,0,MYF(0));
+  if (init_io_cache(&cache, file, 0, READ_CACHE, start_offset, 0, MYF(0)))
+  {
+    if (write_file != NULL)
+      my_fclose(write_file, MYF(MY_WME));
+    my_close(file, MYF(0));
+    DBUG_RETURN(1);
+  }
   memset(com_count, 0, sizeof(com_count));
   init_tree(&tree,0,0,sizeof(file_info),(qsort_cmp2) file_info_compare,1,
             file_info_free, NULL);

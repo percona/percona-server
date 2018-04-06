@@ -53,8 +53,9 @@ int mi_panic(enum ha_panic_function flag)
       {
 	if (flush_io_cache(&info->rec_cache))
 	  error=my_errno();
-	reinit_io_cache(&info->rec_cache,READ_CACHE,0,
-		       (pbool) (info->lock_type != F_UNLCK),1);
+        if (reinit_io_cache(&info->rec_cache, READ_CACHE, 0,
+              (info->lock_type != F_UNLCK), 1))
+          error= my_errno();
       }
       if (info->lock_type != F_UNLCK && ! info->was_locked)
       {

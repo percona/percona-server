@@ -1,0 +1,5 @@
+CREATE TABLE `t` (
+`a` varchar(3000) NOT NULL default '',
+PRIMARY KEY  (`a`)
+) ENGINE=BLACKHOLE;
+DROP TABLE `t`;

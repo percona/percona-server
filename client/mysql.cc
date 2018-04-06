@@ -2165,7 +2165,10 @@ static bool add_line(String &buffer,char *line,char *in_string,
       if (*in_string || inchar == 'N')	// \N is short for NULL
       {					// Don't allow commands in string
 	*out++='\\';
-	*out++= (char) inchar;
+        if ((inchar == '`') && (*in_string == inchar))
+          pos--;
+        else
+	  *out++= (char) inchar;
 	continue;
       }
       if ((com=find_command(NullS,(char) inchar)))
@@ -2714,7 +2717,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
         mysql_free_result(fields);
         break;
       }
-      field_names[i][num_fields*2]= '\0';
+      field_names[i][num_fields*2]= NULL;
       j=0;
       while ((sql_field=mysql_fetch_field(fields)))
       {
@@ -2757,7 +2760,7 @@ char *index(const char *s,int c)
 
 char *rindex(const char *s,int c)
 {
-  reg3 char *t;
+  char *t;
 
   t = NullS;
   do if (*s == (char) c) t = (char*) s; while (*s++);
@@ -2957,7 +2960,7 @@ static int
 com_help(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-  reg1 int i, j;
+  int i, j;
   char * help_arg= strchr(line,' '), buff[32], *end;
   if (help_arg)
   {

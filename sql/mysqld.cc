@@ -1578,11 +1578,13 @@ void clean_up(bool print_message)
 #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
   query_response_time_free();
 #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
+#ifndef EMBEDDED_LIBRARY
   free_global_user_stats();
   free_global_client_stats();
   free_global_thread_stats();
   free_global_table_stats();
   free_global_index_stats();
+#endif
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
@@ -3909,8 +3911,10 @@ static int init_server_components()
   init_slave_list();
 #endif
 
+#ifndef EMBEDDED_LIBRARY
   init_global_table_stats();
   init_global_index_stats();
+#endif
 
   /* Setup logs */
 
@@ -4306,9 +4310,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   init_max_user_conn();
   init_update_queries();
+#ifndef EMBEDDED_LIBRARY
   init_global_user_stats();
   init_global_client_stats();
   init_global_thread_stats();
+#endif
   DBUG_RETURN(0);
 }
 

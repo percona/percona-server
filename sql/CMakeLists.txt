@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,14 +22,16 @@ ${SSL_INCLUDE_DIRS}
 ${CMAKE_BINARY_DIR}/sql
 )
 
+SET(CONF_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+)
 SET(GEN_SOURCES
 ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
 ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
 ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
+SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} ${CONF_SOURCES} PROPERTIES GENERATED 1)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_EVENT_SCHEDULER -DHAVE_POOL_OF_THREADS)
 IF(SSL_DEFINES)
@@ -79,6 +81,7 @@ SET (SQL_SOURCE
                sql_reload.cc
                threadpool_common.cc
                ${GEN_SOURCES}
+               ${CONF_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
 IF(WIN32)

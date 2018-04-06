@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ static int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                          LEX_STRING query, bool ignore, bool log_on);
 static void end_delayed_insert(THD *thd);
 pthread_handler_t handle_delayed_insert(void *arg);
-static void unlink_blobs(register TABLE *table);
+static void unlink_blobs(TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
@@ -1422,8 +1422,11 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->abort_on_warning= saved_abort_on_warning;
     }
 
+   thd->lex->in_update_value_clause= true;
    if (!res)
      res= setup_fields(thd, 0, update_values, MARK_COLUMNS_READ, 0, 0);
+
+    thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -2894,7 +2897,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
 /* Remove pointers from temporary fields to allocated values */
 
-static void unlink_blobs(register TABLE *table)
+static void unlink_blobs(TABLE *table)
 {
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
@@ -2905,7 +2908,7 @@ static void unlink_blobs(register TABLE *table)
 
 /* Free blobs stored in current row */
 
-static void free_delayed_insert_blobs(register TABLE *table)
+static void free_delayed_insert_blobs(TABLE *table)
 {
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
@@ -3322,8 +3325,11 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
       table_list->next_name_resolution_table= 
         ctx_state.get_first_name_resolution_table();
 
+    thd->lex->in_update_value_clause= true;
     res= res || setup_fields(thd, 0, *info.update_values,
                              MARK_COLUMNS_READ, 0, 0);
+
+    thd->lex->in_update_value_clause= false;
     if (!res)
     {
       /*

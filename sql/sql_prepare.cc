@@ -398,7 +398,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
 
 static ulong get_param_length(uchar **packet, ulong len)
 {
-  reg1 uchar *pos= *packet;
+  uchar *pos= *packet;
   if (len < 1)
     return 0;
   if (*pos < 251)
@@ -1991,6 +1991,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     if (res != 2)
       break;
 
+    // fallthrough
+
   case SQLCOM_UPDATE_MULTI:
     res= mysql_test_multiupdate(stmt, tables, res == 2);
     break;
@@ -2288,7 +2290,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -2745,7 +2749,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -2926,7 +2932,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -3058,7 +3066,9 @@ end:
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;

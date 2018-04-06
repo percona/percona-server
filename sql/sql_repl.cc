@@ -261,7 +261,7 @@ bool log_in_use(const char* log_name)
     if ((linfo = tmp->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      result = !memcmp(log_name, linfo->log_file_name, log_name_len);
+      result = !strncmp(log_name, linfo->log_file_name, log_name_len);
       mysql_mutex_unlock(&linfo->lock);
       if (result)
 	break;
@@ -963,6 +963,7 @@ impossible position";
           loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
           break;
         }
+        // fallthrough
       default:
 	errmsg = "could not find next log";
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;

@@ -1,7 +1,7 @@
 #ifndef SQL_PARTITION_INCLUDED
 #define SQL_PARTITION_INCLUDED
 
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,10 +15,6 @@
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-#ifdef __GNUC__
-#pragma interface				/* gcc class implementation */
-#endif
 
 #include "sql_list.h"                           /* List */
 #include "table.h"                              /* TABLE_LIST */
@@ -272,10 +268,10 @@ char *generate_partition_syntax(partition_info *part_info,
                                 const char *current_comment_start);
 #endif
 
-void create_partition_name(char *out, const char *in1,
+bool create_partition_name(char *out, const char *in1,
                            const char *in2, uint name_variant,
                            bool translate);
-void create_subpartition_name(char *out, const char *in1,
+bool create_subpartition_name(char *out, const char *in1,
                               const char *in2, const char *in3,
                               uint name_variant);
 

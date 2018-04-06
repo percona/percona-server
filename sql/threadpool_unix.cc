@@ -555,7 +555,7 @@ static void* timer_thread(void *param)
     struct timespec ts;
     int err;
 
-    set_timespec_nsec(ts,timer->tick_interval*1000000);
+    set_timespec_nsec(ts,timer->tick_interval * 1000000ULL);
     mysql_mutex_lock(&timer->mutex);
     err= mysql_cond_timedwait(&timer->cond, &timer->mutex, &ts);
     if (timer->shutdown)
@@ -1044,6 +1044,7 @@ static void thread_group_close(thread_group_t *thread_group)
 
   if (pipe(thread_group->shutdown_pipe))
   {
+    mysql_mutex_unlock(&thread_group->mutex);
     DBUG_VOID_RETURN;
   }
   
@@ -1051,11 +1052,15 @@ static void thread_group_close(thread_group_t *thread_group)
   if (io_poll_associate_fd(thread_group->pollfd, 
       thread_group->shutdown_pipe[0], NULL))
   {
+    mysql_mutex_unlock(&thread_group->mutex);
     DBUG_VOID_RETURN;
   }
   char c= 0;
   if (write(thread_group->shutdown_pipe[1], &c, 1) < 0)
+  {
+    mysql_mutex_unlock(&thread_group->mutex);
     DBUG_VOID_RETURN;
+  }
 
   /* Wake all workers. */
   while(wake_thread(thread_group) == 0) 

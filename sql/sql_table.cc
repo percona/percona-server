@@ -1007,12 +1007,13 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           break;
       }
       DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
-      /*
-        Fall through and perform the rename action of the replace
-        action. We have already indicated the success of the delete
-        action in the log entry by stepping up the phase.
-      */
     }
+    // fallthrough
+    /*
+    and perform the rename action of the replace
+    action. We have already indicated the success of the delete
+    action in the log entry by stepping up the phase.
+    */
     case DDL_LOG_RENAME_ACTION:
     {
       error= TRUE;
@@ -4049,6 +4050,7 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
   Auxiliary function which allows to check if freshly created .FRM
   file for table can be opened.
@@ -4092,6 +4094,7 @@ static bool check_if_created_table_can_be_opened(THD *thd,
   (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
   return result;
 }
+#endif
 
 
 /*
@@ -5437,7 +5440,8 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
   case LEAVE_AS_IS:
     if (!indexes_were_disabled)
       break;
-    /* fall-through: disabled indexes */
+    // fallthrough
+    // disabled indexes
   case DISABLE:
     error= table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }

@@ -1236,8 +1236,9 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     }
 
     /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
+    compile_time_assert(sizeof(sctx->priv_user) / sizeof(void*) > 1);
     user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                             sctx->priv_user ? sctx->priv_user : "", "[",
+                             sctx->priv_user, "[",
                              sctx->user ? sctx->user : (thd->slave_thread ? "SQL_SLAVE" : ""), "] @ ",
                              sctx->get_host()->length() ?
                              sctx->get_host()->ptr() : "", " [",
@@ -2207,7 +2208,7 @@ static int find_uniq_filename(char *name, ulong *next, bool need_next)
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
   struct st_my_dir     *dir_info;
-  reg1 struct fileinfo *file_info;
+  struct fileinfo *file_info;
   ulong                 max_found= 0, number= 0;
   size_t		buf_length, length;
   char			*start, *end;
@@ -2240,7 +2241,7 @@ static int find_uniq_filename(char *name, ulong *next, bool need_next)
   my_dirend(dir_info);
 
   /* check if reached the maximum possible extension number */
-  if ((max_found == MAX_LOG_UNIQUE_FN_EXT))
+  if (max_found == MAX_LOG_UNIQUE_FN_EXT)
   {
     sql_print_error("Log filename extension number exhausted: %06lu. \
 Please fix this by archiving old logs and \
@@ -6401,10 +6402,10 @@ void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
     0	String is not a number
 */
 
-static bool test_if_number(register const char *str,
+static bool test_if_number(const char *str,
 			   ulong *res, bool allow_wildcards)
 {
-  reg2 int flag;
+  int flag;
   const char *start;
   DBUG_ENTER("test_if_number");
 
@@ -7097,8 +7098,10 @@ void TC_LOG_MMAP::close()
     mysql_cond_destroy(&COND_active);
     mysql_cond_destroy(&COND_pool);
     mysql_cond_destroy(&COND_queue_busy);
+    // fallthrough
   case 5:
     data[0]='A'; // garble the first (signature) byte, in case mysql_file_delete fails
+    // fallthrough
   case 4:
     for (i=0; i < npages; i++)
     {
@@ -7107,10 +7110,13 @@ void TC_LOG_MMAP::close()
       mysql_mutex_destroy(&pages[i].lock);
       mysql_cond_destroy(&pages[i].cond);
     }
+    // fallthrough
   case 3:
     my_free(pages);
+    // fallthrough
   case 2:
     my_munmap((char*)data, (size_t)file_length);
+    // fallthrough
   case 1:
     mysql_file_close(fd, MYF(0));
   }

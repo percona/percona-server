@@ -925,8 +925,8 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
 {
   const char *p;
-  register char c, next_c;
-  register int escaped = 0;
+  char c, next_c;
+  int escaped = 0;
   VAR *v;
   DBUG_ENTER("do_eval");
 
@@ -2101,7 +2101,7 @@ C_MODE_START
 static uchar *get_var_key(const uchar* var, size_t *len,
                           my_bool __attribute__((unused)) t)
 {
-  register char* key;
+  char* key;
   key = ((VAR*)var)->name;
   *len = ((VAR*)var)->name_len;
   return (uchar*)key;
@@ -9224,7 +9224,7 @@ typedef struct st_pointer_array {		/* when using array-strings */
 
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
+int insert_pointer_name(POINTER_ARRAY *pa,char * name);
 void free_pointer_array(POINTER_ARRAY *pa);
 
 /*
@@ -9308,8 +9308,8 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *str,
                             int len __attribute__((unused)))
 {
-  reg1 REPLACE *rep_pos;
-  reg2 REPLACE_STRING *rep_str;
+  REPLACE *rep_pos;
+  REPLACE_STRING *rep_str;
   const char *start, *from;
   DBUG_ENTER("replace_strings_append");
 
@@ -10207,7 +10207,7 @@ void internal_clear_bit(REP_SET *set, uint bit)
 
 void or_bits(REP_SET *to,REP_SET *from)
 {
-  reg1 uint i;
+  uint i;
   for (i=0 ; i < to->size_of_bits ; i++)
     to->bits[i]|=from->bits[i];
   return;
@@ -10309,7 +10309,7 @@ uint end_of_word(char * pos)
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */
 
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
+int insert_pointer_name(POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
   uchar *new_pos;
@@ -10321,10 +10321,10 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->typelib.type_names=(const char **)
 	  my_malloc(((PC_MALLOC-MALLOC_OVERHEAD)/
 		     (sizeof(char *)+sizeof(*pa->flag))*
-		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME))))
+		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME | MY_ZEROFILL))))
       DBUG_RETURN(-1);
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
-				     MYF(MY_WME))))
+				     MYF(MY_WME | MY_ZEROFILL))))
     {
       my_free(pa->typelib.type_names);
       DBUG_RETURN (-1);

@@ -16,8 +16,10 @@
 #ifndef _io_perf_h_
 #define _io_perf_h_
 
+#include <memory.h>
 #include <algorithm>
 #include "atomic_stat.h"
+#include "my_inttypes.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -22,9 +22,9 @@
 #include <vector>
 
 /* MySQL header files */
-#include "log.h"
 #include "my_stacktrace.h"
-#include "sql_regex.h"
+#include "sql/log.h"
+#include "sql/sql_regex.h"
 #include "sql_string.h"
 
 /* RocksDB header files */

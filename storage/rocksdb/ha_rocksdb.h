@@ -30,11 +30,11 @@
 #include <vector>
 
 /* MySQL header files */
-#include "field.h"
-#include "handler.h"   /* handler */
-#include "my_global.h" /* ulonglong */
+#include "ib_ut0counter.h"
 #include "my_icp.h"
-#include "sql_bitmap.h"
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/sql_bitmap.h"
 #include "sql_string.h"
 
 /* RocksDB header files */

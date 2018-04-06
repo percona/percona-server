@@ -28,6 +28,7 @@
 
 /* MySQL header files */
 #include "my_dir.h"
+#include "sql/mysqld.h"
 
 /* MyRocks header files */
 #include "./ha_rocksdb.h"

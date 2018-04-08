@@ -31,6 +31,14 @@ see `Forcing InnoDB Recovery
 <https://dev.mysql.com/doc/refman/5.5/en/forcing-innodb-recovery.html>`_
 from the MySQL Reference Manual.
 
+.. note::
+   
+   ``INSERT``, ``UPDATE``, and ``DELETE`` operations are not working under
+   :variable:`innodb_force_recovery` > 0, and as long as |InnoDB| is used
+   to store system tables, it prevents a range of normal processes to go:
+   such as |MyRocks| and |TokuDB| plugins installation/deinstallation,
+   status logging on the BLACKHOLE slave, etc.
+
 This feature adds a new system variable.
 
 Version Specific Information

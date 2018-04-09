@@ -1282,16 +1282,6 @@ class ha_rocksdb : public my_core::handler {
                              enum thr_lock_type lock_type) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
-  bool register_query_cache_table(THD *const thd, char *const table_key,
-                                  size_t key_length,
-                                  qc_engine_callback *const engine_callback,
-                                  ulonglong *const engine_data) override {
-    DBUG_ENTER_FUNC();
-
-    /* Currently, we don't support query cache */
-    DBUG_RETURN(FALSE);
-  }
-
   bool get_error_message(const int error, String *const buf) override;
 
   static int rdb_error_to_mysql(const rocksdb::Status &s,

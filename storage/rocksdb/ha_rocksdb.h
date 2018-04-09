@@ -847,7 +847,9 @@ class ha_rocksdb : public my_core::handler {
     return m_store_row_debug_checksums && (rand() % 100 < m_checksums_pct);
   }
 
-  int rename_table(const char *const from, const char *const to) override
+  int rename_table(const char *const from, const char *const to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
 
   int convert_blob_from_storage_format(my_core::Field_blob *const blob,
@@ -991,7 +993,8 @@ class ha_rocksdb : public my_core::handler {
   virtual double read_time(uint, uint, ha_rows rows) override;
   virtual void print_error(int error, myf errflag) override;
 
-  int open(const char *const name, int mode, uint test_if_locked) override
+  int open(const char *const name, int mode, uint test_if_locked,
+           const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int close(void) override MY_ATTRIBUTE((__warn_unused_result__));
 
@@ -1248,7 +1251,8 @@ class ha_rocksdb : public my_core::handler {
       MY_ATTRIBUTE((__warn_unused_result__));
   int external_lock(THD *const thd, int lock_type) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int truncate() override MY_ATTRIBUTE((__warn_unused_result__));
+  int truncate(dd::Table *table_def) override
+      MY_ATTRIBUTE((__warn_unused_result__));
 
   int reset() override {
     DBUG_ENTER_FUNC();
@@ -1265,10 +1269,10 @@ class ha_rocksdb : public my_core::handler {
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
       MY_ATTRIBUTE((__warn_unused_result__));
-  int delete_table(const char *const from) override
+  int delete_table(const char *const from, const dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int create(const char *const name, TABLE *const form,
-             HA_CREATE_INFO *const create_info) override
+             HA_CREATE_INFO *const create_info, dd::Table *table_def) override
       MY_ATTRIBUTE((__warn_unused_result__));
   bool check_if_incompatible_data(HA_CREATE_INFO *const info,
                                   uint table_changes) override
@@ -1306,20 +1310,23 @@ class ha_rocksdb : public my_core::handler {
 
   enum_alter_inplace_result check_if_supported_inplace_alter(
       TABLE *altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info) override;
+      my_core::Alter_inplace_info *ha_alter_info) override;
 
-  bool prepare_inplace_alter_table(
-      TABLE *const altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info) override;
+  bool prepare_inplace_alter_table(TABLE *altered_table,
+                                   my_core::Alter_inplace_info *ha_alter_info,
+                                   const dd::Table *old_table_def,
+                                   dd::Table *new_table_def) override;
 
-  bool inplace_alter_table(
-      TABLE *const altered_table,
-      my_core::Alter_inplace_info *const ha_alter_info) override;
+  bool inplace_alter_table(TABLE *altered_table,
+                           my_core::Alter_inplace_info *ha_alter_info,
+                           const dd::Table *old_table_def,
+                           dd::Table *new_table_def) override;
 
   bool
-  commit_inplace_alter_table(TABLE *const altered_table,
+  commit_inplace_alter_table(TABLE *altered_table,
                              my_core::Alter_inplace_info *const ha_alter_info,
-                             bool commit) override;
+                             bool commit, const dd::Table *old_table_def,
+                             dd::Table *new_table_def) override;
 
   void set_use_read_free_rpl(const char *const whitelist);
 

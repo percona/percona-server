@@ -606,7 +606,7 @@ class ha_rocksdb : public my_core::handler {
     to be updated.
     @note Valid inside UPDATE statements, IIF(m_update_scope_is_valid == true).
   */
-  my_core::key_map m_update_scope;
+  my_core::Bitmap<((MAX_INDEXES + 7) / 8 * 8)> m_update_scope;
   bool m_update_scope_is_valid;
 
   /* SST information used for bulk loading the primary key */
@@ -848,12 +848,6 @@ class ha_rocksdb : public my_core::handler {
   ulong index_flags(uint inx, uint part, bool all_parts) const override;
 
   bool rpl_can_handle_stm_event() const override;
-
-  const key_map *keys_to_use_for_scanning() override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN(&key_map_full);
-  }
 
   bool primary_key_is_clustered() const override {
     DBUG_ENTER_FUNC();

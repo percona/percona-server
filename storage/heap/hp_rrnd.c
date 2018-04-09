@@ -25,7 +25,7 @@
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int heap_rrnd(register HP_INFO *info, uchar *record, uchar *pos)
+int heap_rrnd(HP_INFO *info, uchar *record, uchar *pos)
 {
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_rrnd");
@@ -65,7 +65,7 @@ int heap_rrnd(register HP_INFO *info, uchar *record, uchar *pos)
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int heap_rrnd_old(register HP_INFO *info, uchar *record, ulong pos)
+int heap_rrnd_old(HP_INFO *info, uchar *record, ulong pos)
 {
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_rrnd");

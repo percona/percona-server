@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,6 +103,8 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 	  share->changed=0;
 	  if (myisam_flush)
 	  {
+            if (share->file_map)
+              my_msync(info->dfile, share->file_map, share->mmaped_length, MS_SYNC);
             if (mysql_file_sync(share->kfile, MYF(0)))
 	      error= my_errno;
             if (mysql_file_sync(info->dfile, MYF(0)))
@@ -389,7 +391,7 @@ my_bool mi_check_status(void *param)
  ** functions to read / write the state
 ****************************************************************************/
 
-int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
+int _mi_readinfo(MI_INFO *info, int lock_type, int check_keybuffer)
 {
   DBUG_ENTER("_mi_readinfo");
 
@@ -428,7 +430,7 @@ int _mi_readinfo(register MI_INFO *info, int lock_type, int check_keybuffer)
   request
 */
 
-int _mi_writeinfo(register MI_INFO *info, uint operation)
+int _mi_writeinfo(MI_INFO *info, uint operation)
 {
   int error,olderror;
   MYISAM_SHARE *share=info->s;
@@ -450,6 +452,8 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
 #ifdef _WIN32
       if (myisam_flush)
       {
+       if (share->file_map)
+         my_msync(info->dfile, share->file_map, share->mmaped_length, MS_SYNC);
         mysql_file_sync(share->kfile, 0);
         mysql_file_sync(info->dfile, 0);
       }
@@ -470,7 +474,7 @@ int _mi_writeinfo(register MI_INFO *info, uint operation)
 	/* Test if someone has changed the database */
 	/* (Should be called after readinfo) */
 
-int _mi_test_if_changed(register MI_INFO *info)
+int _mi_test_if_changed(MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
   if (share->state.process != share->last_process ||
@@ -515,7 +519,7 @@ int _mi_test_if_changed(register MI_INFO *info)
 int _mi_mark_file_changed(MI_INFO *info)
 {
   uchar buff[3];
-  register MYISAM_SHARE *share=info->s;
+  MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_mark_file_changed");
 
   if (!(share->state.changed & STATE_CHANGED) || ! share->global_changed)
@@ -548,7 +552,7 @@ int _mi_mark_file_changed(MI_INFO *info)
 int _mi_decrement_open_count(MI_INFO *info)
 {
   uchar buff[2];
-  register MYISAM_SHARE *share=info->s;
+  MYISAM_SHARE *share=info->s;
   int lock_error=0,write_error=0;
   if (share->global_changed)
   {

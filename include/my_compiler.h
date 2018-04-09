@@ -138,6 +138,14 @@ struct my_aligned_storage
   };
 };
 
+#if __cpp_attributes && defined(__has_cpp_attribute)
+#if __has_cpp_attribute(nodiscard)
+#define MY_NODISCARD [[nodiscard]]
+#elif __has_cpp_attribute(gnu::warn_unused_result)
+#define MY_NODISCARD [[gnu::warn_unused_result]]
+#endif /* __has_cpp_attribute(gnu::warn_unused_result) */
+#endif /* __cpp_attributes && defined(__has_cpp_attribute) */
+
 #endif /* __cplusplus */
 
 # ifndef MY_ALIGNED
@@ -149,6 +157,10 @@ struct my_aligned_storage
 #endif
 
 #include <my_attribute.h>
+
+#ifndef MY_NODISCARD
+#define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
+#endif /* MY_NODISCARD */
 
 #ifdef HAVE_WMAYBE_UNINITIALIZED
 #  define WMAYBE_UNINITIALIZED_OPTION "-Wmaybe-uninitialized"

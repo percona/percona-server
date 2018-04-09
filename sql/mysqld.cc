@@ -674,6 +674,7 @@ Time_zone *default_tz;
 char *mysql_data_home= const_cast<char*>(".");
 const char *mysql_real_data_home_ptr= mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
+char server_version_suffix[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 ulong thread_handling;
 
@@ -9597,7 +9598,10 @@ static void set_server_version(void)
     end= strmov(end, "-debug");
 #endif
   if (opt_log || opt_slow_log || opt_bin_log)
-    strmov(end, "-log");                        // This may slow down system
+    end= strmov(end, "-log");                        // This may slow down system
+
+  DBUG_ASSERT(end < server_version + SERVER_VERSION_LENGTH);
+  strmov(server_version_suffix, server_version + strlen(MYSQL_SERVER_VERSION));
 }
 
 

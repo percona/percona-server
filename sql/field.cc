@@ -2385,7 +2385,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
 
-  reg4 uint i;
+  uint i;
   size_t length;
   uchar fyllchar,*to;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
@@ -10659,9 +10659,11 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_warning_level level,
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
 }
 
-bool Field::is_part_of_actual_key(THD *thd, uint cur_index)
+bool Field::is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info)
 {
-  return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+  return
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) &&
+    !(cur_index_info->flags & HA_NOSAME) ?
     part_of_key.is_set(cur_index) :
     part_of_key_not_extended.is_set(cur_index);
 }

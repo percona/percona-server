@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/13/2017
+.\"      Date: 12/09/2017
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/13/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -1217,20 +1217,18 @@ This option is deprecated and will be removed in a future release\&. As of MySQL
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-server\-public\-key\-path=\fR\fBfile_name\fR
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
 .sp
-The path name to a file containing the same RSA public key used by the server\&. The file must be in PEM format\&. The public key is required for for RSA key pair\-based password exchange\&. This option is used by clients that connect to the server using an account that authenticates with the
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that connect to the server using an account that authenticates with the
 sha256_password
-plugin\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not needed, as is the case when the client connects to the server using a secure connection\&.
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
 .sp
-The server sends the public key to the client as needed, so it is not necessary to use this option for RSA password encryption to occur\&. It is more efficient to do so because then the server need not send the key\&.
+This option is available only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
 plugin, see
 Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq\&.
-.sp
-This option is available only if MySQL was built using OpenSSL\&.
 .RE
 .sp
 .RS 4

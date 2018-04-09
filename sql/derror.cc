@@ -100,7 +100,7 @@ bool init_errmessage(void)
 bool read_texts(const char *file_name, const char *language,
                 const char ***point, uint error_messages)
 {
-  register uint i;
+  uint i;
   uint count,funktpos,textcount;
   size_t length;
   File file;

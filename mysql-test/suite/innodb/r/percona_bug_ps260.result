@@ -1,0 +1,5 @@
+#
+# Loading the MySQL World sample database
+# PS-260: An optimizer bug caused a crash when loading this SQL
+#
+# Loading data

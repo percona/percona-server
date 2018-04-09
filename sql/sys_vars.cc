@@ -2140,12 +2140,16 @@ static Sys_var_ulong Sys_net_write_timeout(
        ON_UPDATE(fix_net_write_timeout));
 
 // Sync kill_idle_transaction and innodb_kill_idle_transaction values
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
 extern long srv_kill_idle_transaction;
+#endif
 
 static bool fix_kill_idle_transaction(sys_var *self, THD *thd,
                                       enum_var_type type)
 {
+#ifdef WITH_INNOBASE_STORAGE_ENGINE
   srv_kill_idle_transaction= kill_idle_transaction_timeout;
+#endif
   return false;
 }
 
@@ -3463,15 +3467,21 @@ static Sys_var_mybool Sys_timed_mutexes(
        DEPRECATED(""));
 
 static char *server_version_ptr;
-static Sys_var_charptr Sys_version(
+static Sys_var_version Sys_version(
        "version", "Server version",
        READ_ONLY GLOBAL_VAR(server_version_ptr), NO_CMD_LINE,
-       IN_SYSTEM_CHARSET, DEFAULT(server_version));
+       IN_SYSTEM_CHARSET, DEFAULT(MYSQL_SERVER_VERSION));
+
+static char *server_version_suffix_ptr;
+static Sys_var_charptr Sys_version_suffix(
+       "version_suffix", "version_suffix",
+       GLOBAL_VAR(server_version_suffix_ptr), NO_CMD_LINE,
+       IN_SYSTEM_CHARSET, DEFAULT(server_version_suffix));
 
 static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
        "version_comment", "version_comment",
-       READ_ONLY GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
+       GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT));
 
 static char *server_version_compile_machine_ptr;

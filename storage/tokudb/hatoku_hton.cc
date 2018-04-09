@@ -47,7 +47,7 @@ typedef struct savepoint_info {
     bool in_sub_stmt;
 } *SP_INFO, SP_INFO_T;
 
-#if TOKU_INCLUDE_OPTION_STRUCTS
+#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
 ha_create_table_option tokudb_table_options[] = {
     HA_TOPTION_SYSVAR("compression", row_format, row_format),
     HA_TOPTION_END
@@ -57,7 +57,7 @@ ha_create_table_option tokudb_index_options[] = {
     HA_IOPTION_BOOL("clustering", clustering, 0),
     HA_IOPTION_END
 };
-#endif
+#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
 
 static handler* tokudb_create_handler(
     handlerton* hton,
@@ -76,19 +76,21 @@ static bool tokudb_show_status(
     THD* thd,
     stat_print_fn* print,
     enum ha_stat_type);
-#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
+#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
+    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static void tokudb_handle_fatal_signal(handlerton* hton, THD* thd, int sig);
-#endif
+#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
+        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static int tokudb_close_connection(handlerton* hton, THD* thd);
 static void tokudb_kill_connection(handlerton *hton, THD *thd);
 static int tokudb_commit(handlerton* hton, THD* thd, bool all);
 static int tokudb_rollback(handlerton* hton, THD* thd, bool all);
-#if TOKU_INCLUDE_XA
+#if defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
 static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all);
 static int tokudb_xa_recover(handlerton* hton, XID* xid_list, uint len);
 static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_by_xid(handlerton* hton, XID* xid);
-#endif
+#endif  // defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
 
 static int tokudb_rollback_to_savepoint(
     handlerton* hton,
@@ -136,7 +138,7 @@ handlerton* tokudb_hton;
 const char* ha_tokudb_ext = ".tokudb";
 DB_ENV* db_env;
 
-#if TOKU_THDVAR_MEMALLOC_BUG
+#if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
 static tokudb::thread::mutex_t tokudb_map_mutex;
 static TREE tokudb_map;
 struct tokudb_map_pair {
@@ -161,7 +163,7 @@ static int tokudb_map_pair_cmp(
     else
         return 0;
 };
-#endif
+#endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
 
 static PARTITIONED_COUNTER tokudb_primary_key_bytes_inserted;
 void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size) {
@@ -396,24 +398,26 @@ static int tokudb_init_func(void *p) {
 #endif  // 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
-#if TOKU_INCLUDE_XA
+#if defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
     tokudb_hton->prepare = tokudb_xa_prepare;
     tokudb_hton->recover = tokudb_xa_recover;
     tokudb_hton->commit_by_xid = tokudb_commit_by_xid;
     tokudb_hton->rollback_by_xid = tokudb_rollback_by_xid;
-#endif
+#endif  // defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
 
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
-#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
+#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
+    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
     tokudb_hton->handle_fatal_signal = tokudb_handle_fatal_signal;
-#endif
+#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
+        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
-#if TOKU_INCLUDE_OPTION_STRUCTS
+#if defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
     tokudb_hton->table_options = tokudb_table_options;
     tokudb_hton->index_options = tokudb_index_options;
-#endif
+#endif  // defined(TOKU_INCLUDE_OPTION_STRUCTS) && TOKU_INCLUDE_OPTION_STRUCTS
 
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
@@ -653,9 +657,9 @@ static int tokudb_init_func(void *p) {
 
     tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
-#if TOKU_THDVAR_MEMALLOC_BUG
+#if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
     init_tree(&tokudb_map, 0, 0, 0, tokudb_map_pair_cmp, true, NULL, NULL);
-#endif
+#endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
 
     if (tokudb::sysvars::strip_frm_data) {
         r = tokudb::metadata::strip_frm_data(db_env);
@@ -721,7 +725,7 @@ int tokudb_end(TOKUDB_UNUSED(handlerton* hton),
 
         // count the total number of prepared txn's that we discard
         long total_prepared = 0;
-#if TOKU_INCLUDE_XA
+#if defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
         TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "begin XA cleanup");
         while (1) {
             // get xid's 
@@ -748,11 +752,11 @@ int tokudb_end(TOKUDB_UNUSED(handlerton* hton),
             total_prepared += n_prepared;
         }
         TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "end XA cleanup");
-#endif
+#endif  // defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
         error = db_env->close(
             db_env,
             total_prepared > 0 ? TOKUFT_DIRTY_SHUTDOWN : 0);
-#if TOKU_INCLUDE_XA
+#if defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
         if (error != 0 && total_prepared > 0) {
             sql_print_error(
                 "%s: %ld prepared txns still live, please shutdown, error %d",
@@ -760,7 +764,7 @@ int tokudb_end(TOKUDB_UNUSED(handlerton* hton),
                 total_prepared,
                 error);
         } else
-#endif
+#endif  // defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
         assert_always(error == 0);
         db_env = NULL;
     }
@@ -770,9 +774,9 @@ int tokudb_end(TOKUDB_UNUSED(handlerton* hton),
         tokudb_primary_key_bytes_inserted = NULL;
     }
 
-#if TOKU_THDVAR_MEMALLOC_BUG
+#if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
     delete_tree(&tokudb_map);
-#endif
+#endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
 
     // 3938: drop the initialized flag and unlock
     tokudb_hton_initialized = 0;
@@ -788,7 +792,7 @@ static int tokudb_close_connection(TOKUDB_UNUSED(handlerton* hton), THD* thd) {
         error = db_env->checkpointing_resume(db_env);
     }
     tokudb::memory::free(trx);
-#if TOKU_THDVAR_MEMALLOC_BUG
+#if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
     mutex_t_lock(tokudb_map_mutex);
     struct tokudb_map_pair key = {thd, NULL};
     struct tokudb_map_pair* found_key =
@@ -799,7 +803,7 @@ static int tokudb_close_connection(TOKUDB_UNUSED(handlerton* hton), THD* thd) {
         tree_delete(&tokudb_map, found_key, sizeof(*found_key), NULL);
     }
     mutex_t_unlock(tokudb_map_mutex);
-#endif
+#endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
     return error;
 }
 
@@ -975,7 +979,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_RETURN(0);
 }
 
-#if TOKU_INCLUDE_XA
+#if defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
 static bool tokudb_sync_on_prepare(void) {
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     // skip sync of log if fsync log period > 0
@@ -1102,7 +1106,7 @@ cleanup:
     TOKUDB_DBUG_RETURN(r);
 }
 
-#endif
+#endif  // defined(TOKU_INCLUDE_XA) && TOKU_INCLUDE_XA
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     TOKUDB_DBUG_ENTER("%p", savepoint);
@@ -1548,7 +1552,8 @@ static bool tokudb_show_status(
     return false;
 }
 
-#if TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
+#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
+    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 static void tokudb_handle_fatal_signal(
     TOKUDB_UNUSED(handlerton* hton),
     TOKUDB_UNUSD(THD* thd),
@@ -1558,7 +1563,8 @@ static void tokudb_handle_fatal_signal(
         db_env_try_gdb_stack_trace(tokudb_gdb_path);
     }
 }
-#endif
+#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
+        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
 static void tokudb_print_error(TOKUDB_UNUSED(const DB_ENV* db_env),
                                const char* db_errpfx,
@@ -1629,7 +1635,8 @@ struct st_mysql_storage_engine tokudb_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION
 };
 
-#if TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
+#if defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) && \
+    TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
 struct tokudb_search_txn_extra {
     bool match_found;
     uint64_t match_txn_id;
@@ -1670,7 +1677,8 @@ static bool tokudb_txn_id_to_client_id(
     }
     return e.match_found;
 }
-#endif
+#endif  // defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) &&
+        // TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
 
 static void tokudb_pretty_key(
     const DBT* key,
@@ -1772,14 +1780,14 @@ static void tokudb_lock_timeout_callback(
             char* new_lock_timeout =
                 tokudb::memory::strdup(log_str.c_ptr(), MY_FAE);
             tokudb::sysvars::set_last_lock_timeout(thd, new_lock_timeout);
-#if TOKU_THDVAR_MEMALLOC_BUG
+#if defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
             mutex_t_lock(tokudb_map_mutex);
             struct tokudb_map_pair old_key = {thd, old_lock_timeout};
             tree_delete(&tokudb_map, &old_key, sizeof old_key, NULL);
             struct tokudb_map_pair new_key = {thd, new_lock_timeout};
             tree_insert(&tokudb_map, &new_key, sizeof new_key, NULL);
             mutex_t_unlock(tokudb_map_mutex);
-#endif
+#endif  // defined(TOKU_THDVAR_MEMALLOC_BUG) && TOKU_THDVAR_MEMALLOC_BUG
             tokudb::memory::free(old_lock_timeout);
         }
         // dump to stderr
@@ -1795,7 +1803,8 @@ static void tokudb_lock_timeout_callback(
                 mysql_thread_id,
                 (int)qs->length,
                 qs->str);
-#if TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
+#if defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) && \
+    TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
             uint64_t blocking_thread_id = 0;
             if (tokudb_txn_id_to_client_id(
                     thd,
@@ -1815,7 +1824,8 @@ static void tokudb_lock_timeout_callback(
                         blocking_qs.c_ptr());
                 }
             }
-#endif
+#endif  // defined(TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING) &&
+        // TOKU_INCLUDE_LOCK_TIMEOUT_QUERY_STRING
         }
     }
 }
@@ -1928,16 +1938,6 @@ static SHOW_VAR toku_global_status_variables_export[]= {
     {"Tokudb", (char*)&show_tokudb_vars, SHOW_FUNC},
     {NullS, NullS, SHOW_LONG}
 };
-
-#if TOKU_INCLUDE_BACKTRACE
-#include <execinfo.h>
-static void tokudb_backtrace(void) {
-    const int N_POINTERS = 30;
-    void *backtrace_pointers[N_POINTERS];
-    int n = backtrace(backtrace_pointers, N_POINTERS);
-    backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
-}
-#endif
 
 #ifdef MARIA_PLUGIN_INTERFACE_VERSION
 maria_declare_plugin(tokudb) 

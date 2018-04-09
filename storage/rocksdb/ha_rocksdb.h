@@ -793,18 +793,6 @@ class ha_rocksdb : public my_core::handler {
     DBUG_RETURN(rocksdb_hton_name);
   }
 
-  /* The following is only used by SHOW KEYS: */
-  const char *index_type(uint inx) override {
-    DBUG_ENTER_FUNC();
-
-    DBUG_RETURN("LSMTREE");
-  }
-
-  /** @brief
-    The file extensions.
-   */
-  const char **bas_ext() const override;
-
   /*
     Returns the name of the table's base name
   */

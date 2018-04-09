@@ -4794,14 +4794,6 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
 {
 }
 
-static const char *ha_rocksdb_exts[] = {NullS};
-
-const char **ha_rocksdb::bas_ext() const {
-  DBUG_ENTER_FUNC();
-
-  DBUG_RETURN(ha_rocksdb_exts);
-}
-
 const std::string &ha_rocksdb::get_table_basename() const {
   return m_tbl_def->base_tablename();
 }

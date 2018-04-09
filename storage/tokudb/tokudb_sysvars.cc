@@ -64,6 +64,7 @@ my_bool     debug_pause_background_job_manager = FALSE;
 #endif  // defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
 my_bool     directio = FALSE;
 my_bool     enable_partial_eviction = TRUE;
+// file system reserve as a percentage of total disk space
 int         fs_reserve_percent = 0;
 uint        fsync_log_period = 0;
 char*       log_dir = NULL;
@@ -74,14 +75,6 @@ char*       tmp_dir = NULL;
 uint        write_status_frequency = 0;
 my_bool     dir_per_db = TRUE;
 char*       version = (char*) TOKUDB_VERSION_STR;
-
-// file system reserve as a percentage of total disk space
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-char*       gdb_path = NULL;
-my_bool     gdb_on_fatal = FALSE;
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
 my_bool        check_jemalloc = TRUE;
 
@@ -408,28 +401,6 @@ static void tokudb_dir_per_db_update(
 static MYSQL_SYSVAR_BOOL(dir_per_db, dir_per_db,
     0, "TokuDB store ft files in db directories",
     NULL, tokudb_dir_per_db_update, TRUE);
-
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-static MYSQL_SYSVAR_STR(
-    gdb_path,
-    gdb_path,
-    PLUGIN_VAR_READONLY|PLUGIN_VAR_RQCMDARG,
-    "path to gdb for extra debug info on fatal signal",
-    NULL,
-    NULL,
-    "/usr/bin/gdb");
-
-static MYSQL_SYSVAR_BOOL(
-    gdb_on_fatal,
-    gdb_on_fatal,
-    0,
-    "enable gdb debug info on fatal signal",
-    NULL,
-    NULL,
-    true);
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
 
 static MYSQL_SYSVAR_BOOL(
     check_jemalloc,
@@ -993,13 +964,6 @@ st_mysql_sys_var* system_variables[] = {
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(dir_per_db),
-#if defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) && \
-    TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-    MYSQL_SYSVAR(gdb_path),
-    MYSQL_SYSVAR(gdb_on_fatal),
-#endif  // defined(TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL) &&
-        // TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL
-
     MYSQL_SYSVAR(check_jemalloc),
 
     // session vars

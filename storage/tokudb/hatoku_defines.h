@@ -54,7 +54,9 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #include <ctype.h>
 #include <stdint.h>
+#if !defined(__STDC_FORMAT_MACROS)
 #define __STDC_FORMAT_MACROS
+#endif  // !defined(__STDC_FORMAT_MACROS)
 #include <inttypes.h>
 #if defined(_WIN32)
 #include "misc.h"

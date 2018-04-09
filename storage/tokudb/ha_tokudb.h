@@ -644,9 +644,9 @@ private:
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT* create_dbt_key_for_lookup(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
-#if TOKU_INCLUDE_EXTENDED_KEYS
+#if defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
     DBT *pack_ext_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
-#endif
+#endif  // defined(TOKU_INCLUDE_EXTENDED_KEYS) && TOKU_INCLUDE_EXTENDED_KEYS
     bool key_changed(uint keynr, const uchar * old_row, const uchar * new_row);
     int handle_cursor_error(int error, int err_to_return);
     DBT *get_pos(DBT * to, uchar * pos);
@@ -964,9 +964,11 @@ public:
         uchar* buf,
         DBT* key_to_compare);
 
-#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
+#if defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) && \
+    TOKU_INCLUDE_ROW_TYPE_COMPRESSION
     enum row_type get_row_type() const;
-#endif
+#endif  // defined(TOKU_INCLUDE_ROW_TYPE_COMPRESSION) &&
+        // TOKU_INCLUDE_ROW_TYPE_COMPRESSION
 private:
     int read_full_row(uchar * buf);
     int __close();
@@ -1032,25 +1034,9 @@ private:
 #endif // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
 };
 
-#if TOKU_INCLUDE_OPTION_STRUCTS
-struct ha_table_option_struct {
-    uint row_format;
-};
-
-struct ha_index_option_struct {
-    bool clustering;
-};
-
-static inline bool key_is_clustering(const KEY *key) {
-    return (key->flags & HA_CLUSTERING) || (key->option_struct && key->option_struct->clustering);
-}
-
-#else
-
 static inline bool key_is_clustering(const KEY *key) {
     return key->flags & HA_CLUSTERING;
 }
-#endif
 
 #endif // _HA_TOKUDB_H
 

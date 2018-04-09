@@ -99,12 +99,12 @@ Rdb_cf_manager::get_or_create_cf(rocksdb::DB *const rdb,
     rocksdb::ColumnFamilyOptions opts;
     m_cf_options->get_cf_options(cf_name, &opts);
 
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: creating a column family %s",
-                          cf_name.c_str());
-    sql_print_information("    write_buffer_size=%ld", opts.write_buffer_size);
-    sql_print_information("    target_file_size_base=%" PRIu64,
-                          opts.target_file_size_base);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Creating a column family %s",
+                    cf_name.c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "    write_buffer_size=%ld",
+                    opts.write_buffer_size);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "    target_file_size_base=%" PRIu64,
+                    opts.target_file_size_base);
 
     const rocksdb::Status s =
         rdb->CreateColumnFamily(opts, cf_name, &cf_handle);
@@ -138,8 +138,8 @@ Rdb_cf_manager::get_cf(const std::string &cf_name_arg) const {
   cf_handle = (it != m_cf_name_map.end()) ? it->second : nullptr;
 
   if (!cf_handle) {
-    // NO_LINT_DEBUG
-    sql_print_warning("Column family '%s' not found.", cf_name.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, 0, "Column family '%s' not found.",
+                    cf_name.c_str());
   }
 
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);

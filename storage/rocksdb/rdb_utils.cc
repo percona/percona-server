@@ -296,23 +296,20 @@ bool rdb_database_exists(const std::string &db_name) {
 
 void rdb_log_status_error(const rocksdb::Status &s, const char *msg) {
   if (msg == nullptr) {
-    // NO_LINT_DEBUG
-    sql_print_error("RocksDB: status error, code: %d, error message: %s",
+    LogPluginErrMsg(ERROR_LEVEL, 0, "Status error, code: %d, error message: %s",
                     s.code(), s.ToString().c_str());
     return;
   }
 
-  // NO_LINT_DEBUG
-  sql_print_error("RocksDB: %s, Status Code: %d, Status: %s", msg, s.code(),
-                  s.ToString().c_str());
+  LogPluginErrMsg(ERROR_LEVEL, 0, "%s, Status Code: %d, Status: %s", msg,
+                  s.code(), s.ToString().c_str());
 }
 
 void warn_about_bad_patterns(const Regex &regex, const char *name) {
   // There was some invalid regular expression data in the patterns supplied
 
-  // NO_LINT_DEBUG
-  sql_print_warning("RocksDB: Invalid pattern in %s: %s", name,
-                    regex.pattern().c_str());
+  LogPluginErrMsg(WARNING_LEVEL, 0, "Invalid pattern in %s: %s", name,
+                  regex.pattern().c_str());
 }
 
 // Split a string based on a delimiter.  Two delimiters in a row will not add
@@ -349,19 +346,20 @@ void rdb_persist_corruption_marker() {
   const std::string &fileName = myrocks::rdb_corruption_marker_file_name();
   int fd = my_open(fileName.c_str(), O_CREAT | O_SYNC, MYF(MY_WME));
   if (fd < 0) {
-    sql_print_error("RocksDB: Can't create file %s to mark rocksdb as "
-                    "corrupted.",
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Can't create file %s to mark rocksdb as corrupted.",
                     fileName.c_str());
   } else {
-    sql_print_information("RocksDB: Creating the file %s to abort mysqld "
-                          "restarts. Remove this file from the data directory "
-                          "after fixing the corruption to recover. ",
-                          fileName.c_str());
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Creating the file %s to abort mysqld restarts. Remove "
+                    "this file from the data directory after fixing the "
+                    "corruption to recover. ",
+                    fileName.c_str());
   }
 
   int ret = my_close(fd, MYF(MY_WME));
   if (ret) {
-    sql_print_error("RocksDB: Error (%d) closing the file %s", ret,
+    LogPluginErrMsg(ERROR_LEVEL, 0, "Error (%d) closing the file %s", ret,
                     fileName.c_str());
   }
 }

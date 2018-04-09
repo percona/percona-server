@@ -2135,13 +2135,13 @@ bool Rdb_key_def::table_has_hidden_pk(const TABLE *const table) {
 void Rdb_key_def::report_checksum_mismatch(const bool &is_key,
                                            const char *const data,
                                            const size_t data_size) const {
-  // NO_LINT_DEBUG
-  sql_print_error("Checksum mismatch in %s of key-value pair for index 0x%x",
+  LogPluginErrMsg(ERROR_LEVEL, 0,
+                  "Checksum mismatch in %s of key-value pair for index 0x%x",
                   is_key ? "key" : "value", get_index_number());
 
   const std::string buf = rdb_hexdump(data, data_size, RDB_MAX_HEXDUMP_LEN);
-  // NO_LINT_DEBUG
-  sql_print_error("Data with incorrect checksum (%" PRIu64 " bytes): %s",
+  LogPluginErrMsg(ERROR_LEVEL, 0,
+                  "Data with incorrect checksum (%" PRIu64 " bytes): %s",
                   (uint64_t)data_size, buf.c_str());
 
   my_error(ER_INTERNAL_ERROR, MYF(0), "Record checksum mismatch");
@@ -3842,13 +3842,13 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
           rdb_get_mem_comparable_space(cs, &space_xfrm, &space_xfrm_len,
                                        &space_mb_len);
         } else {
-          //  NO_LINT_DEBUG
-          sql_print_warning("RocksDB: you're trying to create an index "
-                            "with a multi-level collation %s",
-                            cs->name);
-          //  NO_LINT_DEBUG
-          sql_print_warning("MyRocks will handle this collation internally "
-                            " as if it had a NO_PAD attribute.");
+          LogPluginErrMsg(
+              WARNING_LEVEL, 0,
+              "Trying to create an index with a multi-level collation %s",
+              cs->name);
+          LogPluginErrMsg(WARNING_LEVEL, 0,
+                          "Will handle this collation internally as if it had "
+                          "a NO_PAD attribute.");
           m_pack_func = &Rdb_key_def::pack_with_varchar_encoding;
           m_skip_func = &Rdb_key_def::skip_variable_length;
         }
@@ -4193,8 +4193,8 @@ bool Rdb_validate_tbls::check_frm_file(const std::string &fullpath,
   enum legacy_db_type eng_type;
   frm_type_enum type = dd_frm_type(nullptr, fullfilename.c_ptr(), &eng_type);
   if (type == FRMTYPE_ERROR) {
-    sql_print_warning("RocksDB: Failed to open/read .from file: %s",
-                      fullfilename.ptr());
+    LogPluginErrMsg(WARNING_LEVEL, 0, "Failed to open/read .from file: %s",
+                    fullfilename.ptr());
     return false;
   }
 
@@ -4207,10 +4207,10 @@ bool Rdb_validate_tbls::check_frm_file(const std::string &fullpath,
       */
       tbl_info_t element(tablename, false);
       if (m_list.count(dbname) == 0 || m_list[dbname].erase(element) == 0) {
-        sql_print_warning("RocksDB: Schema mismatch - "
-                          "A .frm file exists for table %s.%s, "
-                          "but that table is not registered in RocksDB",
-                          dbname.c_str(), tablename.c_str());
+        LogPluginErrMsg(WARNING_LEVEL, 0,
+                        "Schema mismatch - A .frm file exists for table %s.%s, "
+                        "but that table is not registered in RocksDB",
+                        dbname.c_str(), tablename.c_str());
         *has_errors = true;
       }
     } else if (eng_type == DB_TYPE_PARTITION_DB) {
@@ -4238,8 +4238,8 @@ bool Rdb_validate_tbls::scan_for_frms(const std::string &datadir,
 
   /* Access the directory */
   if (dir_info == nullptr) {
-    sql_print_warning("RocksDB: Could not open database directory: %s",
-                      fullpath.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, 0, "Could not open database directory: %s",
+                    fullpath.c_str());
     return false;
   }
 
@@ -4284,7 +4284,8 @@ bool Rdb_validate_tbls::compare_to_actual_tables(const std::string &datadir,
 
   dir_info = my_dir(datadir.c_str(), MYF(MY_DONT_SORT | MY_WANT_STAT));
   if (dir_info == nullptr) {
-    sql_print_warning("RocksDB: could not open datadir: %s", datadir.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, 0, "Could not open datadir: %s",
+                    datadir.c_str());
     return false;
   }
 
@@ -4346,22 +4347,20 @@ bool Rdb_ddl_manager::validate_auto_incr() {
     ptr += Rdb_key_def::INDEX_NUMBER_SIZE;
     rdb_netbuf_read_gl_index(&ptr, &gl_index_id);
     if (!m_dict->get_index_info(gl_index_id, nullptr)) {
-      // NO_LINT_DEBUG
-      sql_print_warning("RocksDB: AUTOINC mismatch - "
-                        "Index number (%u, %u) found in AUTOINC "
-                        "but does not exist as a DDL entry",
-                        gl_index_id.cf_id, gl_index_id.index_id);
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "AUTOINC mismatch - Index number (%u, %u) found in "
+                      "AUTOINC but does not exist as a DDL entry",
+                      gl_index_id.cf_id, gl_index_id.index_id);
       return false;
     }
 
     ptr = reinterpret_cast<const uchar *>(val.data());
     const int version = rdb_netbuf_read_uint16(&ptr);
     if (version > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-      // NO_LINT_DEBUG
-      sql_print_warning("RocksDB: AUTOINC mismatch - "
-                        "Index number (%u, %u) found in AUTOINC "
-                        "is on unsupported version %d",
-                        gl_index_id.cf_id, gl_index_id.index_id, version);
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "AUTOINC mismatch - Index number (%u, %u) found in "
+                      "AUTOINC is on unsupported version %d",
+                      gl_index_id.cf_id, gl_index_id.index_id, version);
       return false;
     }
   }
@@ -4398,10 +4397,10 @@ bool Rdb_ddl_manager::validate_schemas(void) {
   */
   for (const auto &db : table_list.m_list) {
     for (const auto &table : db.second) {
-      sql_print_warning("RocksDB: Schema mismatch - "
-                        "Table %s.%s is registered in RocksDB "
-                        "but does not have a .frm file",
-                        db.first.c_str(), table.first.c_str());
+      LogPluginErrMsg(WARNING_LEVEL, 0,
+                      "Schema mismatch - Table %s.%s is registered in RocksDB "
+                      "but does not have a .frm file",
+                      db.first.c_str(), table.first.c_str());
       has_errors = true;
     }
   }
@@ -4447,8 +4446,9 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       break;
 
     if (key.size() <= Rdb_key_def::INDEX_NUMBER_SIZE) {
-      sql_print_error("RocksDB: Table_store: key has length %d (corruption?)",
-                      (int)key.size());
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Table_store: key has length %d (corruption?)",
+                      static_cast<int>(key.size()));
       return true;
     }
 
@@ -4458,7 +4458,8 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     // Now, read the DDLs.
     const int real_val_size = val.size() - Rdb_key_def::VERSION_SIZE;
     if (real_val_size % Rdb_key_def::PACKED_SIZE * 2 > 0) {
-      sql_print_error("RocksDB: Table_store: invalid keylist for table %s",
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Table_store: invalid keylist for table %s",
                       tdef->full_tablename().c_str());
       return true;
     }
@@ -4468,9 +4469,10 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     ptr = reinterpret_cast<const uchar *>(val.data());
     const int version = rdb_netbuf_read_uint16(&ptr);
     if (version != Rdb_key_def::DDL_ENTRY_INDEX_VERSION) {
-      sql_print_error("RocksDB: DDL ENTRY Version was not expected."
-                      "Expected: %d, Actual: %d",
-                      Rdb_key_def::DDL_ENTRY_INDEX_VERSION, version);
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "DDL ENTRY Version was not expected. Expected: %d, Actual: %d",
+          Rdb_key_def::DDL_ENTRY_INDEX_VERSION, version);
       return true;
     }
     ptr_end = ptr + real_val_size;
@@ -4480,32 +4482,36 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       uint flags = 0;
       struct Rdb_index_info index_info;
       if (!m_dict->get_index_info(gl_index_id, &index_info)) {
-        sql_print_error("RocksDB: Could not get index information "
-                        "for Index Number (%u,%u), table %s",
+        LogPluginErrMsg(ERROR_LEVEL, 0,
+                        "Could not get index information for Index Number "
+                        "(%u,%u), table %s",
                         gl_index_id.cf_id, gl_index_id.index_id,
                         tdef->full_tablename().c_str());
         return true;
       }
       if (max_index_id_in_dict < gl_index_id.index_id) {
-        sql_print_error("RocksDB: Found max index id %u from data dictionary "
-                        "but also found larger index id %u from dictionary. "
-                        "This should never happen and possibly a bug.",
+        LogPluginErrMsg(ERROR_LEVEL, 0,
+                        "Found max index id %u from data dictionary but also "
+                        "found larger index id %u from dictionary. This should "
+                        "never happen and possibly a bug.",
                         max_index_id_in_dict, gl_index_id.index_id);
         return true;
       }
       if (!m_dict->get_cf_flags(gl_index_id.cf_id, &flags)) {
-        sql_print_error("RocksDB: Could not get Column Family Flags "
-                        "for CF Number %d, table %s",
-                        gl_index_id.cf_id, tdef->full_tablename().c_str());
+        LogPluginErrMsg(
+            ERROR_LEVEL, 0,
+            "Could not get Column Family Flags for CF Number %d, table %s",
+            gl_index_id.cf_id, tdef->full_tablename().c_str());
         return true;
       }
 
       if ((flags & Rdb_key_def::AUTO_CF_FLAG) != 0) {
         // The per-index cf option is deprecated.  Make sure we don't have the
-        // flag set in any existing database.   NO_LINT_DEBUG
-        sql_print_error("RocksDB: The defunct AUTO_CF_FLAG is enabled for CF "
-                        "number %d, table %s",
-                        gl_index_id.cf_id, tdef->full_tablename().c_str());
+        // flag set in any existing database.
+        LogPluginErrMsg(
+            ERROR_LEVEL, 0,
+            "The defunct AUTO_CF_FLAG is enabled for CF number %d, table %s",
+            gl_index_id.cf_id, tdef->full_tablename().c_str());
       }
 
       rocksdb::ColumnFamilyHandle *const cfh =
@@ -4551,8 +4557,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
             "data dictionary, exiting";
     }
     if (validate_tables == 1 && !msg.empty()) {
-      // NO_LINT_DEBUG
-      sql_print_error("%s", msg.c_str());
+      LogPluginErrMsg(ERROR_LEVEL, 0, "%s", msg.c_str());
       return true;
     }
   }
@@ -4572,8 +4577,8 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     return true;
   }
   delete it;
-  sql_print_information("RocksDB: Table_store: loaded DDL data for %d tables",
-                        i);
+  LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                  "Table_store: loaded DDL data for %d tables", i);
   return false;
 }
 
@@ -5141,13 +5146,12 @@ bool Rdb_dict_manager::get_index_info(
   }
 
   if (error) {
-    // NO_LINT_DEBUG
-    sql_print_error(
-        "RocksDB: Found invalid key version number (%u, %u, %u, %llu) "
-        "from data dictionary. This should never happen "
-        "and it may be a bug.",
-        index_info->m_index_dict_version, index_info->m_index_type,
-        index_info->m_kv_version, index_info->m_ttl_duration);
+    LogPluginErrMsg(ERROR_LEVEL, 0,
+                    "Found invalid key version number (%u, %u, %u, %llu) from "
+                    "data dictionary. This should never happen and it may be a "
+                    "bug.",
+                    index_info->m_index_dict_version, index_info->m_index_type,
+                    index_info->m_kv_version, index_info->m_ttl_duration);
     abort();
   }
 
@@ -5344,9 +5348,8 @@ void Rdb_dict_manager::add_create_index(
     const std::unordered_set<GL_INDEX_ID> &gl_index_ids,
     rocksdb::WriteBatch *const batch) const {
   for (const auto &gl_index_id : gl_index_ids) {
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: Begin index creation (%u,%u)",
-                          gl_index_id.cf_id, gl_index_id.index_id);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "Begin index creation (%u,%u)",
+                    gl_index_id.cf_id, gl_index_id.index_id);
     start_create_index(batch, gl_index_id);
   }
 }
@@ -5405,12 +5408,12 @@ void Rdb_dict_manager::resume_drop_indexes() const {
   for (const auto &gl_index_id : gl_index_ids) {
     log_start_drop_index(gl_index_id, "Resume");
     if (max_index_id_in_dict < gl_index_id.index_id) {
-      sql_print_error("RocksDB: Found max index id %u from data dictionary "
-                      "but also found dropped index id (%u,%u) from drop_index "
-                      "dictionary. This should never happen and is possibly a "
-                      "bug.",
-                      max_index_id_in_dict, gl_index_id.cf_id,
-                      gl_index_id.index_id);
+      LogPluginErrMsg(
+          ERROR_LEVEL, 0,
+          "Found max index id %u from data dictionary but also found dropped "
+          "index id (%u,%u) from drop_index dictionary. This should never "
+          "happen and is possibly a bug.",
+          max_index_id_in_dict, gl_index_id.cf_id, gl_index_id.index_id);
       abort();
     }
   }
@@ -5424,9 +5427,9 @@ void Rdb_dict_manager::rollback_ongoing_index_creation() const {
   get_ongoing_create_indexes(&gl_index_ids);
 
   for (const auto &gl_index_id : gl_index_ids) {
-    // NO_LINT_DEBUG
-    sql_print_information("RocksDB: Removing incomplete create index (%u,%u)",
-                          gl_index_id.cf_id, gl_index_id.index_id);
+    LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                    "Removing incomplete create index (%u,%u)",
+                    gl_index_id.cf_id, gl_index_id.index_id);
 
     start_drop_index(batch, gl_index_id);
   }
@@ -5456,9 +5459,9 @@ void Rdb_dict_manager::log_start_drop_index(GL_INDEX_ID gl_index_id,
 
     if (!incomplete_create_indexes.count(gl_index_id)) {
       /* If it's not a partially created index, something is very wrong. */
-      sql_print_error("RocksDB: Failed to get column family info "
-                      "from index id (%u,%u). MyRocks data dictionary may "
-                      "get corrupted.",
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Failed to get column family info from index id (%u,%u). "
+                      "MyRocks data dictionary may get corrupted.",
                       gl_index_id.cf_id, gl_index_id.index_id);
       abort();
     }
@@ -5488,9 +5491,10 @@ bool Rdb_dict_manager::update_max_index_id(rocksdb::WriteBatch *const batch,
   uint32_t old_index_id = -1;
   if (get_max_index_id(&old_index_id)) {
     if (old_index_id > index_id) {
-      sql_print_error("RocksDB: Found max index id %u from data dictionary "
-                      "but trying to update to older value %u. This should "
-                      "never happen and possibly a bug.",
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Found max index id %u from data dictionary but trying "
+                      "to update to older value %u. This should never happen "
+                      "and possibly a bug.",
                       old_index_id, index_id);
       return true;
     }

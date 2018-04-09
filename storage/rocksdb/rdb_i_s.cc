@@ -799,10 +799,9 @@ static int rdb_i_s_global_info_fill_table(
     uint flags;
 
     if (!dict_manager->get_cf_flags(cf_handle->GetID(), &flags)) {
-      // NO_LINT_DEBUG
-      sql_print_error("RocksDB: Failed to get column family flags "
-                      "from CF with id = %u. MyRocks data dictionary may "
-                      "be corrupted.",
+      LogPluginErrMsg(ERROR_LEVEL, 0,
+                      "Failed to get column family flags from CF with id = %u. "
+                      "MyRocks data dictionary may be corrupted.",
                       cf_handle->GetID());
       abort();
     }

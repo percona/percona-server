@@ -81,9 +81,8 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::open() {
 
   s = m_sst_file_writer->Open(m_name);
   if (m_tracing) {
-    // NO_LINT_DEBUG
-    sql_print_information("SST Tracing: Open(%s) returned %s", m_name.c_str(),
-                          s.ok() ? "ok" : "not ok");
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "SST Tracing: Open(%s) returned %s",
+                    m_name.c_str(), s.ok() ? "ok" : "not ok");
   }
 
   if (!s.ok()) {
@@ -133,21 +132,19 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
   // Close out the sst file
   s = m_sst_file_writer->Finish(&fileinfo);
   if (m_tracing) {
-    // NO_LINT_DEBUG
-    sql_print_information("SST Tracing: Finish returned %s",
-                          s.ok() ? "ok" : "not ok");
+    LogPluginErrMsg(INFORMATION_LEVEL, 0, "SST Tracing: Finish returned %s",
+                    s.ok() ? "ok" : "not ok");
   }
 
   if (s.ok()) {
     if (m_tracing) {
-      // NO_LINT_DEBUG
-      sql_print_information("SST Tracing: Adding file %s, smallest key: %s, "
-                            "largest key: %s, file size: %lu, "
-                            "num_entries: %lu",
-                            fileinfo.file_path.c_str(),
-                            generateKey(fileinfo.smallest_key).c_str(),
-                            generateKey(fileinfo.largest_key).c_str(),
-                            fileinfo.file_size, fileinfo.num_entries);
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "SST Tracing: Adding file %s, smallest key: %s, "
+                      "largest key: %s, file size: %lu, num_entries: %lu",
+                      fileinfo.file_path.c_str(),
+                      generateKey(fileinfo.smallest_key).c_str(),
+                      generateKey(fileinfo.largest_key).c_str(),
+                      fileinfo.file_size, fileinfo.num_entries);
     }
 
     // Add the file to the database
@@ -161,10 +158,9 @@ rocksdb::Status Rdb_sst_file_ordered::Rdb_sst_file::commit() {
     s = m_db->IngestExternalFile(m_cf, {m_name}, opts);
 
     if (m_tracing) {
-      // NO_LINT_DEBUG
-      sql_print_information("SST Tracing: AddFile(%s) returned %s",
-                            fileinfo.file_path.c_str(),
-                            s.ok() ? "ok" : "not ok");
+      LogPluginErrMsg(INFORMATION_LEVEL, 0,
+                      "SST Tracing: AddFile(%s) returned %s",
+                      fileinfo.file_path.c_str(), s.ok() ? "ok" : "not ok");
     }
   }
 
@@ -583,9 +579,8 @@ void Rdb_sst_info::init(const rocksdb::DB *const db) {
 
   // Access the directory
   if (dir_info == nullptr) {
-    // NO_LINT_DEBUG
-    sql_print_warning("RocksDB: Could not access database directory: %s",
-                      path.c_str());
+    LogPluginErrMsg(WARNING_LEVEL, 0, "Could not access database directory: %s",
+                    path.c_str());
     return;
   }
 

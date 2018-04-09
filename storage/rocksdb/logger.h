@@ -15,7 +15,6 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
-#include "sql/log.h"
 #include <sstream>
 #include <string>
 
@@ -50,9 +49,9 @@ class Rdb_logger : public rocksdb::Logger {
     }
 
     // log to MySQL
-    std::string f("LibRocksDB:");
-    f.append(format);
-    error_log_print(mysql_log_level, f.c_str(), ap);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), format, ap);
+    LogPluginErrMsg(mysql_log_level, 0, "%s", buffer);
   }
 
   void Logv(const char *format, va_list ap) override {

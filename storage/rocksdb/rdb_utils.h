@@ -22,8 +22,10 @@
 #include <vector>
 
 /* MySQL header files */
+#define LOG_COMPONENT_TAG "rocksdb"
+#include "mysql/components/services/log_builtins.h"
+
 #include "my_stacktrace.h"
-#include "sql/log.h"
 #include "sql/sql_regex.h"
 #include "sql_string.h"
 
@@ -228,11 +230,9 @@ inline void rdb_check_mutex_call_result(const char *function_name,
                                         const bool attempt_lock,
                                         const int result) {
   if (unlikely(result)) {
-    /* NO_LINT_DEBUG */
-    sql_print_error("%s a mutex inside %s failed with an "
-                    "error code %d.",
-                    attempt_lock ? "Locking" : "Unlocking", function_name,
-                    result);
+    LogPluginErrMsg(
+        ERROR_LEVEL, 0, "%s a mutex inside %s failed with an error code %d.",
+        attempt_lock ? "Locking" : "Unlocking", function_name, result);
 
     // This will hopefully result in a meaningful stack trace which we can use
     // to efficiently debug the root cause.

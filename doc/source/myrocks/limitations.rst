@@ -73,3 +73,9 @@ You should also consider the following:
     or :variable:`rocksdb_commit_in_the_middle`, please make sure transaction
     size is small enough. All modifications of the ongoing transactions are
     kept in memory.
+
+* The`XA protocol <https://dev.mysql.com/doc/refman/5.7/en/xa.html>`_ support,
+  which allows distributed transactions combining multiple separate
+  transactional resources, is an experimental feature in MyRocks: the 
+  implementation is less tested, it may lack some functionality and be not as
+  stable as in case of InnoDB.

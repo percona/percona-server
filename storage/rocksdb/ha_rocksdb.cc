@@ -12747,6 +12747,7 @@ mysql_declare_plugin(rocksdb_se){
     "RocksDB storage engine",          /* Plugin Description */
     PLUGIN_LICENSE_GPL,                /* Plugin Licence */
     myrocks::rocksdb_init_func,        /* Plugin Entry Point */
+    nullptr,                           /* Plugin Check Uninstall */
     myrocks::rocksdb_done_func,        /* Plugin Deinitializer */
     0x0001,                            /* version number (0.1) */
     myrocks::rocksdb_status_vars,      /* status variables */

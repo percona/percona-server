@@ -3444,7 +3444,10 @@ public:
     memset(ptr, 0, packlength+sizeof(uchar*));
     return TYPE_OK;
   }
-  void reset_fields() { memset(&value, 0, sizeof(value)); }
+  void reset_fields()
+  {
+    memset(static_cast<void*>(&value), 0, sizeof(value));
+  }
   uint32 get_field_buffer_size(void) { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
@@ -3518,7 +3521,9 @@ public:
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
-  inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
+  inline void clear_temporary() {
+    memset(static_cast<void*>(&value), 0, sizeof(value));
+  }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }

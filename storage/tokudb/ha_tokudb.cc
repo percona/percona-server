@@ -252,6 +252,8 @@ void TOKUDB_SHARE::drop_share(TOKUDB_SHARE* share) {
     mutex_t_lock(_open_tables_mutex);
     size_t n = _open_tables.erase(std::string(share->full_table_name()));
     assert_always(n == 1);
+    share->destroy();
+    delete share;
     mutex_t_unlock(_open_tables_mutex);
 }
 TOKUDB_SHARE::share_state_t TOKUDB_SHARE::addref() {

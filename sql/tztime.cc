@@ -1523,7 +1523,7 @@ my_offset_tzs_get_key(Time_zone_offset *entry,
 static void
 tz_init_table_list(TABLE_LIST *tz_tabs)
 {
-  bzero(tz_tabs, sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
+  bzero(static_cast<void*>(tz_tabs), sizeof(TABLE_LIST) * MY_TZ_TABLES_COUNT);
 
   for (int i= 0; i < MY_TZ_TABLES_COUNT; i++)
   {

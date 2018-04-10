@@ -1779,7 +1779,7 @@ void JOIN::restore_tmp()
 {
   DBUG_PRINT("info", ("restore_tmp this %p tmp_join %p", this, tmp_join));
   DBUG_ASSERT(tmp_join != this);
-  memcpy(tmp_join, this, (size_t) sizeof(JOIN));
+  memcpy(static_cast<void*>(tmp_join), this, (size_t) sizeof(JOIN));
 }
 
 
@@ -11106,8 +11106,8 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         NullS))
     return 0;
 
-  bzero(table, sizeof(*table));
-  bzero(share, sizeof(*share));
+  bzero(static_cast<void*>(table), sizeof(*table));
+  bzero(static_cast<void*>(share), sizeof(*share));
   table->field= field;
   table->s= share;
   table->temp_pool_slot= MY_BIT_NONE;

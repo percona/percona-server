@@ -28,13 +28,12 @@
 #include <vector>
 
 /* MySQL header files */
-#include "./handler.h"   /* handler */
-#include "./my_global.h" /* ulonglong */
-#include "./sql_string.h"
-#include "./ib_ut0counter.h"
-#include "sql_bitmap.h"
-#include "my_icp.h"
 #include "field.h"
+#include "handler.h"   /* handler */
+#include "my_global.h" /* ulonglong */
+#include "my_icp.h"
+#include "sql_bitmap.h"
+#include "sql_string.h"
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"
@@ -47,6 +46,7 @@
 #include "rocksdb/utilities/write_batch_with_index.h"
 
 /* MyRocks header files */
+#include "./ib_ut0counter.h"
 #include "./rdb_comparator.h"
 #include "./rdb_index_merge.h"
 #include "./rdb_perf_context.h"

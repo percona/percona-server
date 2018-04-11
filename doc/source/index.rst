@@ -102,6 +102,7 @@ Flexibility Improvements
    flexibility/slowlog_rotation
    flexibility/csv_engine_mode
    flexibility/extended_tls_support
+   flexibility/binlogging_replication_improvements
 
 Reliability Improvements
 ========================

@@ -35,17 +35,17 @@ public:
 /**
   Partition specific Handler_share.
 */
-class Ha_partition_share : public Partition_share
+class Partition_base_share : public Partition_share
 {
 public:
   /** Storage for each partitions Handler_share */
   Parts_share_refs *partitions_share_refs;
-  Ha_partition_share();
-  ~Ha_partition_share();
+  Partition_base_share();
+  ~Partition_base_share();
   bool init(uint num_parts);
 };
 
-class ha_partition :
+class Partition_base :
 	public handler,
 	public Partition_helper,
 	public Partition_handler
@@ -90,10 +90,10 @@ private:
   /** cached value of indexes_are_disabled(). */
   int m_indexes_are_disabled;
   /*
-    If set, this object was created with ha_partition::clone and doesn't
+    If set, this object was created with Partition_base::clone and doesn't
     "own" the m_part_info structure.
   */
-  ha_partition *m_is_clone_of;
+  Partition_base *m_is_clone_of;
   MEM_ROOT *m_clone_mem_root;
 
   /*
@@ -137,13 +137,13 @@ private:
   /** keep track of locked partitions */
   MY_BITMAP m_locked_partitions;
   /** Stores shared auto_increment etc. */
-  Ha_partition_share *part_share;
+  Partition_base_share *part_share;
   /** Temporary storage for new partitions Handler_shares during ALTER */
   List<Parts_share_refs> m_new_partitions_share_refs;
   /** Sorted array of partition ids in descending order of number of rows. */
   uint32 *m_part_ids_sorted_by_num_of_records;
   /* Compare function for my_qsort2, for reversed order. */
-  static int compare_number_of_records(ha_partition *me,
+  static int compare_number_of_records(Partition_base *me,
                                        const uint32 *a,
                                        const uint32 *b);
   /** keep track of partitions to call ha_reset */
@@ -161,12 +161,12 @@ public:
     partition handler.
     -------------------------------------------------------------------------
   */
-    ha_partition(handlerton *hton, TABLE_SHARE * table);
-    ha_partition(handlerton *hton, TABLE_SHARE *share,
+    Partition_base(handlerton *hton, TABLE_SHARE * table);
+    Partition_base(handlerton *hton, TABLE_SHARE *share,
                  partition_info *part_info_arg,
-                 ha_partition *clone_arg,
+                 Partition_base *clone_arg,
                  MEM_ROOT *clone_mem_root_arg);
-   ~ha_partition();
+   ~Partition_base();
 
    bool init_with_fields();
 
@@ -220,7 +220,7 @@ public:
 private:
   bool get_num_parts(const char *name, uint *num_parts)
   {
-    DBUG_ENTER("ha_partition::get_num_parts");
+    DBUG_ENTER("Partition_base::get_num_parts");
     *num_parts= m_tot_parts;
     DBUG_RETURN(0);
   }
@@ -256,7 +256,7 @@ private:
   void clear_handler_file();
   partition_element *find_partition_element(uint part_id);
   bool populate_partition_name_hash();
-  Ha_partition_share *get_share();
+  Partition_base_share *get_share();
   bool set_ha_share_ref(Handler_share **ha_share);
   void fix_data_dir(char* path);
   bool init_partition_bitmaps();
@@ -321,7 +321,7 @@ public:
 
   /*
     NOTE: due to performance and resource issues with many partitions,
-    we only use the m_psi on the ha_partition handler, excluding all
+    we only use the m_psi on the Partition_base handler, excluding all
     partitions m_psi.
   */
 #ifdef HAVE_M_PSI_PER_PARTITION

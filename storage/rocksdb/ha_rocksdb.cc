@@ -7372,7 +7372,7 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
 
   int rc = 0;
 
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
   const Rdb_key_def &kd = *m_key_descr_arr[active_index];
   const uint actual_key_parts = kd.get_key_parts();
   bool using_full_key = is_using_full_key(keypart_map, actual_key_parts);
@@ -7918,7 +7918,7 @@ int ha_rocksdb::index_next(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
   bool moves_forward = true;
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   if (m_key_descr_arr[active_index]->m_is_reverse_cf) {
     moves_forward = false;
   }
@@ -7939,7 +7939,7 @@ int ha_rocksdb::index_prev(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
   bool moves_forward = false;
-  ha_statistic_increment(&SSV::ha_read_prev_count);
+  ha_statistic_increment(&System_status_var::ha_read_prev_count);
   if (m_key_descr_arr[active_index]->m_is_reverse_cf) {
     moves_forward = true;
   }
@@ -7988,7 +7988,7 @@ int ha_rocksdb::index_first(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
   m_sk_match_prefix = nullptr;
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
   int rc = m_key_descr_arr[active_index]->m_is_reverse_cf
                ? index_last_intern(buf)
                : index_first_intern(buf);
@@ -8007,7 +8007,7 @@ int ha_rocksdb::index_last(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
   m_sk_match_prefix = nullptr;
-  ha_statistic_increment(&SSV::ha_read_last_count);
+  ha_statistic_increment(&System_status_var::ha_read_last_count);
   int rc = m_key_descr_arr[active_index]->m_is_reverse_cf
                ? index_first_intern(buf)
                : index_last_intern(buf);
@@ -8387,7 +8387,7 @@ int ha_rocksdb::write_row(uchar *const buf) {
   DBUG_ASSERT(buf == table->record[0]);
   DBUG_ASSERT(m_lock_rows == RDB_LOCK_WRITE);
 
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
   /*
     Note: "buf == table->record[0]" is copied from innodb. I am not aware of
     any use cases where this condition is not true.
@@ -9178,7 +9178,7 @@ int ha_rocksdb::rnd_next(uchar *const buf) {
   DBUG_ENTER_FUNC();
 
   int rc;
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
   for (;;) {
     rc = rnd_next_with_direction(buf, true);
     if (rc != HA_ERR_ROCKSDB_STATUS_BUSY || !m_rnd_scan_is_new_snapshot)
@@ -9391,7 +9391,7 @@ int ha_rocksdb::delete_row(const uchar *const buf) {
 
   DBUG_ASSERT(buf != nullptr);
 
-  ha_statistic_increment(&SSV::ha_delete_count);
+  ha_statistic_increment(&System_status_var::ha_delete_count);
   set_last_rowkey(buf);
 
   rocksdb::Slice key_slice(m_last_rowkey.ptr(), m_last_rowkey.length());
@@ -9661,7 +9661,7 @@ int ha_rocksdb::rnd_pos(uchar *const buf, uchar *const pos) {
   int rc;
   size_t len;
 
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   len = m_pk_descr->key_length(table,
                                rocksdb::Slice((const char *)pos, ref_length));
   if (len == size_t(-1)) {
@@ -9729,7 +9729,7 @@ int ha_rocksdb::update_row(const uchar *const old_data, uchar *const new_data) {
   */
   DBUG_ASSERT(new_data == table->record[0]);
 
-  ha_statistic_increment(&SSV::ha_update_count);
+  ha_statistic_increment(&System_status_var::ha_update_count);
   const int rv = update_write_row(old_data, new_data, false);
 
   if (rv == 0) {

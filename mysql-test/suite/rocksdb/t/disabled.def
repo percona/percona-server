@@ -9,3 +9,5 @@ slow_query_log : MYR-26 - Percona Server does not support --log-slow-extra
 
 # 8.0
 bloomfilter3 : PS-4618 - Port PS-4070 a.k.a. MYR-63 to 8.0
+skip_validate_tmp_table : PS-4218 - Make .frm/schema validation optional at compile time
+validate_datadic : PS-4218 - Make .frm/schema validation optional at compile time

@@ -19,6 +19,7 @@
 #endif
 
 #define MYSQL_SERVER 1
+#define ROCKSDB_INCLUDE_RFR 1
 
 /* The C++ file's header */
 #include "./ha_rocksdb.h"
@@ -670,11 +671,13 @@ static MYSQL_THDVAR_BOOL(
     "update and delete",
     nullptr, nullptr, FALSE);
 
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 static MYSQL_THDVAR_STR(
     read_free_rpl_tables, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
     "Regex that describes set of tables that will use read-free replication "
     "on the slave (i.e. not lookup a row during replication)",
     nullptr, nullptr, "");
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 static MYSQL_SYSVAR_BOOL(
     rpl_skip_tx_api, rpl_skip_tx_api_var, PLUGIN_VAR_RQCMDARG,
@@ -1519,7 +1522,9 @@ static struct st_mysql_sys_var *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(bulk_load_allow_unsorted),
     MYSQL_SYSVAR(trace_sst_api),
     MYSQL_SYSVAR(commit_in_the_middle),
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
     MYSQL_SYSVAR(read_free_rpl_tables),
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
     MYSQL_SYSVAR(rpl_skip_tx_api),
     MYSQL_SYSVAR(bulk_load_size),
     MYSQL_SYSVAR(merge_buf_size),
@@ -4765,8 +4770,13 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_sk_packed_tuple_old(nullptr), m_dup_sk_packed_tuple(nullptr),
       m_dup_sk_packed_tuple_old(nullptr), m_pack_buffer(nullptr),
       m_lock_rows(RDB_LOCK_NONE), m_keyread_only(FALSE), m_encoder_arr(nullptr),
-      m_row_checksums_checked(0), m_in_rpl_delete_rows(false),
-      m_in_rpl_update_rows(false) {}
+      m_row_checksums_checked(0)
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+      ,
+      m_in_rpl_delete_rows(false), m_in_rpl_update_rows(false)
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+{
+}
 
 static const char *ha_rocksdb_exts[] = {NullS};
 
@@ -5727,6 +5737,7 @@ void ha_rocksdb::free_key_buffers() {
   m_scan_it_upper_bound = nullptr;
 }
 
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
   DBUG_ASSERT(whitelist != nullptr);
 
@@ -5748,6 +5759,7 @@ void ha_rocksdb::set_use_read_free_rpl(const char *const whitelist) {
 
   m_use_read_free_rpl = regex_handler.match(m_tbl_def->base_tablename());
 }
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 /**
   @return
@@ -5848,8 +5860,10 @@ int ha_rocksdb::open(const char *const name, int mode, uint test_if_locked) {
   /* Index block size in MyRocks: used by MySQL in query optimization */
   stats.block_size = rocksdb_tbl_options->block_size;
 
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
   /* Determine at open whether we can use Read Free Replication or not */
   set_use_read_free_rpl(THDVAR(ha_thd(), read_free_rpl_tables));
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -8391,12 +8405,14 @@ int ha_rocksdb::write_row(uchar *const buf) {
   for Read Free Replication.
 */
 void ha_rocksdb::set_last_rowkey(const uchar *const old_data) {
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
   if (old_data && use_read_free_rpl()) {
     const int old_pk_size = m_pk_descr->pack_record(
         table, m_pack_buffer, old_data, m_pk_packed_tuple, nullptr, false);
     m_last_rowkey.copy((const char *)m_pk_packed_tuple, old_pk_size,
                        &my_charset_bin);
   }
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 }
 
 int ha_rocksdb::get_pk_for_update(struct update_row_info *const row_info) {
@@ -12656,6 +12672,7 @@ static void rocksdb_set_update_cf_options(
 
 void rdb_queue_save_stats_request() { rdb_bg_thread.request_save_stats(); }
 
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 void ha_rocksdb::rpl_before_delete_rows() {
   DBUG_ENTER_FUNC();
 
@@ -12701,6 +12718,7 @@ bool ha_rocksdb::use_read_free_rpl() {
   DBUG_RETURN((m_in_rpl_delete_rows || m_in_rpl_update_rows) &&
               !has_hidden_pk(table) && m_use_read_free_rpl);
 }
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 
 double ha_rocksdb::read_time(uint index, uint ranges, ha_rows rows) {
   DBUG_ENTER_FUNC();

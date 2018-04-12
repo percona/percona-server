@@ -109,6 +109,7 @@ void ha_rocksdb::update_row_stats(const operation_type &type) {
 void dbug_dump_database(rocksdb::DB *db);
 static handler *rocksdb_create_handler(my_core::handlerton *hton,
                                        my_core::TABLE_SHARE *table_arg,
+                                       bool partitioned,
                                        my_core::MEM_ROOT *mem_root);
 
 static rocksdb::CompactRangeOptions getCompactRangeOptions() {
@@ -4762,9 +4763,11 @@ void Rdb_open_tables_map::release_table_handler(
   RDB_MUTEX_UNLOCK_CHECK(m_mutex);
 }
 
-static handler *rocksdb_create_handler(my_core::handlerton *const hton,
-                                       my_core::TABLE_SHARE *const table_arg,
-                                       my_core::MEM_ROOT *const mem_root) {
+static handler *
+rocksdb_create_handler(my_core::handlerton *const hton,
+                       my_core::TABLE_SHARE *const table_arg,
+                       bool partitioned MY_ATTRIBUTE((__unused__)),
+                       my_core::MEM_ROOT *const mem_root) {
   return new (mem_root) ha_rocksdb(hton, table_arg);
 }
 

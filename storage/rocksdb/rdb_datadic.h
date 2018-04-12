@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
+#define ROCKSDB_INCLUDE_VALIDATE_TABLES 1
+
 /* C++ standard header files */
 #include <algorithm>
 #include <array>
@@ -1096,8 +1098,13 @@ public:
   Rdb_ddl_manager() {}
 
   /* Load the data dictionary from on-disk storage */
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager,
             const uint32_t &validate_tables);
+#else
+  bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager);
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
   void cleanup();
 
@@ -1141,9 +1148,12 @@ private:
                                    my_bool not_used MY_ATTRIBUTE((unused)));
   static void free_hash_elem(void *const data);
 
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool validate_schemas();
 
   bool validate_auto_incr();
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
 };
 
 /*

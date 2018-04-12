@@ -3554,6 +3554,7 @@ void Rdb_ddl_manager::remove_uncommitted_keydefs(
   mysql_rwlock_unlock(&m_rwlock);
 }
 
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
 namespace // anonymous namespace = not visible outside this source file
 {
 struct Rdb_validate_tbls : public Rdb_tables_scanner {
@@ -3829,10 +3830,18 @@ bool Rdb_ddl_manager::validate_schemas(void) {
 
   return !has_errors;
 }
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
 bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
                            Rdb_cf_manager *const cf_manager,
                            const uint32_t &validate_tables) {
+#else
+bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
+                           Rdb_cf_manager *const cf_manager) {
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
   m_dict = dict_arg;
   mysql_rwlock_init(0, &m_rwlock);
 
@@ -3949,6 +3958,7 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
     i++;
   }
 
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   /*
     If validate_tables is greater than 0 run the validation.  Only fail the
     initialzation if the setting is 1.  If the setting is 2 we continue.
@@ -3968,6 +3978,8 @@ bool Rdb_ddl_manager::init(Rdb_dict_manager *const dict_arg,
       return true;
     }
   }
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
   // index ids used by applications should not conflict with
   // data dictionary index ids

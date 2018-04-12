@@ -101,6 +101,7 @@ Flexibility Improvements
    flexibility/per_session_server-id
    flexibility/extended_tls_support
    flexibility/compressed_columns
+   flexibility/binlogging_replication_improvements
 
 Reliability Improvements
 ========================

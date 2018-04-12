@@ -137,7 +137,8 @@ SET(TOKUDB_SOURCES
     tokudb_information_schema.cc
     tokudb_sysvars.cc
     tokudb_thread.cc
-    tokudb_dir_cmd.cc)
+    tokudb_dir_cmd.cc
+    partition_base.cc)
 MYSQL_ADD_PLUGIN(tokudb ${TOKUDB_SOURCES} STORAGE_ENGINE MODULE_ONLY
     LINK_LIBRARIES tokufractaltree_static tokuportability_static ${ZLIB_LIBRARY} stdc++)
 SET(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -flto -fuse-linker-plugin")

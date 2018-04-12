@@ -56,7 +56,10 @@
 #define MYSQL_SERVER 1
 #include "sql_parse.h"                          // append_file_to_dir
 #include "partition_info.h"                  // partition_info
-#include "Partition_base.h"
+#include "partition_base.h"
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #include "sql_table.h"                        // tablename_to_filename
 #include "key.h"                             // key_rec_cmp, field_unpack
 #include "sql_show.h"                        // append_identifier
@@ -64,6 +67,11 @@
 #include "myisam.h"                          // TT_FOR_UPGRADE
 #include "sql_plugin.h"                      // plugin_unlock_list
 #include "log.h"                             // sql_print_error
+
+
+#include <vector>
+#include <string>
+
 
 #include "debug_sync.h"
 #ifndef DBUG_OFF
@@ -75,7 +83,6 @@
 
 using std::min;
 using std::max;
-
 
 /* First 4 bytes in the .par file is the number of 32-bit words in the file */
 #define PAR_WORD_SIZE 4
@@ -101,57 +108,10 @@ static const char *opt_op_name[]= {"optimize", "analyze", "check", "repair",
                 MODULE create/delete handler object
 ****************************************************************************/
 
-static handler *partition_create_handler(handlerton *hton,
-                                         TABLE_SHARE *share,
-                                         MEM_ROOT *mem_root);
-static uint partition_flags();
-
-
-static PSI_memory_key key_memory_Partition_base_file;
 static PSI_memory_key key_memory_Partition_base_engine_array;
 static PSI_memory_key key_memory_Partition_base_part_ids;
-#ifdef HAVE_PSI_INTERFACE
-static PSI_memory_info all_partition_memory[]=
-{ { &key_memory_Partition_base_file, "Partition_base::file", 0},
-  { &key_memory_Partition_base_engine_array, "Partition_base::engine_array", 0},
-  { &key_memory_Partition_base_part_ids, "Partition_base::part_ids", 0} };
-
 PSI_file_key key_file_Partition_base_par;
-static PSI_file_info all_partition_file[]=
-{ { &key_file_Partition_base_par, "Partition_base::parfile", 0} };
 
-static void init_partition_psi_keys(void)
-{
-  const char* category= "partition";
-  int count;
-
-  count= array_elements(all_partition_memory);
-  mysql_memory_register(category, all_partition_memory, count);
-  count= array_elements(all_partition_file);
-  mysql_file_register(category, all_partition_file, count);
-}
-#endif /* HAVE_PSI_INTERFACE */
-
-static int partition_initialize(void *p)
-{
-
-  handlerton *partition_hton;
-  partition_hton= (handlerton *)p;
-
-  partition_hton->state= SHOW_OPTION_YES;
-  partition_hton->db_type= DB_TYPE_PARTITION_DB;
-  partition_hton->create= partition_create_handler;
-  partition_hton->partition_flags= partition_flags;
-  partition_hton->flags= HTON_NOT_USER_SELECTABLE |
-                         HTON_HIDDEN |
-                         HTON_TEMPORARY_NOT_SUPPORTED |
-                         HTON_SUPPORTS_CLUSTERED_KEYS |
-                         HTON_SUPPORTS_COMPRESSED_COLUMNS;
-#ifdef HAVE_PSI_INTERFACE
-  init_partition_psi_keys();
-#endif
-  return 0;
-}
 
 Parts_share_refs::Parts_share_refs()
   : num_parts(0), ha_shares(NULL)
@@ -222,55 +182,6 @@ bool Partition_base_share::init(uint num_parts)
   DBUG_RETURN(false);
 }
 
-/*
-  Create new partition handler
-
-  SYNOPSIS
-    partition_create_handler()
-    table                       Table object
-
-  RETURN VALUE
-    New partition object
-*/
-
-static handler *partition_create_handler(handlerton *hton,
-                                         TABLE_SHARE *share,
-                                         MEM_ROOT *mem_root)
-{
-  Partition_base *file= new (mem_root) Partition_base(hton, share);
-  if (file && file->initialize_partition(mem_root))
-  {
-    delete file;
-    file= 0;
-  }
-  return file;
-}
-
-/*
-  HA_CAN_UPDATE_PARTITION_KEY:
-  Set if the handler can update fields that are part of the partition
-  function.
-
-  HA_CAN_PARTITION_UNIQUE:
-  Set if the handler can handle unique indexes where the fields of the
-  unique key are not part of the fields of the partition function. Thus
-  a unique key can be set on all fields.
-
-  HA_USE_AUTO_PARTITION
-  Set if the handler sets all tables to be partitioned by default.
-
-  HA_CAN_EXCHANGE_PARTITION:
-  Set if the handler can exchange a partition with a non-partitioned table
-  of the same handlerton/engine.
-
-  HA_CANNOT_PARTITION_FK:
-  Set if the handler does not support foreign keys on partitioned tables.
-*/
-
-static uint partition_flags()
-{
-  return HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK;
-}
 
 const uint32 Partition_base::NO_CURRENT_PART_ID= NOT_A_PARTITION_ID;
 
@@ -308,9 +219,9 @@ Partition_base::Partition_base(handlerton *hton, TABLE_SHARE *share)
 */
 
 Partition_base::Partition_base(handlerton *hton, TABLE_SHARE *share,
-                           partition_info *part_info_arg,
-                           Partition_base *clone_arg,
-                           MEM_ROOT *clone_mem_root_arg)
+                               partition_info *part_info_arg,
+                               Partition_base *clone_arg,
+                               MEM_ROOT *clone_mem_root_arg)
   : handler(hton, share),
   Partition_helper(this)
 {
@@ -341,9 +252,6 @@ void Partition_base::init_handler_variables()
   active_index= MAX_KEY;
   m_mode= 0;
   m_open_test_lock= 0;
-  m_file_buffer= NULL;
-  m_name_buffer_ptr= NULL;
-  m_engine_array= NULL;
   m_file= NULL;
   m_file_tot_parts= 0;
   m_tot_parts= 0;
@@ -402,12 +310,14 @@ Partition_base::~Partition_base()
   }
   my_free(m_part_ids_sorted_by_num_of_records);
 
-  clear_handler_file();
   DBUG_VOID_RETURN;
 }
 
 bool Partition_base::init_with_fields()
 {
+  /* Partition info has not yet initialized, just return true */
+  if (m_handler_status != handler_initialized)
+    return false;
   /* Pass the call to each partition */
   for (uint i= 0; i < m_tot_parts; i++)
   {
@@ -490,12 +400,6 @@ bool Partition_base::initialize_partition(MEM_ROOT *mem_root)
       Don't need to set-up anything.
     */
     DBUG_RETURN(false);
-  }
-  else if (get_from_handler_file(table_share->normalized_path.str,
-                                 mem_root, false))
-  {
-    my_error(ER_FAILED_READ_FROM_PAR_FILE, MYF(0));
-    DBUG_RETURN(true);
   }
   /*
     We create all underlying table handlers here. We do it in this special
@@ -600,68 +504,6 @@ int Partition_base::rename_table(const char *from, const char *to)
 
 
 /*
-  Create the handler file (.par-file)
-
-  SYNOPSIS
-    create_handler_files()
-    name                              Full path of table name
-    create_info                       Create info generated for CREATE TABLE
-
-  RETURN VALUE
-    >0                        Error
-    0                         Success
-
-  DESCRIPTION
-    create_handler_files is called to create any handler specific files
-    before opening the file with openfrm to later call ::create on the
-    file object.
-    In the partition handler this is used to store the names of partitions
-    and types of engines in the partitions.
-*/
-
-int Partition_base::create_handler_files(const char *path,
-                                       const char *old_path,
-                                       int action_flag,
-                                       HA_CREATE_INFO *create_info)
-{
-  DBUG_ENTER("Partition_base::create_handler_files()");
-
-  /*
-    We need to update total number of parts since we might write the handler
-    file as part of a partition management command
-  */
-  if (action_flag == CHF_DELETE_FLAG ||
-      action_flag == CHF_RENAME_FLAG)
-  {
-    char name[FN_REFLEN];
-    char old_name[FN_REFLEN];
-
-    strxmov(name, path, ha_par_ext, NullS);
-    strxmov(old_name, old_path, ha_par_ext, NullS);
-    if ((action_flag == CHF_DELETE_FLAG &&
-         mysql_file_delete(key_file_Partition_base_par, name, MYF(MY_WME))) ||
-        (action_flag == CHF_RENAME_FLAG &&
-         mysql_file_rename(key_file_Partition_base_par,
-                           old_name,
-                           name,
-                           MYF(MY_WME))))
-    {
-      DBUG_RETURN(TRUE);
-    }
-  }
-  else if (action_flag == CHF_CREATE_FLAG)
-  {
-    if (create_handler_file(path))
-    {
-      my_error(ER_CANT_CREATE_HANDLER_FILE, MYF(0));
-      DBUG_RETURN(1);
-    }
-  }
-  DBUG_RETURN(0);
-}
-
-
-/*
   Create a partitioned table
 
   SYNOPSIS
@@ -686,11 +528,12 @@ int Partition_base::create_handler_files(const char *path,
 */
 
 int Partition_base::create(const char *name, TABLE *table_arg,
-                         HA_CREATE_INFO *create_info)
+                           HA_CREATE_INFO *create_info)
 {
   int error;
   char name_buff[FN_REFLEN], name_lc_buff[FN_REFLEN];
-  char *name_buffer_ptr;
+  const char *name_buffer_ptr;
+  std::vector<std::string> part_name_collection;
   const char *path;
   uint i;
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
@@ -710,11 +553,12 @@ int Partition_base::create(const char *name, TABLE *table_arg,
     DBUG_RETURN(TRUE);
   }
 
-  if (get_from_handler_file(name, ha_thd()->mem_root, false))
+  /*
+    To initialize partitioning and part_share we need to have m_part_info
+    filled in.
+  */
+  if (initialize_partition(&table_share->mem_root) || init_part_share())
     DBUG_RETURN(TRUE);
-  DBUG_ASSERT(m_file_buffer);
-  DBUG_PRINT("enter", ("name: (%s)", name));
-  name_buffer_ptr= m_name_buffer_ptr;
   file= m_file;
   /*
     Since Partition_base has HA_FILE_BASED, it must alter underlying table names
@@ -736,6 +580,7 @@ int Partition_base::create(const char *name, TABLE *table_arg,
       for (j= 0; j < m_part_info->num_subparts; j++)
       {
         part_elem= sub_it++;
+        name_buffer_ptr= part_elem->partition_name;
         create_partition_name(name_buff, path, name_buffer_ptr,
                               NORMAL_PART_NAME, FALSE);
         if ((error= set_up_table_before_create(thd, share, name_buff,
@@ -744,12 +589,13 @@ int Partition_base::create(const char *name, TABLE *table_arg,
           goto create_error;
 
         table_level_options.put_to_info(create_info);
-        name_buffer_ptr= strend(name_buffer_ptr) + 1;
         file++;
+        part_name_collection.push_back(name_buff);
       }
     }
     else
     {
+      name_buffer_ptr= part_elem->partition_name;
       create_partition_name(name_buff, path, name_buffer_ptr,
                             NORMAL_PART_NAME, FALSE);
       if ((error= set_up_table_before_create(thd, share, name_buff,
@@ -758,20 +604,19 @@ int Partition_base::create(const char *name, TABLE *table_arg,
         goto create_error;
 
       table_level_options.put_to_info(create_info);
-      name_buffer_ptr= strend(name_buffer_ptr) + 1;
       file++;
+      part_name_collection.push_back(name_buff);
     }
   }
   DBUG_RETURN(0);
 
 create_error:
-  name_buffer_ptr= m_name_buffer_ptr;
-  for (abort_file= file, file= m_file; file < abort_file; file++)
+  auto part_name_i = part_name_collection.begin();
+  for (abort_file= file, file= m_file;
+       file < abort_file;
+       ++file, ++part_name_i)
   {
-    create_partition_name(name_buff, path, name_buffer_ptr, NORMAL_PART_NAME,
-                          FALSE);
-    (void) (*file)->ha_delete_table((const char*) name_buff);
-    name_buffer_ptr= strend(name_buffer_ptr) + 1;
+    (void) (*file)->ha_delete_table(part_name_i->c_str());
   }
   handler::delete_table(name);
   DBUG_RETURN(error);
@@ -786,6 +631,7 @@ It may do nothing if individual handlers do not support COMPRESSED_COLUMNS.
 void Partition_base::update_field_defs_with_zip_dict_info(THD* thd,
                                                         const char* part_name)
 {
+#if 0
   DBUG_ENTER("Partition_base::update_field_defs_with_zip_dict_info");
   DBUG_ASSERT(part_name == NULL);
   char full_name[FN_REFLEN];
@@ -802,6 +648,7 @@ void Partition_base::update_field_defs_with_zip_dict_info(THD* thd,
   m_file[0]->update_field_defs_with_zip_dict_info(thd, full_name);
 
   DBUG_VOID_RETURN;
+#endif // 0
 }
 
 
@@ -1590,6 +1437,7 @@ void Partition_base::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
 
 int Partition_base::del_ren_table(const char *from, const char *to)
 {
+#if 0
   int save_error= 0;
   int error= HA_ERR_INTERNAL_ERROR;
   char from_buff[FN_REFLEN], to_buff[FN_REFLEN], from_lc_buff[FN_REFLEN],
@@ -1689,6 +1537,8 @@ rename_error:
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
   DBUG_RETURN(error);
+#endif // 0
+  return HA_ERR_UNSUPPORTED;
 }
 
 
@@ -1711,187 +1561,12 @@ rename_error:
     Include the NULL in the count of characters since it is needed as separator
     between the partition names.
 */
-
+/*
 static uint name_add(char *dest, const char *first_name, const char *sec_name)
 {
   return (uint) (strxmov(dest, first_name, "#SP#", sec_name, NullS) -dest) + 1;
 }
-
-
-/**
-  Create the special .par file
-
-  @param name  Full path of table name
-
-  @return Operation status
-    @retval FALSE  Error code
-    @retval TRUE   Success
-
-  @note
-    Method used to create handler file with names of partitions, their
-    engine types and the number of partitions.
 */
-
-bool Partition_base::create_handler_file(const char *name)
-{
-  partition_element *part_elem, *subpart_elem;
-  uint i, j;
-  size_t part_name_len, subpart_name_len, tot_name_len;
-  uint tot_partition_words, num_parts;
-  uint tot_parts= 0;
-  uint tot_len_words, tot_len_byte, chksum, tot_name_words;
-  char *name_buffer_ptr;
-  uchar *file_buffer, *engine_array;
-  bool result= TRUE;
-  char file_name[FN_REFLEN];
-  char part_name[FN_REFLEN];
-  char subpart_name[FN_REFLEN];
-  File file;
-  List_iterator_fast <partition_element> part_it(m_part_info->partitions);
-  DBUG_ENTER("create_handler_file");
-
-  num_parts= m_part_info->partitions.elements;
-  DBUG_PRINT("info", ("table name = %s, num_parts = %u", name,
-                      num_parts));
-  tot_name_len= 0;
-  for (i= 0; i < num_parts; i++)
-  {
-    part_elem= part_it++;
-    if (part_elem->part_state != PART_NORMAL &&
-        part_elem->part_state != PART_TO_BE_ADDED &&
-        part_elem->part_state != PART_CHANGED)
-      continue;
-    tablename_to_filename(part_elem->partition_name, part_name,
-                          FN_REFLEN);
-    part_name_len= strlen(part_name);
-    if (!m_is_sub_partitioned)
-    {
-      tot_name_len+= part_name_len + 1;
-      tot_parts++;
-    }
-    else
-    {
-      List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
-      for (j= 0; j < m_part_info->num_subparts; j++)
-      {
-        subpart_elem= sub_it++;
-        tablename_to_filename(subpart_elem->partition_name,
-                              subpart_name,
-                              FN_REFLEN);
-        subpart_name_len= strlen(subpart_name);
-        tot_name_len+= part_name_len + subpart_name_len + 5;
-        tot_parts++;
-      }
-    }
-  }
-  /*
-     File format:
-     Length in words              4 byte
-     Checksum                     4 byte
-     Total number of partitions   4 byte
-     Array of engine types        n * 4 bytes where
-     n = (m_tot_parts + 3)/4
-     Length of name part in bytes 4 bytes
-     (Names in filename format)
-     Name part                    m * 4 bytes where
-     m = ((length_name_part + 3)/4)*4
-
-     All padding bytes are zeroed
-  */
-  tot_partition_words= (tot_parts + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
-  tot_name_words= (tot_name_len + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
-  /* 4 static words (tot words, checksum, tot partitions, name length) */
-  tot_len_words= 4 + tot_partition_words + tot_name_words;
-  tot_len_byte= PAR_WORD_SIZE * tot_len_words;
-  if (!(file_buffer= (uchar *) my_malloc(key_memory_Partition_base_file,
-                                         tot_len_byte, MYF(MY_ZEROFILL))))
-    DBUG_RETURN(TRUE);
-  engine_array= (file_buffer + PAR_ENGINES_OFFSET);
-  name_buffer_ptr= (char*) (engine_array + tot_partition_words * PAR_WORD_SIZE
-                            + PAR_WORD_SIZE);
-  part_it.rewind();
-  for (i= 0; i < num_parts; i++)
-  {
-    part_elem= part_it++;
-    if (part_elem->part_state != PART_NORMAL &&
-        part_elem->part_state != PART_TO_BE_ADDED &&
-        part_elem->part_state != PART_CHANGED)
-      continue;
-    if (!m_is_sub_partitioned)
-    {
-      tablename_to_filename(part_elem->partition_name, part_name, FN_REFLEN);
-      name_buffer_ptr= my_stpcpy(name_buffer_ptr, part_name)+1;
-      *engine_array= (uchar) ha_legacy_type(part_elem->engine_type);
-      DBUG_PRINT("info", ("engine: %u", *engine_array));
-      engine_array++;
-    }
-    else
-    {
-      List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
-      for (j= 0; j < m_part_info->num_subparts; j++)
-      {
-        subpart_elem= sub_it++;
-        tablename_to_filename(part_elem->partition_name, part_name,
-                              FN_REFLEN);
-        tablename_to_filename(subpart_elem->partition_name, subpart_name,
-                              FN_REFLEN);
-        name_buffer_ptr+= name_add(name_buffer_ptr,
-                                   part_name,
-                                   subpart_name);
-        *engine_array= (uchar) ha_legacy_type(subpart_elem->engine_type);
-        DBUG_PRINT("info", ("engine: %u", *engine_array));
-        engine_array++;
-      }
-    }
-  }
-  chksum= 0;
-  int4store(file_buffer, tot_len_words);
-  int4store(file_buffer + PAR_NUM_PARTS_OFFSET, tot_parts);
-  int4store(file_buffer + PAR_ENGINES_OFFSET +
-            (tot_partition_words * PAR_WORD_SIZE),
-            static_cast<uint32>(tot_name_len));
-  for (i= 0; i < tot_len_words; i++)
-    chksum^= uint4korr(file_buffer + PAR_WORD_SIZE * i);
-  int4store(file_buffer + PAR_CHECKSUM_OFFSET, chksum);
-  /*
-    Add .par extension to the file name.
-    Create and write and close file
-    to be used at open, delete_table and rename_table
-  */
-  fn_format(file_name, name, "", ha_par_ext, MY_APPEND_EXT);
-  if ((file= mysql_file_create(key_file_Partition_base_par,
-                               file_name, CREATE_MODE, O_RDWR | O_TRUNC,
-                               MYF(MY_WME))) >= 0)
-  {
-    result= mysql_file_write(file, (uchar *) file_buffer, tot_len_byte,
-                             MYF(MY_WME | MY_NABP)) != 0;
-    (void) mysql_file_close(file, MYF(0));
-  }
-  else
-    result= TRUE;
-  my_free(file_buffer);
-  DBUG_RETURN(result);
-}
-
-
-/**
-  Clear handler variables and free some memory
-*/
-
-void Partition_base::clear_handler_file()
-{
-  if (m_engine_array)
-  {
-    plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
-    my_free(m_engine_array);
-    m_engine_array= NULL;
-  }
-  if (m_file_buffer)
-  {
-    my_free(m_file_buffer);
-    m_file_buffer= NULL;
-  }
-}
 
 
 /**
@@ -1906,35 +1581,20 @@ void Partition_base::clear_handler_file()
 
 bool Partition_base::create_handlers(MEM_ROOT *mem_root)
 {
-  uint i;
   uint alloc_len= (m_tot_parts + 1) * sizeof(handler*);
-  handlerton *hton0;
   DBUG_ENTER("create_handlers");
-
   if (!(m_file= (handler **) alloc_root(mem_root, alloc_len)))
     DBUG_RETURN(TRUE);
-  m_file_tot_parts= m_tot_parts;
   memset(m_file, 0, alloc_len);
-  for (i= 0; i < m_tot_parts; i++)
+
+  for (uint i = 0; i < m_tot_parts; i++)
   {
-    handlerton *hton= plugin_data<handlerton*>(m_engine_array[i]);
-    if (!(m_file[i]= get_new_handler(table_share, mem_root, hton)))
+    if (!(m_file[i]= get_new_handler(table_share,
+                                     mem_root,
+                                     m_part_info->default_engine_type)))
       DBUG_RETURN(TRUE);
-    DBUG_PRINT("info", ("engine_type: %u", hton->db_type));
   }
-  /* For the moment we only support partition over the same table engine */
-  hton0= plugin_data<handlerton*>(m_engine_array[0]);
-  if (ha_legacy_type(hton0) == DB_TYPE_MYISAM)
-  {
-    DBUG_PRINT("info", ("MyISAM"));
-    m_myisam= TRUE;
-  }
-  /* INNODB may not be compiled in... */
-  else if (ha_legacy_type(hton0) == DB_TYPE_INNODB)
-  {
-    DBUG_PRINT("info", ("InnoDB"));
-    m_innodb= TRUE;
-  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -1982,27 +1642,18 @@ bool Partition_base::new_handlers_from_part_info(MEM_ROOT *mem_root)
     {
       for (j= 0; j < m_part_info->num_subparts; j++)
       {
-        if (!(m_file[part_count++]= get_new_handler(table_share, mem_root,
-                                                    part_elem->engine_type)))
+        if (!(m_file[part_count++]= get_file_handler(table_share, mem_root,
+                                                     part_elem->engine_type)))
           goto error;
-        DBUG_PRINT("info", ("engine_type: %u",
-                   (uint) ha_legacy_type(part_elem->engine_type)));
       }
     }
     else
     {
-      if (!(m_file[part_count++]= get_new_handler(table_share, mem_root,
-                                                  part_elem->engine_type)))
+      if (!(m_file[part_count++]= get_file_handler(table_share, mem_root,
+                                                   part_elem->engine_type)))
         goto error;
-      DBUG_PRINT("info", ("engine_type: %u",
-                 (uint) ha_legacy_type(part_elem->engine_type)));
     }
   } while (++i < m_part_info->num_parts);
-  if (ha_legacy_type(part_elem->engine_type) == DB_TYPE_MYISAM)
-  {
-    DBUG_PRINT("info", ("MyISAM"));
-    m_myisam= TRUE;
-  }
   DBUG_RETURN(FALSE);
 error:
   mem_alloc_error(sizeof(handler));
@@ -2010,192 +1661,21 @@ error_end:
   DBUG_RETURN(TRUE);
 }
 
-
-/**
-  Read the .par file to get the partitions engines and names
-
-  @param name  Name of table file (without extention)
-
-  @return Operation status
-    @retval true   Failure
-    @retval false  Success
-
-  @note On success, m_file_buffer is allocated and must be
-  freed by the caller. m_name_buffer_ptr and m_tot_parts is also set.
-*/
-
-bool Partition_base::read_par_file(const char *name)
-{
-  char buff[FN_REFLEN], *tot_name_len_offset, *buff_p= buff;
-  File file;
-  char *file_buffer;
-  uint i, len_bytes, len_words, tot_partition_words, tot_name_words, chksum;
-  DBUG_ENTER("Partition_base::read_par_file");
-  DBUG_PRINT("enter", ("table name: '%s'", name));
-
-  if (m_file_buffer)
-    DBUG_RETURN(false);
-  fn_format(buff, name, "", ha_par_ext, MY_APPEND_EXT);
-
-  /* Following could be done with mysql_file_stat to read in whole file */
-  if ((file= mysql_file_open(key_file_Partition_base_par,
-                             buff, O_RDONLY | O_SHARE, MYF(0))) < 0)
-    DBUG_RETURN(TRUE);
-  if (mysql_file_read(file, (uchar *) &buff[0], PAR_WORD_SIZE, MYF(MY_NABP)))
-    goto err1;
-  len_words= uint4korr(buff_p);
-  len_bytes= PAR_WORD_SIZE * len_words;
-  if (mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
-    goto err1;
-  if (!(file_buffer= (char*) my_malloc(key_memory_Partition_base_file,
-                                       len_bytes, MYF(0))))
-    goto err1;
-  if (mysql_file_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
-    goto err2;
-
-  chksum= 0;
-  for (i= 0; i < len_words; i++)
-    chksum ^= uint4korr((file_buffer) + PAR_WORD_SIZE * i);
-  if (chksum)
-    goto err2;
-  m_tot_parts= uint4korr((file_buffer) + PAR_NUM_PARTS_OFFSET);
-  DBUG_PRINT("info", ("No of parts = %u", m_tot_parts));
-  DBUG_ASSERT(!m_file_tot_parts || m_file_tot_parts == m_tot_parts);
-  tot_partition_words= (m_tot_parts + PAR_WORD_SIZE - 1) / PAR_WORD_SIZE;
-
-  tot_name_len_offset= file_buffer + PAR_ENGINES_OFFSET +
-                       PAR_WORD_SIZE * tot_partition_words;
-  tot_name_words= (uint4korr(tot_name_len_offset) + PAR_WORD_SIZE - 1) /
-                  PAR_WORD_SIZE;
-  /*
-    Verify the total length = tot size word, checksum word, num parts word +
-    engines array + name length word + name array.
-  */
-  if (len_words != (tot_partition_words + tot_name_words + 4))
-    goto err2;
-  (void) mysql_file_close(file, MYF(0));
-  m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
-  m_name_buffer_ptr= tot_name_len_offset + PAR_WORD_SIZE;
-
-  DBUG_RETURN(false);
-
-err2:
-  my_free(file_buffer);
-err1:
-  (void) mysql_file_close(file, MYF(0));
-  DBUG_RETURN(true);
-}
-
-
-/**
-  Setup m_engine_array
-
-  @param mem_root  MEM_ROOT to use for allocating new handlers
-
-  @return Operation status
-    @retval false  Success
-    @retval true   Failure
-*/
-
-bool Partition_base::setup_engine_array(MEM_ROOT *mem_root)
-{
-  uint i;
-  uchar *buff;
-  handlerton *first_engine;
-  enum legacy_db_type db_type, first_db_type;
-
-  DBUG_ASSERT(!m_file);
-  DBUG_ASSERT(!m_engine_array);
-  DBUG_ENTER("Partition_base::setup_engine_array");
-
-  buff= (uchar *) (m_file_buffer + PAR_ENGINES_OFFSET);
-  first_db_type= (enum legacy_db_type) buff[0];
-  first_engine= ha_resolve_by_legacy_type(ha_thd(), first_db_type);
-  if (!first_engine)
-    goto err;
-
-  if (!(m_engine_array= (plugin_ref*)
-                my_malloc(key_memory_Partition_base_engine_array,
-                          m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
-    goto err;
-
-  for (i= 0; i < m_tot_parts; i++)
-  {
-    db_type= (enum legacy_db_type) buff[i];
-    if (db_type != first_db_type)
-    {
-      DBUG_PRINT("error", ("partition %u engine %d is not same as "
-                           "first partition %d", i, db_type,
-                           (int) first_db_type));
-      DBUG_ASSERT(0);
-      clear_handler_file();
-      goto err;
-    }
-    m_engine_array[i]= ha_lock_engine(NULL, first_engine);
-    if (!m_engine_array[i])
-    {
-      clear_handler_file();
-      goto err;
-    }
-  }
-
-  if (create_handlers(mem_root))
-  {
-    clear_handler_file();
-    DBUG_RETURN(true);
-  }
-
-  DBUG_RETURN(false);
-
-err:
-  DBUG_RETURN(true);
-}
-
-
-/**
-  Get info about partition engines and their names from the .par file
-
-  @param name      Full path of table name
-  @param mem_root  Allocate memory through this
-  @param is_clone  If it is a clone, don't create new handlers
-
-  @return Operation status
-    @retval true   Error
-    @retval false  Success
-
-  @note Open handler file to get partition names, engine types and number of
-  partitions.
-*/
-
-bool Partition_base::get_from_handler_file(const char *name, MEM_ROOT *mem_root,
-                                         bool is_clone)
-{
-  DBUG_ENTER("Partition_base::get_from_handler_file");
-  DBUG_PRINT("enter", ("table name: '%s'", name));
-
-  if (m_file_buffer)
-    DBUG_RETURN(false);
-
-  if (read_par_file(name))
-    DBUG_RETURN(true);
-
-  if (!is_clone && setup_engine_array(mem_root))
-    DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
-}
-
-
 /****************************************************************************
                 MODULE open/close object
 ****************************************************************************/
 
 /**
-  Set Handler_share pointer and allocate Handler_share pointers
-  for each partition and set those.
+  Set Handler_share pointer.
 
   @param ha_share_arg  Where to store/retrieve the Partitioning_share pointer
                        to be shared by all instances of the same table.
+
+  @note: the function can be called before partition info is set, but
+         Handler_share must be set for each partittion file in m_file,
+         that is why the initial function was splitted into two functions:
+         set_ha_share_ref() and init_part_share(). The latter is invoked after
+         m_file initialization.
 
   @return Operation status
     @retval true  Failure
@@ -2204,29 +1684,45 @@ bool Partition_base::get_from_handler_file(const char *name, MEM_ROOT *mem_root,
 
 bool Partition_base::set_ha_share_ref(Handler_share **ha_share_arg)
 {
-  Handler_share **ha_shares;
-  uint i;
   DBUG_ENTER("Partition_base::set_ha_share_ref");
+  DBUG_ASSERT(!part_share);
+  DBUG_ASSERT(table_share);
+  DBUG_ASSERT(!m_is_clone_of);
 
+  if (handler::set_ha_share_ref(ha_share_arg))
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Allocate Handler_share pointers for each partition and set those.
+
+  @return Operation status
+    @retval true  Failure
+    @retval false Sucess
+*/
+
+bool Partition_base::init_part_share() {
+  DBUG_ENTER("Partition_base::init_part_share");
   DBUG_ASSERT(!part_share);
   DBUG_ASSERT(table_share);
   DBUG_ASSERT(!m_is_clone_of);
   DBUG_ASSERT(m_tot_parts);
-  if (handler::set_ha_share_ref(ha_share_arg))
-    DBUG_RETURN(true);
+
   if (!(part_share= get_share()))
     DBUG_RETURN(true);
   DBUG_ASSERT(part_share->partitions_share_refs);
   DBUG_ASSERT(part_share->partitions_share_refs->num_parts >= m_tot_parts);
-  ha_shares= part_share->partitions_share_refs->ha_shares;
-  for (i= 0; i < m_tot_parts; i++)
+  Handler_share **ha_shares=
+    part_share->partitions_share_refs->ha_shares;
+  for (uint i= 0; i < m_tot_parts; i++)
   {
     if (m_file[i]->set_ha_share_ref(&ha_shares[i]))
       DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
 }
-
 
 /**
   Get the PARTITION_SHARE for the table.
@@ -2265,7 +1761,7 @@ Partition_base_share *Partition_base::get_share()
       goto err;
     }
 
-    set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
+    set_ha_share_ptr(static_cast<Partition_base_share*>(tmp_share));
   }
 err:
   unlock_shared_ha_data();
@@ -2358,7 +1854,6 @@ bool Partition_base::init_partition_bitmaps()
 
 int Partition_base::open(const char *name, int mode, uint test_if_locked)
 {
-  char *name_buffer_ptr;
   int error= HA_ERR_INITIALIZATION;
   handler **file;
   char name_buff[FN_REFLEN];
@@ -2370,9 +1865,12 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
   ref_length= 0;
   m_mode= mode;
   m_open_test_lock= test_if_locked;
-  if (get_from_handler_file(name, &table->mem_root, MY_TEST(m_is_clone_of)))
-    DBUG_RETURN(error);
-  name_buffer_ptr= m_name_buffer_ptr;
+
+  /* The following functions must be called only after m_part_info set */
+  if (initialize_partition(&table_share->mem_root) ||
+      init_part_share() ||
+      init_with_fields())
+    DBUG_RETURN(TRUE);
 
   /* Check/update the partition share. */
   lock_shared_ha_data();
@@ -2419,7 +1917,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
 
   if (m_is_clone_of)
   {
-    uint i, alloc_len;
+    uint alloc_len;
     DBUG_ASSERT(m_clone_mem_root);
     /* Allocate an array of handler pointers for the partitions handlers. */
     alloc_len= (m_tot_parts + 1) * sizeof(handler*);
@@ -2434,23 +1932,58 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
       Note that file->ref is allocated too.
     */
     file= m_is_clone_of->m_file;
-    for (i= 0; i < m_tot_parts; i++)
+
+    /*
+      The following code can be refactored. The same pattern of iteration
+      through partition elements is used in several places, so there can be
+      something like new kind of iterator or "for each" with functor.
+    */
+    handler **this_file= m_file;
+    handler **cloned_file= m_is_clone_of->m_file;
+    List_iterator_fast <partition_element> part_it(m_part_info->partitions);
+    for (uint i= 0; i < m_part_info->num_parts; i++)
     {
-      create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
-                            FALSE);
-      /* ::clone() will also set ha_share from the original. */
-      if (!(m_file[i]= file[i]->clone(name_buff, m_clone_mem_root)))
+      partition_element *part_elem= part_it++;
+      if (m_is_sub_partitioned)
       {
-        error= HA_ERR_INITIALIZATION;
-        file= &m_file[i];
-        goto err_handler;
+        uint j;
+        List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
+        for (j= 0; j < m_part_info->num_subparts; j++)
+        {
+          part_elem= sub_it++;
+          create_partition_name(name_buff, name, part_elem->partition_name,
+                                NORMAL_PART_NAME, FALSE);
+          if (!(*this_file =
+               (*cloned_file)->clone(name_buff, m_clone_mem_root)))
+          {
+            error= HA_ERR_INITIALIZATION;
+            file= this_file;
+            goto err_handler;
+          }
+          ++this_file;
+          ++cloned_file;
+        }
       }
-      name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
+      else
+      {
+        create_partition_name(name_buff, name, part_elem->partition_name,
+                              NORMAL_PART_NAME, FALSE);
+        if (!(*this_file =
+             (*cloned_file)->clone(name_buff, m_clone_mem_root)))
+        {
+          error= HA_ERR_INITIALIZATION;
+          file= this_file;
+          goto err_handler;
+        }
+        ++this_file;
+        ++cloned_file;
+      }
     }
   }
   else
   {
    file= m_file;
+/*
    do
    {
       create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
@@ -2463,6 +1996,41 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
       DBUG_ASSERT(m_num_locks == (*file)->lock_count());
       name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
     } while (*(++file));
+   */
+    List_iterator_fast <partition_element> part_it(m_part_info->partitions);
+    for (uint i= 0; i < m_part_info->num_parts; i++)
+    {
+      partition_element *part_elem= part_it++;
+      if (m_is_sub_partitioned)
+      {
+        List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
+        for (uint j= 0; j < m_part_info->num_subparts; j++)
+        {
+          part_elem= sub_it++;
+          create_partition_name(name_buff, name, part_elem->partition_name,
+                                NORMAL_PART_NAME, FALSE);
+          if ((error= (*file)->ha_open(table, name_buff, mode,
+                                       test_if_locked | HA_OPEN_NO_PSI_CALL)))
+            goto err_handler;
+          if (m_file == file)
+            m_num_locks= (*file)->lock_count();
+          DBUG_ASSERT(m_num_locks == (*file)->lock_count());
+          ++file;
+        }
+      }
+      else
+      {
+        create_partition_name(name_buff, name, part_elem->partition_name,
+                              NORMAL_PART_NAME, FALSE);
+        if ((error= (*file)->ha_open(table, name_buff, mode,
+                                     test_if_locked | HA_OPEN_NO_PSI_CALL)))
+          goto err_handler;
+        if (m_file == file)
+          m_num_locks= (*file)->lock_count();
+        DBUG_ASSERT(m_num_locks == (*file)->lock_count());
+        ++file;
+      }
+    }
   }
 
   file= m_file;
@@ -2496,11 +2064,6 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
   */
   ref_length+= PARTITION_BYTES_IN_POS;
 
-  /*
-    Release buffer read from .par file. It will not be reused again after
-    being opened once.
-  */
-  clear_handler_file();
 
   /*
     Some handlers update statistics as part of the open call. This will in
@@ -2518,7 +2081,7 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
   DBUG_RETURN(0);
 
 err_handler:
-  DEBUG_SYNC(ha_thd(), "partition_open_error");
+//  DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
     (*file)->ha_close();
 err_alloc:
@@ -2565,67 +2128,6 @@ void Partition_base::rebind_psi()
   DBUG_VOID_RETURN;
 }
 #endif /* HAVE_M_PSI_PER_PARTITION */
-
-
-/**
-  Clone the open and locked partitioning handler.
-
-  @param  mem_root  MEM_ROOT to use.
-
-  @return Pointer to the successfully created clone or NULL
-
-  @details
-  This function creates a new Partition_base handler as a clone/copy. The
-  original (this) must already be opened and locked. The clone will use
-  the originals m_part_info.
-  It also allocates memory for ref + ref_dup.
-  In Partition_base::open() it will clone its original handlers partitions
-  which will allocate then on the correct MEM_ROOT and also open them.
-*/
-
-handler *Partition_base::clone(const char *name, MEM_ROOT *mem_root)
-{
-  Partition_base *new_handler;
-
-  DBUG_ENTER("Partition_base::clone");
-
-  /* If this->table == NULL, then the current handler has been created but not
-  opened. Prohibit cloning such handler. */
-  if (!table)
-    DBUG_RETURN(NULL);
-
-  new_handler= new (mem_root) Partition_base(ht, table_share, m_part_info,
-                                           this, mem_root);
-  if (!new_handler)
-    DBUG_RETURN(NULL);
-
-  /*
-    We will not clone each partition's handler here, it will be done in
-    Partition_base::open() for clones. Also set_ha_share_ref is not needed
-    here, since 1) ha_share is copied in the constructor used above
-    2) each partition's cloned handler will set it from its original.
-  */
-
-  /*
-    Allocate new_handler->ref here because otherwise ha_open will allocate it
-    on this->table->mem_root and we will not be able to reclaim that memory
-    when the clone handler object is destroyed.
-  */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                              ALIGN_SIZE(ref_length)*2)))
-    goto err;
-
-  if (new_handler->ha_open(table, name,
-                           table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_NO_PSI_CALL))
-    goto err;
-
-  DBUG_RETURN((handler*) new_handler);
-
-err:
-  delete new_handler;
-  DBUG_RETURN(NULL);
-}
 
 
 /*
@@ -3831,8 +3333,8 @@ bool Partition_base::has_gap_locks() const
 */
 
 int Partition_base::compare_number_of_records(Partition_base *me,
-                                            const uint32 *a,
-                                            const uint32 *b)
+                                              const uint32 *a,
+                                              const uint32 *b)
 {
   handler **file= me->m_file;
   /* Note: sorting in descending order! */
@@ -4140,8 +3642,8 @@ int Partition_base::info(uint flag)
 
 
 void Partition_base::get_dynamic_partition_info(ha_statistics *stat_info,
-                                              ha_checksum *check_sum,
-                                              uint part_id)
+                                                ha_checksum *check_sum,
+                                                uint part_id)
 {
   handler *file= m_file[part_id];
   DBUG_ASSERT(bitmap_is_set(&(m_part_info->read_partitions), part_id));
@@ -5599,13 +5101,13 @@ int Partition_base::discard_or_import_tablespace(my_bool discard)
   rename_table and delete_table method in handler.cc.
 */
 
-static const char *Partition_base_ext[]=
+static const char *ha_partition_ext[]=
 {
   ha_par_ext, NullS
 };
 
 const char **Partition_base::bas_ext() const
-{ return Partition_base_ext; }
+{ return ha_partition_ext; }
 
 
 uint Partition_base::min_of_the_max_uint(
@@ -6292,33 +5794,3 @@ bool Partition_base::rpl_lookup_rows()
 {
   return m_file[0]->rpl_lookup_rows();
 }
-
-/*
-  Query storage engine to see if it can support handling specific replication
-  method in its current configuration.
-*/
-bool Partition_base::rpl_can_handle_stm_event() const
-{
-  return m_file[0]->rpl_can_handle_stm_event();
-}
-
-struct st_mysql_storage_engine partition_storage_engine=
-{ MYSQL_HANDLERTON_INTERFACE_VERSION };
-
-mysql_declare_plugin(partition)
-{
-  MYSQL_STORAGE_ENGINE_PLUGIN,
-  &partition_storage_engine,
-  "partition",
-  "Mikael Ronstrom, MySQL AB",
-  "Partition Storage Engine Helper",
-  PLUGIN_LICENSE_GPL,
-  partition_initialize, /* Plugin Init */
-  NULL, /* Plugin Deinit */
-  0x0100, /* 1.0 */
-  NULL,                       /* status variables                */
-  NULL,                       /* system variables                */
-  NULL,                       /* config options                  */
-  0,                          /* flags                           */
-}
-mysql_declare_plugin_end;

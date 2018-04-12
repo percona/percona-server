@@ -1,5 +1,5 @@
-#ifndef HA_PARTITION_INCLUDED
-#define HA_PARTITION_INCLUDED
+#ifndef PARTITION_BASE_INCLUDED
+#define PARTITION_BASE_INCLUDED
 
 /*
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
@@ -50,13 +50,20 @@ class Partition_base :
 	public Partition_helper,
 	public Partition_handler
 {
+public:
+  bool init_partitioning(MEM_ROOT *mem_root) {
+    return Partition_helper::init_partitioning(mem_root);
+  }
+
+private:
+  virtual handler *get_file_handler(TABLE_SHARE *share,
+                                    MEM_ROOT *alloc,
+                                    handlerton *db_type) = 0;
+
 private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
   uint m_open_test_lock;                // Open test_if_locked
-  char *m_file_buffer;                  // Content of the .par file
-  char *m_name_buffer_ptr;              // Pointer to first partition name
-  plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
   /*
@@ -149,7 +156,7 @@ private:
   /** keep track of partitions to call ha_reset */
   MY_BITMAP m_partitions_to_reset;
 public:
-  handler *clone(const char *name, MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root) = 0;
   /*
     -------------------------------------------------------------------------
     MODULE create/delete handler object
@@ -167,17 +174,14 @@ public:
                  Partition_base *clone_arg,
                  MEM_ROOT *clone_mem_root_arg);
    ~Partition_base();
-
    bool init_with_fields();
-
   /*
     A partition handler has no characteristics in itself. It only inherits
     those from the underlying handlers. Here we set-up those constants to
     enable later calls of the methods to retrieve constants from the under-
     lying handlers. Returns false if not successful.
   */
-   bool initialize_partition(MEM_ROOT *mem_root);
-
+  bool initialize_partition(MEM_ROOT *mem_root);
   /*
     -------------------------------------------------------------------------
     MODULE meta data changes
@@ -194,9 +198,6 @@ public:
   virtual int rename_table(const char *from, const char *to);
   virtual int create(const char *name, TABLE *form,
                      HA_CREATE_INFO *create_info);
-  virtual int create_handler_files(const char *name,
-                                   const char *old_name, int action_flag,
-                                   HA_CREATE_INFO *create_info);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
   int change_partitions_low(HA_CREATE_INFO *create_info,
                             const char *path,
@@ -246,18 +247,14 @@ private:
     underlying partitions, their engine and the number of partitions.
     And one method to read it in.
   */
-  bool create_handler_file(const char *name);
   bool setup_engine_array(MEM_ROOT *mem_root);
-  bool read_par_file(const char *name);
-  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root,
-                             bool is_clone);
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
   bool create_handlers(MEM_ROOT *mem_root);
-  void clear_handler_file();
   partition_element *find_partition_element(uint part_id);
   bool populate_partition_name_hash();
   Partition_base_share *get_share();
   bool set_ha_share_ref(Handler_share **ha_share);
+  bool init_part_share();
   void fix_data_dir(char* path);
   bool init_partition_bitmaps();
   void free_partition_bitmaps();
@@ -1163,9 +1160,6 @@ public:
     void rpl_after_update_rows();
     bool rpl_lookup_rows();
 
-  /* For MyRocks Writebatch Replication validation */
-    bool rpl_can_handle_stm_event() const;
-
   /*
     -------------------------------------------------------------------------
     MODULE partitioning specific handler API
@@ -1259,4 +1253,4 @@ private:
   }
 };
 
-#endif /* HA_PARTITION_INCLUDED */
+#endif /* PARTITION_BASE_INCLUDED */

@@ -1,0 +1,34 @@
+# This test is for debugging
+
+--source include/have_partition.inc
+--source include/have_tokudb.inc
+
+create table t2 (a int unsigned not null, primary key(a)) engine=tokudb;
+
+
+create table t1 (a int unsigned not null, primary key(a)) engine=tokudb
+PARTITION BY RANGE (a) (
+    PARTITION p0 VALUES LESS THAN (100),
+    PARTITION p1 VALUES LESS THAN (200),
+    PARTITION p2 VALUES LESS THAN (300),
+    PARTITION p3 VALUES LESS THAN (400)
+);
+
+insert into t1 set a = 250;
+#insert into t1 set a = 255;
+#insert into t1 set a = 350;
+#insert into t1 set a = 355;
+#insert into t1 set a = 50;
+#insert into t1 set a = 55;
+
+
+#select * from t1;
+#select * from t1 where a = 355;
+
+#update t1 set a = 10 where a = 355;
+#select * from t1;
+
+#update t1 set a = a + 1;
+#select * from t1;
+
+#drop table t1;

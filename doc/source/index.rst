@@ -93,6 +93,7 @@ Flexibility Improvements
    flexibility/per_session_server-id
    flexibility/compressed_columns
    flexibility/innodb_fts_improvements
+   flexibility/binlogging_replication_improvements
 
 Reliability Improvements
 ========================

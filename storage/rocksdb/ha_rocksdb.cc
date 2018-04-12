@@ -3910,8 +3910,6 @@ static int rocksdb_init_func(void *const p) {
   rocksdb_hton->flags = HTON_TEMPORARY_NOT_SUPPORTED |
                         HTON_SUPPORTS_EXTENDED_KEYS | HTON_CAN_RECREATE;
 
-  DBUG_ASSERT(!mysqld_embedded);
-
   if (rocksdb_db_options->max_open_files > (long)open_files_limit) {
     LogPluginErrMsg(INFORMATION_LEVEL, 0,
                     "rocksdb_max_open_files should not be greater than the "

@@ -1,6 +1,6 @@
 set session debug= "+d,myrocks_enable_unknown_collation_index_only_scans";
 create table t (id int not null auto_increment primary key,
-c varchar(8) CHARACTER SET utf8 COLLATE utf8_general_ci,
+c varchar(8) CHARACTER SET utf8mb3 COLLATE utf8_general_ci,
 key sk (c)) engine=rocksdb;
 insert into t (c) values ('☀'), ('ß');
 explain select c from t;
@@ -47,15 +47,11 @@ select char_length(c1), char_length(c2), c1, c2 from t;
 char_length(c1)	char_length(c2)	c1	c2
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into t (c1, c2) values ('Asdf    ', 'Asdf    ');
 Warnings:
 Warning	1265	Data truncated for column 'c1' at row 1
 Warning	1265	Data truncated for column 'c2' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select char_length(c1), char_length(c2), c1, c2 from t;
 char_length(c1)	char_length(c2)	c1	c2
 1	1	A	A

@@ -6,7 +6,7 @@
 --echo #  Test how MyRocks behaves when RocksDB reports corrupted data.
 --echo #
 
-# use custom error log to assert on error message in search_pattern_in_file.inc
+# use custom error log to assert on error message in search_pattern.inc
 --let LOG=$MYSQLTEST_VARDIR/tmp/allow_to_start_after_corruption_debug.err
 --let SEARCH_FILE=$LOG
 
@@ -32,7 +32,7 @@ set session debug= "+d,rocksdb_return_status_corrupted";
 select * from t1 where pk=1;
 --source include/wait_until_disconnected.inc
 --let SEARCH_PATTERN=data corruption detected
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $LOG
 
 --echo #
@@ -48,7 +48,7 @@ set session debug= "+d,rocksdb_return_status_corrupted";
 select * from t1;
 --source include/wait_until_disconnected.inc
 --let SEARCH_PATTERN=data corruption detected
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $LOG
 
 --echo #
@@ -56,9 +56,10 @@ select * from t1;
 --echo #
 
 --error 0
+--echo $MYSQLD_CMD --log-error=$LOG $ROCKSDB_OPT $ROCKSDB_LOAD_ADD_PATH
 --exec $MYSQLD_CMD --log-error=$LOG $ROCKSDB_OPT $ROCKSDB_LOAD_ADD_PATH
 --let SEARCH_PATTERN=The server will exit normally and stop restart attempts
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $LOG
 
 --echo #

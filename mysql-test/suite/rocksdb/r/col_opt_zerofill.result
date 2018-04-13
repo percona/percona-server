@@ -41,8 +41,6 @@ INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (-999999
 ERROR 22003: Out of range value for column 'd' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (-100,-123456,-0.3,-40000.25,-123456789123456789.10001,-1024,-7000.0,-8.0,-999999.9,-9223372036854775807,4);
 Warnings:
 Warning	1264	Out of range value for column 'd' at row 1
@@ -68,8 +66,6 @@ Warning	1264	Out of range value for column 'n1' at row 1
 Warning	1264	Out of range value for column 'n20_4' at row 1
 Warning	1264	Out of range value for column 'n65_4' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4 FROM t1;
 d	d0	d1_1	d10_2	d60_10	n	n0_0	n1	n20_4	n65_4
 0000000000	0000000000	0.0	00000000.00	00000000000000000000000000000000000000000000000000.0000000000	0000000000	0000000000	0	0000000000000000.0000	0000000000000000000000000000000000000000000000000000000000000.0000
@@ -99,8 +95,6 @@ INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (
 ERROR 22003: Out of range value for column 'd' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (
 9999999999999999999999999999999999999999999999999999999999999.9999,
 9999999999999999999999999999999999999999999999999999999999999.9999,
@@ -125,8 +119,6 @@ Warning	1264	Out of range value for column 'n0_0' at row 1
 Warning	1264	Out of range value for column 'n1' at row 1
 Warning	1264	Out of range value for column 'n20_4' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4 FROM t1;
 d	d0	d1_1	d10_2	d60_10	n	n0_0	n1	n20_4	n65_4
 0000000000	0000000000	0.0	00000000.00	00000000000000000000000000000000000000000000000000.0000000000	0000000000	0000000000	0	0000000000000000.0000	0000000000000000000000000000000000000000000000000000000000000.0000
@@ -139,8 +131,6 @@ INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (1000000
 ERROR 22003: Out of range value for column 'd' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (10000000000.0,10000000000.0,1.1,100000000.99,100000000000000000000000000000000000000000000000000.0,10000000000.0,10000000000.0,10.0,10000000000000000.9999,10000000000000000000000000000000000000000000000000000000000000.9999,7);
 Warnings:
 Warning	1264	Out of range value for column 'd' at row 1
@@ -154,8 +144,6 @@ Warning	1264	Out of range value for column 'n1' at row 1
 Warning	1264	Out of range value for column 'n20_4' at row 1
 Warning	1264	Out of range value for column 'n65_4' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4 FROM t1;
 d	d0	d1_1	d10_2	d60_10	n	n0_0	n1	n20_4	n65_4
 0000000000	0000000000	0.0	00000000.00	00000000000000000000000000000000000000000000000000.0000000000	0000000000	0000000000	0	0000000000000000.0000	0000000000000000000000000000000000000000000000000000000000000.0000
@@ -169,8 +157,6 @@ INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (9999999
 ERROR 22003: Out of range value for column 'd1_1' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4,pk) VALUES (9999999999.1,9999999999.1,1.9,99999999.001,99999999999999999999999999999999999999999999999999.99999999991,9999999999.1,9999999999.1,9.1,9999999999999999.00001,9999999999999999999999999999999999999999999999999999999999999.11111,8);
 Warnings:
 Note	1265	Data truncated for column 'd' at row 1
@@ -184,8 +170,6 @@ Note	1265	Data truncated for column 'n1' at row 1
 Note	1265	Data truncated for column 'n20_4' at row 1
 Note	1265	Data truncated for column 'n65_4' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT d,d0,d1_1,d10_2,d60_10,n,n0_0,n1,n20_4,n65_4 FROM t1;
 d	d0	d1_1	d10_2	d60_10	n	n0_0	n1	n20_4	n65_4
 0000000000	0000000000	0.0	00000000.00	00000000000000000000000000000000000000000000000000.0000000000	0000000000	0000000000	0	0000000000000000.0000	0000000000000000000000000000000000000000000000000000000000000.0000
@@ -277,8 +261,6 @@ INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (
 ERROR 22003: Out of range value for column 'd53' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (
 99999999999999999999999999999999999999,
 99999999999999999999999999999999999999.9999999999999999,
@@ -296,8 +278,6 @@ Warnings:
 Warning	1264	Out of range value for column 'd53' at row 1
 Warning	1264	Out of range value for column 'd53_10' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10 FROM t1;
 f	0000012345.1
 d	0000000000000000000000
@@ -333,8 +313,6 @@ INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (-9999
 ERROR 22003: Out of range value for column 'f' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (-999999999999999999999999,-99999999999.999999999999,-0.9,-999.99999999999999999999,-99999999999999999.999,-999999999999999999999999999999999999999999999999999999999999-0.999,-9,-.9999999999,-999999999999999999999999999999.99999999999999999999999,-9999999999999999999999999999999999999999999.9999999999,4);
 Warnings:
 Warning	1264	Out of range value for column 'f' at row 1
@@ -348,8 +326,6 @@ Warning	1264	Out of range value for column 'd10_10' at row 1
 Warning	1264	Out of range value for column 'd53' at row 1
 Warning	1264	Out of range value for column 'd53_10' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10 FROM t1;
 f	0000012345.1
 d	0000000000000000000000
@@ -428,8 +404,6 @@ INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (
 ERROR 22003: Out of range value for column 'f' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (
 9999999999999999999999999999999999999999999999999999999999999.9999,
 9999999999999999999999999999999999999999999999999999999999999.9999,
@@ -454,8 +428,6 @@ Warning	1264	Out of range value for column 'd10_10' at row 1
 Warning	1264	Out of range value for column 'd53' at row 1
 Warning	1264	Out of range value for column 'd53_10' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10 FROM t1;
 f	0000012345.1
 d	0000000000000000000000
@@ -523,8 +495,6 @@ INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (
 ERROR 22003: Out of range value for column 'f' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10,pk) VALUES (
 999999999999999999999999999999999999999,
 999999999999999999999999999999999999999.9999999999999999,
@@ -550,8 +520,6 @@ Warning	1264	Out of range value for column 'd10_10' at row 1
 Warning	1264	Out of range value for column 'd53' at row 1
 Warning	1264	Out of range value for column 'd53_10' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT f,f0,r1_1,f23_0,f20_3,d,d1_0,d10_10,d53,d53_10 FROM t1;
 f	0000012345.1
 d	0000000000000000000000
@@ -695,8 +663,6 @@ INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VAL
 ERROR 22003: Out of range value for column 'i' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (-2147483648,-2147483648,-2147483648,-2147483648,-128,-128,-128,-128,-32768,-32768,-32768,-32768,-8388608,-8388608,-8388608,-8388608,-9223372036854775808,-9223372036854775808,-9223372036854775808,-9223372036854775808);
 Warnings:
 Warning	1264	Out of range value for column 'i' at row 1
@@ -720,8 +686,6 @@ Warning	1264	Out of range value for column 'b0' at row 1
 Warning	1264	Out of range value for column 'b1' at row 1
 Warning	1264	Out of range value for column 'b20' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (4294967295,4294967295,4294967295,4294967295,255,255,255,255,65535,65535,65535,65535,16777215,16777215,16777215,16777215,18446744073709551615,18446744073709551615,18446744073709551615,18446744073709551615);
 SELECT i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20 FROM t1;
 i	i0	i1	i20	t	t0	t1	t20	s	s0	s1	s20	m	m0	m1	m20	b	b0	b1	b20
@@ -734,8 +698,6 @@ INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VAL
 ERROR 22003: Out of range value for column 'i' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (-2147483649,-2147483649,-2147483649,-2147483649,-129,-129,-129,-129,-32769,-32769,-32769,-32769,-8388609,-8388609,-8388609,-8388609,-9223372036854775809,-9223372036854775809,-9223372036854775809,-9223372036854775809);
 Warnings:
 Warning	1264	Out of range value for column 'i' at row 1
@@ -759,14 +721,10 @@ Warning	1264	Out of range value for column 'b0' at row 1
 Warning	1264	Out of range value for column 'b1' at row 1
 Warning	1264	Out of range value for column 'b20' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (4294967296,4294967296,4294967296,4294967296,256,256,256,256,65536,65536,65536,65536,16777216,16777216,16777216,16777216,18446744073709551616,18446744073709551616,18446744073709551616,18446744073709551616);
 ERROR 22003: Out of range value for column 'i' at row 1
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) VALUES (4294967296,4294967296,4294967296,4294967296,256,256,256,256,65536,65536,65536,65536,16777216,16777216,16777216,16777216,18446744073709551616,18446744073709551616,18446744073709551616,18446744073709551616);
 Warnings:
 Warning	1264	Out of range value for column 'i' at row 1
@@ -790,16 +748,12 @@ Warning	1264	Out of range value for column 'b0' at row 1
 Warning	1264	Out of range value for column 'b1' at row 1
 Warning	1264	Out of range value for column 'b20' at row 1
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @orig_tx_iso=@@session.transaction_isolation;
 set session transaction_isolation='READ-COMMITTED';
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) SELECT b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b FROM t1 WHERE b IN (-9223372036854775808,9223372036854775807,18446744073709551615);
 ERROR 22003: Out of range value for column 'i' at row 8
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 (i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20) SELECT b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b,b FROM t1 WHERE b IN (-9223372036854775808,9223372036854775807,18446744073709551615);
 Warnings:
 Warning	1264	Out of range value for column 'i' at row 8
@@ -851,8 +805,6 @@ Warning	1264	Out of range value for column 'm0' at row 10
 Warning	1264	Out of range value for column 'm1' at row 10
 Warning	1264	Out of range value for column 'm20' at row 10
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set session transaction_isolation=@orig_tx_iso;
 SELECT i,i0,i1,i20,t,t0,t1,t20,s,s0,s1,s20,m,m0,m1,m20,b,b0,b1,b20 FROM t1;
 i	i0	i1	i20	t	t0	t1	t20	s	s0	s1	s20	m	m0	m1	m20	b	b0	b1	b20

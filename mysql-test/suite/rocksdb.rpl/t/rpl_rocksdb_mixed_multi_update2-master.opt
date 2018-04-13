@@ -1,1 +1,1 @@
---transaction-isolation=READ-COMMITTED --loose-rocksdb_unsafe_for_binlog=true
+--transaction-isolation=READ-COMMITTED --loose-rocksdb_unsafe_for_binlog=true --gtid_mode=off

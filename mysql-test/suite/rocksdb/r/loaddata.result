@@ -10,6 +10,8 @@ a	b
 LOAD DATA LOCAL INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 CHARACTER SET utf8 COLUMNS TERMINATED BY ','
   ESCAPED BY '/' (a,b);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT a,b FROM t1;
 a	b
 1	foo
@@ -48,8 +50,6 @@ FIELDS TERMINATED BY ';'
 ERROR 01000: Row 2 was truncated; it contained more data than there were input columns
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 FIELDS TERMINATED BY ';'
   OPTIONALLY ENCLOSED BY ''''
@@ -58,8 +58,6 @@ FIELDS TERMINATED BY ';'
 Warnings:
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -80,8 +78,6 @@ LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
 ERROR 01000: Row 1 doesn't contain data for all columns
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -90,8 +86,6 @@ Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -116,8 +110,6 @@ LOAD DATA INFILE '<DATADIR>/se_replacedata.dat' REPLACE INTO TABLE t1;
 ERROR 01000: Row 1 doesn't contain data for all columns
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 LOAD DATA INFILE '<DATADIR>/se_replacedata.dat' REPLACE INTO TABLE t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -125,8 +117,6 @@ Warning	1261	Row 2 doesn't contain data for all columns
 Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -165,6 +155,8 @@ a	b
 LOAD DATA LOCAL INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 CHARACTER SET utf8 COLUMNS TERMINATED BY ','
   ESCAPED BY '/' (a,b);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT a,b FROM t1;
 a	b
 1	foo
@@ -203,8 +195,6 @@ FIELDS TERMINATED BY ';'
 ERROR 01000: Row 2 was truncated; it contained more data than there were input columns
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1
 FIELDS TERMINATED BY ';'
   OPTIONALLY ENCLOSED BY ''''
@@ -213,8 +203,6 @@ FIELDS TERMINATED BY ';'
 Warnings:
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	
@@ -235,8 +223,6 @@ LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
 ERROR 01000: Row 1 doesn't contain data for all columns
 set @orig_sql_mode=@@session.sql_mode;
 set session sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 LOAD DATA INFILE '<DATADIR>/se_loaddata.dat' INTO TABLE t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -245,8 +231,6 @@ Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 3 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
 set session sql_mode=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT a,b FROM t1;
 a	b
 0	

@@ -31,7 +31,7 @@ CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITI
 --echo "Expect errors that we are missing two .frm files"
 --let SEARCH_FILE=$LOG
 --let SEARCH_PATTERN=Schema mismatch
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Now shut down again and rename one the .frm file back and make a copy of it
 --source include/shutdown_mysqld.inc
@@ -52,7 +52,7 @@ CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITI
 --echo "Expect an error that we have an extra .frm file"
 --let SEARCH_FILE=$LOG
 --let SEARCH_PATTERN=Schema mismatch
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # Shut down an clean up
 --source include/shutdown_mysqld.inc

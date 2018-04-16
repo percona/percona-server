@@ -886,10 +886,8 @@ static MYSQL_THDVAR_STR(dir_cmd,
     "name of the directory where the backup is stored",
     dir_cmd_check, NULL, NULL);
 
-static void dir_cmd_set_error(THD *thd,
-                              int error,
-                              const char *error_fmt,
-                              ...) {
+static void MY_ATTRIBUTE((format(printf, 3, 4)))
+    dir_cmd_set_error(THD* thd, int error, const char* error_fmt, ...) {
     char   buff[error_buffer_max_size];
     va_list varargs;
 
@@ -904,12 +902,19 @@ static void dir_cmd_set_error(THD *thd,
     THDVAR_SET(thd, dir_cmd_last_error_string, buff);
 }
 
+static void dir_cmd_clear_error(THD* thd) {
+    static constexpr int no_error = 0;
+    static const char* empty_error_str = "";
+    THDVAR_SET(thd, dir_cmd_last_error, &no_error);
+    THDVAR_SET(thd, dir_cmd_last_error_string, empty_error_str);
+}
+
 static int dir_cmd_check(THD* thd,
                          TOKUDB_UNUSED(struct st_mysql_sys_var* var),
                          void* save,
                          struct st_mysql_value* value) {
     int error = 0;
-    dir_cmd_set_error(thd, error, "");
+    dir_cmd_clear_error(thd);
 
     if (check_global_access(thd, SUPER_ACL)) {
         return 1;

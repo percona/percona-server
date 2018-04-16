@@ -2022,7 +2022,7 @@ static int log_in_use(const char* log_name)
     if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
+      if(!strncmp(log_name, linfo->log_file_name, log_name_len))
       {
         thread_count++;
         sql_print_warning("file %s was not purged because it was being read"

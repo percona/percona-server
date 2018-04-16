@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2032,10 +2032,12 @@ err:
   }
 
 end:
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (old_part_info)
   {
     lpt->table->file->set_part_info(old_part_info, false);
   }
+#endif
   DBUG_RETURN(error);
 }
 
@@ -8611,7 +8613,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
    till this point for the alter operation.
   */
   if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
-      check_fk_parent_table_access(thd, create_info, alter_info))
+      check_fk_parent_table_access(thd, alter_ctx.new_db,
+                                   create_info, alter_info))
     DBUG_RETURN(true);
 
   /*
@@ -10057,7 +10060,7 @@ static bool check_engine(THD *thd, const char *db_name,
     !(create_info->db_type->partition_flags &&
     (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION));
 #else
-  #define check_compress_columns true
+  #define check_compressed_columns true
 #endif
 
   if (check_compressed_columns && alter_info->has_compressed_columns() &&

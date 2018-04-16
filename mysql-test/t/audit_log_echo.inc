@@ -12,8 +12,9 @@ perl;
       # change_user does automatic reconnect and messing up 'SET NAMES' around
       next;
     }
-    if ($line =~ /Threads_connected/ || $line =~ /SELECT \d <= \d/) {
-      # part of wait_until_count_sessions.inc script
+    if ($line =~ /Threads_connected/ || $line =~ /SELECT \d <= \d/
+       || /SELECT.*FROM.*INFORMATION_SCHEMA.PLUGINS/) {
+      # part of wait_until_count_sessions.inc and wait_condition.inc scripts
       next;
     }
     if ($line =~ /^"Audit"/) {

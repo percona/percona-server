@@ -190,7 +190,7 @@ fi
 # Check if server is running with jemalloc - if not warn that restart is needed
 if [ $ENABLE = 1 ]; then
   printf "Checking if Percona Server is running with jemalloc enabled...\n"
-  cat /proc/${PID_NUM}/environ >null 2>&1
+  cat /proc/${PID_NUM}/environ > /dev/null 2>&1
   if [ $? = 0 ]; then
     grep -qc jemalloc /proc/${PID_NUM}/environ || ldd $(which mysqld) | grep -qc jemalloc
     JEMALLOC_STATUS=$?
@@ -324,7 +324,7 @@ fi
 # Check if server is running with libHotBackup.so preloaded - if not warn that restart is needed
 if [ $ENABLE_TOKUBACKUP = 1 ]; then
   printf "Checking if Percona Server is running with libHotBackup.so preloaded...\n"
-  cat /proc/${PID_NUM}/environ >null 2>&1
+  cat /proc/${PID_NUM}/environ > /dev/null 2>&1
   if [ $? = 0 ]; then
     grep -qc libHotBackup.so /proc/${PID_NUM}/environ
     LIBHOTBACKUP_STATUS=$?

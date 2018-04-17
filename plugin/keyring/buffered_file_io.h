@@ -40,7 +40,7 @@ public:
     , file_io(logger)
     , keyring_file(-1)
   {
-    memset(&saved_keyring_stat, 0, sizeof(MY_STAT));
+    memset(static_cast<void*>(&saved_keyring_stat), 0, sizeof(MY_STAT));
   }
 
   my_bool init(std::string *keyring_filename);

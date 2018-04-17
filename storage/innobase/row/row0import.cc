@@ -2503,7 +2503,7 @@ row_import_cfg_read_index_fields(
 
 	dict_field_t*	field = index->m_fields;
 
-	memset(field, 0x0, sizeof(*field) * n_fields);
+	memset(static_cast<void*>(field), 0x0, sizeof(*field) * n_fields);
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
@@ -3623,7 +3623,7 @@ row_import_for_mysql(
 	row_import	cfg;
 	ulint		space_flags = 0;
 
-	memset(&cfg, 0x0, sizeof(cfg));
+	memset(static_cast<void*>(&cfg), 0x0, sizeof(cfg));
 
 	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
 

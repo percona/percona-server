@@ -366,7 +366,7 @@ static bool close_cached_connection_tables(THD *thd,
   DBUG_ENTER("close_cached_connection_tables");
   DBUG_ASSERT(thd);
 
-  memset(&tmp, 0, sizeof(TABLE_LIST));
+  memset(static_cast<void*>(&tmp), 0, sizeof(TABLE_LIST));
 
   mysql_mutex_lock(&LOCK_open);
 

@@ -92,7 +92,7 @@ Log_event_header(const char* buf, uint16_t binlog_version)
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
   when.tv_sec= le32toh(tmp_sec);
   when.tv_usec= 0;
-  type_code= static_cast<Log_event_type>(static_cast<const unsigned char>(buf[EVENT_TYPE_OFFSET]));
+  type_code= static_cast<Log_event_type>(static_cast<unsigned char>(buf[EVENT_TYPE_OFFSET]));
   memcpy(&unmasked_server_id,
          buf + SERVER_ID_OFFSET, sizeof(unmasked_server_id));
 

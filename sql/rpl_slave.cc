@@ -8167,7 +8167,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   char *save_buf= NULL; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN + FN_REFLEN];
   Gtid gtid= { 0, 0 };
-  Log_event_type event_type= (Log_event_type)static_cast<const uchar>(buf[EVENT_TYPE_OFFSET]);
+  Log_event_type event_type= (Log_event_type)static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF || 
               checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF || 

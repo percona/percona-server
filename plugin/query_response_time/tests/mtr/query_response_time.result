@@ -1,4 +1,4 @@
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1;
 Warnings:
@@ -51,95 +51,95 @@ TIME	COUNT	TOTAL
 8388608.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -190,8 +190,8 @@ TIME	COUNT	TOTAL
 4194304.000000	0	      0.000000
 8388608.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=2;
 SET GLOBAL query_response_time_flush=1;
@@ -242,95 +242,95 @@ TIME	COUNT	TOTAL
 8388608.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -381,8 +381,8 @@ TIME	COUNT	TOTAL
 4194304.000000	0	      0.000000
 8388608.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=10;
 SET GLOBAL query_response_time_flush=1;
@@ -403,95 +403,95 @@ TIME	COUNT	TOTAL
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -512,8 +512,8 @@ TIME	COUNT	TOTAL
  100000.000000	0	      0.000000
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=7;
 SET GLOBAL query_response_time_flush=1;
@@ -537,95 +537,95 @@ TIME	COUNT	TOTAL
 5764801.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -649,8 +649,8 @@ TIME	COUNT	TOTAL
  823543.000000	0	      0.000000
 5764801.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=156;
 SET GLOBAL query_response_time_flush=1;
@@ -664,95 +664,95 @@ TIME	COUNT	TOTAL
 3796416.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -766,8 +766,8 @@ TIME	COUNT	TOTAL
   24336.000000	0	      0.000000
 3796416.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1000;
 SET GLOBAL query_response_time_flush=1;
@@ -780,95 +780,95 @@ TIME	COUNT	TOTAL
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -881,8 +881,8 @@ TIME	COUNT	TOTAL
    1000.000000	11	     25.700000
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1001;
 Warnings:
@@ -897,95 +897,95 @@ TIME	COUNT	TOTAL
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=1;
-SET SESSION query_response_time_exec_time_debug=310000;
+SET SESSION query_response_time_audit_exec_time_debug=310000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=320000;
+SET SESSION query_response_time_audit_exec_time_debug=320000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=330000;
+SET SESSION query_response_time_audit_exec_time_debug=330000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=340000;
+SET SESSION query_response_time_audit_exec_time_debug=340000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=350000;
+SET SESSION query_response_time_audit_exec_time_debug=350000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=360000;
+SET SESSION query_response_time_audit_exec_time_debug=360000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=370000;
+SET SESSION query_response_time_audit_exec_time_debug=370000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=380000;
+SET SESSION query_response_time_audit_exec_time_debug=380000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=390000;
+SET SESSION query_response_time_audit_exec_time_debug=390000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=400000;
+SET SESSION query_response_time_audit_exec_time_debug=400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1100000;
+SET SESSION query_response_time_audit_exec_time_debug=1100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1200000;
+SET SESSION query_response_time_audit_exec_time_debug=1200000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1300000;
+SET SESSION query_response_time_audit_exec_time_debug=1300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1500000;
+SET SESSION query_response_time_audit_exec_time_debug=1500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=1400000;
+SET SESSION query_response_time_audit_exec_time_debug=1400000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=500000;
+SET SESSION query_response_time_audit_exec_time_debug=500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2100000;
+SET SESSION query_response_time_audit_exec_time_debug=2100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2300000;
+SET SESSION query_response_time_audit_exec_time_debug=2300000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=2500000;
+SET SESSION query_response_time_audit_exec_time_debug=2500000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=3100000;
+SET SESSION query_response_time_audit_exec_time_debug=3100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=4100000;
+SET SESSION query_response_time_audit_exec_time_debug=4100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=5100000;
+SET SESSION query_response_time_audit_exec_time_debug=5100000;
 SELECT 1;
 1
 1
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
 Variable_name	Value
@@ -998,6 +998,6 @@ TIME	COUNT	TOTAL
    1000.000000	11	     25.700000
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=default;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;

@@ -1,12 +1,12 @@
 CREATE TABLE t(a INT);
 CREATE PROCEDURE test_f(t INT)
 BEGIN
-SET SESSION query_response_time_exec_time_debug=t;
+SET SESSION query_response_time_audit_exec_time_debug=t;
 INSERT INTO t VALUES(1);
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 DELETE FROM t;
 END^
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1;
 Warnings:
@@ -85,8 +85,8 @@ TIME	COUNT	TOTAL
 4194304.000000	0	      0.000000
 8388608.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=2;
 SET GLOBAL query_response_time_flush=1;
@@ -163,8 +163,8 @@ TIME	COUNT	TOTAL
 4194304.000000	0	      0.000000
 8388608.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=10;
 SET GLOBAL query_response_time_flush=1;
@@ -211,8 +211,8 @@ TIME	COUNT	TOTAL
  100000.000000	0	      0.000000
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=7;
 SET GLOBAL query_response_time_flush=1;
@@ -262,8 +262,8 @@ TIME	COUNT	TOTAL
  823543.000000	0	      0.000000
 5764801.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=156;
 SET GLOBAL query_response_time_flush=1;
@@ -303,8 +303,8 @@ TIME	COUNT	TOTAL
   24336.000000	0	      0.000000
 3796416.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1000;
 SET GLOBAL query_response_time_flush=1;
@@ -343,8 +343,8 @@ TIME	COUNT	TOTAL
    1000.000000	11	     25.700000
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
-SET SESSION query_response_time_exec_time_debug=100000;
+SET SESSION query_response_time_audit_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=100000;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=0;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=1001;
 Warnings:
@@ -385,7 +385,7 @@ TIME	COUNT	TOTAL
    1000.000000	11	     25.700000
 1000000.000000	0	      0.000000
 TOO LONG	0	TOO LONG
-SET SESSION query_response_time_exec_time_debug=default;
+SET SESSION query_response_time_audit_exec_time_debug=default;
 SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE=default;
 SET GLOBAL QUERY_RESPONSE_TIME_STATS=default;
 DROP PROCEDURE test_f;

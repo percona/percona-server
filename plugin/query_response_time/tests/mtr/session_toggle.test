@@ -1,7 +1,7 @@
 --source include/have_query_response_time_plugin.inc
 
 --echo #
---echo # Tests for query_response_time_session_stats variable
+--echo # Tests for query_response_time_audit_session_stats variable
 --echo #
 
 --source include/count_sessions.inc
@@ -26,7 +26,7 @@ SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 
 --echo # global: ON, session: GLOBAL: must be logged
 SET GLOBAL query_response_time_stats= 'ON';
-SET SESSION query_response_time_session_stats= 'GLOBAL';
+SET SESSION query_response_time_audit_session_stats= 'GLOBAL';
 
 SELECT 1;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
@@ -38,7 +38,7 @@ SELECT 1;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 
 --echo # global: OFF, session: OFF: must not be logged
-SET SESSION query_response_time_session_stats= 'OFF';
+SET SESSION query_response_time_audit_session_stats= 'OFF';
 
 SELECT 1;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
@@ -49,7 +49,7 @@ SELECT 1;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 
 --echo # global: ON: session: ON: must be logged
-SET SESSION query_response_time_session_stats= 'ON';
+SET SESSION query_response_time_audit_session_stats= 'ON';
 
 SELECT 1;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
@@ -71,7 +71,7 @@ SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 
 connection con3;
 --echo # 3rd connection: global OFF, session: OFF: must not be logged
-SET SESSION query_response_time_session_stats= 'OFF';
+SET SESSION query_response_time_audit_session_stats= 'OFF';
 
 SELECT 1;
 SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;

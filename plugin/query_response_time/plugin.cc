@@ -69,7 +69,7 @@ enum session_stat
   session_stat_off
 };
 
-static const char *session_stat_names[]= {"GLOBAL", "ON", "OFF"};
+static const char *session_stat_names[]= {"GLOBAL", "ON", "OFF", NullS};
 static TYPELIB session_stat_typelib= { array_elements(session_stat_names) - 1,
                                        "", session_stat_names, NULL};
 
@@ -84,6 +84,11 @@ static struct st_mysql_sys_var *query_response_time_info_vars[]=
   MYSQL_SYSVAR(range_base),
   MYSQL_SYSVAR(stats),
   MYSQL_SYSVAR(flush),
+  NULL
+};
+
+static struct st_mysql_sys_var *query_response_time_audit_vars[]=
+{
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(exec_time_debug),
 #endif
@@ -292,7 +297,7 @@ mysql_declare_plugin(query_response_time)
   NULL,
   0x0100,
   NULL,
-  NULL,
+  query_response_time_audit_vars,
   (void *)"1.0",
   0,
 }

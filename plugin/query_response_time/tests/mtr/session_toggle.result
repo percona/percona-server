@@ -1,5 +1,5 @@
 #
-# Tests for query_response_time_session_stats variable
+# Tests for query_response_time_audit_session_stats variable
 #
 SET @saved_query_response_time_stats = @@GLOBAL.query_response_time_stats;
 SET @saved_query_response_time_flush = @@GLOBAL.query_response_time_flush;
@@ -25,7 +25,7 @@ SUM(COUNT)
 3
 # global: ON, session: GLOBAL: must be logged
 SET GLOBAL query_response_time_stats= 'ON';
-SET SESSION query_response_time_session_stats= 'GLOBAL';
+SET SESSION query_response_time_audit_session_stats= 'GLOBAL';
 SELECT 1;
 1
 1
@@ -41,7 +41,7 @@ SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(COUNT)
 7
 # global: OFF, session: OFF: must not be logged
-SET SESSION query_response_time_session_stats= 'OFF';
+SET SESSION query_response_time_audit_session_stats= 'OFF';
 SELECT 1;
 1
 1
@@ -56,7 +56,7 @@ SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(COUNT)
 7
 # global: ON: session: ON: must be logged
-SET SESSION query_response_time_session_stats= 'ON';
+SET SESSION query_response_time_audit_session_stats= 'ON';
 SELECT 1;
 1
 1
@@ -79,7 +79,7 @@ SELECT SUM(COUNT) FROM INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 SUM(COUNT)
 13
 # 3rd connection: global OFF, session: OFF: must not be logged
-SET SESSION query_response_time_session_stats= 'OFF';
+SET SESSION query_response_time_audit_session_stats= 'OFF';
 SELECT 1;
 1
 1

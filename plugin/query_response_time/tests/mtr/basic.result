@@ -1,9 +1,9 @@
 SET GLOBAL query_response_time_flush='ON';
-SHOW VARIABLES WHERE VARIABLE_NAME LIKE 'query_response_time%' AND VARIABLE_NAME!='query_response_time_exec_time_debug';
+SHOW VARIABLES WHERE VARIABLE_NAME LIKE 'query_response_time%' AND VARIABLE_NAME!='query_response_time_audit_exec_time_debug';
 Variable_name	Value
+query_response_time_audit_session_stats	GLOBAL
 query_response_time_flush	OFF
 query_response_time_range_base	10
-query_response_time_session_stats	GLOBAL
 query_response_time_stats	OFF
 SHOW CREATE TABLE INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 Table	Create Table

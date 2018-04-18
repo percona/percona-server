@@ -1503,15 +1503,6 @@ bool ha_tokudb::commit_inplace_alter_table(
         if (ha_alter_info->group_commit_ctx) {
             ha_alter_info->group_commit_ctx = NULL;
         }
-        int error = write_frm_data(
-            share->status_block,
-            ctx->alter_txn,
-            altered_table->s->path.str);
-        if (error) {
-            commit = false;
-            result = true;
-            print_error(error, MYF(0));
-        }
     }
 
     if (!commit) {

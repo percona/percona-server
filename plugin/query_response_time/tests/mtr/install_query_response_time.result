@@ -1,0 +1,11 @@
+#
+# Bug PS-3959 "Installing QRT plugins causes server crash"
+# https://jira.percona.com/browse/PS-3959
+#
+include/assert.inc [QUERY_RESPONSE_TIME_AUDIT must not be present on startup]
+INSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT SONAME 'query_response_time.so';
+include/assert.inc [QUERY_RESPONSE_TIME_AUDIT must be active]
+UNINSTALL PLUGIN QUERY_RESPONSE_TIME_AUDIT;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+include/assert.inc [QUERY_RESPONSE_TIME_AUDIT must not be present after uninstall]

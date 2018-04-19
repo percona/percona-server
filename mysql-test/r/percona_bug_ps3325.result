@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE test_table(id INT) ENGINE=innodb;
+include/sync_slave_sql_with_master.inc
+INSERT INTO test_table VALUES (1);
+include/sync_slave_sql_with_master.inc
+SET GLOBAL gtid_deployment_step = ON;
+SET GLOBAL super_read_only=1;
+ERROR HY000: super_read_only cannot be changed when gtid_deployment_step is ON
+SET GLOBAL super_read_only=0;
+ERROR HY000: super_read_only cannot be changed when gtid_deployment_step is ON
+INSERT INTO test_table VALUES (2);
+ERROR HY000: The MySQL server is running with the --read-only (super) option so it cannot execute this statement
+SET GLOBAL gtid_deployment_step = OFF;
+SET GLOBAL super_read_only = ON;
+SET GLOBAL gtid_deployment_step = ON;
+SET GLOBAL gtid_deployment_step = OFF;
+INSERT INTO test_table VALUES (2);
+ERROR HY000: The MySQL server is running with the --read-only (super) option so it cannot execute this statement
+SET GLOBAL super_read_only = OFF;
+SET GLOBAL read_only = OFF;
+INSERT INTO test_table VALUES (2);
+include/sync_slave_sql_with_master.inc
+SELECT * FROM test_table;
+id
+1
+2
+DROP TABLE test_table;
+include/rpl_end.inc

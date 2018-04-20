@@ -1630,11 +1630,12 @@ Finally, ``-1`` means no limit, i.e. an infinite number of file handles.
 .. variable:: rocksdb_max_row_locks
 
   :version 5.7.19-17: Implemented
+  :version 5.7.21-21: Default value has changed from ``1073741824`` to ``1048576``
   :cli: ``--rocksdb-max-row-locks``
   :dyn: Yes
   :scope: Global, Session
   :vartype: Numeric
-  :default: ``1073741824``
+  :default: ``1048576``
 
 Specifies the limit on the maximum number of row locks a transaction can have
 before it fails.

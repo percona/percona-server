@@ -426,7 +426,8 @@ Trigger::Trigger(MEM_ROOT *mem_root,
   m_on_table_name= NULL_STR;
 
   m_parse_error_message[0]= 0;
-  memset(&m_subject_table_grant, 0, sizeof (m_subject_table_grant));
+  memset(static_cast<void*>(&m_subject_table_grant), 0,
+         sizeof(m_subject_table_grant));
 }
 
 

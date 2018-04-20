@@ -2374,7 +2374,7 @@ void JOIN_TAB::cleanup()
   else
     qs_cleanup();
 
-  TRASH(this, sizeof(*this));
+  TRASH(static_cast<void*>(this), sizeof(*this));
 }
 
 
@@ -2408,7 +2408,7 @@ void QEP_TAB::cleanup()
     op->mem_free();
   }
 
-  TRASH(this, sizeof(*this));
+  TRASH(static_cast<void*>(this), sizeof(*this));
 }
 
 

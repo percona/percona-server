@@ -1298,8 +1298,8 @@ static bool make_empty_rec(THD *thd, File file,
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
+  memset(static_cast<void*>(&table), 0, sizeof(table));
+  memset(static_cast<void*>(&share), 0, sizeof(share));
   table.s= &share;
 
   if (!(buff=(uchar*) my_malloc(key_memory_frm,

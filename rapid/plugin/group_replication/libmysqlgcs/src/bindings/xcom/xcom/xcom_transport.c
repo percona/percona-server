@@ -492,12 +492,41 @@ x_inline (XDR *xdrs, u_int len)
 
 #undef INLINE_T
 /* purecov: begin deadcode */
-static int
-harmless (void)
+static bool_t
+/* to stop ANSI-C compiler from complaining */
+#if defined(__APPLE__) && defined(__LP64__)
+dummyfunc1 (XDR *xdr MY_ATTRIBUTE((unused)), int *ip MY_ATTRIBUTE((unused)))
+#else
+dummyfunc1 (XDR *xdr MY_ATTRIBUTE((unused)), long *lp MY_ATTRIBUTE((unused)))
+#endif
 {
   /* Always return FALSE/NULL, as the case may be */
-  return 0;
+  return FALSE;
 }
+
+static bool_t
+dummyfunc2 (XDR *xdr MY_ATTRIBUTE((unused)),
+#ifdef OLD_XDR
+            caddr_t ct MY_ATTRIBUTE((unused)),
+            int i MY_ATTRIBUTE((unused)))
+#else
+            caddr_t ct MY_ATTRIBUTE((unused)),
+            u_int u MY_ATTRIBUTE((unused)))
+#endif
+{
+  /* Always return FALSE/NULL, as the case may be */
+  return FALSE;
+}
+
+#ifdef HAVE_XDR_OPS_X_GETINT32
+static bool_t
+dummyfunc3 (XDR *xdr MY_ATTRIBUTE((unused)),
+            int32_t *ip MY_ATTRIBUTE((unused)))
+{
+  /* Always return FALSE/NULL, as the case may be */
+  return FALSE;
+}
+#endif
 
 static void
 x_destroy (XDR *xdrs)
@@ -531,20 +560,7 @@ xdr_proto_sizeof (xcom_proto x_proto, xdrproc_t func, void *data)
   XDR x;
   struct xdr_ops ops;
   bool_t stat;
-  /* to stop ANSI-C compiler from complaining */
-#if defined(__APPLE__) && defined(__LP64__)
-  typedef bool_t (*dummyfunc1) (XDR *, int *);
-#else
-  typedef bool_t (*dummyfunc1) (XDR *, long *);
-#endif
-#ifdef HAVE_XDR_OPS_X_GETINT32
-  typedef bool_t (*dummyfunc3) (XDR *, int32_t *);
-#endif
-#ifdef OLD_XDR
-  typedef bool_t (*dummyfunc2) (XDR *, caddr_t, int);
-#else
-  typedef bool_t (*dummyfunc2) (XDR *, caddr_t, u_int);
-#endif
+
 
   memset(&ops, 0, sizeof(struct xdr_ops));
   ops.x_putlong = x_putlong;
@@ -558,10 +574,10 @@ xdr_proto_sizeof (xcom_proto x_proto, xdrproc_t func, void *data)
   ops.x_putint32 = x_putint32;
 #endif
   /* the other harmless ones */
-  ops.x_getlong = (dummyfunc1) harmless;
-  ops.x_getbytes = (dummyfunc2) harmless;
+  ops.x_getlong = dummyfunc1;
+  ops.x_getbytes = dummyfunc2;
 #ifdef HAVE_XDR_OPS_X_GETINT32
-  ops.x_getint32 = (dummyfunc3) harmless;
+  ops.x_getint32 = dummyfunc3;
 #endif
   x.x_op = XDR_ENCODE;
   x.x_ops = &ops;

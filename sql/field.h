@@ -3843,8 +3843,8 @@ public:
   }
   void reset_fields()
   { 
-    memset(&value, 0, sizeof(value)); 
-    memset(&old_value, 0, sizeof(old_value));
+    memset(static_cast<void*>(&value), 0, sizeof(value));
+    memset(static_cast<void*>(&old_value), 0, sizeof(old_value));
   }
   size_t get_field_buffer_size() { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
@@ -3926,7 +3926,9 @@ public:
     value.mem_free();
     old_value.mem_free();
   }
-  inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
+  inline void clear_temporary() {
+    memset(static_cast<void*>(&value), 0, sizeof(value));
+  }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }

@@ -1547,7 +1547,8 @@ rtr_copy_buf(
 	will be copied. It is also undefined what will happen with the
 	newly memcpy()ed mutex if the source mutex was acquired by
 	(another) thread while it was copied. */
-	memcpy(&matches->block.page, &block->page, sizeof(buf_page_t));
+	memcpy(static_cast<void*>(&matches->block.page), &block->page,
+	       sizeof(buf_page_t));
 	matches->block.frame = block->frame;
 #ifndef UNIV_HOTBACKUP
 	matches->block.unzip_LRU = block->unzip_LRU;

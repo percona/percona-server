@@ -1458,7 +1458,8 @@ bool JOIN::get_best_combination()
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
   while ((sj_nest= sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
+    TRASH(static_cast<void*>(&sj_nest->nested_join->sjm),
+          sizeof(sj_nest->nested_join->sjm));
 
   DBUG_RETURN(false);
 }

@@ -1279,7 +1279,7 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
   head= table;
-  bzero(&read_record, sizeof(read_record));
+  bzero(static_cast<void*>(&read_record), sizeof(read_record));
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   DBUG_VOID_RETURN;
 }

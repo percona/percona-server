@@ -295,12 +295,11 @@ bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
   return 1;
 } // get_ev_num_info
 
-
-void free_string(String *s)
+void free_string(void* key, TREE_FREE action __attribute__((unused)),
+                 void *param __attribute__((unused)))
 {
-  s->free();
+  reinterpret_cast<String*>(key)->free();
 }
-
 
 void field_str::add()
 {

@@ -1193,7 +1193,7 @@ bool close_cached_connection_tables(THD *thd, LEX_STRING *connection)
   DBUG_ENTER("close_cached_connections");
   DBUG_ASSERT(thd);
 
-  bzero(&tmp, sizeof(TABLE_LIST));
+  bzero(static_cast<void*>(&tmp), sizeof(TABLE_LIST));
 
   mysql_mutex_lock(&LOCK_open);
 

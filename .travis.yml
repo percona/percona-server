@@ -48,17 +48,21 @@ matrix:
       compiler: clang
     # 5
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=7    BUILD=Debug
+      env: VERSION=8    BUILD=Debug
       compiler: gcc
     # 6
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=6    BUILD=Debug
+      env: VERSION=7    BUILD=Debug
       compiler: gcc
     # 7
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=5    BUILD=Debug
+      env: VERSION=6    BUILD=Debug
       compiler: gcc
     # 8
+    - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
+      env: VERSION=5    BUILD=Debug
+      compiler: gcc
+    # 9
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=4.8  BUILD=Debug
       compiler: gcc
@@ -85,17 +89,21 @@ matrix:
       compiler: clang
     # 5
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=7    BUILD=RelWithDebInfo
+      env: VERSION=8    BUILD=RelWithDebInfo
       compiler: gcc
     # 6
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=6    BUILD=RelWithDebInfo
+      env: VERSION=7    BUILD=RelWithDebInfo
       compiler: gcc
     # 7
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
-      env: VERSION=5    BUILD=RelWithDebInfo
+      env: VERSION=6    BUILD=RelWithDebInfo
       compiler: gcc
     # 8
+    - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
+      env: VERSION=5    BUILD=RelWithDebInfo
+      compiler: gcc
+    # 9
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
       env: VERSION=4.8  BUILD=RelWithDebInfo
       compiler: gcc
@@ -116,17 +124,21 @@ matrix:
       compiler: clang
     # 4
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=8    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
     # 5
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=6    BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=7    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
     # 6
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
-      env: VERSION=5    BUILD=RelWithDebInfo  INVERTED=ON
+      env: VERSION=6    BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
     # 7
+    - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
+      env: VERSION=5    BUILD=RelWithDebInfo  INVERTED=ON
+      compiler: gcc
+    #8
     - if: branch =~ extraci OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=4.8  BUILD=RelWithDebInfo  INVERTED=ON
       compiler: gcc
@@ -175,6 +187,8 @@ script:
     fi;
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
        sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
+       sudo -E apt-add-repository -y "ppa:jonathonf/binutils";
+       sudo -E apt-add-repository -y "ppa:jonathonf/gcc-8.0";
     fi;
 
   - echo --- Update list of packages and download dependencies;

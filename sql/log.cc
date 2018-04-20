@@ -4810,7 +4810,7 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
 {
   bool error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::appendv");
-  va_list(args);
+  va_list args;
   va_start(args,len);
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);

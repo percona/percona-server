@@ -80,6 +80,76 @@ Trying to add unencrypted table to this table space will result in an error:
   |Percona XtraBackup| currently doesn't support backup of encrypted general
   tablespaces.
 
+Checking
+--------
+
+If there is a general tablespace which doesn't include tables yet, sometimes
+user needs to find out whether it is encrypted or not (this task is easier for
+single tablespaces since you can check table info).
+
+A ``flag`` field in the ``INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES`` has bit
+number 13 set if tablespace is encrypted. This bit can be ckecked with 
+``flag & 8192`` expression in the following way::
+
+  >SELECT space, name, flag, (flag & 8192) != 0 AS encrypted FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES WHERE name in ('foo', 'test/t2', 'bar', 'noencrypt');
+  +-------+-----------+-------+-----------+
+  | space | name      | flag  | encrypted |
+  +-------+-----------+-------+-----------+
+  |    29 | foo       | 10240 |      8192 |
+  |    30 | test/t2   |  8225 |      8192 |
+  |    31 | bar       | 10240 |      8192 |
+  |    32 | noencrypt |  2048 |         0 |
+  +-------+-----------+-------+-----------+
+  4 rows in set (0.01 sec)
+
+System Variables
+----------------
+
+.. variable:: innodb_temp_tablespace_encrypt
+
+  :version 5.7.21-21: Implemented
+  :cli: ``--innodb-temp-tablespace-encrypt``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Boolean
+  :default: ``Off``
+
+When this option is turned on, server starts to encrypt temporary tablespace
+and temporary |InnoDB| file-per-table tablespaces. The option does not force
+encryption of temporary tables which are currently opened, and it doesn't
+rebuild system temporary tablespace to encrypt data which are already written.
+
+Since temporary tablespace is created fresh at each server startup, it will not
+contain unencrypted data if this option specified as server argument.
+
+Turning this option off at runtime makes server to create all subsequent
+temporary file-per-table tablespaces unencrypted, but does not turn off
+encryption of system temporary tablespace.
+
+.. note:: To use this option, keyring plugin must be loaded, otherwise server
+   will give error message and refuse to create new temporary tables.
+
+.. variable:: innodb_encrypt_tables
+
+  :version 5.7.21-21: Implemented
+  :cli: ``--innodb-encrypt-tables``
+  :dyn: Yes
+  :scope: Global
+  :vartype: Text
+  :default: ``OFF``
+
+This variable has 3 possible values. ``ON`` makes |InnoDB| tables encrypted by
+default. ``FORCE`` disables creation of unencrypted tables. ``OFF`` restores
+the like-before behavior.
+
+.. note:: ``innodb_encrypt_tables=ON`` still allows to create unencrypted
+   table with ``ENCRYPTED=NO`` statement, and also allows to create unencrypted
+   general tablespace.
+
+.. note:: ``ALTER TABLE`` statement used without explicit ``ENCRYPTION=XXX``
+   does not change current table encryption mode even if
+   :variable:`innodb_encrypt_tables` is set to ``ON`` or ``FORCE``.
+
 Binary log encryption
 =====================
 

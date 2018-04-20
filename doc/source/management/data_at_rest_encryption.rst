@@ -197,6 +197,12 @@ Configuration file should contain the following information:
   to the Vault server. In this case this variable should point to CA
   certificate that was used to sign Vault's certificates.
 
+.. warning::
+
+  Each server must use a different ``secret_mount_point`` when several servers
+  are working together (as cluster nodes, master and slave, etc.) - otherwise
+  mixing encryption keys from different servers may lead to undefined behavior. 
+  
 An example of the configuration file looks like this: ::
 
   vault_url = https://vault.public.com:8202

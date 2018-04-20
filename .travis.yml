@@ -33,7 +33,7 @@ matrix:
       env:              BUILD=Debug
       compiler: clang
       os: osx
-      osx_image: xcode9.2
+      osx_image: xcode9.3
     # 2
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=6.0  BUILD=RelWithDebInfo
@@ -74,7 +74,7 @@ matrix:
       env:              BUILD=RelWithDebInfo
       compiler: clang
       os: osx
-      osx_image: xcode9.2
+      osx_image: xcode9.3
     # 2
     - if: branch =~ fullci OR repo = percona/percona-server AND type IN (push, pull_request, cron)
       env: VERSION=6.0  BUILD=Debug
@@ -188,6 +188,9 @@ script:
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
        sudo -E apt-add-repository -y "ppa:ubuntu-toolchain-r/test";
        sudo -E apt-add-repository -y "ppa:jonathonf/binutils";
+       sudo -E apt-add-repository -y "ppa:jonathonf/gcc-5.5";
+       sudo -E apt-add-repository -y "ppa:jonathonf/gcc-6.4";
+       sudo -E apt-add-repository -y "ppa:jonathonf/gcc-7.3";
        sudo -E apt-add-repository -y "ppa:jonathonf/gcc-8.0";
     fi;
 

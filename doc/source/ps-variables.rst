@@ -132,6 +132,16 @@ System Variables
      - Yes
      - Global
      - Yes
+  * - :variable:`innodb_encrypt_online_alter_logs`
+     - Yes
+     - Yes
+     - Global
+     - Yes
+  * - :variable:`innodb_encrypt_tables`
+     - Yes
+     - Yes
+     - Global
+     - Yes
    * - :variable:`innodb_kill_idle_transaction`
      - Yes
      - Yes
@@ -162,6 +172,11 @@ System Variables
      - Yes
      - Global
      - Yes
+   * - :variable:`innodb_temp_tablespace_encrypt`
+     - Yes
+     - Yes
+     - Global
+     - No
    * - :variable:`innodb_track_changed_pages`
      - Yes
      - Yes

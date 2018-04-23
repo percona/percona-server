@@ -5,6 +5,36 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90264` - Some file operations in mf_iocache2.c are not instrumented                |
+|:Launchpad bug: :jirabug:`PS-3937`                                                                           |
+|:Upstream state: Verified (checked on 2018-04-20)                                                            |
+|:Fix Released: :rn:`5.7.21-21`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90238` - Comparison of uninitailized memory in log_in_use                          |
+|:Launchpad bug: :jirabug:`PS-3925`                                                                           |
+|:Upstream state: Verified (checked on 2018-04-20)                                                            |
+|:Fix Released: :rn:`5.7.21-21`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89916` - hp_test1/hp_test2 are not built unless WITH_EMBEDDED_SERVER is defined    |
+|:Launchpad bug: :jirabug:`PS-3845`                                                                           |
+|:Upstream state: Verified (checked on 2018-04-20)                                                            |
+|:Fix Released: :rn:`5.7.21-21`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89822` - InnoDB retries open on EINTR error only if innodb_use_native_aio is ...   |
+|:Launchpad bug: :jirabug:`PS-3843`                                                                           |
+|:Upstream state: Verified (checked on 2018-04-20)                                                            |
+|:Fix Released: :rn:`5.7.21-21`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89646` - Clang warnings in 5.7.21                                                  |
+|:Launchpad bug: :jirabug:`PS-3814`                                                                           |
+|:Upstream state: Verified (checked on 2018-04-20)                                                            |
+|:Fix Released: :rn:`5.7.21-21`                                                                               |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`89598` - plugin_mecab.cc:54:19: warning: unused variable 'bundle_mecab'            |
 |:Launchpad bug: :jirabug:`PS-3804`                                                                           |
 |:Upstream state: Verified (checked on 2018-02-15)                                                            |

@@ -1,3 +1,4 @@
+call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
 # restart:<hidden args>
 CREATE TEMPORARY TABLE t01 (a TEXT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES ('Lorem ipsum dolor sit amet, consectetur adipiscing elit');
@@ -55,3 +56,10 @@ INSERT INTO t01 VALUES (1), (2), (3);
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
 INSERT INTO t01 VALUES (1), (2), (3);
 DROP TABLE t10;
+# restart: --innodb-temp-tablespace-encrypt
+CREATE TABLE t1(a INT key) ENGINE = MEMORY;
+INSERT INTO t1 VALUES (11061);
+INSERT INTO t1 VALUES (3);
+SET big_tables=1;
+SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
+ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.

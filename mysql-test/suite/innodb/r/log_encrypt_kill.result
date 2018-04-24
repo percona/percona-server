@@ -54,7 +54,7 @@ CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL PRIMARY KEY,
 c3 LONGBLOB
 ) ENGINE = InnoDB;
 CREATE PROCEDURE tde_db.populate_table_set_redo_encrypt(IN table_name VARCHAR(50))
-begin
+BEGIN
 declare i int default 1;
 declare has_error int default 0;
 DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -72,9 +72,9 @@ END IF;
 IF i%30 = 0 THEN SET GLOBAL innodb_undo_log_encrypt = 0;
 END IF;
 end while;
-end|
+END|
 CREATE PROCEDURE tde_db.update_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 declare i int default 1;
 declare has_error int default 0;
 DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -84,9 +84,9 @@ PREPARE stmt FROM @sql_text;
 EXECUTE stmt;
 set i = i + 1;
 end while;
-end|
+END|
 CREATE PROCEDURE tde_db.delete_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 declare i int default 1;
 declare has_error int default 0;
 DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -96,9 +96,9 @@ PREPARE stmt FROM @sql_text;
 EXECUTE stmt;
 set i = i + 1;
 end while;
-end|
+END|
 CREATE PROCEDURE tde_db.transaction_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 declare i int default 1;
 declare iflag int default -1;
 declare has_error int default 0;
@@ -136,9 +136,9 @@ ROLLBACK;
 END IF;
 END IF;
 end while;
-end|
+END|
 CREATE PROCEDURE tde_db.create_table_rotate_key()
-begin
+BEGIN
 declare i int default 1;
 declare has_error int default 0;
 DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -154,9 +154,9 @@ DEALLOCATE PREPARE stmt;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 set i = i + 1;
 end while;
-end|
+END|
 CREATE PROCEDURE tde_db.query_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 declare i int default 1;
 declare has_error int default 0;
 DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -166,7 +166,7 @@ PREPARE stmt FROM @sql_text;
 EXECUTE stmt;
 set i = i + 1;
 end while;
-end|
+END|
 # In connection con1 - Running insert with redo_log_encrypt variable
 call tde_db.populate_table_set_redo_encrypt('tde_db.t_encrypt');
 # In connection con2 - Running insert on non encrypt table

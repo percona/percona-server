@@ -117,7 +117,6 @@ SELECT a,LEFT(b,10) FROM tde_db.t6;
 
 UNINSTALL PLUGIN keyring_file;
 
-# Enable following after bug fix
 #--remove_file $MYSQL_TMP_DIR/new_keyring_file
 #--echo # Starting server without keyring plugin & innodb_redo_log_encrypt=OFF
 #--echo # See server comes up after clean shutdown

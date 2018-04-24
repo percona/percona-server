@@ -4,6 +4,7 @@
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
+--source include/not_embedded.inc
 
 # Create a table with encryption, should fail since keyring is not
 # loaded
@@ -108,7 +109,7 @@ CREATE TABLE tde_db.t_non_encrypt(c2 INT NOT NULL PRIMARY KEY,
 
 DELIMITER |;
 CREATE PROCEDURE tde_db.populate_table_set_redo_encrypt(IN table_name VARCHAR(50))
-begin
+BEGIN
 	declare i int default 1;
 	declare has_error int default 0;
 	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -130,7 +131,7 @@ begin
 	end while;
 end|
 CREATE PROCEDURE tde_db.update_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 	declare i int default 1;
 	declare has_error int default 0;
 	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -140,9 +141,9 @@ begin
 		EXECUTE stmt;
 		set i = i + 1;
 	end while;
-end|
+END|
 CREATE PROCEDURE tde_db.delete_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 	declare i int default 1;
 	declare has_error int default 0;
 	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -152,9 +153,9 @@ begin
 		EXECUTE stmt;
 		set i = i + 1;
 	end while;
-end|
+END|
 CREATE PROCEDURE tde_db.transaction_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 	declare i int default 1;
 	declare iflag int default -1;
 	declare has_error int default 0;
@@ -193,9 +194,9 @@ begin
 		   END IF;
 		END IF;
 	end while;
-end|
+END|
 CREATE PROCEDURE tde_db.create_table_rotate_key()
-begin
+BEGIN
 	declare i int default 1;
 	declare has_error int default 0;
 	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -212,9 +213,9 @@ begin
 		ALTER INSTANCE ROTATE INNODB MASTER KEY;
 		set i = i + 1;
 	end while;
-end|
+END|
 CREATE PROCEDURE tde_db.query_table(IN table_name VARCHAR(50))
-begin
+BEGIN
 	declare i int default 1;
 	declare has_error int default 0;
 	DECLARE CONTINUE HANDLER FOR 1062 SET has_error = 1;
@@ -224,7 +225,7 @@ begin
 		EXECUTE stmt;
 		set i = i + 1;
 	end while;
-end|
+END|
 DELIMITER ;|
 
 --echo # In connection con1 - Running insert with redo_log_encrypt variable

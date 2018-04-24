@@ -642,7 +642,7 @@ to complete the truncate. */
 
 namespace undo {
 
-	/** Populate log file name based on space_id
+	/** Populate undo log file name based on space_id
 	@param[in]	space_id	id of the undo tablespace.
 	@return DB_SUCCESS or error code */
 	dberr_t populate_log_file_name(
@@ -985,7 +985,7 @@ namespace undo {
 		return(name);
 	}
 
-	/** Create the truncate log file.
+	/** Create the log file for undo tablespace which be truncated.
 	@param[in]	space_id	id of the undo tablespace to truncate.
 	@return DB_SUCCESS or error code. */
 	dberr_t start_logging(space_id_t space_id)
@@ -1198,7 +1198,7 @@ namespace undo {
 	@return true if marked for truncate, else false. */
 	bool is_under_construction(space_id_t space_id)
 	{
-		for (Space_Ids::iterator it = s_under_construction.begin();
+		for (Space_Ids::const_iterator it = s_under_construction.begin();
 			it != s_under_construction.end(); ++it) {
 			space_id_t construct_id = *it;
 			if (construct_id == space_id) {
@@ -1224,8 +1224,7 @@ namespace undo {
 			return(!is_under_construction(space_id));
 		}
 
-		//return(undo_space->rsegs()->is_active());
-		return false;
+		return true;
 	}
 }
 
@@ -2384,4 +2383,44 @@ trx_purge_run(void)
 	rw_lock_x_unlock(&purge_sys->latch);
 
 	srv_purge_wakeup();
+}
+
+/** Initialize the undo::Tablespaces object. */
+void undo::Tablespaces::init()
+{
+	/** Fix the size of the vector so that it will not do
+	allocations for inserts. This way the contents can be
+	read without using a latch. */
+	m_spaces.reserve(FSP_MAX_UNDO_TABLESPACES);
+
+	m_latch = static_cast<rw_lock_t*>(
+		ut_zalloc_nokey(sizeof(*m_latch)));
+
+	rw_lock_create(undo_spaces_lock_key, m_latch, SYNC_UNDO_SPACES);
+}
+
+/** De-initialize the undo::Tablespaces object. */
+void undo::Tablespaces::deinit()
+{
+	clear();
+
+	rw_lock_free(m_latch);
+	ut_free(m_latch);
+	m_latch = NULL;
+}
+
+/** Add a new space_id to the back of the vector.
+The vector has been pre-allocated to 128 so read threads will
+not loose what is pointed to.
+@param[in]	id	tablespace ID */
+void undo::Tablespaces::add(space_id_t id) {
+	ut_ad(is_reserved(id));
+
+	if (contains(id)) {
+		return;
+	}
+
+	undo::Tablespace* undo_space = UT_NEW_NOKEY(Tablespace(id, true));
+
+	m_spaces.push_back(undo_space);
 }

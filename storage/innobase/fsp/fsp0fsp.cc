@@ -224,25 +224,19 @@ bool
 fsp_is_undo_tablespace(space_id_t space_id)
 {
 	return srv_is_undo_tablespace(space_id);
-	/* Starting with v8, undo space_ids have a unique range. */
-/*
-	if (space_id >= dict_sys_t::s_min_undo_space_id
-	    && space_id <= dict_sys_t::s_max_undo_space_id) {
-		return(true);
-	}
-*/
-	/* If upgrading from 5.7, there may be a list of old-style
-	undo tablespaces.  Search them. */
-/*
-	if (trx_sys_undo_spaces != NULL) {
-		return(trx_sys_undo_spaces->contains(space_id));
-	}
-
-	return(false);
-*/
 }
 
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check if the space_id is for a system-tablespace (shared + temp).
+@param[in]	space_id	tablespace ID
+@return true if id is a system tablespace, false if not. */
+bool
+fsp_is_system_or_temp_tablespace(space_id_t space_id)
+{
+	return(space_id == srv_sys_space.space_id()
+	       || fsp_is_system_temporary(space_id));
+}
 
 /** Validate the tablespace flags.
 These flags are stored in the tablespace header at offset FSP_SPACE_FLAGS.

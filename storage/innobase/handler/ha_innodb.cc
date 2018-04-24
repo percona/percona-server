@@ -3772,17 +3772,6 @@ innobase_encryption_key_rotation()
 		return(ret);
 	}
 
-	/* Rotate log tablespace */
-	ret = !log_rotate_encryption();
-
-	/* If rotation failure, return error */
-	if (ret) {
-		my_free(master_key);
-		mutex_exit(&master_key_id_mutex);
-		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
-		return(ret);
-	}
-
 	my_free(master_key);
 
 	/* If rotation failure, return error */
@@ -21563,7 +21552,7 @@ static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
 
 static MYSQL_SYSVAR_BOOL(undo_log_encrypt, srv_undo_log_encrypt,
   PLUGIN_VAR_OPCMDARG,
-  "Enable or disable Encrypt of UNDO tablespace.",
+  "Enable or disable encryption of undo tablespace.",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,

@@ -454,30 +454,25 @@ trx_rseg_array_init(
 	trx_rseg_create_instance(purge_queue);
 }
 
-/********************************************************************
-Get the number of unique rollback tablespaces in use except space id 0.
-The last space id will be the sentinel value ULINT_UNDEFINED. The array
-will be sorted on space id. Note: space_ids should have have space for
-TRX_SYS_N_RSEGS + 1 elements.
-@return number of unique rollback tablespaces in use. */
-ulint
-trx_rseg_get_n_undo_tablespaces(
-/*============================*/
-	ulint*		space_ids)	/*!< out: array of space ids of
-					UNDO tablespaces */
+/** Build a list of unique undo tablespaces found in the TRX_SYS page.
+Do not count the system tablespace. The vector will be sorted on space id.
+@param[in,out]	spaces_to_open		list of undo tablespaces found. */
+void
+trx_rseg_get_n_undo_tablespaces(Space_Ids* spaces_to_open)
 {
 	ulint		i;
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
-	ulint		n_undo_tablespaces = 0;
+
+	ut_ad(spaces_to_open->empty());
 
 	mtr_start(&mtr);
 
 	sys_header = trx_sysf_get(&mtr);
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
-		ulint	page_no;
-		ulint	space;
+		page_no_t	page_no;
+		space_id_t	space_id;
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
 
@@ -485,35 +480,17 @@ trx_rseg_get_n_undo_tablespaces(
 			continue;
 		}
 
-		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
+		space_id = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
-		if (space != 0) {
-			ulint	j;
-			ibool	found = FALSE;
+		/* The system space id should not be in this array. */
+		if (space_id != TRX_SYS_SPACE
+		    && !spaces_to_open->contains(space_id)) {
 
-			for (j = 0; j < n_undo_tablespaces; ++j) {
-				if (space_ids[j] == space) {
-					found = TRUE;
-					break;
-				}
-			}
-
-			if (!found) {
-				ut_a(n_undo_tablespaces <= i);
-				space_ids[n_undo_tablespaces++] = space;
-			}
+			spaces_to_open->push_back(space_id);
 		}
 	}
 
 	mtr_commit(&mtr);
 
-	ut_a(n_undo_tablespaces <= TRX_SYS_N_RSEGS);
-
-	space_ids[n_undo_tablespaces] = ULINT_UNDEFINED;
-
-	if (n_undo_tablespaces > 0) {
-		std::sort(space_ids, space_ids + n_undo_tablespaces);
-	}
-
-	return(n_undo_tablespaces);
+	ut_a(spaces_to_open->size() <= TRX_SYS_N_RSEGS);
 }

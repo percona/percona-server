@@ -1734,7 +1734,9 @@ struct dict_sys_t{
 	/** Use maximum UINT value to indicate invalid space ID. */
 	static const ulint		s_invalid_space_id = 0xFFFFFFFF;
 
-	/** The data dictionary tablespace ID. */
+	/** The data dictionary tablespace ID. The data dictionary
+	    tablespace does not exist in 5.7, but its ID added here
+	    for assertion checking. */
 	static const ulint		s_space_id = 0xFFFFFFFE;
 
 	/** The innodb_temporary tablespace ID. */

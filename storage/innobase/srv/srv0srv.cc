@@ -81,6 +81,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "handler.h"
 #include "ha_innodb.h"
 
+
 #ifndef UNIV_PFS_THREAD
 #define create_thd(x,y,z,PFS_KEY)	create_thd(x,y,z,PFS_NOT_INSTRUMENTED.m_value)
 #endif /* UNIV_PFS_THREAD */
@@ -2822,6 +2823,9 @@ srv_enable_undo_encryption_if_set()
 			space = fil_space_get(undo_space->id());
 			ut_ad(fsp_is_undo_tablespace(undo_space->id()));
 
+			/* This flag will be written to the header
+			later, by calling the fsp_header_write_encryption()
+			function: */
 			ulint	new_flags =
 				space->flags | FSP_FLAGS_MASK_ENCRYPTION;
 

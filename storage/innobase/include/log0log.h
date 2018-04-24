@@ -373,7 +373,7 @@ UNIV_INLINE
 void
 log_block_set_encrypt_bit(
 	byte*	log_block,
-	ibool	val);
+	bool	val);
 
 /************************************************************//**
 Gets a log block number stored in the header.

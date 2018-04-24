@@ -680,13 +680,8 @@ fsp_is_undo_tablespace(space_id_t space_id);
 /** Check if the space_id is for a system-tablespace (shared + temp).
 @param[in]	space_id	tablespace ID
 @return true if id is a system tablespace, false if not. */
-UNIV_INLINE
 bool
-fsp_is_system_or_temp_tablespace(space_id_t space_id)
-{
-	return(space_id == TRX_SYS_SPACE
-	       || fsp_is_system_temporary(space_id));
-}
+fsp_is_system_or_temp_tablespace(space_id_t space_id);
 
 /** Determine if the tablespace is compressed from tablespace flags.
 @param[in]	flags	Tablespace flags

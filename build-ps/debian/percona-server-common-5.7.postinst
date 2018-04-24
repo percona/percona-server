@@ -28,7 +28,7 @@ case "$1" in
                     for DIR in $(grep 'includedir' $FILE | awk '{print $2}'); do
                         if [ -d $DIR ]; then
                             COUNT=$(ls $DIR | wc -l)
-                            if [ $COUNT > 0 ]; then
+                            if [ $COUNT -gt 0 ]; then
                                 for file in $(ls $DIR); do
                                     modified=$(debsums --all $PKG | grep $file | awk '{print $2}')
                                     if [ $MODIFIED = "OK" ]; then
@@ -43,6 +43,7 @@ case "$1" in
                     done
                 fi
                 if [ $CONF_EXISTS = 0 ]; then
+                    cp -p /etc/mysql/my.cnf /etc/mysql/my.cnf.old
                     rm -rf /etc/mysql/my.cnf
                     update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
                     exit 0

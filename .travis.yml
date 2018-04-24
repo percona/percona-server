@@ -194,6 +194,7 @@ script:
        sudo -E apt-add-repository -y "ppa:jonathonf/gcc-6.4";
        sudo -E apt-add-repository -y "ppa:jonathonf/gcc-7.3";
        sudo -E apt-add-repository -y "ppa:jonathonf/gcc-8.0";
+       sudo -E apt-add-repository -y "ppa:jonathonf/mysql";
     fi;
 
   - echo --- Update list of packages and download dependencies;
@@ -201,7 +202,7 @@ script:
        CC=$CC-$VERSION;
        CXX=$CXX-$VERSION;
        sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
-       sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev libevent-dev libmecab-dev libprotobuf-dev protobuf-compiler || travis_terminate 1;
+       sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev libevent-dev libmecab-dev libprotobuf-dev protobuf-compiler liblz4-dev || travis_terminate 1;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
@@ -260,6 +261,7 @@ script:
         -DWITH_EMBEDDED_SERVER=OFF
         -DWITH_EDITLINE=bundled
         -DWITH_LIBEVENT=system
+        -DWITH_LZ4=system
         -DWITH_PROTOBUF=system
         -DWITH_SSL=system
         -DWITH_ZLIB=bundled
@@ -267,7 +269,6 @@ script:
         -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF
         -DWITH_EXAMPLE_STORAGE_ENGINE=ON
         -DWITH_FEDERATED_STORAGE_ENGINE=OFF
-        -DWITH_INNOBASE_STORAGE_ENGINE=OFF
         -DWITH_QUERY_RESPONSE_TIME=ON
         -DWITHOUT_PARTITION_STORAGE_ENGINE=ON
         -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON

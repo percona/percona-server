@@ -564,8 +564,16 @@ else
   if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
       if [ -L /etc/my.cnf ]; then
           rm -rf /etc/my.cnf
+          update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+      else
+          echo " -------------"
+          echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
+          echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+          echo "   *  Once it is done please execute the following commands:"
+          echo " rm -rf /etc/my.cnf"
+          echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
+          echo " -------------"
       fi
-      update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
   else
       echo " -------------"
       echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"

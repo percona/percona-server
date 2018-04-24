@@ -562,7 +562,9 @@ if [ ! -f /etc/my.cnf ]; then
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
 else
   if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-      rm -rf /etc/my.cnf
+      if [ -L /etc/my.cnf ]; then
+          rm -rf /etc/my.cnf
+      fi
       update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
   else
       echo " -------------"

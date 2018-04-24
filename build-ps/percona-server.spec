@@ -552,10 +552,10 @@ fi
 if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
   MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/etc/my.cnf' | awk '{print $1}' | grep -c 5)
   if [ "$MODIFIED" == 1 ]; then
-    mv /etc/my.cnf /etc/my.cnf.old
+      cp /etc/my.cnf /etc/my.cnf.old
   fi
 else
-  cp /etc/my.cnf /etc/my.cnf.old
+  mv /etc/my.cnf /etc/my.cnf.old
 fi
 if [ ! -f /etc/my.cnf ]; then
   rm -rf /etc/my.cnf

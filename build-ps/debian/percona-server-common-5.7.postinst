@@ -43,6 +43,7 @@ case "$1" in
                     done
                 fi
                 if [ $CONF_EXISTS = 0 ]; then
+                    cp -p /etc/mysql/my.cnf /etc/mysql/my.cnf.old
                     rm -rf /etc/mysql/my.cnf
                     update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
                     exit 0

@@ -35,7 +35,7 @@ then
     for dir in "${MY_BASEDIR_VERSION}/lib/mysql" "/usr/lib64" "/usr/lib/x86_64-linux-gnu" "/usr/lib"; do
       if [ -r "$dir/libjemalloc.so.1" ]; then
         preload_value=$(grep "LD_PRELOAD" /etc/default/mysql | awk -F'=' '{print $2}')
-        if [ $preload_value = 0 ]; then
+        if [ "x$preload_value" = "x0" ]; then
             sed -i 's/^LD_PRELOAD.*//' /etc/default/mysql
         fi
         preload_exists=$(grep -c "LD_PRELOAD" /etc/default/mysql)

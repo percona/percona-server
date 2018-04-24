@@ -555,7 +555,7 @@ if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "
     mv /etc/my.cnf /etc/my.cnf.old
   fi
 else
-  mv /etc/my.cnf /etc/my.cnf.old
+  cp /etc/my.cnf /etc/my.cnf.old
 fi
 if [ ! -f /etc/my.cnf ]; then
   rm -rf /etc/my.cnf

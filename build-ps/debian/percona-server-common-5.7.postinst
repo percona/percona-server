@@ -44,8 +44,8 @@ case "$1" in
                 fi
                 if [ $CONF_EXISTS = 0 ]; then
                     cp -p /etc/mysql/my.cnf /etc/mysql/my.cnf.old
-                    rm -rf /etc/mysql/my.cnf
-                    update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+                    #rm -rf /etc/mysql/my.cnf
+                    update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200 || true
                     exit 0
                 else
                     print_message
@@ -53,9 +53,11 @@ case "$1" in
                 fi
             fi
         fi
-        if [ ! -f /etc/mysql/my.cnf -o -L /etc/mysql/my.cnf ]; then
-            rm -rf /etc/mysql/my.cnf
-            update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200
+        real_file=$(readlink -f /etc/mysql/my.cnf)
+        if [ ! -f /etc/mysql/my.cnf -o $real_file = "/etc/mysql/percona-server.cnf" ]; then
+            print_message
+            #rm -rf /etc/mysql/my.cnf
+            update-alternatives --install /etc/mysql/my.cnf my.cnf "/etc/mysql/percona-server.cnf" 200 || true
         else
             print_message
         fi

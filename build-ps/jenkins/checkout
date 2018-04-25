@@ -1,0 +1,58 @@
+#!/bin/bash
+
+#  possible vars:
+#      GIT_REPO
+#      BRANCH
+#      PERCONAFT_REPO
+#      PERCONAFT_BRANCH
+#      TOKUBACKUP_REPO
+#      TOKUBACKUP_BRANCH
+#      PURGE_TOKUDBBACKUP
+
+set -o errexit
+set -o xtrace
+
+ROOT_DIR=$(cd $(dirname $0)/../..; pwd -P)
+
+pushd $ROOT_DIR
+    git reset --hard
+    git clean -xdf
+
+    if [ -n "${GIT_REPO}" ]; then
+        git remote set-url origin "${GIT_REPO}"
+        git fetch origin
+    fi
+    if [ -n "${BRANCH}" ]; then
+        git checkout "${BRANCH}"
+    fi
+    if [ -n "${GIT_REPO}" -a -n "${BRANCH}" ]; then
+        git pull origin ${BRANCH}
+    fi
+
+    if [ -n "${PERCONAFT_REPO}" ]; then
+        git config -f .gitmodules submodule.PerconaFT.url "${PERCONAFT_REPO}"
+    fi
+    if [ -n "${PERCONAFT_BRANCH}" ]; then
+        git config -f .gitmodules submodule.PerconaFT.branch "${PERCONAFT_BRANCH}"
+    fi
+    if [ -n "${PERCONAFT_REPO}" -o -n "${PERCONAFT_BRANCH}" ]; then
+        git submodule update --init --remote storage/tokudb/PerconaFT
+    fi
+
+    if [ -n "${TOKUBACKUP_REPO}" ]; then
+        git config -f .gitmodules submodule.Percona-TokuBackup.url "${TOKUBACKUP_REPO}"
+    fi
+    if [ -n "${TOKUBACKUP_BRANCH}" ]; then
+        git config -f .gitmodules submodule.Percona-TokuBackup.branch "${TOKUBACKUP_BRANCH}"
+    fi
+    if [ -n "${TOKUBACKUP_REPO}" -o -n "${TOKUBACKUP_BRANCH}" ]; then
+        git submodule update --init --remote plugin/tokudb-backup-plugin/Percona-TokuBackup
+    fi
+
+    git submodule update --init
+
+    if [ "x${PURGE_TOKUDBBACKUP}" = "xtrue" ]; then
+        rm -rf plugin/tokudb-backup-plugin/Percona-TokuBackup
+        mkdir plugin/tokudb-backup-plugin/Percona-TokuBackup
+    fi
+popd

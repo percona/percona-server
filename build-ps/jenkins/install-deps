@@ -1,0 +1,112 @@
+#!/bin/bash
+
+set -o errexit
+set -o xtrace
+
+if [ -f /usr/bin/yum ]; then
+    until yum -y update; do
+        yum clean all
+        echo "waiting"
+        sleep 1
+    done
+
+    until yum -y install wget epel-release centos-release-scl-rh http://www.percona.com/downloads/percona-release/redhat/0.1-4/percona-release-0.1-4.noarch.rpm; do
+        echo "waiting"
+        sleep 1
+    done
+
+    PKGLIST=" \
+        gcc-c++ gperf ncurses-devel perl readline-devel openssl-devel jemalloc unzip \
+        time zlib-devel libaio-devel bison cmake pam-devel jemalloc-devel \
+        perl-Time-HiRes libcurl-devel openldap-devel perl-Env perl-Data-Dumper \
+        perl-JSON MySQL-python perl-Digest perl-Digest-MD5 perl-Digest-Perl-MD5 \
+        numactl-devel git which make rpm-build ccache libtool \
+    "
+    if [ $(rpm --eval %rhel) -lt 7 -a $(rpm --eval %_arch) = x86_64 ]; then
+        PKGLIST+=" devtoolset-6"
+    fi
+
+    until yum -y install ${PKGLIST}; do
+        echo "waiting"
+        sleep 1
+    done
+    yum -y clean all
+fi
+
+if [ -f /usr/bin/apt-get ]; then
+    echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
+
+    until apt-get update; do
+        sleep 1
+        echo "waiting"
+    done
+
+    until apt-get -y install lsb-release gnupg wget bc; do
+        sleep 1
+        echo "waiting"
+    done
+
+    DIST=$(lsb_release -sc)
+    echo "deb http://jenkins.percona.com/apt-repo/ ${DIST} main" > /etc/apt/sources.list.d/percona-dev.list
+    wget -q -O - http://jenkins.percona.com/apt-repo/8507EFA5.pub | apt-key add -
+    wget -q -O - http://jenkins.percona.com/apt-repo/CD2EFD2A.pub | apt-key add -
+
+    until apt-get update; do
+        sleep 1
+        echo "waiting"
+    done
+
+    PKGLIST=" \
+        curl bison cmake perl libssl-dev gcc g++ libaio-dev libldap2-dev libwrap0-dev gdb unzip gawk \
+        libmecab-dev libncurses5-dev libreadline-dev libpam-dev zlib1g-dev libcurl4-openssl-dev \
+        libnuma-dev libjemalloc-dev libc6-dbg valgrind libjson-perl python-mysqldb \
+        libmecab2 mecab mecab-ipadic git autoconf libgsasl7 libsasl2-dev libsasl2-modules devscripts \
+        debconf debhelper fakeroot po-debconf psmisc ccache libtool \
+    "
+
+    if [[ $(echo "$(lsb_release -r -s) > 18.0" | bc -l) == 1 ]] && [[ $(lsb_release -i -s) == Ubuntu ]]; then
+        PKGLIST+=" libasan5"
+    fi
+
+    # Debian Wheezy
+    if [[ "$(lsb_release -r -s)" ==  7.11 ]] && [[ $(lsb_release -i -s) == Debian ]]; then
+        PKGLIST="${PKGLIST//gcc g++/gcc-4.9-backport}"
+    fi
+
+    until apt-get -y install ${PKGLIST}; do
+        echo "waiting"
+        sleep 1
+    done
+
+    # Debian Wheezy
+    if [[ "$(lsb_release -r -s)" ==  7.11 ]] && [[ $(lsb_release -i -s) == Debian ]]; then
+        apt-get -y remove gcc g++
+    fi
+    apt-get -y clean
+fi
+
+if [ ! -d /usr/local/percona-subunit2junitxml ]; then
+    git clone https://github.com/percona/percona-subunit2junitxml.git /usr/local/percona-subunit2junitxml
+    ln -s /usr/local/percona-subunit2junitxml/subunit2junitxml /usr/bin/subunit2junitxml
+fi
+
+if [ ! -f /usr/local/lib/libeatmydata.so ]; then
+    # Debian Wheezy
+    if [[ -f /usr/lib/gcc-4.9-backport/bin/gcc ]]; then
+        export PATH=/usr/lib/gcc-4.9-backport/bin:${PATH}
+    fi
+    git clone https://github.com/stewartsmith/libeatmydata /tmp/libeatmydata
+    pushd /tmp/libeatmydata
+        autoreconf --force --install
+        ./configure
+        make
+        make install
+    popd
+    rm -rf /tmp/libeatmydata
+fi
+
+if [ ! -f /tmp/libboost/boost_1_59_0.tar.gz ]; then
+    mkdir -p /tmp/libboost
+    wget --progress=dot:giga -O /tmp/libboost/boost_1_59_0.tar.gz \
+        http://jenkins.percona.com/downloads/boost/boost_1_59_0.tar.gz
+fi

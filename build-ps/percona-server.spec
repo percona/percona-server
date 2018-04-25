@@ -555,14 +555,15 @@ if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "
       cp /etc/my.cnf /etc/my.cnf.old
   fi
 else
-  mv /etc/my.cnf /etc/my.cnf.old
+  cp /etc/my.cnf /etc/my.cnf.old
 fi
 if [ ! -f /etc/my.cnf ]; then
   rm -rf /etc/my.cnf
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
 else
   if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-      if [ -L /etc/my.cnf ]; then
+      real_file=$(readlink -f /etc/my.cnf)
+      if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
           rm -rf /etc/my.cnf
           update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
       else

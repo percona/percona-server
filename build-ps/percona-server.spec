@@ -551,17 +551,30 @@ if [ -e /etc/my.cnf ]; then
 fi
 if [ "$MYCNF_PACKAGE" == "mariadb-libs" -o "$MYCNF_PACKAGE" == "mysql-libs" -o "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
   MODIFIED=$(rpm -Va "$MYCNF_PACKAGE" | grep '/etc/my.cnf' | awk '{print $1}' | grep -c 5)
-  if [ "$MODIFIED" == 0 ]; then
-    mv /etc/my.cnf /etc/my.cnf.old
+  if [ "$MODIFIED" == 1 ]; then
+      cp /etc/my.cnf /etc/my.cnf.old
   fi
+else
+  cp /etc/my.cnf /etc/my.cnf.old
 fi
 if [ ! -f /etc/my.cnf ]; then
   rm -rf /etc/my.cnf
   update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
 else
   if [ "$MYCNF_PACKAGE" == "Percona-Server-server-57" ]; then
-      rm -rf /etc/my.cnf
-      update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+      real_file=$(readlink -f /etc/my.cnf)
+      if [ -L /etc/my.cnf ] && [ "x${real_file}" == "x/etc/percona-server.cnf" ]; then
+          rm -rf /etc/my.cnf
+          update-alternatives --install /etc/my.cnf my.cnf "/etc/percona-server.cnf" 200
+      else
+          echo " -------------"
+          echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"
+          echo "   *  If you want to use mysqld.cnf as default configuration file please make backup of /etc/my.cnf"
+          echo "   *  Once it is done please execute the following commands:"
+          echo " rm -rf /etc/my.cnf"
+          echo " update-alternatives --install /etc/my.cnf my.cnf \"/etc/percona-server.cnf\" 200"
+          echo " -------------"
+      fi
   else
       echo " -------------"
       echo "   *  The suggested mysql options and settings are in /etc/percona-server.conf.d/mysqld.cnf"

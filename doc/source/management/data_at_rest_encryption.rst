@@ -267,6 +267,12 @@ Configuration file should contain the following information:
   to the Vault server. In this case this variable should point to CA
   certificate that was used to sign Vault's certificates.
 
+.. warning::
+   
+   Each ``secret_mount_point`` should be used by only one server - otherwise
+   mixing encryption keys from different servers may lead to undefined
+   behavior.
+  
 An example of the configuration file looks like this: ::
 
   vault_url = https://vault.public.com:8202

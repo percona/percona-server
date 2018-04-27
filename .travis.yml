@@ -23,7 +23,7 @@ matrix:
       script:
         - wget https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/clang-format-diff.py
         - chmod a+x clang-format-diff.py
-        - git diff -U0 --no-color HEAD^1 | ./clang-format-diff.py -p1 >_GIT_DIFF
+        - git diff -U0 --no-color HEAD^1 | ./clang-format-diff.py -style=file -p1 >_GIT_DIFF
         - '[ ! -s _GIT_DIFF ] && { echo The last git commit is clang-formatted; travis_terminate 0; } || { cat _GIT_DIFF; travis_terminate 1; }'
 
 

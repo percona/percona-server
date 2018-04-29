@@ -98,8 +98,6 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
 
 inline bool is_system_table_name(const char *name, size_t length);
 
-static ulong get_form_pos(File file, uchar *head);
-
 /**************************************************************************
   Object_creation_ctx implementation.
 **************************************************************************/
@@ -3658,7 +3656,7 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
   @retval The form position.
 */
 
-static ulong get_form_pos(File file, uchar *head)
+ulong get_form_pos(File file, uchar *head)
 {
   uchar *pos, *buf;
   uint names, length;

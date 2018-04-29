@@ -59,7 +59,6 @@ private:
   virtual handler *get_file_handler(TABLE_SHARE *share,
                                     MEM_ROOT *alloc,
                                     handlerton *db_type) = 0;
-
 private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode
@@ -225,6 +224,10 @@ private:
     *num_parts= m_tot_parts;
     DBUG_RETURN(0);
   }
+
+  template<typename Fn>
+  bool foreach_partition(const Fn& fn);
+
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
   virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
                                           uint table_changes);
@@ -249,7 +252,6 @@ private:
   */
   bool setup_engine_array(MEM_ROOT *mem_root);
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
-  bool create_handlers(MEM_ROOT *mem_root);
   partition_element *find_partition_element(uint part_id);
   bool populate_partition_name_hash();
   Partition_base_share *get_share();
@@ -902,10 +904,6 @@ public:
   {
     return m_file[0]->index_flags(inx, part, all_parts);
   }
-  /*
-     extensions of table handler files
-  */
-  virtual const char **bas_ext() const;
   /*
     unireg.cc will call the following to make sure that the storage engine
     can handle the data it is about to send.

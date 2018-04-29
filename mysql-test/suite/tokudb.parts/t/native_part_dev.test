@@ -3,8 +3,39 @@
 --source include/have_partition.inc
 --source include/have_tokudb.inc
 
-create table t2 (a int unsigned not null, primary key(a)) engine=tokudb;
+--let $MYSQLD_DATADIR=`select @@datadir`
 
+
+#create table t2 (a int unsigned not null, primary key(a)) engine=tokudb;
+
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=TokuDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (A)
+SUBPARTITIONS 2 (
+  PARTITION p0 VALUES LESS THAN (300),
+  PARTITION p1 VALUES LESS THAN (500)
+);
+
+insert into t2 set a = 250;
+insert into t2 set a = 255;
+insert into t2 set a = 350;
+insert into t2 set a = 355;
+insert into t2 set a = 50;
+insert into t2 set a = 55;
+
+select * from t2;
+
+select * from t2 where a = 355;
+
+update t2 set a = 10 where a = 355;
+select * from t2;
+
+update t2 set a = a + 1;
+select * from t2;
+
+
+
+DROP TABLE t2;
 
 create table t1 (a int unsigned not null, primary key(a)) engine=tokudb
 PARTITION BY RANGE (a) (
@@ -14,21 +45,48 @@ PARTITION BY RANGE (a) (
     PARTITION p3 VALUES LESS THAN (400)
 );
 
+--list_files $MYSQLD_DATADIR/test *
+
 insert into t1 set a = 250;
-#insert into t1 set a = 255;
-#insert into t1 set a = 350;
-#insert into t1 set a = 355;
-#insert into t1 set a = 50;
-#insert into t1 set a = 55;
+insert into t1 set a = 255;
+insert into t1 set a = 350;
+insert into t1 set a = 355;
+insert into t1 set a = 50;
+insert into t1 set a = 55;
 
+select * from t1;
 
-#select * from t1;
-#select * from t1 where a = 355;
+select * from t1 where a = 355;
 
-#update t1 set a = 10 where a = 355;
-#select * from t1;
+update t1 set a = 10 where a = 355;
+select * from t1;
 
-#update t1 set a = a + 1;
-#select * from t1;
+update t1 set a = a + 1;
+select * from t1;
 
-#drop table t1;
+rename table t1 to t2;
+--list_files $MYSQLD_DATADIR/test *
+select * from t2;
+
+ALTER TABLE t2 RENAME t1;
+
+--list_files $MYSQLD_DATADIR/test *
+select * from t1;
+
+ALTER TABLE t1 ADD COLUMN b INT UNSIGNED;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ADD PARTITION (PARTITION p4 VALUES LESS THAN (500));
+insert into t1 set a = 450;
+insert into t1 set a = 390;
+SHOW CREATE TABLE t1;
+select * from t1;
+--list_files $MYSQLD_DATADIR/test *
+
+ALTER TABLE t1 DROP PARTITION p4;
+SHOW CREATE TABLE t1;
+select * from t1;
+--list_files $MYSQLD_DATADIR/test *
+
+drop table t1;
+--list_files $MYSQLD_DATADIR/test *

@@ -27,6 +27,7 @@ private:
                                     handlerton *db_type);
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const;
+  virtual const char **bas_ext() const;
 };
 
 #endif // _HA_TOKUPART_H

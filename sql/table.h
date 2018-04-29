@@ -3056,7 +3056,7 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec);
 bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table);
 bool update_generated_read_fields(uchar *buf, TABLE *table,
                                   uint active_index= MAX_KEY);
-
+ulong get_form_pos(File file, uchar *head);
 #endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

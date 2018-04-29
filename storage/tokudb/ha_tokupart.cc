@@ -80,4 +80,9 @@ ulong ha_tokupart::index_flags(uint idx, uint part, bool all_parts) const {
     DBUG_RETURN(flags);
 }
 
+const char **ha_tokupart::bas_ext() const {
+    static const char *null_ext = nullptr;
+    TOKUDB_HANDLER_DBUG_ENTER("");
+    DBUG_RETURN(&null_ext);
+}
 

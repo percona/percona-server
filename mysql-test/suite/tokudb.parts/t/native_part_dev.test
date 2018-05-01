@@ -1,5 +1,5 @@
-# This test is for debugging
-
+--echo # This test is for debugging
+--exit
 --source include/have_partition.inc
 --source include/have_tokudb.inc
 
@@ -22,8 +22,6 @@ SUBPARTITIONS 2
 
 --list_files $MYSQLD_DATADIR/test *
 DROP TABLE t1;
---exit
-
 
 
 CREATE TABLE t1 (

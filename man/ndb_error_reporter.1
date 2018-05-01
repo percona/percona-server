@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_error_reporter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/09/2017
+.\"      Date: 02/25/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_ERROR_REPORTER\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_ERROR_REPORTER\FR" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -56,10 +56,59 @@ options were also added in this release (Bug #16602002)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.93.\ \& This table describes command\-line options for the ndb_error_reporter program
+.B Table\ \&18.85.\ \& This table describes command\-line options for the ndb_error_reporter program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--connection-timeout=timeout
+T}:T{
+Number of seconds to wait when connecting to nodes before timing out.
+T}:T{
+.PP
+ADDED: NDB 7.3.3
+T}
+T{
+.PP
+--dry-scp
+T}:T{
+Disable scp with remote hosts; used only for testing.
+T}:T{
+.PP
+ADDED: NDB 7.3.3
+T}
+T{
+.PP
+--fs
+T}:T{
+Include file system data in error report; can use a large amount of disk
+          space
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--skip-nodegroup=nodegroup_id
+T}:T{
+Skip all nodes in the node group having this ID.
+T}:T{
+.PP
+ADDED: NDB 7.3.3
+T}
 .TE
 .sp 1
 Usage
@@ -96,28 +145,33 @@ also accepts the options listed here:
 \fB\-\-connection\-timeout=\fR\fB\fItimeout\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connection-timeout=timeout
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.14\-ndb\-7\&.3\&.3
+5.6.14-ndb-7.3.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-connection\-timeout=timeout
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 0
@@ -138,28 +192,33 @@ Wait this many seconds when trying to connect to nodes before timing out\&.
 \fB\-\-dry\-scp\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--dry-scp
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.14\-ndb\-7\&.3\&.3
+5.6.14-ndb-7.3.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-dry\-scp
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -182,22 +241,27 @@ without using scp from remote hosts\&. Used for testing only\&.
 \fB\-\-fs\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-fs
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--fs
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -222,28 +286,33 @@ send archives created using this option to Oracle unless you are specifically re
 \fB\-\-skip\-nodegroup=\fR\fB\fInodegroup_id\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connection-timeout=timeout
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.14\-ndb\-7\&.3\&.3
+5.6.14-ndb-7.3.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-connection\-timeout=timeout
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 0
@@ -255,7 +324,7 @@ Skip all nodes belong to the node group having the supplied node group ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

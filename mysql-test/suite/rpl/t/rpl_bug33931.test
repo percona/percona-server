@@ -37,9 +37,10 @@ start slave;
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
-# In 5.6 servers, there would be no I/O thread failure reported
-# on SHOW SLAVE STATUS. We should just wait for the IO thread to stop.
---source include/wait_for_slave_io_to_stop.inc
+# Wait for the I/O thread error
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 #
 # Cleanup
 #

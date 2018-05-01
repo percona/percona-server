@@ -57,8 +57,7 @@ public:
 
 private:
   virtual handler *get_file_handler(TABLE_SHARE *share,
-                                    MEM_ROOT *alloc,
-                                    handlerton *db_type) = 0;
+                                    MEM_ROOT *alloc) = 0;
 private:
   /* Data for the partition handler */
   int  m_mode;                          // Open mode

@@ -7699,8 +7699,10 @@ bool get_part_str(const char *name, std::string &result) {
 
     // Prepare the path to the .FRM file and open the file
     char path[FN_REFLEN + 1];           //< Path to .FRM file
+    my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix);
     build_table_filename(
-        path, sizeof(path) - 1, db_name, table_name, reg_ext, 0);
+        path, sizeof(path) - 1, db_name, table_name, reg_ext,
+        temp_table ? FN_IS_TMP : 0);
 
     // Check for .frm file existence
     MY_STAT frm_stat_info;

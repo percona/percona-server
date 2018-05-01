@@ -23,8 +23,7 @@ public:
 
 private:
   virtual handler *get_file_handler(TABLE_SHARE *share,
-                                    MEM_ROOT *alloc,
-                                    handlerton *db_type);
+                                    MEM_ROOT *alloc);
   virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const;
   virtual const char **bas_ext() const;

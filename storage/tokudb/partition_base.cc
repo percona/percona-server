@@ -111,6 +111,35 @@ static PSI_memory_key key_memory_Partition_base_engine_array;
 static PSI_memory_key key_memory_Partition_base_part_ids;
 PSI_file_key key_file_Partition_base_par;
 
+void part_name(char *out_buf,
+               const char *path,
+               const partition_element *parent_elem,
+               const partition_element *elem) {
+
+  static const char *sp_prefix = "#SP#";
+  static const size_t sp_prefix_length = 4;
+
+  char part_name[FN_REFLEN];
+  size_t part_name_length =
+    tablename_to_filename(
+      parent_elem ? parent_elem->partition_name : elem->partition_name,
+      part_name, FN_REFLEN);
+  if (parent_elem) {
+    DBUG_ASSERT(part_name_length + sp_prefix_length < sizeof(part_name));
+    strncat(
+      part_name, sp_prefix, sizeof(part_name) - part_name_length - 1);
+    part_name_length += sp_prefix_length;
+    char subpart_name[FN_REFLEN];
+    size_t subpart_name_length =
+      tablename_to_filename(elem->partition_name, subpart_name, FN_REFLEN);
+    DBUG_ASSERT(part_name_length + subpart_name_length < sizeof(part_name));
+    strncat(part_name, subpart_name,
+      sizeof(part_name) - part_name_length - 1);
+    part_name_length += subpart_name_length;
+  }
+
+  create_partition_name(out_buf, path, part_name, NORMAL_PART_NAME, FALSE);
+}
 
 Parts_share_refs::Parts_share_refs()
   : num_parts(0), ha_shares(NULL)
@@ -339,13 +368,13 @@ bool Partition_base::foreach_partition(const Fn& fn) {
     if (m_is_sub_partitioned) {
       List_iterator_fast<partition_element> sub_it(part_elem->subpartitions);
       for (uint j = 0; j < m_part_info->num_subparts; ++j) {
-        part_elem = sub_it++;
-        if (!fn(part_elem))
+        partition_element *sub_part_elem = sub_it++;
+        if (!fn(part_elem, sub_part_elem))
           return false;
       }
     }
     else {
-      if (!fn(part_elem))
+      if (!fn(nullptr, part_elem))
         return false;
     }
   }
@@ -553,13 +582,10 @@ int Partition_base::create(const char *name, TABLE *table_arg,
                            HA_CREATE_INFO *create_info)
 {
   int error;
-  char name_buff[FN_REFLEN], name_lc_buff[FN_REFLEN];
-  const char *name_buffer_ptr;
+  char name_lc_buff[FN_REFLEN];
   std::vector<std::string> part_name_collection;
   const char *path;
-  uint i;
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
-  partition_element *part_elem;
   partition_element table_level_options;
   handler **file, **abort_file;
   THD *thd= ha_thd();
@@ -592,47 +618,27 @@ int Partition_base::create(const char *name, TABLE *table_arg,
   path= get_canonical_filename(*file, name, name_lc_buff);
   table_level_options.set_from_info(create_info);
 
-  for (i= 0; i < m_part_info->num_parts; i++)
-  {
-    part_elem= part_it++;
-    if (m_is_sub_partitioned)
-    {
-      uint j;
-      List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
-      for (j= 0; j < m_part_info->num_subparts; j++)
-      {
-        part_elem= sub_it++;
-        name_buffer_ptr= part_elem->partition_name;
-        create_partition_name(name_buff, path, name_buffer_ptr,
-                              NORMAL_PART_NAME, FALSE);
+
+  if (
+    foreach_partition(
+      [&](partition_element *parent_elem, partition_element *part_elem)->bool {
+
+        char name_buff[FN_REFLEN];
+        part_name(name_buff, path, parent_elem, part_elem);
         if ((error= set_up_table_before_create(thd, share, name_buff,
                                                create_info, part_elem)) ||
             ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
-          goto create_error;
+          return false;
 
         table_level_options.put_to_info(create_info);
-        file++;
+        ++file;
         part_name_collection.push_back(name_buff);
+        return true;
       }
-    }
-    else
-    {
-      name_buffer_ptr= part_elem->partition_name;
-      create_partition_name(name_buff, path, name_buffer_ptr,
-                            NORMAL_PART_NAME, FALSE);
-      if ((error= set_up_table_before_create(thd, share, name_buff,
-                                             create_info, part_elem)) ||
-          ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
-        goto create_error;
+    )
+  )
+    DBUG_RETURN(0);
 
-      table_level_options.put_to_info(create_info);
-      file++;
-      part_name_collection.push_back(name_buff);
-    }
-  }
-  DBUG_RETURN(0);
-
-create_error:
   auto part_name_i = part_name_collection.begin();
   for (abort_file= file, file= m_file;
        file < abort_file;
@@ -1120,7 +1126,7 @@ int Partition_base::create_new_partition(TABLE *tbl,
   Parts_share_refs *p_share_refs;
   DBUG_ENTER("Partition_base::create_new_partition");
 
-  file= get_file_handler(share, thd->mem_root, p_elem->engine_type);
+  file= get_file_handler(share, thd->mem_root);
   if (!file)
   {
     mem_alloc_error(sizeof(Partition_base));
@@ -1479,10 +1485,10 @@ int Partition_base::del_ren_table(const char *from, const char *to)
 
   if (
     !foreach_partition(
-      [&](const partition_element *part_elem)->bool {
+      [&](const partition_element *parent_part_elem,
+          const partition_element *part_elem)->bool {
         char from_buff[FN_REFLEN];
-        create_partition_name(from_buff, from_path, part_elem->partition_name,
-          NORMAL_PART_NAME, FALSE);
+        part_name(from_buff, from_path, parent_part_elem, part_elem);
         if (!to) {
           error = (*(file++))->ha_delete_table(from_buff);
           if (error)
@@ -1490,8 +1496,7 @@ int Partition_base::del_ren_table(const char *from, const char *to)
         }
         else {
           char to_buff[FN_REFLEN];
-          create_partition_name(to_buff, to_path, part_elem->partition_name,
-            NORMAL_PART_NAME, FALSE);
+          part_name(to_buff, to_path, parent_part_elem, part_elem);
           error= (*(file++))->ha_rename_table(from_buff, to_buff);
           if (error)
             return false;
@@ -1523,16 +1528,15 @@ int Partition_base::del_ren_table(const char *from, const char *to)
 rename_error:
   handler **abort_file = m_file;
   (void)foreach_partition(
-    [&](const partition_element *part_elem)->bool {
+    [&](const partition_element *parent_part_elem,
+        const partition_element *part_elem)->bool {
       char from_buff[FN_REFLEN];
       char to_buff[FN_REFLEN];
       if (abort_file >= file)
         return false;
       /* Revert the rename, back from 'to' to the original 'from' */
-      create_partition_name(from_buff, from_path, part_elem->partition_name,
-        NORMAL_PART_NAME, FALSE);
-      create_partition_name(to_buff, to_path, part_elem->partition_name,
-        NORMAL_PART_NAME, FALSE);
+      part_name(from_buff, from_path, parent_part_elem, part_elem);
+      part_name(to_buff, to_path, parent_part_elem, part_elem);
       /* Ignore error here */
       (void) (*(abort_file++))->ha_rename_table(to_buff, from_buff);
       return true;
@@ -1557,7 +1561,6 @@ rename_error:
 bool Partition_base::new_handlers_from_part_info(MEM_ROOT *mem_root)
 {
   uint i, j, part_count;
-  partition_element *part_elem;
   uint alloc_len= (m_tot_parts + 1) * sizeof(handler*);
   List_iterator_fast <partition_element> part_it(m_part_info->partitions);
   DBUG_ENTER("Partition_base::new_handlers_from_part_info");
@@ -1580,20 +1583,17 @@ bool Partition_base::new_handlers_from_part_info(MEM_ROOT *mem_root)
   */
   do
   {
-    part_elem= part_it++;
     if (m_is_sub_partitioned)
     {
       for (j= 0; j < m_part_info->num_subparts; j++)
       {
-        if (!(m_file[part_count++]= get_file_handler(table_share, mem_root,
-                                                     part_elem->engine_type)))
+        if (!(m_file[part_count++]= get_file_handler(table_share, mem_root)))
           goto error;
       }
     }
     else
     {
-      if (!(m_file[part_count++]= get_file_handler(table_share, mem_root,
-                                                   part_elem->engine_type)))
+      if (!(m_file[part_count++]= get_file_handler(table_share, mem_root)))
         goto error;
     }
   } while (++i < m_part_info->num_parts);
@@ -1884,10 +1884,10 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
 
     if (
       !foreach_partition(
-        [&](const partition_element *part_elem)->bool {
+        [&](const partition_element *parent_part_elem,
+            const partition_element *part_elem)->bool {
           char name_buff[FN_REFLEN];
-          create_partition_name(name_buff, name, part_elem->partition_name,
-                                NORMAL_PART_NAME, FALSE);
+          part_name(name_buff, name, parent_part_elem, part_elem);
           if (!(*this_file =
                (*cloned_file)->clone(name_buff, m_clone_mem_root)))
           {
@@ -1908,10 +1908,10 @@ int Partition_base::open(const char *name, int mode, uint test_if_locked)
 
     if (
       !foreach_partition(
-        [&](const partition_element *part_elem)->bool {
+        [&](const partition_element *parent_part_elem,
+            const partition_element *part_elem)->bool {
           char name_buff[FN_REFLEN];
-          create_partition_name(name_buff, name, part_elem->partition_name,
-                                NORMAL_PART_NAME, FALSE);
+          part_name(name_buff, name, parent_part_elem, part_elem);
           if ((error= (*file)->ha_open(table, name_buff, mode,
                                        test_if_locked | HA_OPEN_NO_PSI_CALL)))
             return false;

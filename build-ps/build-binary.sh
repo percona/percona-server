@@ -8,13 +8,21 @@
 # supplied and the current directory is not empty, it will issue an error in
 # order to avoid polluting the current directory after a test run.
 #
+#  possible jenkins vars:
+#      BUILD_TYPE = (release debug release-asan debug-asan valgrind)
+#      CMAKE_OPTS
 
 # Bail out on errors, be strict
 set -ue
 
 # Examine parameters
-TARGET="$(uname -m)"
-TARGET_CFLAGS=''
+if [ "x$(getconf LONG_BIT)" = "x32" ]; then
+    TARGET="i686"
+    TARGET_CFLAGS="-m32 -march=i686"
+else
+    TARGET="$(uname -m)"
+    TARGET_CFLAGS=''
+fi
 QUIET='VERBOSE=1'
 WITH_JEMALLOC=''
 WITH_MECAB_OPTION=''
@@ -33,6 +41,23 @@ TOKUDB_BACKUP_VERSION=''
 #
 # Some programs that may be overriden
 TAR=${TAR:-tar}
+BUILD_TYPE=${BUILD_TYPE:-}
+CMAKE_OPTS=${CMAKE_OPTS:-}
+
+if [ "x${BUILD_TYPE}" = "xdebug" -o "x${BUILD_TYPE}" = "xvalgrind" -o "x${BUILD_TYPE}" = "xdebug-asan" ]; then
+    CMAKE_BUILD_TYPE='Debug'
+    BUILD_COMMENT="${BUILD_COMMENT:-}-debug"
+    DEBUG_EXTRA="-DDEBUG_EXTNAME=OFF"
+    CMAKE_OPTS="${CMAKE_OPTS:-} -DMYSQL_MAINTAINER_MODE=ON"
+fi
+if [ "x${BUILD_TYPE}" = "xvalgrind" ]; then
+    CMAKE_OPTS="${CMAKE_OPTS:-} -DWITH_VALGRIND=ON"
+    BUILD_COMMENT="${BUILD_COMMENT:-}-valgrind"
+fi
+if [ "x${BUILD_TYPE}" = "xdebug-asan" -o "x${BUILD_TYPE}" = "xrelease-asan" ]; then
+    export LSAN_OPTIONS=verbosity=2:log_threads=1
+    DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
+fi
 
 # Check if we have a functional getopt(1)
 if ! getopt --test
@@ -163,7 +188,7 @@ then
     REVISION="$(cd "$SOURCEDIR"; grep '^short: ' Docs/INFO_SRC |sed -e 's/short: //')"
 elif [ -n "$(which git)" -a -d "$SOURCEDIR/.git" ];
 then
-    REVISION="$(git rev-parse --short HEAD)"
+    REVISION="$(cd "$SOURCEDIR"; git rev-parse --short HEAD)"
 else
     REVISION=""
 fi
@@ -175,15 +200,6 @@ COMMENT="$COMMENT, Revision $REVISION${BUILD_COMMENT:-}"
 # Compilation flags
 export CC=${CC:-gcc}
 export CXX=${CXX:-g++}
-
-# If gcc >= 4.8 we can use ASAN in debug build but not if valgrind build also
-if [[ "$CMAKE_BUILD_TYPE" == "Debug" ]] && [[ "${CMAKE_OPTS:-}" != *WITH_VALGRIND=ON* ]]; then
-  GCC_VERSION=$(${CC} -dumpversion)
-  GT_VERSION=$(echo -e "4.8.0\n${GCC_VERSION}" | sort -t. -k1,1nr -k2,2nr -k3,3nr | head -1)
-  if [ "${GT_VERSION}" = "${GCC_VERSION}" ]; then
-    DEBUG_EXTRA="${DEBUG_EXTRA} -DWITH_ASAN=ON"
-  fi
-fi
 
 # TokuDB cmake flags
 if test -d "$SOURCEDIR/storage/tokudb"
@@ -265,6 +281,7 @@ fi
         -DDOWNLOAD_BOOST=1 \
         -DWITH_SCALABILITY_METRICS=ON \
         -DWITH_BOOST="$WORKDIR_ABS/libboost" \
+        ${TARGET_CFLAGS:+-DCMAKE_C_FLAGS="${TARGET_CFLAGS}" -DCMAKE_CXX_FLAGS="${TARGET_CFLAGS}"} \
         $WITH_MECAB_OPTION $OPENSSL_INCLUDE $OPENSSL_LIBRARY $CRYPTO_LIBRARY
 
     make $MAKE_JFLAG $QUIET

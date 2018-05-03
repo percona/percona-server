@@ -37,6 +37,8 @@
 #include "table.h"                              // TABLE
 #include "mysql_version.h"                      // FRM_VER
 
+#include <algorithm>
+
 class Create_field;
 class Json_dom;
 class Json_wrapper;
@@ -460,21 +462,17 @@ void copy_integer(uchar *to, size_t to_length,
 {
   if (Is_big_endian)
   {
-    if (is_unsigned)
-      to[0]= from[0];
-    else
-      to[0]= (char)(from[0] ^ 128); // Reverse the sign bit.
-    memcpy(to + 1, from + 1, to_length - 1);
+    std::copy(from, from + std::min(to_length, from_length), to);
+    if (!is_unsigned)
+      to[0] = static_cast<char>(to[0] ^ 128);  // Reverse the sign bit.
   }
   else
   {
-    const int sign_byte= from[from_length - 1];
-    if (is_unsigned)
-      to[0]= sign_byte;
-    else
-      to[0]= static_cast<char>(sign_byte ^ 128); // Reverse the sign bit.
-    for (size_t i= 1, j= from_length - 2; i < to_length; ++i, --j)
-      to[i]= from[j];
+    const uchar *from_end = from + from_length;
+    const uchar *from_start = from_end - std::min(from_length, to_length);
+    std::reverse_copy(from_start, from_end, to);
+    if (!is_unsigned)
+      to[0] = static_cast<char>(to[0] ^ 128);  // Reverse the sign bit.
   }
 }
 

@@ -7,6 +7,7 @@ Installing |Percona Server| 5.7
 This page provides the information on how to you can install |Percona Server|. Following options are available: 
 
 * :ref:`installing_from_binaries` (recommended)
+* :ref:`installing_on_cloud`
 * Installing |Percona Server| from Downloaded :ref:`rpm <standalone_rpm>` or :ref:`apt <standalone_deb>` Packages
 * :ref:`installing_from_binary_tarball`
 * :ref:`installing_from_source_tarball`
@@ -31,6 +32,21 @@ Following guides describe the installation process for using the official Percon
 
    installation/apt_repo 
    installation/yum_repo 
+
+.. _installing_on_cloud:
+
+Installing |Percona Server| on a Cloud Provider
+===============================================
+
+Starting from version :rn:`5.7.21-20`, automated cloud-based installation of
+|Percona Server| on Azure Marketplace is available. Following guide covers all
+details of the installation process:
+
+.. toctree::
+   :maxdepth: 1
+   :titlesonly:
+
+   installation/azure_cloud
 
 .. _installing_from_binary_tarball:
 

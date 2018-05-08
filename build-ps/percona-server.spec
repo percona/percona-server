@@ -1121,7 +1121,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbug.1*
@@ -1334,11 +1334,11 @@ done
 %attr(755, root, root) %{_bindir}/mysql_client_test
 #%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
 #%attr(755, root, root) %{_bindir}/mysqltest_embedded
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
+#%doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 %changelog
 * Thu Sep  1 2016 Evgeniy Patlan <evgeniy.patlan@percona.com> 

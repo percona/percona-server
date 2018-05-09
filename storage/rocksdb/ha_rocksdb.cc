@@ -8097,7 +8097,7 @@ int ha_rocksdb::index_first_intern(uchar *const buf) {
   DBUG_ASSERT(key != nullptr);
 
   const Rdb_key_def &kd = *m_key_descr_arr[active_index];
-  kd.get_first_key(key, &key_size);
+  int key_start_matching_bytes = kd.get_first_key(key, &key_size);
 
   rocksdb::Slice index_key((const char *)key, key_size);
 
@@ -8108,7 +8108,7 @@ int ha_rocksdb::index_first_intern(uchar *const buf) {
   // Loop as long as we get a deadlock error AND we end up creating the
   // snapshot here (i.e. it did not exist prior to this)
   for (;;) {
-    setup_scan_iterator(kd, &index_key, false, Rdb_key_def::INDEX_NUMBER_SIZE);
+    setup_scan_iterator(kd, &index_key, false, key_start_matching_bytes);
     m_scan_it->Seek(index_key);
     m_skip_scan_it_next_call = true;
 
@@ -9162,12 +9162,12 @@ void ha_rocksdb::release_scan_iterator() {
 void ha_rocksdb::setup_iterator_for_rnd_scan() {
   uint key_size;
 
-  m_pk_descr->get_first_key(m_pk_packed_tuple, &key_size);
+  int key_start_matching_bytes =
+      m_pk_descr->get_first_key(m_pk_packed_tuple, &key_size);
 
   rocksdb::Slice table_key((const char *)m_pk_packed_tuple, key_size);
 
-  setup_scan_iterator(*m_pk_descr, &table_key, false,
-                      Rdb_key_def::INDEX_NUMBER_SIZE);
+  setup_scan_iterator(*m_pk_descr, &table_key, false, key_start_matching_bytes);
   m_scan_it->Seek(table_key);
   m_skip_scan_it_next_call = true;
 }

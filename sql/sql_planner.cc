@@ -36,6 +36,9 @@
 using std::max;
 using std::min;
 
+/* disable "-Wuninitialized" for whole file for gcc-4.5 or older */
+GCC45_DISABLE_WARN_UNINITIALIZED
+
 static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static void trace_plan_prefix(JOIN *join, uint idx,
                               table_map excluded_tables);

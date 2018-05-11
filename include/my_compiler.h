@@ -176,16 +176,12 @@ struct my_aligned_storage
       MY_DO_PRAGMA(STRINGIFY_ARG(GCC diagnostic ignored WMAYBE_UNINITIALIZED_OPTION))
 #  define MY_RESTORE_WARN_MAYBE_UNINITIALIZED     \
       _Pragma("GCC diagnostic pop")
+#  define GCC45_DISABLE_WARN_UNINITIALIZED
 #else
-#  define MY_DISABLE_WARN_MAYBE_UNINITIALIZED     \
+#  define MY_DISABLE_WARN_MAYBE_UNINITIALIZED
+#  define MY_RESTORE_WARN_MAYBE_UNINITIALIZED
+#  define GCC45_DISABLE_WARN_UNINITIALIZED        \
       MY_DO_PRAGMA(STRINGIFY_ARG(GCC diagnostic ignored WMAYBE_UNINITIALIZED_OPTION))
-   /* true for gcc 4.6+ and all other compilers */
-#  if defined(__clang__) || !defined(__GNUC__) || MY_GNUC_PREREQ(4,6)
-#    define MY_RESTORE_WARN_MAYBE_UNINITIALIZED     \
-        MY_DO_PRAGMA(STRINGIFY_ARG(GCC diagnostic warning WMAYBE_UNINITIALIZED_OPTION))
-#  else
-#    define MY_RESTORE_WARN_MAYBE_UNINITIALIZED
-#  endif
 #endif
 
 #endif /* MY_COMPILER_INCLUDED */

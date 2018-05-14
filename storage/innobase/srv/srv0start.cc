@@ -1880,7 +1880,8 @@ innobase_start_or_create_for_mysql(void)
 		<< size << unit << ", instances = " << srv_buf_pool_instances
 		<< ", chunk size = " << chunk_size << chunk_unit;
 
-	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+	err = buf_pool_init(srv_buf_pool_size, static_cast<bool>(srv_numa_interleave),
+	                    srv_buf_pool_instances);
 
 	if (err != DB_SUCCESS) {
 		ib::error() << "Cannot allocate memory for the buffer pool";

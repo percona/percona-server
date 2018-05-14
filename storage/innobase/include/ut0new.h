@@ -605,7 +605,8 @@ public:
 	pointer
 	allocate_large(
 		size_type	n_elements,
-		ut_new_pfx_t*	pfx)
+		ut_new_pfx_t*	pfx,
+		bool            populate)
 	{
 		if (n_elements == 0 || n_elements > max_size()) {
 			return(NULL);
@@ -614,7 +615,7 @@ public:
 		ulint	n_bytes = n_elements * sizeof(T);
 
 		pointer	ptr = reinterpret_cast<pointer>(
-			os_mem_alloc_large(&n_bytes));
+			os_mem_alloc_large(&n_bytes, populate));
 
 #ifdef UNIV_PFS_MEMORY
 		if (ptr != NULL) {

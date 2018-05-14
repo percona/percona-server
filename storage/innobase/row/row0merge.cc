@@ -4468,7 +4468,7 @@ row_merge_build_indexes(
 
 	/* This will allocate "3 * srv_sort_buf_size" elements of type
 	row_merge_block_t. The latter is defined as byte. */
-	block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx);
+	block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx, false);
 
 	if (block == NULL) {
 		DBUG_RETURN(DB_OUT_OF_MEMORY);
@@ -4481,7 +4481,7 @@ row_merge_build_indexes(
 	if (log_tmp_is_encrypted()) {
 		crypt_block = static_cast<row_merge_block_t*>(
 			alloc.allocate_large(
-				3 * srv_sort_buf_size, &crypt_pfx));
+				3 * srv_sort_buf_size, &crypt_pfx, false));
 
 		if (crypt_block == NULL) {
 			DBUG_RETURN(DB_OUT_OF_MEMORY);

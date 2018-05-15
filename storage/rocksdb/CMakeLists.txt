@@ -71,14 +71,19 @@ IF(HAVE_SCHED_GETCPU)
   ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1 -DROCKSDB_SCHED_GETCPU_PRESENT)
 ENDIF()
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul")
 SET(CMAKE_REQUIRED_FLAGS "${CMAKE_CXX_FLAGS} --std=c++11")
 INCLUDE(CheckCXXSourceCompiles)
 CHECK_CXX_SOURCE_COMPILES("
 #include <cstdint>
 #include <nmmintrin.h>
+#include <wmmintrin.h>
 int main() {
   volatile uint32_t x __attribute__((unused)) = _mm_crc32_u32(0, 0);
+  const auto a = _mm_set_epi64x(0, 0);
+  const auto b = _mm_set_epi64x(0, 0);
+  const auto c = _mm_clmulepi64_si128(a, b, 0x00);
+  auto d = _mm_cvtsi128_si64(c);
 }
 " HAVE_SSE42)
 IF (HAVE_SSE42)

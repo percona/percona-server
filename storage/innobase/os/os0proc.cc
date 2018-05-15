@@ -35,12 +35,25 @@ Created 9/30/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0byte.h"
 
+/* Linux release version */
+#if defined(UNIV_LINUX) && defined(_GNU_SOURCE)
+#include <string.h>		/* strverscmp() */
+#include <sys/utsname.h>	/* uname() */
+#endif
+
 /* FreeBSD for example has only MAP_ANON, Linux has MAP_ANONYMOUS and
 MAP_ANON but MAP_ANON is marked as deprecated */
 #if defined(MAP_ANONYMOUS)
 #define OS_MAP_ANON	MAP_ANONYMOUS
 #elif defined(MAP_ANON)
 #define OS_MAP_ANON	MAP_ANON
+#endif
+
+/* Linux's MAP_POPULATE */
+#if defined(MAP_POPULATE)
+#define OS_MAP_POPULATE	MAP_POPULATE
+#else
+#define OS_MAP_POPULATE	0
 #endif
 
 /** The total amount of memory currently allocated from the operating
@@ -52,6 +65,24 @@ my_bool	os_use_large_pages;
 
 /** Large page size. This may be a boot-time option on some platforms */
 uint	os_large_page_size;
+
+
+/****************************************************************//**
+Retrieve and compare operating system release.
+@return	TRUE if the OS release is equal to, or later than release. */
+bool
+os_compare_release(
+/*===============*/
+	const char*	release		/*!< in: OS release */
+	MY_ATTRIBUTE((unused)))
+{
+#if defined(UNIV_LINUX) && defined(_GNU_SOURCE)
+	struct utsname name;
+	return uname(&name) == 0 && strverscmp(name.release, release) >= 0;
+#else
+	return 0;
+#endif
+}
 
 /** Converts the current process id to a number.
 @return process id as a number */
@@ -71,7 +102,8 @@ os_proc_get_number(void)
 @return allocated memory */
 void*
 os_mem_alloc_large(
-	ulint*	n)
+	ulint*	n,
+	bool	populate)
 {
 	void*	ptr;
 	ulint	size;
@@ -146,17 +178,36 @@ skip:
 	ut_ad(ut_is_2pow(size));
 	size = *n = ut_2pow_round(*n + (size - 1), size);
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | OS_MAP_ANON, -1, 0);
+		   MAP_PRIVATE | OS_MAP_ANON |
+		   (populate ? OS_MAP_POPULATE : 0), -1, 0);
 	if (UNIV_UNLIKELY(ptr == (void*) -1)) {
 		ib::error() << "mmap(" << size << " bytes) failed;"
 			" errno " << errno;
-		ptr = NULL;
+		return NULL;
 	} else {
 		os_atomic_increment_ulint(
 			&os_total_large_mem_allocated, size);
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #endif
+
+#if OS_MAP_ANON && OS_MAP_POPULATE
+	/* MAP_POPULATE is only supported for private mappings
+	since Linux 2.6.23. */
+	populate = populate && !os_compare_release("2.6.23");
+
+	if (populate) {
+		ib::warn() << "mmap(MAP_POPULATE) is not supported for private mappings. "
+			"Forcing preallocation by faulting in pages.";
+	}
+#endif
+
+	/* Initialize the entire buffer to force the allocation
+	of physical memory page frames. */
+	if (populate) {
+		memset(ptr, '\0', size);
+	}
+
 	return(ptr);
 }
 

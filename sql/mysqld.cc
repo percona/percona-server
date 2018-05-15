@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3326,6 +3326,16 @@ int init_common_variables()
                     opt_slow_logname);
     return 1;
   }
+
+  if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
+      && mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    sql_print_error("The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32"
+                    " when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.");
+    return 1;
+  }
+  else
+    mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
@@ -6923,10 +6933,11 @@ static int show_ssl_ctx_get_session_cache_mode(THD *thd, SHOW_VAR *var, char *bu
  */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
     var->value=
-      const_cast<char*>(SSL_get_version(thd->get_protocol()->get_ssl()));
+      const_cast<char*>(SSL_get_version(ssl));
   else
     var->value= (char *)"";
   return 0;
@@ -6934,11 +6945,12 @@ static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_LONG;
   var->value= buff;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
     *((long *)buff)=
-        (long)SSL_session_reused(thd->get_protocol()->get_ssl());
+        (long)SSL_session_reused(ssl);
   else
     *((long *)buff)= 0;
   return 0;
@@ -6946,11 +6958,12 @@ static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_LONG;
   var->value= buff;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
     *((long *)buff)=
-      (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
+      (long)SSL_get_default_timeout(ssl);
   else
     *((long *)buff)= 0;
   return 0;
@@ -6958,11 +6971,12 @@ static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_LONG;
   var->value= buff;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
     *((long *)buff)=
-      (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
+      (long)SSL_get_verify_mode(ssl);
   else
     *((long *)buff)= 0;
   return 0;
@@ -6970,11 +6984,12 @@ static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_LONG;
   var->value= buff;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
     *((long *)buff)=
-        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
+        (long)SSL_get_verify_depth(ssl);
   else
     *((long *)buff)= 0;
   return 0;
@@ -6982,10 +6997,11 @@ static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
     var->value=
-      const_cast<char*>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
+      const_cast<char*>(SSL_get_cipher(ssl));
   else
     var->value= (char *)"";
   return 0;
@@ -6993,14 +7009,15 @@ static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *buff)
 
 static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
 {
+  SSL_handle ssl = thd->get_ssl();
   var->type= SHOW_CHAR;
   var->value= buff;
-  if (thd->get_protocol()->get_ssl())
+  if (ssl)
   {
     int i;
     const char *p;
     char *end= buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i=0; (p= SSL_get_cipher_list(thd->get_protocol()->get_ssl(),i)) &&
+    for (i=0; (p= SSL_get_cipher_list(ssl,i)) &&
                buff < end; i++)
     {
       buff= my_stpnmov(buff, p, end-buff-1);
@@ -8838,6 +8855,41 @@ static int test_if_case_insensitive(const char *dir_name)
 static void create_pid_file()
 {
   File file;
+  bool check_parent_path= 1, is_path_accessible= 1;
+  char pid_filepath[FN_REFLEN], *pos= NULL;
+  /* Copy pid file name to get pid file path */
+  strcpy(pid_filepath, pidfile_name);
+
+  /* Iterate through the entire path to check if even one of the sub-dirs
+     is world-writable */
+  while (check_parent_path && (pos= strrchr(pid_filepath, FN_LIBCHAR))
+         && (pos != pid_filepath)) /* shouldn't check root */
+  {
+    *pos= '\0';  /* Trim the inner-most dir */
+    switch (is_file_or_dir_world_writable(pid_filepath))
+    {
+      case -2:
+        is_path_accessible= 0;
+        break;
+      case -1:
+        sql_print_error("Can't start server: can't check PID filepath: %s",
+                        strerror(errno));
+        exit(MYSQLD_ABORT_EXIT);
+      case 1:
+        sql_print_warning("Insecure configuration for --pid-file: Location "
+                          "'%s' in the path is accessible to all OS users. "
+                          "Consider choosing a different directory.",
+                          pid_filepath);
+        check_parent_path= 0;
+        break;
+      case 0:
+        continue; /* Keep checking the parent dir */
+    }
+  }
+  if (!is_path_accessible)
+  {
+    sql_print_warning("Few location(s) are inaccessible while checking PID filepath.");
+  }
   if ((file= mysql_file_create(key_file_pid, pidfile_name, 0664,
                                O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {

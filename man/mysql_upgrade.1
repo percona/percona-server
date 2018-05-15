@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/26/2017
+.\"      Date: 03/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -120,7 +120,7 @@ If you upgrade to MySQL 5\&.7\&.2 or later from a version older than 5\&.7\&.2, 
 mysql\&.user
 table requires a special sequence of steps to perform an upgrade using
 \fBmysql_upgrade\fR\&. For details, see
-Section\ \&2.11.1.1, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
+Section\ \&2.11.1.2, \(lqChanges Affecting Upgrades to MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .if n \{\
@@ -164,12 +164,6 @@ Some upgrade incompatibilities may require special handling before you upgrade y
 Section\ \&2.11.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
-.PP
-Running
-\fBmysql_upgrade\fR
-is not recommended with a MySQL Server that is running with global transaction identifiers (GTIDs) enabled\&. This is because
-\fBmysql_upgrade\fR
-can make changes to system tables that use the MyISAM storage engine, which is non\-transactional\&.
 .PP
 To use
 \fBmysql_upgrade\fR, make sure that the server is running\&. Then invoke it like this to check and repair tables and to upgrade the system tables:
@@ -253,7 +247,7 @@ Section\ \&6.5.1.3, \(lqMigrating Away from Pre-4.1 Password Hashing and the mys
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.10, \(lqServer-Side Help\(rq\&.
+Section\ \&5.1.11, \(lqServer-Side Help\(rq\&.
 .PP
 As of MySQL 5\&.7\&.7, unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
@@ -424,7 +418,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -528,7 +522,7 @@ Section\ \&6.3.9, \(lqPluggable Authentication\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -967,6 +961,9 @@ By default, binary logging by
 is disabled\&. Invoke the program with
 \fB\-\-write\-binlog\fR
 if you want its actions to be written to the binary log\&.
+.sp
+When the server is running with global transaction identifiers (GTIDs) enabled (gtid_mode=ON), do not enable binary logging by
+\fBmysql_upgrade\fR\&.
 .RE
 .SH "COPYRIGHT"
 .br

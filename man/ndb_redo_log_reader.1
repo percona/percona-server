@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_redo_log_reader\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/26/2017
+.\"      Date: 03/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_REDO_LOG_READER\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_REDO_LOG_READER\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -71,10 +71,138 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.101.\ \& This table describes command\-line options for the ndb_redo_log_reader program
+.B Table\ \&21.93.\ \& This table describes command\-line options for the ndb_redo_log_reader program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+-dump
+T}:T{
+Print dump info
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-filedescriptors
+T}:T{
+Print file descriptors only
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--help
+T}:T{
+Print usage information
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-lap
+T}:T{
+Provide lap info, with max GCI started and completed
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-mbyte #
+T}:T{
+Starting megabyte
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-mbyteheaders
+T}:T{
+Show only the first page header of every megabyte in the file
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-nocheck
+T}:T{
+Do not check records for errors
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-noprint
+T}:T{
+Do not print records
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-page #
+T}:T{
+Start with this page
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-pageheaders
+T}:T{
+Show page headers only
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-pageindex #
+T}:T{
+Start with this page index
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+-twiddle
+T}:T{
+Bit-shifted dump
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 Usage
@@ -117,22 +245,27 @@ The name of the file to be read may be followed by one or more of the options li
 \fB\-dump\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-dump
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-dump
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -152,22 +285,27 @@ Print dump info\&.
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-filedescriptors
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-filedescriptors
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -187,11 +325,18 @@ T}
 .\}
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-help
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--help
 T}
 .TE
 .sp 1
@@ -209,22 +354,27 @@ T}
 \fB\-lap\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-lap
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-lap
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -244,34 +394,39 @@ Provide lap info, with max GCI started and completed\&.
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-mbyte #
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-mbyte #
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 15
@@ -294,22 +449,27 @@ is an integer in the range 0 to 15, inclusive\&.
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-mbyteheaders
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-mbyteheaders
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -329,22 +489,27 @@ T}
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-noprint
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-noprint
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -364,22 +529,27 @@ T}
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-nocheck
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-nocheck
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -399,34 +569,39 @@ T}
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-page #
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-page #
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 31
@@ -449,22 +624,27 @@ is an integer in the range 0 to 31, inclusive\&.
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-pageheaders
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-pageheaders
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -484,34 +664,39 @@ T}
 .\}
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-pageindex #
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-pageindex #
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 12
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 12
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 8191
@@ -535,22 +720,27 @@ is an integer between 12 and 8191, inclusive\&.
 \fB\-twiddle\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-twiddle
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+-twiddle
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE

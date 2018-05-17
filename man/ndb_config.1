@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/09/2017
+.\"      Date: 02/25/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,10 +68,209 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.88.\ \& This table describes command\-line options for the ndb_config program
+.B Table\ \&18.80.\ \& This table describes command\-line options for the ndb_config program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--config-file=file_name
+T}:T{
+Set the path to config.ini file
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--config_from_node=#
+T}:T{
+Obtain configuration data from the node having this ID (must be a data
+          node).
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--configinfo
+T}:T{
+Dumps information about all NDB configuration parameters in text format
+          with default, maximum, and minimum values. Use with --xml to
+          obtain XML output.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--connections
+T}:T{
+Print connections information ([tcp], [tcp default], [sci], [sci
+          default], [shm], or [shm default] sections of cluster
+          configuration file) only. Cannot be used with --system or
+          --nodes.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--diff-default
+T}:T{
+Print only configuration parameters that have non-default values
+T}:T{
+.PP
+ADDED: NDB 7.4.16
+T}
+T{
+.PP
+--fields=string,
+.PP
+-f
+T}:T{
+Field separator
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--host=name
+T}:T{
+Specify host
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--mycnf
+T}:T{
+Read configuration data from my.cnf file
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--nodeid,
+.PP
+--id
+T}:T{
+Get configuration of node with this ID
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--nodes
+T}:T{
+Print node information ([ndbd] or [ndbd default] section of cluster
+          configuration file) only. Cannot be used with --system or
+          --connections.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+-c
+T}:T{
+Short form for --ndb-connectstring
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--query=string,
+.PP
+-q
+T}:T{
+One or more query options (attributes)
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--query-all,
+.PP
+-a
+T}:T{
+Dumps all parameters and values to a single comma-delimited string.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--rows=string,
+.PP
+-r
+T}:T{
+Row separator
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--system
+T}:T{
+Print SYSTEM section information only (see ndb_config --configinfo
+          output). Cannot be used with --nodes or --connections.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--type=name
+T}:T{
+Specify node type
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--configinfo --xml
+T}:T{
+Use --xml with --configinfo to obtain a dump of all NDB configuration
+          parameters in XML format with default, maximum, and minimum
+          values.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
 .TE
 .sp 1
 .sp
@@ -196,22 +395,27 @@ option to obtain output in XML format\&.
 \fB\-\-config\-file=\fR\fB\fIpath\-to\-file\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-config\-file=file_name
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--config-file=file_name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 file name
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -233,34 +437,39 @@ is invoked, then an absolute path must be used\&.
 \fB\-\-config_from_node=#\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-config\-from\-node=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--config-from-node=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 none
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 1
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 48
@@ -285,22 +494,27 @@ fails with an error\&. (To obtain configuration data from the management node in
 \fB\-\-connections\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-connections
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connections
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -340,29 +554,34 @@ and
 \fB\-\-diff\-default\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--diff-default
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.6\&.36\-ndb\-7\&.4\&.16
+5.6.36-ndb-7.4.16
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-diff\-default
-T}
-T{
-\fBPermitted Values\fR (>= 5\&.6\&.36\-ndb\-7\&.4\&.16)
-T}:T{
-\fBType\fR
+\fBType\fR (>= 5.6.36-ndb-7.4.16)
 T}:T{
 boolean
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault\fR (>= 5.6.36-ndb-7.4.16)
 T}:T{
 FALSE
 T}
@@ -384,22 +603,27 @@ Print only configuration parameters that have non\-default values\&.
 \fIdelimiter\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-fields=string
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--fields=string
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -442,22 +666,27 @@ for the linefeed character), then it must be quoted\&.
 \fB\-\-host=\fR\fB\fIhostname\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-host=name
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--host=name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -507,22 +736,27 @@ in the same fashion\&.
 \fB\-\-mycnf\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-mycnf
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--mycnf
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -546,22 +780,27 @@ file\&.
 \fB\-\-id=\fR\fB\fInode_id\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-ndb\-nodeid=#
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ndb-nodeid=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 0
@@ -584,22 +823,27 @@ is the preferred form\&.
 \fB\-\-nodes\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-nodes
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nodes
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -633,28 +877,32 @@ and
 \fB\-c \fR\fB\fIconnection_string\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-ndb\-connectstring=connectstring
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--ndb-connectstring=connectstring
 T}
 T{
-\ \&
 T}:T{
-\-\-connect\-string=connectstring
+--connect-string=connectstring
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 localhost:1186
@@ -679,22 +927,27 @@ localhost:1186\&.
 \fIquery\-options\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-query=string
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--query=string
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -743,11 +996,18 @@ If a given parameter is not applicable to a certain type of node, than an empty 
 \fB\-a\fR
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-query\-all
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--query-all
 T}
 .TE
 .sp 1
@@ -769,22 +1029,27 @@ This option was introduced in NDB 7\&.4\&.16 (Bug #60095, Bug #11766869)\&.
 \fIseparator\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-rows=string
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--rows=string
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -825,22 +1090,27 @@ for the linefeed character), then it must be quoted\&.
 \fB\-\-system\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-system
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--system
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -873,38 +1143,45 @@ and
 \fB\-\-type=\fR\fB\fInode_type\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ lt l s
-^ ^ l s
-^ ^ l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-type=name
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--type=name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 enumeration
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 [none]
 T}
-:T{
+T{
 \fBValid Values\fR
 T}:T{
 ndbd
 T}
-::T{
+T{
+T}:T{
 mysqld
 T}
-::T{
+T{
+T}:T{
 ndb_mgmd
 T}
 .TE
@@ -929,17 +1206,23 @@ ndb_mgmd) are returned\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-help
+Value
+T}
+.T&
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--help
 T}
 T{
-\ \&
 T}:T{
-\-\-usage
+--usage
 T}
 .TE
 .sp 1
@@ -960,11 +1243,18 @@ to print a list of available options, and then exit\&.
 \fB\-V\fR
 .TS
 allbox tab(:);
-l l s s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-version
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--version
 T}
 .TE
 .sp 1
@@ -985,22 +1275,27 @@ to print a version information string, and then exit\&.
 \fB\-\-xml\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-configinfo \-\-xml
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--configinfo --xml
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 false
@@ -1017,7 +1312,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.6\&.38\-ndb\-7\&.3\&.20"
+<configvariables protocolversion="1" ndbversionstring="5\&.6\&.39\-ndb\-7\&.3\&.21"
                     ndbversion="458758" ndbversionmajor="7" ndbversionminor="0"
                     ndbversionbuild="6">
   <section name="SYSTEM">
@@ -1329,7 +1624,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

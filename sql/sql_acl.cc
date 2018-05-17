@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1082,6 +1082,8 @@ protected:
 
     va_end(args);
   }
+public:
+  Acl_table_intact() { has_keys= TRUE; }
 };
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
@@ -2961,13 +2963,6 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(1);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -3570,13 +3565,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (acl_is_utility_user(combo->user.str, combo->host.str, NULL))
   {
     my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
-    goto end;
-  }
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
     goto end;
   }
 
@@ -4678,13 +4666,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   if (table_intact.check(table, &mysql_columns_priv_table_def))
     DBUG_RETURN(-1);
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(-1);
-  }
 
   key_part= table->key_info->key_part;
 
@@ -7872,13 +7853,6 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     host_field->store(host_str, user_from->host.length, system_charset_info);
     user_field->store(user_str, user_from->user.length, system_charset_info);
 
-    if (!table->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-               table->s->table_name.str);
-      DBUG_RETURN(-1);
-    }
-     
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
@@ -8918,13 +8892,6 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
 
   if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(true);
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
 
   /*
     This statement will be replicated as a statement, even when using

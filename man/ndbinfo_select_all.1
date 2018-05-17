@@ -2,12 +2,12 @@
 .\"     Title: \fBndbinfo_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/09/2017
+.\"      Date: 02/25/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBNDBINFO_SELECT_ALL\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBNDBINFO_SELECT_ALL\FR" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -114,10 +114,64 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&18.84.\ \& This table describes command\-line options for the ndbinfo_select_all program
+.B Table\ \&18.76.\ \& This table describes command\-line options for the ndbinfo_select_all program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--delay=#
+T}:T{
+Set the delay in seconds between loops. Default is 5.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--loops=#,
+.PP
+-l
+T}:T{
+Set the number of times to perform the select. Default is 1.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--database=db_name,
+.PP
+-d
+T}:T{
+Name of the database where the table located.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
+T{
+.PP
+--parallelism=#,
+.PP
+-p
+T}:T{
+Set the degree of parallelism.
+T}:T{
+.PP
+All MySQL 5.6 based releases
+T}
 .TE
 .sp 1
 .sp
@@ -132,34 +186,39 @@ allbox tab(:);
 \fB\-\-delay=\fR\fBseconds\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-delay=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--delay=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 5
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 MAX_INT
@@ -183,34 +242,39 @@ is set to 0 or 1\&.
 \fB\-l \fR\fB\fInumber\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-loops=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--loops=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 1
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 MAX_INT
@@ -224,7 +288,7 @@ to set the time between loops\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

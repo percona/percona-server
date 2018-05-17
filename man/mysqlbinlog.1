@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/09/2017
+.\"      Date: 02/25/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.6
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "12/09/2017" "MySQL 5\&.6" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "02/25/2018" "MySQL 5\&.6" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -185,7 +185,7 @@ Display a help message and exit\&.
 .sp
 This option determines when events should be displayed encoded as base\-64 strings using
 BINLOG
-statements\&. The option has these permissible values (not case sensitive):
+statements\&. The option has these permissible values (not case\-sensitive):
 .sp
 .RS 4
 .ie n \{\
@@ -298,35 +298,40 @@ This option is supported beginning with MySQL 5\&.6\&.1\&.
 \fB\-\-binlog\-row\-event\-max\-size=\fR\fB\fIN\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-binlog\-row\-event\-max\-size=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--binlog-row-event-max-size=#
 T}
 T{
-\fBPermitted Values\fR (64\-bit platforms)
-T}:T{
-\fBType\fR
+\fBType\fR (64-bit platforms)
 T}:T{
 numeric
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault\fR (64-bit platforms)
 T}:T{
 4294967040
 T}
-:T{
-\fBMinimum\fR
+T{
+\fBMinimum\fR (64-bit platforms)
 T}:T{
 256
 T}
-:T{
-\fBMaximum\fR
+T{
+\fBMaximum\fR (64-bit platforms)
 T}:T{
 18446744073709547520
 T}
@@ -346,7 +351,7 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1167,7 +1172,7 @@ statement to the output to specify the character set to be used for processing l
 \fB\-\-shared\-memory\-base\-name=\fR\fB\fIname\fR\fR
 .sp
 On Windows, the shared\-memory name to use, for connections made using shared memory to a local server\&. The default value is
-MYSQL\&. The shared\-memory name is case sensitive\&.
+MYSQL\&. The shared\-memory name is case\-sensitive\&.
 .sp
 The server must be started with the
 \fB\-\-shared\-memory\fR
@@ -2902,7 +2907,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

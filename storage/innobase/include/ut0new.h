@@ -176,7 +176,6 @@ extern PSI_memory_key	mem_key_log_online_sys;
 extern PSI_memory_key	mem_key_log_online_read_buf;
 extern PSI_memory_key	mem_key_log_online_iterator_files;
 extern PSI_memory_key	mem_key_log_online_iterator_page;
-extern PSI_memory_key	mem_key_trx_distinct_page_access_hash;
 extern PSI_memory_key	mem_key_parallel_doublewrite;
 
 /** Setup the internal objects needed for UT_NEW() to operate.

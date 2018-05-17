@@ -124,8 +124,6 @@ trx_init(
 	trx_t::state here to NOT_STARTED. The FORCED_ROLLBACK
 	status is required for asynchronous handling. */
 
-	trx->id_saved = trx->id;
-
 	trx->id = 0;
 
 	trx->preallocated_id = 0;
@@ -193,14 +191,7 @@ trx_init(
 
 	trx->lock.table_cached = 0;
 
-	trx->io_reads = 0;
-	trx->io_read = 0;
-	trx->io_reads_wait_timer = 0;
-	trx->lock_que_wait_timer = 0;
-	trx->innodb_que_wait_timer = 0;
-	trx->distinct_page_access = 0;
-	trx->distinct_page_access_hash = NULL;
-	trx->take_stats = false;
+	trx->stats.set(false);
 
 	/* During asynchronous rollback, we should reset forced rollback flag
 	only after rollback is complete to avoid race with the thread owning
@@ -331,8 +322,6 @@ struct TrxFactory {
 		trx->lock.table_pool.~lock_pool_t();
 
 		trx->lock.table_locks.~lock_pool_t();
-
-		ut_ad(!trx->distinct_page_access_hash);
 
 		trx->hit_list.~hit_list_t();
 	}
@@ -565,12 +554,6 @@ trx_allocate_for_mysql(void)
 
 	trx_sys_mutex_exit();
 
-	if (UNIV_UNLIKELY(trx->take_stats)) {
-		trx->distinct_page_access_hash
-			= static_cast<byte *>(ut_zalloc(DPAH_SIZE,
-				mem_key_trx_distinct_page_access_hash));
-	}
-
 	return(trx);
 }
 
@@ -629,12 +612,6 @@ trx_free_resurrected(trx_t* trx)
 void
 trx_free_for_background(trx_t* trx)
 {
-	if (trx->distinct_page_access_hash)
-	{
-		ut_free(trx->distinct_page_access_hash);
-		trx->distinct_page_access_hash= NULL;
-	}
-
 	trx_validate_state_before_free(trx);
 
 	trx_free(trx);
@@ -686,12 +663,6 @@ trx_disconnect_from_mysql(
 	trx_t*	trx,
 	bool	prepared)
 {
-	if (trx->distinct_page_access_hash)
-	{
-		ut_free(trx->distinct_page_access_hash);
-		trx->distinct_page_access_hash= NULL;
-	}
-
 	trx_sys_mutex_enter();
 
 	ut_ad(trx->in_mysql_trx_list);
@@ -2147,12 +2118,6 @@ trx_commit_in_memory(
 		trx->state = TRX_STATE_NOT_STARTED;
 	}
 
-	if (UNIV_LIKELY_NULL(trx->distinct_page_access_hash)) {
-
-		ut_free(trx->distinct_page_access_hash);
-		trx->distinct_page_access_hash= NULL;
-	}
-
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
@@ -2419,21 +2384,11 @@ trx_commit_or_rollback_prepare(
 
 		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
-			ulint		sec;
-			ulint		ms;
-			ib_uint64_t	now;
-
 			ut_a(trx->lock.wait_thr != NULL);
 			trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
 			trx->lock.wait_thr = NULL;
 
-			if (UNIV_UNLIKELY(trx->take_stats)) {
-				ut_usectime(&sec, &ms);
-				now = (ib_uint64_t)sec * 1000000 + ms;
-				trx->lock_que_wait_timer
-					+= (ulint)
-					(now - trx->lock_que_wait_ustarted);
-			}
+			trx->stats.stop_lock_wait(*trx);
 
 			trx->lock.que_state = TRX_QUE_RUNNING;
 		}

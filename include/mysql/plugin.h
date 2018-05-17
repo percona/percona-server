@@ -640,14 +640,32 @@ int thd_allow_batch(MYSQL_THD thd);
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 
-void increment_thd_innodb_stats(MYSQL_THD thd,
-                    unsigned long long trx_id,
-                    long io_reads,
-                    long long io_read,
-                    long io_reads_wait_timer,
-                    long lock_que_wait_timer,
-                    long que_wait_timer,
-                    long page_access);
+/** Types of statistics that can be passed to thd_report_innodb_stat */
+enum mysql_trx_stat_type
+{
+  /** Volume of I/O read requests in bytes */
+  MYSQL_TRX_STAT_IO_READ_BYTES,
+  /** Time in microseconds spent waiting for I/O reads to complete */
+  MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
+  /** Time in microseconds spent waiting for row locks */
+  MYSQL_TRX_STAT_LOCK_WAIT_USECS,
+  /** Time in microseconds spent waiting to enter InnoDB */
+  MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS,
+  /** A logical data page accessed */
+  MYSQL_TRX_STAT_ACCESS_PAGE_ID
+};
+
+/**
+  Report various InnoDB statistics for the slow query log extensions
+
+  @param[in]    thd     user thread connection handle
+  @param[in]    trx_id  InnoDB tranaction ID
+  @param[in]    type    type of statistics being reported
+  @param[in]    value   the value of statistics
+*/
+void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
+                            enum mysql_trx_stat_type type,
+                            unsigned long long       value);
 
 unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
 

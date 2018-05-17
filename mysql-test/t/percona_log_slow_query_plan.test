@@ -5,10 +5,6 @@
 
 FLUSH STATUS;
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
 CREATE TABLE t1(
        a INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
        b INT) ENGINE=InnoDB;
@@ -347,7 +343,7 @@ create table t2 (
 insert into t1 values (1,10), (2,20), (3,30),  (4,40);
 insert into t2 values (2), (2), (3), (4), (5); #2 as a duplicate to weed-out
 
-SET optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=on';
+SET SESSION optimizer_switch='firstmatch=off,loosescan=off,materialization=off,duplicateweedout=on';
 
 SET SESSION long_query_time=0;
 SET SESSION min_examined_row_limit=0;

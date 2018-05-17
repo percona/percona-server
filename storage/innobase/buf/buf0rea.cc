@@ -132,8 +132,6 @@ buf_read_page_low(
 {
 	buf_page_t*	bpage;
 
-	ut_ad(!trx || trx->take_stats);
-
 	*err = DB_SUCCESS;
 
 	if (page_id.space() == TRX_SYS_SPACE
@@ -279,8 +277,6 @@ buf_read_ahead_random(
 	ulint		i;
 	const ulint	buf_read_ahead_random_area
 				= BUF_READ_AHEAD_AREA(buf_pool);
-
-	ut_ad(!trx || trx->take_stats);
 
 	if (!srv_random_read_ahead) {
 		/* Disabled by user */
@@ -460,8 +456,6 @@ buf_read_page(
 	ulint		count;
 	dberr_t		err;
 
-	ut_ad(!trx || trx->take_stats);
-
 	/* We do synchronous IO because our AIO completion code
 	is sub-optimal. See buf_page_io_complete(), we have to
 	acquire the buffer pool mutex before acquiring the block
@@ -569,8 +563,6 @@ buf_read_ahead_linear(
 	const ulint	buf_read_ahead_linear_area
 		= BUF_READ_AHEAD_AREA(buf_pool);
 	ulint		threshold;
-
-	ut_ad(!trx || trx->take_stats);
 
 	/* check if readahead is disabled */
 	if (!srv_read_ahead_threshold) {

@@ -245,7 +245,7 @@ htmlhelp_basename = 'PerconaServer57doc'
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
   ('index', 'PerconaServer-5.7.tex', u'Percona Server Documentation',
-   u'Percona LLC and/or its affiliates 2009-2017', 'manual'),
+   u'Percona LLC and/or its affiliates 2009-2018', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -283,7 +283,7 @@ latex_elements = {
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'perconaserver57', u'Percona Server 5.7 Documentation',
-     [u'Percona LLC and/or its affiliates 2009-2017'], 1)
+     [u'Percona LLC and/or its affiliates 2009-2018'], 1)
 ]
 
 

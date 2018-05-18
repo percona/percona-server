@@ -491,7 +491,11 @@ public:
     my_off_t oldpos= get_byte_position();
 
     if (use_reinit)
-      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    {
+      MY_ATTRIBUTE((unused)) int reinit_res=
+        reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+      DBUG_ASSERT(reinit_res == 0);
+    }
     else
       my_b_seek(&cache_log, pos);
 
@@ -602,7 +606,9 @@ protected:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     remove_pending_event();
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    MY_ATTRIBUTE((unused)) int reinit_res=
+      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    DBUG_ASSERT(reinit_res == 0);
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
 

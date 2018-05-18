@@ -1,4 +1,6 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2017, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -236,6 +238,13 @@ size_t my_b_fill(IO_CACHE *info)
   return length;
 }
 
+int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos)
+{
+  if (mysql_file_pread(info->file, Buffer, Count, pos,
+                       info->myflags | MY_NABP))
+    return info->error= -1;
+  return 0;
+}
 
 /*
   Read a string ended by '\n' into a buffer of 'max_length' size.
@@ -460,7 +469,7 @@ process_flags:
           memset(buffz, '0', minimum_width - length2);
         else
           memset(buffz, ' ', minimum_width - length2);
-        if (my_b_write(info, buffz, minimum_width - length2))
+        if (my_b_write(info, (uchar*)buffz, minimum_width - length2))
         {
           goto err;
         }

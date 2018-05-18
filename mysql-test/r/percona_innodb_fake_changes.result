@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1, t2, t3;
 # Checking variables
 SHOW VARIABLES LIKE 'innodb_fake_changes';
 Variable_name	Value
@@ -22,7 +21,9 @@ VARIABLE_VALUE
 OFF
 # Explicit COMMIT should fail when innodb_fake_changes is enabled
 # DML should be fine
+SET @saved_userstat=@@GLOBAL.userstat;
 SET @@GLOBAL.userstat=TRUE;
+SET @saved_innodb_stats_transient_sample_pages=@@GLOBAL.innodb_stats_transient_sample_pages;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=30000;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
@@ -710,7 +711,6 @@ ERROR HY000: Got error 131 during COMMIT
 set session innodb_fake_changes = 0;
 drop procedure populate_t1;
 drop table t1;
-set global innodb_file_per_table = 1;
 use test;
 create table t1 (i int, key(i)) engine=innodb;
 set session innodb_fake_changes = 1;
@@ -724,7 +724,6 @@ alter table t1 add column b char, algorithm=default;
 ERROR HY000: Got error 131 during COMMIT
 set session innodb_fake_changes = 0;
 drop table t1;
-set global innodb_file_per_table = 1;
 use test;
 create table t1 (a int, primary key pk(a));
 alter table t1 add column b char;
@@ -882,5 +881,5 @@ insert into t1 values(1,2,11),(1,2,7);
 ERROR HY000: Got error 131 during COMMIT
 set session innodb_fake_changes=0;
 drop table t1;
-SET @@GLOBAL.userstat= default;
-SET @@GLOBAL.innodb_stats_transient_sample_pages=default;
+SET @@GLOBAL.userstat= @saved_userstat;
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @saved_innodb_stats_transient_sample_pages;

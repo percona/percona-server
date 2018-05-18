@@ -1089,6 +1089,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
         if (table2->map & tables_for_update && table1->s == table2->s)
         {
           // A table is updated through two aliases
+#ifdef WITH_PARTITION_STORAGE_ENGINE
           if (table_partitioned &&
               (partition_key_modified(table1, table1->write_set) ||
                partition_key_modified(table2, table2->write_set)))
@@ -1101,6 +1102,7 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
                                          : tl2->alias);
             return true;
           }
+#endif
 
           if (primkey_clustered)
           {

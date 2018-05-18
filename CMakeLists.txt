@@ -260,6 +260,28 @@ IF (WITH_ASAN)
   ENDIF()
 ENDIF()
 
+OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
+IF(WITH_MSAN)
+  # TLS model is required because otherwise MSAN has issues with thread local
+  # variable initialization in dynamic libraries
+  SET(MSAN_FLAGS "-fsanitize=memory -fsanitize-memory-track-origins=2 -ftls-model=initial-exec -fPIC -fno-omit-frame-pointer -fsanitize-blacklist=${CMAKE_CURRENT_SOURCE_DIR}/cmake/msan-blacklist.txt")
+  MY_CHECK_C_COMPILER_FLAG("-fsanitize=memory" HAVE_C_MSANITIZE)
+  MY_CHECK_CXX_COMPILER_FLAG("-fsanitize=memory" HAVE_CXX_MSANITIZE)
+  IF(HAVE_C_MSANITIZE AND HAVE_CXX_MSANITIZE)
+    SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} ${MSAN_FLAGS} -O1")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${MSAN_FLAGS}")
+    SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} ${MSAN_FLAGS} -O1")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${MSAN_FLAGS}")
+    SET(WITH_MSAN_OK 1)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer.")
+  ENDIF()
+ENDIF()	
+
 # Always enable debug sync for debug builds.
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DENABLED_DEBUG_SYNC")

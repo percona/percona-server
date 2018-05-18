@@ -446,6 +446,7 @@ dtype_get_fixed_size_low(
 			return(0);
 		}
 #endif /* UNIV_DEBUG */
+		// fallthrough
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
@@ -477,7 +478,8 @@ dtype_get_fixed_size_low(
 #else /* !UNIV_HOTBACKUP */
 		return(len);
 #endif /* !UNIV_HOTBACKUP */
-		/* fall through for variable-length charsets */
+		// fallthrough 
+		// for variable-length charsets 
 	case DATA_VARCHAR:
 	case DATA_BINARY:
 	case DATA_DECIMAL:
@@ -523,6 +525,7 @@ dtype_get_min_size_low(
 			return(0);
 		}
 #endif /* UNIV_DEBUG */
+		// fallthrough
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:

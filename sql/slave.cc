@@ -69,7 +69,12 @@ MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 char* slave_load_tmpdir = 0;
+#endif /* HAVE_REPLICATION */
+
 Master_info *active_mi= 0;
+
+#ifdef HAVE_REPLICATION
+
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
@@ -211,7 +216,7 @@ static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql)
 void init_thread_mask(int* mask,Master_info* mi,bool inverse)
 {
   bool set_io = mi->slave_running, set_sql = mi->rli.slave_running;
-  register int tmp_mask=0;
+  int tmp_mask=0;
   DBUG_ENTER("init_thread_mask");
 
   if (set_io)
@@ -1035,6 +1040,9 @@ const char *print_slave_db_safe(const char* db)
   DBUG_RETURN((db ? db : ""));
 }
 
+#endif /* HAVE_REPLICATION */
+
+
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                                  const char *default_val)
 {
@@ -1106,6 +1114,8 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
   DBUG_RETURN(1);
 }
 
+
+#ifdef HAVE_REPLICATION
 
 /**
    A master info read method
@@ -2148,7 +2158,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->slave_thread = 1;
   thd->enable_slow_log= TRUE;
   set_slave_thread_options(thd);
-  thd->client_capabilities = CLIENT_LOCAL_FILES;
   mysql_mutex_lock(&LOCK_thread_count);
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   mysql_mutex_unlock(&LOCK_thread_count);
@@ -4100,8 +4109,8 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
        TODO: handling `when' for SHOW SLAVE STATUS' snds behind
     */
-    if ((memcmp(mi->master_log_name, hb.get_log_ident(), hb.get_ident_len())
-         && mi->master_log_name != NULL)
+    compile_time_assert(sizeof(mi->master_log_name) / sizeof(void*) > 1);
+    if (memcmp(mi->master_log_name, hb.get_log_ident(), hb.get_ident_len())
         || mi->master_log_pos != hb.log_pos)
     {
       /* missed events of heartbeat from the past */
@@ -4359,7 +4368,8 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir_ptr);
 
   /* we disallow empty users */
-  if (mi->user == NULL || mi->user[0] == 0)
+  compile_time_assert(sizeof(mi->user) / sizeof(void*) > 1);
+  if (mi->user[0] == 0)
   {
     mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                ER(ER_SLAVE_FATAL_ERROR),
@@ -4495,8 +4505,8 @@ MYSQL *rpl_connect_master(MYSQL *mysql)
   /* This one is not strictly needed but we have it here for completeness */
   mysql_options(mysql, MYSQL_SET_CHARSET_DIR, (char *) charsets_dir);
 
-  if (mi->user == NULL
-      || mi->user[0] == 0
+  compile_time_assert(sizeof(mi->user) / sizeof(void*) > 1);
+  if (mi->user[0] == 0
       || io_slave_killed(thd, mi)
       || !mysql_real_connect(mysql, mi->host, mi->user, mi->password, 0,
                              mi->port, 0, 0))

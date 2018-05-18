@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -600,7 +600,7 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
 
 static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
-  reg1 uchar c,sep;
+  uchar c,sep;
   uint found_escape=0;
   CHARSET_INFO *cs= lip->m_thd->charset();
 
@@ -830,7 +830,7 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
-  reg1 uchar c;
+  uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();
@@ -927,9 +927,9 @@ int MYSQLlex(YYSTYPE *yylval, THD *thd)
 
 static int lex_one_token(YYSTYPE *yylval, THD *thd)
 {
-  reg1	uchar c= 0;
+  uchar c= 0;
   bool comment_closed;
-  int	tokval, result_state;
+  int tokval, result_state;
   uint length;
   enum my_lex_states state;
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
@@ -969,6 +969,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	yylval->lex_str.length=2;
 	return NULL_SYM;
       }
+      // fallthrough
     case MY_LEX_CHAR:			// Unknown or single char token
     case MY_LEX_SKIP:			// This should not happen
       if (c == '-' && lip->yyPeek() == '-' &&
@@ -1032,12 +1033,14 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_HEX_NUMBER;
 	break;
       }
+      // fallthrough
     case MY_LEX_IDENT_OR_BIN:
       if (lip->yyPeek() == '\'')
       {                                 // Found b'bin-number'
         state= MY_LEX_BIN_NUMBER;
         break;
       }
+      // fallthrough
     case MY_LEX_IDENT:
       const char *start;
 #if defined(USE_MB) && defined(USE_MB_IDENT)
@@ -1373,6 +1376,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_USER_VARIABLE_DELIMITER;
 	break;
       }
+      // fallthrough
       /* " used for strings */
     case MY_LEX_STRING:			// Incomplete text string
       if (!(yylval->lex_str.str = get_text(lip, 1, 1)))
@@ -2381,7 +2385,8 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_lex_started(0),
+  in_update_value_clause(false)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),

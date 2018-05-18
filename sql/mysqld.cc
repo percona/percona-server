@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -1578,11 +1578,13 @@ void clean_up(bool print_message)
 #ifdef HAVE_RESPONSE_TIME_DISTRIBUTION
   query_response_time_free();
 #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
+#ifndef EMBEDDED_LIBRARY
   free_global_user_stats();
   free_global_client_stats();
   free_global_thread_stats();
   free_global_table_stats();
   free_global_index_stats();
+#endif
 #ifdef HAVE_REPLICATION
   end_slave_list();
 #endif
@@ -3909,8 +3911,10 @@ static int init_server_components()
   init_slave_list();
 #endif
 
+#ifndef EMBEDDED_LIBRARY
   init_global_table_stats();
   init_global_index_stats();
+#endif
 
   /* Setup logs */
 
@@ -4306,9 +4310,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   init_max_user_conn();
   init_update_queries();
+#ifndef EMBEDDED_LIBRARY
   init_global_user_stats();
   init_global_client_stats();
   init_global_thread_stats();
+#endif
   DBUG_RETURN(0);
 }
 
@@ -8333,6 +8339,40 @@ static int test_if_case_insensitive(const char *dir_name)
 static void create_pid_file()
 {
   File file;
+  bool check_parent_path= 1, is_path_accessible= 1;
+  char pid_filepath[FN_REFLEN], *pos= NULL;
+  /* Copy pid file name to get pid file path */
+  strcpy(pid_filepath, pidfile_name);
+
+  /* Iterate through the entire path to check if even one of the sub-dirs
+     is world-writable */
+  while (check_parent_path && (pos= strrchr(pid_filepath, FN_LIBCHAR))
+         && (pos != pid_filepath)) /* shouldn't check root */
+  {
+    *pos= '\0';  /* Trim the inner-most dir */
+    switch (is_file_or_dir_world_writable(pid_filepath))
+    {
+      case -2:
+        is_path_accessible= 0;
+        break;
+      case -1:
+        sql_perror("Can't start server: can't check PID filepath");
+        exit(1);
+      case 1:
+        sql_print_warning("Insecure configuration for --pid-file: Location "
+                          "'%s' in the path is accessible to all OS users. "
+                          "Consider choosing a different directory.",
+                          pid_filepath);
+        check_parent_path= 0;
+        break;
+      case 0:
+        continue; /* Keep checking the parent dir */
+    }
+  }
+  if (!is_path_accessible)
+  {
+    sql_print_warning("Few location(s) are inaccessible while checking PID filepath.");
+  }
   if ((file= mysql_file_create(key_file_pid, pidfile_name, 0664,
                                O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {

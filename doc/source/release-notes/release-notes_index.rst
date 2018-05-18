@@ -7,6 +7,8 @@
    :glob:
 
    Percona-Server-5.5.60-38.12
+   Percona-Server-5.5.59-38.11
+   Percona-Server-5.5.58-38.10
    Percona-Server-5.5.57-38.9
    Percona-Server-5.5.55-38.8
    Percona-Server-5.5.54-38.7

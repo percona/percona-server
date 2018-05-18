@@ -649,7 +649,6 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
   Item_subselect()
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  bool val_bool();
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL

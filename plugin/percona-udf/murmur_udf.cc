@@ -97,8 +97,8 @@ MurmurHash2( const void *key, int len, unsigned int seed ) {
    }
 
    switch (len) {
-      case 3: h2 ^= ((unsigned char*)data)[2] << 16;
-      case 2: h2 ^= ((unsigned char*)data)[1] << 8;
+      case 3: h2 ^= ((unsigned char*)data)[2] << 16; // fallthrough
+      case 2: h2 ^= ((unsigned char*)data)[1] << 8; // fallthrough
       case 1: h2 ^= ((unsigned char*)data)[0];
               h2 *= m;
    };

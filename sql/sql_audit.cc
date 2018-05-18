@@ -120,9 +120,10 @@ static audit_handler_t audit_handlers[] =
   general_class_handler, connection_class_handler
 };
 
+#if !defined(DBUG_OFF) && !defined(_lint)
 static const uint audit_handlers_count=
   (sizeof(audit_handlers) / sizeof(audit_handler_t));
-
+#endif
 
 /**
   Acquire and lock any additional audit plugins as required
@@ -345,8 +346,8 @@ int initialize_audit_plugin(st_plugin_int *plugin)
 {
   st_mysql_audit *data= (st_mysql_audit*) plugin->plugin->info;
   
-  if (!data->class_mask || !data->event_notify ||
-      !data->class_mask[0])
+  compile_time_assert(sizeof(data->class_mask) / sizeof(void*) > 0);
+  if (!data->event_notify || !data->class_mask[0])
   {
     sql_print_error("Plugin '%s' has invalid data.",
                     plugin->name.str);

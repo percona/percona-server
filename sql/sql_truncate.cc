@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -283,7 +283,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("recreate_temporary_table");
 
-  memset(&create_info, 0, sizeof(create_info));
+  memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
 
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
@@ -395,7 +395,7 @@ bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
     if (*hton_can_recreate)
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, FALSE, NULL);
   }
   else
   {

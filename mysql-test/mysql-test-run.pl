@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -345,8 +345,9 @@ main();
 
 sub is_core_dump {
   my $core_name= shift;
-  # Name beginning with core, not ending in .gz, or ending with .dmp on Windows
-  return (($core_name =~ /^core/ and $core_name !~ /\.gz$/)
+  # Name beginning with core, not ending in .gz nor .c, or ending with .dmp on
+  # Windows
+  return (($core_name =~ /^core/ and $core_name !~ /\.gz$|\.c$/)
           or (IS_WINDOWS and $core_name =~ /\.dmp$/));
 }
 
@@ -2373,6 +2374,7 @@ sub environment_setup {
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQL_TEST_DIR_ABS'}= getcwd();
   $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;

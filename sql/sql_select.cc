@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,7 +276,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 #if defined(__linux__)
   pid_t pid;
 #endif
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
 #if defined(__linux__)
   if(lex->disable_flashcache && cachedev_fd > 0)
@@ -1779,7 +1779,7 @@ void JOIN::restore_tmp()
 {
   DBUG_PRINT("info", ("restore_tmp this %p tmp_join %p", this, tmp_join));
   DBUG_ASSERT(tmp_join != this);
-  memcpy(tmp_join, this, (size_t) sizeof(JOIN));
+  memcpy(static_cast<void*>(tmp_join), this, (size_t) sizeof(JOIN));
 }
 
 
@@ -7479,7 +7479,8 @@ static void update_depend_map(JOIN *join, ORDER *order)
   {
     table_map depend_map;
     order->item[0]->update_used_tables();
-    order->depend_map=depend_map=order->item[0]->used_tables();
+    order->depend_map=depend_map=
+      order->item[0]->used_tables() & ~PARAM_TABLE_BIT;
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
@@ -11105,8 +11106,8 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         NullS))
     return 0;
 
-  bzero(table, sizeof(*table));
-  bzero(share, sizeof(*share));
+  bzero(static_cast<void*>(table), sizeof(*table));
+  bzero(static_cast<void*>(share), sizeof(*share));
   table->field= field;
   table->s= share;
   table->temp_pool_slot= MY_BIT_NONE;
@@ -14813,7 +14814,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
 static int
 join_init_cache(THD *thd,JOIN_TAB *tables,uint table_count)
 {
-  reg1 uint i;
+  uint i;
   uint length, blobs;
   size_t size;
   CACHE_FIELD *copy,**blob_ptr;
@@ -15650,6 +15651,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
+  map&= ~PARAM_TABLE_BIT;
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 
@@ -17157,7 +17159,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       if (tab->ref.key_parts)
       {
 	KEY *key_info=table->key_info+ tab->ref.key;
-        register uint length;
+        uint length;
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),
 					    system_charset_info));
@@ -17177,7 +17179,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       else if (tab->type == JT_NEXT)
       {
 	KEY *key_info=table->key_info+ tab->index;
-        register uint length;
+        uint length;
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),cs));
         length= longlong2str(key_info->key_length, keylen_str_buf, 10) - 

@@ -131,6 +131,7 @@ rst_prolog = '''
 
 extlinks = {'bug': ('https://bugs.launchpad.net/percona-server/+bug/%s',
                       '#'), 'mysqlbug': ('http://bugs.mysql.com/bug.php?id=%s',
+                      '#'), 'psbug': ('https://jira.percona.com/browse/PS-%s',
                       '#') }
 
 # -- Options for HTML output ---------------------------------------------------

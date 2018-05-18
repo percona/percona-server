@@ -1026,6 +1026,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto end;
       }
     }
+    // fallthrough
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
@@ -1123,8 +1124,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
                 type_str);
         goto err;
       }
-      /* FALL THROUGH */
     }
+    // fallthrough
     default:
       ev->print(result_file, print_event_info);
       if (head->error == -1)

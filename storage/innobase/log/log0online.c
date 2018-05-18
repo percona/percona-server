@@ -501,9 +501,9 @@ log_online_make_bitmap_name(
 /*=========================*/
 	ib_uint64_t	start_lsn)	/*!< in: the start LSN name part */
 {
-	ut_snprintf(log_bmp_sys->out.name, FN_REFLEN, bmp_file_name_template,
-		    log_bmp_sys->bmp_file_home, bmp_file_name_stem,
-		    log_bmp_sys->out_seq_num, start_lsn);
+	ut_snprintf(log_bmp_sys->out.name, sizeof(log_bmp_sys->out.name), 
+            bmp_file_name_template, log_bmp_sys->bmp_file_home,
+            bmp_file_name_stem, log_bmp_sys->out_seq_num, start_lsn);
 }
 
 /*********************************************************************//**
@@ -1561,10 +1561,10 @@ log_online_open_bitmap_file_read_only(
 	if (srv_data_home_len
 			&& srv_data_home[srv_data_home_len-1]
 			!= SRV_PATH_SEPARATOR) {
-		ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%c%s",
+		ut_snprintf(bitmap_file->name, sizeof(bitmap_file->name), "%s%c%s",
 				srv_data_home, SRV_PATH_SEPARATOR, name);
 	} else {
-		ut_snprintf(bitmap_file->name, FN_REFLEN, "%s%s",
+		ut_snprintf(bitmap_file->name, sizeof(bitmap_file->name), "%s%s",
 				srv_data_home, name);
 	}
 	bitmap_file->file

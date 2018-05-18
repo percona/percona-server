@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/26/2017
+.\"      Date: 03/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD\FR" "8" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLD\FR" "8" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,6 +35,26 @@ mysqld \- the MySQL server
 .SH "DESCRIPTION"
 .PP
 \fBmysqld\fR, also known as MySQL Server, is the main program that does most of the work in a MySQL installation\&. MySQL Server manages access to the MySQL data directory that contains databases and tables\&. The data directory is also the default location for other information such as log files and status files\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+Some installation packages contain a debugging version of the server named
+\fBmysqld\-debug\fR\&. Invoke this version instead of
+\fBmysqld\fR
+for debugging support, memory allocation checking, and trace file support (see
+Section\ \&28.5.1.2, \(lqCreating Trace Files\(rq)\&.
+.sp .5v
+.RE
 .PP
 When MySQL server starts, it listens for network connections from client programs and manages access to databases on behalf of those clients\&.
 .PP

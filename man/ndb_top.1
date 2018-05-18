@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/26/2017
+.\"      Date: 03/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -135,10 +135,174 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.108.\ \& This table describes command\-line options for the ndb_top program
+.B Table\ \&21.100.\ \& This table describes command\-line options for the ndb_top program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--color,
+.PP
+-c
+T}:T{
+Show ASCII graphs in color; use --skip-colors to disable
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--graph,
+.PP
+-g
+T}:T{
+Display data using graphs; use --skip-graphs to disable
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--help,
+.PP
+-?
+T}:T{
+Show program usage information
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--host[=name],
+.PP
+-h
+T}:T{
+Host name or IP address of MySQL Server to connect to
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--measured-load,
+.PP
+-m
+T}:T{
+Show measured load by thread
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--node-id[=#],
+.PP
+-n
+T}:T{
+Watch node having this node ID
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--os-load,
+.PP
+-o
+T}:T{
+Show load measured by operating system
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--passwd[=password],
+.PP
+-p
+T}:T{
+Connect using this password; DEPRECATED
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--port[=#],
+.PP
+-t
+T}:T{
+Port number to use when connecting to MySQL Server
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--sleep-time[=seconds],
+.PP
+-s
+T}:T{
+Time to wait between display refreshes, in seconds
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--sort,
+.PP
+-r
+T}:T{
+Sort threads by usage; use --skip-sort to disable
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--text,
+.PP
+-x
+T}:T{
+Display data using text
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
+T{
+.PP
+--user[=name],
+.PP
+-u
+T}:T{
+Connect as this MySQL user
+T}:T{
+.PP
+ADDED: NDB 7.6.3
+T}
 .TE
 .sp 1
 Additional Options
@@ -155,28 +319,33 @@ Additional Options
 \fB\-c\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--color
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-color
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -200,28 +369,33 @@ to disable\&.
 \fB\-g\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--graph
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-graph
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -247,28 +421,33 @@ must be true; both options may be true\&.
 \fB\-?\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--help
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-help
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -290,28 +469,33 @@ Show program usage information\&.
 \fB\-h\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--host[=name]
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-host[=name]
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 localhost
@@ -333,28 +517,33 @@ Host name or IP address of MySQL Server to connect to\&.
 \fB\-m\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--measured-load
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-measured\-load
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -378,28 +567,33 @@ must be true; both options may be true\&.
 \fB\-n\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--node-id[=#]
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-node\-id[=#]
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 1
@@ -421,28 +615,33 @@ Watch the data node having this node ID\&.
 \fB\-o\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--os-load
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-os\-load
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -466,34 +665,39 @@ must be true; both options may be true\&.
 \fB\-p\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--passwd[=password]
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
 \fBDeprecated\fR
 T}:T{
-5\&.7\&.20\-ndb\-7\&.6\&.4
+5.7.20-ndb-7.6.4
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-passwd[=password]
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 NULL
@@ -530,28 +734,33 @@ This option is deprecated in NDB 7\&.6\&.4, and subject to removal in a future r
 \fB\-t\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--port[=#]
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-port[=#]
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 3306
@@ -573,28 +782,33 @@ Port number to use when connecting to MySQL Server\&.
 \fB\-s\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--sleep-time[=seconds]
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-sleep\-time[=seconds]
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 integer
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 1
@@ -616,28 +830,33 @@ Time to wait between display refreshes, in seconds\&.
 \fB\-r\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--sort
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-sort
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -661,28 +880,33 @@ to disable\&.
 \fB\-x\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--text
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-text
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -706,28 +930,33 @@ must be true; both options may be true\&.
 \fB\-u\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--user[=name]
+T}
 T{
 \fBIntroduced\fR
 T}:T{
-5\&.7\&.19\-ndb\-7\&.6\&.3
+5.7.19-ndb-7.6.3
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-user[=name]
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 root
@@ -753,7 +982,8 @@ to provide both text and graph output:
 [IMAGE]\&\s-2\u[1]\d\s+2
 [IMAGE]\&\s-2\u[1]\d\s+2
 Display from ndb_top, running in a
-            terminal window\&.
+            terminal window\&. Shows information for each node, including
+            the utilized resources\&.
 .RE
 .SH "COPYRIGHT"
 .br

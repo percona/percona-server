@@ -1,3 +1,4 @@
+set rocksdb_max_row_locks=6000000;
 CREATE TABLE t1(pk CHAR(5) PRIMARY KEY, a char(30), b char(30)) ENGINE=ROCKSDB COLLATE 'latin1_bin';
 set rocksdb_bulk_load=1;
 set rocksdb_bulk_load_size=100000;

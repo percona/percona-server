@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5225,9 +5225,10 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       event with server_id '0' then  we don't update the last_master_timestamp.
 
       In case of parallel execution last_master_timestamp is only updated when
-      an event is taken out of GAQ. Thus when last_master_timestamp is 0 we need
-      to initialize it with a timestamp from the first event to be executed in
-      parallel.
+      a job is taken out of GAQ. Thus when last_master_timestamp is 0 (which
+      indicates that GAQ is empty, all slave workers are waiting for events from
+      the Coordinator), we need to initialize it with a timestamp from the first
+      event to be executed in parallel.
     */
     if ((!rli->is_parallel_exec() || rli->last_master_timestamp == 0) &&
          !(ev->is_artificial_event() || ev->is_relay_log_event() ||
@@ -6887,10 +6888,18 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     cnt is zero. This value means that the checkpoint information
     will be completely reset.
   */
+
+  /*
+    Update the rli->last_master_timestamp for reporting correct Seconds_behind_master.
+
+    If GAQ is empty, set it to zero.
+    Else, update it with the timestamp of the first job of the Slave_job_queue
+    which was assigned in the Log_event::get_slave_worker() function.
+  */
   ts= rli->gaq->empty()
     ? 0
     : reinterpret_cast<Slave_job_group*>(rli->gaq->head_queue())->ts;
-  rli->reset_notified_checkpoint(cnt, &ts, need_data_lock);
+  rli->reset_notified_checkpoint(cnt, ts, need_data_lock, true);
   /* end-of "Coordinator::"commit_positions" */
 
 end:
@@ -8295,9 +8304,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       a warning message. We are taking care of avoiding transaction boundary
       issues, but it can happen.
 
-      Transaction boundary errors might happen only because of bad master
+      Transaction boundary errors might happen mostly because of bad master
       positioning in 'CHANGE MASTER TO' (or bad manipulation of master.info)
-      when GTID auto positioning is off.
+      when GTID auto positioning is off. Errors can also happen when using
+      cross-version replication, replicating from a master that supports more
+      event types than this slave.
 
       The IO thread will keep working and queuing events regardless of the
       transaction parser error, but we will throw another warning message to
@@ -8308,8 +8319,6 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       "An unexpected event sequence was detected by the IO thread while "
       "queuing the event received from master '%s' binary log file, at "
       "position %llu.", mi->get_master_log_name(), mi->get_master_log_pos());
-
-    DBUG_ASSERT(!mi->is_auto_position());
   }
 
   if (mi->get_mi_description_event()->binlog_version < 4 &&
@@ -10013,21 +10022,18 @@ bool start_slave(THD* thd,
 
   mi->channel_wrlock();
 
+#if !defined(EMBEDDED_LIBRARY)
   if (connection_param->user ||
       connection_param->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    if (!thd->get_protocol()->get_ssl())
+    if (!thd->get_ssl())
+    {
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER(ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    push_warning(thd, Sql_condition::SL_NOTE,
-                 ER_INSECURE_PLAIN_TEXT,
-                 ER(ER_INSECURE_PLAIN_TEXT));
-#endif
+    }
   }
+#endif
 
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
   // Get a mask of _stopped_ threads
@@ -10800,16 +10806,13 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
 
   if (lex_mi->user || lex_mi->password)
   {
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    if (!thd->get_protocol()->get_ssl())
+#if !defined(EMBEDDED_LIBRARY)
+    if (!thd->get_ssl())
+    {
       push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER(ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    push_warning(thd, Sql_condition::SL_NOTE,
-                 ER_INSECURE_PLAIN_TEXT,
-                 ER(ER_INSECURE_PLAIN_TEXT));
+    }
 #endif
     push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_CHANGE_MASTER,

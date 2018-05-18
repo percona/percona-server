@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/26/2017
+.\"      Date: 03/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,10 +50,172 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.86.\ \& This table describes command\-line options for the ndbd program
+.B Table\ \&21.78.\ \& This table describes command\-line options for the ndbd program
 .TS
 allbox tab(:);
-.
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added or Removed
+T}
+.T&
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
+T{
+.PP
+--initial
+T}:T{
+Perform initial start of ndbd, including cleaning the file system.
+          Consult the documentation before using this option
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--nostart,
+.PP
+-n
+T}:T{
+Don't start ndbd immediately; ndbd waits for command to start from
+          ndb_mgmd
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--daemon,
+.PP
+-d
+T}:T{
+Start ndbd as daemon (default); override with --nodaemon
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--nodaemon
+T}:T{
+Do not start ndbd as daemon; provided for testing purposes
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--foreground
+T}:T{
+Run ndbd in foreground, provided for debugging purposes (implies
+          --nodaemon)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--nowait-nodes=list
+T}:T{
+Do not wait for these data nodes to start (takes comma-separated list of
+          node IDs). Also requires --ndb-nodeid to be used.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--initial-start
+T}:T{
+Perform partial initial start (requires --nowait-nodes)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--bind-address=name
+T}:T{
+Local bind address
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--install[=name]
+T}:T{
+Used to install the data node process as a Windows service. Does not
+          apply on non-Windows platforms.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--remove[=name]
+T}:T{
+Used to remove a data node process that was previously installed as a
+          Windows service. Does not apply on non-Windows platforms.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--connect-retries=#
+T}:T{
+Set the number of times to retry a connection before giving up; 0 means
+          1 attempt only (and no retries)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--connect-delay=#
+T}:T{
+Time to wait between attempts to contact a management server, in
+          seconds; 0 means do not wait between attempts
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--connect-retry-delay=#
+T}:T{
+Time to wait between attempts to contact a management server, in
+          seconds; 0 means do not wait between attempts
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+--verbose,
+-v
+T}:T{
+Write extra debug output to node log
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
 .TE
 .sp 1
 .if n \{\
@@ -88,22 +250,27 @@ wherever the latter occurs in this section\&.
 \fB\-\-bind\-address\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-bind\-address=name
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--bind-address=name
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -126,22 +293,27 @@ to bind to a specific network interface (host name or IP address)\&. This option
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-daemon
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--daemon
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -174,22 +346,27 @@ on Windows platforms\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-nodaemon
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nodaemon
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -222,22 +399,27 @@ on Windows is to run in the foreground, making this option unnecessary on Window
 \fB\-\-foreground\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-foreground
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--foreground
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -270,22 +452,27 @@ on Windows platforms\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-initial
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--initial
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -430,22 +617,27 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-initial\-start
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--initial-start
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -503,22 +695,27 @@ option for
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-nowait\-nodes=list
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nowait-nodes=list
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 T}
@@ -553,22 +750,27 @@ If you wanted to start up the same cluster as in the previous example without on
 \fB\-n\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-nostart
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--nostart
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -596,14 +798,21 @@ Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 \fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-install[=name]
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--install[=name]
 T}
 T{
 \fBPlatform Specific\fR
@@ -611,13 +820,11 @@ T}:T{
 Windows
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 ndbd
@@ -664,14 +871,21 @@ option has no effect on non\-Windows platforms\&.
 \fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-remove[=name]
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--remove[=name]
 T}
 T{
 \fBPlatform Specific\fR
@@ -679,13 +893,11 @@ T}:T{
 Windows
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 string
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 ndbd
@@ -710,37 +922,62 @@ option has no effect on non\-Windows platforms\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-verbose\fR,
+\fB\-v\fR
+.sp
+Causes extra debug output to be written to the node log\&.
+.sp
+In NDB 7\&.6\&.4 and later, you can also use
+NODELOG DEBUG ON
+and
+NODELOG DEBUG OFF
+to enable and disable this extra logging while the data node is running\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-connect\-retries=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-connect\-retries=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-retries=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 12
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 65535
@@ -763,40 +1000,45 @@ option\&.
 \fB\-\-connect\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-delay=#
+T}
 T{
 \fBDeprecated\fR
 T}:T{
-5\&.6\&.28\-ndb\-7\&.4\&.9
+5.6.28-ndb-7.4.9
 T}
 T{
-\fBCommand\-Line Format\fR
-T}:T{
-\-\-connect\-delay=#
-T}
-T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 5
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 3600
@@ -823,34 +1065,39 @@ instead\&.
 \fB\-\-connect\-retry\-delay=\fR\fB\fI#\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-connect\-retry\-delay=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--connect-retry-delay=#
 T}
 T{
-\fBPermitted Values\fR
-T}:T{
 \fBType\fR
 T}:T{
 numeric
 T}
-:T{
+T{
 \fBDefault\fR
 T}:T{
 5
 T}
-:T{
+T{
 \fBMinimum\fR
 T}:T{
 0
 T}
-:T{
+T{
 \fBMaximum\fR
 T}:T{
 4294967295

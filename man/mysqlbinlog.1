@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 12/26/2017
+.\"      Date: 03/03/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "12/26/2017" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -296,35 +296,40 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-binlog\-row\-event\-max\-size=\fR\fB\fIN\fR\fR
 .TS
 allbox tab(:);
-l l s s
-l l l s
-^ l l s
-^ l l s
-^ l l s.
+lB lB.
 T{
-\fBCommand\-Line Format\fR
+Property
 T}:T{
-\-\-binlog\-row\-event\-max\-size=#
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--binlog-row-event-max-size=#
 T}
 T{
-\fBPermitted Values\fR (64\-bit platforms)
-T}:T{
-\fBType\fR
+\fBType\fR (64-bit platforms)
 T}:T{
 numeric
 T}
-:T{
-\fBDefault\fR
+T{
+\fBDefault\fR (64-bit platforms)
 T}:T{
 4294967040
 T}
-:T{
-\fBMinimum\fR
+T{
+\fBMinimum\fR (64-bit platforms)
 T}:T{
 256
 T}
-:T{
-\fBMaximum\fR
+T{
+\fBMaximum\fR (64-bit platforms)
 T}:T{
 18446744073709547520
 T}
@@ -344,7 +349,7 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4

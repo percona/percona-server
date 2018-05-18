@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,8 @@
 
 #include <memory>
 #include "mysql/thread_type.h"
+
+#include "violite.h"                       /* SSL_handle */
 
 #include "query_strip_comments.h"
 #include "sql_thd_internal_api.h"
@@ -616,6 +618,11 @@ typedef struct system_variables
   uint  threadpool_high_prio_tickets;
   ulong threadpool_high_prio_mode;
   ulong   session_track_transaction_info;
+  /**
+    Used for the verbosity of SHOW CREATE TABLE. Currently used for displaying
+    the row format in the output even if the table uses default row format.
+  */
+  my_bool show_create_table_verbosity;
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
     the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
@@ -1885,6 +1892,22 @@ public:
     return m_protocol;
   }
 
+  SSL_handle get_ssl() const
+  {
+#ifndef DBUG_OFF
+    if (current_thd != this)
+    {
+      /*
+        When inspecting this thread from monitoring,
+        the monitoring thread MUST lock LOCK_thd_data,
+        to be allowed to safely inspect SSL status variables.
+      */
+      mysql_mutex_assert_owner(&LOCK_thd_data);
+    }
+#endif
+    return m_SSL;
+  }
+
   /**
     Asserts that the protocol is of type text or binary and then
     returns the m_protocol casted to Protocol_classic. This method
@@ -1905,6 +1928,17 @@ public:
 
 private:
   Protocol *m_protocol;           // Current protocol
+  /**
+    SSL data attached to this connection.
+    This is an opaque pointer,
+    When building with SSL, this pointer is non NULL
+    only if the connection is using SSL.
+    When building without SSL, this pointer is always NULL.
+    The SSL data can be inspected to read per thread
+    status variables,
+    and this can be inspected while the thread is running.
+  */
+  SSL_handle m_SSL;
 
 public:
   /**
@@ -3306,10 +3340,22 @@ public:
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
+  inline void set_ssl(Vio* vio)
+  {
+#ifdef HAVE_OPENSSL
+    mysql_mutex_lock(&LOCK_thd_data);
+    m_SSL = (SSL*) vio->ssl_arg;
+    mysql_mutex_unlock(&LOCK_thd_data);
+#else
+    m_SSL = NULL;
+#endif
+  }
+
   inline void clear_active_vio()
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
+    m_SSL = NULL;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 

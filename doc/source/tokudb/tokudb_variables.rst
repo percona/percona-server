@@ -928,10 +928,11 @@ for bulk loader.
   :scope: Global/Session
   :dyn: Yes
   :vartype: Boolean
-  :default: Off
+  :default: OFF
 
-Enables the fast updates feature, which substantially facilitates execution of
-read-modify-write style queries.
+Toggles the fast updates feature ON/OFF for the ``UPDATE`` statement. Fast
+update involves queries optimization to avoid random reads during their
+execution.
 
 .. variable:: tokudb_enable_fast_upsert
 
@@ -940,9 +941,11 @@ read-modify-write style queries.
   :scope: Global/Session
   :dyn: Yes
   :vartype: Boolean
-  :default: Off
+  :default: OFF
 
-Enables processing upsert messages for the fast updates feature.
+Toggles the fast updates feature ON/OFF for the ``INSERT`` statement. Fast
+update involves queries optimization to avoid random reads during their
+execution.
 
 .. variable:: tokudb_enable_partial_eviction
 

@@ -332,6 +332,7 @@ extern ulong connection_errors_peer_addr;
 #endif
 extern ulong log_warnings;
 extern my_bool encrypt_binlog;
+extern my_bool encrypt_tmp_files;
 extern bool  opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
 #ifndef _WIN32

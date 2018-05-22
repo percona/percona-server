@@ -67,6 +67,12 @@ enum my_aes_opmode
 /** String representations of the supported AES modes. Keep in sync with my_aes_opmode */
 extern const char *my_aes_opmode_names[];
 
+#ifdef __cplusplus
+  #define CPP_DEFAULT_PARAM(v) = v
+#else
+  #define CPP_DEFAULT_PARAM(v)
+#endif
+
 /**
   Encrypt a buffer using AES
 
@@ -83,9 +89,9 @@ extern const char *my_aes_opmode_names[];
 
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
-		   const unsigned char *key, uint32 key_length,
+                   const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding = true);
+                   my_bool padding CPP_DEFAULT_PARAM(TRUE));
 
 /**
   Decrypt an AES encrypted buffer
@@ -106,7 +112,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding = true);
+                   my_bool padding CPP_DEFAULT_PARAM(TRUE));
 
 /**
   Calculate the size of a buffer large enough for encrypted data
@@ -129,7 +135,7 @@ int my_aes_get_size(uint32 source_length, enum my_aes_opmode mode);
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode);
+my_bool my_aes_needs_iv(enum my_aes_opmode opmode);
 
 
 C_MODE_END

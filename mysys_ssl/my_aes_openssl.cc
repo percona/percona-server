@@ -120,7 +120,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding)
+                   my_bool padding)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX ctx_value;
@@ -182,7 +182,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding)
+                   my_bool padding)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX ctx_value;
@@ -238,7 +238,7 @@ aes_error:
   return MY_AES_BAD_DATA;
 }
 
-int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
+int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   size_t block_size;
@@ -261,7 +261,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+my_bool my_aes_needs_iv(enum my_aes_opmode opmode)
 {
   const EVP_CIPHER *cipher= aes_evp_type(opmode);
   int iv_length;

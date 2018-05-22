@@ -2871,7 +2871,7 @@ innobase_trx_init(
 	trx->check_unique_secondary = !thd_test_options(
 		thd, OPTION_RELAXED_UNIQUE_CHECKS);
 
-	trx->take_stats = innobase_slow_log_verbose(thd);
+	trx->stats.set(innobase_slow_log_verbose(thd));
 
 	DBUG_VOID_RETURN;
 }
@@ -2948,11 +2948,11 @@ InnoDB extended statistics should be collected.
 trx_t*
 innobase_get_trx_for_slow_log(void)
 {
-	THD* thd = current_thd;
+	THD *thd = current_thd;
 	if (UNIV_LIKELY(!innobase_slow_log_verbose(thd)))
 		return(NULL);
-	trx_t* trx = thd_to_trx(thd);
-	if (trx && trx->take_stats)
+	trx_t *trx = thd_to_trx(thd);
+	if (trx && UNIV_UNLIKELY(trx->stats.enabled()))
 		return(trx);
 	return(NULL);
 }
@@ -16820,28 +16820,6 @@ ha_innobase::external_lock(
 	statement has ended */
 
 	if (trx->n_mysql_tables_in_use == 0) {
-
-		if (UNIV_UNLIKELY(trx->take_stats)) {
-			increment_thd_innodb_stats(thd,
-						   static_cast<unsigned long long>(trx->id ? trx->id : trx->id_saved),
-						   trx->io_reads,
-						   trx->io_read,
-						   trx->io_reads_wait_timer,
-						   trx->lock_que_wait_timer,
-						   trx->innodb_que_wait_timer,
-						   trx->distinct_page_access);
-
-			trx->id_saved = 0;
-			trx->io_reads = 0;
-			trx->io_read = 0;
-			trx->io_reads_wait_timer = 0;
-			trx->lock_que_wait_timer = 0;
-			trx->innodb_que_wait_timer = 0;
-			trx->distinct_page_access = 0;
-			if (trx->distinct_page_access_hash)
-				memset(trx->distinct_page_access_hash, 0,
-				       DPAH_SIZE);
-		}
 
 		trx->mysql_n_tables_locked = 0;
 		m_prebuilt->used_in_HANDLER = FALSE;

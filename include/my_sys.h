@@ -83,7 +83,7 @@ C_MODE_START
 #define MY_WAIT_IF_FULL 32	/* Wait and try again if disk full error */
 #define MY_IGNORE_BADFD 32      /* my_sync: ignore 'bad descriptor' errors */
 #define MY_SYNC_DIR     8192    /* my_create/delete/rename: sync directory */
-#define MY_UNUSED       64      /* Unused (was support for RAID) */
+#define MY_ENCRYPT      64      /* Encrypt IO_CACHE temporary files */
 #define MY_FULL_IO     512      /* For my_read - loop intil I/O is complete */
 #define MY_DONT_CHECK_FILESIZE 128 /* Option to init_io_cache() */
 #define MY_LINK_WARNING 32	/* my_redel() gives warning if links */
@@ -780,6 +780,15 @@ extern void my_qsort2(void *base_ptr, size_t total_elems, size_t size,
                       qsort2_cmp cmp, const void *cmp_argument);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
+
+typedef int (*io_cache_encr_read_function)(IO_CACHE*, uchar*, size_t);
+typedef int (*io_cache_encr_write_function)(IO_CACHE*, const uchar*, size_t);
+extern void init_io_cache_encryption_ext(
+  io_cache_encr_read_function read_function,
+  io_cache_encr_write_function write_function,
+  size_t encr_block_size, size_t encr_header_size);
+extern void init_io_cache_encryption(my_bool enable);
+
 MY_NODISCARD
 extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,
                              enum cache_type type,my_off_t seek_offset,

@@ -200,9 +200,15 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
 
 size_t my_b_fill(IO_CACHE *info)
 {
-  my_off_t pos_in_file=(info->pos_in_file+
-			(size_t) (info->read_end - info->buffer));
+  my_off_t pos_in_file;
   size_t diff_length, length, max_length;
+
+  if (info->myflags & MY_ENCRYPT)
+  {
+    DBUG_ASSERT(info->read_pos == info->read_end);
+    return _my_b_read(info, 0, 0) ? 0 : info->read_end - info->read_pos;
+  }
+  pos_in_file= info->pos_in_file + (size_t) (info->read_end - info->buffer);
 
   if (info->seek_not_done)
   {					/* File touched, do seek */
@@ -240,6 +246,13 @@ size_t my_b_fill(IO_CACHE *info)
 
 int my_b_pread(IO_CACHE *info, uchar *Buffer, size_t Count, my_off_t pos)
 {
+  if (info->myflags & MY_ENCRYPT)
+  {
+    my_b_seek(info, pos);
+    return my_b_read(info, Buffer, Count);
+  }
+
+  /* backward compatibility behavior. XXX remove it? */
   if (mysql_file_pread(info->file, Buffer, Count, pos,
                        info->myflags | MY_NABP))
     return info->error= -1;

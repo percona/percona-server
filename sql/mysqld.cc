@@ -610,6 +610,8 @@ char server_version_suffix[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 my_bool encrypt_binlog;
 
+my_bool encrypt_tmp_files;
+
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name= "<left expr>";
 /** name of additional condition */
@@ -5274,6 +5276,8 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init())
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  init_io_cache_encryption(encrypt_tmp_files);
 
 #ifdef _WIN32
 #ifndef EMBEDDED_LIBRARY

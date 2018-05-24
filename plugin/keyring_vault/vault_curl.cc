@@ -178,23 +178,37 @@ bool Vault_curl::setup_curl_session(CURL *curl)
 
   last_ping_time = my_timer_milliseconds();
 
-  if ((list = curl_slist_append(list, token_header.c_str())) == NULL ||
-      (list = curl_slist_append(list, "Content-Type: application/json")) == NULL ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_response_memory)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_WRITEDATA, static_cast<void*>(&read_data_ss))) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L)) != CURLE_OK ||
+  if ((list= curl_slist_append(list, token_header.c_str())) == NULL ||
+      (list= curl_slist_append(list, "Content-Type: application/json")) ==
+          NULL ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curl_errbuf)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
+                                  write_response_memory)) != CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_WRITEDATA,
+                                  static_cast<void *>(&read_data_ss))) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L)) !=
+          CURLE_OK ||
       (!vault_ca.empty() &&
-       (curl_res = curl_easy_setopt(curl, CURLOPT_CAINFO, vault_ca.c_str())) != CURLE_OK
-      ) ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout)) != CURLE_OK ||
-      (curl_res = curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) != CURLE_OK
-     )
+       (curl_res= curl_easy_setopt(curl, CURLOPT_CAINFO, vault_ca.c_str())) !=
+           CURLE_OK) ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION,
+                                  progress_callback)) != CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, timeout)) !=
+          CURLE_OK ||
+      (curl_res= curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout)) !=
+          CURLE_OK)
   {
     logger->log(MY_ERROR_LEVEL, get_error_from_curl(curl_res).c_str());
     return true;

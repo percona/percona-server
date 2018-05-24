@@ -51,3 +51,15 @@ MACRO(MYSQL_CHECK_CURL)
    ENDIF()
   ENDIF()
 ENDMACRO()
+
+MACRO (CHECK_IF_CURL_DEPENDS_ON_RTMP project_name)
+  EXECUTE_PROCESS(COMMAND ldd ${CURL_LIBRARY}
+                  COMMAND grep rtmp
+                  OUTPUT_VARIABLE CURL_DEPENDS_ON_RTMP)
+  IF (NOT CURL_DEPENDS_ON_RTMP STREQUAL "")
+    message(WARNING "Not building ${project_name}. The supplied CURL library depends on rtmp library.
+Please provide CURL library that does not depend on rtmp library to build keyring_vault unittests.")
+    RETURN()
+  ENDIF()
+ENDMACRO()
+

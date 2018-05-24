@@ -1101,13 +1101,19 @@ int main(int argc, char **argv)
 
   keyring__vault_keys_container_unittest::logger = new keyring::Mock_logger();
   keyring::Vault_mount vault_mount(curl, keyring__vault_keys_container_unittest::logger);
+  std::string mount_point_path=
+      "cicd/" + keyring__vault_keys_container_unittest::uuid;
 
-  if (generate_credential_file(keyring__vault_keys_container_unittest::credential_file_url, CORRECT, keyring__vault_keys_container_unittest::uuid))
+  if (generate_credential_file(
+          keyring__vault_keys_container_unittest::credential_file_url,
+          CORRECT, mount_point_path))
   {
     std::cout << "Could not generate credential file" << std::endl;
     return 2; 
   }
-  if (vault_mount.init(&keyring__vault_keys_container_unittest::credential_file_url, &keyring__vault_keys_container_unittest::uuid))
+  if (vault_mount.init(
+          &keyring__vault_keys_container_unittest::credential_file_url,
+          &mount_point_path))
   {
     std::cout << "Could not initialize Vault_mount" << std::endl;
     return 3; 

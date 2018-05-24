@@ -6,7 +6,7 @@
 
 namespace keyring {
 
-struct Vault_key final : public Key, public ISerialized_object {
+struct Vault_key : public Key, public ISerialized_object {
   Vault_key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
             const void *a_key, size_t a_key_len) noexcept
       : Key(a_key_id, a_key_type, a_user_id, a_key, a_key_len),

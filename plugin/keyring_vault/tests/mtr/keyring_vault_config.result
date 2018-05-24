@@ -1,5 +1,5 @@
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'Could not open file with credentials.'");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_vault reported: 'File '../../../../../bad_dir/bad_keyring_vault.conf' not found");
+call mtr.add_suppression("Plugin keyring_vault reported: 'Could not open file with credentials.'");
+call mtr.add_suppression("Plugin keyring_vault reported: 'File '../../../../../bad_dir/bad_keyring_vault.conf' not found");
 # restart:--plugin_load=keyring_vault=keyring_vault.so --loose-keyring_vault_config=MYSQLTEST_VARDIR/std_data/keyring_vault_confs/keyring_vault1.conf KEYRING_VAULT_PLUGIN_OPT
 SELECT @@global.keyring_vault_config;
 @@global.keyring_vault_config

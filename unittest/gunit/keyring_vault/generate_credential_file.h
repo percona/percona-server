@@ -13,7 +13,8 @@ static bool generate_credential_file(
     const std::string &secret_mount_point = "") {
   std::remove(credential_file_path.c_str());
   const char *mysql_test_dir(getenv("MYSQL_TEST_DIR"));
-  if (mysql_test_dir == NULL) return true;
+  const char *vault_token(getenv("MTR_VAULT_TOKEN"));
+  if (mysql_test_dir == nullptr || vault_token == nullptr) return true;
   std::string credential_file_template_path = mysql_test_dir;
   credential_file_template_path +=
       "/std_data/keyring_vault_confs/keyring_vault_ut.conf";
@@ -23,9 +24,12 @@ static bool generate_credential_file(
   if (!credentials_file_template || !credentials_file) return true;
   std::string line;
   while (!getline(credentials_file_template, line).fail()) {
-    if (generate_credetials == WITH_INVALID_TOKEN &&
-        line.find("token") != std::string::npos)
-      line = "token = 123-123-123";
+    if (line.find("token") != std::string::npos) {
+      if (generate_credetials == WITH_INVALID_TOKEN)
+        line = "token = 123-123-123";
+      else
+        (line = "token = ").append(vault_token);
+    }
     if (secret_mount_point.empty() == false &&
         line.find("secret_mount_point") != std::string::npos)
       line = "secret_mount_point = " + secret_mount_point;

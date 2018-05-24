@@ -28,7 +28,7 @@
 
 namespace keyring {
 
-static const constexpr size_t max_response_size = 32000000;
+static constexpr size_t max_response_size = 32000000;
 static MY_TIMER_INFO curl_timer_info;
 static ulonglong last_ping_time;
 static bool was_thd_wait_started = false;
@@ -187,6 +187,8 @@ bool Vault_curl::setup_curl_session(CURL *curl) {
        (curl_res = curl_easy_setopt(curl, CURLOPT_CAINFO, vault_ca.c_str())) !=
            CURLE_OK) ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL)) !=
+          CURLE_OK ||
+      (curl_res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L)) !=
           CURLE_OK ||
       (curl_res = curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION,
                                    progress_callback)) != CURLE_OK ||

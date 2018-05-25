@@ -329,6 +329,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif // HAVE_RESPONSE_TIME_DISTRIBUTION
   if (options & REFRESH_USER_RESOURCES)
     reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+#ifndef EMBEDDED_LIBRARY
   if (options & REFRESH_TABLE_STATS)
   {
     mysql_mutex_lock(&LOCK_global_table_stats);
@@ -363,6 +364,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
     mysql_mutex_unlock(&LOCK_global_user_client_stats);
   }
+#endif
   if (options & REFRESH_FLUSH_PAGE_BITMAPS)
   {
     result= ha_flush_changed_page_bitmaps();

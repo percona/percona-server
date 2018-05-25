@@ -2468,6 +2468,7 @@ case SQLCOM_PREPARE:
       break;
     }
   }
+  // fallthrough
   case SQLCOM_PURGE_BEFORE:
   {
     Item *it;
@@ -3107,8 +3108,8 @@ end_with_restore_list:
     /* mysql_update return 2 if we need to switch to multi-update */
     if (up_result != 2)
       break;
-    /* Fall through */
   }
+  // fallthrough
   case SQLCOM_UPDATE_MULTI:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3218,6 +3219,7 @@ end_with_restore_list:
       DBUG_PRINT("debug", ("Just after generate_incident()"));
     }
 #endif
+    // fallthrough
   case SQLCOM_INSERT:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3944,6 +3946,7 @@ end_with_restore_list:
       initialize this variable because RESET shares the same code as FLUSH
     */
     lex->no_write_to_binlog= 1;
+    // fallthrough
   case SQLCOM_FLUSH:
   {
     int write_to_binlog;
@@ -4028,8 +4031,8 @@ end_with_restore_list:
     LEX_USER *grant_user= get_current_user(thd, lex->grant_user);
     if (!grant_user)
       goto error;
-    if ((thd->security_ctx->priv_user &&
-	 !strcmp(thd->security_ctx->priv_user, grant_user->user.str)) ||
+    compile_time_assert(sizeof(thd->security_ctx->priv_user) / sizeof(void*) > 1);
+    if (!strcmp(thd->security_ctx->priv_user, grant_user->user.str) ||
         !check_access(thd, SELECT_ACL, "mysql", NULL, NULL, 1, 0))
     {
       res = mysql_show_grants(thd, grant_user);
@@ -6178,7 +6181,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   if (unlikely(opt_userstat))
   {
     thd->update_stats(true);
+#ifndef EMBEDDED_LIBRARY
     update_global_user_stats(thd, true, time(NULL));
+#endif
   }
 
   DBUG_VOID_RETURN;
@@ -6236,7 +6241,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register Create_field *new_field;
+  Create_field *new_field;
   LEX  *lex= thd->lex;
   DBUG_ENTER("add_field_to_list");
 
@@ -6392,7 +6397,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     List<Index_hint> *index_hints_arg,
                                              LEX_STRING *option)
 {
-  register TABLE_LIST *ptr;
+  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;

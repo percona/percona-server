@@ -18,8 +18,8 @@ Supported Releases:
 
  * 14.04LTS (trusty)
  * 16.04LTS (xenial)
- * 16.10 (yakkety)
  * 17.04 (zesty)
+ * 17.10 (artful)
 
 Supported Platforms:
 

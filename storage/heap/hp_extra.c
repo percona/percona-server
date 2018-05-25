@@ -21,19 +21,20 @@
 
 #include "heapdef.h"
 
-static void heap_extra_keyflag(register HP_INFO *info,
+static void heap_extra_keyflag(HP_INFO *info,
                                enum ha_extra_function function);
 
 
 	/* set extra flags for database */
 
-int heap_extra(register HP_INFO *info, enum ha_extra_function function)
+int heap_extra(HP_INFO *info, enum ha_extra_function function)
 {
   DBUG_ENTER("heap_extra");
 
   switch (function) {
   case HA_EXTRA_RESET_STATE:
     heap_reset(info);
+    break;
   case HA_EXTRA_NO_READCHECK:
     info->opt_flag&= ~READ_CHECK_USED;	/* No readcheck */
     break;
@@ -64,7 +65,7 @@ int heap_reset(HP_INFO *info)
 /*
     Start/Stop Inserting Duplicates Into a Table, WL#1648.
  */
-static void heap_extra_keyflag(register HP_INFO *info,
+static void heap_extra_keyflag(HP_INFO *info,
                                enum ha_extra_function function)
 {
   uint  idx;

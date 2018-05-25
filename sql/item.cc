@@ -5416,7 +5416,8 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
                               collation.collation);
       break;
     }
-    /* Fall through to make_string_field() */
+    // fallthrough
+    // to make_string_field() 
   case MYSQL_TYPE_ENUM:
   case MYSQL_TYPE_SET:
   case MYSQL_TYPE_VAR_STRING:
@@ -7034,7 +7035,9 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   }
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     goto error;
-  memcpy(def_field, field_arg->field, field_arg->field->size_of());
+  memcpy(static_cast<void*>(def_field),
+         static_cast<void*>(field_arg->field),
+         field_arg->field->size_of());
   def_field->move_field_offset((my_ptrdiff_t)
                                (def_field->table->s->default_values -
                                 def_field->table->record[0]));
@@ -7136,7 +7139,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == INSERT_VALUE_ITEM &&
-    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+    ((Item_insert_value *)item)->arg->eq(arg, binary_cmp);
 }
 
 
@@ -7165,12 +7168,15 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
 
   Item_field *field_arg= (Item_field *)arg;
 
-  if (field_arg->field->table->insert_values)
+  if (field_arg->field->table->insert_values &&
+      thd->lex->in_update_value_clause)
   {
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
     if (!def_field)
-      return TRUE;
-    memcpy(def_field, field_arg->field, field_arg->field->size_of());
+      return true;
+    memcpy(static_cast<void*>(def_field),
+           static_cast<void*>(field_arg->field),
+           field_arg->field->size_of());
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));
@@ -7178,17 +7184,17 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   }
   else
   {
-    Field *tmp_field= field_arg->field;
-    /* charset doesn't matter here, it's to avoid sigsegv only */
-    tmp_field= new Field_null(0, 0, Field::NONE, field_arg->field->field_name,
-                          &my_charset_bin);
-    if (tmp_field)
-    {
-      tmp_field->init(field_arg->field->table);
-      set_field(tmp_field);
-    }
+    // VALUES() is used out-of-scope - its value is always NULL
+    Query_arena backup;
+    Query_arena *const arena= thd->activate_stmt_arena_if_needed(&backup);
+    Item *const item= new Item_null(this->name);
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    if (!item)
+      return TRUE;
+    *items= item;
   }
-  return FALSE;
+  return false;
 }
 
 void Item_insert_value::print(String *str, enum_query_type query_type)

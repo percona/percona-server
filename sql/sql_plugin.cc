@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1570,10 +1570,12 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     switch ((*(p++)= *(list++))) {
     case '\0':
       list= NULL; /* terminate the loop */
-      /* fall through */
+      // fallthrough - the later 2 comments are required by GCC
 #ifndef __WIN__
+      // fallthrough
     case ':':     /* can't use this as delimiter as it may be drive letter */
 #endif
+      // fallthrough
     case ';':
       str->str[str->length]= '\0';
       if (str == &name)  // load all plugins in named module
@@ -1621,6 +1623,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         str->str= p;
         continue;
       }
+      // fallthrough
     default:
       str->length++;
       continue;
@@ -1898,6 +1901,16 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);
+
+  if (!table->key_info)
+  {
+    my_printf_error(ER_UNKNOWN_ERROR,
+                    "The table '%s.%s' does not have the necessary key(s) "
+                    "defined on it. Please check the table definition and "
+                    "create index(s) accordingly.", MYF(0),
+                    table->s->db.str, table->s->table_name.str);
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     Pre-acquire audit plugins for events that may potentially occur

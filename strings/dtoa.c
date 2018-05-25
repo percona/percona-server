@@ -827,9 +827,9 @@ static Bigint *s2b(const char *s, int nd0, int nd, ULong y9, Stack_alloc *alloc)
 }
 
 
-static int hi0bits(register ULong x)
+static int hi0bits(ULong x)
 {
-  register int k= 0;
+  int k= 0;
 
   if (!(x & 0xffff0000))
   {
@@ -863,8 +863,8 @@ static int hi0bits(register ULong x)
 
 static int lo0bits(ULong *y)
 {
-  register int k;
-  register ULong x= *y;
+  int k;
+  ULong x= *y;
 
   if (x & 7)
   {
@@ -1182,7 +1182,7 @@ static Bigint *diff(Bigint *a, Bigint *b, Stack_alloc *alloc)
 
 static double ulp(U *x)
 {
-  register Long L;
+  Long L;
   U u;
 
   L= (word0(x) & Exp_mask) - (P - 1)*Exp_msk1;
@@ -1378,7 +1378,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
     switch (*s) {
     case '-':
       sign= 1;
-      /* no break */
+      // fallthrough
     case '+':
       s++;
       goto break2;
@@ -1475,6 +1475,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
       switch (c= *s) {
       case '-':
         esign= 1;
+        // fallthrough
       case '+':
         c= *++s;
       }
@@ -2368,7 +2369,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     break;
   case 2:
     leftright= 0;
-    /* no break */
+    // fallthrough
   case 4:
     if (ndigits <= 0)
       ndigits= 1;
@@ -2376,7 +2377,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     break;
   case 3:
     leftright= 0;
-    /* no break */
+    // fallthrough
   case 5:
     i= ndigits + k + 1;
     ilim= i;

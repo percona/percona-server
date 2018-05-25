@@ -150,7 +150,8 @@ sp_get_item_value(THD *thd, Item *item, String *str)
   case DECIMAL_RESULT:
     if (item->field_type() != MYSQL_TYPE_BIT)
       return item->val_str(str);
-    else {/* Bit type is handled as binary string */}
+    // fallthrough
+    /* Bit type is handled as binary string */
   case STRING_RESULT:
     {
       String *result= item->val_str(str);
@@ -2888,10 +2889,10 @@ sp_head::show_routine_code(THD *thd)
     */
     if (ip != i->m_ip)
     {
-      const char *format= "Instruction at position %u has m_ip=%u";
+      const char format[] = "Instruction at position %u has m_ip=%u";
       char tmp[sizeof(format) + 2*SP_INSTR_UINT_MAXLEN + 1];
 
-      sprintf(tmp, format, ip, i->m_ip);
+      snprintf(tmp, sizeof(tmp), format, ip, i->m_ip);
       /*
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.

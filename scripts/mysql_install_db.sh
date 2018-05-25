@@ -427,7 +427,7 @@ else
   echo "MySQL email archives available at http://lists.mysql.com/."
   echo
   echo "Please check all of the above before submitting a bug report at"
-  echo "  https://bugs.launchpad.net/percona-server/+filebug"
+  echo "  https://jira.percona.com/projects/PS"
   echo
   exit 1
 fi
@@ -479,7 +479,7 @@ then
 
   echo
   echo "Please report any problems at"
-  echo "  https://bugs.launchpad.net/percona-server/+filebug"
+  echo "  https://jira.percona.com/projects/PS"
   echo
   echo "Percona recommends that all production deployments be protected with a support"
   echo "contract (http://www.percona.com/mysql-suppport/) to ensure the highest uptime,"

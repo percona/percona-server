@@ -1,6 +1,6 @@
 Format: http://svn.debian.org/wsvn/dep/web/deps/dep5.mdwn?rev=174
 Upstream-Name: Percona Server 5.5
-Upstream-Contact: https://bugs.launchpad.net/percona-server/
+Upstream-Contact: https://jira.percona.com/projects/PS
 Source: http://www.percona.com/downloads/Percona-Server-5.5/
 Comments: Modified from original MySQL 5.5 debian/copyright file by
  Stewart Smith and updated for Percona Server.

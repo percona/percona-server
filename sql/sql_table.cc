@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1007,12 +1007,13 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           break;
       }
       DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
-      /*
-        Fall through and perform the rename action of the replace
-        action. We have already indicated the success of the delete
-        action in the log entry by stepping up the phase.
-      */
     }
+    // fallthrough
+    /*
+    and perform the rename action of the replace
+    action. We have already indicated the success of the delete
+    action in the log entry by stepping up the phase.
+    */
     case DDL_LOG_RENAME_ACTION:
     {
       error= TRUE;
@@ -2267,7 +2268,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           error= -1;
           goto err;
         }
-        close_all_tables_for_name(thd, table->table->s, TRUE);
+        close_all_tables_for_name(thd, table->table->s, TRUE, NULL);
         table->table= 0;
       }
 
@@ -4049,6 +4050,7 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
   Auxiliary function which allows to check if freshly created .FRM
   file for table can be opened.
@@ -4092,6 +4094,7 @@ static bool check_if_created_table_can_be_opened(THD *thd,
   (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
   return result;
 }
+#endif
 
 
 /*
@@ -5437,7 +5440,8 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
   case LEAVE_AS_IS:
     if (!indexes_were_disabled)
       break;
-    /* fall-through: disabled indexes */
+    // fallthrough
+    // disabled indexes
   case DISABLE:
     error= table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }
@@ -6432,7 +6436,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
         goto err;
-      close_all_tables_for_name(thd, table->s, TRUE);
+      close_all_tables_for_name(thd, table->s, TRUE, NULL);
       /*
         Then, we want check once again that target table does not exist.
         Actually the order of these two steps does not matter since
@@ -6569,6 +6573,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     changes only" means also that the handler for the table does not
     change. The table is open and locked. The handler can be accessed.
   */
+
   if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
   {
     int   pk_changed= 0;
@@ -6874,6 +6879,19 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   copied=deleted=0;
+
+  if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
+  {
+    /*
+      Temporarily close the TABLE instances belonging to this
+      thread except the one to be used for ALTER TABLE.
+
+      This is mostly needed to satisfy InnoDB assumptions/asserts.
+    */
+     close_all_tables_for_name(thd, table->s, false, table);
+  }
+
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
@@ -7164,7 +7182,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   close_all_tables_for_name(thd, table->s,
-                            new_name != table_name || new_db != db);
+                            new_name != table_name || new_db != db, NULL);
 
   error=0;
   table_list->table= table= 0;                  /* Safety */

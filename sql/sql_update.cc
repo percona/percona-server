@@ -741,6 +741,13 @@ int mysql_update(THD *thd,
       check_constant_expressions(values))
     read_removal= table->check_read_removal(select->quick->index);
 
+  error= table->file->ha_fast_update(thd, fields, values, conds);
+  if (error == 0)
+    error= -1; // error < 0 means really no error at all (see below)
+  else if (error != ENOTSUP) {
+    error= 1;
+  }
+  else
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->inc_examined_row_count(1);

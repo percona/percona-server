@@ -272,7 +272,7 @@ void my_printf_warning(const char *format, ...)
   @param MyFlags   Flags
 */
 
-void my_message(uint error, const char *str, register myf MyFlags)
+void my_message(uint error, const char *str, myf MyFlags)
 {
   (*error_handler_hook)(error, str, MyFlags);
 }

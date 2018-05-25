@@ -138,6 +138,14 @@ struct my_aligned_storage
   };
 };
 
+#if __cpp_attributes && defined(__has_cpp_attribute)
+#if __has_cpp_attribute(nodiscard)
+#define MY_NODISCARD [[nodiscard]]
+#elif __has_cpp_attribute(gnu::warn_unused_result)
+#define MY_NODISCARD [[gnu::warn_unused_result]]
+#endif /* __has_cpp_attribute(gnu::warn_unused_result) */
+#endif /* __cpp_attributes && defined(__has_cpp_attribute) */
+
 #endif /* __cplusplus */
 
 # ifndef MY_ALIGNED
@@ -149,6 +157,10 @@ struct my_aligned_storage
 #endif
 
 #include <my_attribute.h>
+
+#ifndef MY_NODISCARD
+#define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
+#endif /* MY_NODISCARD */
 
 #ifdef HAVE_WMAYBE_UNINITIALIZED
 #  define WMAYBE_UNINITIALIZED_OPTION "-Wmaybe-uninitialized"
@@ -164,16 +176,12 @@ struct my_aligned_storage
       MY_DO_PRAGMA(STRINGIFY_ARG(GCC diagnostic ignored WMAYBE_UNINITIALIZED_OPTION))
 #  define MY_RESTORE_WARN_MAYBE_UNINITIALIZED     \
       _Pragma("GCC diagnostic pop")
+#  define GCC45_DISABLE_WARN_UNINITIALIZED
 #else
-#  define MY_DISABLE_WARN_MAYBE_UNINITIALIZED     \
+#  define MY_DISABLE_WARN_MAYBE_UNINITIALIZED
+#  define MY_RESTORE_WARN_MAYBE_UNINITIALIZED
+#  define GCC45_DISABLE_WARN_UNINITIALIZED        \
       MY_DO_PRAGMA(STRINGIFY_ARG(GCC diagnostic ignored WMAYBE_UNINITIALIZED_OPTION))
-   /* true for gcc 4.6+ and all other compilers */
-#  if defined(__clang__) || !defined(__GNUC__) || MY_GNUC_PREREQ(4,6)
-#    define MY_RESTORE_WARN_MAYBE_UNINITIALIZED     \
-        MY_DO_PRAGMA(STRINGIFY_ARG(GCC diagnostic warning WMAYBE_UNINITIALIZED_OPTION))
-#  else
-#    define MY_RESTORE_WARN_MAYBE_UNINITIALIZED
-#  endif
 #endif
 
 #endif /* MY_COMPILER_INCLUDED */

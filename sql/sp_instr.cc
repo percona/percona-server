@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@
 #include "sql_parse.h"    // check_table_access
 #include "sql_prepare.h"  // reinit_stmt_before_use
 #include "transaction.h"  // trans_commit_stmt
-#include "sql_audit.h"
 #include "debug_sync.h"   // DEBUG_SYNC
+#include "sql_audit.h"
 
 #include <algorithm>
 
@@ -268,6 +268,35 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 // sp_lex_instr implementation.
 ///////////////////////////////////////////////////////////////////////////
 
+class SP_instr_error_handler : public Internal_error_handler
+{
+public:
+  SP_instr_error_handler()
+    : cts_table_exists_error(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_warning_level,
+                                const char*,
+                                Sql_condition **)
+  {
+    /*
+      Check if the "table exists" error or warning reported for the
+      CREATE TABLE ... SELECT statement.
+    */
+    if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->lex->select_lex.item_list.elements > 0 &&
+        sql_errno == ER_TABLE_EXISTS_ERROR)
+      cts_table_exists_error= true;
+
+    return false;
+  }
+
+  bool cts_table_exists_error;
+};
+
 
 bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
                                            uint *nextp,
@@ -328,6 +357,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   /* Reset LEX-object before re-use. */
 
   reinit_stmt_before_use(thd, m_lex);
+
+  SP_instr_error_handler sp_instr_error_handler;
+  thd->push_internal_handler(&sp_instr_error_handler);
 
   /* Open tables if needed. */
 
@@ -398,11 +430,13 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   }
   else
   {
-    DEBUG_SYNC(thd, "sp_before_exec_core");
-
+    DEBUG_SYNC(thd, "sp_lex_instr_before_exec_core");
     rc= exec_core(thd, nextp);
     DBUG_PRINT("info",("exec_core returned: %d", rc));
   }
+
+  // Pop SP_instr_error_handler error handler.
+  thd->pop_internal_handler();
 
   if (m_lex->query_tables_own_last)
   {
@@ -442,7 +476,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     See Query_arena->state definition for explanation.
 
     Some special handling of CREATE TABLE .... SELECT in an SP is required. The
-    state is always set to STMT_INITIALIZED_FOR_SP in such a case.
+    state is set to STMT_INITIALIZED_FOR_SP even in case of "table exists"
+    error situation.
 
     Why is this necessary? A useful pointer would be to note how
     PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
@@ -458,13 +493,10 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   bool reprepare_error=
-    rc && thd->is_error()
-    && thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE;
-  bool is_create_table_select=
-    thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-    thd->lex->select_lex.item_list.elements > 0;
+    rc && thd->is_error() &&
+    thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE;
 
-  if (reprepare_error || is_create_table_select)
+  if (reprepare_error || sp_instr_error_handler.cts_table_exists_error)
     thd->stmt_arena->state= Query_arena::STMT_INITIALIZED_FOR_SP;
   else if (!rc || !thd->is_error() ||
            (thd->get_stmt_da()->sql_errno() != ER_CANT_REOPEN_TABLE &&

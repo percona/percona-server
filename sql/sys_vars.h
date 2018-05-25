@@ -550,6 +550,53 @@ public:
 };
 
 
+class Sys_var_version : public Sys_var_charptr
+{
+private:
+  char withsuffix[SERVER_VERSION_LENGTH];
+  char *withsuffix_ptr;
+public:
+  Sys_var_version(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          enum charset_enum is_os_charset_arg,
+          const char *def_val)
+    : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt,
+          is_os_charset_arg, def_val),
+      withsuffix_ptr(withsuffix)
+  {}
+  virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    char **version_ptr= reinterpret_cast<char**> (
+                               Sys_var_charptr::global_value_ptr(thd, base));
+    if (version_ptr == NULL)
+      return NULL;
+
+    sys_var *suffix_var= find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
+    if (suffix_var == NULL)
+      return reinterpret_cast<uchar*> (version_ptr);
+
+    char** suffix_ptr= reinterpret_cast<char**> (suffix_var->value_ptr(thd,
+                                                          OPT_GLOBAL, NULL));
+    if (suffix_ptr == NULL)
+      return reinterpret_cast<uchar*> (version_ptr);
+
+    size_t suffix_ptr_len= strlen(*suffix_ptr);
+    size_t version_ptr_len= strlen(*version_ptr);
+
+    /* prepare concatenated @@version variable */
+    if (suffix_ptr_len + version_ptr_len + 1 > SERVER_VERSION_LENGTH)
+      suffix_ptr_len = SERVER_VERSION_LENGTH - version_ptr_len - 1;
+
+    memcpy(withsuffix, *version_ptr, version_ptr_len);
+    memcpy(withsuffix + version_ptr_len, *suffix_ptr, suffix_ptr_len);
+    withsuffix[suffix_ptr_len + version_ptr_len] = 0;
+
+    return reinterpret_cast<uchar*> (&withsuffix_ptr);
+  }
+};
+
+
 class Sys_var_proxy_user: public sys_var
 {
 public:

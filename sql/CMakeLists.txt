@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql 
@@ -22,10 +23,12 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/sql
 )
 
+SET(CONF_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+)
 SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 SET(GEN_DIGEST_SOURCES
@@ -34,6 +37,7 @@ SET(GEN_DIGEST_SOURCES
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
                             ${GEN_DIGEST_SOURCES}
+                            ${CONF_SOURCES}
                             PROPERTIES GENERATED 1)
 
 # Gen_lex_token
@@ -199,11 +203,13 @@ SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
+  ${CONF_SOURCES}
   ${MYSYS_LIBWRAP_SOURCE}
   ${SQL_SHARED_SOURCES}
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
+  ../sql-common/my_path_permissions.cc
   ../sql-common/my_time.c
   ../sql-common/my_user.c 
   ../sql-common/pack.c
@@ -284,7 +290,8 @@ ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(mysqld ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+MYSQL_ADD_EXECUTABLE(mysqld
+  ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 
 OPTION(DEBUG_EXTNAME "Build server as mysqld-debug (debug builds only)" OFF)
 MARK_AS_ADVANCED(DEBUG_EXTNAME)
@@ -311,9 +318,11 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} -Wl,--export-all-symbols")
   ENDIF()
   IF(MSVC)
-    # Set module definition file. Also use non-incremental linker, 
-    # incremental appears to crash from time to time,if used with /DEF option
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
+    # Set module definition file.
+    # Also use non-incremental linker, incremental appears to crash from
+    # time to time,if used with /DEF option
+    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS
+      "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
     FOREACH (CORELIB sql mysys mysys_ssl dbug strings)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
@@ -374,23 +383,24 @@ ENDIF()
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there
-IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
-  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc)
-    IF(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc)
-      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc 
-        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc COPYONLY)
-      CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
-        ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h COPYONLY)
-    ENDIF()
-  ENDIF()
-ENDIF()
-
-
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+SET_SOURCE_FILES_PROPERTIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/sql_digest.cc
+  PROPERTIES OBJECT_DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
 # Gen_lex_hash
@@ -416,8 +426,6 @@ ADD_CUSTOM_TARGET(
         DEPENDS ${GEN_DIGEST_SOURCES}
 )
 
-#Need this only for embedded
-SET_TARGET_PROPERTIES(GenServerSource PROPERTIES EXCLUDE_FROM_ALL TRUE)
 
 IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   ADD_LIBRARY(udf_example MODULE udf_example.cc)
@@ -425,7 +433,8 @@ IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
   # udf_example depends on strings 
   IF(WIN32)
     IF(MSVC)
-     SET_TARGET_PROPERTIES(udf_example PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
+      SET_TARGET_PROPERTIES(udf_example
+        PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
     ENDIF()
     TARGET_LINK_LIBRARIES(udf_example strings)
   ELSE()
@@ -509,4 +518,3 @@ ENDIF()
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
-

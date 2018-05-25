@@ -478,7 +478,8 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     if (union_result->create_result_table(thd, &types, MY_TEST(union_distinct),
                                           create_options, "", FALSE, TRUE))
       goto err;
-    memset(&result_table_list, 0, sizeof(result_table_list));
+    memset(static_cast<void*>(&result_table_list), 0,
+           sizeof(result_table_list));
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;

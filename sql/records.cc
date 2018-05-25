@@ -69,7 +69,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 {
   int error;
   empty_record(table);
-  memset(info, 0, sizeof(*info));
+  memset(static_cast<void*>(info), 0, sizeof(*info));
   info->thd= thd;
   info->table= table;
   info->record= table->record[0];
@@ -188,7 +188,7 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
   IO_CACHE *tempfile;
   DBUG_ENTER("init_read_record");
 
-  memset(info, 0, sizeof(*info));
+  memset(static_cast<void*>(info), 0, sizeof(*info));
   info->thd=thd;
   info->table=table;
   info->forms= &info->table;		/* Only one table */
@@ -652,7 +652,7 @@ static int rr_cmp(const void *p_ref_length, const void *a, const void *b)
 
 static int rr_from_cache(READ_RECORD *info)
 {
-  reg1 uint i;
+  uint i;
   ulong length;
   my_off_t rest_of_file;
   int16 error;

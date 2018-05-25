@@ -1473,7 +1473,7 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
   head= table;
-  memset(&read_record, 0, sizeof(read_record));
+  memset(static_cast<void*>(&read_record), 0, sizeof(read_record));
   init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
   DBUG_VOID_RETURN;
 }
@@ -11637,7 +11637,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
           part of 'cur_index'
         */
         if (bitmap_is_set(table->read_set, cur_field->field_index) &&
-            !cur_field->is_part_of_actual_key(thd, cur_index))
+            !cur_field->is_part_of_actual_key(thd, cur_index, cur_index_info))
         {
           cause= "not_covering";
           goto next_index;                  // Field was not part of key

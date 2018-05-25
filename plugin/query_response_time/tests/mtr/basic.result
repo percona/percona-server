@@ -3,6 +3,7 @@ SHOW VARIABLES WHERE VARIABLE_NAME LIKE 'query_response_time%' AND VARIABLE_NAME
 Variable_name	Value
 query_response_time_flush	OFF
 query_response_time_range_base	10
+query_response_time_session_stats	GLOBAL
 query_response_time_stats	OFF
 SHOW CREATE TABLE INFORMATION_SCHEMA.QUERY_RESPONSE_TIME;
 Table	Create Table

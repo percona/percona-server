@@ -2022,7 +2022,7 @@ static int log_in_use(const char* log_name)
     if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
+      if(!strncmp(log_name, linfo->log_file_name, log_name_len))
       {
         thread_count++;
         sql_print_warning("file %s was not purged because it was being read"
@@ -7361,8 +7361,9 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    char err_buff[MYSQL_ERRMSG_SIZE];
-    sprintf(err_buff, "%s Hence aborting the server.", errmsg);
+    static const char format_err[]= "%s Hence aborting the server.";
+    char err_buff[MYSQL_ERRMSG_SIZE + sizeof(format_err)];
+    snprintf(err_buff, sizeof(err_buff), format_err, errmsg);
     exec_binlog_error_action_abort(err_buff);
   }
   else

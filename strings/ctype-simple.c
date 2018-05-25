@@ -188,7 +188,7 @@ int my_strnncollsp_simple(const CHARSET_INFO *cs, const uchar *a,
 
 size_t my_caseup_str_8bit(const CHARSET_INFO *cs,char *str)
 {
-  register uchar *map= cs->to_upper;
+  uchar *map= cs->to_upper;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
@@ -198,7 +198,7 @@ size_t my_caseup_str_8bit(const CHARSET_INFO *cs,char *str)
 
 size_t my_casedn_str_8bit(const CHARSET_INFO *cs,char *str)
 {
-  register uchar *map= cs->to_lower;
+  uchar *map= cs->to_lower;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
@@ -211,7 +211,7 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused)))
 {
   char *end= src + srclen;
-  register uchar *map= cs->to_upper;
+  uchar *map= cs->to_upper;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
@@ -224,7 +224,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused)))
 {
   char *end= src + srclen;
-  register uchar *map=cs->to_lower;
+  uchar *map=cs->to_lower;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
@@ -233,7 +233,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
 
 int my_strcasecmp_8bit(const CHARSET_INFO *cs,const char *s, const char *t)
 {
-  register uchar *map=cs->to_upper;
+  uchar *map=cs->to_upper;
   while (map[(uchar) *s] == map[(uchar) *t++])
     if (!*s++) return 0;
   return ((int) map[(uchar) s[0]] - (int) map[(uchar) t[-1]]);
@@ -296,7 +296,7 @@ void my_hash_sort_simple(const CHARSET_INFO *cs,
 			 const uchar *key, size_t len,
 			 ulong *nr1, ulong *nr2)
 {
-  register uchar *sort_order=cs->sort_order;
+  uchar *sort_order=cs->sort_order;
   const uchar *end;
   
   /*
@@ -319,11 +319,11 @@ long my_strntol_8bit(const CHARSET_INFO *cs,
 		     char **endptr, int *err)
 {
   int negative;
-  register uint32 cutoff;
-  register uint cutlim;
-  register uint32 i;
-  register const char *s;
-  register uchar c;
+  uint32 cutoff;
+  uint cutlim;
+  uint32 i;
+  const char *s;
+  uchar c;
   const char *save, *e;
   int overflow;
 
@@ -415,11 +415,11 @@ ulong my_strntoul_8bit(const CHARSET_INFO *cs,
 		       char **endptr, int *err)
 {
   int negative;
-  register uint32 cutoff;
-  register uint cutlim;
-  register uint32 i;
-  register const char *s;
-  register uchar c;
+  uint32 cutoff;
+  uint cutlim;
+  uint32 i;
+  const char *s;
+  uchar c;
   const char *save, *e;
   int overflow;
 
@@ -502,10 +502,10 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			  char **endptr,int *err)
 {
   int negative;
-  register ulonglong cutoff;
-  register uint cutlim;
-  register ulonglong i;
-  register const char *s, *e;
+  ulonglong cutoff;
+  uint cutlim;
+  ulonglong i;
+  const char *s, *e;
   const char *save;
   int overflow;
 
@@ -543,7 +543,7 @@ longlong my_strntoll_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   i = 0;
   for ( ; s != e; s++)
   {
-    register uchar c= *s;
+    uchar c= *s;
     if (c>='0' && c<='9')
       c -= '0';
     else if (c>='A' && c<='Z')
@@ -598,10 +598,10 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs,
 			   char **endptr, int *err)
 {
   int negative;
-  register ulonglong cutoff;
-  register uint cutlim;
-  register ulonglong i;
-  register const char *s, *e;
+  ulonglong cutoff;
+  uint cutlim;
+  ulonglong i;
+  const char *s, *e;
   const char *save;
   int overflow;
 
@@ -639,7 +639,7 @@ ulonglong my_strntoull_8bit(const CHARSET_INFO *cs,
   i = 0;
   for ( ; s != e; s++)
   {
-    register uchar c= *s;
+    uchar c= *s;
 
     if (c>='0' && c<='9')
       c -= '0';
@@ -726,7 +726,7 @@ size_t my_long10_to_str_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                              char *dst, size_t len, int radix, long int val)
 {
   char buffer[66];
-  register char *p, *e;
+  char *p, *e;
   long int new_val;
   uint sign=0;
   unsigned long int uval = (unsigned long int) val;
@@ -769,7 +769,7 @@ size_t my_longlong10_to_str_8bit(const CHARSET_INFO *cs
                                  longlong val)
 {
   char buffer[65];
-  register char *p, *e;
+  char *p, *e;
   long long_val;
   uint sign= 0;
   ulonglong uval = (ulonglong)val;
@@ -1075,7 +1075,7 @@ uint my_instr_simple(const CHARSET_INFO *cs,
                      const char *s, size_t s_length,
                      my_match_t *match, uint nmatch)
 {
-  register const uchar *str, *search, *end, *search_end;
+  const uchar *str, *search, *end, *search_end;
   
   if (s_length <= b_length)
   {
@@ -1100,7 +1100,7 @@ skip:
     {
       if (cs->sort_order[*str++] == cs->sort_order[*search])
       {
-	register const uchar *i,*j;
+	const uchar *i,*j;
 	
 	i= str; 
 	j= search+1;

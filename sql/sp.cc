@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -352,7 +352,7 @@ private:
   bool m_print_once;
 
 public:
-  Proc_table_intact() : m_print_once(TRUE) {}
+  Proc_table_intact() : m_print_once(TRUE) { has_keys= TRUE; }
 
 protected:
   void report_error(uint code, const char *fmt, ...);
@@ -415,17 +415,9 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
   if (open_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(NULL);
    
-  if (!table.table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table.table->s->db.str,
-             table.table->s->table_name.str);
-    goto err;
-  }
-
   if (!proc_table_intact.check(table.table, &proc_table_def))
     DBUG_RETURN(table.table);
 
-err:
   close_system_tables(thd, backup);
   DBUG_RETURN(NULL);
 }
@@ -955,8 +947,8 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
+  memset(static_cast<void*>(&table), 0, sizeof(table));
+  memset(static_cast<void*>(&share), 0, sizeof(share));
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);

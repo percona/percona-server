@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -523,10 +523,11 @@ typedef struct st_table_field_def
 class Table_check_intact
 {
 protected:
+  bool has_keys;
   virtual void report_error(uint code, const char *fmt, ...)= 0;
 
 public:
-  Table_check_intact() {}
+  Table_check_intact() : has_keys(FALSE) {}
   virtual ~Table_check_intact() {}
 
   /** Checks whether a table is intact. */
@@ -1575,7 +1576,7 @@ struct TABLE_LIST
                              const char *alias_arg,
                              enum thr_lock_type lock_type_arg)
   {
-    memset(this, 0, sizeof(*this));
+    memset(static_cast<void*>(this), 0, sizeof(*this));
     db= (char*) db_name_arg;
     db_length= db_length_arg;
     table_name= (char*) table_name_arg;

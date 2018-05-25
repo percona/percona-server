@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2032,10 +2032,12 @@ err:
   }
 
 end:
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   if (old_part_info)
   {
     lpt->table->file->set_part_info(old_part_info, false);
   }
+#endif
   DBUG_RETURN(error);
 }
 
@@ -5686,7 +5688,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DEBUG_SYNC(thd, "create_table_like_after_open");
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-  memset(&local_create_info, 0, sizeof(local_create_info));
+  memset(static_cast<void*>(&local_create_info), 0, sizeof(local_create_info));
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
@@ -8611,7 +8613,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
    till this point for the alter operation.
   */
   if ((alter_info->flags & Alter_info::ADD_FOREIGN_KEY) &&
-      check_fk_parent_table_access(thd, create_info, alter_info))
+      check_fk_parent_table_access(thd, alter_ctx.new_db,
+                                   create_info, alter_info))
     DBUG_RETURN(true);
 
   /*
@@ -9588,7 +9591,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     {
       from->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-      memset(&tables, 0, sizeof(tables));
+      memset(static_cast<void*>(&tables), 0, sizeof(tables));
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
@@ -9763,7 +9766,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
-  memset(&create_info, 0, sizeof(create_info));
+  memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
@@ -10057,7 +10060,7 @@ static bool check_engine(THD *thd, const char *db_name,
     !(create_info->db_type->partition_flags &&
     (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION));
 #else
-  #define check_compress_columns true
+  #define check_compressed_columns true
 #endif
 
   if (check_compressed_columns && alter_info->has_compressed_columns() &&

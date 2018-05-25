@@ -76,7 +76,7 @@ bool handle_select(THD *thd, select_result *result,
 {
   bool res;
   LEX *lex= thd->lex;
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -1458,7 +1458,8 @@ bool JOIN::get_best_combination()
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
   while ((sj_nest= sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
+    TRASH(static_cast<void*>(&sj_nest->nested_join->sjm),
+          sizeof(sj_nest->nested_join->sjm));
 
   DBUG_RETURN(false);
 }

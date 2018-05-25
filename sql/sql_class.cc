@@ -1773,11 +1773,6 @@ void THD::release_resources()
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
   DBUG_ASSERT(m_release_resources_done == false);
 
-  mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
-  memset(&status_var, 0, sizeof(status_var));
-  mysql_mutex_unlock(&LOCK_status);
-
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
 
@@ -1802,6 +1797,10 @@ void THD::release_resources()
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
 
+  mysql_mutex_lock(&LOCK_status);
+  add_to_status(&global_status_var, &status_var);
+  mysql_mutex_unlock(&LOCK_status);
+  memset(&status_var, 0, sizeof(status_var));
   m_release_resources_done= true;
 }
 
@@ -1815,6 +1814,14 @@ THD::~THD()
 
   if (!m_release_resources_done)
     release_resources();
+
+#ifndef DBUG_OFF
+  {
+    const char* empty_status[sizeof(status_var)] = {};
+    DBUG_ASSERT(memcmp(reinterpret_cast<void*>(&status_var),
+                empty_status, sizeof(status_var))==0);
+  }
+#endif // DBUG_OFF
 
   clear_next_event_pos();
 

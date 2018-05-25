@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,9 +28,6 @@ IF(UNIX)
     IF(HAVE_LIBAIO_H AND HAVE_LIBAIO)
       ADD_DEFINITIONS(-DLINUX_NATIVE_AIO=1)
       LINK_LIBRARIES(aio)
-    ENDIF()
-    IF(HAVE_LIBNUMA)
-      LINK_LIBRARIES(numa)
     ENDIF()
   ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP*")
     ADD_DEFINITIONS("-DUNIV_HPUX")
@@ -448,7 +445,19 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
+UNSET(NUMA_LIBRARY)
+IF(HAVE_LIBNUMA)
+   SET(NUMA_LIBRARY "numa")
+ENDIF()
+
 MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
   DEFAULT
   MODULE_OUTPUT_NAME ha_innodb
-  LINK_LIBRARIES ${ZLIB_LIBRARY})
+  LINK_LIBRARIES ${ZLIB_LIBRARY} ${NUMA_LIBRARY})
+
+IF(WITH_INNOBASE_STORAGE_ENGINE)
+  # Remove -DMYSQL_SERVER, it breaks embedded build
+  SET_TARGET_PROPERTIES(innobase PROPERTIES COMPILE_DEFINITIONS "")
+
+  ADD_DEPENDENCIES(innobase GenError)
+ENDIF()

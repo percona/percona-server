@@ -311,7 +311,7 @@ static void del_dbopt(const char *path)
 
 static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
-  register File file;
+  File file;
   char buf[256]; // Should be enough for one option
   bool error=1;
 
@@ -363,7 +363,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   bool error=1;
   uint nbytes;
 
-  memset(create, 0, sizeof(*create));
+  memset(static_cast<void*>(create), 0, sizeof(*create));
   create->default_table_charset= thd->variables.collation_server;
 
   /* Check if options for this database are already in the hash */

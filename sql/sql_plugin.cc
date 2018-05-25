@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1725,10 +1725,12 @@ void memcached_shutdown(void)
       {
 	plugin_deinitialize(plugin, true);
 
+        mysql_mutex_lock(&LOCK_plugin_delete);
         mysql_mutex_lock(&LOCK_plugin);
 	plugin->state= PLUGIN_IS_DYING;
 	plugin_del(plugin);
         mysql_mutex_unlock(&LOCK_plugin);
+        mysql_mutex_unlock(&LOCK_plugin_delete);
       }
     }
 
@@ -2017,7 +2019,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   if (!table->key_info)
   {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
              table->s->table_name.str);
     DBUG_RETURN(TRUE);
   }

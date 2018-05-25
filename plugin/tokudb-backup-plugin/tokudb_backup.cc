@@ -284,11 +284,12 @@ static void tokudb_backup_error_fun(int error_number, const char *error_string, 
 static bool tokudb_backup_check_slave_sql_thread_running(THD *thd) {
      scoped_lock_wrapper<BasicLockableMysqlMutextT>
         with_LOCK_active_mi_locked(
-        BasicLockableMysqlMutextT(&LOCK_active_mi));
+        (BasicLockableMysqlMutextT(LOCK_active_mi)));
 
     Master_info *mi = active_mi;
 
-    if (!mi || !mi->inited || !mi->host || !mi->host[0])
+    compile_time_assert(sizeof(mi->host) / sizeof(void*) > 1);
+    if (!mi || !mi->inited || !mi->host[0])
         return false;
 
     scoped_lock_wrapper<BasicLockableMysqlMutextT>
@@ -319,11 +320,12 @@ static bool tokudb_backup_stop_slave_sql_thread(THD *thd) {
     {
         scoped_lock_wrapper<BasicLockableMysqlMutextT>
             with_LOCK_active_mi_locked(
-            BasicLockableMysqlMutextT(&LOCK_active_mi));
+            (BasicLockableMysqlMutextT(LOCK_active_mi)));
 
         Master_info *mi = active_mi;
 
-        if (!mi || !mi->inited || !mi->host || !mi->host[0])
+        compile_time_assert(sizeof(mi->host) / sizeof(void*) > 1);
+        if (!mi || !mi->inited || !mi->host[0])
             return true;
 
         stop_slave_result = stop_slave(thd, mi, 0);
@@ -352,11 +354,12 @@ static bool tokudb_backup_start_slave_sql_thread(THD *thd) {
     {
         scoped_lock_wrapper<BasicLockableMysqlMutextT>
             with_LOCK_active_mi_locked(
-            BasicLockableMysqlMutextT(&LOCK_active_mi));
+            (BasicLockableMysqlMutextT(LOCK_active_mi)));
 
         Master_info *mi = active_mi;
 
-        if (!mi || !mi->inited || !mi->host || !mi->host[0])
+        compile_time_assert(sizeof(mi->host) / sizeof(void*) > 1);
+        if (!mi || !mi->inited || !mi->host[0])
             return true;
 
         start_slave_result = start_slave(thd, mi, 0);
@@ -399,11 +402,10 @@ static bool tokudb_backup_wait_for_safe_slave(THD *thd, uint timeout) {
     }
 
     if (!n_attemts &&
-        slave_open_temp_tables) {
-
-        (sql_thread_started &&
+        slave_open_temp_tables &&
+        sql_thread_started &&
         !tokudb_backup_check_slave_sql_thread_running(thd) &&
-        !tokudb_backup_start_slave_sql_thread(thd));
+        !tokudb_backup_start_slave_sql_thread(thd)) {
 
         return false;
     }
@@ -475,11 +477,12 @@ static void tokudb_backup_get_master_infos(
     {
         scoped_lock_wrapper<BasicLockableMysqlMutextT>
             with_LOCK_active_mi_locked(
-            BasicLockableMysqlMutextT(&LOCK_active_mi));
+            (BasicLockableMysqlMutextT(LOCK_active_mi)));
 
         Master_info *mi = active_mi;
 
-        if (!mi || !mi->inited || !mi->host || !mi->host[0])
+        compile_time_assert(sizeof(mi->host) / sizeof(void*) > 1);
+        if (!mi || !mi->inited || !mi->host[0])
             return;
 
         std::string executed_gtid_set = tokudb_backup_get_executed_gtids_set();

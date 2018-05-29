@@ -35,7 +35,6 @@ usr/share/man/man1/mysqlbinlog.1
 usr/share/man/man1/mysqld_multi.1
 usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/mysql.server.1
-usr/share/man/man1/mysql-stress-test.pl.1
 usr/share/man/man1/perror.1
 usr/share/man/man1/replace.1
 usr/share/man/man1/resolveip.1

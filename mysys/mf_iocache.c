@@ -79,6 +79,10 @@ MY_NODISCARD
 static int _my_b_cache_write_r(IO_CACHE *info, const uchar *Buffer,
                                size_t Count);
 
+static io_cache_encr_read_function _my_b_encr_read= NULL;
+static io_cache_encr_write_function _my_b_encr_write= NULL;
+static size_t io_cache_encr_block_size= 0, io_cache_encr_header_size= 0;
+
 /*
   Setup internal pointers inside IO_CACHE
 
@@ -87,7 +91,7 @@ static int _my_b_cache_write_r(IO_CACHE *info, const uchar *Buffer,
     info		IO_CACHE handler
 
   NOTES
-    This is called on automaticly on init or reinit of IO_CACHE
+    This is called on automatically on init or reinit of IO_CACHE
     It must be called externally if one moves or copies an IO_CACHE
     object.
 */
@@ -115,33 +119,85 @@ init_functions(IO_CACHE* info)
   info->read_function= NULL;  /* Force a core if used */
   info->write_function= NULL; /* Force a core if used */
 
-  switch (type) {
-  case READ_NET:
-    /*
-      Must be initialized by the caller. The problem is that
-      _my_b_net_read has to be defined in sql directory because of
-      the dependency on THD, and therefore cannot be visible to
-      programs that link against mysys but know nothing about THD, such
-      as myisamchk
-    */
-    break;
-  case SEQ_READ_APPEND:
-    info->read_function = _my_b_seq_read;
-    break;
-  case READ_CACHE:
-  case WRITE_CACHE:
-  case READ_FIFO:
-    info->read_function=
-      info->share ? _my_b_cache_read_r : _my_b_cache_read;
-    info->write_function=
-      info->share ? _my_b_cache_write_r : _my_b_cache_write;
-    break;
-  default:
-    DBUG_ASSERT(0);
+  if (info->myflags & MY_ENCRYPT)
+  {
+    switch (type)
+    {
+    case READ_CACHE:
+      info->read_function = _my_b_encr_read;
+      break;
+    case WRITE_CACHE:
+      info->write_function = _my_b_encr_write;
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
+  }
+  else
+  {
+    switch (type)
+    {
+    case READ_NET:
+      /*
+        Must be initialized by the caller. The problem is that
+        _my_b_net_read has to be defined in sql directory because of
+        the dependency on THD, and therefore cannot be visible to
+        programs that link against mysys but know nothing about THD, such
+        as myisamchk
+      */
+      break;
+    case SEQ_READ_APPEND:
+      info->read_function = _my_b_seq_read;
+      break;
+    case READ_CACHE:
+    case WRITE_CACHE:
+    case READ_FIFO:
+      info->read_function=
+        info->share ? _my_b_cache_read_r : _my_b_cache_read;
+      info->write_function=
+        info->share ? _my_b_cache_write_r : _my_b_cache_write;
+      break;
+    default:
+      DBUG_ASSERT(0);
+    }
   }
   setup_io_cache(info);
 }
 
+
+/*
+  Initialize IO_CACHE encryption subsystem
+
+  SYNOPSIS
+    init_io_cache_encryption_ext()
+    read_function     pointer to a function for reading encrypted data
+    write_function    pointer to a function for writing encrypted data
+    encr_block_size   cipher block size
+    encr_header_size  encyption header size
+
+  RETURN
+    void
+
+*/
+
+void init_io_cache_encryption_ext(
+  io_cache_encr_read_function read_function,
+  io_cache_encr_write_function write_function,
+  size_t encr_block_size, size_t encr_header_size)
+{
+  DBUG_ENTER("init_io_cache_encryption_ext");
+  DBUG_ASSERT((read_function == NULL && write_function == NULL &&
+              encr_block_size == 0 && encr_header_size == 0) ||
+              (read_function != NULL && write_function != NULL &&
+              encr_block_size > 0));
+
+  _my_b_encr_read= read_function;
+  _my_b_encr_write= write_function;
+  io_cache_encr_block_size= encr_block_size;
+  io_cache_encr_header_size= encr_header_size;
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Initialize an IO_CACHE object
@@ -191,6 +247,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
 
   if (file >= 0)
   {
+    DBUG_ASSERT(!(cache_myflags & MY_ENCRYPT));
     pos= mysql_file_tell(file, MYF(0));
     if ((pos == (my_off_t) -1) && (my_errno() == ESPIPE))
     {
@@ -209,6 +266,12 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
     else
       info->seek_not_done= MY_TEST(seek_offset != pos);
   }
+  else
+    if (type == WRITE_CACHE && _my_b_encr_read)
+    {
+      cache_myflags|= MY_ENCRYPT;
+      DBUG_ASSERT(seek_offset == 0);
+    }
 
   info->disk_writes= 0;
   info->share=0;
@@ -218,6 +281,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   min_cache=use_async_io ? IO_SIZE*4 : IO_SIZE*2;
   if (type == READ_CACHE || type == SEQ_READ_APPEND)
   {                       /* Assume file isn't growing */
+    DBUG_ASSERT(!(cache_myflags & MY_ENCRYPT));
     if (!(cache_myflags & MY_DONT_CHECK_FILESIZE))
     {
       /* Calculate end of file to avoid allocating oversized buffers */
@@ -253,16 +317,21 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       buffer_block= cachesize;
       if (type == SEQ_READ_APPEND)
         buffer_block *= 2;
+      else if (cache_myflags & MY_ENCRYPT)
+        buffer_block= 2 * (buffer_block + io_cache_encr_block_size) +
+                       io_cache_encr_header_size;
+
       if (cachesize == min_cache)
         flags|= (myf) MY_WME;
 
       if ((info->buffer= (uchar*) my_malloc(key_memory_IO_CACHE,
                                             buffer_block, flags)) != 0)
       {
-        info->write_buffer=info->buffer;
         if (type == SEQ_READ_APPEND)
           info->write_buffer = info->buffer + cachesize;
-        info->alloced_buffer=1;
+        else
+          info->write_buffer= info->buffer;
+        info->alloced_buffer= 1;
         break;    /* Enough memory found */
       }
       if (cachesize == min_cache)
@@ -396,8 +465,22 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
     }
     else
     {
-      info->write_end=(info->buffer + info->buffer_length -
-		       (seek_offset & (IO_SIZE-1)));
+      if (info->myflags & MY_ENCRYPT)
+      {
+        info->write_end= info->write_buffer + info->buffer_length;
+        if (seek_offset && info->file != -1)
+        {
+          info->read_end= info->buffer;
+          _my_b_encr_read(info, 0, 0); /* prefill the buffer */
+          info->write_pos= info->read_pos;
+          info->seek_not_done= 1;
+        }
+      }
+      else
+      {
+        info->write_end=(info->buffer + info->buffer_length -
+                         (seek_offset & (IO_SIZE-1)));
+      }
       info->end_of_file= ~(my_off_t) 0;
     }
   }
@@ -1051,6 +1134,7 @@ static int _my_b_cache_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
   size_t length, diff_length, left_length= 0;
   IO_CACHE_SHARE *cshare= cache->share;
   DBUG_ENTER("_my_b_cache_read_r");
+  DBUG_ASSERT(!(cache->myflags & MY_ENCRYPT));
 
   while (Count)
   {
@@ -1219,6 +1303,8 @@ static int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count)
   size_t length, diff_length, left_length= 0, save_count, max_length;
   my_off_t pos_in_file;
   save_count=Count;
+
+  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
 
   lock_append_buffer(info);
 
@@ -1428,6 +1514,7 @@ static int _my_b_cache_write_r(IO_CACHE *info, const uchar *Buffer,
   if (res)
     return res;
 
+  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
   DBUG_ASSERT(info->share);
   copy_to_read_buffer(info, Buffer, old_pos_in_file);
 
@@ -1450,6 +1537,7 @@ int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count)
     day, we might need to add a call to copy_to_read_buffer().
   */
   DBUG_ASSERT(!info->share);
+  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
 
   lock_append_buffer(info);
   rest_length= (size_t) (info->write_end - info->write_pos);
@@ -1516,6 +1604,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
     day, we might need to add a call to copy_to_read_buffer().
   */
   DBUG_ASSERT(!info->share);
+  DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
 
   if (pos < info->pos_in_file)
   {
@@ -1593,6 +1682,7 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock)
     {
       if (append_cache)
       {
+        DBUG_ASSERT(!(info->myflags & MY_ENCRYPT));
         if (mysql_file_write(info->file, info->write_buffer, length,
                              info->myflags | MY_NABP))
           info->error= -1;

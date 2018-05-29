@@ -818,11 +818,15 @@ Transaction_Message::append_cache(IO_CACHE *src)
   DBUG_ASSERT(src->type == READ_CACHE);
 
   uchar *buffer= src->read_pos;
-  size_t length= my_b_fill(src);
+  size_t length;
   if (src->file == -1)
   {
     // Read cache size directly when temporary file does not exist.
     length= my_b_bytes_in_cache(src);
+  }
+  else
+  {
+    length= my_b_fill(src);
   }
 
   while (length > 0 && !src->error)

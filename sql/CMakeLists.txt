@@ -293,6 +293,7 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mf_iocache.cc
+  mf_iocache_encr.cc
   mysqld.cc
   mysqld_thd_manager.cc
   protocol_callback.cc

@@ -108,7 +108,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding)
+                   my_bool padding)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(mode);
 
@@ -160,7 +160,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
                    const unsigned char *key, uint32 key_length,
                    enum my_aes_opmode mode, const unsigned char *iv,
-                   bool padding)
+                   my_bool padding)
 {
   MyCipherCtx<TaoCrypt::DECRYPTION> dec(mode);
   /* 128 bit block used for padding */
@@ -218,7 +218,7 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
  @return Size of buffer required to store encrypted data
 */
 
-int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
+int my_aes_get_size(uint32 source_length, enum my_aes_opmode opmode)
 {
   return MY_AES_BLOCK_SIZE * (source_length / MY_AES_BLOCK_SIZE)
     + MY_AES_BLOCK_SIZE;
@@ -235,7 +235,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode)
+my_bool my_aes_needs_iv(enum my_aes_opmode opmode)
 {
   MyCipherCtx<TaoCrypt::ENCRYPTION> enc(opmode);
 

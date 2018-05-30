@@ -215,12 +215,12 @@ TokuDB Server Variables
      - Yes
      - Session, Global
      - Yes
-   * - tokudb_enable_fast_update
+   * - :variable:`tokudb_enable_fast_update`
      - Yes
      - Yes
      - Session, Global
      - Yes
-   * - tokudb_enable_fast_upsert
+   * - :variable:`tokudb_enable_fast_upsert`
      - Yes
      - Yes
      - Session, Global

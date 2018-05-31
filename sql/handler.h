@@ -31,6 +31,7 @@
 #include "structs.h"                            /* SHOW_COMP_OPTION */
 
 #include <my_global.h>
+#include <my_compiler.h>
 #include <my_compare.h>
 #include <ft_global.h>
 #include <keycache.h>
@@ -3160,7 +3161,70 @@ protected:
 public:
  /* End of On-line/in-place ALTER TABLE interface. */
 
+  /**
+    @brief Offload an update to the storage engine. See handler::fast_update()
+    for details.
+  */
+  MY_NODISCARD int ha_fast_update(THD *thd,
+                                  List<Item> &update_fields,
+                                  List<Item> &update_values,
+                                  Item *conds);
 
+  /**
+    @brief Offload an upsert to the storage engine. See handler::upsert()
+    for details.
+  */
+  MY_NODISCARD int ha_upsert(THD *thd,
+                             List<Item> &update_fields,
+                             List<Item> &update_values);
+private:
+  /**
+    Offload an update to the storage engine implementation.
+
+    @param    thd              The thread handle.
+    @param    update_fields    The list of fields to update.
+    @param    update_values    The list of new values for the fields
+                               in update_fields.
+    @param    conds            Conditions tree.
+
+    @retval   0                if the storage engine handled the update.
+    @retval   ENOTSUP          if the storage engine can not handle the
+                               update and the slow update code path should
+                               continue executing the update.
+
+    @return an error if the update should be terminated.
+
+    @note HA_READ_BEFORE_WRITE_REMOVAL flag doesn not fit there because
+    handler::ha_update_row(...) does not accept conditions.
+  */
+  MY_NODISCARD virtual int fast_update(THD *thd,
+                                       List<Item> &update_fields,
+                                       List<Item> &update_values,
+                                       Item *conds)
+  { return ENOTSUP; }
+
+  /**
+    Offload an upsert to the storage engine implementation. Expects the row
+    to be stored in record[0].
+
+    @param    thd              The thread handle.
+    @param    update_fields    The list of fields to update.
+    @param    update_values    The list of new values for the fields
+                               in update_fields.
+
+    @retval   0                if the storage engine handled the upsert.
+    @retval   ENOTSUP          if the storage engine can not handle the upsert
+                               and the slow insert code path should continue
+                               executing the insert.
+
+    @return an error if the insert should be terminated.
+  */
+  MY_NODISCARD virtual int upsert(THD *thd,
+                                  List<Item> &update_fields,
+                                  List<Item> &update_values)
+  { return ENOTSUP; }
+
+public:
   /**
     use_hidden_primary_key() is called in case of an update/delete when
     (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined

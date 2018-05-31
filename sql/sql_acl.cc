@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,10 @@
 #define HASH_STRING_WITH_QUOTE \
         "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
+
+#if defined(HAVE_OPENSSL)
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
+#endif /* HAVE_OPENSSL */
 
 using std::min;
 using std::max;
@@ -193,6 +197,7 @@ TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   }
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 static const
 TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] = {
   {
@@ -579,11 +584,13 @@ TABLE_FIELD_TYPE mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] =
     { C_STRING_WITH_LEN("utf8") }
   }
 };
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 
 const TABLE_FIELD_DEF
   mysql_db_table_def= {MYSQL_DB_FIELD_COUNT, mysql_db_table_fields};
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 const TABLE_FIELD_DEF
   mysql_user_table_def= {MYSQL_USER_FIELD_COUNT, mysql_user_table_fields};
 
@@ -602,6 +609,7 @@ const TABLE_FIELD_DEF
 const TABLE_FIELD_DEF
   mysql_tables_priv_table_def= {MYSQL_TABLES_PRIV_FIELD_COUNT,
                                 mysql_tables_priv_table_fields};
+#endif // NO_EMBEDDED_ACCESS_CHECKS
 
 static LEX_STRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -1074,6 +1082,8 @@ protected:
 
     va_end(args);
   }
+public:
+  Acl_table_intact() { has_keys= TRUE; }
 };
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
@@ -2953,13 +2963,6 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(1);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -3562,13 +3565,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (acl_is_utility_user(combo->user.str, combo->host.str, NULL))
   {
     my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
-    goto end;
-  }
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
     goto end;
   }
 
@@ -4671,13 +4667,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
   if (table_intact.check(table, &mysql_columns_priv_table_def))
     DBUG_RETURN(-1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(-1);
-  }
-
   key_part= table->key_info->key_part;
 
   table->use_all_columns();
@@ -5725,6 +5714,9 @@ int digest_password(THD *thd, LEX_USER *user_record)
   */
   if (user_record->plugin.str == sha256_password_plugin_name.str)
   {
+    if (user_record->password.length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
+      return 1;
+
     char *buff=  (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE+1);
     if (buff == NULL)
       return 1;
@@ -7861,13 +7853,6 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     host_field->store(host_str, user_from->host.length, system_charset_info);
     user_field->store(user_str, user_from->user.length, system_charset_info);
 
-    if (!table->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-               table->s->table_name.str);
-      DBUG_RETURN(-1);
-    }
-     
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
@@ -8908,13 +8893,6 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(true);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -9618,7 +9596,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 {
-  reg3 int flag;
+  int flag;
   DBUG_ENTER("wild_case_compare");
   DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
   while (*wildstr)
@@ -12952,6 +12930,9 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     DBUG_RETURN(CR_ERROR);
 #endif
   } // if(!my_vio_is_encrypter())
+
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)

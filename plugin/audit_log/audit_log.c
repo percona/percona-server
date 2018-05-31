@@ -950,7 +950,7 @@ int audit_log_plugin_init(void *arg MY_ATTRIBUTE((unused)))
   {
     audit_log_include_accounts= my_strdup(audit_log_include_accounts,
                                           MYF(MY_FAE));
-    audit_log_set_exclude_accounts(audit_log_include_accounts);
+    audit_log_set_include_accounts(audit_log_include_accounts);
   }
   if (audit_log_exclude_commands != NULL)
   {

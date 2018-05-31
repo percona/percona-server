@@ -2949,7 +2949,8 @@ static void update_depend_map(JOIN *join, ORDER *order)
   {
     table_map depend_map;
     order->item[0]->update_used_tables();
-    order->depend_map=depend_map=order->item[0]->used_tables();
+    order->depend_map= depend_map=
+      order->item[0]->used_tables() & ~PARAM_TABLE_BIT;
     order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
@@ -4392,7 +4393,7 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
       if (!(sj_nest->nested_join->sjm.positions=
             (st_position*)join->thd->alloc(sizeof(st_position)*n_tables)))
         DBUG_RETURN(true);
-      memcpy(sj_nest->nested_join->sjm.positions,
+      memcpy(static_cast<void*>(sj_nest->nested_join->sjm.positions),
              join->best_positions + join->const_tables,
              sizeof(st_position) * n_tables);
     }
@@ -8068,7 +8069,7 @@ static bool make_join_select(JOIN *join, Item *cond)
         */
         int idx= tab - join->join_tab;
         cond->walk(&Item::inform_item_in_cond_of_tab, false,
-                   reinterpret_cast<uchar * const>(&idx));
+                   reinterpret_cast<uchar*>(&idx));
       }
 
     }
@@ -9087,6 +9088,7 @@ get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables)
       DBUG_RETURN(0);
     map|=a->item[0]->used_tables();
   }
+  map&= ~PARAM_TABLE_BIT;
   if (!map || (map & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)))
     DBUG_RETURN(0);
 

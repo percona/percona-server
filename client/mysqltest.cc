@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include <algorithm>
+#include <sstream>
 
 using std::min;
 using std::max;
@@ -768,12 +769,6 @@ public:
     while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
       fwrite(buf, 1, bytes, stderr);
 
-    if (!lines)
-    {
-      fprintf(stderr,
-              "\nMore results from queries before failure can be found in %s\n",
-              m_file_name);
-    }
     fflush(stderr);
 
     DBUG_VOID_RETURN;
@@ -947,8 +942,8 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
 {
   const char *p;
-  register char c, next_c;
-  register int escaped = 0;
+  char c, next_c;
+  int escaped = 0;
   VAR *v;
   DBUG_ENTER("do_eval");
 
@@ -2125,7 +2120,7 @@ C_MODE_START
 static uchar *get_var_key(const uchar* var, size_t *len,
                           my_bool MY_ATTRIBUTE((unused)) t)
 {
-  register char* key;
+  char* key;
   key = ((VAR*)var)->name;
   *len = ((VAR*)var)->name_len;
   return (uchar*)key;
@@ -7769,8 +7764,8 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   /* Init dynamic strings for warnings */
   if (!disable_warnings)
   {
-    init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
-    init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
+    init_dynamic_string(&ds_prepare_warnings, "", 0, 256);
+    init_dynamic_string(&ds_execute_warnings, "", 0, 256);
   }
 
   /*
@@ -7874,13 +7869,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       append_stmt_result(ds, stmt, fields, num_fields);
 
       mysql_free_result(res);     /* Free normal result set with meta data */
-
-      /*
-        Clear prepare warnings if there are execute warnings,
-        since they are probably duplicated.
-      */
-      if (ds_execute_warnings.length || mysql->warning_count)
-        dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
@@ -7912,8 +7900,26 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
           dynstr_append_mem(ds, ds_warnings->str,
                             ds_warnings->length);
         if (ds_prepare_warnings.length)
-          dynstr_append_mem(ds, ds_prepare_warnings.str,
-                            ds_prepare_warnings.length);
+        {
+          /* Split the string to get each warning */
+          std::stringstream prepare_warnings(ds_prepare_warnings.str);
+          std::string prepare_warning;
+          /*
+            If the warning is already present in the execute phase,
+            do not append it
+          */
+          while (std::getline(prepare_warnings, prepare_warning))
+          {
+            std::string execute_warnings(ds_execute_warnings.str);
+            if ((execute_warnings + "\n").find(prepare_warning + "\n") ==
+                std::string::npos)
+            {
+              dynstr_append_mem(ds, prepare_warning.c_str(),
+                                prepare_warning.length());
+              dynstr_append_mem(ds, "\n", 1);
+            }
+          }
+        }
         if (ds_execute_warnings.length)
           dynstr_append_mem(ds, ds_execute_warnings.str,
                             ds_execute_warnings.length);
@@ -9443,7 +9449,7 @@ typedef struct st_pointer_array {		/* when using array-strings */
 
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
+int insert_pointer_name(POINTER_ARRAY *pa,char * name);
 void free_pointer_array(POINTER_ARRAY *pa);
 
 /*
@@ -9527,8 +9533,8 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *str,
                             int len MY_ATTRIBUTE((unused)))
 {
-  reg1 REPLACE *rep_pos;
-  reg2 REPLACE_STRING *rep_str;
+  REPLACE *rep_pos;
+  REPLACE_STRING *rep_str;
   const char *start, *from;
   DBUG_ENTER("replace_strings_append");
 
@@ -10427,7 +10433,7 @@ void internal_clear_bit(REP_SET *set, uint bit)
 
 void or_bits(REP_SET *to,REP_SET *from)
 {
-  reg1 uint i;
+  uint i;
   for (i=0 ; i < to->size_of_bits ; i++)
     to->bits[i]|=from->bits[i];
   return;
@@ -10529,7 +10535,7 @@ uint end_of_word(char * pos)
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */
 
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
+int insert_pointer_name(POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
   uchar *new_pos;
@@ -10541,10 +10547,10 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
     if (!(pa->typelib.type_names=(const char **)
 	  my_malloc(((PC_MALLOC-MALLOC_OVERHEAD)/
 		     (sizeof(char *)+sizeof(*pa->flag))*
-		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME))))
+		     (sizeof(char *)+sizeof(*pa->flag))),MYF(MY_WME | MY_ZEROFILL))))
       DBUG_RETURN(-1);
     if (!(pa->str= (uchar*) my_malloc((uint) (PS_MALLOC-MALLOC_OVERHEAD),
-				     MYF(MY_WME))))
+				     MYF(MY_WME | MY_ZEROFILL))))
     {
       my_free(pa->typelib.type_names);
       DBUG_RETURN (-1);

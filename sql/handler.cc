@@ -2570,8 +2570,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   TABLE_SHARE dummy_share;
   DBUG_ENTER("ha_delete_table");
 
-  memset(&dummy_table, 0, sizeof(dummy_table));
-  memset(&dummy_share, 0, sizeof(dummy_share));
+  memset(static_cast<void*>(&dummy_table), 0, sizeof(dummy_table));
+  memset(static_cast<void*>(&dummy_share), 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
@@ -3347,7 +3347,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 */
 int handler::read_first_row(uchar * buf, uint primary_key)
 {
-  register int error;
+  int error;
   DBUG_ENTER("handler::read_first_row");
 
   ha_statistic_increment(&SSV::ha_read_first_count);
@@ -5298,7 +5298,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
-  memset(&create_info, 0, sizeof(create_info));
+  memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
   if ((error= ha_discover(thd, db, name, &frmblob, &frmlen)))
   {
     /* Table could not be discovered and thus not created */
@@ -8000,7 +8000,34 @@ int handler::ha_delete_row(const uchar *buf)
   return 0;
 }
 
+/**
+  @brief Offload an update to the storage engine. See handler::fast_update()
+  for details.
+*/
+int handler::ha_fast_update(THD *thd,
+                            List<Item> &update_fields,
+                            List<Item> &update_values,
+                            Item *conds)
+{
+  int error= fast_update(thd, update_fields, update_values, conds);
+  if (error == 0)
+    mark_trx_read_write();
+  return error;
+}
 
+/**
+  @brief Offload an upsert to the storage engine. See handler::upsert()
+  for details.
+*/
+int handler::ha_upsert(THD *thd,
+                       List<Item> &update_fields,
+                       List<Item> &update_values)
+{
+  int error= upsert(thd, update_fields, update_values);
+  if (error == 0)
+    mark_trx_read_write();
+  return error;
+}
 
 /** @brief
   use_hidden_primary_key() is called in case of an update/delete when

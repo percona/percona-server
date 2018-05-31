@@ -1464,6 +1464,20 @@ void test_file_instrumentation_leak()
   file_locker= psi->get_thread_file_descriptor_locker(&file_state, (File) 12, PSI_FILE_WRITE);
   ok(file_locker == NULL, "no locker, no leak");
 
+  PFS_file* aaa_file= lookup_file_by_name("AAA");
+  ok(aaa_file != NULL, "AAA instrumented");
+  /*
+     Destroying the file here does not free the node allocated when a new
+     entry was inserted into the filename hash. Instead, the node is put
+     into the purgatory.
+  */
+  destroy_file(reinterpret_cast<PFS_thread*>(psi->get_thread()), aaa_file);
+  /*
+    Deleting current thread is required to call lf_hash_put_pins() for
+    filename hash which in turn clears the purgatory.
+  */
+  psi->delete_current_thread();
+
   unload_performance_schema();
 }
 
@@ -1666,7 +1680,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(216);
+  plan(217);
   MY_INIT("pfs-t");
   do_all_tests();
   return (exit_status());

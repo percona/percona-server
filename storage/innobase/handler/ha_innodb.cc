@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -4070,6 +4070,14 @@ innobase_change_buffering_inited_ok:
 
 	/* Turn on monitor counters that are default on */
 	srv_mon_default_on();
+
+#ifndef UNIV_HOTBACKUP
+#ifdef _WIN32
+	if (ut_win_init_time()) {
+		goto mem_free_and_error;
+	}
+#endif /* _WIN32 */
+#endif /* !UNIV_HOTBACKUP */
 
 	DBUG_RETURN(FALSE);
 error:
@@ -13528,6 +13536,7 @@ ha_innobase::start_stmt(
 		case SQLCOM_INSERT:
 		case SQLCOM_UPDATE:
 		case SQLCOM_DELETE:
+		case SQLCOM_REPLACE:
 			init_table_handle_for_HANDLER();
 			prebuilt->select_lock_type = LOCK_X;
 			prebuilt->stored_select_lock_type = LOCK_X;

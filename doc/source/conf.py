@@ -143,8 +143,8 @@ extlinks = {'bug': ('https://bugs.launchpad.net/percona-server/+bug/%s', '#'),
             'tokubug': ('https://tokutek.atlassian.net/browse/DB-%s', '#'),
             'bkpbug': ('https://tokutek.atlassian.net/browse/BACKUP-%s', '#'),
             'tdbbug': ('https://jira.percona.com/browse/TDB-%s', '#'),
-            'jirabug': ('https://jira.percona.com/browse/%s', ''),
-            'psbug': ('https://jira.percona.com/browse/PS-%s', '#')}
+            'psbug': ('https://jira.percona.com/browse/PS-%s', '#'),
+            'jirabug': ('https://jira.percona.com/browse/%s', '')}
 
 # -- Options for HTML output ---------------------------------------------------
 

@@ -34,9 +34,9 @@ static int _mi_balance_page(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
 				uchar **after_key);
-int _mi_ck_write_tree(register MI_INFO *info, uint keynr,uchar *key,
+int _mi_ck_write_tree(MI_INFO *info, uint keynr,uchar *key,
 		      uint key_length);
-int _mi_ck_write_btree(register MI_INFO *info, uint keynr,uchar *key,
+int _mi_ck_write_btree(MI_INFO *info, uint keynr,uchar *key,
 		       uint key_length);
 
 	/* Write new record to database */
@@ -253,7 +253,7 @@ int _mi_ck_write(MI_INFO *info, uint keynr, uchar *key, uint key_length)
  *                Normal insert code                                  *
  **********************************************************************/
 
-int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write_btree(MI_INFO *info, uint keynr, uchar *key,
 		       uint key_length)
 {
   int error;
@@ -332,7 +332,7 @@ int _mi_enlarge_root(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 		   1  = key should be stored in higher tree
 	*/
 
-static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 		    uint comp_flag, uchar *key, uint key_length, my_off_t page,
 		    uchar *father_buff, uchar *father_keypos,
 		    my_off_t father_page, my_bool insert_last)
@@ -457,7 +457,7 @@ err:
     < 0         Error.
 */
 
-int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
 	       uchar *key, uchar *anc_buff, uchar *key_pos, uchar *key_buff,
                uchar *father_buff, uchar *father_key_pos, my_off_t father_page,
 	       my_bool insert_last)
@@ -586,7 +586,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 	/* split a full page in two and assign emerging item to key */
 
-int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+int _mi_split_page(MI_INFO *info, MI_KEYDEF *keyinfo,
 		   uchar *key, uchar *buff, uchar *key_buff,
 		   my_bool insert_last_key)
 {
@@ -753,7 +753,7 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 	/* Balance page with not packed keys with page on right/left */
 	/* returns 0 if balance was done */
 
-static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
+static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo,
 			    uchar *key, uchar *curr_buff, uchar *father_buff,
 			    uchar *father_key_pos, my_off_t father_page)
 {
@@ -898,7 +898,7 @@ typedef struct {
   uint keynr;
 } bulk_insert_param;
 
-int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write_tree(MI_INFO *info, uint keynr, uchar *key,
 		      uint key_length)
 {
   int error;
@@ -923,7 +923,7 @@ static int keys_compare(bulk_insert_param *param, uchar *key1, uchar *key2)
 }
 
 
-static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
+static void keys_free(void* vkey, TREE_FREE mode, const void *vparam)
 {
   /*
     Probably I can use info->lastkey here, but I'm not sure,
@@ -932,6 +932,8 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
   uchar lastkey[MI_MAX_KEY_BUFF];
   uint keylen;
   MI_KEYDEF *keyinfo;
+  uchar *key= (uchar*)(vkey);
+  bulk_insert_param *param= (bulk_insert_param*)(vparam);
 
   switch (mode) {
   case free_init:
@@ -940,19 +942,20 @@ static int keys_free(uchar *key, TREE_FREE mode, bulk_insert_param *param)
       mysql_rwlock_wrlock(&param->info->s->key_root_lock[param->keynr]);
       param->info->s->keyinfo[param->keynr].version++;
     }
-    return 0;
+    return;
   case free_free:
     keyinfo=param->info->s->keyinfo+param->keynr;
     keylen=_mi_keylength(keyinfo, key);
     memcpy(lastkey, key, keylen);
-    return _mi_ck_write_btree(param->info,param->keynr,lastkey,
-			      keylen - param->info->s->rec_reflength);
+    _mi_ck_write_btree(param->info,param->keynr,lastkey,
+                       keylen - param->info->s->rec_reflength);
+    return;
   case free_end:
     if (param->info->s->concurrent_insert)
       mysql_rwlock_unlock(&param->info->s->key_root_lock[param->keynr]);
-    return 0;
+    return;
   }
-  return -1;
+  return;
 }
 
 
@@ -1009,7 +1012,7 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
                 cache_size * key[i].maxlength,
                 cache_size * key[i].maxlength, 0,
 		(qsort_cmp2)keys_compare, 0,
-		(tree_element_free) keys_free, (void *)params++);
+		keys_free, (void *)params++);
     }
     else
      info->bulk_insert[i].root=0;

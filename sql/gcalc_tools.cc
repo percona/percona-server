@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -447,6 +447,11 @@ int Gcalc_result_receiver::complete_shape()
   }
   else
   {
+    if (cur_shape == Gcalc_function::shape_point)
+    {
+      DBUG_RETURN(1);
+    }
+
     DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
     if (cur_shape == Gcalc_function::shape_hole ||
         cur_shape == Gcalc_function::shape_polygon)
@@ -728,7 +733,8 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 {
   DBUG_ENTER("Gcalc_operation_reducer::end_couple");
   res_point *rp0, *rp1;
-  DBUG_ASSERT(t1->result_range);
+  if (!t1->result_range)
+    DBUG_RETURN(1);
   if (!(rp0= add_res_point(p)) || !(rp1= add_res_point(p)))
     DBUG_RETURN(1);
   rp0->down= t0->rp;
@@ -1173,8 +1179,13 @@ int Gcalc_operation_reducer::get_polygon_result(res_point *cur,
 {
   DBUG_ENTER("Gcalc_operation_reducer::get_polygon_result");
   res_point *glue= cur->glue;
-  glue->up->down= NULL;
-  free_result(glue);
+  if(glue)
+  {
+    if(glue->up)
+      glue->up->down= NULL;
+    free_result(glue);
+    cur->glue= NULL;
+  }
   DBUG_RETURN(get_result_thread(cur, storage, 1) ||
               storage->complete_shape());
 }
@@ -1261,10 +1272,21 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
   DBUG_ENTER("Gcalc_operation_reducer::get_result");
   Dynamic_array<Gcalc_result_receiver::chunk_info> chunks;
   bool polygons_found= false;
+  int counter= 0;
 
   *m_res_hook= NULL;
   while (m_result)
   {
+    /**
+      Handle cyclic graph scenario. This can occur due to invalid input
+      geometry. Ideally the comparison should be with length of the string.
+      We have choosen an arbitory number suitable for practical usecase's
+      due to the complexity involved in checking with the length.
+    */
+    counter++;
+    if (counter > 10000)
+      DBUG_RETURN(1);
+
     Gcalc_function::shape_type shape;
     Gcalc_result_receiver::chunk_info chunk;
 

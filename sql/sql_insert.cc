@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ static bool write_delayed(THD *thd, TABLE *table, LEX_STRING query, bool log_on,
 
 static void end_delayed_insert(THD *thd);
 pthread_handler_t handle_delayed_insert(void *arg);
-static void unlink_blobs(register TABLE *table);
+static void unlink_blobs(TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
@@ -1082,7 +1082,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
 #endif
-      error= write_record(thd, table, &info, &update);
+    {
+      error= table->file->ha_upsert(thd,
+                                    update_fields,
+                                    update_values);
+      if (error == ENOTSUP)
+        error= write_record(thd, table, &info, &update);
+    }
     if (error)
       break;
     thd->get_stmt_da()->inc_current_row_for_warning();
@@ -1555,9 +1561,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->abort_on_warning= saved_abort_on_warning;
     }
 
-   if (!res)
+    thd->lex->in_update_value_clause= true;
+    if (!res)
      res= setup_fields(thd, Ref_ptr_array(),
                        update_values, MARK_COLUMNS_READ, 0, 0);
+
+    thd->lex->in_update_value_clause= false;
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -2257,7 +2266,7 @@ public:
     thd.variables.lock_wait_timeout= LONG_TIMEOUT;
 
     memset(&thd.net, 0, sizeof(thd.net));           // Safety
-    memset(&table_list, 0, sizeof(table_list));     // Safety
+    memset(static_cast<void*>(&table_list), 0, sizeof(table_list));   // Safety
     thd.system_thread= SYSTEM_THREAD_DELAYED_INSERT;
     thd.security_ctx->host_or_ip= "";
     mysql_mutex_init(key_delayed_insert_mutex, &mutex, MY_MUTEX_INIT_FAST);
@@ -3147,7 +3156,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
 /* Remove pointers from temporary fields to allocated values */
 
-static void unlink_blobs(register TABLE *table)
+static void unlink_blobs(TABLE *table)
 {
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
@@ -3158,7 +3167,7 @@ static void unlink_blobs(register TABLE *table)
 
 /* Free blobs stored in current row */
 
-static void free_delayed_insert_blobs(register TABLE *table)
+static void free_delayed_insert_blobs(TABLE *table)
 {
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
@@ -3590,13 +3599,18 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         We must make a single context out of the two separate name resolution
         contexts:
         the INSERT table and the tables in the SELECT part of INSERT ... SELECT.
-        To do that we must concatenate the two lists
+        To do that webcd
+        must concatenate the two lists
       */  
       table_list->next_name_resolution_table= 
         ctx_state.get_first_name_resolution_table();
     }
+
+    thd->lex->in_update_value_clause= true;
     res= res || setup_fields(thd, Ref_ptr_array(), *update.update_values,
                              MARK_COLUMNS_READ, 0, 0);
+
+    thd->lex->in_update_value_clause= false;
     if (!res)
     {
       /*
@@ -4381,7 +4395,7 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
   int result;
   TABLE_LIST tmp_table_list;
 
-  memset(&tmp_table_list, 0, sizeof(tmp_table_list));
+  memset(static_cast<void*>(&tmp_table_list), 0, sizeof(tmp_table_list));
   tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 

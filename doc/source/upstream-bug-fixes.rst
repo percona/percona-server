@@ -59,6 +59,12 @@
 |:Fix Released: :rn:`5.7.21-20`                                                                               |
 |:Upstream fix: N/A                                                                                           |
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89205` - gap locks on READ COMMITTED cause by page split                           |
+|:JIRA bug: :psbug:`1130`                                                                                     |
+|:Upstream state: Closed                                                                                      |
+|:Fix Released: :rn:`5.7.22-22`                                                                               |
+|:Upstream fix: 5.7.20                                                                                        |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`88057` - Intermediary slave does not log master changes with...                    |
 |:JIRA bug: :psbug:`1119`                                                                                     |
 |:Upstream state: Verified (checked on 2018-05-24)                                                            |

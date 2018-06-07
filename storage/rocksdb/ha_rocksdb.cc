@@ -1900,7 +1900,7 @@ class Rdb_transaction {
     }
 
     if (s.IsDeadlock()) {
-      thd->mark_transaction_to_rollback(false /* just statement */);
+      thd->mark_transaction_to_rollback(true /* whole transaction */);
       rocksdb_row_lock_deadlocks++;
       return HA_ERR_LOCK_DEADLOCK;
     } else if (s.IsBusy()) {

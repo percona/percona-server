@@ -1,0 +1,6 @@
+# Check for warnings in the error log
+# restart: --log-error=SEARCH_FILE --no-console
+SELECT MD5('mysql running under fips');
+MD5('mysql running under fips')
+c9ae6499f03db3c8d8fe0ace851d87cd
+# restart

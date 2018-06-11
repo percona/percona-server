@@ -100,6 +100,7 @@ INSERT INTO global_suppressions VALUES
  ("Forcing close of thread"),
 
  ("innodb-page-size has been changed"),
+ ("Percona Server cannot operate under OpenSSL FIPS mode"),
 
  /*
    Due to timing issues, it might be that this warning

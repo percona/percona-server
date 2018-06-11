@@ -119,6 +119,10 @@ int dummy_variable_to_pull_in_lf_hash_functions= LF_HASH_OVERHEAD;
 #include <poll.h>
 #endif
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#include <openssl/crypto.h>
+#endif
+
 #ifdef HAVE_FESETROUND
 #include <fenv.h>
 #endif
@@ -4681,6 +4685,17 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
+  int fips_mode= FIPS_mode();
+  if (fips_mode != 0)
+  {
+    /* FIPS is enabled, Log warning and Disable it now */
+    sql_print_warning(
+        "Percona Server cannot operate under OpenSSL FIPS mode."
+        " Disabling FIPS.");
+    FIPS_mode_set(0);
+  }
+#endif /* HAVE_YASSL */
 #if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   CRYPTO_malloc_init();
 #endif

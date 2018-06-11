@@ -99,6 +99,7 @@ INSERT INTO global_suppressions VALUES
  ("Forcing shutdown of [0-9]* plugins"),
  ("Forcing close of thread"),
 
+ ("Percona Server cannot operate under OpenSSL FIPS mode"),
  /*
    Due to timing issues, it might be that this warning
    is printed when the server shuts down and the

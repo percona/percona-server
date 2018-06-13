@@ -147,6 +147,10 @@
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+#include <openssl/crypto.h>
+#endif
+
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"
 #endif
@@ -3664,6 +3668,17 @@ int warn_self_signed_ca()
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
+  int fips_mode= FIPS_mode();
+  if (fips_mode != 0)
+  {
+    /* FIPS is enabled, Log warning and Disable it now */
+    sql_print_warning(
+        "Percona Server cannot operate under OpenSSL FIPS mode."
+        " Disabling FIPS.");
+    FIPS_mode_set(0);
+  }
+#endif /* HAVE_YASSL */
 #if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
   CRYPTO_malloc_init();
 #endif

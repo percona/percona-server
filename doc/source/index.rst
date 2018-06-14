@@ -154,6 +154,7 @@ TokuDB
    tokudb/tokudb_intro
    tokudb/tokudb_installation
    tokudb/using_tokudb
+   tokudb/fast_updates
    tokudb/tokudb_files_and_file_types
    tokudb/tokudb_file_management
    tokudb/tokudb_background_analyze_table

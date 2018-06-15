@@ -82,6 +82,10 @@ buf_flush_note_modification(
 	mutex_enter(&block->mutex);
 
 	ut_ad(block->page.newest_modification <= end_lsn);
+	if (observer != NULL) {
+		observer->inc_estimate(block);
+	}
+
 	block->page.newest_modification = end_lsn;
 
 	/* Don't allow to set flush observer from non-null to null,

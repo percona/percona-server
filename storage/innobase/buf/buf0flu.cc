@@ -3819,6 +3819,7 @@ buf_flush_validate(
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
@@ -3880,6 +3881,7 @@ buf_flush_get_dirty_pages_count(
 
 	return(count);
 }
+#endif /* UNIV_DEBUG */
 
 /** FlushObserver constructor
 @param[in]	space_id	table space id
@@ -3895,7 +3897,9 @@ FlushObserver::FlushObserver(
 	m_space_id(space_id),
 	m_trx(trx),
 	m_stage(stage),
-	m_interrupted(false)
+	m_interrupted(false),
+	m_estimate(),
+	m_lsn(log_get_lsn())
 {
 	m_flushed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
 	m_removed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
@@ -3987,9 +3991,7 @@ FlushObserver::flush()
 		buf_remove = BUF_REMOVE_FLUSH_WRITE;
 
 		if (m_stage != NULL) {
-			ulint	pages_to_flush =
-				buf_flush_get_dirty_pages_count(
-					m_space_id, this);
+			ulint	pages_to_flush = get_estimate();
 
 			m_stage->begin_phase_flush(pages_to_flush);
 		}
@@ -4004,5 +4006,16 @@ FlushObserver::flush()
 
 			os_thread_sleep(2000);
 		}
+	}
+}
+
+/** Increase the estimate of dirty pages by this observer
+@param[in]	block		buffer pool block */
+void
+FlushObserver::inc_estimate(const buf_block_t*	block)
+{
+	if (block->page.oldest_modification == 0
+	    || block->page.newest_modification < m_lsn) {
+		os_atomic_increment_ulint(&m_estimate, 1);
 	}
 }

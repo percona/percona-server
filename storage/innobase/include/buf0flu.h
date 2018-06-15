@@ -314,6 +314,7 @@ buf_flush_ready_for_flush(
 	buf_flush_t	flush_type)/*!< in: type of flush */
 	MY_ATTRIBUTE((warn_unused_result));
 
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush
 list in a particular buffer pool.
@@ -332,6 +333,7 @@ buf_flush_get_dirty_pages_count(
 /*============================*/
 	ulint		id,		/*!< in: space id to check */
 	FlushObserver*	observer);	/*!< in: flush observer to check */
+#endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
 Signal the page cleaner to flush and wait until it and the LRU manager clean
@@ -400,6 +402,17 @@ public:
 	void notify_remove(
 		buf_pool_t*	buf_pool,
 		buf_page_t*	bpage);
+
+	/** Increase the estimate of dirty pages by this observer
+	@param[in]	block		buffer pool block */
+	void inc_estimate(const buf_block_t*	block);
+
+	/** @return estimate of dirty pages to be flushed */
+	ulint get_estimate() const {
+		os_rmb;
+		return(m_estimate);
+	}
+
 private:
 	/** Table space id */
 	ulint			m_space_id;
@@ -422,6 +435,13 @@ private:
 
 	/* True if the operation was interrupted. */
 	bool			m_interrupted;
+
+	/* Estimate of pages to be flushed */
+	ulint			m_estimate;
+
+	/** LSN at which observer started observing. This is
+	used to find the dirty blocks that are dirtied before Observer */
+	const lsn_t		m_lsn;
 };
 
 #endif /* !UNIV_HOTBACKUP */

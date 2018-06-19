@@ -5854,23 +5854,9 @@ os_file_pread(
 	trx_t*		trx,
 	dberr_t*	err)
 {
-	ulint		sec;
-	ulint		ms;
-	ib_uint64_t	start_time;
-	ib_uint64_t	finish_time;
-
 	++os_n_file_reads;
 
-	if (UNIV_LIKELY_NULL(trx))
-	{
-		ut_ad(trx->take_stats);
-		trx->io_reads++;
-		trx->io_read += n;
-		ut_usectime(&sec, &ms);
-		start_time = (ib_uint64_t)sec * 1000000 + ms;
-	} else {
-		start_time = 0;
-	}
+	const ib_uint64_t start_time = trx_stats::start_io_read(trx, n);
 
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
@@ -5881,12 +5867,7 @@ os_file_pread(
 			n_bytes = -1;
 			errno = EINVAL;);
 
-	if (UNIV_UNLIKELY(start_time != 0))
-	{
-		ut_usectime(&sec, &ms);
-		finish_time = (ib_uint64_t)sec * 1000000 + ms;
-		trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
-	}
+	trx_stats::end_io_read(trx, start_time);
 
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
@@ -5917,7 +5898,6 @@ os_file_read_page(
 	trx_t*		trx)
 {
 	dberr_t		err;
-	ut_ad(!trx || trx->take_stats);
 
 	os_bytes_read_since_printout += n;
 
@@ -6327,7 +6307,6 @@ os_file_read_func(
 	trx_t*		trx)
 {
 	ut_ad(type.is_read());
-	ut_ad(!trx || trx->take_stats);
 
 	return(os_file_read_page(type, file, buf, offset, n, NULL, true, trx));
 }
@@ -7736,7 +7715,6 @@ os_aio_func(
 	BOOL		ret = TRUE;
 #endif /* WIN_ASYNC_IO */
 
-	ut_ad(!trx || trx->take_stats);
 	ut_ad(n > 0);
 	ut_ad((n % OS_FILE_LOG_BLOCK_SIZE) == 0);
 	ut_ad((offset % OS_FILE_LOG_BLOCK_SIZE) == 0);
@@ -7785,12 +7763,7 @@ try_again:
 				   space_id);
 
 	if (type.is_read()) {
-
-		if (trx)
-		{
-			trx->io_reads++;
-			trx->io_read += n;
-		}
+		trx_stats::bump_io_read(trx, n);
 
 		if (srv_use_native_aio) {
 

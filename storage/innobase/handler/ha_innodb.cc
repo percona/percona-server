@@ -3352,6 +3352,7 @@ ha_innobase::reset_template(void)
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
 	prebuilt->in_fts_query = 0;
+	prebuilt->end_range = false;
 	/* Reset index condition pushdown state. */
 	if (prebuilt->idx_cond) {
 		prebuilt->idx_cond = NULL;

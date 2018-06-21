@@ -2798,6 +2798,13 @@ class Rdb_writebatch_impl : public Rdb_transaction {
   get_for_update(rocksdb::ColumnFamilyHandle *const column_family,
                  const rocksdb::Slice &key, rocksdb::PinnableSlice *const value,
                  bool exclusive) override {
+    if (value == nullptr) {
+      rocksdb::PinnableSlice pin_val;
+      rocksdb::Status s = get(column_family, key, &pin_val);
+      pin_val.Reset();
+      return s;
+    }
+
     return get(column_family, key, value);
   }
 

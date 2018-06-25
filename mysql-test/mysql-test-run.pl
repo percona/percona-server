@@ -265,6 +265,7 @@ our $opt_manual_ddd;
 our $opt_manual_debug;
 our $opt_debugger;
 our $opt_client_debugger;
+our $opt_gterm;
 
 my $config; # The currently running config
 my $current_config_name; # The currently running config file template
@@ -1205,6 +1206,8 @@ sub command_line_setup {
              'debug-common'             => \$opt_debug_common,
              'debug-server'             => \$opt_debug_server,
              'gdb'                      => \$opt_gdb,
+             # For using gnome-terminal when using --gdb option
+             'gterm'                    => \$opt_gterm,
              'lldb'                     => \$opt_lldb,
              'client-gdb'               => \$opt_client_gdb,
              'client-lldb'              => \$opt_client_lldb,
@@ -6880,9 +6883,18 @@ sub gdb_arguments {
   }
 
   $$args= [];
-  mtr_add_arg($$args, "-title");
-  mtr_add_arg($$args, "$type");
-  mtr_add_arg($$args, "-e");
+
+
+  if ($opt_gterm) {
+    mtr_add_arg($$args, "--title");
+    mtr_add_arg($$args, "$type");
+    mtr_add_arg($$args, "--wait");
+    mtr_add_arg($$args, "--");
+  } else {
+    mtr_add_arg($$args, "-title");
+    mtr_add_arg($$args, "$type");
+    mtr_add_arg($$args, "-e");
+  }
 
   if ( $exe_libtool )
   {
@@ -6895,7 +6907,11 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$gdb_init_file");
   mtr_add_arg($$args, "$$exe");
 
-  $$exe= "xterm";
+  if ($opt_gterm) {
+    $$exe= "gnome-terminal";
+  } else {
+    $$exe= "xterm";
+  }
 }
 
  #

@@ -233,12 +233,28 @@ public:
     *size = INDEX_NUMBER_SIZE;
   }
 
-  /* Get the first key that you need to position at to start iterating.
-     Returns a "supremum" or "infimum" for this index based on collation order
+  /*
+    Get the first key that you need to position at to start iterating.
+
+    Stores into *key a "supremum" or "infimum" key value for the index.
+
+    @return Number of bytes in the key that are usable for bloom filter use.
   */
-  inline void get_first_key(uchar *const key, uint *const size) const {
-    return m_is_reverse_cf ? get_supremum_key(key, size)
-                           : get_infimum_key(key, size);
+  inline int get_first_key(uchar *const key, uint *const size) const {
+    if (m_is_reverse_cf)
+      get_supremum_key(key, size);
+    else
+      get_infimum_key(key, size);
+
+    /* Find out how many bytes of infimum are the same as m_index_number */
+    uchar unmodified_key[INDEX_NUMBER_SIZE];
+    rdb_netbuf_store_index(unmodified_key, m_index_number);
+    int i;
+    for (i = 0; i < INDEX_NUMBER_SIZE; i++) {
+      if (key[i] != unmodified_key[i])
+        break;
+    }
+    return i;
   }
 
   /* Make a key that is right after the given key. */
@@ -1190,7 +1206,7 @@ private:
 class Rdb_dict_manager {
 private:
   mysql_mutex_t m_mutex;
-  rocksdb::DB *m_db = nullptr;
+  rocksdb::TransactionDB *m_db = nullptr;
   rocksdb::ColumnFamilyHandle *m_system_cfh = nullptr;
   /* Utility to put INDEX_INFO and CF_DEFINITION */
 
@@ -1216,7 +1232,8 @@ public:
   Rdb_dict_manager &operator=(const Rdb_dict_manager &) = delete;
   Rdb_dict_manager() = default;
 
-  bool init(rocksdb::DB *const rdb_dict, Rdb_cf_manager *const cf_manager);
+  bool init(rocksdb::TransactionDB *const rdb_dict,
+            Rdb_cf_manager *const cf_manager);
 
   inline void cleanup() { mysql_mutex_destroy(&m_mutex); }
 
@@ -1377,7 +1394,7 @@ class Rdb_system_merge_op : public rocksdb::AssociativeMergeOperator {
         value.size() !=
             RDB_SIZEOF_AUTO_INCREMENT_VERSION + ROCKSDB_SIZEOF_AUTOINC_VALUE ||
         GetVersion(value) > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-      abort_with_stack_traces();
+      abort();
     }
 
     uint64_t merged_value = Deserialize(value);
@@ -1386,7 +1403,7 @@ class Rdb_system_merge_op : public rocksdb::AssociativeMergeOperator {
       if (existing_value->size() != RDB_SIZEOF_AUTO_INCREMENT_VERSION +
                                         ROCKSDB_SIZEOF_AUTOINC_VALUE ||
           GetVersion(*existing_value) > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-        abort_with_stack_traces();
+        abort();
       }
 
       merged_value = std::max(merged_value, Deserialize(*existing_value));

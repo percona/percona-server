@@ -374,6 +374,7 @@ enum operation_type : int {
   ROWS_READ,
   ROWS_UPDATED,
   ROWS_EXPIRED,
+  ROWS_FILTERED,
   ROWS_HIDDEN_NO_SNAPSHOT,
   ROWS_MAX
 };
@@ -406,6 +407,7 @@ struct st_export_stats {
   ulonglong rows_read;
   ulonglong rows_updated;
   ulonglong rows_expired;
+  ulonglong rows_filtered;
   ulonglong rows_hidden_no_snapshot;
 
   ulonglong system_rows_deleted;
@@ -1003,6 +1005,7 @@ public:
   }
 
   virtual double read_time(uint, uint, ha_rows rows) override;
+  virtual void print_error(int error, myf errflag) override;
 
   int open(const char *const name, int mode, uint test_if_locked) override
       MY_ATTRIBUTE((__warn_unused_result__));
@@ -1172,7 +1175,7 @@ private:
   int update_pk(const Rdb_key_def &kd, const struct update_row_info &row_info,
                 const bool &pk_changed) MY_ATTRIBUTE((__warn_unused_result__));
   int update_sk(const TABLE *const table_arg, const Rdb_key_def &kd,
-                const struct update_row_info &row_info)
+                const struct update_row_info &row_info, const bool bulk_load_sk)
       MY_ATTRIBUTE((__warn_unused_result__));
   int update_indexes(const struct update_row_info &row_info,
                      const bool &pk_changed)
@@ -1317,9 +1320,6 @@ public:
   int optimize(THD *const thd, HA_CHECK_OPT *const check_opt) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int analyze(THD *const thd, HA_CHECK_OPT *const check_opt) override
-      MY_ATTRIBUTE((__warn_unused_result__));
-  int calculate_stats(const TABLE *const table_arg, THD *const thd,
-                      HA_CHECK_OPT *const check_opt)
       MY_ATTRIBUTE((__warn_unused_result__));
 
   enum_alter_inplace_result check_if_supported_inplace_alter(

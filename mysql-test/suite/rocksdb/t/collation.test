@@ -3,8 +3,12 @@
 # rocksdb_strict_collation_exceptions
 --source include/have_rocksdb.inc
 
+call mtr.add_suppression("Invalid pattern");
+
 # ci non-indexed column is allowed
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT) ENGINE=ROCKSDB CHARSET UTF8;
+# ci indexed column is not allowed
+ALTER TABLE t1 ADD INDEX (value);
 DROP TABLE t1;
 
 # ci indexed column is not allowed
@@ -24,6 +28,8 @@ DROP TABLE t1;
 
 # cs latin1_bin is allowed
 CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET LATIN1 COLLATE LATIN1_BIN;
+# THIS SHOULD FAIL BUT IT DOES NOT
+ALTER TABLE t1 collate=latin1_general_ci;
 DROP TABLE t1;
 
 # cs utf8_bin is allowed
@@ -99,6 +105,29 @@ SET GLOBAL rocksdb_strict_collation_exceptions="abc\\";
 
 # test bad regex (null caused a crash) - Issue 493
 SET GLOBAL rocksdb_strict_collation_exceptions=null;
+
+# test for errors instead of warnings
+--let $restart_parameters=restart:--rocksdb_error_on_suboptimal_collation=1
+--source include/restart_mysqld.inc
+
+SET GLOBAL rocksdb_strict_collation_check=1;
+
+# ci indexed column is not optimal, should emit a warning
+--error ER_UNSUPPORTED_COLLATION
+CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text, index(value)) engine=rocksdb charset utf8;
+
+# ci non-indexed column is allowed
+CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text) engine=rocksdb charset utf8;
+# ci indexed column is not allowed, should emit an error
+--error ER_UNSUPPORTED_COLLATION
+ALTER TABLE t1 ADD INDEX (value);
+DROP TABLE t1;
+
+# cs latin1_bin is allowed
+CREATE TABLE t1 (id varchar(20), value varchar(50), value2 varchar(50), value3 text, primary key (id), index(value, value2)) engine=rocksdb charset latin1 collate latin1_bin;
+# THIS SHOULD ERROR BUT IT DOES NOT
+ALTER TABLE t1 collate=latin1_general_ci;
+DROP TABLE t1;
 
 # cleanup
 --let $restart_parameters=

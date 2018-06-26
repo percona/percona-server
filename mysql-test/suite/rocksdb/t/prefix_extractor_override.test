@@ -1,5 +1,7 @@
 --source include/have_rocksdb.inc
 
+SET @orig_rocksdb_update_cf_options = @@global.rocksdb_update_cf_options;
+
 CREATE TABLE t1 (id1 BIGINT, id2 BIGINT, id3 BIGINT, id4 BIGINT, PRIMARY KEY (id1, id2, id3, id4) comment 'cf1') ENGINE=rocksdb collate latin1_bin;
 --disable_query_log
 let $i = 1;
@@ -30,17 +32,12 @@ SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=1 AND id3=1;
 --sorted_result
 SELECT * FROM information_schema.rocksdb_cf_options WHERE option_type like '%prefix_extractor%';
 
-# This should no longer crash. See https://github.com/facebook/mysql-5.6/issues/641
+SET @@global.rocksdb_update_cf_options = 'cf1={prefix_extractor=capped:26};';
 --echo
---echo Restarting with new Prefix Extractor...
---echo
---let $restart_parameters=restart:--loose-rocksdb_override_cf_options=cf1={prefix_extractor=capped:26};
---source include/restart_mysqld.inc
-
---echo
---echo Changed Prefix Extractor (after restart):
+--echo Changed Prefix Extractor (after update_cf_options set, without restart):
 --echo
 --sorted_result
+# Restart no longer needed
 SELECT * FROM information_schema.rocksdb_cf_options WHERE option_type like '%prefix_extractor%';
 
 # Satisfies can_use_bloom_filter (4+8+8+8), but can't use because the old SST
@@ -88,6 +85,7 @@ SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=1 AND id3=1;
 --let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 2
 --source include/assert.inc
 
+SET @@global.rocksdb_update_cf_options = '';
 set global rocksdb_compact_cf='cf1';
 
 # Select the updated, make sure bloom filter is checked now
@@ -97,7 +95,5 @@ SELECT COUNT(*) FROM t1 WHERE id1=1 AND id2=30 AND id3=30;
 --let $assert_cond="[select variable_value-@u from performance_schema.global_status where variable_name=\'rocksdb_bloom_filter_prefix_checked\']" = 1
 --source include/assert.inc
 
+SET @@global.rocksdb_update_cf_options = @orig_rocksdb_update_cf_options;
 DROP TABLE t1;
-
---let $restart_parameters=
---source include/restart_mysqld.inc

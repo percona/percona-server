@@ -111,6 +111,196 @@ static PSI_memory_key key_memory_Partition_base_engine_array;
 static PSI_memory_key key_memory_Partition_base_part_ids;
 PSI_file_key key_file_Partition_base_par;
 
+
+static void get_db_table_name_from_canonical_name(
+    const char *canonical_name,
+    char *db_name_buf, size_t db_name_buf_len,
+    char *table_name_buf, size_t table_name_buf_len) {
+
+    DBUG_ASSERT(canonical_name);
+    DBUG_ASSERT(db_name_buf);
+    DBUG_ASSERT(db_name_buf_len);
+    DBUG_ASSERT(db_name_buf_len);
+    DBUG_ASSERT(table_name_buf);
+
+    const char *db_name_begin = strchr(canonical_name, FN_LIBCHAR);
+    const char *db_name_end = strrchr(canonical_name, FN_LIBCHAR);
+
+    DBUG_ASSERT(db_name_begin);
+    DBUG_ASSERT(db_name_end);
+    DBUG_ASSERT(db_name_begin != db_name_end);
+
+    ++db_name_begin;
+    size_t db_name_size = db_name_end - db_name_begin;
+
+    DBUG_ASSERT(db_name_size + 1 < db_name_buf_len);
+
+    memcpy(db_name_buf, db_name_begin, db_name_size);
+    db_name_buf[db_name_size] = '\0';
+
+    const char *table_name = db_name_end + 1;
+    DBUG_ASSERT(*table_name);
+    size_t table_name_size = strlen(table_name);
+    DBUG_ASSERT(table_name_size + 1 < table_name_buf_len);
+
+    memcpy(table_name_buf, table_name, table_name_size);
+    table_name_buf[table_name_size] = '\0';
+}
+
+
+bool get_part_str(const char *name, std::string &result) {
+    char db_name[FN_REFLEN + 1];
+    char table_name[FN_REFLEN + 1];
+    get_db_table_name_from_canonical_name(
+        name, db_name, sizeof(db_name), table_name, sizeof(table_name));
+
+    // Prepare the path to the .FRM file and open the file
+    char path[FN_REFLEN + 1];           //< Path to .FRM file
+    my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix);
+    build_table_filename(
+        path, sizeof(path) - 1, db_name, table_name, reg_ext,
+        temp_table ? FN_IS_TMP : 0);
+
+    // Check for .frm file existence
+    MY_STAT frm_stat_info;
+    if (!my_stat(path, &frm_stat_info, MYF(0))) {
+        // if .frm file does not exist don't treat it as error
+        if (my_errno() == ENOENT)
+            return true;
+        return false;
+    }
+
+    // First, we open the file, and return upon failure. No need to close
+    // the file in this case.
+    File file= mysql_file_open(key_file_frm, path, O_RDONLY | O_SHARE, MYF(0));
+    if (file < 0)
+        return false;
+    EXIT_SCOPE{ mysql_file_close(file, MYF(MY_WME)); };
+
+    // Next, we read the header and do some basic verification of the
+    // header fields.
+    uchar head[64];
+    if (mysql_file_read(file, head, sizeof(head), MYF(MY_NABP)) ||
+          head[0] != (uchar) 254 || head[1] != 1                  ||
+         !(head[2] == FRM_VER || head[2] == FRM_VER + 1 ||
+          (head[2] >= FRM_VER + 3 && head[2] <= FRM_VER + 4)))
+        // Upon failure, return NULL, but here, we have to close the file first.
+        return false;
+
+     // Get the relevant db type value.
+    enum legacy_db_type db_type= static_cast<enum legacy_db_type>(*(head + 3));
+
+    if (db_type != DB_TYPE_TOKUDB)
+        return false;
+
+    // For other engines, and for cluster tables with version >= 50120, we
+    // continue by checking that we have an extra data segment and a proper
+    // form position.
+    const ulong pos= get_form_pos(file, head);   //< Position of form info
+    const uint n_length= uint4korr(head + 55);   //< Length of extra segment
+    if (n_length == 0 || pos == 0)
+    {
+        // We close the file and return success, as we no form info
+        // or extra segment.
+        return false;
+    }
+
+    mysql_file_seek(file, pos, MY_SEEK_SET,MYF(0));
+
+    uchar *extra_segment_buff= static_cast<uchar*>(
+            my_malloc(key_memory_frm_extra_segment_buff,
+                        n_length, MYF(MY_WME)));
+    std::unique_ptr<uchar, decltype(my_free)>
+        extra_segment_buff_uptr(extra_segment_buff, my_free);
+
+    const uint reclength= uint2korr(head + 16);
+    const uint record_offset= uint2korr(head + 6) +
+              ((uint2korr(head + 14) == 0xffff ?
+                uint4korr(head + 47) : uint2korr(head + 14)));
+
+    uchar forminfo[288];
+
+    if (!mysql_file_read(file, forminfo, sizeof(forminfo), MYF(MY_NABP)) &&
+         extra_segment_buff &&
+        !mysql_file_pread(file, extra_segment_buff, n_length,
+                           record_offset + reclength, MYF(MY_NABP)))
+    {
+        const uchar *next_chunk= extra_segment_buff;                //< Read pos
+        const uchar *buff_end= extra_segment_buff + n_length; //< Buffer end
+
+        next_chunk+= uint2korr(next_chunk) + 2;   // Connect string
+        if (next_chunk + 2 < buff_end)
+            next_chunk+= uint2korr(next_chunk) + 2; // DB type
+        if (next_chunk + 5 < buff_end) // Partitioning
+        {
+            uint32 partition_info_str_len = uint4korr(next_chunk);
+            if (partition_info_str_len)
+               result.assign(reinterpret_cast<const char *>(next_chunk + 4),
+                             partition_info_str_len);
+        }
+    }
+
+    return true;
+}
+
+
+partition_info *
+parse_partition_info(THD *thd, const std::string &partition_info_str) {
+    DBUG_ASSERT(thd);
+
+    const CHARSET_INFO *old_character_set_client=
+        thd->variables.character_set_client;
+
+    LEX *old_lex= thd->lex;
+    LEX lex;
+    st_select_lex_unit unit(CTX_NONE);
+    st_select_lex select(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    lex.new_static_query(&unit, &select);
+
+    sql_digest_state *parent_digest= thd->m_digest;
+    PSI_statement_locker *parent_locker= thd->m_statement_psi;
+
+    thd->variables.character_set_client= system_charset_info;
+    thd->lex = &lex;
+    EXIT_SCOPE {
+       thd->lex = old_lex;
+       thd->variables.character_set_client =
+           old_character_set_client;
+    };
+
+    Parser_state parser_state;
+    if (parser_state.init(thd,
+                          partition_info_str.c_str(),
+                          partition_info_str.size()))
+        return nullptr;
+
+    /* It will be deallocated when the thread's mem_root is freed */
+    lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
+    if (!lex.part_info)
+    {
+        mem_alloc_error(sizeof(partition_info));
+        return nullptr;
+    }
+
+    thd->m_digest= nullptr;
+    thd->m_statement_psi= nullptr;
+    EXIT_SCOPE {
+        thd->free_items();
+        thd->m_digest= parent_digest;
+        thd->m_statement_psi= parent_locker;
+    };
+
+    if (parse_sql(thd, & parser_state, nullptr) ||
+        lex.part_info->fix_parser_data(thd))
+        return nullptr;
+
+    if (lex.part_info->set_up_defaults_for_partitioning(nullptr, nullptr, 0))
+        return nullptr;
+
+    return lex.part_info;
+}
+
+static
 void part_name(char *out_buf,
                const char *path,
                const partition_element *parent_elem,

@@ -28,8 +28,8 @@ namespace myrocks {
   The following is needed as an argument for mysql_stage_register,
   irrespectively of whether we're compiling with P_S or not.
 */
-my_core::PSI_stage_info stage_waiting_on_row_lock = {0, "Waiting for row lock",
-                                                     0};
+my_core::PSI_stage_info stage_waiting_on_row_lock(0, "Waiting for row lock", 0,
+                                                  nullptr);
 
 #ifdef HAVE_PSI_INTERFACE
 my_core::PSI_stage_info *all_rocksdb_stages[] = {&stage_waiting_on_row_lock};

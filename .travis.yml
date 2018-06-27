@@ -205,7 +205,7 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
        brew update;
-       brew install ccache protobuf;
+       brew install ccache protobuf@3.1; `# protobuf 3.6+ uses C++11 features`;
        brew link ccache;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi
@@ -235,6 +235,10 @@ script:
         -DWITH_PROTOBUF=system
         -DWITH_TOKUDB=OFF
         -DWITH_ROCKSDB=OFF
+        -DPROTOBUF_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotobuf.dylib
+        -DPROTOBUF_INCLUDE_DIR=/usr/local/opt/protobuf@3.1/include
+        -DPROTOBUF_PROTOC_EXECUTABLE=/usr/local/opt/protobuf@3.1/bin/protoc
+        -DPROTOBUF_PROTOC_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotoc.dylib 
       ";
     else
       CMAKE_OPT+="

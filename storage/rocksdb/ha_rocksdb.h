@@ -810,12 +810,9 @@ class ha_rocksdb : public my_core::handler {
         We are saying that this engine is just statement capable to have
         an engine that can only handle statement-based logging. This is
         used in testing.
-      HA_REC_NOT_IN_SEQ
-        If we don't set it, filesort crashes, because it assumes rowids are
-        1..8 byte numbers
     */
     DBUG_RETURN(HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-                HA_REC_NOT_IN_SEQ | HA_CAN_INDEX_BLOBS |
+                HA_CAN_INDEX_BLOBS |
                 (m_pk_can_be_decoded ? HA_PRIMARY_KEY_IN_READ_INDEX : 0) |
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_NULL_IN_KEY |
                 HA_PARTIAL_COLUMN_READ | HA_ONLINE_ANALYZE);

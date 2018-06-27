@@ -1,0 +1,161 @@
+#!/bin/bash
+
+set -o errexit
+set -o xtrace
+
+
+# ------------------------------------------------------------------------------
+# Declare all input variables
+# ------------------------------------------------------------------------------
+JOB_CMAKE=${JOB_CMAKE:-cmake}
+COMPILER=${COMPILER:-default}
+CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-RelWithDebInfo}
+WITH_TOKUDB=${WITH_TOKUDB:-ON}
+WITH_ROCKSDB=${WITH_ROCKSDB:-ON}
+WITH_EMBEDDED_SERVER=${WITH_EMBEDDED_SERVER:-ON}
+WITH_RAPID=${WITH_RAPID:-ON}
+WITH_SSL=${WITH_SSL:-system}
+PERFSCHEMA_OPTS=${PERFSCHEMA_OPTS:-}
+ANALYZER_OPTS=${ANALYZER_OPTS:-}
+MAKE_OPTS=${MAKE_OPTS:--j$(grep -c ^processor /proc/cpuinfo)}
+CMAKE_OPTS=${CMAKE_OPTS:-}
+BUILD_COMMENT=${BUILD_COMMENT:-}
+TAG=${TAG:-}
+DIST_NAME=${DIST_NAME:-}
+SSL_VER=${SSL_VER:-}
+TARGET_CFLAGS=${TARGET_CFLAGS:-}
+
+
+# ------------------------------------------------------------------------------
+# set working dir
+# ------------------------------------------------------------------------------
+SOURCEDIR=$(cd $(dirname $0)/../..; pwd -P)
+WORKDIR=$(cd ${1:-.}; pwd -P)
+INSTALL_DIR=${WORKDIR}/DESTDIR
+mkdir -p ${WORKDIR} ${INSTALL_DIR} ${WORKDIR}/libboost
+
+
+# ------------------------------------------------------------------------------
+# Set OS/Arch flags
+# ------------------------------------------------------------------------------
+if [[ $(getconf LONG_BIT) == 32 ]]; then
+    TARGET_ARCH="i686"
+    TARGET_CFLAGS+=" -m32 -march=i686"
+else
+    TARGET_ARCH="$(uname -m)"
+fi
+
+
+# ------------------------------------------------------------------------------
+# Set Debug options
+# ------------------------------------------------------------------------------
+if [[ $CMAKE_BUILD_TYPE == Debug ]]; then
+    BUILD_COMMENT+="-debug"
+    CMAKE_OPTS+=" -DDEBUG_EXTNAME=OFF"
+fi
+if [[ ${ANALYZER_OPTS} == *WITH_VALGRIND=ON* ]]; then
+    BUILD_COMMENT+="-valgrind"
+fi
+
+
+# ------------------------------------------------------------------------------
+# set version
+# ------------------------------------------------------------------------------
+source "$SOURCEDIR/VERSION"
+if [[ -n $(which git) ]] && [[ -d "$SOURCEDIR/.git" ]]; then
+    REVISION="$(cd "$SOURCEDIR"; git rev-parse --short HEAD)"
+fi
+MYSQL_VERSION="$MYSQL_VERSION_MAJOR.$MYSQL_VERSION_MINOR.$MYSQL_VERSION_PATCH"
+PERCONA_SERVER_VERSION="$(echo $MYSQL_VERSION_EXTRA | sed 's/^-//')"
+PRODUCT="Percona-Server-$MYSQL_VERSION-$PERCONA_SERVER_VERSION"
+TOKUDB_BACKUP_VERSION="${MYSQL_VERSION}${MYSQL_VERSION_EXTRA}"
+PRODUCT_FULL="Percona-Server-${MYSQL_VERSION}-${PERCONA_SERVER_VERSION}${BUILD_COMMENT}-${TAG}$(uname -s)${DIST_NAME}.${TARGET_ARCH}${SSL_VER}"
+COMMENT="Percona Server (GPL), Release ${MYSQL_VERSION_EXTRA#-}, Revision ${REVISION:-}${BUILD_COMMENT}"
+
+
+# ------------------------------------------------------------------------------
+# Check tokudb
+# ------------------------------------------------------------------------------
+if [[ ${WITH_TOKUDB} == ON ]]; then
+    CMAKE_OPTS+=" -DBUILD_TESTING=OFF -DUSE_GTAGS=OFF -DUSE_CTAGS=OFF -DUSE_ETAGS=OFF -DUSE_CSCOPE=OFF -DTOKUDB_BACKUP_PLUGIN_VERSION=${TOKUDB_BACKUP_VERSION}"
+    if [[ ${CMAKE_BUILD_TYPE} == Debug ]]; then
+        CMAKE_OPTS+=" -DTOKU_DEBUG_PARANOID=ON"
+    else
+        CMAKE_OPTS+=" -DTOKU_DEBUG_PARANOID=OFF"
+    fi
+    if [[ ${ANALYZER_OPTS} == *WITH_VALGRIND=ON* ]]; then
+        CMAKE_OPTS+=" -DUSE_VALGRIND=ON"
+    fi
+fi
+
+
+# ------------------------------------------------------------------------------
+# Check mecab
+# ------------------------------------------------------------------------------
+# force to use mecab everywhere (except RHEL)
+if [ -e /etc/redhat-release ]; then
+    WITH_MECAB=""
+else
+    WITH_MECAB="system"
+fi
+
+
+# ------------------------------------------------------------------------------
+# Set compile options
+# ------------------------------------------------------------------------------
+if [[ $COMPILER != default ]]; then
+    export CC=${COMPILER}
+    export CXX=$(echo ${COMPILER} | sed -e 's/gcc/g++/; s/clang/clang++/')
+else
+    export CC=gcc
+    export CXX=g++
+fi
+if [[ -f /opt/rh/devtoolset-6/enable ]]; then
+    source /opt/rh/devtoolset-6/enable
+fi
+if [[ -f /usr/lib/gcc-4.9-backport/bin/gcc ]]; then
+    export PATH=/usr/lib/gcc-4.9-backport/bin:${PATH}
+    export LD_LIBRARY_PATH=/usr/lib/gcc-4.9-backport/lib
+fi
+export LSAN_OPTIONS=verbosity=2:log_threads=1
+
+
+# ------------------------------------------------------------------------------
+# Finaly, compile!
+# ------------------------------------------------------------------------------
+pushd ${WORKDIR}
+    ${JOB_CMAKE} \
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+        ${CMAKE_OPTS} \
+        ${ANALYZER_OPTS} \
+        -DWITH_TOKUDB=${WITH_TOKUDB} \
+        -DWITH_ROCKSDB=${WITH_ROCKSDB} \
+        -DWITH_EMBEDDED_SERVER=${WITH_EMBEDDED_SERVER} \
+        -DWITH_RAPID=${WITH_RAPID} \
+        -DWITH_SSL=${WITH_SSL} \
+        -DWITH_MECAB=${WITH_MECAB} \
+        ${PERFSCHEMA_OPTS} \
+        ${TARGET_CFLAGS:+-DCMAKE_C_FLAGS="${TARGET_CFLAGS}" -DCMAKE_CXX_FLAGS="${TARGET_CFLAGS}"} \
+        -DBUILD_CONFIG=mysql_release \
+        -DFEATURE_SET=community \
+        -DENABLE_DTRACE=OFF \
+        -DENABLE_DOWNLOADS=ON \
+        -DWITH_PAM=ON \
+        -DWITH_SCALABILITY_METRICS=ON \
+        -DWITH_QUERY_RESPONSE_TIME=ON \
+        -DWITH_NUMA=ON \
+        -DWITH_INNODB_MEMCACHED=ON \
+        -DDOWNLOAD_BOOST=ON \
+        -DWITH_BOOST=${WORKDIR}/libboost \
+        -DWITH_KEYRING_VAULT=ON \
+        -DWITH_ZLIB=system \
+        -DCMAKE_INSTALL_PREFIX=/usr/local/$PRODUCT_FULL \
+        -DMYSQL_DATADIR=/usr/local/$PRODUCT_FULL/data \
+        -DCOMPILATION_COMMENT="$COMMENT" \
+        -DMYSQL_MAINTAINER_MODE=ON \
+        ${SOURCEDIR}
+    make ${MAKE_OPTS}
+    make DESTDIR=${INSTALL_DIR} install
+popd
+
+tar -C ${INSTALL_DIR}/usr/local --owner=0 --group=0 -czf "${WORKDIR}/$PRODUCT_FULL.tar.gz" $PRODUCT_FULL

@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -o errexit
+set -o xtrace
+
+DOCKER_DIR=$(dirname $0)
+
+build_docker() {
+    local SOURCE_IMAGE=$1
+
+    sed -i.bak -e "s^FROM .*^FROM ${SOURCE_IMAGE}^" ${DOCKER_DIR}/Dockerfile
+    docker build \
+        --squash \
+        --no-cache \
+        -t perconalab/ps-build:${SOURCE_IMAGE//[:\/]/-} \
+        $DOCKER_DIR
+    mv ${DOCKER_DIR}/Dockerfile.bak ${DOCKER_DIR}/Dockerfile
+}
+
+build_docker ${1:-centos:7}

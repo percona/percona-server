@@ -1,0 +1,25 @@
+#!/bin/sh
+
+set -o errexit
+set -o xtrace
+
+ROOT_DIR=$(cd $(dirname $0)/../..; pwd -P)
+SOURCE_IMAGE=${1:-centos:7}
+
+docker run --rm --mount type=bind,source=${ROOT_DIR},destination=/tmp/ps perconalab/ps-build:${SOURCE_IMAGE//[:\/]/-} sh -c "
+    mkdir /tmp/results
+    cp /tmp/ps/results/*.tar.gz /tmp/results
+
+    export CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    export ANALYZER_OPTS=${ANALYZER_OPTS}
+    export DEFAULT_TESTING=${DEFAULT_TESTING}
+    export HOTBACKUP_TESTING=${HOTBACKUP_TESTING}
+    export TOKUDB_ENGINES_MTR=${TOKUDB_ENGINES_MTR}
+    export MTR_ARGS=${MTR_ARGS}
+    export MTR_REPEAT=${MTR_REPEAT}
+
+    bash -x /tmp/ps/build-ps/jenkins/test-binary.sh /tmp/results
+
+    mv /tmp/results/*.xml /tmp/results/*.output /tmp/ps/results/
+    chown $(id -u):$(id -g) /tmp/ps/results/*.xml /tmp/ps/results/*.output
+"

@@ -1,0 +1,37 @@
+#!/bin/sh
+
+set -o errexit
+set -o xtrace
+
+ROOT_DIR=$(cd $(dirname $0)/../..; pwd -P)
+SOURCE_IMAGE=${1:-centos:7}
+
+docker run --rm --mount type=bind,source=${ROOT_DIR},destination=/tmp/ps perconalab/ps-build:${SOURCE_IMAGE//[:\/]/-} sh -c "
+    set -o errexit
+
+    export JOB_CMAKE='${JOB_CMAKE}'
+    export COMPILER='${COMPILER}'
+    export CMAKE_BUILD_TYPE='${CMAKE_BUILD_TYPE}'
+    export ANALYZER_OPTS='${ANALYZER_OPTS}'
+    export WITH_TOKUDB='${WITH_TOKUDB}'
+    export WITH_ROCKSDB='${WITH_ROCKSDB}'
+    export WITH_EMBEDDED_SERVER='${WITH_EMBEDDED_SERVER}'
+    export WITH_RAPID='${WITH_RAPID}'
+    export WITH_SSL='${WITH_SSL}'
+    export PERFSCHEMA_OPTS='${PERFSCHEMA_OPTS}'
+    export CMAKE_OPTS='${CMAKE_OPTS}'
+    export MAKE_OPTS='${MAKE_OPTS}'
+    export BUILD_COMMENT='${BUILD_COMMENT}'
+    export TAG='${TAG}'
+    export DIST_NAME='${DIST_NAME}'
+    export SSL_VER='${SSL_VER}'
+
+    rm -rf /tmp/ps/results
+    mkdir  /tmp/results /tmp/ps/results
+    cp -r /tmp/libboost /tmp/results/libboost
+
+    bash -x /tmp/ps/build-ps/jenkins/build-binary /tmp/results
+
+    mv /tmp/results/*.tar.gz /tmp/ps/results/
+    chown -R $(id -u):$(id -g) /tmp/ps/results
+"

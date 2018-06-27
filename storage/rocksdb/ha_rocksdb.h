@@ -508,12 +508,12 @@ class ha_rocksdb : public my_core::handler {
   uint m_pk_key_parts;
 
   /*
-    TRUE <=> Primary Key columns can be decoded from the index
+    true <=> Primary Key columns can be decoded from the index
   */
   mutable bool m_pk_can_be_decoded;
 
   /*
-   TRUE <=> Some fields in the PK may require unpack_info.
+   true <=> Some fields in the PK may require unpack_info.
   */
   bool m_maybe_unpack_info;
 
@@ -588,15 +588,15 @@ class ha_rocksdb : public my_core::handler {
   /* Type of locking to apply to rows */
   enum { RDB_LOCK_NONE, RDB_LOCK_READ, RDB_LOCK_WRITE } m_lock_rows;
 
-  /* TRUE means we're doing an index-only read. FALSE means otherwise. */
+  /* true means we're doing an index-only read. false means otherwise. */
   bool m_keyread_only;
 
   bool m_skip_scan_it_next_call;
 
-  /* TRUE means we are accessing the first row after a snapshot was created */
+  /* true means we are accessing the first row after a snapshot was created */
   bool m_rnd_scan_is_new_snapshot;
 
-  /* TRUE means the replication slave will use Read Free Replication */
+  /* true means the replication slave will use Read Free Replication */
   bool m_use_read_free_rpl;
 
   /**

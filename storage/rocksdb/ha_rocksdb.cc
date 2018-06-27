@@ -619,7 +619,7 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
                           /*max*/ RDB_MAX_LOCK_WAIT_SECONDS, 0);
 
 static MYSQL_THDVAR_BOOL(deadlock_detect, PLUGIN_VAR_RQCMDARG,
-                         "Enables deadlock detection", nullptr, nullptr, FALSE);
+                         "Enables deadlock detection", nullptr, nullptr, false);
 
 static MYSQL_THDVAR_ULONG(deadlock_detect_depth, PLUGIN_VAR_RQCMDARG,
                           "Number of transactions deadlock detection will "
@@ -632,31 +632,31 @@ static MYSQL_THDVAR_ULONG(deadlock_detect_depth, PLUGIN_VAR_RQCMDARG,
 static MYSQL_THDVAR_BOOL(
     commit_time_batch_for_recovery, PLUGIN_VAR_RQCMDARG,
     "TransactionOptions::commit_time_batch_for_recovery for RocksDB", nullptr,
-    nullptr, FALSE);
+    nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
     trace_sst_api, PLUGIN_VAR_RQCMDARG,
     "Generate trace output in the log for each call to the SstFileWriter",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
     bulk_load, PLUGIN_VAR_RQCMDARG,
     "Use bulk-load mode for inserts. This disables "
     "unique_checks and enables rocksdb_commit_in_the_middle.",
-    rocksdb_check_bulk_load, nullptr, FALSE);
+    rocksdb_check_bulk_load, nullptr, false);
 
 static MYSQL_THDVAR_BOOL(bulk_load_allow_sk, PLUGIN_VAR_RQCMDARG,
                          "Allow bulk loading of sk keys during bulk-load. "
                          "Can be changed only when bulk load is disabled.",
                          /* Intentionally reuse unsorted's check function */
                          rocksdb_check_bulk_load_allow_unsorted, nullptr,
-                         FALSE);
+                         false);
 
 static MYSQL_THDVAR_BOOL(bulk_load_allow_unsorted, PLUGIN_VAR_RQCMDARG,
                          "Allow unsorted input during bulk-load. "
                          "Can be changed only when bulk load is disabled.",
                          rocksdb_check_bulk_load_allow_unsorted, nullptr,
-                         FALSE);
+                         false);
 
 static MYSQL_SYSVAR_BOOL(enable_bulk_load_api, rocksdb_enable_bulk_load_api,
                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -671,7 +671,7 @@ static MYSQL_THDVAR_BOOL(
     commit_in_the_middle, PLUGIN_VAR_RQCMDARG,
     "Commit rows implicitly every rocksdb_bulk_load_size, on bulk load/insert, "
     "update and delete",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 static MYSQL_THDVAR_STR(
@@ -684,11 +684,11 @@ static MYSQL_THDVAR_STR(
 static MYSQL_SYSVAR_BOOL(
     rpl_skip_tx_api, rpl_skip_tx_api_var, PLUGIN_VAR_RQCMDARG,
     "Use write batches for replication thread instead of tx api", nullptr,
-    nullptr, FALSE);
+    nullptr, false);
 
 static MYSQL_THDVAR_BOOL(skip_bloom_filter_on_read, PLUGIN_VAR_RQCMDARG,
                          "Skip using bloom filter for reads", nullptr, nullptr,
-                         FALSE);
+                         false);
 
 static MYSQL_THDVAR_ULONG(max_row_locks, PLUGIN_VAR_RQCMDARG,
                           "Maximum number of locks a transaction can have",
@@ -705,7 +705,7 @@ static MYSQL_THDVAR_ULONGLONG(
 static MYSQL_THDVAR_BOOL(
     lock_scanned_rows, PLUGIN_VAR_RQCMDARG,
     "Take and hold locks on rows that are scanned but not updated", nullptr,
-    nullptr, FALSE);
+    nullptr, false);
 
 static MYSQL_THDVAR_ULONG(bulk_load_size, PLUGIN_VAR_RQCMDARG,
                           "Max #records in a batch for bulk-load mode", nullptr,
@@ -1234,12 +1234,12 @@ static MYSQL_THDVAR_BOOL(
 
 static MYSQL_THDVAR_BOOL(skip_fill_cache, PLUGIN_VAR_RQCMDARG,
                          "Skip filling block cache on read requests", nullptr,
-                         nullptr, FALSE);
+                         nullptr, false);
 
 static MYSQL_THDVAR_BOOL(
     unsafe_for_binlog, PLUGIN_VAR_RQCMDARG,
     "Allowing statement based binary logging which may break consistency",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 static MYSQL_THDVAR_UINT(records_in_range, PLUGIN_VAR_RQCMDARG,
                          "Used to override the result of records_in_range(). "
@@ -1263,7 +1263,7 @@ static MYSQL_SYSVAR_BOOL(force_compute_memtable_stats,
     rocksdb_force_compute_memtable_stats,
     PLUGIN_VAR_RQCMDARG,
     "Force to always compute memtable stats",
-    nullptr, nullptr, TRUE);
+    nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_UINT(
     force_compute_memtable_stats_cachetime,
@@ -1276,7 +1276,7 @@ static MYSQL_SYSVAR_BOOL(
     debug_optimizer_no_zero_cardinality,
     rocksdb_debug_optimizer_no_zero_cardinality, PLUGIN_VAR_RQCMDARG,
     "In case if cardinality is zero, overrides it with some value", nullptr,
-    nullptr, TRUE);
+    nullptr, true);
 
 static MYSQL_SYSVAR_STR(compact_cf, rocksdb_compact_cf_name,
                         PLUGIN_VAR_RQCMDARG, "Compact column family",
@@ -1291,17 +1291,17 @@ static MYSQL_SYSVAR_STR(create_checkpoint, rocksdb_checkpoint_name,
 static MYSQL_SYSVAR_BOOL(signal_drop_index_thread,
                          rocksdb_signal_drop_index_thread, PLUGIN_VAR_RQCMDARG,
                          "Wake up drop index thread", nullptr,
-                         rocksdb_drop_index_wakeup_thread, FALSE);
+                         rocksdb_drop_index_wakeup_thread, false);
 
 static MYSQL_SYSVAR_BOOL(pause_background_work, rocksdb_pause_background_work,
                          PLUGIN_VAR_RQCMDARG,
                          "Disable all rocksdb background operations", nullptr,
-                         rocksdb_set_pause_background_work, FALSE);
+                         rocksdb_set_pause_background_work, false);
 
 static MYSQL_SYSVAR_BOOL(
     enable_ttl, rocksdb_enable_ttl, PLUGIN_VAR_RQCMDARG,
     "Enable expired TTL records to be dropped during compaction.", nullptr,
-    nullptr, TRUE);
+    nullptr, true);
 
 static MYSQL_SYSVAR_BOOL(
     enable_ttl_read_filtering, rocksdb_enable_ttl_read_filtering,
@@ -1310,7 +1310,7 @@ static MYSQL_SYSVAR_BOOL(
     "processing and in query results. Disabling this will allow these records "
     "to be seen, but as a result rows may disappear in the middle of "
     "transactions as they are dropped during compaction. Use with caution.",
-    nullptr, nullptr, TRUE);
+    nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_INT(
     debug_ttl_rec_ts, rocksdb_debug_ttl_rec_ts, PLUGIN_VAR_RQCMDARG,
@@ -1342,22 +1342,22 @@ static MYSQL_SYSVAR_BOOL(
     debug_ttl_ignore_pk, rocksdb_debug_ttl_ignore_pk, PLUGIN_VAR_RQCMDARG,
     "For debugging purposes only. If true, compaction filtering will not occur "
     "on PK TTL data. This variable is a no-op in non-debug builds.",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
     reset_stats, rocksdb_reset_stats, PLUGIN_VAR_RQCMDARG,
     "Reset the RocksDB internal statistics without restarting the DB.", nullptr,
-    rocksdb_set_reset_stats, FALSE);
+    rocksdb_set_reset_stats, false);
 
 static MYSQL_SYSVAR_BOOL(ignore_unknown_options, rocksdb_ignore_unknown_options,
                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
                          "Enable ignoring unknown options passed to RocksDB",
-                         nullptr, nullptr, TRUE);
+                         nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_BOOL(strict_collation_check, rocksdb_strict_collation_check,
                          PLUGIN_VAR_RQCMDARG,
                          "Enforce case sensitive collation for MyRocks indexes",
-                         nullptr, nullptr, TRUE);
+                         nullptr, nullptr, true);
 
 static MYSQL_SYSVAR_STR(strict_collation_exceptions,
                         rocksdb_strict_collation_exceptions,
@@ -1376,14 +1376,14 @@ static MYSQL_SYSVAR_BOOL(
     PLUGIN_VAR_RQCMDARG,
     "Forces memstore flush which may block all write requests so be careful",
     rocksdb_force_flush_memtable_now, rocksdb_force_flush_memtable_now_stub,
-    FALSE);
+    false);
 
 static MYSQL_SYSVAR_BOOL(
     force_flush_memtable_and_lzero_now,
     rocksdb_force_flush_memtable_and_lzero_now_var, PLUGIN_VAR_RQCMDARG,
     "Acts similar to force_flush_memtable_now, but also compacts all L0 files.",
     rocksdb_force_flush_memtable_and_lzero_now,
-    rocksdb_force_flush_memtable_and_lzero_now_stub, FALSE);
+    rocksdb_force_flush_memtable_and_lzero_now_stub, false);
 
 static MYSQL_SYSVAR_UINT(
     seconds_between_stat_computes, rocksdb_seconds_between_stat_computes,
@@ -1497,20 +1497,20 @@ static MYSQL_SYSVAR_BOOL(
     large_prefix, rocksdb_large_prefix, PLUGIN_VAR_RQCMDARG,
     "Support large index prefix length of 3072 bytes. If off, the maximum "
     "index prefix length is 767.",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(
     allow_to_start_after_corruption, rocksdb_allow_to_start_after_corruption,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
     "Allow server to start successfully when RocksDB corruption is detected.",
-    nullptr, nullptr, FALSE);
+    nullptr, nullptr, false);
 
 static MYSQL_SYSVAR_BOOL(error_on_suboptimal_collation,
                          rocksdb_error_on_suboptimal_collation,
                          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
                          "Raise an error instead of warning if a sub-optimal "
                          "collation is used",
-                         nullptr, nullptr, FALSE);
+                         nullptr, nullptr, false);
 
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
@@ -4782,7 +4782,7 @@ ha_rocksdb::ha_rocksdb(my_core::handlerton *const hton,
       m_sk_match_prefix(nullptr), m_sk_match_prefix_buf(nullptr),
       m_sk_packed_tuple_old(nullptr), m_dup_sk_packed_tuple(nullptr),
       m_dup_sk_packed_tuple_old(nullptr), m_pack_buffer(nullptr),
-      m_lock_rows(RDB_LOCK_NONE), m_keyread_only(FALSE), m_encoder_arr(nullptr),
+      m_lock_rows(RDB_LOCK_NONE), m_keyread_only(false), m_encoder_arr(nullptr),
       m_row_checksums_checked(0)
 #if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
       ,
@@ -4997,7 +4997,7 @@ int ha_rocksdb::convert_record_to_storage_format(
   }
 
   // If a primary key may have non-empty unpack_info for certain values,
-  // (m_maybe_unpack_info=TRUE), we write the unpack_info block. The block
+  // (m_maybe_unpack_info=true), we write the unpack_info block. The block
   // itself was prepared in Rdb_key_def::pack_record.
   if (m_maybe_unpack_info) {
     m_storage_record.append(reinterpret_cast<char *>(pk_unpack_info->ptr()),
@@ -7191,13 +7191,13 @@ int ha_rocksdb::read_row_from_secondary_key(uchar *const buf,
        to part #part. Subsequent key parts are not yet filled.
 
     To complicate things further, SQL layer will call index_flags() with
-    all_parts=TRUE. Essentially, we're asked to provide flags for reading
+    all_parts=true. Essentially, we're asked to provide flags for reading
     keyparts whose datatype is not yet known.
 
     We walk around this problem by using check_keyread_allowed(), which uses
     table_share object and is careful not to step on unitialized data.
 
-    When we get a call with all_parts=TRUE, we try to analyze all parts but
+    When we get a call with all_parts=true, we try to analyze all parts but
     ignore those that have key_part->field==nullptr (these are not initialized
     yet).
 */
@@ -7520,8 +7520,8 @@ int ha_rocksdb::index_read_map_impl(uchar *const buf, const uchar *const key,
   @brief
   Scan the secondary index until we find an index record that satisfies ICP
 
-  @param move_forward   TRUE  <=> move m_scan_it forward
-                        FALSE <=> move m_scan_it backward
+  @param move_forward   true  <=> move m_scan_it forward
+                        false <=> move m_scan_it backward
   @param buf            Record buffer (must be the same buffer that
                         pushed index condition points to, in practice
                         it is table->record[0])
@@ -9353,7 +9353,7 @@ int ha_rocksdb::index_end() {
   bitmap_free(&m_lookup_bitmap);
 
   active_index = MAX_KEY;
-  in_range_check_pushed_down = FALSE;
+  in_range_check_pushed_down = false;
 
   DBUG_RETURN(HA_EXIT_SUCCESS);
 }
@@ -10813,7 +10813,7 @@ class Item *ha_rocksdb::idx_cond_push(uint keyno, class Item *const idx_cond) {
 
   pushed_idx_cond = idx_cond;
   pushed_idx_cond_keyno = keyno;
-  in_range_check_pushed_down = TRUE;
+  in_range_check_pushed_down = true;
 
   /* We will check the whole condition */
   DBUG_RETURN(nullptr);
@@ -12417,10 +12417,10 @@ int mysql_value_to_bool(struct st_mysql_value *value, my_bool *return_value) {
     const char *str = value->val_str(value, buf, &len);
     if (str && (my_strcasecmp(system_charset_info, "true", str) == 0 ||
                 my_strcasecmp(system_charset_info, "on", str) == 0)) {
-      *return_value = TRUE;
+      *return_value = true;
     } else if (str && (my_strcasecmp(system_charset_info, "false", str) == 0 ||
                        my_strcasecmp(system_charset_info, "off", str) == 0)) {
-      *return_value = FALSE;
+      *return_value = false;
     } else {
       return 1;
     }
@@ -12429,7 +12429,7 @@ int mysql_value_to_bool(struct st_mysql_value *value, my_bool *return_value) {
     value->val_int(value, &intbuf);
     if (intbuf > 1)
       return 1;
-    *return_value = intbuf > 0 ? TRUE : FALSE;
+    *return_value = intbuf > 0;
   } else {
     return 1;
   }

@@ -22,10 +22,10 @@
 #include <vector>
 
 /* MySQL header files */
-#include "../sql/log.h"
-#include "./my_stacktrace.h"
-#include "./sql_string.h"
-#include "./sql_regex.h"
+#include "log.h"
+#include "my_stacktrace.h"
+#include "sql_regex.h"
+#include "sql_string.h"
 
 /* RocksDB header files */
 #include "rocksdb/slice.h"

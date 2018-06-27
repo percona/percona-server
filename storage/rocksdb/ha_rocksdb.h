@@ -28,13 +28,12 @@
 #include <vector>
 
 /* MySQL header files */
-#include "./handler.h"   /* handler */
-#include "./my_global.h" /* ulonglong */
-#include "./sql_string.h"
-#include "./ib_ut0counter.h"
-#include "sql_bitmap.h"
-#include "my_icp.h"
 #include "field.h"
+#include "handler.h"   /* handler */
+#include "my_global.h" /* ulonglong */
+#include "my_icp.h"
+#include "sql_bitmap.h"
+#include "sql_string.h"
 
 /* RocksDB header files */
 #include "rocksdb/cache.h"
@@ -47,6 +46,7 @@
 #include "rocksdb/utilities/write_batch_with_index.h"
 
 /* MyRocks header files */
+#include "./ib_ut0counter.h"
 #include "./rdb_comparator.h"
 #include "./rdb_index_merge.h"
 #include "./rdb_perf_context.h"
@@ -1341,18 +1341,19 @@ public:
 
   void set_use_read_free_rpl(const char *const whitelist);
 
-public:
+#if defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
+ public:
   virtual void rpl_before_delete_rows() override;
   virtual void rpl_after_delete_rows() override;
   virtual void rpl_before_update_rows() override;
   virtual void rpl_after_update_rows() override;
   virtual bool use_read_free_rpl();
 
-private:
+ private:
   /* Flags tracking if we are inside different replication operation */
   bool m_in_rpl_delete_rows;
   bool m_in_rpl_update_rows;
-
+#endif  // defined(ROCKSDB_INCLUDE_RFR) && ROCKSDB_INCLUDE_RFR
 };
 
 /*

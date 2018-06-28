@@ -164,12 +164,13 @@ static void rocksdb_flush_all_memtables() {
   }
 }
 
-static void rocksdb_compact_column_family_stub(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
-    const void *const save) {}
+static void rocksdb_compact_column_family_stub(THD *const thd,
+                                               struct SYS_VAR *const var,
+                                               void *const var_ptr,
+                                               const void *const save) {}
 
 static int rocksdb_compact_column_family(THD *const thd,
-                                         struct st_mysql_sys_var *const var,
+                                         struct SYS_VAR *const var,
                                          void *const var_ptr,
                                          struct st_mysql_value *const value) {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -218,11 +219,11 @@ static std::string rdb_normalize_dir(std::string dir) {
   return dir;
 }
 
-static int rocksdb_create_checkpoint(
-    THD *const thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *const save MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_value *const value) {
+static int
+rocksdb_create_checkpoint(THD *const thd MY_ATTRIBUTE((__unused__)),
+                          struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
+                          void *const save MY_ATTRIBUTE((__unused__)),
+                          struct st_mysql_value *const value) {
   char buf[FN_REFLEN];
   int len = sizeof(buf);
   const char *const checkpoint_dir_raw = value->val_str(value, buf, &len);
@@ -260,28 +261,30 @@ static int rocksdb_create_checkpoint(
 /* This method is needed to indicate that the
    ROCKSDB_CREATE_CHECKPOINT command is not read-only */
 static void rocksdb_create_checkpoint_stub(THD *const thd,
-                                           struct st_mysql_sys_var *const var,
+                                           struct SYS_VAR *const var,
                                            void *const var_ptr,
                                            const void *const save) {}
 
-static void rocksdb_force_flush_memtable_now_stub(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
-    const void *const save) {}
+static void rocksdb_force_flush_memtable_now_stub(THD *const thd,
+                                                  struct SYS_VAR *const var,
+                                                  void *const var_ptr,
+                                                  const void *const save) {}
 
-static int rocksdb_force_flush_memtable_now(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
-    struct st_mysql_value *const value) {
+static int
+rocksdb_force_flush_memtable_now(THD *const thd, struct SYS_VAR *const var,
+                                 void *const var_ptr,
+                                 struct st_mysql_value *const value) {
   LogPluginErrMsg(INFORMATION_LEVEL, 0, "Manual memtable flush.");
   rocksdb_flush_all_memtables();
   return HA_EXIT_SUCCESS;
 }
 
 static void rocksdb_force_flush_memtable_and_lzero_now_stub(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
+    THD *const thd, struct SYS_VAR *const var, void *const var_ptr,
     const void *const save) {}
 
 static int rocksdb_force_flush_memtable_and_lzero_now(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
+    THD *const thd, struct SYS_VAR *const var, void *const var_ptr,
     struct st_mysql_value *const value) {
   LogPluginErrMsg(INFORMATION_LEVEL, 0, "Manual memtable and L0 flush.");
   rocksdb_flush_all_memtables();
@@ -318,7 +321,7 @@ static int rocksdb_force_flush_memtable_and_lzero_now(
 
 static void rocksdb_drop_index_wakeup_thread(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save);
 
 static bool rocksdb_pause_background_work = false;
@@ -326,7 +329,7 @@ static mysql_mutex_t rdb_sysvars_mutex;
 
 static void rocksdb_set_pause_background_work(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
   const bool pause_requested = *static_cast<const bool *>(save);
@@ -341,67 +344,57 @@ static void rocksdb_set_pause_background_work(
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-static void rocksdb_set_compaction_options(THD *thd,
-                                           struct st_mysql_sys_var *var,
+static void rocksdb_set_compaction_options(THD *thd, struct SYS_VAR *var,
                                            void *var_ptr, const void *save);
 
-static void rocksdb_set_table_stats_sampling_pct(THD *thd,
-                                                 struct st_mysql_sys_var *var,
+static void rocksdb_set_table_stats_sampling_pct(THD *thd, struct SYS_VAR *var,
                                                  void *var_ptr,
                                                  const void *save);
 
 static void rocksdb_set_rate_limiter_bytes_per_sec(THD *thd,
-                                                   struct st_mysql_sys_var *var,
+                                                   struct SYS_VAR *var,
                                                    void *var_ptr,
                                                    const void *save);
 
 static void rocksdb_set_sst_mgr_rate_bytes_per_sec(THD *thd,
-                                                   struct st_mysql_sys_var *var,
+                                                   struct SYS_VAR *var,
                                                    void *var_ptr,
                                                    const void *save);
 
-static void rocksdb_set_delayed_write_rate(THD *thd,
-                                           struct st_mysql_sys_var *var,
+static void rocksdb_set_delayed_write_rate(THD *thd, struct SYS_VAR *var,
                                            void *var_ptr, const void *save);
 
-static void rocksdb_set_max_latest_deadlocks(THD *thd,
-                                             struct st_mysql_sys_var *var,
+static void rocksdb_set_max_latest_deadlocks(THD *thd, struct SYS_VAR *var,
                                              void *var_ptr, const void *save);
 
 static void rdb_set_collation_exception_list(const char *exception_list);
-static void rocksdb_set_collation_exception_list(THD *thd,
-                                                 struct st_mysql_sys_var *var,
+static void rocksdb_set_collation_exception_list(THD *thd, struct SYS_VAR *var,
                                                  void *var_ptr,
                                                  const void *save);
 
-static int rocksdb_validate_update_cf_options(THD *thd,
-                                              struct st_mysql_sys_var *var,
+static int rocksdb_validate_update_cf_options(THD *thd, struct SYS_VAR *var,
                                               void *save,
                                               st_mysql_value *value);
 
-static void rocksdb_set_update_cf_options(THD *thd,
-                                          struct st_mysql_sys_var *var,
+static void rocksdb_set_update_cf_options(THD *thd, struct SYS_VAR *var,
                                           void *var_ptr, const void *save);
 
 static int
 rocksdb_check_bulk_load(THD *const thd,
-                        struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
+                        struct SYS_VAR *var MY_ATTRIBUTE((__unused__)),
                         void *save, struct st_mysql_value *value);
 
 static int rocksdb_check_bulk_load_allow_unsorted(
-    THD *const thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
-    void *save, struct st_mysql_value *value);
+    THD *const thd, struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
+    struct st_mysql_value *value);
 
-static void rocksdb_set_max_background_jobs(THD *thd,
-                                            struct st_mysql_sys_var *const var,
+static void rocksdb_set_max_background_jobs(THD *thd, struct SYS_VAR *const var,
                                             void *const var_ptr,
                                             const void *const save);
-static void rocksdb_set_bytes_per_sync(THD *thd,
-                                       struct st_mysql_sys_var *const var,
+static void rocksdb_set_bytes_per_sync(THD *thd, struct SYS_VAR *const var,
                                        void *const var_ptr,
                                        const void *const save);
-static void rocksdb_set_wal_bytes_per_sync(THD *thd,
-                                           struct st_mysql_sys_var *const var,
+static void rocksdb_set_wal_bytes_per_sync(THD *thd, struct SYS_VAR *const var,
                                            void *const var_ptr,
                                            const void *const save);
 //////////////////////////////////////////////////////////////////////////////
@@ -534,9 +527,10 @@ static TYPELIB info_log_level_typelib = {
     array_elements(info_log_level_names) - 1, "info_log_level_typelib",
     info_log_level_names, nullptr};
 
-static void rocksdb_set_rocksdb_info_log_level(
-    THD *const thd, struct st_mysql_sys_var *const var, void *const var_ptr,
-    const void *const save) {
+static void rocksdb_set_rocksdb_info_log_level(THD *const thd,
+                                               struct SYS_VAR *const var,
+                                               void *const var_ptr,
+                                               const void *const save) {
   DBUG_ASSERT(save != nullptr);
 
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
@@ -546,10 +540,10 @@ static void rocksdb_set_rocksdb_info_log_level(
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-static void
-rocksdb_set_reset_stats(my_core::THD *const /* unused */,
-                        my_core::st_mysql_sys_var *const /* unused */,
-                        void *const var_ptr, const void *const save) {
+static void rocksdb_set_reset_stats(my_core::THD *const /* unused */,
+                                    my_core::SYS_VAR *const /* unused */,
+                                    void *const var_ptr,
+                                    const void *const save) {
   DBUG_ASSERT(save != nullptr);
   DBUG_ASSERT(rdb != nullptr);
   DBUG_ASSERT(rocksdb_stats != nullptr);
@@ -581,8 +575,8 @@ enum rocksdb_flush_log_at_trx_commit_type : unsigned int {
 
 static int rocksdb_validate_flush_log_at_trx_commit(
     THD *const thd,
-    struct st_mysql_sys_var *const var, /* in: pointer to system variable */
-    void *var_ptr, /* out: immediate result for update function */
+    struct SYS_VAR *const var, /* in: pointer to system variable */
+    void *var_ptr,             /* out: immediate result for update function */
     struct st_mysql_value *const value /* in: incoming value */) {
   long long new_value;
 
@@ -745,8 +739,8 @@ static MYSQL_SYSVAR_BOOL(
     "DBOptions::create_if_missing for RocksDB", nullptr, nullptr,
     rocksdb_db_options->create_if_missing);
 
-static void concurrent_prepare_update(THD *thd, st_mysql_sys_var *var,
-                                      void *var_ptr, const void *save) {
+static void concurrent_prepare_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                      const void *save) {
   push_warning(thd, Sql_condition::SL_WARNING, HA_ERR_WRONG_COMMAND,
                "Using rocksdb_concurrent_prepare is deprecated and the "
                "parameter may be removed in future releases.");
@@ -1501,7 +1495,7 @@ static MYSQL_SYSVAR_BOOL(error_on_suboptimal_collation,
 
 static const int ROCKSDB_ASSUMED_KEY_VALUE_DISK_SIZE = 100;
 
-static struct st_mysql_sys_var *rocksdb_system_variables[] = {
+static struct SYS_VAR *rocksdb_system_variables[] = {
     MYSQL_SYSVAR(lock_wait_timeout),
     MYSQL_SYSVAR(deadlock_detect),
     MYSQL_SYSVAR(deadlock_detect_depth),
@@ -1669,7 +1663,7 @@ static Rdb_drop_index_thread rdb_drop_idx_thread;
 
 static void rocksdb_drop_index_wakeup_thread(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   if (*static_cast<const bool *>(save)) {
     rdb_drop_idx_thread.signal();
@@ -12237,8 +12231,8 @@ Rdb_hton_init_state *rdb_get_hton_init_state(void) { return &hton_init_state; }
 
 void rocksdb_set_compaction_options(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
-    my_core::st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *const var_ptr, const void *const save) {
+    my_core::SYS_VAR *const var MY_ATTRIBUTE((__unused__)), void *const var_ptr,
+    const void *const save) {
   if (var_ptr && save) {
     *(uint64_t *)var_ptr = *(const uint64_t *)save;
   }
@@ -12253,7 +12247,7 @@ void rocksdb_set_compaction_options(
 
 void rocksdb_set_table_stats_sampling_pct(
     my_core::THD *const thd MY_ATTRIBUTE((__unused__)),
-    my_core::st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    my_core::SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
 
@@ -12282,7 +12276,7 @@ void rocksdb_set_table_stats_sampling_pct(
 */
 void rocksdb_set_rate_limiter_bytes_per_sec(
     my_core::THD *const thd,
-    my_core::st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    my_core::SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   const uint64_t new_val = *static_cast<const uint64_t *>(save);
   if (new_val == 0 || rocksdb_rate_limiter_bytes_per_sec == 0) {
@@ -12304,7 +12298,7 @@ void rocksdb_set_rate_limiter_bytes_per_sec(
 
 void rocksdb_set_sst_mgr_rate_bytes_per_sec(
     my_core::THD *const thd,
-    my_core::st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    my_core::SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
 
@@ -12320,7 +12314,7 @@ void rocksdb_set_sst_mgr_rate_bytes_per_sec(
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-void rocksdb_set_delayed_write_rate(THD *thd, struct st_mysql_sys_var *var,
+void rocksdb_set_delayed_write_rate(THD *thd, struct SYS_VAR *var,
                                     void *var_ptr, const void *save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
   const uint64_t new_val = *static_cast<const uint64_t *>(save);
@@ -12339,7 +12333,7 @@ void rocksdb_set_delayed_write_rate(THD *thd, struct st_mysql_sys_var *var,
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-void rocksdb_set_max_latest_deadlocks(THD *thd, struct st_mysql_sys_var *var,
+void rocksdb_set_max_latest_deadlocks(THD *thd, struct SYS_VAR *var,
                                       void *var_ptr, const void *save) {
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);
   const uint32_t new_val = *static_cast<const uint32_t *>(save);
@@ -12364,7 +12358,7 @@ void rdb_set_collation_exception_list(const char *const exception_list) {
 }
 
 void rocksdb_set_collation_exception_list(THD *const thd,
-                                          struct st_mysql_sys_var *const var,
+                                          struct SYS_VAR *const var,
                                           void *const var_ptr,
                                           const void *const save) {
   const char *const val = *static_cast<const char *const *>(save);
@@ -12402,9 +12396,9 @@ int mysql_value_to_bool(struct st_mysql_value *value, bool *return_value) {
   return 0;
 }
 
-int rocksdb_check_bulk_load(
-    THD *const thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
-    void *save, struct st_mysql_value *value) {
+int rocksdb_check_bulk_load(THD *const thd,
+                            struct SYS_VAR *var MY_ATTRIBUTE((__unused__)),
+                            void *save, struct st_mysql_value *value) {
   bool new_value;
   if (mysql_value_to_bool(value, &new_value) != 0) {
     return 1;
@@ -12428,8 +12422,8 @@ int rocksdb_check_bulk_load(
 }
 
 int rocksdb_check_bulk_load_allow_unsorted(
-    THD *const thd, struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)),
-    void *save, struct st_mysql_value *value) {
+    THD *const thd, struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
+    struct st_mysql_value *value) {
   bool new_value;
   if (mysql_value_to_bool(value, &new_value) != 0) {
     return 1;
@@ -12446,8 +12440,7 @@ int rocksdb_check_bulk_load_allow_unsorted(
   return 0;
 }
 
-static void rocksdb_set_max_background_jobs(THD *thd,
-                                            struct st_mysql_sys_var *const var,
+static void rocksdb_set_max_background_jobs(THD *thd, struct SYS_VAR *const var,
                                             void *const var_ptr,
                                             const void *const save) {
   DBUG_ASSERT(save != nullptr);
@@ -12474,10 +12467,11 @@ static void rocksdb_set_max_background_jobs(THD *thd,
   RDB_MUTEX_UNLOCK_CHECK(rdb_sysvars_mutex);
 }
 
-static void rocksdb_set_bytes_per_sync(
-    THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
+static void
+rocksdb_set_bytes_per_sync(THD *thd MY_ATTRIBUTE((__unused__)),
+                           struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
+                           void *const var_ptr MY_ATTRIBUTE((__unused__)),
+                           const void *const save) {
   DBUG_ASSERT(save != nullptr);
   DBUG_ASSERT(rocksdb_db_options != nullptr);
   DBUG_ASSERT(rocksdb_db_options->env != nullptr);
@@ -12504,7 +12498,7 @@ static void rocksdb_set_bytes_per_sync(
 
 static void rocksdb_set_wal_bytes_per_sync(
     THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)),
     void *const var_ptr MY_ATTRIBUTE((__unused__)), const void *const save) {
   DBUG_ASSERT(save != nullptr);
   DBUG_ASSERT(rocksdb_db_options != nullptr);
@@ -12532,7 +12526,7 @@ static void rocksdb_set_wal_bytes_per_sync(
 
 static int rocksdb_validate_update_cf_options(
     THD *thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *var MY_ATTRIBUTE((__unused__)), void *save,
+    struct SYS_VAR *var MY_ATTRIBUTE((__unused__)), void *save,
     struct st_mysql_value *value) {
 
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -12559,8 +12553,8 @@ static int rocksdb_validate_update_cf_options(
 
 static void rocksdb_set_update_cf_options(
     THD *const thd MY_ATTRIBUTE((__unused__)),
-    struct st_mysql_sys_var *const var MY_ATTRIBUTE((__unused__)),
-    void *const var_ptr, const void *const save) {
+    struct SYS_VAR *const var MY_ATTRIBUTE((__unused__)), void *const var_ptr,
+    const void *const save) {
   const char *const val = *static_cast<const char *const *>(save);
 
   RDB_MUTEX_LOCK_CHECK(rdb_sysvars_mutex);

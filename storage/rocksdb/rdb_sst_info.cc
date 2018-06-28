@@ -575,7 +575,7 @@ void Rdb_sst_info::run_thread() {
 
 void Rdb_sst_info::init(const rocksdb::DB *const db) {
   const std::string path = db->GetName() + FN_DIRSEP;
-  struct st_my_dir *const dir_info = my_dir(path.c_str(), MYF(MY_DONT_SORT));
+  MY_DIR *const dir_info = my_dir(path.c_str(), MYF(MY_DONT_SORT));
 
   // Access the directory
   if (dir_info == nullptr) {

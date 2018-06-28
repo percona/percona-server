@@ -254,8 +254,7 @@ void rdb_persist_corruption_marker();
   Helper functions to parse strings.
 */
 
-const char *rdb_skip_spaces(const struct charset_info_st *const cs,
-                            const char *str)
+const char *rdb_skip_spaces(const CHARSET_INFO *const cs, const char *str)
     MY_ATTRIBUTE((__warn_unused_result__));
 
 bool rdb_compare_strings_ic(const char *const str1, const char *const str2)
@@ -265,16 +264,16 @@ const char *rdb_find_in_string(const char *str, const char *pattern,
                                bool *const succeeded)
     MY_ATTRIBUTE((__warn_unused_result__));
 
-const char *rdb_check_next_token(const struct charset_info_st *const cs,
-                                 const char *str, const char *const pattern,
+const char *rdb_check_next_token(const CHARSET_INFO *const cs, const char *str,
+                                 const char *const pattern,
                                  bool *const succeeded)
     MY_ATTRIBUTE((__warn_unused_result__));
 
-const char *rdb_parse_id(const struct charset_info_st *const cs,
-                         const char *str, std::string *const id)
+const char *rdb_parse_id(const CHARSET_INFO *const cs, const char *str,
+                         std::string *const id)
     MY_ATTRIBUTE((__warn_unused_result__));
 
-const char *rdb_skip_id(const struct charset_info_st *const cs, const char *str)
+const char *rdb_skip_id(const CHARSET_INFO *const cs, const char *str)
     MY_ATTRIBUTE((__warn_unused_result__));
 
 const std::vector<std::string> parse_into_tokens(const std::string &s,

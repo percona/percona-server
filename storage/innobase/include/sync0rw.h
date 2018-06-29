@@ -35,6 +35,7 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
+#include "my_compiler.h"
 #include "ut0counter.h"
 #include "os0event.h"
 #include "ut0mutex.h"

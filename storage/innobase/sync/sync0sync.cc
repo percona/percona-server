@@ -123,6 +123,7 @@ mysql_pfs_key_t	buf_block_lock_key;
 mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_DEBUG */
 mysql_pfs_key_t	checkpoint_lock_key;
+mysql_pfs_key_t	undo_spaces_lock_key;
 mysql_pfs_key_t	dict_operation_lock_key;
 mysql_pfs_key_t	dict_table_stats_key;
 mysql_pfs_key_t	hash_table_locks_key;

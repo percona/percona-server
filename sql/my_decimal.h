@@ -28,13 +28,11 @@
   Most function are just inline wrappers around library calls
 */
 
-#if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
-#include "sql_string.h"                         /* String */
-#endif
-
 C_MODE_START
 #include <decimal.h>
 C_MODE_END
+
+#include "sql_string.h"                         /* String */
 
 class String;
 typedef struct st_mysql_time MYSQL_TIME;

@@ -367,6 +367,28 @@ fsp_header_init_fields(
 	ulint	flags);		/*!< in: tablespace flags (FSP_SPACE_FLAGS):
 				0, or table->flags if newer than COMPACT */
 
+/** Get the offset of encrytion information in page 0.
+@param[in]	page_size	page size.
+@return	offset on success, otherwise 0. */
+ulint
+fsp_header_get_encryption_offset(
+	const page_size_t&	page_size);
+
+/** Write the encryption info into the space header.
+@param[in]      space_id		tablespace id
+@param[in]      space_flags		tablespace flags
+@param[in]      encrypt_info		buffer for re-encrypt key
+@param[in]      update_fsp_flags	if it need to update the space flags
+@param[in,out]	mtr			mini-transaction
+@return true if success. */
+bool
+fsp_header_write_encryption(
+	ulint			space_id,
+	ulint			space_flags,
+	byte*			encrypt_info,
+	bool			update_fsp_flags,
+	mtr_t*			mtr);
+
 /** Rotate the encryption info in the space header.
 @param[in]	space		tablespace
 @param[in]      encrypt_info	buffer for re-encrypt key.
@@ -383,12 +405,14 @@ insert buffer tree root if space == 0.
 @param[in]	space_id	space id
 @param[in]	size		current size in blocks
 @param[in,out]	mtr		min-transaction
+@param[in]	is_boot		if it's for bootstrap
 @return	true on success, otherwise false. */
 bool
 fsp_header_init(
 	ulint	space_id,
 	ulint	size,
-	mtr_t*	mtr);
+	mtr_t*	mtr,
+	bool	is_boot);
 
 /**********************************************************************//**
 Increases the space size field of a space. */
@@ -646,6 +670,18 @@ fseg_print(
 	fseg_header_t*	header, /*!< in: segment header */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 #endif /* UNIV_BTR_PRINT */
+
+/** Check whether a space id is an undo tablespace ID
+@param[in]	space_id	space id to check
+@return true if it is undo tablespace else false. */
+bool
+fsp_is_undo_tablespace(space_id_t space_id);
+
+/** Check if the space_id is for a system-tablespace (shared + temp).
+@param[in]	space_id	tablespace ID
+@return true if id is a system tablespace, false if not. */
+bool
+fsp_is_system_or_temp_tablespace(space_id_t space_id);
 
 /** Determine if the tablespace is compressed from tablespace flags.
 @param[in]	flags	Tablespace flags

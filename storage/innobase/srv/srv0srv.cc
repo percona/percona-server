@@ -38,6 +38,10 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
+#include <mysqld.h>
+#include <sys/types.h>
+#include <time.h>
+
 #include "my_global.h"
 #include "my_thread.h"
 
@@ -149,6 +153,9 @@ it, truncate action is completed but no new tablespace is marked
 for truncate (action is never aborted). */
 my_bool	srv_undo_log_truncate = FALSE;
 
+/** Enable or disable Encrypt of UNDO tablespace. */
+my_bool	srv_undo_log_encrypt = FALSE;
+
 /** Maximum size of undo tablespace. */
 unsigned long long	srv_max_undo_log_size;
 
@@ -223,6 +230,9 @@ extern bool		trx_commit_disallowed;
 
 /*------------------------- LOG FILES ------------------------ */
 char*	srv_log_group_home_dir	= NULL;
+
+/** Enable or disable Encrypt of REDO tablespace. */
+my_bool	srv_redo_log_encrypt = FALSE;
 
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /** At startup, this is the current redo log file size.
@@ -2761,6 +2771,202 @@ srv_enable_temp_encryption_if_set()
 	}
 }
 
+/** Enable the undo log encryption if it is set.
+It will try to enable the undo log encryption and write the metadata to
+undo log file header, if innodb_undo_log_encrypt is ON. */
+static
+void
+srv_enable_undo_encryption_if_set()
+{
+	fil_space_t*	space;
+	const char*	cant_set_undo_tablespace = "Can't set undo tablespace";
+	const char*	to_be_encrypted = " to be encrypted";
+
+	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		return;
+	}
+
+	/* Check if encryption for undo log is enabled or not. If it's
+	enabled, we will store the encryption metadata to the space header
+	and start to encrypt the undo log block from now on. */
+	if (srv_undo_log_encrypt) {
+		if (undo::spaces->empty()) {
+			srv_undo_log_encrypt = false;
+			ib::error() << cant_set_undo_tablespace << "s"
+				<< to_be_encrypted
+				<< ", since innodb_undo_tablespaces=0.";
+			return;
+		}
+
+		if (srv_read_only_mode) {
+			srv_undo_log_encrypt = false;
+			ib::error() << cant_set_undo_tablespace << "s"
+				<< to_be_encrypted
+				<< " in read-only mode.";
+			return;
+		}
+
+		undo::spaces->s_lock();
+		for (undo::Tablespaces_Vector::iterator undo_space_ptr =
+			undo::spaces->m_spaces.begin();
+			undo_space_ptr != undo::spaces->m_spaces.end();
+			++undo_space_ptr)
+		{
+			undo::Tablespace* undo_space = *undo_space_ptr;
+
+			/* Skip system tablespace, since it's also shared
+			tablespace. */
+			if (undo_space->id() == TRX_SYS_SPACE) {
+				continue;
+			}
+
+			space = fil_space_get(undo_space->id());
+			ut_ad(fsp_is_undo_tablespace(undo_space->id()));
+
+			/* This flag will be written to the header
+			later, by calling the fsp_header_write_encryption()
+			function: */
+			ulint	new_flags =
+				space->flags | FSP_FLAGS_MASK_ENCRYPTION;
+
+			/* We need the server_uuid initialized, otherwise,
+			the keyname will not contains server uuid. */
+			if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+			    || strlen(server_uuid) == 0) {
+				continue;
+			}
+
+			dberr_t err;
+			mtr_t	mtr;
+			byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+			byte	key[ENCRYPTION_KEY_LEN];
+			byte	iv[ENCRYPTION_KEY_LEN];
+
+			Encryption::random_value(key);
+			Encryption::random_value(iv);
+
+			mtr_start(&mtr);
+
+			mtr_x_lock_space(space->id, &mtr);
+
+			memset(encrypt_info, 0,
+			       ENCRYPTION_INFO_SIZE_V2);
+
+			if (!Encryption::fill_encryption_info(
+					key, iv,
+					encrypt_info, false)) {
+				srv_undo_log_encrypt = false;
+				ib::error() << cant_set_undo_tablespace
+					<< " number " << undo_space->num()
+					<< to_be_encrypted << ".";
+				mtr_commit(&mtr);
+				undo::spaces->s_unlock();
+				return;
+			} else {
+				if (!fsp_header_write_encryption(
+						space->id,
+						new_flags,
+						encrypt_info,
+						true,
+						&mtr)) {
+					srv_undo_log_encrypt = false;
+					ib::error() << cant_set_undo_tablespace
+						<< " number "
+						<< undo_space->num()
+						<< to_be_encrypted
+						<< ". Failed to write header"
+						<< " page.";
+					mtr_commit(&mtr);
+					undo::spaces->s_unlock();
+					return;
+				}
+				space->flags |=
+					FSP_FLAGS_MASK_ENCRYPTION;
+				err = fil_set_encryption(
+					space->id, Encryption::AES,
+					key, iv);
+				if (err != DB_SUCCESS) {
+					srv_undo_log_encrypt = false;
+					ib::error() << cant_set_undo_tablespace
+						<< " number "
+						<< undo_space->num()
+						<< to_be_encrypted
+						<< ". Error=" << err << ".";
+					mtr_commit(&mtr);
+					undo::spaces->s_unlock();
+					return;
+				} else {
+					ib::info() << "Encryption is enabled"
+					" for undo tablespace number "
+					<< undo::id2num(undo_space->id()) << ".";
+#ifdef UNIV_ENCRYPT_DEBUG
+					ut_print_buf(stderr, key, 32);
+					ut_print_buf(stderr, iv, 32);
+#endif
+				}
+			}
+			mtr_commit(&mtr);
+		}
+		undo::spaces->s_unlock();
+
+		return;
+	}
+
+	/* If the undo log space is using default key, rotate
+	it. We need the server_uuid initialized, otherwise,
+	the keyname will not contains server uuid. */
+	if (Encryption::master_key_id != 0
+	    || srv_read_only_mode
+	    || strlen(server_uuid) == 0) {
+		return;
+	}
+
+	undo::spaces->s_lock();
+	for (undo::Tablespaces_Vector::iterator undo_space_ptr =
+		undo::spaces->m_spaces.begin();
+		undo_space_ptr != undo::spaces->m_spaces.end();
+		++undo_space_ptr)
+	{
+		undo::Tablespace* undo_space = *undo_space_ptr;
+
+		ut_ad(fsp_is_undo_tablespace(undo_space->id()));
+
+		space = fil_space_get(undo_space->id());
+		ut_ad(space);
+
+		if (space->encryption_type == Encryption::NONE) {
+			continue;
+		}
+
+		byte	encrypt_info[ENCRYPTION_INFO_SIZE_V2];
+		mtr_t	mtr;
+
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		mtr_start(&mtr);
+
+		mtr_x_lock_space(space->id, &mtr);
+
+		memset(encrypt_info, 0,
+		       ENCRYPTION_INFO_SIZE_V2);
+
+		if (!fsp_header_rotate_encryption(
+				space,
+				encrypt_info,
+				&mtr)) {
+			ib::error() << "Can't rotate encryption on undo"
+				" tablespace number "
+				<< undo::id2num(space->id) << ".";
+		} else {
+			ib::info() << "Encryption is enabled"
+				" for undo tablespace number "
+				<< undo::id2num(space->id) << ".";
+		}
+		mtr_commit(&mtr);
+	}
+	undo::spaces->s_unlock();
+}
+
 /*********************************************************************//**
 Puts master thread to sleep. At this point we are using polling to
 service various activities. Master thread sleeps for one second before
@@ -2843,6 +3049,12 @@ loop:
 
 		/* Enable temporary tablespace encryption if set */
 		srv_enable_temp_encryption_if_set();
+
+		/* Enable redo log encryption if it is set */
+		log_enable_encryption_if_set();
+
+		/* Enable undo log encryption if it is set */
+		srv_enable_undo_encryption_if_set();
 	}
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS

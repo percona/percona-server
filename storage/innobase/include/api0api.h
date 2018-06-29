@@ -27,8 +27,25 @@ InnoDB Native API
 #ifndef api0api_h
 #define api0api_h
 
-#include "db0err.h"
 #include <stdio.h>
+
+#include "config.h"
+#include "db0err.h"
+
+/* Define uint32 outside my_inttypes.h, because my_inttypes.h would not allow
+Memcached C code to use the bool data type. */
+#if SIZEOF_INT == 4
+typedef unsigned int uint32;
+#elif SIZEOF_LONG == 4
+typedef unsigned long uint32;
+#else
+# error Neither int or long is of 4 bytes width
+#endif
+
+/** Page number */
+typedef uint32	page_no_t;
+/** Tablespace identifier */
+typedef uint32	space_id_t;
 
 #if defined(__GNUC__)
 #define UNIV_NO_IGNORE		MY_ATTRIBUTE ((warn_unused_result))

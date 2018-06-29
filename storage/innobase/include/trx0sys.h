@@ -425,6 +425,15 @@ trx_sys_validate_trx_list();
 /*========================*/
 #endif /* UNIV_DEBUG */
 
+/** Initialize trx_sys_undo_spaces, called once during srv_start(). */
+void
+trx_sys_undo_spaces_init();
+
+/** Free the resources occupied by trx_sys_undo_spaces,
+called once during thread de-initialization. */
+void
+trx_sys_undo_spaces_deinit();
+
 /** The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
@@ -454,12 +463,6 @@ trx_sys_validate_trx_list();
 					slots */
 /*------------------------------------------------------------- @} */
 
-/* Max number of rollback segments: the number of segment specification slots
-in the transaction system array; rollback segment id must fit in one (signed)
-byte, therefore 128; each slot is currently 8 bytes in size. If you want
-to raise the level to 256 then you will need to fix some assertions that
-impose the 7 bit restriction. e.g., mach_write_to_3() */
-#define	TRX_SYS_N_RSEGS			128
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
 rollback segment.  It initialized some arrays with this number of entries.
 We must remember this limit in order to keep file compatibility. */
@@ -554,6 +557,29 @@ identifier is added to this 64-bit constant. */
 	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
+/** List of undo tablespace IDs. */
+class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t> >
+{
+public:
+	void sort() {
+		std::sort(begin(), end());
+	}
+
+	bool contains(space_id_t id) {
+		if (size() == 0) {
+			return(false);
+		}
+
+		iterator	it = std::find(begin(), end(), id);
+
+		return(it != end());
+	}
+
+	iterator find(space_id_t id) {
+		return(std::find(begin(), end(), id));
+	}
+};
+
 #ifndef UNIV_HOTBACKUP
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
@@ -642,6 +668,12 @@ struct trx_sys_t {
 					transactions. We disable query cache
 					if such transactions exist. */
 };
+
+/** A list of undo tablespace IDs found in the TRX_SYS page.
+This cannot be part of the trx_sys_t object because it is initialized before
+that object is created. These are the old type of undo tablespaces that do not
+have space_IDs in the reserved range nor contain an RSEG_ARRAY page. */
+extern	Space_Ids*	trx_sys_undo_spaces;
 
 /** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system

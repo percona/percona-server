@@ -433,7 +433,6 @@ fil_space_get(
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
-	ut_ad(space == NULL || space->purpose != FIL_TYPE_LOG);
 	return(space);
 }
 #ifndef UNIV_HOTBACKUP
@@ -1698,6 +1697,15 @@ fil_space_close(
 	mutex_exit(&fil_system->mutex);
 }
 
+/** Close each fil_node_t of a fil_space_t if open.
+@param[in]	id	space id */
+void
+fil_space_close_by_id(
+	ulint	id)
+{
+	fil_space_close(fil_space_get_by_id(id)->name);
+}
+
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
 @param[in]	id	space id
@@ -2355,7 +2363,7 @@ fil_recreate_tablespace(
 
 	/* Initialize the first extent descriptor page and
 	the second bitmap page for the new tablespace. */
-	fsp_header_init(space_id, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+	fsp_header_init(space_id, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
 	mtr_commit(&mtr);
 
 	/* Step-4: Re-Create Indexes to newly re-created tablespace.
@@ -3056,7 +3064,7 @@ fil_reinit_space_header_for_table(
 	mtr_start(&mtr);
 	mtr.set_named_space(id);
 
-	fsp_header_init(id, size, &mtr);
+	fsp_header_init(id, size, &mtr, false);
 
 	mtr_commit(&mtr);
 }
@@ -5479,9 +5487,10 @@ fil_io_set_encryption(
 		return;
 	}
 
-	/* For writing redo log, if encryption for redo log is disabled,
-	skip setting encryption. */
-	if (req_type.is_log() && req_type.is_write()) {
+	/* For writting redo log, if encryption for redo log is disabled,
+	skip set encryption. */
+	if (req_type.is_log() && req_type.is_write()
+	    && !srv_redo_log_encrypt) {
 		req_type.clear_encrypted();
 		return;
 	}
@@ -5490,6 +5499,14 @@ fil_io_set_encryption(
 	tablespace is disabled, skip setting encryption. */
 	if (fsp_is_system_temporary(space->id)
 	    && !srv_tmp_tablespace_encrypt && req_type.is_write()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	/* For writting undo log, if encryption for undo log is disabled,
+	skip set encryption. */
+	if (fsp_is_undo_tablespace(space->id)
+	    && !srv_undo_log_encrypt && req_type.is_write()) {
 		req_type.clear_encrypted();
 		return;
 	}
@@ -7371,6 +7388,10 @@ fil_set_encryption(
 {
 	ut_ad(!is_shared_system_tablespace(space_id));
 
+	if (fsp_is_system_or_temp_tablespace(space_id)) {
+		return(DB_IO_NO_ENCRYPT_TABLESPACE);
+	}
+
 	mutex_enter(&fil_system->mutex);
 
 	fil_space_t*	space = fil_space_get_by_id(space_id);
@@ -7380,8 +7401,6 @@ fil_set_encryption(
 		return(DB_NOT_FOUND);
 	}
 
-	ut_ad(algorithm != Encryption::NONE);
-	space->encryption_type = algorithm;
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
 	} else {
@@ -7397,13 +7416,13 @@ fil_set_encryption(
 		       iv, ENCRYPTION_KEY_LEN);
 	}
 
+	ut_ad(algorithm != Encryption::NONE);
+	space->encryption_type = algorithm;
+
 	mutex_exit(&fil_system->mutex);
 
 	return(DB_SUCCESS);
 }
-
-/** Default master key id for bootstrap */
-static const ulint ENCRYPTION_DEFAULT_MASTER_KEY_ID = 0;
 
 /** Rotate the tablespace keys by new master key.
 @return true if the re-encrypt suceeds */
@@ -7417,8 +7436,21 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
-		if (is_system_or_undo_tablespace(space->id)
+		/* Encrypted redo log tablespaces is handled in function
+		log_rotate_encryption. */
+		if (fsp_is_system_or_temp_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		/* Skip the undo tablespace when it's in default
+		key status, since it's the first server startup
+		after bootstrap, and the server uuid is not ready
+		yet. */
+		if (fsp_is_undo_tablespace(space->id)
+		    && Encryption::master_key_id ==
+			ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;
 		}
@@ -7434,6 +7466,7 @@ fil_encryption_rotate()
 			continue;
 		}
 
+		/* Rotate the encrypted tablespaces. */
 		if (space->encryption_type != Encryption::NONE) {
 			mtr_start(&mtr);
 

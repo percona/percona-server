@@ -51,6 +51,7 @@ PSI_memory_key	mem_key_log_online_read_buf;
 PSI_memory_key	mem_key_log_online_iterator_files;
 PSI_memory_key	mem_key_log_online_iterator_page;
 PSI_memory_key	mem_key_parallel_doublewrite;
+PSI_memory_key	mem_key_undo_spaces;
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -84,6 +85,7 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_log_online_iterator_page, "log_online_iterator_page", 0},
 	{&mem_key_partitioning, "partitioning", 0},
 	{&mem_key_parallel_doublewrite, "parallel_doublewrite", 0},
+	{&mem_key_undo_spaces, "undo::Tablespaces", 0}
 };
 
 /** Map used for default performance schema keys, based on file name of the

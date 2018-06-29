@@ -642,7 +642,7 @@ to complete the truncate. */
 
 namespace undo {
 
-	/** Populate log file name based on space_id
+	/** Populate undo log file name based on space_id
 	@param[in]	space_id	id of the undo tablespace.
 	@return DB_SUCCESS or error code */
 	dberr_t populate_log_file_name(
@@ -895,7 +895,341 @@ namespace undo {
 
 		return(exist);
 	}
-};
+
+	/** Build a standard undo tablespace name from a space_id.
+	@param[in]	space_id	id of the undo tablespace.
+	@return tablespace name of the undo tablespace file */
+	char* Tablespace::make_space_name(space_id_t space_id)
+	{
+		/* 8.0 undo tablespace names have an extra '_' */
+		bool	old = (id2num(space_id) == space_id);
+
+		size_t size = sizeof("innodb_undo000") + (old ? 0 : 1);
+
+		char* name = static_cast<char*>(ut_malloc_nokey(size));
+
+		snprintf(name, size,
+			 (old ? "innodb_undo%03"  SPACE_ID_PFS
+			      : "innodb_undo_%03" SPACE_ID_PFS),
+			static_cast<unsigned>(id2num(space_id)));
+
+		return(name);
+	}
+
+	/** Build a standard undo tablespace file name from a space_id.
+	This will create a name like 'undo_001' if the space_id is in the
+	reserved range, else it will be like 'undo001'.
+	@param[in]	space_id	id of the undo tablespace.
+	@return file_name of the undo tablespace file */
+	char* Tablespace::make_file_name(space_id_t space_id)
+	{
+		/* 8.0 undo tablespace names have an extra '_' */
+		size_t	len = strlen(srv_undo_dir);
+		bool	with_sep
+			= (srv_undo_dir[len - 1] == OS_PATH_SEPARATOR);
+		bool	old = (id2num(space_id) == space_id);
+
+		size_t size = strlen(srv_undo_dir)
+			      + (with_sep ? 0 : 1)
+			      + sizeof("undo000")
+			      + (old ? 0 : 1);
+
+		char* name = static_cast<char*>(ut_malloc_nokey(size));
+
+		memcpy(name, srv_undo_dir, len);
+
+		if (!with_sep) {
+			name[len++] = OS_PATH_SEPARATOR;
+		}
+
+		memcpy(&name[len], "undo", 4);
+		len += 4;
+
+		if (!old) {
+			name[len++] = '_';
+		}
+
+		snprintf(&name[len], size - len, "%03" SPACE_ID_PFS,
+			static_cast<unsigned>(id2num(space_id)));
+
+		return(name);
+	}
+
+	/** Populate log file name based on space_id
+	@param[in]	space_id	id of the undo tablespace.
+	@return DB_SUCCESS or error code */
+	char* Tablespace::make_log_file_name(space_id_t space_id)
+	{
+		size_t	size =
+			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
+			+ strlen(undo::s_log_prefix)
+			+ strlen(undo::s_log_ext);
+
+		char*	name = static_cast<char*>(ut_malloc_nokey(size));
+
+		memset(name, 0, size);
+
+		strcpy(name, srv_log_group_home_dir);
+		ulint	len = strlen(name);
+
+		if (name[len - 1] != OS_PATH_SEPARATOR) {
+
+			name[len] = OS_PATH_SEPARATOR;
+			len = strlen(name);
+		}
+
+		snprintf(name + len, size - len,
+			 "%s%lu_%s", undo::s_log_prefix,
+			 (ulong) id2num(space_id), s_log_ext);
+
+		return(name);
+	}
+
+	/** Create the log file for undo tablespace which be truncated.
+	@param[in]	space_id	id of the undo tablespace to truncate.
+	@return DB_SUCCESS or error code. */
+	dberr_t start_logging(space_id_t space_id)
+	{
+		dberr_t	err;
+		Tablespace	undo_space(space_id);
+		char*		log_file_name = undo_space.log_file_name();
+
+		/* Delete the log file if it exists. */
+		os_file_delete_if_exists(innodb_log_file_key,
+					 log_file_name, NULL);
+
+		/* Create the log file, open it and write 0 to indicate
+		init phase. */
+		bool	ret;
+		pfs_os_file_t	handle = os_file_create(
+			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
+			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
+		if (!ret) {
+			return(DB_IO_ERROR);
+		}
+
+		ulint	sz = UNIV_PAGE_SIZE;
+		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
+		if (buf == NULL) {
+			os_file_close(handle);
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		byte*	log_buf = static_cast<byte*>(
+			ut_align(buf, UNIV_PAGE_SIZE));
+
+		IORequest	request(IORequest::WRITE);
+
+		request.disable_compression();
+
+		err = os_file_write(
+			request, log_file_name, handle, log_buf, 0, sz);
+
+		os_file_flush(handle);
+		os_file_close(handle);
+		ut_free(buf);
+
+		return(err);
+	}
+
+	/** Mark completion of undo truncate action by writing magic number to
+	the log file and then removing it from the disk.
+	If we are going to remove it from disk then why write magic number ?
+	This is to safeguard from unlink (file-system) anomalies that will keep
+	the link to the file even after unlink action is successfull and
+	ref-count = 0.
+	@param[in]	space_id	id of the undo tablespace to truncate.*/
+	void done_logging(space_id_t space_id)
+	{
+		dberr_t		err;
+		Tablespace	undo_space(space_id);
+		char*		log_file_name = undo_space.log_file_name();
+		bool		exist;
+		os_file_type_t	type;
+
+		/* If this file does not exist, there is nothing to do. */
+		os_file_status(log_file_name, &exist, &type);
+		if (!exist) {
+			return;
+		}
+
+		/* Open log file and write magic number to indicate
+		done phase. */
+		bool	ret;
+		pfs_os_file_t	handle =
+			os_file_create_simple_no_error_handling(
+				innodb_log_file_key, log_file_name,
+				OS_FILE_OPEN, OS_FILE_READ_WRITE,
+				srv_read_only_mode, &ret);
+
+		if (!ret) {
+			os_file_delete(innodb_log_file_key, log_file_name);
+			return;
+		}
+
+		ulint	sz = UNIV_PAGE_SIZE;
+		void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
+		if (buf == NULL) {
+			os_file_close(handle);
+			os_file_delete(innodb_log_file_key, log_file_name);
+			return;
+		}
+
+		byte*	log_buf = static_cast<byte*>(
+			ut_align(buf, UNIV_PAGE_SIZE));
+
+		mach_write_to_4(log_buf, undo::s_magic);
+
+		IORequest	request(IORequest::WRITE);
+
+		request.disable_compression();
+
+		err = os_file_write(
+			request, log_file_name, handle, log_buf, 0, sz);
+
+		ut_a(err == DB_SUCCESS);
+
+		os_file_flush(handle);
+		os_file_close(handle);
+
+		ut_free(buf);
+		os_file_delete(innodb_log_file_key, log_file_name);
+	}
+
+	/** Check if TRUNCATE_DDL_LOG file exist.
+	@param[in]	space_id	id of the undo tablespace.
+	@return true if exist else false. */
+	bool is_active_truncate_log_present(space_id_t space_id)
+	{
+		Tablespace	undo_space(space_id);
+		char*		log_file_name = undo_space.log_file_name();
+
+		/* Check for existence of the file. */
+		bool		exist;
+		os_file_type_t	type;
+		os_file_status(log_file_name, &exist, &type);
+
+		/* If file exists, check it for presence of magic
+		number.  If found, then delete the file and report file
+		doesn't exist as presence of magic number suggest that
+		truncate action was complete. */
+
+		if (exist) {
+			bool    ret;
+			pfs_os_file_t	handle =
+				os_file_create_simple_no_error_handling(
+					innodb_log_file_key, log_file_name,
+					OS_FILE_OPEN, OS_FILE_READ_WRITE,
+					srv_read_only_mode, &ret);
+			if (!ret) {
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				return(false);
+			}
+
+			ulint	sz = UNIV_PAGE_SIZE;
+			void*	buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
+			if (buf == NULL) {
+				os_file_close(handle);
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				return(false);
+			}
+
+			byte*	log_buf = static_cast<byte*>(
+				ut_align(buf, UNIV_PAGE_SIZE));
+
+			IORequest	request(IORequest::READ);
+
+			request.disable_compression();
+
+			dberr_t	err;
+
+			err = os_file_read(request, handle, log_buf, 0, sz);
+
+			os_file_close(handle);
+
+			if (err != DB_SUCCESS) {
+
+				ib::info()
+					<< "Unable to read '"
+					<< log_file_name << "' : "
+					<< ut_strerr(err);
+
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+
+				ut_free(buf);
+
+				return(false);
+			}
+
+			ulint	magic_no = mach_read_from_4(log_buf);
+
+			ut_free(buf);
+
+			if (magic_no == undo::s_magic) {
+				/* Found magic number. */
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				return(false);
+			}
+		}
+
+		return(exist);
+	}
+
+	/** Add undo tablespace to s_under_construction vector.
+	@param[in]	space_id	space id of tablespace to
+	truncate */
+	void add_space_to_construction_list(space_id_t space_id)
+	{
+		s_under_construction.push_back(space_id);
+	}
+
+	/** Clear the s_under_construction vector. */
+	void clear_construction_list()
+	{
+		s_under_construction.clear();
+	}
+
+	/** Is an undo tablespace under constuction at the moment.
+	@param[in]	space_id	space id to check
+	@return true if marked for truncate, else false. */
+	bool is_under_construction(space_id_t space_id)
+	{
+		for (Space_Ids::const_iterator it = s_under_construction.begin();
+			it != s_under_construction.end(); ++it) {
+			space_id_t construct_id = *it;
+			if (construct_id == space_id) {
+				return(true);
+			}
+		}
+
+		return(false);
+	}
+
+	/* Return whether the undo tablespace is active.  If this is a
+	non-undo tablespace, then it will not be found in spaces and it
+	will not be under construction, so this function will return true.
+	@return true if active (non-undo spaces are always active) */
+	bool is_active(space_id_t space_id) {
+		if (spaces == NULL) {
+			return(!is_under_construction(space_id));
+		}
+
+		Tablespace* undo_space = spaces->find(space_id);
+
+		if (undo_space == NULL) {
+			return(!is_under_construction(space_id));
+		}
+
+		return true;
+	}
+}
+
+/* Declare this global object. */
+Space_Ids	undo::s_under_construction;
 
 /** Iterate over all the UNDO tablespaces and check if any of the UNDO
 tablespace qualifies for TRUNCATE (size > threshold).
@@ -2049,4 +2383,44 @@ trx_purge_run(void)
 	rw_lock_x_unlock(&purge_sys->latch);
 
 	srv_purge_wakeup();
+}
+
+/** Initialize the undo::Tablespaces object. */
+void undo::Tablespaces::init()
+{
+	/** Fix the size of the vector so that it will not do
+	allocations for inserts. This way the contents can be
+	read without using a latch. */
+	m_spaces.reserve(FSP_MAX_UNDO_TABLESPACES);
+
+	m_latch = static_cast<rw_lock_t*>(
+		ut_zalloc_nokey(sizeof(*m_latch)));
+
+	rw_lock_create(undo_spaces_lock_key, m_latch, SYNC_UNDO_SPACES);
+}
+
+/** De-initialize the undo::Tablespaces object. */
+void undo::Tablespaces::deinit()
+{
+	clear();
+
+	rw_lock_free(m_latch);
+	ut_free(m_latch);
+	m_latch = NULL;
+}
+
+/** Add a new space_id to the back of the vector.
+The vector has been pre-allocated to 128 so read threads will
+not loose what is pointed to.
+@param[in]	id	tablespace ID */
+void undo::Tablespaces::add(space_id_t id) {
+	ut_ad(is_reserved(id));
+
+	if (contains(id)) {
+		return;
+	}
+
+	undo::Tablespace* undo_space = UT_NEW_NOKEY(Tablespace(id, true));
+
+	m_spaces.push_back(undo_space);
 }

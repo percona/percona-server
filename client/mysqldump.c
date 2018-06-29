@@ -2885,6 +2885,7 @@ static const char *parse_quoted_identifier(const char *str,
   considered indexed for such key specification.
 */
 static my_bool contains_autoinc_column(const char *autoinc_column,
+                                       ssize_t autoinc_column_len,
                                        const char *keydef,
                                        key_type_t type)
 {
@@ -2911,7 +2912,8 @@ static my_bool contains_autoinc_column(const char *autoinc_column,
       secondary key.
     */
     if ((type == KEY_TYPE_PRIMARY || idnum != 1) &&
-        !strncmp(autoinc_column, from + 1, to - from - 1))
+        to - from - 1 == autoinc_column_len &&
+        !strncmp(autoinc_column, from + 1, autoinc_column_len))
       return TRUE;
 
     /*
@@ -2953,6 +2955,7 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
   char *last_comma= NULL;
   my_bool pk_processed= FALSE;
   char *autoinc_column= NULL;
+  ssize_t autoinc_column_len= 0;
   my_bool has_autoinc= FALSE;
   key_type_t type;
   my_bool keys_processed= FALSE;
@@ -2986,8 +2989,9 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
     else
       type= KEY_TYPE_NONE;
 
-    has_autoinc= (type != KEY_TYPE_NONE) ?
-      contains_autoinc_column(autoinc_column, ptr, type) : FALSE;
+    has_autoinc= (type != KEY_TYPE_NONE)
+      ? contains_autoinc_column(autoinc_column, autoinc_column_len, ptr, type)
+      : FALSE;
 
     /* Is it a secondary index definition? */
     if (c == '\n' && !has_autoinc &&
@@ -3067,8 +3071,9 @@ static void skip_secondary_keys(char *create_str, my_bool has_pk)
         {
           DBUG_ASSERT(autoinc_column == NULL);
 
+          autoinc_column_len= end - ptr - 1;
           autoinc_column= my_strndup(PSI_NOT_INSTRUMENTED, ptr + 1,
-                                     end - ptr - 1, MYF(MY_FAE));
+                                     autoinc_column_len, MYF(MY_FAE));
         }
       }
 

@@ -5214,10 +5214,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   if (encrypt_binlog)
   {
-    uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
-    if (my_rand_buffer(nonce, sizeof(nonce)))
-      goto err;
-
     if (crypto.load_latest_binlog_key())
     {
       sql_print_error("Failed to fetch or create percona_binlog key from/in keyring and thus "
@@ -5228,6 +5224,12 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     DBUG_EXECUTE_IF("check_consecutive_binlog_key_versions",
                     { static uint next_key_version = 0;
                       DBUG_ASSERT(crypto.get_key_version() == next_key_version++);});
+
+    uchar nonce[Binlog_crypt_data::BINLOG_NONCE_LENGTH];
+    memset(nonce, 0, Binlog_crypt_data::BINLOG_NONCE_LENGTH);
+    if (my_rand_buffer(nonce, sizeof(nonce)))
+      goto err;
+
     Start_encryption_log_event sele(1, crypto.get_key_version(), nonce);
     sele.common_footer->checksum_alg= s.common_footer->checksum_alg;
     if (write_to_file(&sele))

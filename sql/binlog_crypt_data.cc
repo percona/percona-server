@@ -81,6 +81,7 @@ Binlog_crypt_data& Binlog_crypt_data::operator=(Binlog_crypt_data b)
 bool Binlog_crypt_data::load_latest_binlog_key()
 {
   free_key(key, key_length);
+  bool error= false;
 #ifdef MYSQL_SERVER
   char *system_key_type = NULL;
   size_t system_key_len = 0;
@@ -98,13 +99,13 @@ bool Binlog_crypt_data::load_latest_binlog_key()
         system_key == NULL)))
          return true;
 
-  my_free(system_key_type);
   DBUG_ASSERT(strncmp(system_key_type, "AES", 3) == 0);
+  my_free(system_key_type);
 
-  if (parse_system_key(system_key, system_key_len, &key_version, &key, &key_length) == reinterpret_cast<uchar*>(NullS))
-    return true;
+  error= (parse_system_key(system_key, system_key_len, &key_version, &key, &key_length) == reinterpret_cast<uchar*>(NullS));
+  my_free(system_key);
 #endif
-  return false;
+  return error;
 }
 
 bool Binlog_crypt_data::init_with_loaded_key(uint sch, const uchar* nonce)

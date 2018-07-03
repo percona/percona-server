@@ -1,5 +1,5 @@
-#ifndef _EVENT_H_
-#define _EVENT_H_
+#ifndef _EVENTS_H_
+#define _EVENTS_H_
 /* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -159,4 +159,4 @@ private:
   @} (end of group Event Scheduler)
 */
 
-#endif /* _EVENT_H_ */
+#endif /* _EVENTS_H_ */

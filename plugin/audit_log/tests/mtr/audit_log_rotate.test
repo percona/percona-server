@@ -5,10 +5,10 @@ let MYSQLD_DATADIR= $MYSQLD_DATADIR;
 
 --disable_result_log
 --disable_query_log
---source ../plugin/audit_log/tests/mtr/audit_log_events.inc
---source ../plugin/audit_log/tests/mtr/audit_log_events.inc
---source ../plugin/audit_log/tests/mtr/audit_log_events.inc
---source ../plugin/audit_log/tests/mtr/audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
+--source audit_log_events.inc
 --enable_query_log
 --enable_result_log
 

@@ -25,7 +25,7 @@ drop table t1;
 --let $character_set_collate=CHARACTER SET latin1 COLLATE latin1_bin
 --source suite/rocksdb/include/type_varchar_endspace.inc
 
---let $character_set_collate=CHARACTER SET utf8 COLLATE utf8_bin
+--let $character_set_collate=CHARACTER SET utf8mb3 COLLATE utf8mb3_bin
 --source suite/rocksdb/include/type_varchar_endspace.inc
 
 --let $character_set_collate=CHARACTER SET ucs2 COLLATE ucs2_bin
@@ -74,7 +74,7 @@ set session rocksdb_verify_row_debug_checksums = @save_rocksdb_verify_row_debug_
 
 # Issue #784 - Skip trailing space bytes for non-unpackable fields
 
-create table t (h varchar(31) character set utf8 collate utf8_bin not null, i varchar(19) collate latin1_bin not null, primary key(i), key(h)) engine=rocksdb;
+create table t (h varchar(31) character set utf8mb3 collate utf8mb3_bin not null, i varchar(19) collate latin1_bin not null, primary key(i), key(h)) engine=rocksdb;
 insert into t(i,h) values('a','b');
 check table t;
 alter table t modify h varchar(31) character set cp1257 collate cp1257_bin not null;

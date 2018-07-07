@@ -164,6 +164,7 @@ class Rdb_tbl_prop_coll : public rocksdb::TablePropertiesCollector {
   uint64_t m_file_size;
   Rdb_compact_params m_params;
   Rdb_tbl_card_coll m_cardinality_collector;
+  bool m_recorded;
 };
 
 class Rdb_tbl_prop_coll_factory

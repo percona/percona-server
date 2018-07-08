@@ -465,6 +465,17 @@ ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
 
+# partition_base.cc contains c++11 code, which can be compiled on all
+# platforms supported for TokuDB and MyRocks
+IF (HAVE_STDCXX11)
+  LIST(APPEND MYSQLD_SOURCE partitioning/partition_base.cc)
+  ADD_COMPILE_FLAGS(partitioning/partition_base.cc
+    COMPILE_FLAGS -std=gnu++11 -Wno-deprecated-declarations)
+ELSE ()
+  MESSAGE(WARNING
+    "-std=gnu++11 support is required to build TokuDB/RocksDB native partitioning")
+ENDIF ()
+
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
 

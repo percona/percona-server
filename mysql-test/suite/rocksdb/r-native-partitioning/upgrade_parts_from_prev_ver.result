@@ -1,0 +1,65 @@
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Stop DB server which was created by MTR default
+#########
+# Test for "ALTER TABLE ... UPGRADE PARTITIONING"
+###
+# Unzip the zip file.
+# Create a bootstrap file in temp location
+MYSQL_TMP_DIR/bootstrap.log
+# restart:<hidden args>
+# Check test table before upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = ROCKSDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = ROCKSDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = ROCKSDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = ROCKSDB) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM test.t1 ORDER BY a;
+a
+50
+55
+250
+255
+350
+355
+db.opt
+t1.frm
+t1.par
+# Upgrade
+ALTER TABLE test.t1 UPGRADE PARTITIONING;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Check test table after upgrade
+SHOW CREATE TABLE test.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ROCKSDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = ROCKSDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = ROCKSDB,
+ PARTITION p2 VALUES LESS THAN (300) ENGINE = ROCKSDB,
+ PARTITION p3 VALUES LESS THAN (400) ENGINE = ROCKSDB) */
+SELECT * FROM test.t1 ORDER BY a;
+a
+50
+55
+250
+255
+350
+355
+db.opt
+t1.frm
+# Stop the server
+# Remove data directory
+# Restart the server with default options.
+# restart

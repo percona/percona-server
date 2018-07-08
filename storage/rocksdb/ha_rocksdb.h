@@ -499,7 +499,9 @@ class ha_rocksdb : public my_core::handler {
   /* Array of index descriptors */
   std::shared_ptr<Rdb_key_def> *m_key_descr_arr;
 
-  bool check_keyread_allowed(uint inx, uint part, bool all_parts) const;
+  static bool check_keyread_allowed(bool &pk_can_be_decoded,
+                                    const TABLE_SHARE *table_share, uint inx,
+                                    uint part, bool all_parts);
 
   /*
     Number of key parts in PK. This is the same as
@@ -835,6 +837,10 @@ public:
 
   bool init_with_fields() override;
 
+  static ulong index_flags(bool &pk_can_be_decoded,
+                           const TABLE_SHARE *table_share, uint inx, uint part,
+                           bool all_parts);
+
   /** @brief
     This is a bitmap of flags that indicates how the storage engine
     implements indexes. The current index flags are documented in
@@ -865,8 +871,16 @@ public:
     return m_store_row_debug_checksums && (rand() % 100 < m_checksums_pct);
   }
 
-  int rename_table(const char *const from, const char *const to) override
-      MY_ATTRIBUTE((__warn_unused_result__));
+  MY_NODISCARD
+  int rename_partitioned_table(const char *const from, const char *const to,
+                               const std::string &partition_string);
+
+  MY_NODISCARD
+  int rename_non_partitioned_table(const char *const from,
+                                   const char *const to);
+
+  MY_NODISCARD
+  int rename_table(const char *const from, const char *const to) override;
 
   int convert_blob_from_storage_format(my_core::Field_blob *const blob,
                                        Rdb_string_reader *const reader,
@@ -1231,7 +1245,8 @@ private:
   int finalize_bulk_load(bool print_client_error = true)
       MY_ATTRIBUTE((__warn_unused_result__));
 
-public:
+ public:
+  void set_pk_can_be_decoded(bool flag) { m_pk_can_be_decoded = flag; }
   int index_init(uint idx, bool sorted) override
       MY_ATTRIBUTE((__warn_unused_result__));
   int index_end() override MY_ATTRIBUTE((__warn_unused_result__));
@@ -1284,6 +1299,11 @@ public:
   int remove_rows(Rdb_tbl_def *const tbl);
   ha_rows records_in_range(uint inx, key_range *const min_key,
                            key_range *const max_key) override
+      MY_ATTRIBUTE((__warn_unused_result__));
+  int delete_non_partitioned_table(const char *const from)
+      MY_ATTRIBUTE((__warn_unused_result__));
+  int delete_partitioned_table(const char *const from,
+                               const std::string &partition_info_str)
       MY_ATTRIBUTE((__warn_unused_result__));
   int delete_table(const char *const from) override
       MY_ATTRIBUTE((__warn_unused_result__));

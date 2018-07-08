@@ -1,0 +1,48 @@
+SELECT COUNT(@@GLOBAL.tokudb_enable_native_partition);
+COUNT(@@GLOBAL.tokudb_enable_native_partition)
+1
+1 Expected
+SELECT @@GLOBAL.tokudb_enable_native_partition;
+@@GLOBAL.tokudb_enable_native_partition
+0
+0 Expected
+SET @@GLOBAL.tokudb_enable_native_partition=1;
+ERROR HY000: Variable 'tokudb_enable_native_partition' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.tokudb_enable_native_partition);
+COUNT(@@GLOBAL.tokudb_enable_native_partition)
+1
+1 Expected
+SELECT @@GLOBAL.tokudb_enable_native_partition= VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='tokudb_enable_native_partition';
+@@GLOBAL.tokudb_enable_native_partition= VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.tokudb_enable_native_partition);
+COUNT(@@GLOBAL.tokudb_enable_native_partition)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='tokudb_enable_native_partition';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+SELECT @@tokudb_enable_native_partition= @@GLOBAL.tokudb_enable_native_partition;
+@@tokudb_enable_native_partition= @@GLOBAL.tokudb_enable_native_partition
+1
+1 Expected
+SELECT COUNT(@@tokudb_enable_native_partition);
+COUNT(@@tokudb_enable_native_partition)
+1
+1 Expected
+SELECT COUNT(@@local.tokudb_enable_native_partition);
+ERROR HY000: Variable 'tokudb_enable_native_partition' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.tokudb_enable_native_partition);
+ERROR HY000: Variable 'tokudb_enable_native_partition' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT tokudb_enable_native_partition= @@SESSION.tokudb_enable_native_partition;
+ERROR 42S22: Unknown column 'tokudb_enable_native_partition' in 'field list'
+Expected error 'Unknown column'

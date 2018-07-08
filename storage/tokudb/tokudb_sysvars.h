@@ -72,6 +72,7 @@ extern my_bool      compress_buffers_before_eviction;
 extern char*        data_dir;
 extern ulong        debug;
 extern my_bool      directio;
+extern my_bool      enable_native_partition;
 extern my_bool      enable_partial_eviction;
 extern int          fs_reserve_percent;
 extern uint         fsync_log_period;

@@ -1,0 +1,7 @@
+[non-native-partitioning]
+loose-rocksdb-enable-native-partition=off
+
+[native-partitioning]
+loose-rocksdb-enable-native-partition=on
+mtr-result-dir = r-native-partitioning
+mtr-tests-list = rocksdb_update_cf_options_basic

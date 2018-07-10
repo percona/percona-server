@@ -19,6 +19,8 @@
 #pragma interface /* gcc class implementation */
 #endif
 
+#define ROCKSDB_INCLUDE_RFR 1
+
 /* C++ standard header files */
 #include <cinttypes>
 #include <set>

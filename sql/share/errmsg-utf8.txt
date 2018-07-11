@@ -7141,6 +7141,9 @@ ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 ER_COMPRESSION_DICTIONARY_IS_REFERENCED
   eng "Compression dictionary '%-.192s' is in use"
 
+ER_GTID_DEPLOYMENT_STEP_ACTIVE
+  eng "super_read_only cannot be changed when gtid_deployment_step is ON"
+
 #
 #  End of 5.6 error messages.
 #

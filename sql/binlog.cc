@@ -962,14 +962,14 @@ static bool should_write_gtids(const THD *thd) {
     return false;
   /*
     Return true (allow gtids to be generated) in the scenario where
-    gtid_deployment_step is false (Normal run after deployment procedure
+    opt_gtid_deployment_step is false (Normal run after deployment procedure
     is done).
 
     Return true in the scenario where slave sql_thread uses gtid received from
     master. This is necessary in the situation where deployment is done on
-    master, but slave still in deployment mode (gtid_deployment_step is true).
+    master, but slave still in deployment mode (opt_gtid_deployment_step is true).
   */
-  return (!gtid_deployment_step || (thd->rli_slave &&
+  return (!opt_gtid_deployment_step || (thd->rli_slave &&
           thd->variables.gtid_next.type != AUTOMATIC_GROUP));
 
 }

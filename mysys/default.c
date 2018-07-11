@@ -646,7 +646,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
  err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
   exit(1);
-  return 0;					/* Keep compiler happy */
+  DBUG_RETURN(0); /* Keep compiler happy */
 }
 
 

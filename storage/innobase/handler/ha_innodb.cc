@@ -10697,6 +10697,40 @@ innodb_base_col_setup_for_stored(
 	}
 }
 
+/** If encryption is requested, check for master key availability
+and set the encryption flag in table flags
+@param[in,out]	table	table object
+@return on success DB_SUCCESS else DB_UNSPPORTED on failure */
+dberr_t
+create_table_info_t::enable_encryption(dict_table_t* table) {
+
+	const char*	encrypt = m_create_info->encrypt_type.str;
+
+	if (Encryption::is_none(encrypt)) {
+		return(DB_SUCCESS);
+	}
+
+	/* Set the encryption flag. */
+	byte*			master_key = NULL;
+	ulint			master_key_id;
+	Encryption::Version	version;
+
+	/* Check if keyring is ready. */
+	Encryption::get_master_key(
+		&master_key_id, &master_key, &version);
+
+	dberr_t	err = DB_SUCCESS;
+	if (master_key == NULL) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		err = DB_UNSUPPORTED;
+	} else {
+		my_free(master_key);
+		DICT_TF2_FLAG_SET(table, DICT_TF2_ENCRYPTION);
+	}
+
+	return(err);
+}
+
 /** Create a table definition to an InnoDB database.
 @return ER_* level error */
 inline MY_ATTRIBUTE((warn_unused_result))
@@ -11023,14 +11057,17 @@ err_col:
 
 	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
 
+	err = enable_encryption(table);
+	if (err != DB_SUCCESS) {
+		dict_mem_table_free(table);
+		goto error_ret;
+	}
+
 	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
 	Given that temp table lifetime is limited to connection/server lifetime
 	on re-start we don't need to restore temp-table and so no entry is
 	needed in SYSTEM tables. */
 	if (dict_table_is_temporary(table)) {
-
-		fil_space_t* space = fil_space_get(srv_tmp_space.space_id());
-		bool force_encrypt = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
 		if (m_create_info->compress.length > 0) {
 
@@ -11043,46 +11080,15 @@ err_col:
 
 			err = DB_UNSUPPORTED;
 			dict_mem_table_free(table);
-		} else if (m_create_info->encrypt_type.length > 0
-			   && !Encryption::is_none(
-				   m_create_info->encrypt_type.str)
-			   && !force_encrypt) {
+		}
 
-			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-			err = DB_UNSUPPORTED;
-			dict_mem_table_free(table);
-		} else {
-			if (force_encrypt) {
-				/* force encryption for temporary tables */
-				byte*			master_key = NULL;
-				ulint			master_key_id;
-				Encryption::Version	version;
+		if (err == DB_SUCCESS) {
 
-				/* Check if keyring is ready. */
-				Encryption::get_master_key(&master_key_id,
-							   &master_key,
-							   &version);
+			/* Get a new table ID */
+			dict_table_assign_new_id(table, m_trx);
 
-				if (master_key == NULL) {
-					my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
-						 MYF(0));
-					err = DB_UNSUPPORTED;
-					dict_mem_table_free(table);
-				} else {
-					my_free(master_key);
-					DICT_TF2_FLAG_SET(table,
-							  DICT_TF2_ENCRYPTION);
-				}
-			}
-
-			if (err == DB_SUCCESS) {
-
-				/* Get a new table ID */
-				dict_table_assign_new_id(table, m_trx);
-
-				/* Create temp tablespace if configured. */
-				err = dict_build_tablespace_for_table(table);
-			}
+			/* Create temp tablespace if configured. */
+			err = dict_build_tablespace_for_table(table);
 
 			if (err == DB_SUCCESS) {
 				/* Temp-table are maintained in memory and so
@@ -11138,31 +11144,6 @@ err_col:
 			   || m_create_info->key_block_size > 0) {
 
 			algorithm = NULL;
-		}
-
-		const char*	encrypt = m_create_info->encrypt_type.str;
-
-		if (!Encryption::is_none(encrypt)) {
-			/* Set the encryption flag. */
-			byte*			master_key = NULL;
-			ulint			master_key_id;
-			Encryption::Version	version;
-
-			/* Check if keyring is ready. */
-			Encryption::get_master_key(&master_key_id,
-						   &master_key,
-						   &version);
-
-			if (master_key == NULL) {
-				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
-					 MYF(0));
-				err = DB_UNSUPPORTED;
-				dict_mem_table_free(table);
-			} else {
-				my_free(master_key);
-				DICT_TF2_FLAG_SET(table,
-						  DICT_TF2_ENCRYPTION);
-			}
 		}
 
 		if (err == DB_SUCCESS) {
@@ -11828,29 +11809,26 @@ create_table_info_t::create_option_encryption_is_valid() const
 		return(false);
 	}
 
-	if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE)
-		&& table_is_encrypted) {
-		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: Unsupported encryption option for"
-			" temporary tables.", MYF(0));
-		return(false);
-	} else if (m_use_shared_space) {
+	if (m_use_shared_space) {
 		space_id = fil_space_get_id_by_name(m_create_info->tablespace);
 
 		/* Space id already validated by
 		create_option_tablespace_is_valid */
 		ut_a(space_id != ULINT_UNDEFINED);
+	} else if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		space_id = srv_tmp_space.space_id();
 	} else if (!m_use_file_per_table) {
 		space_id = TRX_SYS_SPACE;
 	} else {
 		return(true);
 	}
 
-	ulint	fsp_flags = fil_space_get_flags(space_id);
+	fil_space_t*	space = fil_space_get(space_id);
+	ulint		fsp_flags = space->flags;
 
 	bool tablespace_is_encrypted = FSP_FLAGS_GET_ENCRYPTION(fsp_flags);
 	const char *tablespace_name = m_create_info->tablespace != NULL ?
-		m_create_info->tablespace : reserved_system_space_name;
+		m_create_info->tablespace : space->name;
 
 	if (table_is_encrypted && !tablespace_is_encrypted) {
 		my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
@@ -12064,12 +12042,15 @@ void
 ha_innobase::adjust_create_info_for_frm(
 	HA_CREATE_INFO*	create_info)
 {
-		if (create_info->encrypt_type.length == 0
-			&& create_info->encrypt_type.str == NULL
-			&& srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF
-			) {
-				create_info->encrypt_type = yes_string;
-			}
+	bool	is_intrinsic =
+		(create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE) != 0;
+
+	if (create_info->encrypt_type.length == 0
+	    && create_info->encrypt_type.str == NULL
+	    && (srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF
+		|| (srv_tmp_space.is_encrypted() && is_intrinsic))) {
+		create_info->encrypt_type = yes_string;
+	}
 }
 
 /*****************************************************************//**
@@ -12254,14 +12235,6 @@ create_table_info_t::innobase_table_flags()
 			/* Incorrect encryption option */
 			my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
 			DBUG_RETURN(false);
-		}
-
-		if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-			if (!Encryption::is_none(encryption)) {
-				/* Can't encrypt shared tablespace */
-				my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-				DBUG_RETURN(false);
-			}
 		}
 	}
 

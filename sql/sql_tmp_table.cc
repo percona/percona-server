@@ -2256,6 +2256,9 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   create_info.row_type= table->s->row_type;
   create_info.options|= HA_LEX_CREATE_TMP_TABLE |
                         HA_LEX_CREATE_INTERNAL_TMP_TABLE;
+
+  table->file->adjust_create_info_for_frm(&create_info);
+
   /*
     INNODB's fixed length column size is restricted to 1024. Exceeding this can
     result in incorrect behavior.

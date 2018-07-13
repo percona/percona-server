@@ -1,0 +1,21 @@
+show create table information_schema.rocksdb_sst_props;
+Table	Create Table
+ROCKSDB_SST_PROPS	CREATE TEMPORARY TABLE `ROCKSDB_SST_PROPS` (
+  `SST_NAME` varchar(193) NOT NULL DEFAULT '',
+  `COLUMN_FAMILY` int NOT NULL DEFAULT '0',
+  `DATA_BLOCKS` bigint NOT NULL DEFAULT '0',
+  `ENTRIES` bigint NOT NULL DEFAULT '0',
+  `RAW_KEY_SIZE` bigint NOT NULL DEFAULT '0',
+  `RAW_VALUE_SIZE` bigint NOT NULL DEFAULT '0',
+  `DATA_BLOCK_SIZE` bigint NOT NULL DEFAULT '0',
+  `INDEX_BLOCK_SIZE` bigint NOT NULL DEFAULT '0',
+  `INDEX_PARTITIONS` int NOT NULL DEFAULT '0',
+  `TOP_LEVEL_INDEX_SIZE` bigint NOT NULL DEFAULT '0',
+  `FILTER_BLOCK_SIZE` bigint NOT NULL DEFAULT '0',
+  `COMPRESSION_ALGO` varchar(193) NOT NULL DEFAULT '',
+  `CREATION_TIME` bigint NOT NULL DEFAULT '0'
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+uninstall plugin rocksdb;
+select * from information_schema.rocksdb_sst_props;
+ERROR HY000: Plugin 'ROCKSDB' is not loaded
+# restart

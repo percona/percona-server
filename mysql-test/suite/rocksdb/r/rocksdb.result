@@ -922,6 +922,7 @@ rocksdb_datadir	./.rocksdb
 rocksdb_db_write_buffer_size	0
 rocksdb_deadlock_detect	OFF
 rocksdb_deadlock_detect_depth	50
+rocksdb_debug_manual_compaction_delay	0
 rocksdb_debug_optimizer_no_zero_cardinality	ON
 rocksdb_debug_ttl_ignore_pk	OFF
 rocksdb_debug_ttl_read_filter_ts	0
@@ -954,11 +955,13 @@ rocksdb_lock_scanned_rows	OFF
 rocksdb_lock_wait_timeout	1
 rocksdb_log_file_time_to_roll	0
 rocksdb_manifest_preallocation_size	4194304
+rocksdb_manual_compaction_threads	0
 rocksdb_manual_wal_flush	ON
 rocksdb_max_background_jobs	2
 rocksdb_max_latest_deadlocks	5
 rocksdb_max_log_file_size	0
 rocksdb_max_manifest_file_size	1073741824
+rocksdb_max_manual_compactions	10
 rocksdb_max_row_locks	1048576
 rocksdb_max_subcompactions	1
 rocksdb_max_total_wal_size	2147483648
@@ -1568,6 +1571,8 @@ rocksdb_get_hit_l1	#
 rocksdb_get_hit_l2_and_up	#
 rocksdb_get_updates_since_calls	#
 rocksdb_iter_bytes_read	#
+rocksdb_manual_compactions_processed	#
+rocksdb_manual_compactions_running	#
 rocksdb_memtable_hit	#
 rocksdb_memtable_miss	#
 rocksdb_no_file_closes	#
@@ -1676,6 +1681,8 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_manual_compactions_processed
+rocksdb_manual_compactions_running
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes
@@ -1786,6 +1793,8 @@ rocksdb_get_hit_l1
 rocksdb_get_hit_l2_and_up
 rocksdb_get_updates_since_calls
 rocksdb_iter_bytes_read
+rocksdb_manual_compactions_processed
+rocksdb_manual_compactions_running
 rocksdb_memtable_hit
 rocksdb_memtable_miss
 rocksdb_no_file_closes

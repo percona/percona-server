@@ -151,6 +151,11 @@ const char *const BG_THREAD_NAME = "myrocks-bg";
 const char *const INDEX_THREAD_NAME = "myrocks-index";
 
 /*
+  Name for the manual compaction thread.
+*/
+static const char constexpr MANUAL_COMPACTION_THREAD_NAME[] = "myrocks-mc";
+
+/*
   Separator between partition name and the qualifier. Sample usage:
 
   - p0_cfname=foo

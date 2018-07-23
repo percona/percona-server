@@ -1,0 +1,18 @@
+CREATE TABLE t1 (
+a int not null,
+b int not null,
+primary key (a,b) comment 'cf1',
+key (b) comment 'rev:cf2'
+) ENGINE=ROCKSDB;
+DELETE FROM t1;
+SET GLOBAL rocksdb_max_manual_compactions = 2;
+SET GLOBAL rocksdb_debug_manual_compaction_delay = 3600;
+SET GLOBAL rocksdb_compact_cf='cf1';
+SET GLOBAL rocksdb_compact_cf='rev:cf2';
+Timeout in wait_condition.inc for select variable_value > 1 from performance_schema.global_status where variable_name='rocksdb_manual_compactions_running'
+SET GLOBAL rocksdb_compact_cf='cf1';
+ERROR HY000: Internal error: Can't schedule more manual compactions. Increase rocksdb_max_manual_compactions or stop issuing more manual compactions.
+SET GLOBAL rocksdb_compact_cf='rev:cf2';
+ERROR HY000: Internal error: Can't schedule more manual compactions. Increase rocksdb_max_manual_compactions or stop issuing more manual compactions.
+DROP TABLE t1;
+# restart

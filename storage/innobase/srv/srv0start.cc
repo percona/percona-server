@@ -1241,6 +1241,8 @@ srv_open_tmp_tablespace(
 							 Encryption::AES,
 							 NULL,
 							 NULL);
+
+				tmp_space->set_flags(space->flags);
 				ut_a(err == DB_SUCCESS);
 			}
 

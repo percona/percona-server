@@ -2757,6 +2757,8 @@ srv_enable_temp_encryption_if_set()
 			ib::error() << "Can't set temporary tablespace "
 				    << "to be encrypted.";
 			return;
+		} else {
+			srv_tmp_space.set_flags(space->flags);
 		}
 	}
 }

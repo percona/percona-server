@@ -206,6 +206,12 @@ public:
 	/** Check if undo tablespace.
 	@return true if undo tablespace */
 	static bool is_undo_tablespace(ulint id);
+
+	/** @return true if tablespace is encrypted */
+	bool is_encrypted() const {
+		return(FSP_FLAGS_GET_ENCRYPTION(m_flags));
+	}
+
 private:
 	/**
 	@param[in]	filename	Name to lookup in the data files.

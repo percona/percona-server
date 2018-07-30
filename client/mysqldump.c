@@ -2959,16 +2959,13 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       MYSQL_FIELD *field;
-<<<<<<< HEAD
+      my_bool freemem= FALSE;
+      char const *text;
    
       my_bool old_ignore_errors=ignore_errors;
       //fprintf(stderr, "ignore create table %d\n", opt_ignore_show_create_table_error);
       if (opt_ignore_show_create_table_error)
          ignore_errors=1;
-=======
-      my_bool freemem= FALSE;
-      char const *text;
->>>>>>> mysql-5.5.61
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
 
@@ -4024,18 +4021,6 @@ static void dump_table(char *table, char *db)
   }
   else
   {
-<<<<<<< HEAD
-    print_comment(md_result_file, 0,
-                  "\n--\n-- Dumping data for table %s\n--\n",
-                  fix_identifier_with_newline(result_table));
-    
-    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
-    if (server_supports_sql_no_fcache)
-    {
-      dynstr_append_checked(&query_string, "/*!50084 SQL_NO_FCACHE */ ");
-    }
-    dynstr_append_checked(&query_string, "* FROM ");
-=======
     my_bool freemem= FALSE;
     char const* text= fix_identifier_with_newline(result_table, &freemem);
     print_comment(md_result_file, 0, "\n--\n-- Dumping data for table %s\n--\n",
@@ -4043,8 +4028,12 @@ static void dump_table(char *table, char *db)
     if (freemem)
       my_free((void*)text);
 
-    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
->>>>>>> mysql-5.5.61
+    dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ ");
+    if (server_supports_sql_no_fcache)
+    {
+      dynstr_append_checked(&query_string, "/*!50084 SQL_NO_FCACHE */ ");
+    }
+    dynstr_append_checked(&query_string, "* FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)

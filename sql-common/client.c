@@ -1506,7 +1506,8 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     {
       uchar *pos;
       /* fields count may be wrong */
-      DBUG_ASSERT((uint) (field - result) < fields);
+      if (field < result || (uint) (field - result) >= fields)
+        DBUG_RETURN(NULL);
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 8 : 7);
       field->catalog=   strmake_root(alloc,(char*) row->data[0], lengths[0]);
       field->db=        strmake_root(alloc,(char*) row->data[1], lengths[1]);
@@ -1613,6 +1614,7 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
 
   if ((pkt_len= cli_safe_read(mysql)) == packet_error)
     DBUG_RETURN(0);
+  if (pkt_len == 0) DBUG_RETURN(0);
   if (!(result=(MYSQL_DATA*) my_malloc(sizeof(MYSQL_DATA),
 				       MYF(MY_WME | MY_ZEROFILL))))
   {
@@ -2256,6 +2258,34 @@ error:
 }
 
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
+
+
+/**
+  Checks if any SSL option is set for libmysqld embedded server.
+
+  @param  mysql   the connection handle
+  @retval 0       success
+  @retval 1       failure
+*/
+#ifdef EMBEDDED_LIBRARY
+int embedded_ssl_check(MYSQL *mysql)
+{
+  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
+      mysql->options.ssl_ca || mysql->options.ssl_capath ||
+      mysql->options.ssl_cipher ||
+      mysql->options.client_flag & CLIENT_SSL_VERIFY_SERVER_CERT ||
+      (mysql->options.extension &&
+        mysql->options.extension->ssl_mode == SSL_MODE_REQUIRED))
+  {
+     set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                              ER(CR_SSL_CONNECTION_ERROR),
+                              "Embedded server libmysqld library doesn't support "
+                              "SSL connections");
+     return 1;
+  }
+  return 0;
+}
+#endif
 
 
 /*
@@ -3830,6 +3860,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   mysql->client_flag= client_flag;
 
+#ifdef EMBEDDED_LIBRARY
+  if (embedded_ssl_check(mysql))
+    goto error;
+#endif
+
   /*
     Part 2: invoke the plugin to send the authentication data to the server
   */
@@ -4515,10 +4550,14 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->reconnect= *(my_bool *) arg;
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_SSL_VERIFY_SERVER_CERT;
     else
       mysql->options.client_flag&= ~CLIENT_SSL_VERIFY_SERVER_CERT;
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   case MYSQL_PLUGIN_DIR:
     EXTENSION_SET_STRING(&mysql->options, plugin_dir, arg);
@@ -4532,11 +4571,15 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       (*(my_bool*) arg) ? TRUE : FALSE;
     break;
   case MYSQL_OPT_SSL_MODE:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (*(uint *) arg == SSL_MODE_REQUIRED)
     {
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_mode= SSL_MODE_REQUIRED;
     }
+#elif defined(EMBEDDED_LIBRARY)
+    DBUG_RETURN(1);
+#endif
     break;
   default:
     DBUG_RETURN(1);

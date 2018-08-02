@@ -3,17 +3,15 @@
 # when ssl-verify-server-cert option is provided, the DNS/IPs provided
 # in the Subject Alternative Names field (which can be provided as an
 # extension in X509) are also checked for apart from the Common Name in
-# the subject. Applicable for openssl versions 1.0.2 and greater.
+# the subject. When openssl versions is 1.0.2 and greater,
+# 'X509_check_host()' / 'X509_check_ip()' functions are used. Otherwise,
+# manual traversal of SAN records is performed.
 #
 # === Related bugs and/or worklogs ===
 # Bug #16211011 - SSL CERTIFICATE SUBJECT ALT NAMES WITH IPS NOT RESPECTED WITH --SSL-VERIFY-SERVER-CERT
-#
-# Note that these test cases are written keeping in mind that the openssl version used by the system will
-# be 1.0.2+. For older versions of openssl, the test will be skipped.
 
 --source include/have_openssl.inc
 --source include/have_openssl_support.inc
---source include/check_openssl_version.inc
 --source include/not_embedded.inc
 
 --echo ### Trying to connect without ssl. This should establish an unencrypted connection.

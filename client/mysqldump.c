@@ -3345,16 +3345,13 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       MYSQL_FIELD *field;
-<<<<<<< HEAD
+      my_bool freemem= FALSE;
+      char const *text;
    
       my_bool old_ignore_errors=ignore_errors;
       //fprintf(stderr, "ignore create table %d\n", opt_ignore_show_create_table_error);
       if (opt_ignore_show_create_table_error)
          ignore_errors=1;
-=======
-      my_bool freemem= FALSE;
-      char const *text;
->>>>>>> mysql-5.6.41
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -123,6 +123,7 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    my_bool padding)
 {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+<<<<<<< HEAD
   EVP_CIPHER_CTX ctx_value;
   EVP_CIPHER_CTX *ctx= &ctx_value;
 #else
@@ -131,22 +132,34 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
     return MY_AES_BAD_DATA;
 #endif
 
+=======
+  EVP_CIPHER_CTX stack_ctx;
+  EVP_CIPHER_CTX *ctx= &stack_ctx;
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.7.23
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
   /* The real key to be used for encryption */
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
   my_aes_create_key(key, key_length, rkey, mode);
 
+<<<<<<< HEAD
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
                   && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
   {
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
     EVP_CIPHER_CTX_free(ctx);
 #endif
+=======
+  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+>>>>>>> mysql-5.7.23
     return MY_AES_BAD_DATA;
   }
 
   if (!EVP_EncryptInit(ctx, cipher, rkey, iv))
+<<<<<<< HEAD
     goto aes_error;                             /* Error */
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding))
     goto aes_error;                             /* Error */
@@ -157,24 +170,45 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   }
   else
     u_len= 0;
+=======
+    goto aes_error;                             /* Error */
+  if (!EVP_CIPHER_CTX_set_padding(ctx, padding))
+    goto aes_error;                             /* Error */
+  if (!EVP_EncryptUpdate(ctx, dest, &u_len, source, source_length))
+    goto aes_error;                             /* Error */
+
+>>>>>>> mysql-5.7.23
   if (!EVP_EncryptFinal(ctx, dest + u_len, &f_len))
     goto aes_error;                             /* Error */
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
+<<<<<<< HEAD
 #else
   EVP_CIPHER_CTX_free(ctx);
 #endif
+=======
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX_free(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.7.23
   return u_len + f_len;
 
 aes_error:
   /* need to explicitly clean up the error if we want to ignore it */
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+<<<<<<< HEAD
   EVP_CIPHER_CTX_cleanup(ctx);
 #else
   EVP_CIPHER_CTX_free(ctx);
 #endif
+=======
+    EVP_CIPHER_CTX_cleanup(ctx);
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+    EVP_CIPHER_CTX_free(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.7.23
   return MY_AES_BAD_DATA;
 }
 
@@ -193,6 +227,15 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
     return MY_AES_BAD_DATA;
 #endif
 
+<<<<<<< HEAD
+=======
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  EVP_CIPHER_CTX stack_ctx;
+  EVP_CIPHER_CTX *ctx= &stack_ctx;
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX *ctx= EVP_CIPHER_CTX_new();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.7.23
   const EVP_CIPHER *cipher= aes_evp_type(mode);
   int u_len, f_len;
 
@@ -200,17 +243,24 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   unsigned char rkey[MAX_AES_KEY_LENGTH / 8];
 
   my_aes_create_key(key, key_length, rkey, mode);
+<<<<<<< HEAD
   if (!cipher || (EVP_CIPHER_iv_length(cipher) > 0
                   && EVP_CIPHER_mode(cipher) != EVP_CIPH_ECB_MODE && !iv))
   {
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
     EVP_CIPHER_CTX_free(ctx);
 #endif
+=======
+  if (!ctx || !cipher || (EVP_CIPHER_iv_length(cipher) > 0 && !iv))
+>>>>>>> mysql-5.7.23
     return MY_AES_BAD_DATA;
   }
 
+<<<<<<< HEAD
   EVP_CIPHER_CTX_init(ctx);
 
+=======
+>>>>>>> mysql-5.7.23
   if (!EVP_DecryptInit(ctx, aes_evp_type(mode), rkey, iv))
     goto aes_error;                             /* Error */
   if (!EVP_CIPHER_CTX_set_padding(ctx, padding))
@@ -222,9 +272,16 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
+<<<<<<< HEAD
 #else
   EVP_CIPHER_CTX_free(ctx);
 #endif
+=======
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX_free(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+
+>>>>>>> mysql-5.7.23
   return u_len + f_len;
 
 aes_error:
@@ -232,9 +289,15 @@ aes_error:
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_CIPHER_CTX_cleanup(ctx);
+<<<<<<< HEAD
 #else
   EVP_CIPHER_CTX_free(ctx);
 #endif
+=======
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  EVP_CIPHER_CTX_free(ctx);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.7.23
   return MY_AES_BAD_DATA;
 }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,23 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
-# we skip building the mysqlpump tool. The server, and mysqlpump, will be built
-# using gcc.
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
 )
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  IF (WITHOUT_SERVER)
-    MESSAGE(STATUS "Not building mysqlpump")
-    RETURN()
-  ENDIF()
-ENDIF()
-
-# Prevent Boost from including external precompiled Boost libraries, use
-# threading (not implemented for older Solaris Studio compilers)
+# Prevent Boost from including external precompiled Boost libraries,
 # and turn off unused functionality.
 IF(USING_LOCAL_BOOST)
   ADD_DEFINITIONS(
@@ -42,17 +30,25 @@ SET(BOOST_LIB_SOURCES
   ${BOOST_SOURCES_DIR}/libs/system/src/error_code.cpp
 )
 
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
+
 IF(USING_LOCAL_BOOST)
   ADD_CONVENIENCE_LIBRARY(boost_lib ${BOOST_LIB_SOURCES})
 
   # Do not build library unless it is needed by some other target.
   SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+<<<<<<< HEAD
   ADD_COMPILE_FLAGS(
     ${BOOST_LIB_SOURCES}
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
     )
 
+=======
+>>>>>>> mysql-5.7.23
   IF(HAVE_clock_gettime_IN_rt)
     TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
   ENDIF()
@@ -144,6 +140,7 @@ TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
 
 ADD_COMPILE_FLAGS(
+<<<<<<< HEAD
   ${MYSQLPUMP_LIB_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
   )
@@ -173,14 +170,13 @@ IF(HAVE_UNUSED_TYPEDEFS)
 ENDIF()
 
 ADD_COMPILE_FLAGS(
+=======
+>>>>>>> mysql-5.7.23
   compression_writer.cc
   mysqldump_tool_chain_maker.cc
   COMPILE_FLAGS -I${LZ4_INCLUDE_DIR}
 )
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)
-ADD_COMPILE_FLAGS(
-  program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)
 
 TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib ${LOCAL_BOOST_LIB})
 IF(USING_SYSTEM_BOOST)
@@ -189,12 +185,3 @@ IF(USING_SYSTEM_BOOST)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqlpump PROPERTIES HAS_CXX TRUE)
-
-# Store the executable in our parent directory.
-# Why? In pushbuild we do 'touch client/mysql*' to prevent rebuild,
-#      in the case where we have a separate build of libmysqlclient.so
-IF (NOT WIN32)
-  SET_TARGET_PROPERTIES(mysqlpump
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client)
-ENDIF()
-

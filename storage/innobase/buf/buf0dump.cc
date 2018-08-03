@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -267,7 +267,11 @@ buf_dump(
 
 	static const char format_name[]= "%s.incomplete";
 	char	full_filename[OS_FILE_MAX_PATH];
+<<<<<<< HEAD
 	char	tmp_filename[OS_FILE_MAX_PATH + sizeof(format_name)];
+=======
+	char	tmp_filename[OS_FILE_MAX_PATH + 11];
+>>>>>>> mysql-5.7.23
 	char	now[32];
 	FILE*	f;
 	ulint	i;

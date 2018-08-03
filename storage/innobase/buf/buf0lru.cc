@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2117,6 +2117,10 @@ buf_LRU_free_page(
 	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 		b = buf_page_alloc_descriptor();
 		ut_a(b);
+<<<<<<< HEAD
+=======
+                new (b) buf_page_t(*bpage);
+>>>>>>> mysql-5.7.23
 	}
 
 	ut_ad(buf_page_in_file(bpage));

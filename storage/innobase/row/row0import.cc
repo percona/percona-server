@@ -109,18 +109,18 @@ struct row_index_t {
 struct row_import {
 	row_import() UNIV_NOTHROW
 		:
-		m_table(),
-		m_version(),
-		m_hostname(),
-		m_table_name(),
-		m_autoinc(),
+		m_table(NULL),
+		m_version(0),
+		m_hostname(NULL),
+		m_table_name(NULL),
+		m_autoinc(0),
 		m_page_size(0, 0, false),
-		m_flags(),
-		m_n_cols(),
-		m_cols(),
-		m_col_names(),
-		m_n_indexes(),
-		m_indexes(),
+		m_flags(0),
+		m_n_cols(0),
+		m_cols(NULL),
+		m_col_names(NULL),
+		m_n_indexes(0),
+		m_indexes(NULL),
 		m_missing(true),
 		m_cfp_missing(true)	{ }
 
@@ -1313,12 +1313,27 @@ row_import::match_schema(
 	const unsigned relevant_table_flags
 		= m_table->flags & ~DICT_TF_MASK_DATA_DIR;
 
+<<<<<<< HEAD
 	if (relevant_flags != relevant_table_flags) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 			 "Table flags don't match, server table has 0x%x "
 			 "and the meta-data file has 0x%x",
 			 relevant_table_flags, relevant_flags);
 
+=======
+	if (m_flags != m_table->flags) {
+		if (dict_tf_to_row_format_string(m_flags) !=
+				dict_tf_to_row_format_string(m_table->flags)) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				 "Table flags don't match, server table has %s"
+				 " and the meta-data file has %s",
+				(const char*)dict_tf_to_row_format_string(m_table->flags),
+				(const char*)dict_tf_to_row_format_string(m_flags));
+		} else {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+				"Table flags don't match");
+		}
+>>>>>>> mysql-5.7.23
 		return(DB_ERROR);
 	} else if (m_table->n_cols != m_n_cols) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
@@ -2501,7 +2516,11 @@ row_import_cfg_read_index_fields(
 
 	dict_field_t*	field = index->m_fields;
 
+<<<<<<< HEAD
 	memset(static_cast<void*>(field), 0x0, sizeof(*field) * n_fields);
+=======
+	std::uninitialized_fill_n(field, n_fields, dict_field_t());
+>>>>>>> mysql-5.7.23
 
 	for (ulint i = 0; i < n_fields; ++i, ++field) {
 		byte*		ptr = row;
@@ -3621,8 +3640,11 @@ row_import_for_mysql(
 	row_import	cfg;
 	ulint		space_flags = 0;
 
+<<<<<<< HEAD
 	memset(static_cast<void*>(&cfg), 0x0, sizeof(cfg));
 
+=======
+>>>>>>> mysql-5.7.23
 	err = row_import_read_cfg(table, trx->mysql_thd, cfg);
 
 	/* Check if the table column definitions match the contents

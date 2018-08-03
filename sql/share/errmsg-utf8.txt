@@ -7768,6 +7768,7 @@ ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
 WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
 
+<<<<<<< HEAD
 ER_COMPRESSED_COLUMN_USED_AS_KEY
   eng "Compressed column '%-.192s' is not allowed in the key list"
 
@@ -7788,6 +7789,10 @@ ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 
 ER_COMPRESSION_DICTIONARY_IS_REFERENCED
   eng "Compression dictionary '%-.192s' is in use"
+=======
+ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+>>>>>>> mysql-5.7.23
 
 #
 #  End of 5.7 error messages.

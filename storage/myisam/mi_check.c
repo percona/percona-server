@@ -1,7 +1,11 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
    Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
    Copyright (c) 2009, 2016, MariaDB
+=======
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> mysql-5.7.23
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4461,6 +4465,10 @@ int update_state_info(MI_CHECK *param, MI_INFO *info,uint update)
     int error;
     uint r_locks=share->r_locks,w_locks=share->w_locks;
     share->r_locks= share->w_locks= share->tot_locks= 0;
+
+    DBUG_EXECUTE_IF("simulate_incorrect_share_wlock_value",
+                    DEBUG_SYNC_C("after_share_wlock_set_to_0"););
+
     error=_mi_writeinfo(info,WRITEINFO_NO_UNLOCK);
     share->r_locks=r_locks;
     share->w_locks=w_locks;

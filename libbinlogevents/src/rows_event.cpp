@@ -91,15 +91,27 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
+<<<<<<< HEAD
     memcpy(static_cast<void*>(&m_table_id), post_start, 4);
     m_table_id= le64toh(m_table_id);
+=======
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 4);
+    m_table_id= le64toh(table_id);
+>>>>>>> mysql-5.7.23
     post_start+= 4;
   }
   else
   {
     BAPI_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
+<<<<<<< HEAD
     memcpy(static_cast<void*>(&m_table_id), post_start, 6);
     m_table_id= le64toh(m_table_id);
+=======
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id= le64toh(table_id);
+>>>>>>> mysql-5.7.23
     post_start+= TM_FLAGS_OFFSET;
   }
 
@@ -193,14 +205,26 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
+<<<<<<< HEAD
     memcpy(static_cast<void*>(&m_table_id), post_start, 4);
     m_table_id= le64toh(m_table_id);
+=======
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 4);
+    m_table_id= le64toh(table_id);
+>>>>>>> mysql-5.7.23
     post_start+= 4;
   }
   else
   {
+<<<<<<< HEAD
     memcpy(static_cast<void*>(&m_table_id), post_start, 6);
     m_table_id= le64toh(m_table_id);
+=======
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id= le64toh(table_id);
+>>>>>>> mysql-5.7.23
     post_start+= ROWS_FLAGS_OFFSET;
   }
 

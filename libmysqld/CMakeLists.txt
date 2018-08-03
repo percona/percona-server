@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -111,6 +111,7 @@ SET(SQL_EMBEDDED_SOURCES
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+<<<<<<< HEAD
 ADD_COMPILE_FLAGS(
   ../sql/debug_sync.cc
   ../sql/handler.cc
@@ -125,6 +126,12 @@ ADD_COMPILE_FLAGS(
   ../sql/spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
 )
+=======
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
+>>>>>>> mysql-5.7.23
 
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c

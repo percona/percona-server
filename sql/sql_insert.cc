@@ -2946,7 +2946,10 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   int result;
   TABLE_LIST tmp_table_list;
 
+<<<<<<< HEAD
   memset(static_cast<void*>(&tmp_table_list), 0, sizeof(tmp_table_list));
+=======
+>>>>>>> mysql-5.7.23
   tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 

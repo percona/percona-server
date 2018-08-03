@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,8 +18,12 @@ IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
+<<<<<<< HEAD
 INCLUDE_DIRECTORIES(${BOOST_PATCHES_DIR})
 INCLUDE_DIRECTORIES(SYSTEM ${BOOST_INCLUDE_DIR})
+=======
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+>>>>>>> mysql-5.7.23
 
 INCLUDE_DIRECTORIES(
   ${GMOCK_INCLUDE_DIRS}

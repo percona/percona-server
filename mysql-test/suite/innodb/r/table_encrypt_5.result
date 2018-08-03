@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Could not create keyring directory");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
@@ -14,6 +15,8 @@ call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the 
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
+=======
+>>>>>>> mysql-5.7.23
 # Starting server with keyring plugin  
 # restart:<hidden args>
 DROP DATABASE IF EXISTS tde_db;

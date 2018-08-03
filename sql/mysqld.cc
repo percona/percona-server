@@ -2989,7 +2989,7 @@ int init_common_variables()
   /* TODO: remove this when my_time_t is 64 bit compatible */
   if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
   {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    sql_print_error("This MySQL server doesn't support dates later than 2038");
     return 1;
   }
 
@@ -3670,6 +3670,7 @@ static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
+<<<<<<< HEAD
   int fips_mode= FIPS_mode();
   if (fips_mode != 0)
   {
@@ -3681,7 +3682,13 @@ static int init_ssl()
   }
 #endif /* HAVE_YASSL */
 #if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
+=======
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+>>>>>>> mysql-5.7.23
   CRYPTO_malloc_init();
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  OPENSSL_malloc_init();
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
   ssl_start();
 #ifndef EMBEDDED_LIBRARY
@@ -3708,8 +3715,13 @@ static int init_ssl()
                                           opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
+<<<<<<< HEAD
     ERR_remove_state(0);
 #endif
+=======
+    ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+>>>>>>> mysql-5.7.23
     if (!ssl_acceptor_fd)
     {
       /*
@@ -3840,8 +3852,13 @@ static int generate_server_uuid()
 
   strncpy(server_uuid, uuid.c_ptr(), sizeof(server_uuid));
   DBUG_EXECUTE_IF("server_uuid_deterministic",
+<<<<<<< HEAD
                   strncpy(server_uuid, "00000000-1111-0000-1111-000000000000",
                           sizeof(server_uuid)););
+=======
+                  memcpy(server_uuid, "00000000-1111-0000-1111-000000000000",
+                         UUID_LENGTH););
+>>>>>>> mysql-5.7.23
   server_uuid[UUID_LENGTH]= '\0';
   return 0;
 }
@@ -5333,6 +5350,8 @@ int mysqld_main(int argc, char **argv)
       grant_init(opt_noacl))
   {
     abort_loop= true;
+    sql_print_error("Fatal error: Failed to initialize ACL/grant/time zones "
+                    "structures or failed to remove temporary table files.");
 
     delete_pid_file(MYF(MY_WME));
 

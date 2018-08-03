@@ -316,7 +316,11 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   {
     // Rename of table
     TABLE_LIST tmp_table;
+<<<<<<< HEAD
     memset(static_cast<void*>(&tmp_table), 0, sizeof(tmp_table));
+=======
+
+>>>>>>> mysql-5.7.23
     tmp_table.table_name= lex->name.str;
     tmp_table.db= select_lex->db;
     tmp_table.grant.privilege= priv;

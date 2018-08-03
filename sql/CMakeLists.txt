@@ -303,6 +303,7 @@ SET(SQL_SOURCE
   srv_session.cc
   srv_session_info_service.cc
   srv_session_service.cc
+  auth/sha2_password_common.cc
   )
 
 IF(NOT WIN32)
@@ -318,6 +319,7 @@ IF(WIN32)
 ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+<<<<<<< HEAD
 ADD_COMPILE_FLAGS(
   debug_sync.cc
   handler.cc
@@ -332,6 +334,12 @@ ADD_COMPILE_FLAGS(
   spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
 )
+=======
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
+>>>>>>> mysql-5.7.23
 
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c

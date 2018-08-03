@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -281,8 +281,11 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("recreate_temporary_table");
 
+<<<<<<< HEAD
   memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
 
+=======
+>>>>>>> mysql-5.7.23
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
   /*

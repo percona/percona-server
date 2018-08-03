@@ -2010,10 +2010,15 @@ buf_page_realloc(
 	if (buf_page_can_relocate(&block->page)) {
 		mutex_enter(&new_block->mutex);
 
+<<<<<<< HEAD
 		memcpy(static_cast<void*>(new_block->frame), block->frame,
 		       UNIV_PAGE_SIZE);
 		memcpy(static_cast<void*>(&new_block->page), &block->page,
 		       sizeof block->page);
+=======
+		memcpy(new_block->frame, block->frame, UNIV_PAGE_SIZE);
+		new (&new_block->page) buf_page_t(block->page);
+>>>>>>> mysql-5.7.23
 
 		/* relocate LRU list */
 		ut_ad(block->page.in_LRU_list);
@@ -3141,7 +3146,11 @@ buf_relocate(
 	}
 #endif /* UNIV_DEBUG */
 
+<<<<<<< HEAD
 	memcpy(static_cast<void*>(dpage), bpage, sizeof *dpage);
+=======
+	new (dpage) buf_page_t(*bpage);
+>>>>>>> mysql-5.7.23
 
 	/* Important that we adjust the hazard pointer before
 	removing bpage from LRU list. */

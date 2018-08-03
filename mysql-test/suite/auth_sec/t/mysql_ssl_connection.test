@@ -7,7 +7,11 @@
 connection default;
 CREATE USER u_20693153@localhost IDENTIFIED BY 'abcd';
 
+<<<<<<< HEAD
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+=======
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+>>>>>>> mysql-5.7.23
 --exec $MYSQL --protocol=TCP -uu_20693153 -pabcd --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem -e "SHOW STATUS LIKE 'Ssl_cipher';"
 
 DROP USER u_20693153@localhost;

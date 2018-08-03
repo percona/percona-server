@@ -3375,6 +3375,7 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
+<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER < 0x10100000
     RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
 #else
@@ -3400,6 +3401,26 @@ public:
     }
     BN_free(exponent_bn);
 #endif
+=======
+    RSA *rsa= RSA_new();
+    if (!rsa)
+      return NULL;
+    BIGNUM *e= BN_new();
+    if (!e)
+    {
+      RSA_free(rsa);
+      return NULL;
+    }
+    if (!BN_set_word(e, m_exponent) ||
+        !RSA_generate_key_ex(rsa, m_key_size, e, NULL))
+    {
+      RSA_free(rsa);
+      BN_free(e);
+      return NULL;
+    }
+    BN_free(e);
+
+>>>>>>> mysql-5.7.23
     return rsa; // pass ownership
   }
 

@@ -2986,15 +2986,17 @@ innodb_replace_trx_in_thd(
 		ut_ad(trx == NULL
 		      || (trx->mysql_thd == thd && !trx->is_recovered));
 
-	} else if (trx->state == TRX_STATE_NOT_STARTED) {
-		ut_ad(thd == trx->mysql_thd);
-		trx_free_for_mysql(trx);
-	} else {
-		ut_ad(thd == trx->mysql_thd);
-		ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-		trx_disconnect_prepared(trx);
-	}
-	trx = static_cast<trx_t*>(new_trx_arg);
+	} else if (trx != NULL) {
+    if (trx->state == TRX_STATE_NOT_STARTED) {
+      ut_ad(thd == trx->mysql_thd);
+      trx_free_for_mysql(trx);
+    } else {
+      ut_ad(thd == trx->mysql_thd);
+      ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+      trx_disconnect_prepared(trx);
+    }
+  }
+  trx = static_cast<trx_t *>(new_trx_arg);
 }
 
 /*********************************************************************//**
@@ -3700,6 +3702,8 @@ static bool innobase_is_supported_system_table(const char *db,
 							"time_zone_name",
 							"time_zone_transition",
 							"time_zone_transition_type",
+							"innodb_table_stats",
+							"innodb_index_stats",
 							(const char *)NULL };
 
 	if (!is_sql_layer_system_table)
@@ -7085,14 +7089,23 @@ ha_innobase::clone(
 
 
 uint
-ha_innobase::max_supported_key_part_length() const
+ha_innobase::max_supported_key_part_length(HA_CREATE_INFO *create_info) const
 /*==============================================*/
 {
 	/* A table format specific index column length check will be performed
 	at ha_innobase::add_index() and row_create_index_for_mysql() */
-	return(innobase_large_prefix
-		? REC_VERSION_56_MAX_INDEX_COL_LEN
-		: REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+	switch (create_info->row_type) {
+	case ROW_TYPE_REDUNDANT:
+	case ROW_TYPE_COMPACT:
+		return (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+		break;
+	default:
+		if (innobase_large_prefix)
+			return (REC_VERSION_56_MAX_INDEX_COL_LEN);
+		else
+			return (REC_ANTELOPE_MAX_INDEX_COL_LEN - 1);
+	}
+
 }
 
 /******************************************************************//**
@@ -14130,6 +14143,37 @@ innobase_rename_table(
 
 	row_mysql_lock_data_dictionary(trx);
 
+	dict_table_t*   table                   = NULL;
+	table = dict_table_open_on_name(norm_from, TRUE, FALSE,
+					DICT_ERR_IGNORE_NONE);
+
+	/* Since DICT_BG_YIELD has sleep for 250 milliseconds,
+	Convert	lock_wait_timeout unit from second to 250 milliseconds */
+	long int lock_wait_timeout = thd_lock_wait_timeout(thd) * 4;
+	if (table != NULL) {
+		for (dict_index_t* index = dict_table_get_first_index(table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+
+			if (index->type & DICT_FTS) {
+				/* Found */
+				while (index->index_fts_syncing
+					&& !trx_is_interrupted(trx)
+					&& (lock_wait_timeout--) > 0) {
+					DICT_BG_YIELD(trx);
+				}
+			}
+		}
+		dict_table_close(table, TRUE, FALSE);
+	}
+
+	/* FTS sync is in progress. We shall timeout this operation */
+	if (lock_wait_timeout < 0) {
+		error = DB_LOCK_WAIT_TIMEOUT;
+		row_mysql_unlock_data_dictionary(trx);
+		DBUG_RETURN(error);
+	}
+
 	/* Transaction must be flagged as a locking transaction or it hasn't
 	been started yet. */
 
@@ -14292,6 +14336,12 @@ ha_innobase::rename_table(
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
 
 		error = DB_ERROR;
+	}
+
+	else if (error == DB_LOCK_WAIT_TIMEOUT) {
+		my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0), to);
+
+		error = DB_LOCK_WAIT;
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
@@ -21114,13 +21164,13 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   static_cast<longlong>(srv_buf_pool_min_size),
   LLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
+static MYSQL_SYSVAR_ULONGLONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of a single memory chunk within each buffer pool instance"
   " for resizing buffer pool. Online buffer pool resizing happens"
   " at this granularity. 0 means disable resizing buffer pool.",
   NULL, NULL,
-  128 * 1024 * 1024, 1024 * 1024, LONG_MAX, 1024 * 1024);
+  128 * 1024 * 1024, 1024 * 1024, ULONG_MAX, 1024 * 1024);
 
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
 static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
@@ -22949,7 +22999,7 @@ innodb_buffer_pool_size_validate(
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 			ER_WRONG_ARGUMENTS,
 			"InnoDB: Cannot resize buffer pool to lesser than"
-			" chunk size of %lu bytes.", srv_buf_pool_chunk_unit);
+			" chunk size of %llu bytes.", srv_buf_pool_chunk_unit);
 		/* nothing to do */
 		return(0);
 	}

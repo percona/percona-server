@@ -131,8 +131,8 @@ namespace myrocks {
   make sure that both failure and success paths are clearly identifiable. The
   definitions of FALSE and TRUE come from <my_global.h>.
 */
-#define HA_EXIT_SUCCESS FALSE
-#define HA_EXIT_FAILURE TRUE
+#define HA_EXIT_SUCCESS false
+#define HA_EXIT_FAILURE true
 
 /*
   Macros to better convey the intent behind checking the results from locking

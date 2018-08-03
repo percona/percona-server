@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.80.\ \& This table describes command\-line options for the ndb_mgmd program
+.B Table\ \&21.316.\ \&Command\-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -54,9 +54,10 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
+l l l
 l l l
 l l l
 l l l
@@ -75,31 +76,7 @@ l l l
 l l l.
 T{
 .PP
---config-file=file,
-.PP
--f
-T}:T{
-Specify the cluster configuration file; in NDB-6.4.0 and later, needs
-          --reload or --initial to override configuration cache if
-          present
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---configdir=directory,
-.PP
---config-dir=directory
-T}:T{
-Specify the cluster management server's configuration cache directory
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---bind-address=host
+\fB \fR\fB--bind-address=host\fR\fB \fR
 T}:T{
 Local bind address
 T}:T{
@@ -108,106 +85,7 @@ All MySQL 5.7 based releases
 T}
 T{
 .PP
---print-full-config,
-.PP
--P
-T}:T{
-Print full configuration and exit
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---daemon,
-.PP
--d
-T}:T{
-Run ndb_mgmd in daemon mode (default)
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---nodaemon
-T}:T{
-Do not run ndb_mgmd as a daemon
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---interactive
-T}:T{
-Run ndb_mgmd in interactive mode (not officially supported in
-          production; for testing purposes only)
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---log-name=name
-T}:T{
-A name to use when writing messages applying to this node in the cluster
-          log.
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---no-nodeid-checks
-T}:T{
-Do not provide any node id checks
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---mycnf
-T}:T{
-Read cluster configuration data from the my.cnf file
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---reload
-T}:T{
-Causes the management server to compare the configuration file with its
-          configuration cache
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---initial
-T}:T{
-Causes the management server reload its configuration data from the
-          configuration file, bypassing the configuration cache
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---nowait-nodes=list
-T}:T{
-Do not wait for these management nodes when starting this management
-          server. Also requires --ndb-nodeid to be used.
-T}:T{
-.PP
-All MySQL 5.7 based releases
-T}
-T{
-.PP
---config-cache[=TRUE|FALSE]
+\fB \fR\fB--config-cache[=TRUE|FALSE]\fR\fB \fR
 T}:T{
 Enable the management server configuration cache; TRUE by default.
 T}:T{
@@ -216,22 +94,159 @@ All MySQL 5.7 based releases
 T}
 T{
 .PP
---install[=name]
+\fB--config-file=file\fR
+(>=),
+.PP
+\fB-f\fR
+(>=)
 T}:T{
-Used to install the management server process as a Windows service. Does
-          not apply on non-Windows platforms.
+Specify the cluster configuration file; in NDB-6.4.0 and later, needs
+              --reload or --initial to override configuration cache if
+              present
 T}:T{
 .PP
 All MySQL 5.7 based releases
 T}
 T{
 .PP
---remove[=name]
+\fB--configdir=directory\fR,
+.PP
+\fB--config-dir=directory\fR
+(>=7.0.8)
+T}:T{
+Specify the cluster management server's configuration cache directory
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB--daemon\fR,
+.PP
+\fB \fR\fB-d\fR\fB \fR
+T}:T{
+Run ndb_mgmd in daemon mode (default)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--initial\fR\fB \fR
+T}:T{
+Causes the management server reload its configuration data from the
+              configuration file, bypassing the configuration cache
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--install[=name]\fR\fB \fR
+T}:T{
+Used to install the management server process as a Windows service. Does
+              not apply on non-Windows platforms.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--interactive\fR\fB \fR
+T}:T{
+Run ndb_mgmd in interactive mode (not officially supported in
+              production; for testing purposes only)
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--log-name=name\fR\fB \fR
+T}:T{
+A name to use when writing messages applying to this node in the cluster
+              log.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--mycnf\fR\fB \fR
+T}:T{
+Read cluster configuration data from the my.cnf file
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--no-nodeid-checks\fR\fB \fR
+T}:T{
+Do not provide any node id checks
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--nodaemon\fR\fB \fR
+T}:T{
+Do not run ndb_mgmd as a daemon
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--nowait-nodes=list\fR\fB \fR
+T}:T{
+Do not wait for these management nodes when starting this management
+              server. Also requires --ndb-nodeid to be used.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB--print-full-config\fR,
+.PP
+\fB \fR\fB-P\fR\fB \fR
+T}:T{
+Print full configuration and exit
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--reload\fR\fB \fR
+T}:T{
+Causes the management server to compare the configuration file with its
+              configuration cache
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB \fR\fB--remove[=name]\fR\fB \fR
 T}:T{
 Used to remove a management server process that was previously installed
-          as a Windows service, optionally specifying the name of the
-          service to be removed. Does not apply on non-Windows
-          platforms.
+              as a Windows service, optionally specifying the name of
+              the service to be removed. Does not apply on non-Windows
+              platforms.
+T}:T{
+.PP
+All MySQL 5.7 based releases
+T}
+T{
+.PP
+\fB--verbose\fR,
+.PP
+\fB \fR\fB-v\fR\fB \fR
+T}:T{
+Write additional information to the log.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -271,100 +286,13 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
 .TE
 .sp 1
 Causes the management server to bind to a specific network interface (host name or IP address)\&. This option has no default value\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-no\-nodeid\-checks\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---no-nodeid-checks
-T}
-T{
-\fBType\fR
-T}:T{
-boolean
-T}
-T{
-\fBDefault\fR
-T}:T{
-FALSE
-T}
-.TE
-.sp 1
-Do not perform any checks of node IDs\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-configdir=\fR\fB\fIdir_name\fR\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
-.PP
---configdir=directory
-.PP
---config-dir=directory
-T}
-T{
-\fBType\fR
-T}:T{
-file name
-T}
-T{
-\fBDefault\fR
-T}:T{
-$INSTALLDIR/mysql-cluster
-T}
-.TE
-.sp 1
-Specifies the cluster management server\*(Aqs configuration cache directory\&.
-\fB\-\-config\-dir\fR
-is an alias for this option\&.
 .RE
 .sp
 .RS 4
@@ -399,7 +327,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -554,7 +482,7 @@ T}:T{
 file name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -587,7 +515,7 @@ Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-mycnf\fR
+\fB\-\-configdir=\fR\fB\fIdir_name\fR\fR
 .TS
 allbox tab(:);
 lB lB.
@@ -603,23 +531,26 @@ l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
---mycnf
+.PP
+--configdir=directory
+.PP
+--config-dir=directory
 T}
 T{
 \fBType\fR
 T}:T{
-boolean
+file name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
-FALSE
+$INSTALLDIR/mysql-cluster
 T}
 .TE
 .sp 1
-Read configuration data from the
-my\&.cnf
-file\&.
+Specifies the cluster management server\*(Aqs configuration cache directory\&.
+\fB\-\-config\-dir\fR
+is an alias for this option\&.
 .RE
 .sp
 .RS 4
@@ -655,7 +586,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -668,51 +599,6 @@ to start as a daemon process\&. This is the default behavior\&.
 This option has no effect when running
 \fBndb_mgmd\fR
 on Windows platforms\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-interactive\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---interactive
-T}
-T{
-\fBType\fR
-T}:T{
-boolean
-T}
-T{
-\fBDefault\fR
-T}:T{
-FALSE
-T}
-.TE
-.sp 1
-Starts
-\fBndb_mgmd\fR
-in interactive mode; that is, an
-\fBndb_mgm\fR
-client session is started as soon as the management server is running\&. This option does not start any other NDB Cluster nodes\&.
 .RE
 .sp
 .RS 4
@@ -747,7 +633,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -792,6 +678,120 @@ option, the cache is cleared only if the configuration file is actually found\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--install[=name]
+T}
+T{
+\fBPlatform Specific\fR
+T}:T{
+Windows
+T}
+T{
+\fBType\fR
+T}:T{
+string
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+ndb_mgmd
+T}
+.TE
+.sp 1
+Causes
+\fBndb_mgmd\fR
+to be installed as a Windows service\&. Optionally, you can specify a name for the service; if not set, the service name defaults to
+ndb_mgmd\&. Although it is preferable to specify other
+\fBndb_mgmd\fR
+program options in a
+my\&.ini
+or
+my\&.cnf
+configuration file, it is possible to use them together with
+\fB\-\-install\fR\&. However, in such cases, the
+\fB\-\-install\fR
+option must be specified first, before any other options are given, for the Windows service installation to succeed\&.
+.sp
+It is generally not advisable to use this option together with the
+\fB\-\-initial\fR
+option, since this causes the configuration cache to be wiped and rebuilt every time the service is stopped and started\&. Care should also be taken if you intend to use any other
+\fBndb_mgmd\fR
+options that affect the starting of the management server, and you should make absolutely certain you fully understand and allow for any possible consequences of doing so\&.
+.sp
+The
+\fB\-\-install\fR
+option has no effect on non\-Windows platforms\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-interactive\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--interactive
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Starts
+\fBndb_mgmd\fR
+in interactive mode; that is, an
+\fBndb_mgm\fR
+client session is started as soon as the management server is running\&. This option does not start any other NDB Cluster nodes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-log\-name=\fR\fB\fIname\fR\fR
 .TS
 allbox tab(:);
@@ -816,13 +816,97 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 MgmtSrvr
 T}
 .TE
 .sp 1
 Provides a name to be used for this node in the cluster log\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-mycnf\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--mycnf
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Read configuration data from the
+my\&.cnf
+file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-nodeid\-checks\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--no-nodeid-checks
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Do not perform any checks of node IDs\&.
 .RE
 .sp
 .RS 4
@@ -857,7 +941,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -870,113 +954,6 @@ not to start as a daemon process\&.
 The default behavior for
 \fBndb_mgmd\fR
 on Windows is to run in the foreground, making this option unnecessary on Windows platforms\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-print\-full\-config\fR,
-\fB\-P\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---print-full-config
-T}
-T{
-\fBType\fR
-T}:T{
-boolean
-T}
-T{
-\fBDefault\fR
-T}:T{
-FALSE
-T}
-.TE
-.sp 1
-Shows extended information regarding the configuration of the cluster\&. With this option on the command line the
-\fBndb_mgmd\fR
-process prints information about the cluster setup including an extensive list of the cluster configuration sections as well as parameters and their values\&. Normally used together with the
-\fB\-\-config\-file\fR
-(\fB\-f\fR) option\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-reload\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---reload
-T}
-T{
-\fBType\fR
-T}:T{
-boolean
-T}
-T{
-\fBDefault\fR
-T}:T{
-FALSE
-T}
-.TE
-.sp 1
-NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
-.sp
-This differs in two ways from the
-\fB\-\-initial\fR
-option\&. First,
-\fB\-\-initial\fR
-causes all cache files to be deleted\&. Second,
-\fB\-\-initial\fR
-forces the management server to re\-read the global configuration file and construct a new cache\&.
-.sp
-If the management server cannot find a global configuration file, then the
-\fB\-\-reload\fR
-option is ignored\&.
-.sp
-When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data;
-\fBndb_mgmd\fR
-ignores
-\fB\-\-reload\fR
-unless it is the only management server running\&. This behavior also has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&21.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -1013,16 +990,16 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 255
 T}
@@ -1137,6 +1114,202 @@ management server, its configuration must match that of the management server th
 .sp .5v
 .RE
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-full\-config\fR,
+\fB\-P\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--print-full-config
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Shows extended information regarding the configuration of the cluster\&. With this option on the command line the
+\fBndb_mgmd\fR
+process prints information about the cluster setup including an extensive list of the cluster configuration sections as well as parameters and their values\&. Normally used together with the
+\fB\-\-config\-file\fR
+(\fB\-f\fR) option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-reload\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--reload
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
+Section\ \&21.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+.sp
+This differs in two ways from the
+\fB\-\-initial\fR
+option\&. First,
+\fB\-\-initial\fR
+causes all cache files to be deleted\&. Second,
+\fB\-\-initial\fR
+forces the management server to re\-read the global configuration file and construct a new cache\&.
+.sp
+If the management server cannot find a global configuration file, then the
+\fB\-\-reload\fR
+option is ignored\&.
+.sp
+When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data;
+\fBndb_mgmd\fR
+ignores
+\fB\-\-reload\fR
+unless it is the only management server running\&. This behavior also has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
+Section\ \&21.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-remove{=name]\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--remove[=name]
+T}
+T{
+\fBPlatform Specific\fR
+T}:T{
+Windows
+T}
+T{
+\fBType\fR
+T}:T{
+string
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+ndb_mgmd
+T}
+.TE
+.sp 1
+Remove a management server process that has been installed as a Windows service, optionally specifying the name of the service to be removed\&. Applies only to Windows platforms\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-verbose\fR,
+\fB\-v\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--verbose
+T}
+T{
+\fBType\fR
+T}:T{
+boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+Remove a management server process that has been installed as a Windows service, optionally specifying the name of the service to be removed\&. Applies only to Windows platforms\&.
+.RE
 .PP
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
@@ -1215,129 +1388,6 @@ when running the management server as a daemon\&.
 .\}
 ndb_\fInode_id\fR\&.pid
 is the process ID file used when running the management server as a daemon\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-install[=\fR\fB\fIname\fR\fR\fB]\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---install[=name]
-T}
-T{
-\fBPlatform Specific\fR
-T}:T{
-Windows
-T}
-T{
-\fBType\fR
-T}:T{
-string
-T}
-T{
-\fBDefault\fR
-T}:T{
-ndb_mgmd
-T}
-.TE
-.sp 1
-Causes
-\fBndb_mgmd\fR
-to be installed as a Windows service\&. Optionally, you can specify a name for the service; if not set, the service name defaults to
-ndb_mgmd\&. Although it is preferable to specify other
-\fBndb_mgmd\fR
-program options in a
-my\&.ini
-or
-my\&.cnf
-configuration file, it is possible to use them together with
-\fB\-\-install\fR\&. However, in such cases, the
-\fB\-\-install\fR
-option must be specified first, before any other options are given, for the Windows service installation to succeed\&.
-.sp
-It is generally not advisable to use this option together with the
-\fB\-\-initial\fR
-option, since this causes the configuration cache to be wiped and rebuilt every time the service is stopped and started\&. Care should also be taken if you intend to use any other
-\fBndb_mgmd\fR
-options that affect the starting of the management server, and you should make absolutely certain you fully understand and allow for any possible consequences of doing so\&.
-.sp
-The
-\fB\-\-install\fR
-option has no effect on non\-Windows platforms\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-remove[=\fR\fB\fIname\fR\fR\fB]\fR
-.TS
-allbox tab(:);
-lB lB.
-T{
-Property
-T}:T{
-Value
-T}
-.T&
-l l
-l l
-l l
-l l.
-T{
-\fBCommand-Line Format\fR
-T}:T{
---remove[=name]
-T}
-T{
-\fBPlatform Specific\fR
-T}:T{
-Windows
-T}
-T{
-\fBType\fR
-T}:T{
-string
-T}
-T{
-\fBDefault\fR
-T}:T{
-ndb_mgmd
-T}
-.TE
-.sp 1
-Causes an
-\fBndb_mgmd\fR
-process that was previously installed as a Windows service to be removed\&. Optionally, you can specify a name for the service to be uninstalled; if not set, the service name defaults to
-ndb_mgmd\&.
-.sp
-The
-\fB\-\-remove\fR
-option has no effect on non\-Windows platforms\&.
 .RE
 .SH "COPYRIGHT"
 .br

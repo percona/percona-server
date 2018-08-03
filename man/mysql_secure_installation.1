@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_secure_installation\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQL_SECURE_INSTALLATION\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -89,11 +89,7 @@ test_\&.
 .PP
 \fBmysql_secure_installation\fR
 helps you implement security recommendations similar to those described at
-Section\ \&2.10.4, \(lqSecuring the Initial MySQL Accounts\(rq\&.
-.PP
-As of MySQL 5\&.7\&.2,
-\fBmysql_secure_installation\fR
-is an executable binary available on all platforms\&. Before 5\&.7\&.2, it was a script available for Unix and Unix\-like systems\&.
+Section\ \&2.10.4, \(lqSecuring the Initial MySQL Account\(rq\&.
 .PP
 Normal usage is to connect to the local MySQL server; invoke
 \fBmysql_secure_installation\fR
@@ -113,33 +109,12 @@ When executed,
 \fBmysql_secure_installation\fR
 prompts you to determine which actions to perform\&.
 .PP
-As of MySQL 5\&.7\&.2,
-\fBmysql_secure_installation\fR
-supports these additional features:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 The
 validate_password
 plugin can be used for password strength checking\&. If the plugin is not installed,
 \fBmysql_secure_installation\fR
 prompts the user whether to install it\&. Any passwords entered later are checked using the plugin if it is enabled\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
+.PP
 Most of the usual MySQL client options such as
 \fB\-\-host\fR
 and
@@ -155,7 +130,6 @@ shell> \fBmysql_secure_installation \-\-host=::1 \-\-port=3307\fR
 .if n \{\
 .RE
 .\}
-.RE
 .PP
 \fBmysql_secure_installation\fR
 supports the following options, which can be specified on the command line or in the

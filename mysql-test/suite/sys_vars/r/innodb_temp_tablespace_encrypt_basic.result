@@ -23,6 +23,8 @@ SELECT * FROM performance_schema.session_variables WHERE variable_name = 'innodb
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_temp_tablespace_encrypt	OFF
 SET GLOBAL innodb_temp_tablespace_encrypt = 1;
+Warnings:
+Warning	1210	 Temporary tablespace couldn't be encrypted. Check if keyring plugin is loaded.
 SELECT @@global.innodb_temp_tablespace_encrypt;
 @@global.innodb_temp_tablespace_encrypt
 0
@@ -51,6 +53,8 @@ ERROR 42000: Incorrect argument type to variable 'innodb_temp_tablespace_encrypt
 SET GLOBAL innodb_temp_tablespace_encrypt = 'foo';
 ERROR 42000: Variable 'innodb_temp_tablespace_encrypt' can't be set to the value of 'foo'
 SET GLOBAL innodb_temp_tablespace_encrypt = -2;
+Warnings:
+Warning	1210	 Temporary tablespace couldn't be encrypted. Check if keyring plugin is loaded.
 SET GLOBAL innodb_temp_tablespace_encrypt = 1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_temp_tablespace_encrypt'
 SET GLOBAL innodb_temp_tablespace_encrypt = 2;

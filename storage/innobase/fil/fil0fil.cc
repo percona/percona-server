@@ -5751,6 +5751,9 @@ _fil_io(
 			space->name, byte_offset, len, req_type.is_read());
 	}
 
+	/* Set encryption information. */
+	fil_io_set_encryption(req_type, page_id, space);
+
 	/* Now we have made the changes in the data structures of fil_system */
 	mutex_exit(&fil_system->mutex);
 
@@ -5838,9 +5841,6 @@ _fil_io(
 	} else {
 		req_type.clear_compressed();
 	}
-
-	/* Set encryption information. */
-	fil_io_set_encryption(req_type, page_id, space);
 
 	req_type.block_size(node->block_size);
 
@@ -7396,6 +7396,8 @@ fil_set_encryption(
 
 	ut_ad(algorithm != Encryption::NONE);
 	space->encryption_type = algorithm;
+	space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
+
 	if (key == NULL) {
 		Encryption::random_value(space->encryption_key);
 	} else {
@@ -7414,6 +7416,37 @@ fil_set_encryption(
 	mutex_exit(&fil_system->mutex);
 
 	return(DB_SUCCESS);
+}
+
+/** Enable encryption of temporary tablespace
+@param[in,out]	space	tablespace object
+@return DB_SUCCESS on success, DB_ERROR on failure */
+dberr_t
+fil_temp_update_encryption(
+	fil_space_t*	space)
+{
+	/* Make sure the keyring is loaded. */
+	if (!Encryption::check_keyring()) {
+		ib::error() << "Can't set temporary tablespace"
+			<< " to be encrypted because"
+			<< " keyring plugin is not"
+			<< " available.";
+			return(DB_ERROR);
+	}
+
+	if (!fsp_enable_encryption(space)) {
+		ib::error() << "Can't set temporary tablespace"
+			<< " to be encrypted.";
+		return(DB_ERROR);
+	}
+
+	dberr_t	err = fil_set_encryption(
+		space->id,
+		Encryption::AES, NULL, NULL);
+
+	ut_ad(err == DB_SUCCESS);
+
+	return(err);
 }
 
 /** Default master key id for bootstrap */

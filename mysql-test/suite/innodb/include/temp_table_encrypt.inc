@@ -171,13 +171,13 @@ DROP TABLE t10;
 # when innodb_temp_tablespace_encrypt=ON but keyring isn't set up
 #
 
-let $restart_hide_args = 0;
-let $restart_parameters = restart: --innodb-temp-tablespace-encrypt;
+let $restart_hide_args = 1;
+let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt;
 --source include/restart_mysqld.inc
 
 CREATE TABLE t1(a INT key) ENGINE = MEMORY;
 INSERT INTO t1 VALUES (11061);
 INSERT INTO t1 VALUES (3);
 SET big_tables=1;
---error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
+DROP TABLE t1;

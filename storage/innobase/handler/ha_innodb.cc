@@ -20687,6 +20687,44 @@ innodb_log_checksums_update(
 	mutex_exit(&log_sys->mutex);
 }
 
+/** Enable or disable encryption of temporary tablespace
+@param[in]	thd	thread handle
+@param[in]	var	system variable
+@param[out]	var_ptr	current value
+@param[in]	save	immediate result from check function */
+static
+void
+innodb_temp_tablespace_encryption_update(
+	THD*				thd,
+	struct st_mysql_sys_var*	var,
+	void*				var_ptr,
+	const void*			save)
+{
+	if (srv_read_only_mode) {
+		push_warning_printf(
+			thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			" Temporary tablespace cannot be"
+			" encrypted in innodb_read_only mode");
+		return;
+	}
+
+	my_bool	check = *static_cast<const my_bool*>(save);
+
+	dberr_t	err = srv_temp_encryption_update(check);
+	if (err != DB_SUCCESS) {
+		push_warning_printf(
+			thd, Sql_condition::SL_WARNING,
+			ER_WRONG_ARGUMENTS,
+			" Temporary tablespace couldn't be"
+			" encrypted. Check if keyring plugin"
+			" is loaded.");
+	} else {
+		*static_cast<my_bool*>(var_ptr) =
+			*static_cast<const my_bool*>(save);
+	}
+}
+
 static SHOW_VAR innodb_status_variables_export[]= {
 	{"Innodb", (char*) &show_innodb_vars, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
 	{NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
@@ -21465,7 +21503,7 @@ static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
 static MYSQL_SYSVAR_BOOL(temp_tablespace_encrypt, srv_tmp_tablespace_encrypt,
   PLUGIN_VAR_OPCMDARG,
   "Enable or disable encryption of temporary tablespace.",
-  NULL, NULL, FALSE);
+  NULL, innodb_temp_tablespace_encryption_update, FALSE);
 
 static MYSQL_SYSVAR_BOOL(sys_tablespace_encrypt, srv_sys_tablespace_encrypt,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -21798,13 +21836,6 @@ static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   "Enable the sync debug checks",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_ULONG(master_encrypt_debug,
-  srv_master_encrypt_debug,
-  PLUGIN_VAR_OPCMDARG,
-  "Set 1 to pause master thread in the middle of the enabling of "
-  "temporary tablespace encryption. Once paused, master thread will set it 2. "
-  "Change it back to 0 to resume master thread.",
-  NULL, NULL, 0, 0, UINT_MAX32, 0);
 #endif /* UNIV_DEBUG */
 
 const char *corrupt_table_action_names[]=
@@ -22045,7 +22076,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(dict_stats_disabled_debug),
   MYSQL_SYSVAR(master_thread_disabled_debug),
   MYSQL_SYSVAR(sync_debug),
-  MYSQL_SYSVAR(master_encrypt_debug),
 #endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(parallel_doublewrite_path),

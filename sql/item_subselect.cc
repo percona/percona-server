@@ -4013,19 +4013,15 @@ void subselect_hash_sj_engine::cleanup()
 {
   DBUG_ENTER("subselect_hash_sj_engine::cleanup");
   is_materialized= false;
-  if (result != NULL)
-    result->cleanup(); /* Resets the temp table as well. */
+  result->cleanup(); /* Resets the temp table as well. */
   THD * const thd= item->unit->thd;
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
-  if (tab != NULL)
-  {
-    TABLE *const table= tab->table();
-    if (table->file->inited)
-      table->file->ha_index_end();  // Close the scan over the index
-    free_tmp_table(thd, table);
-    // Note that tab->qep_cleanup() is not called
-    tab= NULL;
-  }
+  TABLE *const table= tab->table();
+  if (table->file->inited)
+    table->file->ha_index_end();  // Close the scan over the index
+  free_tmp_table(thd, table);
+  // Note that tab->qep_cleanup() is not called
+  tab= NULL;
   materialize_engine->cleanup();
   DBUG_VOID_RETURN;
 }

@@ -700,12 +700,12 @@ fsp_flags_to_dict_tf(
 	bool	compact);
 
 /** Enable encryption for already existing tablespace.
-@param[in]	space_id	tablespace id
-@return true if success */
+@param[in,out]	space	tablespace object
+@return true if success, else false */
+MY_NODISCARD
 bool
 fsp_enable_encryption(
-	ulint space_id)
-MY_ATTRIBUTE((warn_unused_result));
+	fil_space_t*	space);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

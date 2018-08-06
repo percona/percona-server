@@ -57,10 +57,12 @@ INSERT INTO t01 VALUES (1), (2), (3);
 CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 DROP TABLE t10;
-# restart: --innodb-temp-tablespace-encrypt
+# restart:<hidden args>
 CREATE TABLE t1(a INT key) ENGINE = MEMORY;
 INSERT INTO t1 VALUES (11061);
 INSERT INTO t1 VALUES (3);
 SET big_tables=1;
 SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+a
+11061
+DROP TABLE t1;

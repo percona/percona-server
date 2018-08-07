@@ -159,6 +159,13 @@ const ulong		srv_tmp_undo_logs = 32;
 /** Enable or disable encryption of temporary tablespace.*/
 my_bool	srv_tmp_tablespace_encrypt;
 
+/** Option to enable encryption of system tablespace. */
+my_bool	srv_sys_tablespace_encrypt;
+
+/** Enable or disable encryption of pages in parallel doublewrite buffer
+file */
+my_bool	srv_parallel_dblwr_encrypt;
+
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;

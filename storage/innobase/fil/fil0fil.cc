@@ -5471,6 +5471,22 @@ fil_io_set_encryption(
 	const page_id_t&	page_id,
 	fil_space_t*		space)
 {
+
+	/* Explicit request to disable encryption */
+	if (req_type.is_encryption_disabled()) {
+		req_type.clear_encrypted();
+		return;
+	}
+
+	/* Don't encrypt pages of system tablespace upto
+	TRX_SYS_PAGE(including). The doublewrite buffer
+	header is on TRX_SYS_PAGE */
+	if (is_shared_system_tablespace(space->id)
+	    && page_id.page_no() <= FSP_TRX_SYS_PAGE_NO) {
+		req_type.clear_encrypted();
+		return;
+	}
+
 	/* Don't encrypt redo log and system tablespaces,
 	for all the other types tablespaces, don't encrypt page 0. */
 	if (space->encryption_type == Encryption::NONE
@@ -7369,8 +7385,6 @@ fil_set_encryption(
 	byte*			key,
 	byte*			iv)
 {
-	ut_ad(!is_shared_system_tablespace(space_id));
-
 	mutex_enter(&fil_system->mutex);
 
 	fil_space_t*	space = fil_space_get_by_id(space_id);
@@ -7417,7 +7431,7 @@ fil_encryption_rotate()
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
 		/* Skip unencypted tablespaces. */
-		if (is_system_or_undo_tablespace(space->id)
+		if (srv_is_undo_tablespace(space->id)
 		    || space->purpose == FIL_TYPE_LOG) {
 			space = UT_LIST_GET_NEXT(space_list, space);
 			continue;

@@ -4544,6 +4544,43 @@ recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 	return(result);
 }
 
+/** Decrypt double write buffer pages if system tablespace is
+encrypted. This function process only pages from sys_pages list.
+Other pages from parallel doublewrite buffer will be decrypted after
+tablespace objects are loaded. */
+void
+recv_dblwr_t::decrypt_sys_dblwr_pages()
+{
+	fil_space_t*	space = fil_space_get(TRX_SYS_SPACE);
+
+	ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+	IORequest	decrypt_request;
+
+	decrypt_request.encryption_key(
+			space->encryption_key,
+			space->encryption_klen,
+			space->encryption_iv);
+	decrypt_request.encryption_algorithm(
+		Encryption::AES);
+
+	Encryption	encryption(
+		decrypt_request.encryption_algorithm());
+
+	for (list::iterator i = sys_pages.begin(); i != sys_pages.end(); ++i) {
+		byte*	page = *i;
+
+		/* System tablespace encryption key will be used to decrypt the
+		page, not the tablespace key of the page. These pages are encrypted
+		with system tablespace encryption key. */
+		dberr_t	err = encryption.decrypt(
+			decrypt_request,
+			page, univ_page_size.physical(), NULL,
+			univ_page_size.physical());
+		ut_a(err == DB_SUCCESS);
+	}
+}
+
 #ifndef DBUG_OFF
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum

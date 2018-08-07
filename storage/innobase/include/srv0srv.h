@@ -303,6 +303,11 @@ extern const ulong	srv_tmp_undo_logs;
 /** Enable or disable encryption of temporary tablespace.*/
 extern my_bool	srv_tmp_tablespace_encrypt;
 
+/** Enable this option to encrypt system tablespace at bootstrap. */
+extern my_bool	srv_sys_tablespace_encrypt;
+
+/** Enable or disable encryption of pages in parallel doublewrite buffer file */
+extern my_bool	srv_parallel_dblwr_encrypt;
 
 /** Whether the redo log tracking is currently enabled. Note that it is
 possible for the log tracker thread to be running and the tracking to be

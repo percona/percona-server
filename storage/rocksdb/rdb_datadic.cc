@@ -1785,9 +1785,9 @@ void Rdb_key_def::pack_blob(
     }
     memcpy(&blob, ptr + field_blob->pack_length_no_ptr(), sizeof(char *));
 
-    blob_length = field_charset->coll->strnxfrm(
-        field_charset, to, length, length, blob, blob_length,
-        MY_STRXFRM_PAD_WITH_SPACE | MY_STRXFRM_PAD_TO_MAXLEN);
+    blob_length =
+        field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
+                                      blob_length, MY_STRXFRM_PAD_TO_MAXLEN);
     DBUG_ASSERT(blob_length == length);
   }
 

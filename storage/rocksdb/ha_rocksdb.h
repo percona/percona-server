@@ -930,7 +930,8 @@ class ha_rocksdb : public my_core::handler {
     DBUG_RETURN(MAX_REF_PARTS);
   }
 
-  uint max_supported_key_part_length() const override;
+  uint
+  max_supported_key_part_length(HA_CREATE_INFO *create_info) const override;
 
   /** @brief
     unireg.cc will call this to make sure that the storage engine can handle

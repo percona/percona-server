@@ -1759,6 +1759,68 @@ void Rdb_key_def::pack_newdate(
   *dst += length;
 }
 
+void Rdb_key_def::pack_blob(
+    Rdb_field_packing *const fpi, Field *const field,
+    uchar *const buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+    Rdb_pack_field_context *const pack_ctx MY_ATTRIBUTE((__unused__))) const {
+  DBUG_ASSERT(fpi != nullptr);
+  DBUG_ASSERT(field != nullptr);
+  DBUG_ASSERT(dst != nullptr);
+  DBUG_ASSERT(*dst != nullptr);
+  DBUG_ASSERT(field->real_type() == MYSQL_TYPE_TINY_BLOB ||
+              field->real_type() == MYSQL_TYPE_MEDIUM_BLOB ||
+              field->real_type() == MYSQL_TYPE_LONG_BLOB ||
+              field->real_type() == MYSQL_TYPE_BLOB ||
+              field->real_type() == MYSQL_TYPE_JSON);
+
+  size_t length = fpi->m_max_image_len;
+  const uchar *ptr = field->ptr;
+  uchar *to = *dst;
+  Field_blob *const field_blob = dynamic_cast<Field_blob *const>(field);
+  const CHARSET_INFO *field_charset = field_blob->charset();
+
+  uchar *blob;
+  size_t blob_length = field_blob->get_length();
+
+  if (!blob_length && field_charset->pad_char == 0) {
+    memset(to, 0, length);
+  } else {
+    if (field_charset == &my_charset_bin) {
+      uchar *pos;
+
+      /*
+        Store length of blob last in blob to shorter blobs before longer blobs
+      */
+      length -= field_blob->pack_length_no_ptr();
+      pos = to + length;
+      uint key_length = blob_length < length ? blob_length : length;
+
+      switch (field_blob->pack_length_no_ptr()) {
+      case 1:
+        *pos = (char)key_length;
+        break;
+      case 2:
+        mi_int2store(pos, key_length);
+        break;
+      case 3:
+        mi_int3store(pos, key_length);
+        break;
+      case 4:
+        mi_int4store(pos, key_length);
+        break;
+      }
+    }
+    memcpy(&blob, ptr + field_blob->pack_length_no_ptr(), sizeof(char *));
+
+    blob_length =
+        field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
+                                      blob_length, MY_STRXFRM_PAD_TO_MAXLEN);
+    DBUG_ASSERT(blob_length == length);
+  }
+
+  *dst += fpi->m_max_image_len;
+}
+
 /**
   This is the end of the code copied from Field_*::make_sort_key()
 */
@@ -3676,6 +3738,7 @@ bool Rdb_field_packing::setup(const Rdb_key_def *const key_descr,
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_JSON: {
+    m_pack_func = &Rdb_key_def::pack_blob;
     if (key_descr) {
       // The my_charset_bin collation is special in that it will consider
       // shorter strings sorting as less than longer strings.

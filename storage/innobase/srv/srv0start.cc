@@ -1233,9 +1233,18 @@ srv_open_tmp_tablespace(
 
 			if (srv_tmp_tablespace_encrypt) {
 
+				/* Make sure the keyring is loaded. */
+				if (!Encryption::check_keyring()) {
+					srv_tmp_tablespace_encrypt = false;
+					ib::error() << "Can't set temporary"
+						<< " tablespace to be encrypted"
+						<< " because keyring plugin is"
+						<< " not available.";
+				        return(DB_ERROR);
+				}
+
 				fil_space_t*	space =
 					fil_space_get(temp_space_id);
-				space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
 
 				err = fil_set_encryption(space->id,
 							 Encryption::AES,

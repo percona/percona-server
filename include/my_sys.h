@@ -561,6 +561,9 @@ extern void my_once_free(void);
 extern char *my_once_strdup(const char *src, myf myflags);
 extern void *my_once_memdup(const void *src, size_t len, myf myflags);
 extern File my_open(const char *FileName, int Flags, myf MyFlags);
+#ifndef __WIN__
+extern File my_unix_socket_connect(const char *FileName, myf MyFlags) noexcept;
+#endif
 extern File my_register_filename(File fd, const char *FileName,
                                  enum file_type type_of_file,
                                  uint error_message_number, myf MyFlags);
@@ -596,6 +599,9 @@ extern size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count,
                         myf MyFlags);
 extern my_off_t my_fseek(FILE *stream, my_off_t pos, int whence);
 extern my_off_t my_ftell(FILE *stream);
+#if !defined(HAVE_MEMSET_S)
+void memset_s(void *dest, size_t dest_max, int c, size_t n);
+#endif
 
 /* implemented in my_syslog.c */
 
@@ -822,6 +828,8 @@ void my_free_open_file_info(void);
 extern time_t my_time(myf flags);
 extern ulonglong my_micro_time();
 extern bool my_gethwaddr(uchar *to);
+
+#define my_microsecond_getsystime() (my_getsystime() / 10)
 
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

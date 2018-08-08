@@ -25,6 +25,7 @@
 
 #include "my_dbug.h"
 #include "sql/field.h"
+#include "sql/sql_lex.h"
 
 class Mock_create_field : public Create_field {
   LEX_STRING m_lex_string;
@@ -51,14 +52,15 @@ class Mock_create_field : public Create_field {
             core dump. This is undocumented, of
             course. </sarcasm>
          */
-         &m_lex_string,  // LEX_STRING *fld_comment,
-         NULL,           // char *fld_change,
-         NULL,           // List<String> *fld_interval_list,
-         NULL,           // const CHARSET_INFO *fld_charset,
-         false,          // bool has_explicit_collation,
-         0,              // uint fld_geom_type
-         nullptr,        // gcol info
-         {}              // Nullable<gis::srid_t> srid
+         &m_lex_string,   // LEX_STRING *fld_comment,
+         NULL,            // char *fld_change,
+         NULL,            // List<String> *fld_interval_list,
+         NULL,            // const CHARSET_INFO *fld_charset,
+         false,           // bool has_explicit_collation,
+         0,               // uint fld_geom_type
+         &null_lex_cstr,  // zip_dict_name
+         nullptr,         // gcol info
+         {}               // Nullable<gis::srid_t> srid
     );
   }
 };

@@ -1,0 +1,32 @@
+--source include/master-slave.inc
+
+--echo #
+--echo # Bug 75480: Selecting wrong pos with SHOW BINLOG EVENTS causes
+--echo # a potentially misleading message in the server error log
+--echo #
+
+# without fix this test will fail with
+# 'Found warnings/errors in server log file!' error
+
+connection master;
+
+CREATE TABLE t (a INT, b INT);
+
+INSERT INTO t (a, b) VALUES (1, 1);
+INSERT INTO t (a, b) VALUES (2, 2);
+INSERT INTO t (a, b) VALUES (3, 3);
+INSERT INTO t (a, b) VALUES (4, 4);
+INSERT INTO t (a, b) VALUES (5, 5);
+INSERT INTO t (a, b) VALUES (6, 6);
+INSERT INTO t (a, b) VALUES (7, 7);
+
+sync_slave_with_master;
+
+--error ER_ERROR_WHEN_EXECUTING_COMMAND
+SHOW BINLOG EVENTS FROM 5;
+
+connection master;
+
+DROP TABLE t;
+
+--source include/rpl_end.inc

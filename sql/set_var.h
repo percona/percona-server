@@ -456,6 +456,9 @@ extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
+extern SHOW_COMP_OPTION have_backup_locks;
+extern SHOW_COMP_OPTION have_backup_safe_binlog_info;
+extern SHOW_COMP_OPTION have_snapshot_cloning;
 
 /*
   Helper functions
@@ -474,6 +477,7 @@ void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, size_t length = 0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length = 0,
                          bool throw_error = false, bool locked = false);
+MY_NODISCARD
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);

@@ -103,6 +103,127 @@ local_fk_set belong to
 bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
                                   const dict_table_t *table);
 
+static const constexpr auto ZIP_DICT_MAX_NAME_LENGTH = 64;
+/* Max window size (2^15) minus 262 */
+static const constexpr auto ZIP_DICT_MAX_DATA_LENGTH = 32506;
+
+// Percona commented out to be removed for the new DD
+#if 0
+/** Creates the zip_dict system table inside InnoDB
+at server bootstrap or server start if it is not found or is
+not of the right form.
+@return	DB_SUCCESS or error code */
+MY_NODISCARD
+dberr_t
+dict_create_or_check_sys_zip_dict(void);
+
+/** Add a single compression dictionary definition to the SYS_ZIP_DICT
+InnoDB system table.
+@param[in]	name	dict name
+@param[in]	name_len	dict name length
+@param[in]	data	dict data
+@param[in]	data_len	dict data length
+@param[in,out]	trx	transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_add_zip_dict(
+	const char*	name,
+	ulint		name_len,
+	const char*	data,
+	ulint		data_len,
+	trx_t*		trx);
+
+/** Add a single compression dictionary reference to the SYS_ZIP_DICT_COLS
+InnoDB system table.
+@param[in]	table_id	table id
+@param[in]	column_pos	column position
+@param[in]	dict_id		dict id
+@param[in,out]	trx		transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_add_zip_dict_reference(
+	ulint		table_id,
+	ulint		column_pos,
+	ulint		dict_id,
+	trx_t*		trx);
+
+/** Get a single compression dictionary id for the given
+(table id, column pos) pair.
+@param[in]	table_id	table id
+@param[in]	column_pos	column position
+@param[out]	dict_id		dict id
+@param[in,out]	trx		transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_get_zip_dict_id_by_reference(
+	ulint	table_id,
+	ulint	column_pos,
+	ulint*	dict_id,
+	trx_t*	trx);
+
+/** Get compression dictionary id for the given name.
+@param[in]	dict_name	dict name
+@param[in]	dict_name_len	dict name length
+@param[out]	dict_id		dict id
+@param[in,out]	trx		transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_get_zip_dict_id_by_name(
+	const char*	dict_name,
+	ulint		dict_name_len,
+	ulint*		dict_id,
+	trx_t*		trx);
+
+/** Get compression dictionary info (name and data) for the given id.
+Allocates memory for name and data on success.
+Must be freed with my_free().
+@param[in]	dict_id		dict id
+@param[out]	name		dict name
+@param[out]	name_len	dict name length
+@param[out]	data		dict data
+@param[out]	data_len	dict data length
+@param[in,out]	trx		transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_get_zip_dict_info_by_id(
+	ulint	dict_id,
+	char**	name,
+	ulint*	name_len,
+	char**	data,
+	ulint*	data_len,
+	trx_t*	trx);
+
+/** Remove a single compression dictionary from the data dictionary
+tables in the database.
+@param[in]	name		dict name
+@param[in]	name_len	dict name length
+@param[in,out]	trx		transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_remove_zip_dict(
+	const char*	name,
+	ulint		name_len,
+	trx_t*		trx);
+
+/** Remove all compression dictionary references for the given table ID from
+the data dictionary tables in the database.
+@param[in]	table_id	table id
+@param[in,out]	trx		transaction
+@return	error code or DB_SUCCESS */
+MY_NODISCARD
+dberr_t
+dict_create_remove_zip_dict_references_for_table(
+	ulint	table_id,
+	trx_t*	trx);
+
+#endif
+
 /* Table create node structure */
 struct tab_node_t {
   que_common_t common;   /*!< node type: QUE_NODE_TABLE_CREATE */

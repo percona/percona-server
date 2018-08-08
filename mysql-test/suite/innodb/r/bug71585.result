@@ -1,0 +1,9 @@
+CREATE TABLE files (
+`PATH` varchar(150) COLLATE utf8_unicode_ci NOT NULL DEFAULT '',
+`CONTENTS` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+PRIMARY KEY (`PATH`)
+) ENGINE=innodb DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO `files` (PATH,CONTENTS) VALUES ('X',repeat('0',8104));
+update files set path='x' where path='X';
+update files set path='X' where path='x';
+DROP TABLE files;

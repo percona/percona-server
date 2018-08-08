@@ -80,10 +80,14 @@ class Find_THD_Impl {
 */
 class Find_thd_with_id : public Find_THD_Impl {
  public:
-  Find_thd_with_id(my_thread_id value) : m_thread_id(value) {}
+  Find_thd_with_id(my_thread_id value, bool daemon_allowed)
+      : m_thread_id(value), m_daemon_allowed(daemon_allowed) {}
   virtual bool operator()(THD *thd);
 
   const my_thread_id m_thread_id;
+
+ private:
+  const bool m_daemon_allowed;
 };
 
 /**

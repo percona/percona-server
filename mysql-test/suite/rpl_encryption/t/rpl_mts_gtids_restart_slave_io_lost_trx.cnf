@@ -1,0 +1,16 @@
+!include ../my.cnf
+
+[mysqld.1]
+gtid-mode=ON
+enforce-gtid-consistency=ON
+
+[mysqld.2]
+gtid-mode=ON
+enforce-gtid-consistency=ON
+plugin_dir=@env.KEYRING_PLUGIN_DIR
+early-plugin-load=@env.KEYRING_PLUGIN
+keyring_file_data=../../tmp/keyring2
+encrypt-binlog=1
+master-verify-checksum=1
+slave-parallel-workers=2
+slave-transaction-retries=0

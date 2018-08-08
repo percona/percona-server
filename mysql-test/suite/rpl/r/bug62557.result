@@ -1,0 +1,23 @@
+*** Set up master (server_1) <-> master (server_2) replication  ***
+include/rpl_init.inc [topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+SELECT @@global.log_slave_updates;
+@@global.log_slave_updates
+1
+SELECT @@global.log_slave_updates;
+@@global.log_slave_updates
+1
+CREATE TABLE t1(a INT);
+SET @var:=0;
+INSERT INTO t1 VALUES (@var);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+include/rpl_sync.inc
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/rpl_end.inc

@@ -464,8 +464,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
         on table and schema names.
       */
       if ((error = ha_create_table(thd, saved_norm_path, table_ref->db,
-                                   table_ref->table_name, &create_info, true,
-                                   true, tmp_table_def.get()))) {
+                                   table_ref->table_name, &create_info, nullptr,
+                                   true, true, tmp_table_def.get()))) {
         /* No need to binlog failed truncate-by-recreate. */
         binlog_stmt = false;
       }
@@ -523,7 +523,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
 
         // Attempt to reconstruct the table
         error = ha_create_table(thd, path, table_ref->db, table_ref->table_name,
-                                &create_info, true, false, table_def);
+                                &create_info, nullptr, true, false, table_def);
       }
 
       /* No need to binlog a failed truncate-by-recreate. */

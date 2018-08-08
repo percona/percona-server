@@ -1,0 +1,11 @@
+!include ../my.cnf
+
+[mysqld.1]
+gtid-mode=ON
+enforce-gtid-consistency=ON
+debug=d,+allow_gtid_unsafe_non_transactional_updates
+
+[mysqld.2]
+gtid-mode=ON
+enforce-gtid-consistency=ON
+debug=d,+allow_gtid_unsafe_non_transactional_updates

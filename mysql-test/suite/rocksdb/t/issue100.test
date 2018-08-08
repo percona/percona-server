@@ -1,0 +1,27 @@
+--source include/have_rocksdb.inc
+
+# MyRocks does not support gap locks in REPEATABLE-READ mode, test does not
+# require RR ISO to complete, so lets alter the ISO to RC
+set session transaction_isolation='READ-COMMITTED';
+
+create table t1 (
+  id int, 
+  value int, 
+  primary key (id)
+) engine=rocksdb;
+
+insert into t1 values(1,1),(2,2);
+set autocommit=0;
+
+begin;
+insert into t1 values (50,50);
+select * from t1;
+
+update t1 set id=id+100;
+
+select * from t1;
+
+rollback;
+set autocommit=1;
+
+drop table t1;

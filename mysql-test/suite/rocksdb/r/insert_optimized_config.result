@@ -1,0 +1,17 @@
+create table t1(
+id bigint not null primary key,
+i1 bigint, #unique
+i2 bigint, #repeating
+c1 varchar(20), #unique
+c2 varchar(20), #repeating
+index t1_2(i1)
+) engine=rocksdb;
+select count(*), sum(id), sum(i1), sum(i2) from t1;
+count(*)	sum(id)	sum(i1)	sum(i2)
+50000	1250025000	1250025000	124980000
+# restart:--rocksdb_write_disable_wal=0 --rocksdb_default_cf_options=write_buffer_size=64k;target_file_size_base=64k;max_bytes_for_level_base=1m;compression_per_level=kNoCompression;
+select count(*), sum(id), sum(i1), sum(i2) from t1;
+count(*)	sum(id)	sum(i1)	sum(i2)
+50000	1250025000	1250025000	124980000
+drop table t1;
+# restart

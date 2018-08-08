@@ -17,7 +17,7 @@ wait/synch/mutex/sql/LOCK_audit_mask	YES	YES	singleton	0	NULL
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
-order by name limit 10;
+order by name limit 11;
 NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES	singleton	0	NULL
 wait/synch/rwlock/sql/Binlog_storage_delegate::lock	YES	YES	singleton	0	NULL

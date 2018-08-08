@@ -1,0 +1,121 @@
+call mtr.add_suppression("simulating bitmap write error in log_online_write_bitmap_page");
+call mtr.add_suppression("log tracking bitmap write failed, stopping log tracking thread!");
+call mtr.add_suppression("last tracked LSN in");
+1st restart
+# restart
+RESET CHANGED_PAGE_BITMAPS;
+CREATE TABLE t1 (x INT) ENGINE=InnoDB;
+2nd restart
+# restart:-#d,bitmap_page_write_error
+INSERT INTO t1 VALUES (1);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+3rd restart
+# restart
+DROP TABLE t1;
+RESET CHANGED_PAGE_BITMAPS;
+CREATE TABLE t1 (x INT NOT NULL UNIQUE KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(5);
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+RENAME TABLE t1 TO t2;
+SET DEBUG_SYNC="commit_cache_rebuild_middle SIGNAL alter_table_ready WAIT_FOR finish_alter_table";
+ALTER TABLE t2 ADD PRIMARY KEY(x);
+SET DEBUG_SYNC="now WAIT_FOR alter_table_ready";
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+SET DEBUG_SYNC="now SIGNAL finish_alter_table";
+SET DEBUG_SYNC="setup_bitmap_range_middle SIGNAL changed_pages_query_ready WAIT_FOR finish_changed_pages_query";
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+SET DEBUG_SYNC="now WAIT_FOR changed_pages_query_ready";
+call mtr.add_suppression("Inconsistent bitmap file directory");
+SET DEBUG_SYNC="now SIGNAL finish_changed_pages_query";
+ERROR HY000: Can't read record in system table
+SET DEBUG_SYNC="RESET";
+DROP TABLE t2;
+RESET CHANGED_PAGE_BITMAPS;
+4th restart
+# restart
+5th restart
+# restart:-#d,bitmap_page_2_write_error
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+SET DEBUG_SYNC="i_s_innodb_changed_pages_range_ready SIGNAL ready WAIT_FOR finish";
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+SET DEBUG_SYNC="now WAIT_FOR ready";
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+CREATE TABLE t1 (a INT)ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (2);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+SET DEBUG_SYNC="now SIGNAL finish";
+# 5th restart
+# restart
+include/assert.inc [There should not be a hole in the tracked LSN range]
+DROP TABLE t1, t2;
+#
+# Bug 1658055: Log tracking initialisation does not find the last good
+# bitmap data correctly
+#
+SET GLOBAL innodb_file_per_table=OFF;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB STATS_PERSISTENT=0;
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t2 (a INT) ENGINE=InnoDB;
+# 6th restart
+# restart:-#d,bitmap_page_2_write_error
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+INSERT INTO t1 SELECT a FROM t1;
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=FALSE;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_changed_pages=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+# 7th restart
+# restart
+include/assert.inc [There should not be a hole in the tracked LSN range]
+DROP TABLE t1, t2;
+RESET CHANGED_PAGE_BITMAPS;
+8th restart
+# restart
+#
+# Bug 1651656: Server crash if a changed page bitmap error occurs concurrently with
+# executing FLUSH CHANGED_PAGE_BITMAPS
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+9th restart
+# restart:-#d,bitmap_page_write_error
+# connection con2
+SET DEBUG_SYNC="log_online_follow_redo_log SIGNAL flush_ready WAIT_FOR finish_flush";
+FLUSH CHANGED_PAGE_BITMAPS;
+# connection default
+SET DEBUG_SYNC="now WAIT_FOR flush_ready";
+INSERT INTO t1 VALUES (1);
+SET @@GLOBAL.innodb_log_checkpoint_now=TRUE;
+SET @@GLOBAL.innodb_track_redo_log_now=TRUE;
+SET DEBUG_SYNC="now SIGNAL finish_flush";
+# connection con2
+10th restart
+# restart
+DROP TABLE t1;

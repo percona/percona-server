@@ -1,0 +1,6 @@
+Quick Installation
+1. Extract the tarball
+2. Copy the tokudb_backup.so to MySQL's lib/mysql/plugin directory
+3. Copy the libHotBackup.so to MySQL's lib directory
+
+Please see https://github.com/Tokutek/tokudb-backup-plugin for details.

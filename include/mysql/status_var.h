@@ -32,6 +32,9 @@ enum enum_mysql_show_type {
   SHOW_INT,       ///< shown as _unsigned_ int
   SHOW_LONG,      ///< shown as _unsigned_ long
   SHOW_LONGLONG,  ///< shown as _unsigned_ longlong
+  SHOW_SIGNED_INT,
+  SHOW_SIGNED_LONG,
+  SHOW_SIGNED_LONGLONG,
   SHOW_CHAR,
   SHOW_CHAR_PTR,
   SHOW_ARRAY,
@@ -51,8 +54,7 @@ enum enum_mysql_show_type {
   SHOW_SYS,
   SHOW_LONG_NOFLUSH,
   SHOW_LONGLONG_STATUS,
-  SHOW_LEX_STRING,
-  SHOW_SIGNED_LONG
+  SHOW_LEX_STRING
 };
 
 /**

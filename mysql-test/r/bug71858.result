@@ -1,0 +1,10 @@
+SELECT table_schema, table_name, column_name, column_type FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME IN ( 'ooooooooooooooooooooooooooooooooooooo' 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa '
+'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb cc' 'ccccccccccccc' 'wwwwwwwwwwwwwwwwwww' 'rrrrrrrrrrrrrrrr'
+'tttttttttttttttttttt' 'yyyyyyyyyyyyyyyyyyy' 'uuuuuuuuuuuuuuuuuuuuuuuuuuuu' 'iiiiiiiiiiiiiiiiiiiiiiiiiiiiii'
+'oooooooooooooooooooo' 'ppppppppppppppppppppppppppppp' 'jjjjjjjjjjjj' 'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk'
+'lllllllllllllllllllllllllllllllllllllll' 'zzzzzzzzzzzzzzz' 'xxxxxxxxxxxxxxxxx' 'cccccccccc'
+'vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv' 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' ) AND TABLE_SCHEMA='AA_BBB' AND COLUMN_TYPE='PRI'
+ORDER BY 2;
+table_schema	table_name	column_name	column_type

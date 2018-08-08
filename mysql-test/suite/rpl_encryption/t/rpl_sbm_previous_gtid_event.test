@@ -1,0 +1,2 @@
+--let $idle=200
+--source suite/rpl/t/rpl_sbm_previous_gtid_event.test

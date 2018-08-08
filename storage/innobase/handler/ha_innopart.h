@@ -417,6 +417,13 @@ class ha_innopart : public ha_innobase,
 
   int discard_or_import_tablespace(bool discard, dd::Table *table_def);
 
+  /** This function reads zip dict-related info from the base class.
+  @param    thd          Thread handler
+  @param    part_name    Must be always NULL.
+  */
+  virtual void update_field_defs_with_zip_dict_info(THD *thd,
+                                                    const char *part_name);
+
   /** Compare key and rowid.
   Helper function for sorting records in the priority queue.
   a/b points to table->record[0] rows which must have the
@@ -559,6 +566,8 @@ class ha_innopart : public ha_innobase,
   }
 
   int read_range_next() { return (Partition_helper::ph_read_range_next()); }
+
+  bool has_gap_locks() const noexcept { return true; }
 
   uint32 calculate_key_hash_value(Field **field_array) {
     return (Partition_helper::ph_calculate_key_hash_value(field_array));

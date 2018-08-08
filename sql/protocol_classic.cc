@@ -3188,7 +3188,7 @@ bool Protocol_classic::store_string_aux(const char *from, size_t length,
 }
 
 int Protocol_classic::shutdown(bool) {
-  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
+  return m_thd->net.vio ? vio_shutdown(m_thd->net.vio, SHUT_RDWR) : 0;
 }
 
 bool Protocol_text::store(const char *from, size_t length,

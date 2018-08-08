@@ -1,0 +1,80 @@
+--source include/have_rocksdb.inc
+--source include/big_test.inc
+
+# Test memtable cardinality statistics
+CREATE TABLE t0 (id int PRIMARY KEY, a int, INDEX ix_a (a))  engine=rocksdb;
+
+# populate the table with 10 reconds where cardinality of id is N and a is N/2.
+insert into t0 values (0, 0),(1, 1),(2, 2),(3, 3),(4, 4),
+(5, 4),(6, 4),(7, 4),(8, 4),(9, 4);
+
+# Assert no cardinality data exists before ANALYZE TABLE is done
+SELECT cardinality FROM information_schema.statistics where table_name="t0" and
+column_name="id";
+SELECT cardinality FROM information_schema.statistics where table_name="t0" and
+column_name="a";
+
+--disable_result_log
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+ANALYZE TABLE t0;
+--enable_result_log
+
+SELECT table_rows into @N FROM information_schema.tables
+WHERE table_name = "t0";
+SELECT FLOOR(@N/cardinality) FROM
+information_schema.statistics where table_name="t0" and column_name="id";
+SELECT FLOOR(@N/cardinality) FROM
+information_schema.statistics where table_name="t0" and column_name="a";
+
+# Flush the table and re-run the test as statistics is calculated a bit
+# differently for memtable and SST files
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+--disable_result_log
+ANALYZE TABLE t0;
+--enable_result_log
+
+SELECT table_rows into @N FROM information_schema.tables
+WHERE table_name = "t0";
+SELECT FLOOR(@N/cardinality) FROM
+information_schema.statistics where table_name="t0" and column_name="id";
+SELECT FLOOR(@N/cardinality) FROM
+information_schema.statistics where table_name="t0" and column_name="a";
+
+drop table t0;
+
+# Test big table on SST
+
+create table t1(
+       id bigint not null primary key, 
+       i1 bigint, #unique
+       i2 bigint, #repeating
+       c1 varchar(20), #unique
+       c2 varchar(20), #repeating
+       index t1_1(id, i1),
+       index t1_2(i1, i2),
+       index t1_3(i2, i1),
+       index t1_4(c1, c2),
+       index t1_5(c2, c1)
+) engine=rocksdb;
+--disable_query_log
+let $i=0;
+while ($i<100000)
+{
+  inc $i;
+  eval insert t1(id, i1, i2, c1, c2) values($i, $i, $i div 10, $i, $i div 10);
+}
+--enable_query_log
+
+# Flush memtable out to SST and display index cardinalities
+optimize table t1;
+show index in t1;
+SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE();
+
+--echo restarting...
+--source include/restart_mysqld.inc
+
+# display index cardinalities after the restart
+show index in t1;
+SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE();
+
+drop table t1;

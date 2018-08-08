@@ -150,6 +150,7 @@ When one supplies long data for a placeholder:
 #include "sql/sql_base.h"   // open_tables_for_query, open_temporary_table
 #include "sql/sql_cmd.h"
 #include "sql/sql_cmd_ddl_table.h"
+#include "sql/sql_connect.h"  // update_global_user_stats
 #include "sql/sql_const.h"
 #include "sql/sql_cursor.h"  // Server_side_cursor
 #include "sql/sql_db.h"      // mysql_change_db
@@ -1257,6 +1258,8 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
     case SQLCOM_SLAVE_STOP:
     case SQLCOM_INSTALL_PLUGIN:
     case SQLCOM_UNINSTALL_PLUGIN:
+    case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
+    case SQLCOM_DROP_COMPRESSION_DICTIONARY:
     case SQLCOM_CREATE_DB:
     case SQLCOM_DROP_DB:
     case SQLCOM_CHECKSUM:
@@ -1397,6 +1400,32 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   DBUG_PRINT("prep_query", ("%s", query));
   DBUG_ASSERT(stmt != nullptr);
 
+  int start_time_error = 0;
+  int end_time_error = 0;
+  struct timeval start_time, end_time;
+  double start_usecs = 0;
+  double end_usecs = 0;
+  /* cpu time */
+  int cputime_error = 0;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+#endif
+  double start_cpu_nsecs = 0;
+  double end_cpu_nsecs = 0;
+
+  if (unlikely(opt_userstat)) {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
+
   bool switch_protocol = thd->is_classic_protocol();
   if (switch_protocol) {
     // set the current client capabilities before switching the protocol
@@ -1423,6 +1452,47 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
   /* check_prepared_statement sends the metadata packet in case of success */
+  if (unlikely(opt_userstat)) {
+    // Gets the end time.
+    if (!(end_time_error = gettimeofday(&end_time, NULL))) {
+      end_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error &&
+        !end_time_error) {
+      thd->busy_time = (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743) {
+        thd->busy_time = 0;
+      }
+    } else {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time = 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error) {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743) {
+        thd->cpu_time = 0;
+      }
+    } else
+      thd->cpu_time = 0;
+  }
+
+  // Updates THD stats and the global user stats.
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(NULL));
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1845,6 +1915,32 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
                          ulong execute_flags, PS_PARAM *parameters) {
   DBUG_ENTER("mysqld_stmt_execute");
 
+  int start_time_error = 0;
+  int end_time_error = 0;
+  struct timeval start_time, end_time;
+  double start_usecs = 0;
+  double end_usecs = 0;
+  /* cpu time */
+  int cputime_error = 0;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+#endif
+  double start_cpu_nsecs = 0;
+  double end_cpu_nsecs = 0;
+
+  if (opt_userstat) {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
+
 #if defined(ENABLED_PROFILING)
   thd->profiling->set_query_source(stmt->m_query_string.str,
                                    stmt->m_query_string.length);
@@ -1878,6 +1974,47 @@ void mysqld_stmt_execute(THD *thd, Prepared_statement *stmt, bool has_new_types,
   /* Close connection socket; for use with client testing (Bug#43560). */
   DBUG_EXECUTE_IF("close_conn_after_stmt_execute",
                   thd->get_protocol()->shutdown(););
+
+  if (opt_userstat) {
+    // Gets the end time.
+    if (!(end_time_error = gettimeofday(&end_time, NULL))) {
+      end_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error &&
+        !end_time_error) {
+      thd->busy_time = (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743) {
+        thd->busy_time = 0;
+      }
+    } else {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time = 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error) {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743) {
+        thd->cpu_time = 0;
+      }
+    } else
+      thd->cpu_time = 0;
+  }
+
+  // Updates THD stats and the global user stats.
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(NULL));
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1948,6 +2085,33 @@ void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows) {
 
   thd->stmt_arena = stmt;
   Statement_backup stmt_backup;
+
+  int start_time_error = 0;
+  int end_time_error = 0;
+  struct timeval start_time, end_time;
+  double start_usecs = 0;
+  double end_usecs = 0;
+  /* cpu time */
+  int cputime_error = 0;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+#endif
+  double start_cpu_nsecs = 0;
+  double end_cpu_nsecs = 0;
+
+  if (opt_userstat) {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
+
   stmt_backup.set_thd_to_ps(thd, stmt);
 
   cursor->fetch(num_rows);
@@ -1959,6 +2123,47 @@ void mysqld_stmt_fetch(THD *thd, Prepared_statement *stmt, ulong num_rows) {
 
   stmt_backup.restore_thd(thd, stmt);
   thd->stmt_arena = thd;
+
+  if (opt_userstat) {
+    // Gets the end time.
+    if (!(end_time_error = gettimeofday(&end_time, NULL))) {
+      end_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error &&
+        !end_time_error) {
+      thd->busy_time = (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743) {
+        thd->busy_time = 0;
+      }
+    } else {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time = 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error) {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743) {
+        thd->cpu_time = 0;
+      }
+    } else
+      thd->cpu_time = 0;
+  }
+
+  // Updates THD stats and the global user stats.
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(NULL));
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -1983,6 +2188,33 @@ void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt) {
   DBUG_ENTER("mysqld_stmt_reset");
 
   thd->status_var.com_stmt_reset++;
+
+  int start_time_error = 0;
+  int end_time_error = 0;
+  struct timeval start_time, end_time;
+  double start_usecs = 0;
+  double end_usecs = 0;
+  /* cpu time */
+  int cputime_error = 0;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+#endif
+  double start_cpu_nsecs = 0;
+  double end_cpu_nsecs = 0;
+
+  if (opt_userstat) {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, NULL))) {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
+
   stmt->close_cursor();
 
   /*
@@ -1996,6 +2228,47 @@ void mysqld_stmt_reset(THD *thd, Prepared_statement *stmt) {
   query_logger.general_log_print(thd, thd->get_command(), NullS);
 
   my_ok(thd);
+
+  if (opt_userstat) {
+    // Gets the end time.
+    if (!(end_time_error = gettimeofday(&end_time, NULL))) {
+      end_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error &&
+        !end_time_error) {
+      thd->busy_time = (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743) {
+        thd->busy_time = 0;
+      }
+    } else {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time = 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error) {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743) {
+        thd->cpu_time = 0;
+      }
+    } else
+      thd->cpu_time = 0;
+  }
+
+  // Updates THD stats and the global user stats.
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(NULL));
+  }
 
   DBUG_VOID_RETURN;
 }

@@ -459,7 +459,9 @@ class PT_limit_clause : public Parse_tree_node {
     pc->select->offset_limit = limit_options.opt_offset;
     pc->select->explicit_limit = true;
 
-    pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
+    if (pc->select->select_limit->fixed &&
+        pc->select->select_limit->val_int() != 0)
+      pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_LIMIT);
     return false;
   }
 };
@@ -4774,6 +4776,10 @@ typedef PT_alter_tablespace_option<
     decltype(Tablespace_options::wait_until_completed),
     &Tablespace_options::wait_until_completed>
     PT_alter_tablespace_option_wait_until_completed;
+
+typedef PT_alter_tablespace_option<decltype(Tablespace_options::encryption),
+                                   &Tablespace_options::encryption>
+    PT_alter_tablespace_option_encryption;
 
 class PT_alter_tablespace_option_nodegroup final
     : public PT_alter_tablespace_option_base /* purecov: inspected */

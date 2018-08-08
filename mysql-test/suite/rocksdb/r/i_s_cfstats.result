@@ -1,0 +1,11 @@
+show create table information_schema.rocksdb_cfstats;
+Table	Create Table
+ROCKSDB_CFSTATS	CREATE TEMPORARY TABLE `ROCKSDB_CFSTATS` (
+  `CF_NAME` varchar(193) NOT NULL DEFAULT '',
+  `STAT_TYPE` varchar(193) NOT NULL DEFAULT '',
+  `VALUE` bigint(8) NOT NULL DEFAULT '0'
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+uninstall plugin rocksdb;
+select * from information_schema.rocksdb_cfstats;
+ERROR HY000: Plugin 'ROCKSDB' is not loaded
+# restart

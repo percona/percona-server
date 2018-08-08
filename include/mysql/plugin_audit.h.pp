@@ -115,6 +115,17 @@ char *thd_security_context(void * thd, char *buffer, size_t length,
 void thd_inc_row_count(void * thd);
 int thd_allow_batch(void * thd);
 void thd_mark_transaction_to_rollback(void * thd, int all);
+void increment_thd_innodb_stats(void* thd,
+                    unsigned long long trx_id,
+                    long io_reads,
+                    long long io_read,
+                    long io_reads_wait_timer,
+                    long lock_que_wait_timer,
+                    long que_wait_timer,
+                    long page_access);
+unsigned long thd_log_slow_verbosity(const void* thd);
+int thd_opt_slow_log();
+int thd_is_background_thread(const void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void * thd);
 void thd_set_kill_status(const void * thd);
@@ -126,6 +137,10 @@ void *thd_get_ha_data(const void * thd, const struct handlerton *hton);
 void thd_set_ha_data(void * thd, const struct handlerton *hton,
                      const void *ha_data);
 void remove_ssl_err_thread_state();
+int thd_command(const void* thd);
+long long thd_start_time(const void* thd);
+void thd_kill(unsigned long id);
+int thd_get_ft_query_extra_word_chars(void);
 #include "my_command.h"
 enum enum_server_command {
   COM_SLEEP,
@@ -323,6 +338,14 @@ enum enum_sql_command {
   SQLCOM_RESTART_SERVER,
   SQLCOM_CREATE_SRS,
   SQLCOM_DROP_SRS,
+  SQLCOM_SHOW_USER_STATS,
+  SQLCOM_SHOW_TABLE_STATS,
+  SQLCOM_SHOW_INDEX_STATS,
+  SQLCOM_SHOW_CLIENT_STATS,
+  SQLCOM_SHOW_THREAD_STATS,
+  SQLCOM_LOCK_TABLES_FOR_BACKUP,
+  SQLCOM_CREATE_COMPRESSION_DICTIONARY,
+  SQLCOM_DROP_COMPRESSION_DICTIONARY,
   SQLCOM_END
 };
 typedef enum {

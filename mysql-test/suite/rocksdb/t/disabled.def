@@ -1,0 +1,8 @@
+cons_snapshot_serializable : MyRocks does not yet support ISO serializable
+covered_unpack_info_format : disabled as part of MYR-180 from upstream commit fb-mysql-5.6.35/922021ce3d8bfc40152c112f6a59eb71e3d6dd98
+fast_prefix_index_fetch : disabled as part of MYR-180 from upstream commit fb-mysql-5.6.35/922021ce3d8bfc40152c112f6a59eb71e3d6dd98
+level_read_uncommitted : MyRocks does not yet suppore ISO read uncommitted
+level_serializable : MyRocks does not yet support ISO serializable
+mysqlbinlog_gtid_skip_empty_trans_rocksdb : MYR-25 - Percona Server mysqlbinlog does not support filtering of empty transactions
+rpl_read_free : MYR-6 - Percona Server does not yet have uniform implementation of RFR between MyRocks and TokuDB
+slow_query_log : MYR-26 - Percona Server does not support --log-slow-extra

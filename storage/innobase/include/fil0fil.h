@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "ibuf0types.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "trx0types.h"
 #include "ut0new.h"
 
 #include "sql/dd/object_id.h"
@@ -255,6 +256,8 @@ struct fil_space_t {
 
   /** true if this space is currently in unflushed_spaces */
   bool is_in_unflushed_spaces;
+
+  bool is_corrupt;
 
   /** Compression algorithm */
   Compression::Type compression_type;
@@ -1301,12 +1304,19 @@ dberr_t fil_redo_io(const IORequest &type, const page_id_t &page_id,
                                 to write; in aio this must be appropriately
                                 aligned
 @param[in]	message		message for aio handler if !sync, else ignored
+@param[in]	should_buffer	whether to buffer an aio request. Only used by
+                                aio read ahead
 @return error code
 @retval DB_SUCCESS on success
 @retval DB_TABLESPACE_DELETED if the tablespace does not exist */
-dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
-               const page_size_t &page_size, ulint byte_offset, ulint len,
-               void *buf, void *message) MY_ATTRIBUTE((warn_unused_result));
+dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
+                const page_size_t &page_size, ulint byte_offset, ulint len,
+                void *buf, void *message, trx_t *trx, bool should_buffer)
+    MY_ATTRIBUTE((warn_unused_result));
+
+#define fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message) \
+  _fil_io(type, sync, page_id, page_size, byte_offset, len, buf, message,      \
+          NULL, false)
 
 /** Waits for an aio operation to complete. This function is used to write the
 handler for completed requests. The aio array of pending requests is divided
@@ -1650,9 +1660,10 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 @param[in]	ptr		redo log record
 @param[in]	end		end of the redo log buffer
 @param[in]	space_id	the tablespace ID
+@param[in]	apply		whether to apply the record
 @return log record end, nullptr if not a complete record */
 byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
-                                     space_id_t space_id)
+                                     space_id_t space_id, bool apply)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Read the tablespace id to path mapping from the file
@@ -1749,5 +1760,9 @@ and old name are same, no update done.
                                 will be updated
 @param[in]	name		new name for tablespace */
 void fil_space_update_name(fil_space_t *space, const char *name);
+
+/** Mark space as corrupt
+@param space_id	space id */
+void fil_space_set_corrupt(space_id_t space_id);
 
 #endif /* fil0fil_h */

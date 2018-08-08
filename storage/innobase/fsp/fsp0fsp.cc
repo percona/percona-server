@@ -174,6 +174,9 @@ fsp_header_t *fsp_get_space_header(space_id_t id, const page_size_t &page_size,
   ut_ad(id != 0 || !page_size.is_compressed());
 
   block = buf_page_get(page_id_t(id, 0), page_size, RW_SX_LATCH, mtr);
+
+  SRV_CORRUPT_TABLE_CHECK(block, return (0););
+
   header = FSP_HEADER_OFFSET + buf_block_get_frame(block);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -518,7 +521,9 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) xdes_t
           (srv_startup_is_before_trx_rollback_phase &&
            fsp_is_undo_tablespace(fspace->id)))));
   ut_ad(size == fspace->size_in_header);
-  ut_ad(flags == fspace->flags);
+  ut_ad((flags & ~FSP_FLAGS_MASK_DATA_DIR) ==
+            (fspace->flags & ~FSP_FLAGS_MASK_DATA_DIR) ||
+        fspace->purpose == FIL_TYPE_TEMPORARY);
 
   if ((offset >= size) || (offset >= limit)) {
     return (NULL);
@@ -572,6 +577,8 @@ static MY_ATTRIBUTE((warn_unused_result)) xdes_t *xdes_get_descriptor(
   fsp_header_t *sp_header;
 
   block = buf_page_get(page_id_t(space_id, 0), page_size, RW_SX_LATCH, mtr);
+
+  SRV_CORRUPT_TABLE_CHECK(block, return (nullptr););
 
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -834,6 +841,46 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
   /* Write encryption info into space header. */
   return (fsp_header_write_encryption(space->id, space->flags, encrypt_info,
                                       false, mtr));
+}
+
+/** Enable encryption for already existing tablespace.
+@param[in]	space_id	tablespace id
+@return true if success */
+bool fsp_enable_encryption(space_id_t space_id) {
+  byte encrypt_info[ENCRYPTION_INFO_SIZE];
+  fil_space_t *space = fil_space_get(space_id);
+
+  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+
+  if (!Encryption::fill_encryption_info(
+          space->encryption_key, space->encryption_iv, encrypt_info, false)) {
+    return (false);
+  }
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+  mtr_x_lock_space(space, &mtr);
+
+  const page_size_t page_size(space->flags);
+  buf_block_t *block =
+      buf_page_get(page_id_t(space->id, 0), page_size, RW_SX_LATCH, &mtr);
+  buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+  ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
+
+  page_t *page = buf_block_get_frame(block);
+  mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, space->flags,
+                   MLOG_4BYTES, &mtr);
+
+  ulint offset = fsp_header_get_encryption_offset(page_size);
+  ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
+
+  mlog_write_string(page + offset, encrypt_info, ENCRYPTION_INFO_SIZE, &mtr);
+
+  mtr_commit(&mtr);
+
+  return (true);
 }
 
 /** Initializes the space header of a new created space and creates also the
@@ -1769,6 +1816,8 @@ static page_no_t fsp_seg_inode_page_find_used(page_t *page,
 static page_no_t fsp_seg_inode_page_find_free(page_t *page, page_no_t i,
                                               const page_size_t &page_size,
                                               mtr_t *mtr) {
+  SRV_CORRUPT_TABLE_CHECK(page, return (FIL_NULL););
+
   for (; i < FSP_SEG_INODES_PER_PAGE(page_size); i++) {
     fseg_inode_t *inode;
 
@@ -1858,6 +1907,8 @@ static fseg_inode_t *fsp_alloc_seg_inode(
 
   page = buf_block_get_frame(block);
 
+  SRV_CORRUPT_TABLE_CHECK(page, return (nullptr););
+
   n = fsp_seg_inode_page_find_free(page, 0, page_size, mtr);
 
   ut_a(n != FIL_NULL);
@@ -1940,6 +1991,8 @@ static fseg_inode_t *fseg_inode_try_get(fseg_header_t *header, space_id_t space,
 
   inode = fut_get_ptr(space, page_size, inode_addr, RW_SX_LATCH, mtr, block);
 
+  SRV_CORRUPT_TABLE_CHECK(inode, return (nullptr););
+
   if (UNIV_UNLIKELY(!mach_read_from_8(inode + FSEG_ID))) {
     inode = NULL;
   } else {
@@ -1961,7 +2014,7 @@ static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
                                     buf_block_t **block = NULL) {
   fseg_inode_t *inode =
       fseg_inode_try_get(header, space, page_size, mtr, block);
-  ut_a(inode);
+  SRV_CORRUPT_TABLE_CHECK(inode, ; /* do nothing */);
   return (inode);
 }
 
@@ -2770,7 +2823,7 @@ buf_block_t *fseg_alloc_free_page_general(
 {
   fseg_inode_t *inode;
   space_id_t space_id;
-  buf_block_t *iblock;
+  buf_block_t *iblock = nullptr;
   buf_block_t *block;
   ulint n_reserved = 0;
 
@@ -3121,6 +3174,11 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
   descr =
       xdes_get_descriptor(page_id.space(), page_id.page_no(), page_size, mtr);
 
+  SRV_CORRUPT_TABLE_CHECK(descr, {
+    /* The page may be corrupt. pass it. */
+    return;
+  });
+
   if (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
                        page_id.page_no() % FSP_EXTENT_SIZE, mtr)) {
     fputs("InnoDB: Dump of the tablespace extent descriptor: ", stderr);
@@ -3233,7 +3291,7 @@ void fseg_free_page(fseg_header_t *seg_header, /*!< in: segment header */
 {
   DBUG_ENTER("fseg_free_page");
   fseg_inode_t *seg_inode;
-  buf_block_t *iblock;
+  buf_block_t *iblock = nullptr;
 
   fil_space_t *space = fil_space_get(space_id);
 
@@ -3395,6 +3453,11 @@ ibool fseg_free_step(
 
   descr = xdes_get_descriptor(space_id, header_page, page_size, mtr);
 
+  SRV_CORRUPT_TABLE_CHECK(descr, {
+    /* The page may be corrupt. pass it. */
+    return (TRUE);
+  });
+
   /* Check that the header resides on a page which has not been
   freed yet */
 
@@ -3471,9 +3534,14 @@ ibool fseg_free_step_not_header(
   mtr_x_lock_space(space, mtr);
 
   const page_size_t page_size(space->flags);
-  buf_block_t *iblock;
+  buf_block_t *iblock = nullptr;
 
   inode = fseg_inode_get(header, space_id, page_size, mtr, &iblock);
+  SRV_CORRUPT_TABLE_CHECK(inode, {
+    /* ignore the corruption */
+    return (TRUE);
+  });
+
   fil_block_check_type(iblock, FIL_PAGE_INODE, mtr);
 
   descr = fseg_get_first_extent(inode, space_id, page_size, mtr);

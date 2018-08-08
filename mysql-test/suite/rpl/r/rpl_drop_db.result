@@ -21,14 +21,15 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
 DROP DATABASE test1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test2)
 USE test1;
 include/assert.inc [Tables in test1 database are not dropped]
 CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
 DROP DATABASE test1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-include/assert.inc [MyISAM table t5 is dropped]
-include/assert.inc [InnoDB tables in test1 database are not dropped]
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test2)
+SET foreign_key_checks=0;
+DROP DATABASE test1;
+SET foreign_key_checks=1;
 USE test2;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES (1234);
@@ -37,6 +38,5 @@ DROP TABLE t2;
 Wait until test2.t2 is deleted on slave
 include/sync_slave_sql_with_master.inc
 [connection master]
-DROP DATABASE test1;
 DROP DATABASE test2;
 include/rpl_end.inc

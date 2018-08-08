@@ -1,0 +1,7 @@
+INSTALL PLUGIN null_audit SONAME 'adt_null.so';
+SET collation_connection='ucs2_general_ci';
+PREPARE foo FROM @bar;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

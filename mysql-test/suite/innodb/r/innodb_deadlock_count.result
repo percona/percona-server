@@ -1,0 +1,32 @@
+#
+# Bug 77399: Deadlocks missed by INFORMATION_SCHEMA.INNODB_METRICS lock_deadlocks counter
+#
+# Establish connection con1 (user=root)
+# Establish connection con2 (user=root)
+# Create test table
+create table t(a INT PRIMARY KEY, b INT) engine=InnoDB;
+# Insert two rows to test table
+insert into t values(2,1);
+insert into t values(1,2);
+SELECT COUNT INTO @start_metrics_val
+FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
+# Switch to connection con1
+BEGIN;
+SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con2
+BEGIN;
+SELECT b FROM t WHERE a=2 FOR UPDATE;
+# Switch to connection con1
+SELECT b FROM t WHERE a=2 FOR UPDATE;
+# Switch to connection con2
+SELECT b FROM t WHERE a=1 FOR UPDATE;
+# Switch to connection con1
+ROLLBACK;
+# Switch to connection con2
+ROLLBACK;
+# Switch to connection default
+SELECT COUNT INTO @lock_deadlocks_var FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE NAME='lock_deadlocks';
+include/assert.inc [Exactly one deadlock should have been found]
+# Drop test table
+drop table t;
+SET GLOBAL innodb_monitor_reset = default;

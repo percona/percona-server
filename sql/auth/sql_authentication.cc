@@ -2997,11 +2997,13 @@ inline void assign_priv_user_host(Security_context *sctx, ACL_USER *user) {
   @param command                 the command to be executed, it can be either a
                                  COM_CHANGE_USER or COM_CONNECT (if
                                  it's a new connection)
+  @param extra_port_connection   true if the client is connecting on extra_port
 
   @retval 0  success, thd is updated.
   @retval 1  error
 */
-int acl_authenticate(THD *thd, enum_server_command command) {
+int acl_authenticate(THD *thd, enum_server_command command,
+                     bool extra_port_connection) {
   int res = CR_OK;
   MPVIO_EXT mpvio;
   LEX_CSTRING auth_plugin_name = default_auth_plugin_name;
@@ -3359,9 +3361,10 @@ int acl_authenticate(THD *thd, enum_server_command command) {
         thd->m_main_security_ctx
             .has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
             .first)) {
-    if (!Connection_handler_manager::get_instance()
-             ->valid_connection_count()) {  // too many connections
+    if (!Connection_handler_manager::get_instance()->valid_connection_count(
+            extra_port_connection)) {  // too many connections
       release_user_connection(thd);
+      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

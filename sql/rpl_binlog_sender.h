@@ -33,6 +33,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/binlog.h"    // LOG_INFO
+#include "sql/log_event.h"
 #include "sql/rpl_gtid.h"
 #include "sql/sql_error.h"  // Diagnostics_area
 
@@ -156,6 +157,8 @@ class Binlog_sender : Gtid_mode_copy {
    * it is deemed to being underused.
    */
   const static float PACKET_SHRINK_FACTOR;
+
+  std::unique_ptr<Format_description_log_event> m_fdle;
 
   uint32 m_flag;
   /*

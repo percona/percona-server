@@ -25,7 +25,7 @@ FILE *d;
 	int c;
 	int last;
 	int nincat[NC];
-	char buf[10];
+	char buf[11];
 
 	fprintf(d, "%ld states, %d categories", (long)g->nstates,
 							g->ncategories);

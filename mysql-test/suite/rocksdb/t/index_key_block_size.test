@@ -1,0 +1,66 @@
+--source include/have_rocksdb.inc
+
+# 
+# KEY_BLOCK_SIZE index option.
+#
+
+CREATE TABLE t1 (a INT,
+  b CHAR(8),
+  pk INT PRIMARY KEY,
+  KEY (a) KEY_BLOCK_SIZE=8
+) ENGINE=ROCKSDB;
+
+--replace_column 7 #
+SHOW KEYS IN t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT,
+  b CHAR(8),
+  pk INT PRIMARY KEY,
+  KEY ind1(b ASC) KEY_BLOCK_SIZE=0
+) ENGINE=ROCKSDB;
+
+--replace_column 7 #
+SHOW INDEX IN t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT,
+  b CHAR(8),
+  PRIMARY KEY ind2(b(1) DESC) KEY_BLOCK_SIZE=32768 COMMENT 'big key_block_size value'
+) ENGINE=ROCKSDB;
+
+--replace_column 7 #
+SHOW INDEX IN t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT,
+  b CHAR(8),
+  pk INT AUTO_INCREMENT PRIMARY KEY,
+  KEY a_b(a,b) KEY_BLOCK_SIZE=8192
+) ENGINE=ROCKSDB;
+
+--replace_column 7 #
+SHOW INDEX IN t1;
+  
+DROP TABLE t1;
+
+--source suite/rocksdb/include/drop_table_sync.inc
+
+#
+# ALTER TABLE
+#
+
+CREATE TABLE t1 (a INT,
+  b CHAR(8),
+  PRIMARY KEY (b)
+) ENGINE=ROCKSDB;
+
+INSERT INTO t1 (a,b) VALUES (100,'z');
+
+ALTER TABLE t1 ADD KEY(a) KEY_BLOCK_SIZE 8192;
+--replace_column 7 #
+SHOW INDEX FROM t1;
+
+DROP TABLE t1;
+

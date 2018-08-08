@@ -29,6 +29,7 @@
 */
 
 class THD;
+struct MYSQL_TIME;
 
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 bool schema_table_store_record(THD *thd, TABLE *table);

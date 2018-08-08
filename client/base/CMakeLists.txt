@@ -52,7 +52,7 @@ ADD_CONVENIENCE_LIBRARY(client_base
   ../../sql-common/sql_string.cc
 )
 
-TARGET_LINK_LIBRARIES(client_base mysqlclient)
+TARGET_LINK_LIBRARIES(client_base perconaserverclient)
 
 # Do not build library unless it is needed by some other target.
 SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)

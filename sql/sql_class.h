@@ -51,6 +51,7 @@
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/components/services/psi_transaction_bits.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/service_thread_scheduler.h"
 #include "pfs_thread_provider.h"
 #include "sql/psi_memory_key.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
@@ -150,6 +151,11 @@ class sp_cache;
 struct Binlog_user_var_event;
 struct LOG_INFO;
 
+extern bool opt_log_slow_admin_statements;
+extern ulong opt_log_slow_sp_statements;
+
+extern ulong kill_idle_transaction_timeout;
+
 typedef struct user_conn USER_CONN;
 struct MYSQL_LOCK;
 
@@ -168,6 +174,41 @@ extern "C" void thd_enter_stage(void *opaque_thd,
                                 PSI_stage_info *old_stage,
                                 const char *src_function, const char *src_file,
                                 int src_line);
+enum enum_slow_query_log_use_global_control {
+  SLOG_UG_LOG_SLOW_FILTER,
+  SLOG_UG_LOG_SLOW_RATE_LIMIT,
+  SLOG_UG_LOG_SLOW_VERBOSITY,
+  SLOG_UG_LONG_QUERY_TIME,
+  SLOG_UG_MIN_EXAMINED_ROW_LIMIT,
+  SLOG_UG_ALL
+};
+enum enum_log_slow_verbosity {
+  SLOG_V_MICROTIME,
+  SLOG_V_QUERY_PLAN,
+  SLOG_V_INNODB,
+  SLOG_V_PROFILING,
+  SLOG_V_PROFILING_USE_GETRUSAGE,
+  SLOG_V_MINIMAL,
+  SLOG_V_STANDARD,
+  SLOG_V_FULL
+};
+enum enum_slow_query_log_rate_type { SLOG_RT_SESSION, SLOG_RT_QUERY };
+#define QPLAN_NONE 0
+#define QPLAN_FULL_SCAN (1 << 0)
+#define QPLAN_FULL_JOIN (1 << 1)
+#define QPLAN_TMP_TABLE (1 << 2)
+#define QPLAN_TMP_DISK (1 << 3)
+#define QPLAN_FILESORT (1 << 4)
+#define QPLAN_FILESORT_DISK (1 << 5)
+enum class enum_log_slow_filter {
+  SLOG_F_FULL_SCAN,
+  SLOG_F_FULL_JOIN,
+  SLOG_F_TMP_TABLE,
+  SLOG_F_TMP_DISK,
+  SLOG_F_FILESORT,
+  SLOG_F_FILESORT_DISK
+};
+#define SLOG_SLOW_RATE_LIMIT_MAX 1000
 
 extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
                                                const bool waiting);
@@ -593,6 +634,24 @@ class Sub_statement_state {
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log;
+
+  /*** Following variables used in slow_extended.patch ***/
+  ulong tmp_tables_used;
+  ulong tmp_tables_disk_used;
+  ulonglong tmp_tables_size;
+
+  bool innodb_was_used;
+  ulong innodb_io_reads;
+  ulonglong innodb_io_read;
+  ulong innodb_io_reads_wait_timer;
+  ulong innodb_lock_que_wait_timer;
+  ulong innodb_innodb_que_wait_timer;
+  ulong innodb_page_access;
+
+  ulong query_plan_flags;
+  ulong query_plan_fsort_passes;
+  /*** The variables above used in slow_extended.patch ***/
+
   SAVEPOINT *savepoints;
   enum enum_check_fields check_for_truncated_fields;
 };
@@ -725,6 +784,44 @@ class Global_read_lock {
   MDL_ticket *m_mdl_blocks_commits_lock;
 };
 
+/**
+  An instance of a global backup lock in a connection.
+*/
+
+class Global_backup_lock final {
+ public:
+  Global_backup_lock(MDL_key::enum_mdl_namespace mdl_namespace) noexcept
+      : m_namespace(mdl_namespace), m_lock(nullptr) {}
+
+  bool acquire(THD *thd);
+  void release(THD *thd) noexcept;
+
+  bool acquire_protection(THD *thd, enum_mdl_duration duration,
+                          ulong lock_wait_timeout);
+  void init_protection_request(MDL_request *mdl_request,
+                               enum_mdl_duration duration) const;
+
+  /**
+    Throw the ER_CANT_EXECUTE_WITH_BACKUP_LOCK error and return 'true', if the
+    current connection has already acquired the lock. Otherwise return
+    'false'.
+  */
+  bool abort_if_acquired() const noexcept {
+    if (is_acquired()) {
+      my_error(ER_CANT_EXECUTE_WITH_BACKUP_LOCK, MYF(0));
+      return true;
+    }
+
+    return false;
+  }
+
+  bool is_acquired() const noexcept { return m_lock != nullptr; }
+
+ private:
+  const MDL_key::enum_mdl_namespace m_namespace;
+  MDL_ticket *m_lock;
+};
+
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 /**
@@ -737,6 +834,11 @@ static inline void my_micro_time_to_timeval(ulonglong micro_time,
   tm->tv_sec = (long)(micro_time / 1000000);
   tm->tv_usec = (long)(micro_time % 1000000);
 }
+
+struct QUERY_START_TIME_INFO {
+  struct timeval start_time;
+  ulonglong start_utime;
+};
 
 /**
   @class THD
@@ -904,6 +1006,10 @@ class THD : public MDL_context_owner,
 
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
+  /** Thread scheduler callbacks for this connection per-thread and one-thread
+  scheduler callbacks are no-ops, so nullptr works for them, threadpool
+  scheduler will change this for its THDs */
+  THD_event_functions *scheduler{nullptr};
   /**
     Hash for user variables.
     User variables are per session,
@@ -915,6 +1021,7 @@ class THD : public MDL_context_owner,
       user_vars{system_charset_info, key_memory_user_var_entry};
   String convert_buffer;                // buffer for charset conversions
   struct rand_struct rand;              // used for authentication
+  struct rand_struct slog_rand;         // used for random slow log filtering
   struct System_variables variables;    // Changeable local variables
   struct System_status_var status_var;  // Per thread statistic vars
   struct System_status_var *initial_status_var; /* used by show status */
@@ -951,6 +1058,7 @@ class THD : public MDL_context_owner,
     actually reports the previous query, not itself.
   */
   void save_current_query_costs() {
+    DBUG_ASSERT(!status_var_aggregated);
     status_var.last_query_cost = m_current_query_cost;
     status_var.last_query_partial_plans = m_current_query_partial_plans;
   }
@@ -970,6 +1078,11 @@ class THD : public MDL_context_owner,
     while having this mutex locked.
   */
   mysql_mutex_t LOCK_thd_query;
+
+  /**
+    Protects temporary_tables.
+  */
+  mysql_mutex_t LOCK_temporary_tables;
 
   /**
     Protects THD::variables while being updated. This should be taken inside
@@ -1244,7 +1357,7 @@ class THD : public MDL_context_owner,
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-  ulonglong start_utime, utime_after_lock;
+  ulonglong start_utime, utime_after_lock, utime_after_query;
 
   /**
     Type of lock to be used for all DML statements, except INSERT, in cases
@@ -1260,8 +1373,80 @@ class THD : public MDL_context_owner,
   */
   thr_lock_type insert_lock_default;
 
+  /*** Following variables used in slow_extended.patch ***/
+  /*
+    Variable bytes_send_old saves value of thd->status_var.bytes_sent
+    before query execution.
+  */
+  ulonglong bytes_sent_old;
+  /*
+    Variables tmp_tables_*** collect statistics about usage of temporary tables
+  */
+  ulong tmp_tables_used;
+  ulong tmp_tables_disk_used;
+  ulonglong tmp_tables_size;
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool innodb_was_used;
+  /*
+    Following Variables innodb_*** (is |should be) different from
+    default values only if (innodb_was_used==true)
+  */
+  ulonglong innodb_trx_id;
+  ulong innodb_io_reads;
+  ulonglong innodb_io_read;
+  ulong innodb_io_reads_wait_timer;
+  ulong innodb_lock_que_wait_timer;
+  ulong innodb_innodb_que_wait_timer;
+  ulong innodb_page_access;
+
+  /*
+    Variable query_plan_flags collects information about query plan entites
+    used on query execution.
+  */
+  ulong query_plan_flags;
+  /*
+    Variable query_plan_fsort_passes collects information about file sort passes
+    acquired during query execution.
+  */
+  ulong query_plan_fsort_passes;
+  /*
+    Query can generate several errors/warnings during execution
+    (see THD::handle_condition comment in sql_class.h)
+    Variable last_errno contains the last error/warning acquired during
+    query execution.
+  */
+  uint last_errno;
+  /*** The variables above used in slow_extended.patch ***/
+
+  inline void set_slow_log_for_admin_command() noexcept {
+    enable_slow_log = opt_log_slow_admin_statements &&
+                      (sp_runtime_ctx ? opt_log_slow_sp_statements : true);
+  }
+  /*** Following methods used in slow_extended.patch ***/
+  void clear_slow_extended() noexcept;
+
+ private:
+  void reset_sub_statement_state_slow_extended(
+      Sub_statement_state *backup) noexcept;
+  void restore_sub_statement_state_slow_extended(
+      const Sub_statement_state &backup) noexcept;
+  /*** The methods above used in slow_extended.patch ***/
+ public:
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
+
+  /* Do not set socket timeouts for wait_timeout (used with threadpool) */
+  bool skip_wait_timeout{false};
+
+  inline ulong get_wait_timeout(void) const noexcept {
+    if (in_active_multi_stmt_transaction() &&
+        kill_idle_transaction_timeout > 0 &&
+        kill_idle_transaction_timeout < variables.net_wait_timeout)
+      return kill_idle_transaction_timeout;
+    return variables.net_wait_timeout;
+  }
 
   /**
     Used by fill_status() to avoid acquiring LOCK_status mutex twice
@@ -1311,6 +1496,8 @@ class THD : public MDL_context_owner,
     ha_data = backup;
     mysql_mutex_unlock(&this->LOCK_thd_data);
   }
+
+  bool order_deterministic{false};
 
   /*
     Position of first event in Binlog
@@ -1658,6 +1845,9 @@ class THD : public MDL_context_owner,
   void set_transaction(Transaction_ctx *transaction_ctx);
 
   Global_read_lock global_read_lock;
+
+  Global_backup_lock backup_tables_lock{MDL_key::BACKUP_TABLES};
+
   Field *dup_field;
 
   Vio *active_vio = {nullptr};
@@ -2118,6 +2308,8 @@ class THD : public MDL_context_owner,
   int thd_tx_priority;
 
   enum_check_fields check_for_truncated_fields;
+  ha_rows updated_row_count{0};
+  ha_rows sent_row_count_2{0}; /* for userstat */
 
   // For user variables replication
   Prealloced_array<Binlog_user_var_event *, 2> user_var_events;
@@ -2310,6 +2502,49 @@ class THD : public MDL_context_owner,
     each thread that is using LOG_INFO needs to adjust the pointer to it
   */
   LOG_INFO *current_linfo;
+
+  /*
+    Used to update global user stats.  The global user stats are updated
+    occasionally with the 'diff' variables.  After the update, the 'diff'
+    variables are reset to 0.
+  */
+  // Time when the current thread connected to MySQL.
+  time_t current_connect_time;
+  // Last time when THD stats were updated in global_user_stats.
+  time_t last_global_update_time;
+  // Busy (non-idle) time for just one command.
+  double busy_time{0.0};
+  // Busy time not updated in global_user_stats yet.
+  double diff_total_busy_time;
+  // Cpu (non-idle) time for just one thread.
+  double cpu_time{0.0};
+  // Cpu time not updated in global_user_stats yet.
+  double diff_total_cpu_time;
+  /* bytes counting */
+  ulonglong bytes_received{0};
+  ulonglong diff_total_bytes_received;
+  ulonglong bytes_sent{0};
+  ulonglong diff_total_bytes_sent;
+  ulonglong binlog_bytes_written{0};
+  ulonglong diff_total_binlog_bytes_written;
+
+  // Number of rows not reflected in global_user_stats yet.
+  ha_rows diff_total_sent_rows, diff_total_updated_rows, diff_total_read_rows;
+  // Number of commands not reflected in global_user_stats yet.
+  ulonglong diff_select_commands, diff_update_commands, diff_other_commands;
+  // Number of transactions not reflected in global_user_stats yet.
+  ulonglong diff_commit_trans, diff_rollback_trans;
+  // Number of connection errors not reflected in global_user_stats yet.
+  ulonglong diff_denied_connections, diff_lost_connections;
+  // Number of db access denied, not reflected in global_user_stats yet.
+  ulonglong diff_access_denied_errors;
+  // Number of queries that return 0 rows
+  ulonglong diff_empty_queries;
+
+  // Per account query delay in miliseconds. When not 0, sleep this number of
+  // milliseconds before every SQL command.
+  ulonglong query_delay_millis;
+
   /* Used by the sys_var class to store temporary values */
   union {
     bool bool_value;
@@ -2413,6 +2648,11 @@ class THD : public MDL_context_owner,
   */
   void init_query_mem_roots();
   void cleanup_connection(void);
+  void reset_stats(void) noexcept;
+  void reset_diff_stats(void) noexcept;
+  // ran_command is true when this is called immediately after a
+  // command has been run.
+  void update_stats(bool ran_command) noexcept;
   void cleanup_after_query();
   bool store_globals();
   void restore_globals();
@@ -2420,6 +2660,7 @@ class THD : public MDL_context_owner,
   inline void set_active_vio(Vio *vio) {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
+    vio_set_thread_id(vio, pthread_self());
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -2575,16 +2816,27 @@ class THD : public MDL_context_owner,
     MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
                                   (utime_after_lock - start_utime));
   }
+  void get_time(QUERY_START_TIME_INFO *time_info) const noexcept {
+    time_info->start_time = start_time;
+    time_info->start_utime = start_utime;
+  }
+  void set_time(const QUERY_START_TIME_INFO &time_info) noexcept {
+    start_time = time_info.start_time;
+    start_utime = time_info.start_utime;
+  }
   inline bool is_fsp_truncate_mode() const {
     return (variables.sql_mode & MODE_TIME_TRUNCATE_FRACTIONAL);
   }
+
+  static inline ulonglong current_utime() noexcept { return my_micro_time(); }
 
   /**
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
   */
   void update_slow_query_status() {
-    if (my_micro_time() > utime_after_lock + variables.long_query_time)
+    utime_after_query = current_utime();
+    if (utime_after_query > utime_after_lock + variables.long_query_time)
       server_status |= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void) { return previous_found_rows; }
@@ -3387,7 +3639,7 @@ class THD : public MDL_context_owner,
     return copy_db_to(const_cast<char const **>(p_db), p_db_length);
   }
 
-  thd_scheduler scheduler;
+  thd_scheduler event_scheduler;
 
   /**
     Get resource group context.
@@ -3982,6 +4234,11 @@ class Internal_error_handler_holder {
     if (m_activate) m_thd->pop_internal_handler();
   }
 };
+
+/* Returns string as 'IP' for the client-side of the connection represented by
+   'client'. Does not allocate memory. May return "".
+*/
+const char *get_client_host(const THD &client) noexcept;
 
 /**
   A simple holder for the Prepared Statement Query_arena instance in THD.

@@ -1,0 +1,182 @@
+--source include/have_tokudb_backup.inc
+--source include/not_gtid_enabled.inc
+
+
+--let $SLAVE_INFO_FILE=tokubackup_slave_info
+--let $BACKUP_DIR_SLAVE=$MYSQL_TMP_DIR/tokudb_backup_slave
+--let $SLAVE_INFO_FILE_PATH=$BACKUP_DIR_SLAVE/$SLAVE_INFO_FILE
+--let DDIR=$BACKUP_DIR_SLAVE
+
+# Settings for include/filter_file.inc
+
+--delimiter |
+let $script=
+  s{host: [^,]+,}{host: #.#.#.#,};
+  s{user: [^,]+,}{user: ####,};
+  s{port: [^,]+,}{port: ####,};
+  s{master log file: [^,]+,}{master log file: ####,};
+  s{relay log file: [^,]+,}{relay log file: ####,};
+  s{exec master log pos: [^,]+,}{exec master log pos: ####,};
+  s{executed gtid set: [^,]+, }{executed gtid set: ####, };
+  s{executed gtid set: [^,]+,[^,]+, }{executed gtid set: ####,####, };
+|
+--delimiter ;
+--let $input_file = $SLAVE_INFO_FILE_PATH
+--let $skip_column_names= 1
+
+--echo ###
+--echo # Test for binlog position
+--echo #####
+
+--mkdir $BACKUP_DIR_SLAVE
+
+--let $rpl_server_count=3
+--let $rpl_topology=1->2
+--source include/rpl_init.inc
+
+--connection server_1
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--connection server_2
+--echo Backup
+--disable_query_log
+--eval SET SESSION tokudb_backup_dir='$BACKUP_DIR_SLAVE'
+--enable_query_log
+
+--source include/filter_file.inc
+--echo ### $SLAVE_INFO_FILE content:
+--cat_file $SLAVE_INFO_FILE_PATH
+
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+--echo ###
+--echo # Test for gtid set
+--echo #####
+
+--mkdir $BACKUP_DIR_SLAVE
+
+--let $rpl_server_numbers= 1,2
+--let $rpl_set_enforce_gtid_consistency= 1
+--source include/rpl_set_gtid_mode.inc
+
+--connection server_1
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--connection server_2
+--echo Backup
+--disable_query_log
+--eval SET SESSION tokudb_backup_dir='$BACKUP_DIR_SLAVE'
+--enable_query_log
+
+--source include/filter_file.inc
+--echo ### $SLAVE_INFO_FILE content:
+--cat_file $SLAVE_INFO_FILE_PATH
+
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+--let $rpl_gtid_mode= OFF
+--let $rpl_set_enforce_gtid_consistency= 0
+--let $rpl_server_numbers= 1,2
+--source include/rpl_set_gtid_mode.inc
+
+--source include/rpl_end.inc
+
+
+--echo ###
+--echo # test for multisource replication with binlog
+--echo ####
+--mkdir $BACKUP_DIR_SLAVE
+
+--let $rpl_topology= 1->3, 2->3
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+--connection server_1
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+
+--connection server_2
+CREATE TABLE t2(a INT) ENGINE=TokuDB;
+DROP TABLE t2;
+
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+--connection server_3
+--echo Backup
+--disable_query_log
+--eval SET SESSION tokudb_backup_dir='$BACKUP_DIR_SLAVE'
+--enable_query_log
+
+--source include/filter_file.inc
+--echo ### $SLAVE_INFO_FILE content:
+--cat_file $SLAVE_INFO_FILE_PATH
+
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+--echo ###
+--echo # test for multisource replication with gtids
+--echo ####
+
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 1,2,3
+--let $rpl_set_enforce_gtid_consistency= 1
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+--mkdir $BACKUP_DIR_SLAVE
+
+--connection server_1
+CREATE TABLE t1(a INT) ENGINE=TokuDB;
+DROP TABLE t1;
+
+--connection server_2
+CREATE TABLE t2(a INT) ENGINE=TokuDB;
+DROP TABLE t2;
+
+--let $sync_slave_connection= server_3
+--source include/sync_slave_sql_with_master.inc
+
+--connection server_3
+--disable_query_log
+--eval SET SESSION tokudb_backup_dir='$BACKUP_DIR_SLAVE'
+--enable_query_log
+
+--source include/filter_file.inc
+--echo ### $SLAVE_INFO_FILE content:
+--cat_file $SLAVE_INFO_FILE_PATH
+
+--perl
+use File::Path 'rmtree';
+$DDIR=$ENV{"DDIR"};
+rmtree([ "$DDIR" ]);
+EOF
+
+--let $rpl_gtid_mode= OFF
+--let $rpl_server_numbers= 1,2,3
+--let $rpl_set_enforce_gtid_consistency= 0
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

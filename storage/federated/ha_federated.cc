@@ -497,7 +497,8 @@ static int federated_db_init(void *p) {
   federated_hton->commit = federated_commit;
   federated_hton->rollback = federated_rollback;
   federated_hton->create = federated_create_handler;
-  federated_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION;
+  federated_hton->flags = HTON_ALTER_NOT_SUPPORTED | HTON_NO_PARTITION |
+                          HTON_SUPPORTS_ONLINE_BACKUPS;
 
   /*
     Support for transactions disabled until WL#2952 fixes it.
@@ -1340,8 +1341,9 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
                                       part_length)) {
               goto err;
             }
+            break;
           }
-          break;
+        // fallthrough
         case HA_READ_KEY_OR_NEXT:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_NEXT %d", i));
           if (emit_key_part_name(&tmp, key_part) ||
@@ -1358,8 +1360,9 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
                 emit_key_part_element(&tmp, key_part, needs_quotes, 0, ptr,
                                       part_length))
               goto err;
+            break;
           }
-          break;
+        // fallthrough
         case HA_READ_KEY_OR_PREV:
           DBUG_PRINT("info", ("federated HA_READ_KEY_OR_PREV %d", i));
           if (emit_key_part_name(&tmp, key_part) ||

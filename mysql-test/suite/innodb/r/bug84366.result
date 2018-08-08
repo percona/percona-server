@@ -1,0 +1,32 @@
+#
+# Bug 84366: InnoDB index dives do not detect concurrent tree changes, return
+# bogus estimates
+#
+CREATE TABLE t1 (key1 INT NOT NULL, key2 INT NOT NULL,
+INDEX i1(key1), INDEX i2(key2)) ENGINE = InnoDB;
+SET @@GLOBAL.innodb_purge_stop_now = TRUE;
+ALTER TABLE t1 ADD keyC INT NOT NULL, ADD INDEX iC(keyC);
+UPDATE t1 SET keyC = key1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 WHERE key1 = 1 OR key2 = 2 OR keyC = 12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i1,i2,iC	i1,i2,iC	4,4,4	NULL	3	100.00	Using union(i1,i2,iC); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`keyC` AS `keyC` from `test`.`t1` where ((`test`.`t1`.`key1` = 1) or (`test`.`t1`.`key2` = 2) or (`test`.`t1`.`keyC` = 12))
+SET DEBUG_SYNC = "btr_estimate_n_rows_in_range_between_dives SIGNAL estimate_ready WAIT_FOR estimate_finish";
+EXPLAIN SELECT * FROM t1 WHERE key1 = 1 OR key2 = 2 OR keyC = 12;
+SET DEBUG_SYNC = "now WAIT_FOR estimate_ready";
+SET @@GLOBAL.innodb_purge_run_now = TRUE;
+SET DEBUG_SYNC = "now SIGNAL estimate_finish";
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i1,i2,iC	i1,i2,iC	4,4,4	NULL	3	100.00	Using union(i1,i2,iC); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`keyC` AS `keyC` from `test`.`t1` where ((`test`.`t1`.`key1` = 1) or (`test`.`t1`.`key2` = 2) or (`test`.`t1`.`keyC` = 12))
+EXPLAIN SELECT * FROM t1 WHERE key1=1 or key2=2 or keyC=12;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	i1,i2,iC	i1,i2,iC	4,4,4	NULL	3	100.00	Using union(i1,i2,iC); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`keyC` AS `keyC` from `test`.`t1` where ((`test`.`t1`.`key1` = 1) or (`test`.`t1`.`key2` = 2) or (`test`.`t1`.`keyC` = 12))
+DROP TABLE t1;

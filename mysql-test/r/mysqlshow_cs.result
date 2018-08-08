@@ -80,6 +80,7 @@ Database: information_schema
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
@@ -119,6 +120,8 @@ Database: information_schema
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
 | KEYWORDS                              |
+| INDEX_STATISTICS                      |
+| GLOBAL_TEMPORARY_TABLES               |
 | KEY_COLUMN_USAGE                      |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
@@ -138,15 +141,55 @@ Database: information_schema
 | TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
+| TEMPORARY_TABLES                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
+| XTRADB_INTERNAL_HASH_TABLES           |
+| XTRADB_READ_VIEW                      |
+| INNODB_SYS_DATAFILES                  |
+| INNODB_TRX                            |
+| INNODB_SYS_VIRTUAL                    |
+| INNODB_LOCKS                          |
+| INNODB_CMP_PER_INDEX_RESET            |
+| XTRADB_ZIP_DICT                       |
+| INNODB_CMP_PER_INDEX                  |
+| INNODB_CMP                            |
+| INNODB_FT_DELETED                     |
+| INNODB_CMP_RESET                      |
+| INNODB_LOCK_WAITS                     |
+| INNODB_TEMP_TABLE_INFO                |
+| INNODB_SYS_INDEXES                    |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_SYS_FIELDS                     |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CHANGED_PAGES                  |
+| INNODB_FT_BEING_DELETED               |
+| INNODB_FT_INDEX_TABLE                 |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_TABLESPACES                |
+| INNODB_SYS_TABLES                     |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_FT_INDEX_CACHE                 |
+| INNODB_BUFFER_POOL_STATS              |
+| INNODB_METRICS                        |
+| INNODB_SYS_FOREIGN                    |
+| INNODB_CMPMEM                         |
+| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_FT_CONFIG                      |
+| INNODB_BUFFER_PAGE                    |
+| XTRADB_ZIP_DICT_COLS                  |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATIONS                            |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLUMNS                               |
@@ -186,6 +229,8 @@ Database: INFORMATION_SCHEMA
 | INNODB_TRX                            |
 | INNODB_VIRTUAL                        |
 | KEYWORDS                              |
+| INDEX_STATISTICS                      |
+| GLOBAL_TEMPORARY_TABLES               |
 | KEY_COLUMN_USAGE                      |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
@@ -205,9 +250,48 @@ Database: INFORMATION_SCHEMA
 | TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
+| TEMPORARY_TABLES                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
+| XTRADB_INTERNAL_HASH_TABLES           |
+| XTRADB_READ_VIEW                      |
+| INNODB_SYS_DATAFILES                  |
+| INNODB_TRX                            |
+| INNODB_SYS_VIRTUAL                    |
+| INNODB_LOCKS                          |
+| INNODB_CMP_PER_INDEX_RESET            |
+| XTRADB_ZIP_DICT                       |
+| INNODB_CMP_PER_INDEX                  |
+| INNODB_CMP                            |
+| INNODB_FT_DELETED                     |
+| INNODB_CMP_RESET                      |
+| INNODB_LOCK_WAITS                     |
+| INNODB_TEMP_TABLE_INFO                |
+| INNODB_SYS_INDEXES                    |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_SYS_FIELDS                     |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_CHANGED_PAGES                  |
+| INNODB_FT_BEING_DELETED               |
+| INNODB_FT_INDEX_TABLE                 |
+| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_TABLESPACES                |
+| INNODB_SYS_TABLES                     |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_FT_INDEX_CACHE                 |
+| INNODB_BUFFER_POOL_STATS              |
+| INNODB_METRICS                        |
+| INNODB_SYS_FOREIGN                    |
+| INNODB_CMPMEM                         |
+| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_FT_CONFIG                      |
+| INNODB_BUFFER_PAGE                    |
+| XTRADB_ZIP_DICT_COLS                  |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

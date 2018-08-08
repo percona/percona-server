@@ -157,9 +157,8 @@ Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 # 4) Error handling by DROP DATABASE.
 #
 #
-# 4.a) DROP DATABASE which fails due to foreign key error might
-#      have side effect. This  side-effect is limited to non-atomic
-#      SEs only.
+# 4.a) DROP DATABASE which fails foreign key checks will not have
+#      any side effects.
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE= InnoDB;
@@ -169,16 +168,14 @@ CREATE TABLE t1 (fk INT,
 FOREIGN KEY (fk) REFERENCES mysqltest.t_i_2(t_i_2))
 ENGINE=InnoDB;
 DROP DATABASE mysqltest;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-# Table t_m is gone.
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
+# DROP DATABASE FK check was failed before dropping a single table
 SELECT * FROM mysqltest.t_m;
-ERROR 42S02: Table 'mysqltest.t_m' doesn't exist
-# Database and tables t_i_1, t_i_2 are still there.
+t_m
 SELECT * FROM mysqltest.t_i_1;
 t_i_1
 SELECT * FROM mysqltest.t_i_2;
 t_i_2
-# Stored function f1() is still there too.
 SELECT mysqltest.f1();
 mysqltest.f1()
 0
@@ -188,7 +185,6 @@ mysqltest.f1()
 #      which we have managed to drop before error stay dropped.
 #      Removal of InnoDB tables should be rolled back.
 DROP TABLE t1;
-CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 DROP DATABASE mysqltest;
 ERROR HY000: Unknown error

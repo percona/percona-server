@@ -7,9 +7,11 @@
 
 --connection master
 #--let $innodb_index_cluster_optimization_save_master = `SELECT @@innodb_prefix_index_cluster_optimization`
+--let $innodb_status_output_save_master = `SELECT @@innodb_status_output`
 
 --connection slave
 #--let $innodb_index_cluster_optimization_save_slave = `SELECT @@innodb_prefix_index_cluster_optimization`
+--let $innodb_status_output_save_slave = `SELECT @@innodb_status_output`
 
 # create the directory for temporary log files.
 --exec mkdir -p $MYSQL_TMP_DIR/load_generator
@@ -174,10 +176,12 @@ connection master;
 # Restore the value of variable on slave
 --disable_query_log
 #eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_slave;
+eval SET GLOBAL innodb_status_output = $innodb_status_output_save_slave;
 --enable_query_log
 
 --connection master
 # Restore the value of variable on master
 --disable_query_log
 #eval SET GLOBAL innodb_prefix_index_cluster_optimization = $innodb_index_cluster_optimization_save_master;
+eval SET GLOBAL innodb_status_output = $innodb_status_output_save_master;
 --enable_query_log

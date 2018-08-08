@@ -288,7 +288,7 @@ void do_test_d2f(const char *s, int ex) {
 
 void do_test_d2b2d(const char *str, int p, int s, const char *orig, int ex) {
   char s1[100];
-  char s2[100];
+  char s2[164];
   uchar buf[100];
   char *end;
   int res, i, size = decimal_bin_size(p, s);
@@ -317,7 +317,7 @@ void do_test_f2d(double from, int ex) {
 
 void do_test_ull2d(ulonglong from, const char *orig, int ex) {
   char s[100];
-  char s1[100];
+  char s1[123];
   int res;
 
   res = ulonglong2decimal(from, &a);
@@ -328,7 +328,7 @@ void do_test_ull2d(ulonglong from, const char *orig, int ex) {
 
 void do_test_ll2d(longlong from, const char *orig, int ex) {
   char s[100];
-  char s1[100];
+  char s1[123];
   int res;
 
   res = longlong2decimal(from, &a);
@@ -339,7 +339,7 @@ void do_test_ll2d(longlong from, const char *orig, int ex) {
 
 void do_test_d2ull(const char *s, const char *orig, int ex) {
   char s1[100], *end;
-  char s2[100];
+  char s2[154];
   ulonglong x;
   int res;
 
@@ -357,7 +357,7 @@ void do_test_d2ull(const char *s, const char *orig, int ex) {
 
 void do_test_d2ll(const char *s, const char *orig, int ex) {
   char s1[100], *end;
-  char s2[100];
+  char s2[154];
   longlong x;
   int res;
 

@@ -409,6 +409,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_FTS_BG_THREADS);
   LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
   LEVEL_MAP_INSERT(SYNC_RECV);
+  LEVEL_MAP_INSERT(SYNC_LOG_ONLINE);
   LEVEL_MAP_INSERT(SYNC_LOG_SN);
   LEVEL_MAP_INSERT(SYNC_LOG_WRITER);
   LEVEL_MAP_INSERT(SYNC_LOG_WRITE_NOTIFIER);
@@ -467,7 +468,6 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_DICT_OPERATION);
   LEVEL_MAP_INSERT(SYNC_TRX_I_S_LAST_READ);
   LEVEL_MAP_INSERT(SYNC_TRX_I_S_RWLOCK);
-  LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
   LEVEL_MAP_INSERT(SYNC_LEVEL_VARYING);
   LEVEL_MAP_INSERT(SYNC_NO_ORDER_CHECK);
 
@@ -669,6 +669,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_FTS_CACHE:
     case SYNC_FTS_CACHE_INIT:
     case SYNC_PAGE_CLEANER:
+    case SYNC_LOG_ONLINE:
     case SYNC_LOG_CHECKPOINTER:
     case SYNC_LOG_CLOSER:
     case SYNC_LOG_WRITER:
@@ -704,7 +705,6 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_STATS_AUTO_RECALC:
     case SYNC_POOL:
     case SYNC_POOL_MANAGER:
-    case SYNC_RECV_WRITER:
     case SYNC_PARSER:
     case SYNC_DICT:
 
@@ -1257,6 +1257,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
                   ibuf_pessimistic_insert_mutex_key);
 
+  LATCH_ADD_MUTEX(LOG_ONLINE, SYNC_LOG_ONLINE, log_bmp_sys_mutex_key);
+
   LATCH_ADD_MUTEX(LOG_CHECKPOINTER, SYNC_LOG_CHECKPOINTER,
                   log_checkpointer_mutex_key);
 
@@ -1288,8 +1290,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(RECALC_POOL, SYNC_STATS_AUTO_RECALC, recalc_pool_mutex_key);
 
   LATCH_ADD_MUTEX(RECV_SYS, SYNC_RECV, recv_sys_mutex_key);
-
-  LATCH_ADD_MUTEX(RECV_WRITER, SYNC_RECV_WRITER, recv_writer_mutex_key);
 
   LATCH_ADD_MUTEX(TEMP_SPACE_RSEG, SYNC_TEMP_SPACE_RSEG,
                   temp_space_rseg_mutex_key);
@@ -1369,7 +1369,9 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(SYNC_ARRAY_MUTEX, SYNC_NO_ORDER_CHECK, sync_array_mutex_key);
 
+#ifdef _WIN32
   LATCH_ADD_MUTEX(THREAD_MUTEX, SYNC_NO_ORDER_CHECK, thread_mutex_key);
+#endif
 
   LATCH_ADD_MUTEX(ZIP_PAD_MUTEX, SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
 
@@ -1642,8 +1644,7 @@ void sync_check_init(size_t max_threads) {
   sync_array_init(max_threads);
 }
 
-/** Frees the resources in InnoDB's own synchronization data structures. Use
-os_sync_free() after calling this. */
+/** Frees the resources in InnoDB's own synchronization data structures. */
 void sync_check_close() {
   ut_d(LatchDebug::shutdown());
 

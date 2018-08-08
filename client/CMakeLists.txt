@@ -24,6 +24,8 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 )
 
+INCLUDE_DIRECTORIES(SYSTEM ${READLINE_INCLUDE_DIR})
+
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ## Subdirectory with common client code.
@@ -35,37 +37,37 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
-TARGET_LINK_LIBRARIES(mysql mysqlclient)
+TARGET_LINK_LIBRARIES(mysql perconaserverclient)
 IF(UNIX)
-  TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
+  TARGET_LINK_LIBRARIES(mysql ${MY_READLINE_LIBRARY})
 ENDIF(UNIX)
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
-  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
+  TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
   ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqltest mysqlclient regex)
+TARGET_LINK_LIBRARIES(mysqltest perconaserverclient regex)
 ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
 ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
-TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlcheck_core perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 
 MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc)
-TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
+TARGET_LINK_LIBRARIES(mysqldump perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)
 SET_SOURCE_FILES_PROPERTIES(mysqlimport.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlimport perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.cc)
-TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlshow perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 SET(MYSQLBINLOG_LIB_SOURCES
@@ -81,6 +83,8 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_set.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_specification.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_tblmap.cc
+  ${CMAKE_SOURCE_DIR}/sql/event_crypt.cc
+  ${CMAKE_SOURCE_DIR}/sql/binlog_crypt_data.cc
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})
 ADD_DEPENDENCIES(mysqlbinlog_lib GenError)
@@ -92,20 +96,20 @@ ADD_COMPILE_FLAGS(
 )
 
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlbinlog_lib)
-TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
+TARGET_LINK_LIBRARIES(mysqlbinlog perconaserverclient binlogevents_static)
 
 MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
-TARGET_LINK_LIBRARIES(mysqladmin mysqlclient)
+TARGET_LINK_LIBRARIES(mysqladmin perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.cc)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
-TARGET_LINK_LIBRARIES(mysqlslap mysqlclient)
+TARGET_LINK_LIBRARIES(mysqlslap perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_config_editor mysql_config_editor.cc)
-TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
+TARGET_LINK_LIBRARIES(mysql_config_editor perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
-TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
+TARGET_LINK_LIBRARIES(mysql_secure_installation perconaserverclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
 TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)

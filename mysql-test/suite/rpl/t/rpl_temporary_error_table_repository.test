@@ -47,11 +47,11 @@ INSERT INTO t1 VALUES (7,7);
 
 # Retry 0 and 1 time to test both execution branches.
 
---let $retry_counted = 0
+--source include/rpl_connection_slave.inc
+--let $retry_counted = query_get_value(SHOW GLOBAL STATUS LIKE 'Slave_retried_transactions', Value, 1)
 --let $retry_number = 0
 while ($retry_number < 2)
 {
-  --source include/rpl_connection_slave.inc
   --eval SET @@GLOBAL.slave_transaction_retries = $retry_number
   --source include/start_slave.inc
 

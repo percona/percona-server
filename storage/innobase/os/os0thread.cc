@@ -63,6 +63,18 @@ os_thread_id_t os_thread_get_curr_id() {
 #endif /* _WIN32 */
 }
 
+/** Returns the system-specific thread identifier of current thread. On Linux,
+returns tid.  On other systems currently returns os_thread_get_curr_id().
+
+@return	current thread identifier */
+os_tid_t os_thread_get_tid() noexcept {
+#ifdef UNIV_LINUX
+  return ((os_tid_t)syscall(SYS_gettid));
+#else
+  return (os_thread_get_curr_id());
+#endif
+}
+
 /** Set priority for current thread.
 @param[in]	priority	priority intended to set
 @retval		true		set as intended
@@ -101,4 +113,28 @@ void os_thread_set_priority(int priority, const char *thread_name) {
         << " See the man page of setpriority().";
   }
 #endif /* UNIV_LINUX */
+}
+
+/** Set relative scheduling priority for a given thread on Linux. Currently a
+no-op on other systems.
+@param[in]      thread_id               thread id
+@param[in]      relative_priority       system-specific priority value
+
+@return An actual thread priority after the update */
+MY_NODISCARD
+ulint os_thread_set_priority(os_tid_t thread_id,
+                             ulint relative_priority) noexcept {
+#ifdef UNIV_LINUX
+  const lint thread_nice = 19 - relative_priority;
+  if (setpriority(PRIO_PROCESS, thread_id, thread_nice) == -1) {
+    ib::warn() << "Setting thread " << os_thread_pf(thread_id) << " nice to "
+               << thread_nice
+               << " failed, current "
+                  "nice "
+               << getpriority(PRIO_PROCESS, thread_id) << ", errno " << errno;
+  }
+  return (19 - getpriority(PRIO_PROCESS, thread_id));
+#else
+  return (relative_priority);
+#endif
 }

@@ -118,7 +118,8 @@ static const char *handler_error_messages[] = {
     "Compute generate value failed",
     "Row format changed in storage engine",
     "Do not wait for lock",
-    "No more room in disk"};
+    "No more room in disk",
+    "Destination schema does not exist"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

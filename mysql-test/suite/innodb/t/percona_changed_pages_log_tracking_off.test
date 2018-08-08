@@ -1,0 +1,22 @@
+# Tests for queries from INFORMATION_SCHEMA.INNODB_CHANGED_PAGES that don't require
+# a running log tracker
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+# Test for bug 1342494: InnoDB: Failing assertion: bitmap_files->files[i].start_lsn
+# >= bitmap_files->files[i - 1].start_lsn on inconsistent bitmap file directory 
+
+--echo creating inconsistent bitmap dir: start LSN of 3rd file < start LSN of 2nd file
+write_file $MYSQLD_DATADIR/ib_modified_log_1_0.xdb;
+EOF
+write_file $MYSQLD_DATADIR/ib_modified_log_2_10.xdb;
+EOF
+write_file $MYSQLD_DATADIR/ib_modified_log_3_5.xdb;
+EOF
+
+call mtr.add_suppression("inconsistent bitmap file directory");
+
+--error ER_CANT_FIND_SYSTEM_REC
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+
+remove_files_wildcard $MYSQLD_DATADIR ib_modified_log*;

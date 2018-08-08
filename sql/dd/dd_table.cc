@@ -2482,8 +2482,8 @@ bool recreate_table(THD *thd, const char *schema_name, const char *table_name) {
   build_table_filename(path, sizeof(path) - 1, schema_name, table_name, "", 0);
 
   // Attempt to reconstruct the table
-  return ha_create_table(thd, path, schema_name, table_name, &create_info, true,
-                         false, table_def);
+  return ha_create_table(thd, path, schema_name, table_name, &create_info,
+                         nullptr, true, false, table_def);
 }
 
 /**

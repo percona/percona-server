@@ -105,7 +105,9 @@ st_alter_tablespace::st_alter_tablespace(
       file_block_size{opts.file_block_size},
       nodegroup_id{opts.nodegroup_id},
       wait_until_completed{opts.wait_until_completed},
-      ts_comment{opts.ts_comment.str} {}
+      ts_comment{opts.ts_comment.str},
+      encrypt{false},
+      encrypt_type{LEX_STRING()} {}
 
 bool validate_tablespace_name_length(const char *tablespace_name) {
   DBUG_ASSERT(tablespace_name != nullptr);

@@ -5,7 +5,7 @@
 --disable_query_log
 let $counter= 1000;
 if ($VALGRIND_TEST) {
-  let $counter= 9000;
+  let $counter= 30000;
 }
 if ($explicit_time_out_counter) {
  let $counter=$explicit_time_out_counter;
@@ -17,12 +17,15 @@ while ($mysql_errno)
   # Strangely enough, the server might return "Too many connections"
   # while being shutdown, thus 1040 is an "allowed" error
   # See BUG#36228
-  --error 0,1040,1053,2002,2003,2006,2013,1045,ER_SECURE_TRANSPORT_REQUIRED,2016,2017
+  --error 0,1040,1053,2002,2003,2006,2013,1045,ER_CANNOT_FIND_KEY_IN_KEYRING,ER_SECURE_TRANSPORT_REQUIRED,2016,2017
   show session status;
   if ($mysql_errno == 1045){
     let mysql_errno=0;
   }
   if ($mysql_errname == ER_SECURE_TRANSPORT_REQUIRED){
+    let mysql_errno=0;
+  }
+  if ($mysql_errname == ER_CANNOT_FIND_KEY_IN_KEYRING){
     let mysql_errno=0;
   }
   dec $counter;

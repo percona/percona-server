@@ -2,10 +2,6 @@
 
 -- source include/have_debug.inc
 
-# Don't test under valgrind, undo slots of the previous test might exist still
-# and cause unstable result.
---source include/not_valgrind.inc
-
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot find a free slot for an undo log. Do you have too many active transactions");
 

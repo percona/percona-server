@@ -800,13 +800,15 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	heap		memory heap from which allocated
 @param[in]	mysql_table	NULL, or mysql table object when
                                 user thread invokes dml
+@param[in]	prebuilt	compress_heap must be taken from here
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t *row_upd_build_difference_binary(dict_index_t *index,
                                        const dtuple_t *entry, const rec_t *rec,
                                        const ulint *offsets, bool no_sys,
                                        trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table) {
+                                       TABLE *mysql_table,
+                                       row_prebuilt_t *prebuilt) {
   upd_field_t *upd_field;
   dfield_t *dfield;
   const byte *data;
@@ -903,7 +905,7 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
 
       dfield_t *vfield = innobase_get_computed_value(
           update->old_vrow, col, index, &v_heap, heap, NULL, thd, mysql_table,
-          NULL, NULL, NULL);
+          nullptr, nullptr, nullptr, prebuilt);
 
       if (!dfield_data_is_binary_equal(dfield, vfield->len,
                                        static_cast<byte *>(vfield->data))) {
@@ -1796,11 +1798,14 @@ void row_upd_eval_new_vals(upd_t *update) /*!< in/out: update vector */
 @param[in,out]	node		row update node
 @param[in]	update		an update vector if it is update
 @param[in]	thd		mysql thread handle
-@param[in,out]	mysql_table	mysql table object */
+@param[in,out]	prebuilt	nullptr, or a prebuilt object: used to extract
+                                mysql table object when user thread invokes
+                                dml and for compress heap */
 static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
-                                TABLE *mysql_table) {
+                                row_prebuilt_t *prebuilt) {
   mem_heap_t *heap = NULL;
   dict_index_t *index = node->table->first_index();
+  TABLE *const mysql_table = prebuilt ? prebuilt->m_mysql_table : nullptr;
 
   for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(node->table);
        col_no++) {
@@ -1842,7 +1847,8 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
           /* Need to compute, this happens when
           deleting row */
           innobase_get_computed_value(node->row, col, index, &heap, node->heap,
-                                      NULL, thd, mysql_table, NULL, NULL, NULL);
+                                      nullptr, thd, mysql_table, nullptr,
+                                      nullptr, nullptr, prebuilt);
         }
       }
     }
@@ -1858,9 +1864,12 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
 @param[in]	node		row update node
 @param[in]	thd		mysql thread handle
 @param[in,out]	mysql_table	NULL, or mysql table object when
-                                user thread invokes dml */
+                                user thread invokes dml
+@param[in,out]	prebuilt	NULL, or a prebuilt object: used to extract
+                                mysql table object when user thread invokes
+                                dml and for compress heap */
 void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
-                       TABLE *mysql_table) {
+                       row_prebuilt_t *prebuilt) {
   dict_index_t *clust_index;
   rec_t *rec;
   mem_heap_t *heap = NULL;
@@ -1899,7 +1908,7 @@ void row_upd_store_row(trx_t *trx, upd_node_t *node, THD *thd,
 
   if (node->table->n_v_cols) {
     row_upd_store_v_row(node, node->is_delete ? NULL : node->update, thd,
-                        mysql_table);
+                        prebuilt);
   }
 
   if (node->is_delete) {
@@ -2631,8 +2640,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_del_mark_clust_rec(
   /* Store row because we have to build also the secondary index
   entries */
 
-  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
+  row_upd_store_row(trx, node, thr_get_trx(thr)->mysql_thd, thr->prebuilt);
 
   /* Mark the clustered index record deleted; we do not have to check
   locks, because we assume that we have an x-lock on the record */
@@ -2774,8 +2782,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     goto exit_func;
   }
 
-  row_upd_store_row(trx, node, trx->mysql_thd,
-                    thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
+  row_upd_store_row(trx, node, trx->mysql_thd, thr->prebuilt);
 
   if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
                                        node->ext)) {

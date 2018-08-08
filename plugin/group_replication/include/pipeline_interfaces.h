@@ -370,8 +370,9 @@ class Pipeline_event {
       return error;                                /* purecov: inspected */
     }
 
-    if ((error = Log_event::read_log_event(
-             cache, &packet_data, 0, binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
+    if ((error =
+             Log_event::read_log_event(cache, &packet_data, 0, nullptr,
+                                       binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
       LogPluginErr(
           ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET,
           get_string_log_read_error_msg(error)); /* purecov: inspected */

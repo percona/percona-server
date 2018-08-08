@@ -6760,7 +6760,7 @@ ER_GTID_UNSAFE_CREATE_SELECT
   eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
+  eng "Statement violates GTID consistency: Under statement binary log mode CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of @@GLOBAL.GTID_MODE can only be changed one step at a time: OFF <-> OFF_PERMISSIVE <-> ON_PERMISSIVE <-> ON. Also note that this value must be stepped up or down simultaneously on all servers. See the Manual for instructions."
@@ -18044,4 +18044,108 @@ ER_IB_MSG_1272
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
 #  message here)
+
+#
+# Start of Percona Server error messages
+#
+
+start-error-number 49000
+
+ER_CANT_EXECUTE_WITH_BACKUP_LOCK
+  eng "Can't execute the query because you have a conflicting backup lock"
+  rus "Запрос не может быть выполнен из-за конфликтующей блокировки резервного копирования"
+
+ER_COMPRESSED_COLUMN_USED_AS_KEY
+  eng "Compressed column '%-.192s' is not allowed in the key list"
+
+ER_UNSUPPORTED_COMPRESSED_COLUMN_TYPE
+  eng "Can not define column '%-.192s' in compressed format"
+
+ER_COMPRESSION_DICTIONARY_EXISTS
+  eng "Compression dictionary '%-.192s' already exists"
+
+ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST
+  eng "Compression dictionary '%-.192s' does not exist"
+
+ER_COMPRESSION_DICTIONARY_NAME_TOO_LONG
+  eng "Compression dictionary name '%-.192s' is too long (max length = %lu)"
+
+ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
+  eng "Data for compression dictionary '%-.192s' is too long (max length = %lu)"
+
+ER_COMPRESSION_DICTIONARY_IS_REFERENCED
+  eng "Compression dictionary '%-.192s' is in use"
+
+#
+# End of Percona Server error messages
+#
+
+#
+# Start of MyRocks specific messages
+#
+
+start-error-number 50000
+
+ER_KEYS_OUT_OF_ORDER
+  eng "Keys are out order during bulk load"
+
+ER_OVERLAPPING_KEYS
+  eng "Bulk load rows overlap existing rows"
+
+ER_REQUIRE_ROW_BINLOG_FORMAT
+  eng "Can't execute updates on master with binlog_format != ROW."
+
+ER_ISOLATION_MODE_NOT_SUPPORTED
+  eng "MyRocks supports only READ COMMITTED and REPEATABLE READ isolation levels. Please change from current isolation level %s"
+
+ER_ON_DUPLICATE_DISABLED
+  eng "When unique checking is disabled in MyRocks, INSERT,UPDATE,LOAD statements with clauses that update or replace the key (i.e. INSERT ON DUPLICATE KEY UPDATE, REPLACE) are not allowed. Query: %s"
+
+ER_UPDATES_WITH_CONSISTENT_SNAPSHOT
+  eng "Can't execute updates when you started a transaction with START TRANSACTION WITH CONSISTENT [ROCKSDB] SNAPSHOT."
+
+ER_ROLLBACK_ONLY
+  eng "This transaction was rolled back and cannot be committed. Only supported operation is to roll it back, so all pending changes will be discarded. Please restart another transaction."
+
+ER_ROLLBACK_TO_SAVEPOINT
+  eng "MyRocks currently does not support ROLLBACK TO SAVEPOINT if modifying rows."
+
+ER_ISOLATION_LEVEL_WITH_CONSISTENT_SNAPSHOT
+  eng "Only REPEATABLE READ isolation level is supported for START TRANSACTION WITH CONSISTENT SNAPSHOT in RocksDB Storage Engine."
+
+ER_UNSUPPORTED_COLLATION
+  eng "Unsupported collation on string indexed column %s.%s Use binary collation (%s)."
+
+ER_METADATA_INCONSISTENCY
+  eng "Table '%s' does not exist, but metadata information exists inside MyRocks. This is a sign of data inconsistency. Please check if '%s.frm' exists, and try to restore it if it does not exist."
+
+ER_KEY_CREATE_DURING_ALTER
+  eng "MyRocks failed creating new key definitions during alter."
+
+ER_SK_POPULATE_DURING_ALTER
+  eng "MyRocks failed populating secondary key during alter."
+
+ER_CF_DIFFERENT
+  eng "Column family ('%s') flag (%d) is different from an existing flag (%d). Assign a new CF flag, or do not change existing CF flag."
+
+ER_RDB_STATUS_GENERAL
+  eng "Status error %d received from RocksDB: %s"
+
+ER_RDB_STATUS_MSG
+  eng "%s, Status error %d received from RocksDB: %s"
+
+ER_RDB_TTL_UNSUPPORTED
+  eng "TTL support is currently disabled when table has a hidden PK."
+
+ER_RDB_TTL_COL_FORMAT
+  eng "TTL column (%s) in MyRocks must be an unsigned non-null 64-bit integer, exist inside the table, and have an accompanying ttl duration."
+
+ER_RDB_TTL_DURATION_FORMAT
+  eng "TTL duration (%s) in MyRocks must be an unsigned non-null 64-bit integer."
+
+ER_PER_INDEX_CF_DEPRECATED
+  eng "The per-index column family option has been deprecated."
+
+#
+# End of MyRocks specific messages
 #

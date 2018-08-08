@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include "fsp0space.h"
+#include "fsp0sysspace.h"
 #include "fut0lst.h"
 #include "mtr0mtr.h"
 #include "page0types.h"
@@ -651,6 +652,14 @@ void fseg_print(fseg_header_t *header, /*!< in: segment header */
 @return true if it is undo tablespace else false. */
 bool fsp_is_undo_tablespace(space_id_t space_id);
 
+/** Check if the space_id is for a shared system tablespace.
+@param[in]	space_id	tablespace ID
+@return true if id is a system tablespace, false if not. */
+UNIV_INLINE
+bool fsp_is_system_tablespace(space_id_t space_id) noexcept {
+  return (space_id == TRX_SYS_SPACE);
+}
+
 /** Check if the space_id is for a system-tablespace (shared + temp).
 @param[in]	space_id	tablespace ID
 @return true if id is a system tablespace, false if not. */
@@ -717,6 +726,12 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */
 ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact);
+
+/** Enable encryption for already existing tablespace.
+@param[in]	space_id	tablespace id
+@return true if success */
+bool fsp_enable_encryption(space_id_t space_id)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

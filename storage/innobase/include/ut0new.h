@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -186,6 +187,14 @@ extern PSI_memory_key mem_key_trx_sys_t_rw_trx_ids;
 extern PSI_memory_key mem_key_undo_spaces;
 extern PSI_memory_key mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
+
+extern PSI_memory_key mem_key_log_online_modified_pages;
+extern PSI_memory_key mem_key_log_online_sys;
+extern PSI_memory_key mem_key_log_online_read_buf;
+extern PSI_memory_key mem_key_log_online_iterator_files;
+extern PSI_memory_key mem_key_log_online_iterator_page;
+extern PSI_memory_key mem_key_trx_distinct_page_access_hash;
+extern PSI_memory_key mem_key_parallel_doublewrite;
 
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */
@@ -801,14 +810,16 @@ class ut_allocator {
   it until the memory is no longer needed and then pass it to
   deallocate_large().
   @return pointer to the allocated memory or NULL */
-  pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx) {
+  pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx,
+                         bool populate) {
     if (n_elements == 0 || n_elements > max_size()) {
       return (NULL);
     }
 
     ulint n_bytes = n_elements * sizeof(T);
 
-    pointer ptr = reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes));
+    pointer ptr =
+        reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes, populate));
 
 #ifdef UNIV_PFS_MEMORY
     if (ptr != NULL) {

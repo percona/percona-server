@@ -34,6 +34,7 @@
 #include "sql/bounded_queue.h"
 #include "sql/filesort_utils.h"
 #include "sql/opt_costmodel.h"
+#include "thread_utils.h"
 #include "unittest/gunit/bounded_queue_boost.cc"
 #include "unittest/gunit/bounded_queue_boost.h"
 #include "unittest/gunit/bounded_queue_c.h"
@@ -178,8 +179,8 @@ typedef BoundedQueueTest BoundedQueueDeathTest;
 TEST_F(BoundedQueueDeathTest, DieIfNotInitialized) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Test_element foo = 1;
-  EXPECT_DEATH_IF_SUPPORTED(m_queue.push(&foo),
-                            ".*Assertion .*is_initialized.*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(m_queue.push(&foo),
+                               ".*Assertion .*is_initialized.*");
 }
 
 /*
@@ -189,7 +190,7 @@ TEST_F(BoundedQueueDeathTest, DieIfPoppingEmptyQueue) {
   EXPECT_EQ(
       0, m_queue.init(0, true, test_key_compare, &m_keymaker, m_keys.key_ptrs));
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(m_queue.pop(), ".*Assertion .*elements > 0.*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(m_queue.pop(), ".*Assertion .*elements > 0.*");
 }
 #endif  // !defined(DBUG_OFF)
 

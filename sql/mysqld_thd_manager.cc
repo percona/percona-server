@@ -57,7 +57,7 @@ static inline int thd_partition(my_thread_id thread_id) {
 }
 
 bool Find_thd_with_id::operator()(THD *thd) {
-  if (thd->get_command() == COM_DAEMON) return false;
+  if (!m_daemon_allowed && thd->get_command() == COM_DAEMON) return false;
   if (thd->thread_id() == m_thread_id) {
     mysql_mutex_lock(&thd->LOCK_thd_data);
     return true;

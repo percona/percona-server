@@ -232,6 +232,15 @@ ReadView *trx_get_read_view(trx_t *trx);
 UNIV_INLINE
 const ReadView *trx_get_read_view(const trx_t *trx);
 
+/** Clones the read view from another transaction. All the consistent reads
+within the receiver transaction will get the same read view as the donor
+transaction.
+@param[in]	trx	receiver transaction
+@param[in]	from_trx	donor transaction
+@return read view clone */
+MY_NODISCARD
+ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx);
+
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
 /** Creates a commit command node struct.
@@ -471,6 +480,7 @@ Check transaction state */
     ut_ad((t)->lock.wait_thr == NULL);                   \
     ut_ad(UT_LIST_GET_LEN((t)->lock.trx_locks) == 0);    \
     ut_ad((t)->dict_operation == TRX_DICT_OP_NONE);      \
+    ut_ad(!(t)->distinct_page_access_hash);              \
   } while (0)
 
 /** Check if transaction is in-active so that it can be freed and put back to
@@ -769,6 +779,15 @@ struct trx_t {
 
   trx_id_t id; /*!< transaction id */
 
+  trx_id_t id_saved; /*!< save transaction id for slow
+                     log tracking */
+
+  trx_id_t preallocated_id; /*!< preallocated transaction id for a
+                            RO transaction whose read view was
+                            cloned. If this transaction is promoted
+                            to RW, it will become the transaction
+                            id. */
+
   trx_id_t no; /*!< transaction serialization number:
                max trx id shortly before the
                transaction is moved to
@@ -983,6 +1002,8 @@ struct trx_t {
   /*!< if MySQL binlog is used, this
   field contains the end offset of the
   binlog entry */
+  time_t idle_start;
+  ib_uint64_t last_stmt_start;
   /*------------------------------*/
   ib_uint32_t n_mysql_tables_in_use; /*!< number of Innobase tables
                               used in the processing of the current
@@ -1140,6 +1161,17 @@ struct trx_t {
                   doing Non-locking Read-only Read
                   Committed on DD tables */
 #endif            /* UNIV_DEBUG */
+  /*------------------------------*/
+  ulint io_reads;
+  ib_uint64_t io_read;
+  ulint io_reads_wait_timer;
+  ib_uint64_t lock_que_wait_ustarted;
+  ulint lock_que_wait_timer;
+  ulint innodb_que_wait_timer;
+  ulint distinct_page_access;
+#define DPAH_SIZE 8192
+  byte *distinct_page_access_hash;
+  bool take_stats;
   ulint magic_n;
 
   bool skip_gap_locks() const {

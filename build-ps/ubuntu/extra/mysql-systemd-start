@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Scripts to run by Percona Server systemd service
+#
+# Needed argument: pre
+#
+# pre mode  :  try to perform sanity check for configuration, log, data
+
+# Include helper functions
+. /usr/share/mysql/mysql-helpers
+
+fix_thp_setting() {
+        THP_SETTING=$(my_print_defaults mysqld_safe | grep thp-setting | cut -d= -f2 | tail -n 1)
+        if [ ! -z "${THP_SETTING}" ]; then
+                # Set whatever option is specified in config file
+                echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/defrag
+                echo "${THP_SETTING}" > /sys/kernel/mm/transparent_hugepage/enabled
+        fi
+}
+
+sanity () {
+# Make sure database and required directories exist
+        verify_ready $1
+        verify_database $1
+
+
+        if [ ! -r /etc/mysql/my.cnf ]; then
+                echo "Percona Server configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."
+                exit 1
+        fi
+
+        # Needed because of TokuDB
+        fix_thp_setting
+}
+
+case $1 in
+        "pre")  sanity $2 ;;
+esac

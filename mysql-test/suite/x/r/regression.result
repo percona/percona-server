@@ -405,3 +405,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+UNINSTALL PLUGIN mysqlx;

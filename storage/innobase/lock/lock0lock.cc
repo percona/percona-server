@@ -903,7 +903,7 @@ bool can_trx_be_ignored(const trx_t *trx) {
 
 /** Checks if some other transaction has a lock request in the queue.
  @return lock or NULL */
-static const lock_t *lock_rec_other_has_expl_req(
+MY_NODISCARD static const lock_t *lock_rec_other_has_expl_req(
     lock_mode mode,           /*!< in: LOCK_S or LOCK_X */
     const buf_block_t *block, /*!< in: buffer block containing
                               the record */
@@ -1542,6 +1542,13 @@ void RecLock::set_wait_state(lock_t *lock) {
   m_trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
   m_trx->lock.was_chosen_as_deadlock_victim = false;
+
+  if (UNIV_UNLIKELY(m_trx->take_stats)) {
+    ulint sec;
+    ulint ms;
+    ut_usectime(&sec, &ms);
+    m_trx->lock_que_wait_ustarted = (ib_uint64_t)sec * 1000000 + ms;
+  }
 
   bool stopped = que_thr_stop(m_thr);
   ut_a(stopped);
@@ -3840,6 +3847,13 @@ static dberr_t lock_table_enqueue_waiting(
   trx->lock.wait_started = ut_time();
   trx->lock.was_chosen_as_deadlock_victim = false;
 
+  if (UNIV_UNLIKELY(trx->take_stats)) {
+    ulint sec;
+    ulint ms;
+    ut_usectime(&sec, &ms);
+    trx->lock_que_wait_ustarted = (ib_uint64_t)sec * 1000000 + ms;
+  }
+
   auto stopped = que_thr_stop(thr);
   ut_a(stopped);
 
@@ -4992,9 +5006,9 @@ static bool lock_trx_print_locks(
       lock_table_print(file, lock);
     }
 
-    if (iter.next() >= 10) {
+    if (iter.next() >= srv_show_locks_held) {
       fprintf(file,
-              "10 LOCKS PRINTED FOR THIS TRX:"
+              "TOO MANY LOCKS PRINTED FOR THIS TRX:"
               " SUPPRESSING FURTHER PRINTS\n");
 
       break;
@@ -5031,7 +5045,7 @@ void lock_print_info_all_transactions(
 
   /* Control whether a block should be fetched from the buffer pool. */
   bool load_block = true;
-  bool monitor = srv_print_innodb_lock_monitor;
+  bool monitor = srv_print_innodb_lock_monitor && (srv_show_locks_held != 0);
 
   while ((trx = trx_iter.current()) != 0) {
     check_trx_state(trx);
@@ -5526,6 +5540,7 @@ dberr_t lock_rec_insert_check_and_lock(
   ut_ad(block->frame == page_align(rec));
   ut_ad(!dict_index_is_online_ddl(index) || index->is_clustered() ||
         (flags & BTR_CREATE_FLAG));
+  ut_ad((flags & BTR_NO_LOCKING_FLAG) || thr);
 
   if (flags & BTR_NO_LOCKING_FLAG) {
     return (DB_SUCCESS);
@@ -7060,8 +7075,6 @@ const trx_t *DeadlockChecker::check_and_resolve(const lock_t *lock,
 
       rollback_print(victim_trx, lock);
 
-      MONITOR_INC(MONITOR_DEADLOCK);
-
       break;
 
     } else if (victim_trx != NULL && victim_trx != trx) {
@@ -7081,6 +7094,8 @@ const trx_t *DeadlockChecker::check_and_resolve(const lock_t *lock,
     print("*** WE ROLL BACK TRANSACTION (2)\n");
 
     lock_deadlock_found = true;
+
+    MONITOR_INC(MONITOR_DEADLOCK);
   }
 
   trx_mutex_enter(trx);

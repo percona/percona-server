@@ -146,8 +146,9 @@ enum buf_page_state {
 will be used to print table IO stats */
 struct buf_pool_info_t {
   /* General buffer pool info */
-  ulint pool_unique_id;              /*!< Buffer Pool ID */
-  ulint pool_size;                   /*!< Buffer Pool size in pages */
+  ulint pool_unique_id; /*!< Buffer Pool ID */
+  ulint pool_size;      /*!< Buffer Pool size in pages */
+  ulint pool_size_bytes;
   ulint lru_len;                     /*!< Length of buf_pool->LRU */
   ulint old_lru_len;                 /*!< buf_pool->LRU_old_len */
   ulint free_list_len;               /*!< Length of buf_pool->free list */
@@ -225,9 +226,10 @@ struct buf_pools_list_size_t {
 #ifndef UNIV_HOTBACKUP
 /** Creates the buffer pool.
 @param[in]  total_size    Size of the total pool in bytes.
+@param[in]  populate      Force virtual page preallocation
 @param[in]  n_instances   Number of buffer pool instances to create.
 @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-dberr_t buf_pool_init(ulint total_size, ulint n_instances);
+dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances);
 
 /** Frees the buffer pool at shutdown.  This must not be invoked before
  freeing all mutexes. */
@@ -531,7 +533,7 @@ lsn_t buf_page_get_newest_modification(
 
 /** Increment the modify clock.
 The caller must
-(1) own the buf_pool->mutex and block bufferfix count has to be zero,
+(1) own the buffer block mutex and block bufferfix count has to be zero,
 (2) own X or SX latch on the block->lock, or
 (3) operate on a thread-private temporary table
 @param[in,out]	block	buffer block */
@@ -1269,6 +1271,7 @@ class buf_page_t {
                         0 if the block was never accessed
                         in the buffer pool. Protected by
                         block mutex */
+  bool is_corrupt;
 #ifdef UNIV_DEBUG
   ibool file_page_was_freed;
   /*!< this is set to TRUE when
@@ -1657,6 +1660,7 @@ struct buf_pool_stat_t {
                                 LRU_list_mutex. */
   ulint flush_list_bytes;       /*!< flush_list size in bytes.
                                Protected by flush_list_mutex */
+  ulint buf_lru_flush_page_count;
 };
 
 /** Statistics of buddy blocks of a given size. */

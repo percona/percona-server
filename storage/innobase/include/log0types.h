@@ -586,6 +586,8 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Protected by: checkpointer_mutex. */
   aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> checkpoint_buf;
 
+  /** Log tracking, if enabled, has advanced to this LSN */
+  atomic_lsn_t tracked_lsn;
 #endif /* !UNIV_HOTBACKUP */
        /** @} */
 };

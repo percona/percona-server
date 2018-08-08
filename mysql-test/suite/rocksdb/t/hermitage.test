@@ -1,0 +1,10 @@
+--source include/have_rocksdb.inc
+
+# Hermitage is an attempt to test transaction isolation levels.
+# https://github.com/ept/hermitage
+
+let $trx_isolation = READ COMMITTED;
+--source suite/rocksdb/include/hermitage.inc
+
+let $trx_isolation = REPEATABLE READ;
+--source suite/rocksdb/include/hermitage.inc

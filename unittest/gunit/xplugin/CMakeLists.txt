@@ -150,7 +150,7 @@ TARGET_LINK_LIBRARIES(${unit_tests_EXE}
   regex
   gmock
   mysqlservices
-  mysqlclient
+  perconaserverclient
   ${MYSQLX_CLIENT_LIB}
   ${MYSQLX_PROTOCOL_LIB}
   ${LIBEVENT_LIBRARY}

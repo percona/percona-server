@@ -1,0 +1,11 @@
+SELECT @@global.innodb_encrypt_online_alter_logs;
+@@global.innodb_encrypt_online_alter_logs
+0
+SET GLOBAL innodb_encrypt_online_alter_logs = ON;
+ERROR HY000: Variable 'innodb_encrypt_online_alter_logs' is a read only variable
+Expected error 'read only variable'
+SET GLOBAL innodb_encrypt_online_alter_logs = OFF;
+ERROR HY000: Variable 'innodb_encrypt_online_alter_logs' is a read only variable
+Expected error 'read only variable'
+SET GLOBAL innodb_encrypt_online_alter_logs = "ENABLE";
+ERROR HY000: Variable 'innodb_encrypt_online_alter_logs' is a read only variable

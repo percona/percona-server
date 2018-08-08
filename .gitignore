@@ -37,7 +37,6 @@
 *.sbr
 *.so
 *.so.*
-*.spec
 *.user
 *.vcproj
 *.vcproj.cmake
@@ -564,7 +563,6 @@ include/abi_check
 include/check_abi
 include/link_sources
 include/my_config.h
-include/my_global.h
 include/mysql_h.ic
 include/mysql_version.h
 include/mysqld_ername.h
@@ -2716,6 +2714,9 @@ storage/perfschema/pfs_lex_token.h
 storage/perfschema/gen_pfs_lex_token
 sql/share/bulgarian
 storage/ndb/test/dox
+/GPATH
+/GRTAGS
+/GTAGS
 sql/lex_token.h
 sql/gen_lex_token
 internal/plugin/thread_pool/src/thread_pool_config.h

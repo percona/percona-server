@@ -398,6 +398,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   else
     thd->inc_status_sort_scan();
 
+  thd->query_plan_flags |= QPLAN_FILESORT;
+
   // If number of rows is not known, use as much of sort buffer as possible.
   num_rows_estimate = table->file->estimate_rows_upper_bound();
 
@@ -502,6 +504,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     if (save_index(&param, num_rows_found, &table->sort, &table->sort_result))
       goto err;
   } else {
+    thd->query_plan_flags |= QPLAN_FILESORT_DISK;
+
     // We will need an extra buffer in rr_unpack_from_tempfile()
     if (table->sort.addon_fields != nullptr &&
         !(table->sort.addon_fields->allocate_addon_buf(param.m_addon_length)))
@@ -1889,6 +1893,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   DBUG_ENTER("merge_buffers");
 
   thd->inc_status_sort_merge_passes();
+  thd->query_plan_fsort_passes++;
   if (param->not_killable) {
     killed = &not_killable;
     not_killable = THD::NOT_KILLED;

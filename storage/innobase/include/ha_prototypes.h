@@ -193,6 +193,12 @@ ulong thd_lock_wait_timeout(THD *thd); /*!< in: thread handle, or NULL to query
 void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
                             ulint value); /*!< in: time waited for the lock */
 
+/** Is FT ignore stopwords variable set.
+@param thd Thread object
+@return true if ft_ignore_stopwords is set, false otherwise. */
+MY_NODISCARD
+bool thd_has_ft_ignore_stopwords(THD *thd) noexcept;
+
 /** Get status of innodb_tmpdir.
 @param[in]	thd	thread handle, or NULL to query
                         the global innodb_tmpdir.
@@ -395,5 +401,16 @@ trx_t *check_trx_exists(THD *thd);
 /** Commits a transaction in an InnoDB database.
 @param[in]	trx	Transaction handle. */
 void innobase_commit_low(trx_t *trx);
+
+/** Get the transaction of the current connection handle, if either exists.
+@return transaction of the current connection handle or NULL. */
+MY_NODISCARD
+trx_t *innobase_get_trx(void);
+
+/** Get the transaction of the current connection handle if slow query log
+InnoDB extended statistics should be collected.
+@return transaction object if statistics should be collected, or NULL. */
+MY_NODISCARD
+trx_t *innobase_get_trx_for_slow_log(void) noexcept;
 
 #endif /* HA_INNODB_PROTOTYPES_H */

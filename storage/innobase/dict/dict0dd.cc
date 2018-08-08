@@ -1161,7 +1161,15 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
       break;
     case ROW_TYPE_FIXED:
     case ROW_TYPE_PAGED:
-    case ROW_TYPE_NOT_USED: {
+    case ROW_TYPE_NOT_USED:
+    case ROW_TYPE_TOKU_UNCOMPRESSED:
+    case ROW_TYPE_TOKU_ZLIB:
+    case ROW_TYPE_TOKU_SNAPPY:
+    case ROW_TYPE_TOKU_QUICKLZ:
+    case ROW_TYPE_TOKU_LZMA:
+    case ROW_TYPE_TOKU_FAST:
+    case ROW_TYPE_TOKU_SMALL:
+    case ROW_TYPE_TOKU_DEFAULT: {
       const char *name = get_row_format_name(form->s->row_type);
       if (strict) {
         my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), innobase_hton_name, name);
@@ -1179,6 +1187,14 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
         case ROW_TYPE_PAGED:
         case ROW_TYPE_NOT_USED:
         case ROW_TYPE_DEFAULT:
+        case ROW_TYPE_TOKU_UNCOMPRESSED:
+        case ROW_TYPE_TOKU_ZLIB:
+        case ROW_TYPE_TOKU_SNAPPY:
+        case ROW_TYPE_TOKU_QUICKLZ:
+        case ROW_TYPE_TOKU_LZMA:
+        case ROW_TYPE_TOKU_FAST:
+        case ROW_TYPE_TOKU_SMALL:
+        case ROW_TYPE_TOKU_DEFAULT:
           /* get_real_row_type() should not return these */
           ut_ad(0);
           /* fall through */

@@ -1,0 +1,7 @@
+# Test for bug 77832: (--query-alloc-block-size=-1125899906842624 + pid_file check leads to OOM Sig 11)
+
+call mtr.add_suppression("option 'query_alloc_block_size': value -1125899906842624 adjusted to 1024");
+
+SELECT FIELD ("b", "a", NULL), FIELD(1, 0, NULL) + 0, FIELD(1.0, 0.0, NULL) + 0.0, FIELD(1.0E1, 0.0E1, NULL) + 0.0E1;
+
+

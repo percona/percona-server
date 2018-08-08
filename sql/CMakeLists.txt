@@ -74,7 +74,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_keyword_list
 )
 
-ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_POOL_OF_THREADS)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
@@ -288,6 +288,7 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
+  binlog_crypt_data.cc
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc 
@@ -321,6 +322,7 @@ SET(SQL_SHARED_SOURCES
   item_create.cc
   item_func.cc
   item_json_func.cc
+  item_keyring_func.cc
   item_regexp_func.cc
   item_row.cc 
   item_strfunc.cc
@@ -341,6 +343,7 @@ SET(SQL_SHARED_SOURCES
   locked_tables_list.cc
   locking_service.cc
   log.cc
+  event_crypt.cc
   mdl.cc
   migrate_keyring.cc
   my_decimal.cc
@@ -477,6 +480,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  sql_zip_dict.cc
   stateless_allocator.cc
   strfunc.cc
   sys_vars.cc
@@ -488,6 +492,7 @@ SET(SQL_SHARED_SOURCES
   table_trigger_dispatcher.cc
   tc_log.cc
   thr_malloc.cc 
+  threadpool_common.cc
   transaction.cc
   transaction_info.cc
   trigger.cc
@@ -533,6 +538,13 @@ ENDIF()
 IF(WIN32)
   LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_win.cc)
 ENDIF()
+
+IF(WIN32)
+  LIST(APPEND SQL_SHARED_SOURCES threadpool_win.cc)
+ELSE()
+  LIST(APPEND SQL_SHARED_SOURCES threadpool_unix.cc)
+ENDIF()
+
 
 SET(SQL_SOURCE
   ${GEN_SOURCES}
@@ -681,7 +693,8 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
-                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
+                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc
+                   event_crypt.cc binlog_crypt_data.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 

@@ -65,6 +65,7 @@ extern struct st_mysql_plugin i_s_innodb_foreign;
 extern struct st_mysql_plugin i_s_innodb_foreign_cols;
 extern struct st_mysql_plugin i_s_innodb_tablespaces;
 extern struct st_mysql_plugin i_s_innodb_datafiles;
+extern struct st_mysql_plugin i_s_innodb_changed_pages;
 extern struct st_mysql_plugin i_s_innodb_virtual;
 extern struct st_mysql_plugin i_s_innodb_cached_indexes;
 

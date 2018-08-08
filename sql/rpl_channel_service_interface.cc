@@ -920,7 +920,7 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
   DBUG_ENTER("channel_is_applier_thread_waiting(thread_id, worker)");
   int result = -1;
 
-  Find_thd_with_id find_thd_with_id(thread_id);
+  Find_thd_with_id find_thd_with_id(thread_id, false);
   THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd) {
     result = 0;

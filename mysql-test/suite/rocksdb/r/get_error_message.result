@@ -1,0 +1,9 @@
+CREATE TABLE t1(a INT,b INT,KEY (a)) ENGINE=ROCKSDB PARTITION BY HASH (a) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+ALTER TABLE t1 ADD PARTITION(PARTITION p3 DATA DIRECTORY='G:/mysqltest/p3Data' INDEX DIRECTORY='H:/mysqltest/p3Index');
+ERROR 42000: Incorrect table name 'H:/mysqltest/p3Index'
+DROP TABLE t1;

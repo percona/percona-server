@@ -71,8 +71,6 @@ typedef OSMutex ib_bpmutex_t;
 @param[in]	T		The resulting typedef alias */
 #define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P>> T;
 
-typedef OSMutex EventMutex;
-
 #ifndef UNIV_DEBUG
 
 #ifdef HAVE_IB_LINUX_FUTEX

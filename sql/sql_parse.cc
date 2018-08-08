@@ -123,6 +123,8 @@
 #include "sql/sp.h"        // sp_create_routine
 #include "sql/sp_cache.h"  // sp_cache_enforce_limit
 #include "sql/sp_head.h"   // sp_head
+#include "sql/sp_instr.h"
+#include "sql/sp_rcontext.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_audit.h"        // MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER
 #include "sql/sql_backup_lock.h"  // acquire_shared_mdl_for_backup
@@ -152,7 +154,8 @@
 #include "sql/sql_test.h"           // mysql_print_status
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
-#include "sql/sql_view.h"  // mysql_create_view
+#include "sql/sql_view.h"      // mysql_create_view
+#include "sql/sql_zip_dict.h"  // mysqld_create_zip_dict, mysqld_drop_zip_dict
 #include "sql/srs_fetcher.h"
 #include "sql/system_variables.h"  // System_status_var
 #include "sql/table.h"
@@ -426,6 +429,10 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_UPDATE] = CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
                                      CF_CAN_GENERATE_ROW_EVENTS |
                                      CF_OPTIMIZER_TRACE | CF_CAN_BE_EXPLAINED;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_UPDATE_MULTI] =
       CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE | CF_CAN_GENERATE_ROW_EVENTS |
       CF_OPTIMIZER_TRACE | CF_CAN_BE_EXPLAINED;
@@ -763,6 +770,10 @@ void init_sql_command_flags(void) {
   sql_command_flags[SQLCOM_IMPORT] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SRS] |= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_SRS] |= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_COMPRESSION_DICTIONARY] |=
+      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_COMPRESSION_DICTIONARY] |=
+      CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -1123,6 +1134,12 @@ bool do_command(THD *thd) {
   */
   thd->clear_error();  // Clear error message
   thd->get_stmt_da()->reset_diagnostics_area();
+  thd->updated_row_count = 0;
+  thd->busy_time = 0;
+  thd->cpu_time = 0;
+  thd->bytes_received = 0;
+  thd->bytes_sent = 0;
+  thd->binlog_bytes_written = 0;
 
   /*
     This thread will do a blocking read from the client which
@@ -1131,7 +1148,8 @@ bool do_command(THD *thd) {
     number of seconds has passed.
   */
   net = thd->get_protocol_classic()->get_net();
-  my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+  if (!thd->skip_wait_timeout)
+    my_net_set_read_timeout(net, thd->get_wait_timeout());
   net_new_transaction(net);
 
   /*
@@ -1267,7 +1285,12 @@ static bool deny_updates_if_read_only_option(THD *thd, TABLE_LIST *all_tables) {
       (lex->sql_command == SQLCOM_CREATE_DB) ||
       (lex->sql_command == SQLCOM_DROP_DB);
 
-  if (update_real_tables || create_or_drop_databases) {
+  const bool create_or_drop_compression_dictionary =
+      (lex->sql_command == SQLCOM_CREATE_COMPRESSION_DICTIONARY) ||
+      (lex->sql_command == SQLCOM_DROP_COMPRESSION_DICTIONARY);
+
+  if (update_real_tables || create_or_drop_databases ||
+      create_or_drop_compression_dictionary) {
     /*
       An attempt was made to modify one or more non-temporary tables.
     */
@@ -1330,6 +1353,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info", ("command: %d", command));
 
+  DBUG_EXECUTE_IF("crash_dispatch_command_before", {
+    DBUG_PRINT("crash_dispatch_command_before", ("now"));
+    DBUG_ABORT();
+  });
+
   /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
   thd->profiling->start_new_query();
@@ -1345,6 +1373,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     the slow log only if opt_log_slow_admin_statements is set.
   */
   thd->enable_slow_log = true;
+  thd->clear_slow_extended();
   thd->lex->sql_command = SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
   if (IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()) == false) {
@@ -1468,7 +1497,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       LEX_CSTRING save_db = thd->db();
       Security_context save_security_ctx(*(thd->security_context()));
 
-      auth_rc = acl_authenticate(thd, COM_CHANGE_USER);
+      auth_rc = acl_authenticate(thd, COM_CHANGE_USER, false);
       auth_rc |= mysql_audit_notify(
           thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER));
       if (auth_rc) {
@@ -1958,6 +1987,13 @@ done:
   log_slow_statement(thd);
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE) {
+    DEBUG_SYNC(thd, "dispatch_create_table_command_before_thd_root_free");
+  }
+
+  if (thd->killed == THD::KILL_QUERY) {
+    thd->killed = THD::NOT_KILLED;
+  }
 
   thd->reset_query();
   thd->set_command(COM_SLEEP);
@@ -2091,6 +2127,12 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
       thd->profiling->discard_current_query();
 #endif
       break;
+    case SCH_USER_STATS:
+    case SCH_CLIENT_STATS:
+    case SCH_THREAD_STATS:
+      if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
+    case SCH_TABLE_STATS:
+    case SCH_INDEX_STATS:
     case SCH_OPTIMIZER_TRACE:
     case SCH_OPEN_TABLES:
     case SCH_ENGINES:
@@ -2098,6 +2140,8 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     case SCH_SCHEMA_PRIVILEGES:
     case SCH_TABLE_PRIVILEGES:
     case SCH_COLUMN_PRIVILEGES:
+    case SCH_TEMPORARY_TABLES:
+    case SCH_GLOBAL_TEMPORARY_TABLES:
     default:
       break;
   }
@@ -2207,6 +2251,7 @@ static bool sp_process_definer(THD *thd) {
                        thd->security_context()->priv_host().str)) &&
         !(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
+      thd->diff_access_denied_errors++;
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       DBUG_RETURN(true);
     }
@@ -2324,6 +2369,50 @@ err:
   DBUG_ASSERT(!thd->locked_tables_mode);
   thd->mdl_context.release_transactional_locks();
   return true;
+}
+
+/**
+  Acquire a global backup lock.
+
+  @param thd     Thread context.
+
+  @return false on success, true in case of error.
+*/
+
+static bool lock_tables_for_backup(THD *thd) {
+  DBUG_ENTER("lock_tables_for_backup");
+
+  if (check_global_access(thd, RELOAD_ACL)) DBUG_RETURN(true);
+
+  if (delay_key_write_options == DELAY_KEY_WRITE_ALL) {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "delay_key_write=ALL");
+    DBUG_RETURN(true);
+  }
+  /*
+    Do nothing if the current connection already owns the LOCK TABLES FOR
+    BACKUP lock or the global read lock (as it's a more restrictive lock).
+  */
+  if (thd->backup_tables_lock.is_acquired() ||
+      thd->global_read_lock.is_acquired())
+    DBUG_RETURN(false);
+
+  /*
+    Do not allow backup locks under regular LOCK TABLES, FLUSH TABLES ... FOR
+    EXPORT, or FLUSH TABLES <table_list> WITH READ LOCK.
+  */
+  if (thd->variables.option_bits & OPTION_TABLE_LOCK) {
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  bool res = thd->backup_tables_lock.acquire(thd);
+
+  if (ha_store_binlog_info(thd)) {
+    thd->backup_tables_lock.release(thd);
+    res = true;
+  }
+
+  DBUG_RETURN(res);
 }
 
 /**
@@ -2839,10 +2928,32 @@ int mysql_execute_command(THD *thd, bool first_level) {
                  "SUPER or BINLOG_ADMIN");
         goto error;
       }
-      /* PURGE MASTER LOGS TO 'file' */
-      res = purge_master_logs(thd, lex->to_log);
-      break;
+      if (lex->type == 0) {
+        /* PURGE MASTER LOGS TO 'file' */
+        res = purge_master_logs(thd, lex->to_log);
+        break;
+      } else if (lex->type == PURGE_BITMAPS_TO_LSN) {
+        /* PURGE CHANGED_PAGE_BITMAPS BEFORE lsn */
+        ulonglong lsn = 0;
+        Item *it = lex->purge_value_list.head();
+        if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
+            it->check_cols(1) || it->null_value) {
+          my_error(ER_WRONG_ARGUMENTS, MYF(0),
+                   "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+          goto error;
+        }
+        lsn = it->val_uint();
+        res = ha_purge_changed_page_bitmaps(lsn);
+        if (res) {
+          my_error(ER_LOG_PURGE_UNKNOWN_ERR, MYF(0),
+                   "PURGE CHANGED_PAGE_BITMAPS BEFORE");
+          goto error;
+        }
+        my_ok(thd);
+        break;
+      }
     }
+    // fallthrough
     case SQLCOM_PURGE_BEFORE: {
       Item *it;
       Security_context *sctx = thd->security_context();
@@ -3226,6 +3337,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       /* DDL and binlog write order are protected by metadata locks. */
       res = mysql_rm_table(thd, first_table, lex->drop_if_exists,
                            lex->drop_temporary);
+      DEBUG_SYNC(thd, "after_mysql_rm_table");
       /* when dropping temporary tables if @@session_track_state_change is ON
          then send the boolean tracker in the OK packet */
       if (!res && lex->drop_temporary) {
@@ -3305,6 +3417,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         false, mysqldump will not work.
       */
       if (thd->variables.option_bits & OPTION_TABLE_LOCK) {
+        DBUG_ASSERT(!thd->backup_tables_lock.is_acquired());
         /*
           Can we commit safely? If not, return to avoid releasing
           transactional metadata locks.
@@ -3315,16 +3428,31 @@ int mysql_execute_command(THD *thd, bool first_level) {
         thd->mdl_context.release_transactional_locks();
         thd->variables.option_bits &= ~(OPTION_TABLE_LOCK);
       }
+
+      if (thd->backup_tables_lock.is_acquired()) {
+        DBUG_ASSERT(!(thd->variables.option_bits & OPTION_TABLE_LOCK));
+        DBUG_ASSERT(!thd->global_read_lock.is_acquired());
+
+        thd->backup_tables_lock.release(thd);
+      }
+
       if (thd->global_read_lock.is_acquired())
         thd->global_read_lock.unlock_global_read_lock(thd);
       if (res) goto error;
       my_ok(thd);
       break;
+
     case SQLCOM_LOCK_TABLES:
       /*
-        Can we commit safely? If not, return to avoid releasing
-        transactional metadata locks.
-      */
+      Do not allow LOCK TABLES under an active LOCK TABLES FOR BACKUP in the
+      same connection.
+    */
+      if (thd->backup_tables_lock.abort_if_acquired()) goto error;
+
+      /*
+          Can we commit safely? If not, return to avoid releasing
+          transactional metadata locks.
+        */
       if (trans_check_state(thd)) DBUG_RETURN(-1);
       /* We must end the transaction first, regardless of anything */
       res = trans_commit_implicit(thd);
@@ -3361,6 +3489,36 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_IMPORT:
       res = lex->m_sql_cmd->execute(thd);
       break;
+
+    case SQLCOM_LOCK_TABLES_FOR_BACKUP:
+      if (!lock_tables_for_backup(thd)) my_ok(thd);
+
+      break;
+    case SQLCOM_CREATE_COMPRESSION_DICTIONARY: {
+      if (lex->create_info->zip_dict_name->fixed == 0)
+        lex->create_info->zip_dict_name->fix_fields(thd, 0);
+      String dict_data;
+      String *dict_data_ptr =
+          lex->create_info->zip_dict_name->val_str_ascii(&dict_data);
+      if (dict_data_ptr == nullptr || dict_data_ptr->ptr() == nullptr) {
+        dict_data.set("", 0, &my_charset_bin);
+        dict_data_ptr = &dict_data;
+      }
+
+      if ((res = mysql_create_zip_dict(
+               thd, lex->ident.str, lex->ident.length, dict_data_ptr->ptr(),
+               dict_data_ptr->length(),
+               (lex->create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) !=
+                   0)) == 0)
+        my_ok(thd);
+      break;
+    }
+    case SQLCOM_DROP_COMPRESSION_DICTIONARY: {
+      if ((res = mysql_drop_zip_dict(thd, lex->ident.str, lex->ident.length,
+                                     lex->drop_if_exists)) == 0)
+        my_ok(thd);
+      break;
+    }
     case SQLCOM_CREATE_DB: {
       const char *alias;
       if (!(alias = thd->strmake(lex->name.str, lex->name.length)) ||
@@ -3689,9 +3847,20 @@ int mysql_execute_command(THD *thd, bool first_level) {
       // Fall through.
     case SQLCOM_FLUSH: {
       int write_to_binlog;
-      if (check_global_access(thd, RELOAD_ACL)) goto error;
+
+      if (lex->type & REFRESH_FLUSH_PAGE_BITMAPS ||
+          lex->type & REFRESH_RESET_PAGE_BITMAPS) {
+        if (check_global_access(thd, SUPER_ACL)) goto error;
+      } else if (check_global_access(thd, RELOAD_ACL))
+        goto error;
 
       if (first_table && lex->type & REFRESH_READ_LOCK) {
+        /*
+           Do not allow FLUSH TABLES <table_list> WITH READ LOCK under an active
+           LOCK TABLES FOR BACKUP lock.
+         */
+        if (thd->backup_tables_lock.abort_if_acquired()) goto error;
+
         /* Check table-level privileges. */
         if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                                false, UINT_MAX, false))
@@ -3700,6 +3869,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_ok(thd);
         break;
       } else if (first_table && lex->type & REFRESH_FOR_EXPORT) {
+        /*
+           Do not allow FLUSH TABLES ... FOR EXPORT under an active LOCK TABLES
+           FOR BACKUP lock.
+         */
+        if (thd->backup_tables_lock.abort_if_acquired()) goto error;
+
         /* Check table-level privileges. */
         if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                                false, UINT_MAX, false))
@@ -4733,7 +4908,8 @@ void THD::reset_for_next_command() {
   thd->get_stmt_da()->reset_statement_cond_count();
 
   thd->rand_used = 0;
-  thd->m_sent_row_count = thd->m_examined_row_count = 0;
+
+  thd->clear_slow_extended();
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags = 0;
@@ -4828,6 +5004,32 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
 
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
+
+  int start_time_error = 0;
+  int end_time_error = 0;
+  struct timeval start_time, end_time;
+  double start_usecs = 0;
+  double end_usecs = 0;
+  /* cpu time */
+  int cputime_error = 0;
+#ifdef HAVE_CLOCK_GETTIME
+  struct timespec tp;
+#endif
+  double start_cpu_nsecs = 0;
+  double end_cpu_nsecs = 0;
+
+  if (opt_userstat) {
+#ifdef HAVE_CLOCK_GETTIME
+    /* get start cputime */
+    if (!(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      start_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+
+    // Gets the start time, in order to measure how long this command takes.
+    if (!(start_time_error = gettimeofday(&start_time, nullptr))) {
+      start_usecs = start_time.tv_sec * 1000000.0 + start_time.tv_usec;
+    }
+  }
 
   thd->m_parser_state = parser_state;
   invoke_pre_parse_rewrite_plugins(thd);
@@ -4982,6 +5184,47 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
   thd->cleanup_after_query();
   DBUG_ASSERT(thd->change_list.is_empty());
 
+  if (opt_userstat) {
+    // Gets the end time.
+    if (!(end_time_error = gettimeofday(&end_time, NULL))) {
+      end_usecs = end_time.tv_sec * 1000000.0 + end_time.tv_usec;
+    }
+
+    // Calculates the difference between the end and start times.
+    if (start_usecs && end_usecs >= start_usecs && !start_time_error &&
+        !end_time_error) {
+      thd->busy_time = (end_usecs - start_usecs) / 1000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->busy_time > 2629743) {
+        thd->busy_time = 0;
+      }
+    } else {
+      // end time went back in time, or gettimeofday() failed.
+      thd->busy_time = 0;
+    }
+
+#ifdef HAVE_CLOCK_GETTIME
+    /* get end cputime */
+    if (!cputime_error &&
+        !(cputime_error = clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp)))
+      end_cpu_nsecs = tp.tv_sec * 1000000000.0 + tp.tv_nsec;
+#endif
+    if (start_cpu_nsecs && !cputime_error) {
+      thd->cpu_time = (end_cpu_nsecs - start_cpu_nsecs) / 1000000000;
+      // In case there are bad values, 2629743 is the #seconds in a month.
+      if (thd->cpu_time > 2629743) {
+        thd->cpu_time = 0;
+      }
+    } else
+      thd->cpu_time = 0;
+  }
+
+  // Updates THD stats and the global user stats.
+  if (unlikely(opt_userstat)) {
+    thd->update_stats(true);
+    update_global_user_stats(thd, true, time(NULL));
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -5064,6 +5307,7 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                            LEX_STRING *comment, const char *change,
                            List<String> *interval_list, const CHARSET_INFO *cs,
                            bool has_explicit_collation, uint uint_geom_type,
+                           const LEX_CSTRING *zip_dict,
                            Generated_column *gcol_info, const char *opt_after,
                            Nullable<gis::srid_t> srid) {
   Create_field *new_field;
@@ -5089,15 +5333,23 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                  &default_key_create_info, false, true, key_parts);
     if (key == NULL || key_list.push_back(key)) DBUG_RETURN(true);
   }
-  if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG)) {
+  if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG | CLUSTERING_FLAG)) {
+    enum keytype key_type;
+    if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
+      key_type = KEYTYPE_UNIQUE;
+    else
+      key_type = KEYTYPE_MULTIPLE;
+    if (type_modifier & CLUSTERING_FLAG)
+      key_type = static_cast<enum keytype>(key_type | KEYTYPE_CLUSTERING);
+    DBUG_ASSERT(key_type != KEYTYPE_MULTIPLE);
     List<Key_part_spec> key_parts;
     auto key_part_spec =
         new (*THR_MALLOC) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
     Key_spec *key = new (*THR_MALLOC)
-        Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
-                 &default_key_create_info, false, true, key_parts);
+        Key_spec(thd->mem_root, key_type, NULL_CSTR, &default_key_create_info,
+                 false, true, key_parts);
     if (key == NULL || key_list.push_back(key)) DBUG_RETURN(true);
   }
 
@@ -5161,7 +5413,7 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,
-                      uint_geom_type, gcol_info, srid))
+                      uint_geom_type, zip_dict, gcol_info, srid))
     DBUG_RETURN(1);
 
   create_list.push_back(new_field);
@@ -6034,7 +6286,7 @@ const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs) {
 static uint kill_one_thread(THD *thd, my_thread_id id, bool only_kill_query) {
   THD *tmp = NULL;
   uint error = ER_NO_SUCH_THREAD;
-  Find_thd_with_id find_thd_with_id(id);
+  Find_thd_with_id find_thd_with_id(id, false);
 
   DBUG_ENTER("kill_one_thread");
   DBUG_PRINT("enter", ("id=%u only_kill=%d", id, only_kill_query));

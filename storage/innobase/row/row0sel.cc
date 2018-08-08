@@ -69,6 +69,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0upd.h"
 #include "row0vers.h"
 #include "srv0mon.h"
+#include "srv0start.h"
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "ut0new.h"
@@ -239,7 +240,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, NULL,
                                            NULL, thr_get_trx(thr)->mysql_thd,
                                            thr->prebuilt->m_mysql_table, NULL,
-                                           NULL, NULL);
+                                           nullptr, nullptr, thr->prebuilt);
 
       if (vfield == NULL) {
         /* This may happen e.g. when this statement is executed in
@@ -2440,7 +2441,8 @@ void row_sel_convert_mysql_key_to_innobase(
     if (UNIV_LIKELY(!is_null)) {
       buf = row_mysql_store_col_in_innobase_format(
           dfield, buf, FALSE, /* MySQL key value format col */
-          key_ptr + data_offset, data_len, dict_table_is_comp(index->table));
+          key_ptr + data_offset, data_len, dict_table_is_comp(index->table),
+          false, 0, 0, 0);
       ut_a(buf <= original_buf + buf_len);
     }
 
@@ -2521,19 +2523,6 @@ static void row_sel_store_row_id_to_prebuilt(
   ut_memcpy(prebuilt->row_id, data, len);
 }
 
-#ifdef UNIV_DEBUG
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, idx, field, src, len,  \
-                                           sec)
-#else /* UNIV_DEBUG */
-/** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
-#define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
-                                            sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, src, len)
-#endif /* UNIV_DEBUG */
-
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc.
 @param[in,out] dest		buffer where to store; NOTE
@@ -2549,6 +2538,7 @@ mysql_col_len, mbminlen, mbmaxlen
                                 or templ->icp_rec_field_no
 @param[in]	data		data to store
 @param[in]	len		length of the data
+@param[in]	prebuilt	use prebuilt->compress_heap only here
 @param[in]	sec_field	secondary index field no if the secondary index
                                 record but the prebuilt template is in
                                 clustered index format and used only for end
@@ -2559,7 +2549,8 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               const dict_index_t *index,
                                               ulint field_no,
 #endif /* UNIV_DEBUG */
-                                              const byte *data, ulint len
+                                              const byte *data, ulint len,
+                                              row_prebuilt_t *prebuilt
 #ifdef UNIV_DEBUG
                                               ,
                                               ulint sec_field
@@ -2609,6 +2600,14 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       field_end = dest + templ->mysql_col_len;
 
       if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
+        /* If this is a compressed column,
+        decompress it first */
+        if (templ->compressed)
+          data = row_decompress_column(
+              data, &len,
+              reinterpret_cast<const byte *>(templ->zip_dict_data.str),
+              templ->zip_dict_data.length, prebuilt);
+
         /* This is a >= 5.0.3 type true VARCHAR. Store the
         length of the data to the first byte or the first
         two bytes of dest. */
@@ -2658,7 +2657,10 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       /* Store a pointer to the BLOB buffer to dest: the BLOB was
       already copied to the buffer in row_sel_store_mysql_rec */
 
-      row_mysql_store_blob_ref(dest, templ->mysql_col_len, data, len);
+      row_mysql_store_blob_ref(
+          dest, templ->mysql_col_len, data, len, templ->compressed,
+          reinterpret_cast<const byte *>(templ->zip_dict_data.str),
+          templ->zip_dict_data.length, prebuilt);
       break;
 
     case DATA_POINT:
@@ -2692,7 +2694,8 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       from prefix virtual column in virtual index. */
       ut_ad(templ->is_virtual || clust_templ_for_sec ||
             len * templ->mbmaxlen >= templ->mysql_col_len ||
-            (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
+            (field_no == templ->icp_rec_field_no && field->prefix_len > 0) ||
+            templ->rec_field_is_prefix);
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
       if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
@@ -2846,7 +2849,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, index, field_no, data, len,
-                                        ULINT_UNDEFINED);
+                                        prebuilt, ULINT_UNDEFINED);
 
     if (heap != prebuilt->blob_heap) {
       mem_heap_free(heap);
@@ -2899,7 +2902,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, index, field_no, data, len,
-                                        sec_field_no);
+                                        prebuilt, sec_field_no);
   }
 
   ut_ad(len != UNIV_SQL_NULL);
@@ -2950,6 +2953,9 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
     row_mysql_prebuilt_free_blob_heap(prebuilt);
   }
+
+  if (UNIV_LIKELY_NULL(prebuilt->compress_heap))
+    mem_heap_empty(prebuilt->compress_heap);
 
   if (clust_templ_for_sec) {
     /* Store all clustered index column of
@@ -3013,7 +3019,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
         row_sel_field_store_in_mysql_format(
             mysql_rec + templ->mysql_col_offset, templ, index,
             templ->clust_rec_field_no, (const byte *)dfield->data, dfield->len,
-            ULINT_UNDEFINED);
+            prebuilt, ULINT_UNDEFINED);
         if (templ->mysql_null_bit_mask) {
           mysql_rec[templ->mysql_null_byte_offset] &=
               ~(byte)templ->mysql_null_bit_mask;
@@ -3138,6 +3144,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   rec_t *old_vers;
   dberr_t err;
   trx_t *trx;
+
+  srv_sec_rec_cluster_reads.fetch_add(1, std::memory_order_relaxed);
 
   *out_rec = NULL;
   trx = thr_get_trx(thr);
@@ -3691,9 +3699,10 @@ static ulint row_sel_try_search_shortcut_for_mysql(
   ut_ad(index->is_clustered());
   ut_ad(!prebuilt->templ_contains_blob);
 
+  ut_ad(trx->has_search_latch);
+
   btr_pcur_open_with_no_init(index, search_tuple, PAGE_CUR_GE, BTR_SEARCH_LEAF,
-                             pcur, (trx->has_search_latch) ? RW_S_LATCH : 0,
-                             mtr);
+                             pcur, RW_S_LATCH, mtr);
   rec = btr_pcur_get_rec(pcur);
 
   if (!page_rec_is_user_rec(rec)) {
@@ -3808,6 +3817,24 @@ static ICP_RESULT row_search_idx_cond_check(
 
   ut_error;
   return (result);
+}
+
+/** Return the record field length in characters.
+@param[in]	col		table column of the field
+@param[in]	field_no	field number
+@param[in]	rec		physical record
+@param[in]	offsets		field offsets in the physical record
+
+@return field length in characters */
+static size_t rec_field_len_in_chars(const dict_col_t &col,
+                                     const ulint field_no, const rec_t *rec,
+                                     const ulint *offsets) {
+  const ulint cset = dtype_get_charset_coll(col.prtype);
+  const CHARSET_INFO *cs = all_charsets[cset];
+  ulint rec_field_len;
+  const char *rec_field = reinterpret_cast<const char *>(
+      rec_get_nth_field(rec, offsets, field_no, &rec_field_len));
+  return (cs->cset->numchars(cs, rec_field, rec_field + rec_field_len));
 }
 
 /** Check the pushed-down end-range condition to avoid extra traversal
@@ -4253,6 +4280,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   ibool table_lock_waited = FALSE;
   byte *next_buf = 0;
   bool spatial_search = false;
+  bool use_clustered_index = false;
   ulint end_loop = 0;
 
   rec_offs_init(offsets_);
@@ -4272,7 +4300,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
 #ifdef UNIV_DEBUG
   {
-    btrsea_sync_check check(trx->has_search_latch);
+    btrsea_sync_check check(!trx->has_search_latch);
     ut_ad(!sync_check_iterate(check));
   }
 #endif /* UNIV_DEBUG */
@@ -4729,6 +4757,11 @@ rec_loop:
 
   rec = btr_pcur_get_rec(pcur);
 
+  SRV_CORRUPT_TABLE_CHECK(rec, {
+    err = DB_CORRUPTION;
+    goto lock_wait_or_error;
+  });
+
   ut_ad(!!page_rec_is_comp(rec) == comp);
 
   if (page_rec_is_infimum(rec)) {
@@ -4835,7 +4868,14 @@ rec_loop:
 
   if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
   wrong_offs:
-    if (srv_force_recovery == 0 || moves_up == FALSE) {
+    if (srv_pass_corrupt_table && index->table->space != 0 &&
+        index->table->space < dict_sys_t::s_log_space_first_id) {
+      index->table->is_corrupt = true;
+      fil_space_set_corrupt(index->table->space);
+    }
+
+    if ((srv_force_recovery == 0 || moves_up == FALSE) &&
+        srv_pass_corrupt_table <= 1) {
       ib::error(ER_IB_MSG_1032)
           << "Rec address " << static_cast<const void *>(rec)
           << ", buf block fix count "
@@ -4877,7 +4917,8 @@ rec_loop:
 
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-  if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
+  if (UNIV_UNLIKELY(srv_force_recovery > 0 || (index->table->is_corrupt &&
+                                               srv_pass_corrupt_table == 2))) {
     if (!rec_validate(rec, offsets) ||
         !btr_index_rec_validate(rec, index, FALSE)) {
       ib::info(ER_IB_MSG_1035)
@@ -5215,9 +5256,84 @@ locks_ok:
   }
 
   /* Get the clustered index record if needed, if we did not do the
-  search using the clustered index. */
+        search using the clustered index... */
 
-  if (index != clust_index && prebuilt->need_to_access_clustered) {
+  use_clustered_index =
+      (index != clust_index && prebuilt->need_to_access_clustered);
+
+  if (use_clustered_index && prebuilt->n_template <= index->n_fields) {
+    /* ...but, perhaps avoid the clustered index lookup if
+    all of the following are true:
+    1) all columns are in the secondary index
+    2) all values for columns that are prefix-only
+       indexes are shorter than the prefix size
+    This optimization can avoid many IOs for certain schemas.
+    */
+    bool row_contains_all_values = true;
+    unsigned int i;
+    for (i = 0; i < prebuilt->n_template; i++) {
+      /* Condition (1) from above: is the field in the
+      index (prefix or not)? */
+      const mysql_row_templ_t *templ = prebuilt->mysql_template + i;
+      ulint secondary_index_field_no = templ->rec_prefix_field_no;
+      if (secondary_index_field_no == ULINT_UNDEFINED) {
+        row_contains_all_values = false;
+        break;
+      }
+      /* Condition (2) from above: if this is a
+      prefix, is this row's value size shorter
+      than the prefix? */
+      if (templ->rec_field_is_prefix) {
+        ulint record_size =
+            rec_offs_nth_size(offsets, secondary_index_field_no);
+        const dict_field_t *field = index->get_field(secondary_index_field_no);
+        ut_a(field->prefix_len > 0);
+
+        /* Must be a character type */
+        ut_ad(templ->mbminlen > 0);
+        ut_ad(templ->mbmaxlen >= templ->mbminlen);
+
+        if (record_size < field->prefix_len / templ->mbmaxlen) {
+          /* Record in bytes shorter than the
+          index prefix length in characters */
+          continue;
+
+        } else if (record_size * templ->mbminlen >= field->prefix_len) {
+          /* The shortest represantable string by
+          the byte length of the record is longer
+          than the maximum possible index
+          prefix. */
+          row_contains_all_values = false;
+          break;
+        } else {
+          /* The record could or could not fit
+          into the index prefix, calculate length
+          to find out */
+
+          if (rec_field_len_in_chars(*field->col, secondary_index_field_no, rec,
+                                     offsets) >=
+              (field->prefix_len / templ->mbmaxlen)) {
+            row_contains_all_values = false;
+            break;
+          }
+        }
+      }
+    }
+    /* If (1) and (2) were true for all columns above, use
+    rec_prefix_field_no instead of rec_field_no, and skip
+    the clustered lookup below. */
+    if (row_contains_all_values) {
+      for (i = 0; i < prebuilt->n_template; i++) {
+        mysql_row_templ_t *templ = prebuilt->mysql_template + i;
+        templ->rec_field_no = templ->rec_prefix_field_no;
+        ut_a(templ->rec_field_no != ULINT_UNDEFINED);
+      }
+      use_clustered_index = false;
+      srv_sec_rec_cluster_reads_avoided.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+
+  if (use_clustered_index) {
   requires_clust_rec:
     ut_ad(index != clust_index);
     /* We use a 'goto' to the preceding label if a consistent
@@ -5782,7 +5898,7 @@ func_exit:
 
 #ifdef UNIV_DEBUG
   {
-    btrsea_sync_check check(trx->has_search_latch);
+    btrsea_sync_check check(!trx->has_search_latch);
 
     ut_ad(!sync_check_iterate(check));
   }

@@ -26,7 +26,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
+#include "my_thread_local.h"  // my_thread_id
+#include "mysql_com.h"        // USERNAME_LENGTH
 
 class THD;
 
@@ -94,6 +97,59 @@ typedef struct user_conn {
   USER_RESOURCES user_resources;
 } USER_CONN;
 
+struct THREAD_STATS {
+  const my_thread_id id;
+  uint total_connections{1};
+  uint total_ssl_connections;
+  time_t connected_time{0};  // in seconds
+  double busy_time{0.0};     // in seconds
+  double cpu_time{0.0};      // in seconds
+  ulonglong bytes_received{0};
+  ulonglong bytes_sent{0};
+  ulonglong binlog_bytes_written{0};
+  ha_rows rows_fetched{0}, rows_updated{0}, rows_read{0};
+  ulonglong select_commands{0}, update_commands{0}, other_commands{0};
+  ulonglong commit_trans{0}, rollback_trans{0};
+  ulonglong denied_connections, lost_connections{0};
+  ulonglong access_denied_errors{0};
+  ulonglong empty_queries{0};
+
+  THREAD_STATS(my_thread_id id_, uint total_ssl_connections_,
+               ulonglong denied_connections_)
+  noexcept
+      : id(id_),
+        total_ssl_connections(total_ssl_connections_),
+        denied_connections(denied_connections_) {}
+};
+
+struct USER_STATS {
+  char user[MY_MAX(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
+  // Account name the user is mapped to when this is a user from mapped_user.
+  // Otherwise, the same value as user.
+  char priv_user[MY_MAX(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
+  uint total_connections{1};
+  uint total_ssl_connections;
+  uint concurrent_connections{0};
+  const size_t user_len;
+  const size_t priv_user_len;
+  time_t connected_time{0};  // in seconds
+  double busy_time{0.0};     // in seconds
+  double cpu_time{0.0};      // in seconds
+  ulonglong bytes_received{0};
+  ulonglong bytes_sent{0};
+  ulonglong binlog_bytes_written{0};
+  ha_rows rows_fetched{0}, rows_updated{0}, rows_read{0};
+  ulonglong select_commands{0}, update_commands{0}, other_commands{0};
+  ulonglong commit_trans{0}, rollback_trans{0};
+  ulonglong denied_connections, lost_connections{0};
+  ulonglong access_denied_errors{0};
+  ulonglong empty_queries{0};
+
+  USER_STATS(const char *user_, const char *priv_user_,
+             uint total_ssl_connections_, ulonglong denied_connections_)
+  noexcept;
+};
+
 void init_max_user_conn(void);
 void free_max_user_conn(void);
 void reset_mqh(THD *thd, LEX_USER *lu, bool get_them);
@@ -101,7 +157,7 @@ bool check_mqh(THD *thd, uint check_command);
 void decrease_user_connections(USER_CONN *uc);
 void release_user_connection(THD *thd);
 bool thd_init_client_charset(THD *thd, uint cs_number);
-bool thd_prepare_connection(THD *thd);
+bool thd_prepare_connection(THD *thd, bool extra_port_connection);
 void close_connection(THD *thd, uint sql_errno = 0,
                       bool server_shutdown = false, bool generate_event = true);
 bool thd_connection_alive(THD *thd);
@@ -109,5 +165,7 @@ void end_connection(THD *thd);
 int get_or_create_user_conn(THD *thd, const char *user, const char *host,
                             const USER_RESOURCES *mqh);
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc);
+// Uses the THD to update the global stats by user name and client IP
+void update_global_user_stats(THD *thd, bool create_user, time_t now);
 
 #endif /* SQL_CONNECT_INCLUDED */

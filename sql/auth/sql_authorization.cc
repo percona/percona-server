@@ -1161,7 +1161,8 @@ void get_sp_access_map(
     */
 
     if (!strcmp(acl_user->user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user->host.get_host(), host)) {
+        grant_proc->host.compare_hostname(acl_user->host.get_host(),
+                                          acl_user->host.get_host())) {
       ulong proc_access = grant_proc->privs;
       if (proc_access != 0) {
         String key;
@@ -1194,7 +1195,7 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
       would be wrong from a security point of view.
     */
     if (!strcmp(acl_user_user, user) &&
-        !my_strcasecmp(system_charset_info, acl_user_host, host)) {
+        grant_table->host.compare_hostname(acl_user_host, acl_user_host)) {
       ulong table_access = grant_table->privs;
       if ((table_access | grant_table->cols) != 0) {
         String q_name;
@@ -1280,7 +1281,7 @@ void get_database_access_map(ACL_USER *acl_user, Db_access_map *db_map,
     */
 
     if (!strcmp(acl_user_user, acl_db_user) &&
-        !my_strcasecmp(system_charset_info, acl_user_host, acl_db_host)) {
+        acl_db->host.compare_hostname(acl_user_host, acl_user_host)) {
       ulong want_access = acl_db->access;
       if (want_access) {
         if (has_wildcard_characters({acl_db->db, strlen(acl_db->db)})) {
@@ -1886,6 +1887,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
           DBUG_RETURN(false);
         case ACL_INTERNAL_ACCESS_DENIED:
           if (!no_errors) {
+            thd->diff_access_denied_errors++;
             my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
                      sctx->priv_host().str, db);
           }
@@ -2010,10 +2012,12 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     Internal-priv)
   */
   DBUG_PRINT("error", ("Access denied"));
-  if (!no_errors)
+  if (!no_errors) {
+    thd->diff_access_denied_errors++;
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
              sctx->priv_host().str,
              (db ? db : (thd->db().str ? thd->db().str : "unknown")));
+  }
   DBUG_RETURN(true);
 }
 
@@ -5258,6 +5262,7 @@ bool check_show_access(THD *thd, TABLE_LIST *table) {
         return true;
 
       if (!thd->col_access && check_grant_db(thd, dst_db_name)) {
+        thd->diff_access_denied_errors++;
         my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str, dst_db_name);

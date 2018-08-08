@@ -1,0 +1,66 @@
+--source include/have_rocksdb.inc
+
+#
+# Validate that the server starts when everything is okay, but detects errors
+# if a table exists in the data dictionary but not as an .frm or vice versa.
+# The default mode causes these failures to keep the server from starting, but
+# this is problematic for the test as a server start failure is not easily
+# trappable.  Instead use the mode where it will detect the problem and report
+# it in the log bug still start:  --rocksdb_validate_tables=2
+#
+
+CREATE TABLE t1 (pk int primary key) ENGINE=ROCKSDB;
+CREATE TABLE t2 (pk int primary key) ENGINE=ROCKSDB PARTITION BY KEY(pk) PARTITIONS 4;
+
+--source include/restart_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+--let LOG=$MYSQLTEST_VARDIR/tmp/validate_datadic.err
+
+# Rename the file
+--move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm.tmp
+--move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm.tmp
+
+# Attempt to restart the server
+--let $restart_parameters=restart:--log-error=$LOG --rocksdb_validate_tables=2
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/start_mysqld.inc
+
+# We should now have an error message
+--echo "Expect errors that we are missing two .frm files"
+--let SEARCH_FILE=$LOG
+--let SEARCH_PATTERN=Schema mismatch
+--source include/search_pattern_in_file.inc
+
+# Now shut down again and rename one the .frm file back and make a copy of it
+--source include/shutdown_mysqld.inc
+
+# Clear the log
+--remove_file $LOG
+
+# Rename the file
+--move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm.tmp $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm
+--move_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm.tmp $MYSQLTEST_VARDIR/mysqld.1/data/test/t2.frm
+--copy_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1.frm $MYSQLTEST_VARDIR/mysqld.1/data/test/t1_dummy.frm
+
+# Attempt to restart the server
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/start_mysqld.inc
+
+# We should now have an error message for the second case
+--echo "Expect an error that we have an extra .frm file"
+--let SEARCH_FILE=$LOG
+--let SEARCH_PATTERN=Schema mismatch
+--source include/search_pattern_in_file.inc
+
+# Shut down an clean up
+--source include/shutdown_mysqld.inc
+
+--remove_file $LOG
+--remove_file $MYSQLTEST_VARDIR/mysqld.1/data/test/t1_dummy.frm
+
+--let $restart_parameters=
+--source include/start_mysqld.inc
+
+DROP TABLE t1, t2;

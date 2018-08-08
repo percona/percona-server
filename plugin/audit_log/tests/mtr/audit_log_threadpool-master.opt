@@ -1,0 +1,3 @@
+--audit_log_strategy=SYNCHRONOUS
+--audit_log_file=test_audit_threadpool.log
+--thread_handling=pool-of-threads

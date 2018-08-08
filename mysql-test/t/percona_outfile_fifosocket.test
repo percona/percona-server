@@ -1,0 +1,12 @@
+#
+# Test that it is possible to specify fifos and unix sockets as
+# an outfile
+#
+
+--source include/not_windows.inc
+
+--let $select_into=OUTFILE
+--source include/outfile_fifosocket.inc
+
+--let $select_into=DUMPFILE
+--source include/outfile_fifosocket.inc

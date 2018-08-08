@@ -44,7 +44,8 @@ released by the i/o-handler thread.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if page has been read in, false in case of failure */
-ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size);
+ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
+                    trx_t *trx);
 
 /** High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
@@ -74,7 +75,8 @@ wants to access
 pages, it may happen that the page at the given page number does not
 get read even if we return a positive value! */
 ulint buf_read_ahead_random(const page_id_t &page_id,
-                            const page_size_t &page_size, ibool inside_ibuf);
+                            const page_size_t &page_size, ibool inside_ibuf,
+                            trx_t *trx);
 
 /** Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
@@ -103,7 +105,8 @@ which could result in a deadlock if the OS does not support asynchronous io.
 @param[in]	inside_ibuf	TRUE if we are inside ibuf routine
 @return number of page read requests issued */
 ulint buf_read_ahead_linear(const page_id_t &page_id,
-                            const page_size_t &page_size, ibool inside_ibuf);
+                            const page_size_t &page_size, ibool inside_ibuf,
+                            trx_t *trx);
 
 /** Issues read requests for pages which the ibuf module wants to read in, in
  order to contract the insert buffer tree. Technically, this function is like

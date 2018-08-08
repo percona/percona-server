@@ -4,7 +4,6 @@
 # program.
 
 source include/have_log_bin.inc;
-#source include/have_innodb.inc;
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
@@ -47,7 +46,14 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 --source include/show_binlog_events.inc
 DROP TABLE t1;
 
-exec $MYSQL_BINLOG --start-position=$start_pos $MYSQLD_DATADIR/$master_binlog >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
+--let $mysqlbinlog_args= $MYSQLD_DATADIR/$master_binlog
+if ($use_remote_mysqlbinlog)
+{
+    --let $mysqlbinlog_args= --read-from-remote-server --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT -uroot $master_binlog
+    --let $use_remote_mysqlbinlog= 0
+}
+
+exec $MYSQL_BINLOG --start-position=$start_pos $mysqlbinlog_args >$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql;
 --disable_query_log
 eval SELECT cont LIKE '%RELOAD DATABASE; # Shall generate syntax error%' AS `Contain RELOAD DATABASE` FROM (SELECT load_file('$MYSQLTEST_VARDIR/tmp/binlog_incident-bug44442.sql') AS cont) AS tbl;
 --enable_query_log

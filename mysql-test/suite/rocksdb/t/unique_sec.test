@@ -1,0 +1,57 @@
+--source include/have_rocksdb.inc
+
+let ddl= $MYSQL_TMP_DIR/unique_sec.sql;
+--exec sed s/##CF##//g suite/rocksdb/include/unique_sec.inc > $ddl
+
+# MyRocks does not support gap locks in REPEATABLE-READ mode, so run through
+# this sequence twice, one for each supported transaction level
+let $trx_isolation = READ COMMITTED;
+--source $ddl
+let $trx_isolation = REPEATABLE READ;
+--source $ddl
+
+--echo #
+--echo # Issue #88: Creating unique index over column with duplicate values succeeds
+--echo #
+create table t1 (pk int primary key, a int) engine=rocksdb;
+
+insert into t1 values 
+(1, 1),
+(2, 2),
+(3, 3),
+(4, 1),
+(5, 5);
+
+--error ER_DUP_ENTRY
+alter table t1 add unique(a);
+drop table t1;
+
+--echo #
+--echo # Issue #111
+--echo #
+CREATE TABLE t2 (pk int, a int, PRIMARY KEY (pk, a), UNIQUE KEY (a)) ENGINE=ROCKSDB PARTITION BY KEY (a) PARTITIONS 16;
+
+INSERT INTO t2 VALUES (1,1);
+--error ER_DUP_ENTRY
+INSERT INTO t2 VALUES (1,1);
+--error ER_DUP_ENTRY
+INSERT INTO t2 VALUES (2,1);
+DROP TABLE t2;
+
+--echo #
+--echo # Issue #491 (https://github.com/facebook/mysql-5.6/issues/491)
+--echo #
+CREATE TABLE t (a BLOB, PRIMARY KEY(a(2)), UNIQUE KEY (a(1))) engine=rocksdb;
+INSERT INTO t VALUES('a');
+CHECK TABLE t EXTENDED;
+DROP TABLE t;
+
+CREATE TABLE t (a VARCHAR(255), PRIMARY KEY(a), UNIQUE KEY (a(1))) engine=rocksdb;
+INSERT INTO t VALUES('a');
+CHECK TABLE t EXTENDED;
+DROP TABLE t;
+
+CREATE TABLE t (a VARCHAR(255), PRIMARY KEY(a(2)), UNIQUE KEY (a(1))) engine=rocksdb;
+INSERT INTO t VALUES('a');
+CHECK TABLE t EXTENDED;
+DROP TABLE t;

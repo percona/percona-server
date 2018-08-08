@@ -2,7 +2,7 @@
 
 Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
-Copyright (c) 2009, Percona Inc.
+Copyright (c) 2009, 2016, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0event.h"
 #include "os0file.h"
 #include "que0types.h"
+#include "sql/system_variables.h"
 #include "srv0conc.h"
 #include "trx0types.h"
 #include "ut0counter.h"
@@ -136,6 +137,23 @@ struct srv_stats_t {
 
   /** Number of rows inserted */
   ulint_ctr_64_t n_rows_inserted;
+
+  ulint_ctr_1_t n_lock_max_wait_time;
+
+  /** Number of buffered aio requests submitted */
+  ulint_ctr_64_t n_aio_submitted;
+
+  /* Number of merge blocks encrypted */
+  ulint_ctr_64_t n_merge_blocks_encrypted;
+
+  /* Number of merge blocks decrypted */
+  ulint_ctr_64_t n_merge_blocks_decrypted;
+
+  /* Number of row log blocks encrypted */
+  ulint_ctr_64_t n_rowlog_blocks_encrypted;
+
+  /* Number of row log blocks decrypted */
+  ulint_ctr_64_t n_rowlog_blocks_decrypted;
 };
 
 struct Srv_threads {
@@ -207,8 +225,25 @@ and/or load it during startup. */
 extern bool srv_buffer_pool_dump_at_shutdown;
 extern bool srv_buffer_pool_load_at_startup;
 
+/** Path to the parallel doublewrite buffer */
+#define SRV_PARALLEL_DOUBLEWRITE_PATH_DEFAULT "xb_doublewrite"
+extern char *srv_parallel_doublewrite_path;
+
 /* Whether to disable file system cache if it is defined */
 extern bool srv_disable_sort_file_cache;
+
+/* This event is set on checkpoint completion to wake the redo log parser
+thread */
+extern os_event_t srv_checkpoint_completed_event;
+
+/* This event is set on the online redo log following thread after a successful
+log tracking iteration */
+extern os_event_t srv_redo_log_tracked_event;
+
+/** Whether the redo log tracker thread has been started. Does not take into
+account whether the tracking is currently enabled (see srv_track_changed_pages
+for that) */
+extern bool srv_redo_log_thread_started;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
@@ -287,6 +322,17 @@ extern bool srv_undo_log_truncate;
 
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
+
+/** Enable or disable encryption of temporary tablespace.*/
+extern bool srv_tmp_tablespace_encrypt;
+
+/** Whether the redo log tracking is currently enabled. Note that it is
+possible for the log tracker thread to be running and the tracking to be
+disabled */
+extern bool srv_track_changed_pages;
+extern ulonglong srv_max_bitmap_file_size;
+
+extern ulonglong srv_max_changed_pages;
 
 /** Default size of UNDO tablespace while it is created new. */
 extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
@@ -458,7 +504,26 @@ extern long long srv_buf_pool_curr_size;
 /** Dump this % of each buffer pool during BP dump */
 extern ulong srv_buf_pool_dump_pct;
 /** Lock table size in bytes */
+
+extern ulint srv_show_locks_held;
+
 extern ulint srv_lock_table_size;
+
+extern ulint srv_cleaner_max_lru_time; /*!< the maximum time limit for a
+                                      single LRU tail flush iteration by the
+                                      page cleaner thread */
+
+extern ulint srv_cleaner_max_flush_time; /*!< the maximum time limit for a
+                                      single flush list flush iteration by
+                                      the page cleaner thread */
+
+extern ulong srv_cleaner_lsn_age_factor;
+/*!< page cleaner LSN age factor
+formula option */
+
+extern ulong srv_empty_free_list_algorithm;
+/*!< Empty free list for a query thread
+handling algorithm option */
 
 extern ulint srv_n_file_io_threads;
 extern bool srv_random_read_ahead;
@@ -530,10 +595,30 @@ extern ulong srv_doublewrite_batch_size;
 extern ulong srv_checksum_algorithm;
 
 extern double srv_max_buf_pool_modified_pct;
+
 extern ulong srv_max_purge_lag;
 extern ulong srv_max_purge_lag_delay;
 
 extern ulong srv_replication_delay;
+
+extern ulint srv_pass_corrupt_table;
+
+/* Helper macro to support srv_pass_corrupt_table checks. If 'cond' is false,
+execute 'code' if srv_pass_corrupt_table is non-zero, or trigger a fatal error
+otherwise. The break statement in 'code' will obviously not work as
+expected. */
+
+#define SRV_CORRUPT_TABLE_CHECK(cond, code) \
+  do {                                      \
+    if (UNIV_UNLIKELY(!(cond))) {           \
+      if (srv_pass_corrupt_table) {         \
+        code                                \
+      } else {                              \
+        ut_error;                           \
+      }                                     \
+    }                                       \
+  } while (0)
+
 /*-------------------------------------------*/
 
 extern bool srv_print_innodb_monitor;
@@ -558,11 +643,16 @@ extern bool srv_purge_view_update_only_debug;
 
 /** Value of MySQL global used to disable master thread. */
 extern bool srv_master_thread_disabled_debug;
+/** Pause master thread in the middle of enabling of temporary tablespace
+encryption */
+extern ulint srv_master_encrypt_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulint srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION 7200
 extern ulint srv_dml_needed_delay;
+
+extern bool srv_encrypt_online_alter_logs;
 
 #ifdef UNIV_HOTBACKUP
 // MAHI: changed from 130 to 1 assuming the apply-log is single threaded
@@ -575,6 +665,34 @@ extern ulint srv_dml_needed_delay;
 i/o handler thread */
 extern const char *srv_io_thread_op_info[];
 extern const char *srv_io_thread_function[];
+
+/* The tids of the purge threads */
+extern os_tid_t srv_purge_tids[];
+
+/* The tids of the I/O threads */
+extern os_tid_t srv_io_tids[];
+
+/* The tid of the master thread */
+extern os_tid_t srv_master_tid;
+
+/* The relative scheduling priority of the purge threads */
+extern ulint srv_sched_priority_purge;
+
+/* The relative scheduling priority of the I/O threads */
+extern ulint srv_sched_priority_io;
+
+/* The relative scheduling priority of the master thread */
+extern ulint srv_sched_priority_master;
+
+/* The relative priority of the current thread.  If 0, low priority; if 1, high
+priority.  */
+extern thread_local ulint srv_current_thread_priority;
+
+/* The relative priority of the purge coordinator and worker threads.  */
+extern bool srv_purge_thread_priority;
+
+/* The relative priority of the master thread.  */
+extern bool srv_master_thread_priority;
 
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
@@ -591,7 +709,17 @@ extern bool srv_print_all_deadlocks;
 /** Print all DDL logs to mysqld stderr */
 extern bool srv_print_ddl_logs;
 
+/* Print lock wait timeout info to mysqld stderr */
+extern bool srv_print_lock_wait_timeout_info;
+
 extern bool srv_cmp_per_index_enabled;
+
+extern ulong srv_encrypt_tables;
+
+/** Number of times secondary index lookup triggered cluster lookup */
+extern std::atomic<ulint> srv_sec_rec_cluster_reads;
+/** Number of times prefix optimization avoided triggering cluster lookup */
+extern std::atomic<ulint> srv_sec_rec_cluster_reads_avoided;
 
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
@@ -605,6 +733,7 @@ extern srv_stats_t srv_stats;
 #ifdef UNIV_PFS_THREAD
 extern mysql_pfs_key_t archiver_thread_key;
 extern mysql_pfs_key_t buf_dump_thread_key;
+extern mysql_pfs_key_t buf_lru_manager_thread_key;
 extern mysql_pfs_key_t buf_resize_thread_key;
 extern mysql_pfs_key_t dict_stats_thread_key;
 extern mysql_pfs_key_t fts_optimize_thread_key;
@@ -623,7 +752,6 @@ extern mysql_pfs_key_t log_write_notifier_thread_key;
 extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
-extern mysql_pfs_key_t recv_writer_thread_key;
 extern mysql_pfs_key_t srv_error_monitor_thread_key;
 extern mysql_pfs_key_t srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t srv_master_thread_key;
@@ -631,6 +759,7 @@ extern mysql_pfs_key_t srv_monitor_thread_key;
 extern mysql_pfs_key_t srv_purge_thread_key;
 extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
+extern mysql_pfs_key_t srv_log_tracking_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -807,6 +936,8 @@ void srv_active_wake_master_thread_low(void);
   } while (0)
 /** Wakes up the master thread if it is suspended or being suspended. */
 void srv_wake_master_thread(void);
+/** A thread which follows the redo log and outputs the changed page bitmap. */
+void srv_redo_log_follow_thread();
 #ifndef UNIV_HOTBACKUP
 /** Outputs to a file the output of the InnoDB Monitor.
  @return false if not all information printed
@@ -826,11 +957,23 @@ void srv_export_innodb_status(void);
  reading this value as it is only used in heuristics.
  @return activity count. */
 ulint srv_get_activity_count(void);
-/** Check if there has been any activity.
- @return false if no change in activity counter. */
-ibool srv_check_activity(ulint old_activity_count); /*!< old activity count */
-/** Increment the server activity counter. */
-void srv_inc_activity_count(void);
+/** Check if there has been any activity. Considers background change
+buffer merge as regular server activity unless a non-default
+old_ibuf_merge_activity_count value is passed, in which case the merge
+will be treated as keeping server idle.
+@return false if no change in
+activity counter. */
+bool srv_check_activity(
+    ulint old_activity_count, /*!< old activity count */
+    /*!< old change buffer merge
+    activity count, or
+    ULINT_UNDEFINED */
+    ulint old_ibuf_merge_activity_count = ULINT_UNDEFINED) noexcept;
+
+/** Increment the server activity count.
+@param[in]	ibuf_merge_activity	whether this activity bump is caused by
+the background change buffer merge */
+void srv_inc_activity_count(bool ibuf_merge_activity = false) noexcept;
 
 /** Enqueues a task to server task queue and releases a worker thread, if there
  is a suspended one. */
@@ -907,6 +1050,9 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 
 /** Status variables to be passed to MySQL */
 struct export_var_t {
+  ulint innodb_adaptive_hash_hash_searches;
+  ulint innodb_adaptive_hash_non_hash_searches;
+  ulint innodb_background_log_sync;
   ulint innodb_data_pending_reads;  /*!< Pending reads */
   ulint innodb_data_pending_writes; /*!< Pending writes */
   ulint innodb_data_pending_fsyncs; /*!< Pending fsyncs */
@@ -928,29 +1074,46 @@ struct export_var_t {
   ulint innodb_buffer_pool_pages_misc;        /*!< Miscellanous pages */
   ulint innodb_buffer_pool_pages_free;        /*!< Free pages */
 #ifdef UNIV_DEBUG
-  ulint innodb_buffer_pool_pages_latched;  /*!< Latched pages */
-#endif                                     /* UNIV_DEBUG */
-  ulint innodb_buffer_pool_read_requests;  /*!< buf_pool->stat.n_page_gets */
-  ulint innodb_buffer_pool_reads;          /*!< srv_buf_pool_reads */
-  ulint innodb_buffer_pool_wait_free;      /*!< srv_buf_pool_wait_free */
-  ulint innodb_buffer_pool_pages_flushed;  /*!< srv_buf_pool_flushed */
+  ulint innodb_buffer_pool_pages_latched; /*!< Latched pages */
+#endif                                    /* UNIV_DEBUG */
+  ulint innodb_buffer_pool_pages_made_not_young;
+  ulint innodb_buffer_pool_pages_made_young;
+  ulint innodb_buffer_pool_pages_old;
+  ulint innodb_buffer_pool_read_requests;     /*!< buf_pool->stat.n_page_gets */
+  ulint innodb_buffer_pool_reads;             /*!< srv_buf_pool_reads */
+  ulint innodb_buffer_pool_wait_free;         /*!< srv_buf_pool_wait_free */
+  ulint innodb_buffer_pool_pages_flushed;     /*!< srv_buf_pool_flushed */
+  ulint innodb_buffer_pool_pages_LRU_flushed; /*!< buf_lru_flush_page_count */
   ulint innodb_buffer_pool_write_requests; /*!< srv_buf_pool_write_requests */
   ulint innodb_buffer_pool_read_ahead_rnd; /*!< srv_read_ahead_rnd */
   ulint innodb_buffer_pool_read_ahead;     /*!< srv_read_ahead */
   ulint innodb_buffer_pool_read_ahead_evicted; /*!< srv_read_ahead evicted*/
-  ulint innodb_dblwr_pages_written;            /*!< srv_dblwr_pages_written */
-  ulint innodb_dblwr_writes;                   /*!< srv_dblwr_writes */
-  ulint innodb_log_waits;                      /*!< srv_log_waits */
-  ulint innodb_log_write_requests;             /*!< srv_log_write_requests */
-  ulint innodb_log_writes;                     /*!< srv_log_writes */
-  lsn_t innodb_os_log_written;                 /*!< srv_os_log_written */
-  ulint innodb_os_log_fsyncs;                  /*!< fil_n_log_flushes */
-  ulint innodb_os_log_pending_writes;          /*!< srv_os_log_pending_writes */
-  ulint innodb_os_log_pending_fsyncs;          /*!< fil_n_pending_log_flushes */
-  ulint innodb_page_size;                      /*!< UNIV_PAGE_SIZE */
-  ulint innodb_pages_created;           /*!< buf_pool->stat.n_pages_created */
-  ulint innodb_pages_read;              /*!< buf_pool->stat.n_pages_read */
-  ulint innodb_pages_written;           /*!< buf_pool->stat.n_pages_written */
+  ulint innodb_checkpoint_age;
+  ulint innodb_checkpoint_max_age;
+  ulint innodb_dblwr_pages_written; /*!< srv_dblwr_pages_written */
+  ulint innodb_dblwr_writes;        /*!< srv_dblwr_writes */
+  ulint innodb_ibuf_free_list;
+  ulint innodb_ibuf_segment_size;
+  ulint innodb_log_waits;          /*!< srv_log_waits */
+  ulint innodb_log_write_requests; /*!< srv_log_write_requests */
+  ulint innodb_log_writes;         /*!< srv_log_writes */
+  lsn_t innodb_os_log_written;     /*!< srv_os_log_written */
+  lsn_t innodb_lsn_current;
+  lsn_t innodb_lsn_flushed;
+  lsn_t innodb_lsn_last_checkpoint;
+  ulint innodb_master_thread_active_loops; /*!< srv_main_active_loops */
+  ulint innodb_master_thread_idle_loops;   /*!< srv_main_idle_loops */
+  trx_id_t innodb_max_trx_id;
+  trx_id_t innodb_oldest_view_low_limit_trx_id;
+  ulint innodb_os_log_fsyncs;         /*!< fil_n_log_flushes */
+  ulint innodb_os_log_pending_writes; /*!< srv_os_log_pending_writes */
+  ulint innodb_os_log_pending_fsyncs; /*!< fil_n_pending_log_flushes */
+  ulint innodb_page_size;             /*!< UNIV_PAGE_SIZE */
+  ulint innodb_pages_created;         /*!< buf_pool->stat.n_pages_created */
+  ulint innodb_pages_read;            /*!< buf_pool->stat.n_pages_read */
+  ulint innodb_pages_written;         /*!< buf_pool->stat.n_pages_written */
+  trx_id_t innodb_purge_trx_id;
+  undo_no_t innodb_purge_undo_no;
   ulint innodb_row_lock_waits;          /*!< srv_n_lock_wait_count */
   ulint innodb_row_lock_current_waits;  /*!< srv_n_lock_wait_current_count */
   int64_t innodb_row_lock_time;         /*!< srv_n_lock_wait_time
@@ -974,6 +1137,25 @@ struct export_var_t {
                                       index lookups when freeing
                                       file pages */
 #endif                                /* UNIV_DEBUG */
+  ib_uint64_t
+      innodb_n_merge_blocks_encrypted; /*!< Number of merge blocks encrypted */
+  ib_uint64_t
+      innodb_n_merge_blocks_decrypted; /*!< Number of merge blocks decrypted */
+  ib_uint64_t innodb_n_rowlog_blocks_encrypted; /*!< Number of row log blocks
+                                                   encrypted */
+  ib_uint64_t innodb_n_rowlog_blocks_decrypted; /*!< Number of row log blocks
+                                                   decrypted */
+
+  ulint innodb_sec_rec_cluster_reads; /*!< srv_sec_rec_cluster_reads */
+  ulint
+      innodb_sec_rec_cluster_reads_avoided; /*!<
+                                               srv_sec_rec_cluster_reads_avoided
+                                             */
+
+  ulint innodb_buffered_aio_submitted;
+
+  fragmentation_stats_t innodb_fragmentation_stats; /*!< Fragmentation
+                                           statistics */
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -1002,5 +1184,13 @@ struct srv_slot_t {
                           (only used for user threads) */
 };
 #endif /* !UNIV_HOTBACKUP */
+
+#ifndef DBUG_OFF
+/** false before InnoDB monitor has been printed at least once, true
+afterwards */
+extern bool srv_debug_monitor_printed;
+#else
+#define srv_debug_monitor_printed false
+#endif
 
 #endif

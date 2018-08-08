@@ -1,0 +1,28 @@
+#
+# Test interaction between changed page tracking and userstat.
+#
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+# Delete any existing bitmaps
+
+RESET CHANGED_PAGE_BITMAPS;
+
+CREATE TABLE t1 (x INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+
+# Have at least two bitmap files
+--source include/restart_mysqld.inc
+
+--echo Before FLUSH USER_STATISTICS:
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+# Bug 1472251: flushing user stats causes bitmap reset
+FLUSH USER_STATISTICS;
+
+--echo After FLUSH USER_STATISTICS:
+--replace_regex /_[[:digit:]]+\.xdb$//
+list_files $MYSQLD_DATADIR ib_modified_log*;
+
+DROP TABLE t1;

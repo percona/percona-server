@@ -4931,6 +4931,8 @@ longlong Item_func_sleep::val_int() {
 
   thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, NULL);
 
+  DEBUG_SYNC(current_thd, "func_sleep_before_sleep");
+
   error = 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed) {
@@ -6023,7 +6025,9 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
       max_length = MY_INT64_NUM_DECIMAL_DIGITS;
       unsigned_flag = true;
       break;
+    case SHOW_SIGNED_INT:
     case SHOW_SIGNED_LONG:
+    case SHOW_SIGNED_LONGLONG:
       collation.set_numeric();
       set_data_type(MYSQL_TYPE_LONGLONG);
       max_length = MY_INT64_NUM_DECIMAL_DIGITS;
@@ -6088,9 +6092,11 @@ enum Item_result Item_func_get_system_var::result_type() const {
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
       return INT_RESULT;
     case SHOW_CHAR:
@@ -6197,12 +6203,16 @@ longlong Item_func_get_system_var::val_int() {
   switch (var->show_type()) {
     case SHOW_INT:
       return get_sys_var_safe<uint>(thd);
+    case SHOW_SIGNED_INT:
+      return get_sys_var_safe<int>(thd);
     case SHOW_LONG:
       return get_sys_var_safe<ulong>(thd);
     case SHOW_SIGNED_LONG:
       return get_sys_var_safe<long>(thd);
     case SHOW_LONGLONG:
       return get_sys_var_safe<ulonglong>(thd);
+    case SHOW_SIGNED_LONGLONG:
+      return get_sys_var_safe<longlong>(thd);
     case SHOW_HA_ROWS:
       return get_sys_var_safe<ha_rows>(thd);
     case SHOW_BOOL:
@@ -6294,9 +6304,11 @@ String *Item_func_get_system_var::val_str(String *str) {
     }
 
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
@@ -6381,9 +6393,11 @@ double Item_func_get_system_var::val_real() {
       return cached_dval;
     }
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:

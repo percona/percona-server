@@ -49,15 +49,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */
-#define ROW_MERGE_READ_GET_NEXT(N)                                             \
-  do {                                                                         \
-    b[N] = row_merge_read_rec(block[N], buf[N], b[N], index, fd[N], &foffs[N], \
-                              &mrec[N], offsets[N]);                           \
-    if (UNIV_UNLIKELY(!b[N])) {                                                \
-      if (mrec[N]) {                                                           \
-        goto exit;                                                             \
-      }                                                                        \
-    }                                                                          \
+#define ROW_MERGE_READ_GET_NEXT(N)                                            \
+  do {                                                                        \
+    b[N] = row_merge_read_rec(block[N], crypt_block[N], table->space, buf[N], \
+                              b[N], index, fd[N], &foffs[N], &mrec[N],        \
+                              offsets[N]);                                    \
+    if (UNIV_UNLIKELY(!b[N])) {                                               \
+      if (mrec[N]) {                                                          \
+        goto exit;                                                            \
+      }                                                                       \
+    }                                                                         \
   } while (0)
 
 /** Parallel sort degree */
@@ -264,6 +265,25 @@ ibool row_fts_psort_info_init(
         ret = FALSE;
         goto func_exit;
       }
+
+      /* If tablespace is encrypted, allocate additional
+      buffer for encryption/decryption. */
+      if (log_tmp_is_encrypted()) {
+        /* Need to align memory for O_DIRECT write */
+        psort_info[j].crypt_alloc[i] = static_cast<row_merge_block_t *>(
+            ut_malloc_nokey(block_size + 1024));
+
+        if (psort_info[j].crypt_alloc[i] == NULL) {
+          ret = FALSE;
+          goto func_exit;
+        }
+
+        psort_info[j].crypt_block[i] = static_cast<row_merge_block_t *>(
+            ut_align(psort_info[j].crypt_alloc[i], 1024));
+      } else {
+        psort_info[j].crypt_alloc[i] = NULL;
+        psort_info[j].crypt_block[i] = NULL;
+      }
     }
 
     psort_info[j].child_status = 0;
@@ -310,6 +330,7 @@ void row_fts_psort_info_destroy(
 
         ut_free(psort_info[j].block_alloc[i]);
         ut_free(psort_info[j].merge_file[i]);
+        ut_free(psort_info[j].crypt_alloc[i]);
       }
 
       mutex_free(&psort_info[j].mutex);
@@ -487,14 +508,14 @@ static ibool row_merge_fts_doc_tokenize(
     } else {
       inc = innobase_mysql_fts_get_token(
           doc->charset, doc->text.f_str + t_ctx->processed_len,
-          doc->text.f_str + doc->text.f_len, &str);
+          doc->text.f_str + doc->text.f_len, false, &str);
 
       ut_a(inc > 0);
     }
 
     /* Ignore string whose character number is less than
     "fts_min_token_size" or more than "fts_max_token_size" */
-    if (!fts_check_token(&str, NULL, is_ngram, NULL)) {
+    if (!fts_check_token(&str, NULL, is_ngram, NULL, t_ctx->ignore_stopwords)) {
       if (parser != NULL) {
         UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
         ut_free(fts_token);
@@ -513,8 +534,8 @@ static ibool row_merge_fts_doc_tokenize(
 
     /* if "cached_stopword" is defined, ignore words in the
     stopword list */
-    if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram,
-                         doc->charset)) {
+    if (!fts_check_token(&str, t_ctx->cached_stopword, is_ngram, doc->charset,
+                         t_ctx->ignore_stopwords)) {
       if (parser != NULL) {
         UT_LIST_REMOVE(t_ctx->fts_token_list, fts_token);
         ut_free(fts_token);
@@ -703,11 +724,11 @@ static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
   fts_tokenize_ctx_t t_ctx;
   ulint retried = 0;
   dberr_t error = DB_SUCCESS;
+  THD *thd = psort_info->psort_common->trx->mysql_thd;
 
   my_thread_init();
-  ut_ad(psort_info->psort_common->trx->mysql_thd != NULL);
-  const char *path =
-      thd_innodb_tmpdir(psort_info->psort_common->trx->mysql_thd);
+  ut_ad(thd != nullptr);
+  const char *path = thd_innodb_tmpdir(thd);
 
   ut_ad(psort_info);
 
@@ -726,12 +747,14 @@ static void fts_parallel_tokenization_thread(fts_psort_t *psort_info) {
       (doc.charset == &my_charset_latin1) ? DATA_VARCHAR : DATA_VARMYSQL;
 
   block = psort_info->merge_block;
+  row_merge_block_t **crypt_block = psort_info->crypt_block;
 
   const page_size_t &page_size = dict_table_page_size(table);
 
   row_merge_fts_get_next_doc_item(psort_info, &doc_item);
 
   t_ctx.cached_stopword = table->fts->cache->stopword_info.cached_stopword;
+  t_ctx.ignore_stopwords = thd_has_ft_ignore_stopwords(thd);
   processed = TRUE;
 loop:
   while (doc_item) {
@@ -814,7 +837,8 @@ loop:
 
     if (!row_merge_write(merge_file[t_ctx.buf_used]->fd,
                          merge_file[t_ctx.buf_used]->offset++,
-                         block[t_ctx.buf_used])) {
+                         block[t_ctx.buf_used], crypt_block[t_ctx.buf_used],
+                         table->space)) {
       error = DB_TEMP_FILE_WRITE_FAIL;
       goto func_exit;
     }
@@ -904,12 +928,15 @@ exit:
       memory */
       if (merge_file[i]->offset != 0) {
         if (!row_merge_write(merge_file[i]->fd, merge_file[i]->offset++,
-                             block[i])) {
+                             block[i], crypt_block[i], table->space)) {
           error = DB_TEMP_FILE_WRITE_FAIL;
           goto func_exit;
         }
 
         UNIV_MEM_INVALID(block[i][0], srv_sort_buf_size);
+
+        if (crypt_block[i])
+          UNIV_MEM_INVALID(crypt_block[i][0], srv_sort_buf_size);
       }
 
       buf[i] = row_merge_buf_empty(buf[i]);
@@ -934,7 +961,7 @@ exit:
 
     error = row_merge_sort(psort_info->psort_common->trx,
                            psort_info->psort_common->dup, merge_file[i],
-                           block[i], &tmpfd[i]);
+                           block[i], crypt_block[i], table->space, &tmpfd[i]);
     if (error != DB_SUCCESS) {
       close(tmpfd[i]);
       goto func_exit;
@@ -1428,6 +1455,8 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
   buf = (mrec_buf_t **)mem_heap_alloc(heap, sizeof(*buf) * fts_sort_pll_degree);
   fd = (int *)mem_heap_alloc(heap, sizeof(*fd) * fts_sort_pll_degree);
   block = (byte **)mem_heap_alloc(heap, sizeof(*block) * fts_sort_pll_degree);
+  byte **crypt_block =
+      (byte **)mem_heap_alloc(heap, sizeof(*crypt_block) * fts_sort_pll_degree);
   mrec = (const mrec_t **)mem_heap_alloc(heap,
                                          sizeof(*mrec) * fts_sort_pll_degree);
   sel_tree = (int *)mem_heap_alloc(
@@ -1447,6 +1476,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
     offsets[i][0] = num;
     offsets[i][1] = dict_index_get_n_fields(index);
     block[i] = psort_info[i].merge_block[id];
+    crypt_block[i] = psort_info[i].crypt_block[id];
     b[i] = psort_info[i].merge_block[id];
     fd[i] = psort_info[i].merge_file[id]->fd;
     foffs[i] = 0;
@@ -1518,7 +1548,9 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
       written to. Otherwise, block memory holds
       all the sorted records */
       if (psort_info[i].merge_file[id]->offset > 0 &&
-          (!row_merge_read(fd[i], foffs[i], (row_merge_block_t *)block[i]))) {
+          (!row_merge_read(fd[i], foffs[i], (row_merge_block_t *)block[i],
+                           (row_merge_block_t *)crypt_block[i],
+                           table->space))) {
         error = DB_CORRUPTION;
         goto exit;
       }

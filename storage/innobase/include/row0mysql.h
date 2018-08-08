@@ -51,12 +51,46 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;
 
+extern uint srv_compressed_columns_zip_level;
+extern ulong srv_compressed_columns_threshold;
+
 struct row_prebuilt_t;
 
 /** Frees the blob heap in prebuilt when no longer needed. */
 void row_mysql_prebuilt_free_blob_heap(
     row_prebuilt_t *prebuilt); /*!< in: prebuilt struct of a
                                ha_innobase:: table handle */
+
+/** Frees the compress heap in prebuilt when no longer needed.
+@param[in]	prebuilt	prebuilt struct of a ha_innobase::table handle
+*/
+void row_mysql_prebuilt_free_compress_heap(row_prebuilt_t *prebuilt) noexcept;
+
+/** Uncompress blob/text/varchar column using zlib
+@param[in]	data	data in InnoDB (compressed) format
+@param[in,out]	len	in: data length, out: length of decomprssed data
+@param[in]	dict_data	optional dictionary data used for decompression
+@param[in]	dict_data_len	optional dictionary data length
+@param[in]	prebuilt	use prebuilt->compress_heap only here
+@return pointer to the uncompressed data */
+MY_NODISCARD
+const byte *row_decompress_column(const byte *data, ulint *len,
+                                  const byte *dict_data, ulint dict_data_len,
+                                  row_prebuilt_t *prebuilt);
+
+/** Compress blob/text/varchar column using zlib
+@param[in]	data	data in MySQL (uncompressed) format
+@param[in,out]	len	in: data length: out: length of compressed data
+@param[in]	lenlen	bytes used to store the length of data
+@param[in]	dict_data	optional dictionary data used for compression
+@param[in]	dict_data_len	optional dictionary data length
+@param[in]	prebuilt	use prebuilt->compress_heap only
+@return pointer to the compressed data */
+MY_NODISCARD
+byte *row_compress_column(const byte *data, ulint *len, ulint lenlen,
+                          const byte *dict_data, ulint dict_data_len,
+                          row_prebuilt_t *prebuilt);
+
 /** Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
  format.
  @return pointer to the data, we skip the 1 or 2 bytes at the start
@@ -83,18 +117,38 @@ void row_mysql_store_blob_ref(
                       to 4 bytes */
     const void *data, /*!< in: BLOB data; if the value to store
                       is SQL NULL this should be NULL pointer */
-    ulint len);       /*!< in: BLOB length; if the value to store
-                      is SQL NULL this should be 0; remember
-                      also to set the NULL bit in the MySQL record
-                      header! */
+    ulint len,        /*!< in: BLOB length; if the value to store
+            is SQL NULL this should be 0; remember
+            also to set the NULL bit in the MySQL record
+            header! */
+    bool need_decompression,
+    /*!< in: if the data need to be compressed*/
+    const byte *dict_data,
+    /*!< in: optional compression dictionary
+    data */
+    ulint dict_data_len,
+    /*!< in: optional compression dictionary data
+    length */
+    row_prebuilt_t *prebuilt);
+/*<! in: use prebuilt->compress_heap only
+here */
 /** Reads a reference to a BLOB in the MySQL format.
  @return pointer to BLOB data */
 const byte *row_mysql_read_blob_ref(
     ulint *len,      /*!< out: BLOB length */
     const byte *ref, /*!< in: BLOB reference in the
                      MySQL format */
-    ulint col_len);  /*!< in: BLOB reference length
+    ulint col_len,   /*!< in: BLOB reference length
                      (not BLOB length) */
+    bool need_compression,
+    /*!< in: if the data need to be
+    compressed*/
+    const byte *dict_data,     /*!< in: optional compression
+                               dictionary data */
+    ulint dict_data_len,       /*!< in: optional compression
+                               dictionary data length */
+    row_prebuilt_t *prebuilt); /*!< in: use prebuilt->compress_heap
+                               only here */
 /** Converts InnoDB geometry data format to MySQL data format. */
 void row_mysql_store_geometry(
     byte *dest,      /*!< in/out: where to store */
@@ -113,7 +167,6 @@ void row_mysql_pad_col(ulint mbminlen, /*!< in: minimum size of a character,
                                        in bytes */
                        byte *pad,      /*!< out: padded buffer */
                        ulint len);     /*!< in: number of bytes to pad */
-
 /** Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
  The counterpart of this function is row_sel_field_store_in_mysql_format() in
  row0sel.cc.
@@ -146,7 +199,16 @@ byte *row_mysql_store_col_in_innobase_format(
                             necessarily the length of the actual
                             payload data; if the column is a true
                             VARCHAR then this is irrelevant */
-    ulint comp);            /*!< in: nonzero=compact format */
+    ulint comp,             /*!< in: nonzero=compact format */
+    bool need_compression,
+    /*!< in: if the data need to be
+    compressed */
+    const byte *dict_data,     /*!< in: optional compression
+                               dictionary data */
+    ulint dict_data_len,       /*!< in: optional compression
+                               dictionary data length */
+    row_prebuilt_t *prebuilt); /*!< in: use prebuilt->compress_heap
+                               only here */
 /** Handles user errors and lock waits detected by the database engine.
  @return true if it was a lock wait and we should continue running the
  query thread */
@@ -456,6 +518,12 @@ struct mysql_row_templ_t {
                                 Innobase record in the current index;
                                 not defined if template_type is
                                 ROW_MYSQL_WHOLE_ROW */
+  bool rec_field_is_prefix;     /* is this field in a prefix index? */
+  ulint rec_prefix_field_no;    /* record field, even if just a
+                                prefix; same as rec_field_no when not a
+                                prefix, otherwise rec_field_no is
+                                ULINT_UNDEFINED but this is the true
+                                field number*/
   ulint clust_rec_field_no;     /*!< field number of the column in an
                                 Innobase record in the clustered index;
                                 not defined if template_type is
@@ -495,6 +563,8 @@ struct mysql_row_templ_t {
                                 type and this field is != 0, then
                                 it is an unsigned integer type */
   ulint is_virtual;             /*!< if a column is a virtual column */
+  bool compressed;              /*!< if column format is compressed */
+  LEX_CSTRING zip_dict_data;    /*!< associated compression dictionary */
 };
 
 #define MYSQL_FETCH_CACHE_SIZE 8
@@ -555,14 +625,16 @@ struct row_prebuilt_t {
                                columns through a secondary index
                                and at least one column is not in
                                the secondary index, then this is
-                               set to TRUE */
+                                        set to TRUE; note that sometimes this
+                                        is set but we later optimize out the
+                                        clustered index lookup */
   unsigned templ_contains_blob : 1;        /*!< TRUE if the template contains
-                                     a column with DATA_LARGE_MTYPE(
-                                     get_innobase_type_from_mysql_type())
-                                     is TRUE;
-                                     not to be confused with InnoDB
-                                     externally stored columns
-                                     (VARCHAR can be off-page too) */
+                                               a column with DATA_LARGE_MTYPE(
+                                               get_innobase_type_from_mysql_type())
+                                               is TRUE;
+                                               not to be confused with InnoDB
+                                               externally stored columns
+                                               (VARCHAR can be off-page too) */
   unsigned templ_contains_fixed_point : 1; /*!< TRUE if the
                               template contains a column with
                               DATA_POINT. Since InnoDB regards
@@ -691,6 +763,8 @@ struct row_prebuilt_t {
                                       in fetch_cache */
   mem_heap_t *blob_heap;              /*!< in SELECTS BLOB fields are copied
                                       to this heap */
+  mem_heap_t *compress_heap;          /*!< memory heap used to compress
+                                        /decompress blob column*/
   mem_heap_t *old_vers_heap;          /*!< memory heap where a previous
                                       version is built in consistent read */
   bool in_fts_query;                  /*!< Whether we are in a FTS query */
@@ -805,12 +879,13 @@ struct SysIndexCallback {
                                 or NULL.
 @param[in]	parent_update	update vector for the parent row
 @param[in]	foreign		foreign key information
+@param[in]	prebuilt	compress_heap must be taken from here
 @return the field filled with computed value */
 dfield_t *innobase_get_computed_value(
     const dtuple_t *row, const dict_v_col_t *col, const dict_index_t *index,
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
     THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
-    upd_t *parent_update, dict_foreign_t *foreign);
+    upd_t *parent_update, dict_foreign_t *foreign, row_prebuilt_t *prebuilt);
 
 /** Get the computed value by supplying the base column values.
 @param[in,out]	table	the table whose virtual column template to be built */

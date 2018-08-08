@@ -1,0 +1,18 @@
+#
+# Bug 86260: Assert on KILL'ing a stored routine invocation
+#
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO t1 VALUES (1);
+RETURN 1;
+END|
+SET DEBUG_SYNC= "sp_before_exec_core SIGNAL sp_ready WAIT_FOR sp_finish";
+SELECT f1();
+SET DEBUG_SYNC= "now WAIT_FOR sp_ready";
+KILL QUERY sp_con_id;
+SET DEBUG_SYNC= "now SIGNAL sp_finish";
+ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC= 'RESET';
+DROP FUNCTION f1;
+DROP TABLE t1;

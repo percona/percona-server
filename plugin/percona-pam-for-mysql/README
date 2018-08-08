@@ -1,0 +1,40 @@
+Percona PAM Authentication Plugin for MySQL
+-------------------------------------------
+
+(C) 2011 Percona Inc.
+
+This is a Authentication plugin written for the MySQL 5.5 Authentication plugin
+API enabling MySQL to perform authentication using PAM. Examples could include
+authenticating MySQL users using system accounts or two-factor authentication
+systems.
+
+Compiling
+---------
+
+You will need both the PAM and MySQL headers installed.
+
+The first command (bootstrap) is only needed if building from the source
+code as checked out from the source repository, source tarballs don't require
+this step.
+
+$ ./bootstrap
+$ ./configure
+$ make
+# make install
+
+Development
+-----------
+
+All development is hosted on Launchpad:
+http://launchpad.net/percona-pam-for-mysql
+
+Bugs
+----
+
+http://bugs.launchpad.net/percona-pam-for-mysql
+
+
+License
+-------
+GPLv2, see LICENSE for full text of GPLv2.
+

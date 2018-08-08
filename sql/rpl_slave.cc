@@ -858,14 +858,25 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
   Log_event *ev = NULL;
   bool done = false;
   enum_read_rotate_from_relay_log_status ret = NOT_FOUND_ROTATE;
+  Format_description_log_event *new_fdle;
   while (!done &&
          (ev = Log_event::read_log_event(
               &log, 0, fd_ev_p, opt_slave_sql_verify_checksum)) != NULL) {
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
+        new_fdle = static_cast<Format_description_log_event *>(ev);
+        new_fdle->copy_crypto_data(*fd_ev_p);
         if (fd_ev_p != &fd_ev) delete fd_ev_p;
-        fd_ev_p = (Format_description_log_event *)ev;
+        fd_ev_p = new_fdle;
+        break;
+      case binary_log::START_ENCRYPTION_EVENT:
+        if (fd_ev_p->start_decryption(
+                static_cast<Start_encryption_log_event *>(ev))) {
+          sql_print_error("Could not initialize decryption of binlog.");
+          done = true;
+          ret = ERROR;
+        }
         break;
       case binary_log::ROTATE_EVENT:
         /*
@@ -2361,7 +2372,9 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
   };);
 
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID", {
-    const char act[] = "now wait_for signal.get_master_uuid";
+    const char act[] =
+        "now signal in_get_master_version_and_clock "
+        "wait_for signal.get_master_uuid";
     DBUG_ASSERT(opt_debug_sync_timeout > 0);
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
@@ -2552,6 +2565,12 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   };);
 
   master_res = NULL;
+  DBUG_EXECUTE_IF("get_master_version.timestamp.ER_NET_READ_INTERRUPTED", {
+    DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+    DBUG_SET(
+        "-d,get_master_version.timestamp."
+        "ER_NET_READ_INTERRUPTED");
+  });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res = mysql_store_result(mysql)) &&
       (master_row = mysql_fetch_row(master_res))) {
@@ -2590,7 +2609,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   */
   DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID", {
     const char act[] =
-        "now "
+        "now signal in_get_master_version_and_clock "
         "wait_for signal.get_server_id";
     DBUG_ASSERT(opt_debug_sync_timeout > 0);
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
@@ -2660,6 +2679,13 @@ maybe it is a *VERY OLD MASTER*.");
     */
     llstr((ulonglong)(mi->heartbeat_period * 1000000000UL), llbuf);
     sprintf(query, query_format, llbuf);
+
+    DBUG_EXECUTE_IF("get_master_version.heartbeat.ER_NET_READ_INTERRUPTED", {
+      DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+      DBUG_SET(
+          "-d,get_master_version.heartbeat."
+          "ER_NET_READ_INTERRUPTED");
+    });
 
     if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))) {
       if (check_io_slave_killed(mi->info_thd, mi, NULL)) goto slave_killed_err;
@@ -2959,11 +2985,12 @@ static bool wait_for_relay_log_space(Relay_log_info *rli) {
 
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
+  @param force_mi_flush force mi flush independent of sync_master_info setting
 
   @return 0 if everything went fine, 1 otherwise.
 */
-static int write_rotate_to_master_pos_into_relay_log(THD *thd,
-                                                     Master_info *mi) {
+static int write_rotate_to_master_pos_into_relay_log(THD *thd, Master_info *mi,
+                                                     bool force_mi_flush) {
   Relay_log_info *rli = mi->rli;
   int error = 0;
   DBUG_ENTER("write_rotate_to_master_pos_into_relay_log");
@@ -2997,7 +3024,7 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
     mysql_mutex_lock(&mi->data_lock);
-    if (flush_master_info(mi, true, false, false)) {
+    if (flush_master_info(mi, force_mi_flush, false, false)) {
       error = 1;
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE);
     }
@@ -3022,7 +3049,8 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
 
   @return 0 if everything went fine, 1 otherwise.
 */
-static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi) {
+static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi,
+                                                  bool force_mi_flush) {
   Relay_log_info *rli = mi->rli;
   mysql_mutex_t *end_pos_lock = rli->relay_log.get_binlog_end_pos_lock();
   int error = 0;
@@ -3048,7 +3076,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi) {
     mysql_mutex_unlock(end_pos_lock);
 
     /* Generate the rotate based on mi position */
-    error = write_rotate_to_master_pos_into_relay_log(thd, mi);
+    error = write_rotate_to_master_pos_into_relay_log(thd, mi, force_mi_flush);
   } else
     mysql_mutex_unlock(end_pos_lock);
 
@@ -3287,13 +3315,22 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_user(), &my_charset_bin);
   protocol->store((uint32)mi->port);
   protocol->store((uint32)mi->connect_retry);
-  protocol->store(mi->get_master_log_name(), &my_charset_bin);
+  const char *const master_log_file = mi->get_master_log_name();
+  protocol->store(master_log_file, &my_charset_bin);
   protocol->store((ulonglong)mi->get_master_log_pos());
   protocol->store(mi->rli->get_group_relay_log_name() +
                       dirname_length(mi->rli->get_group_relay_log_name()),
                   &my_charset_bin);
   protocol->store((ulonglong)mi->rli->get_group_relay_log_pos());
-  protocol->store(mi->rli->get_group_master_log_name(), &my_charset_bin);
+  const char *const relay_master_log_file =
+      mi->rli->get_group_master_log_name();
+#ifndef DBUG_OFF
+  const size_t master_log_file_len = strlen(master_log_file);
+  const size_t relay_master_log_file_len = strlen(relay_master_log_file);
+#endif
+  DBUG_ASSERT((relay_master_log_file_len == master_log_file_len) ||
+              !relay_master_log_file_len || !master_log_file_len);
+  protocol->store(relay_master_log_file, &my_charset_bin);
   protocol->store(
       mi->slave_running == MYSQL_SLAVE_RUN_CONNECT
           ? "Yes"
@@ -4147,7 +4184,8 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
       */
       if (type != binary_log::ROTATE_EVENT &&
           type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
+          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
+          type != binary_log::START_ENCRYPTION_EVENT) {
         // Calculate when we should execute the event.
         sql_delay_end = ev->common_header->when.tv_sec +
                         rli->mi->clock_diff_with_master + sql_delay;
@@ -4501,7 +4539,8 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
     if (!error && rli->is_mts_recovery() &&
         ev->get_type_code() != binary_log::ROTATE_EVENT &&
         ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
+        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
+        ev->get_type_code() != binary_log::START_ENCRYPTION_EVENT) {
       if (ev->starts_group()) {
         rli->mts_recovery_group_seen_begin = true;
       } else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
@@ -5249,6 +5288,20 @@ requesting master dump") ||
       */
       THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
       event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
+
+      DBUG_EXECUTE_IF("relay_xid_trigger", if (event_len != packet_error) {
+        const uchar *event_buf =
+            static_cast<const uchar *>(mysql->net.read_pos + 1);
+        Log_event_type event_type =
+            static_cast<Log_event_type>(event_buf[EVENT_TYPE_OFFSET]);
+        if (event_type == binary_log::XID_EVENT) {
+          static constexpr char act[] =
+              "now signal relay_xid_reached wait_for resume";
+          DBUG_ASSERT(
+              !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        }
+      });
+
       if (check_io_slave_killed(thd, mi,
                                 "Slave I/O thread killed while \
 reading event"))
@@ -5438,8 +5491,8 @@ ignore_log_space_limit=%d",
               thd->killed = THD::KILLED_NO_VALUE;);
       DBUG_EXECUTE_IF(
           "stop_io_after_reading_unknown_event",
-          if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
-              thd->killed = THD::KILLED_NO_VALUE;);
+          if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >=
+              binary_log::MYSQL_END_EVENT) thd->killed = THD::KILLED_NO_VALUE;);
       DBUG_EXECUTE_IF("stop_io_after_queuing_event",
                       thd->killed = THD::KILLED_NO_VALUE;);
       /*
@@ -5487,7 +5540,7 @@ err:
     mysql_close(mysql);
     mi->mysql = 0;
   }
-  write_ignored_events_info_to_relay_log(thd, mi);
+  write_ignored_events_info_to_relay_log(thd, mi, true);
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
   /*
@@ -5947,18 +6000,26 @@ bool mts_recovery_groups(Relay_log_info *rli) {
         LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED, errmsg);
         goto err;
       }
+      p_fdle->reset_crypto();
       /*
         Looking for the actual relay checksum algorithm that is present in
-        a FD at head events of the relay log.
+        a FD at head events of the relay log. We also check if relay log is
+        encrypted by checking for the presence of START_ENCRYPTION_EVENT.
       */
       if (!checksum_detected) {
         int i = 0;
-        while (i < 4 && (ev = Log_event::read_log_event(
+        while (i < 5 && (ev = Log_event::read_log_event(
                              &log, (mysql_mutex_t *)0, p_fdle, 0))) {
           if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
             p_fdle->common_footer->checksum_alg =
                 ev->common_footer->checksum_alg;
             checksum_detected = true;
+          }
+          if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
+            if (p_fdle->start_decryption((Start_encryption_log_event *)ev)) {
+              delete ev;
+              goto err;
+            }
           }
           delete ev;
           i++;
@@ -5979,9 +6040,17 @@ bool mts_recovery_groups(Relay_log_info *rli) {
         if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
           p_fdle->common_footer->checksum_alg = ev->common_footer->checksum_alg;
 
+        if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
+          if (p_fdle->start_decryption((Start_encryption_log_event *)ev)) {
+            delete ev;
+            goto err;
+          }
+        }
+
         if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
             ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
+            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
+            ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
           delete ev;
           ev = NULL;
           continue;
@@ -6099,15 +6168,25 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period, bool force,
   };);
 #endif
 
+#ifndef DBUG_OFF
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group.
   */
-  DBUG_ASSERT(!rli->gaq->full() ||
-              ((rli->checkpoint_seqno == rli->checkpoint_group - 1 &&
-                (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP ||
-                 rli->mts_group_status == Relay_log_info::MTS_KILLED_GROUP)) ||
-               rli->checkpoint_seqno == rli->checkpoint_group));
+  const bool precondition =
+      !rli->gaq->full() ||
+      ((rli->checkpoint_seqno == rli->checkpoint_group - 1 &&
+        (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP ||
+         rli->mts_group_status == Relay_log_info::MTS_KILLED_GROUP)) ||
+       rli->checkpoint_seqno == rli->checkpoint_group);
+  if (!precondition) {
+    fprintf(stderr, "rli->gaq->full() = %d\n", rli->gaq->full());
+    fprintf(stderr, "rli->checkpoint_seqno = %u\n", rli->checkpoint_seqno);
+    fprintf(stderr, "rli->checkpoint_group = %u\n", rli->checkpoint_group);
+    fprintf(stderr, "rli->mts_group_status = %d\n", rli->mts_group_status);
+    DBUG_ASSERT(precondition);
+  }
+#endif
 
   /*
     Currently, the checkpoint routine is being called by the SQL Thread.
@@ -7104,7 +7183,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   Gtid gtid = {0, 0};
   ulonglong immediate_commit_timestamp = 0;
   ulonglong original_commit_timestamp = 0;
-  Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
+  Log_event_type event_type =
+      (Log_event_type) static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
               checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF ||
@@ -7142,7 +7222,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   // Emulate the network corruption
   DBUG_EXECUTE_IF(
       "corrupt_queue_event",
-      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT) {
+      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+          event_type != binary_log::START_ENCRYPTION_EVENT) {
         char *debug_event_buf_c = (char *)buf;
         int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
         debug_event_buf_c[debug_cor_pos] = ~debug_event_buf_c[debug_cor_pos];
@@ -7352,6 +7433,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         // This error will be reported later at handle_slave_io().
         goto err;
       }
+      new_fdle->copy_crypto_data(*(mi->get_mi_description_event()));
+
       if (new_fdle->common_footer->checksum_alg ==
           binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
         new_fdle->common_footer->checksum_alg =
@@ -7416,9 +7499,14 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         to the last skipped transaction. Note that,
         we update only the positions and not the file names, as a ROTATE
         EVENT from the master prior to this will update the file name.
+
+      When master's binlog is encrypted it will also sent heartbeat
+      event after reading Start_encryption_event from the binlog.
+      As Start_encryption_event is not sent to slave, the master
+      informs the slave to update it's master_log_pos by sending
+      heartbeat event.
       */
-      if (mi->is_auto_position() &&
-          mi->get_master_log_pos() < hb.common_header->log_pos &&
+      if (mi->get_master_log_pos() < hb.common_header->log_pos &&
           mi->get_master_log_name() != NULL) {
         DBUG_ASSERT(memcmp(const_cast<char *>(mi->get_master_log_name()),
                            hb.get_log_ident(), hb.get_ident_len()) == 0);
@@ -7430,7 +7518,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         */
         inc_pos = 0;
         mysql_mutex_unlock(&mi->data_lock);
-        if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
+        if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi, false))
           goto end;
         do_flush_mi = false; /* write_rotate_... above flushed master info */
       } else
@@ -7480,7 +7568,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
       mysql_mutex_unlock(&mi->data_lock);
 
-      if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi)) goto err;
+      if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi, true))
+        goto err;
 
       do_flush_mi = false; /* write_rotate_... above flushed master info */
       goto end;
@@ -7581,7 +7670,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       "simulate_unknown_ignorable_log_event",
       if (event_type == binary_log::WRITE_ROWS_EVENT ||
           event_type == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-        char *event_buf = const_cast<char *>(buf);
+        uchar *event_buf =
+            const_cast<uchar *>(reinterpret_cast<const uchar *>(buf));
         /* Overwrite the log event type with an unknown type. */
         event_buf[EVENT_TYPE_OFFSET] = binary_log::ENUM_END_EVENT + 1;
         /* Set LOG_EVENT_IGNORABLE_F for the log event. */
@@ -7662,7 +7752,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   } else {
     bool is_error = false;
     /* write the event to the relay log */
-    if (likely(rli->relay_log.write_buffer(buf, event_len, mi) == 0)) {
+    if (likely(rli->relay_log.write_buffer(
+                   reinterpret_cast<uchar *>(const_cast<char *>(buf)),
+                   event_len, mi) == 0)) {
       DBUG_SIGNAL_WAIT_FOR(current_thd,
                            "pause_on_queue_event_after_write_buffer",
                            "receiver_reached_pause_on_queue_event",
@@ -8355,6 +8447,7 @@ static Log_event *next_event(Relay_log_info *rli) {
       DBUG_ASSERT(rli->cur_log_fd >= 0);
       mysql_file_close(rli->cur_log_fd, MYF(MY_WME));
       rli->cur_log_fd = -1;
+      rli->get_rli_description_event()->reset_crypto();
 
       Is_instance_backup_locked_result is_instance_locked;
       is_instance_locked = is_instance_backup_locked(thd);

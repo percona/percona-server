@@ -44,6 +44,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
+#include "sql/debug_sync.h"
 #include "sql/enum_query_type.h"
 #include "sql/error_handler.h"  // Strict_error_handler
 #include "sql/field.h"
@@ -60,7 +61,8 @@
 #include "sql/sp_head.h"      // sp_head
 #include "sql/sp_pcontext.h"  // sp_pcontext
 #include "sql/sp_rcontext.h"  // sp_rcontext
-#include "sql/sql_base.h"     // open_temporary_tables
+#include "sql/sql_audit.h"
+#include "sql/sql_base.h"  // open_temporary_tables
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_parse.h"    // parse_sql
@@ -806,6 +808,7 @@ PSI_statement_info sp_instr_stmt::psi_info = {0, "stmt", 0, PSI_DOCUMENT_ME};
 bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
   bool need_subst = false;
   bool rc = false;
+  QUERY_START_TIME_INFO time_info;
 
   DBUG_PRINT("info", ("query: '%.*s'", (int)m_query.length, m_query.str));
 
@@ -817,6 +820,17 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
   /* This SP-instr is profilable and will be captured. */
   thd->profiling->set_query_source(m_query.str, m_query.length);
 #endif
+
+  memset(&time_info, 0, sizeof(time_info));
+
+  if (thd->enable_slow_log) {
+    /*
+      Save start time info for the CALL statement and overwrite it with the
+      current time for log_slow_statement() to log the individual query timing.
+    */
+    thd->get_time(&time_info);
+    thd->set_time();
+  }
 
   /*
     If we can't set thd->query_string at all, we give up on this statement.
@@ -868,12 +882,28 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   rc = validate_lex_and_execute_core(thd, nextp, false);
 
+  /*
+    thd->utime_after_query can be used for counting
+    statement execution time. thd->update_slow_query_status()
+    updates this value but only if function/procedure
+    budy has been already executed, if we want to measure
+    statement execution time inside function/procedure
+    we have to update this value here independent of
+    value returned by thd->get_stmt_da()->is_eof().
+  */
+  thd->update_slow_query_status();
+
   if (thd->get_stmt_da()->is_eof()) {
     /* Finalize server status flags after executing a statement. */
     thd->update_slow_query_status();
 
     thd->send_statement_status();
   }
+
+  mysql_audit_notify(
+      thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+      thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
+      command_name[COM_QUERY].str, command_name[COM_QUERY].length);
 
   if (!rc && unlikely(log_slow_applicable(thd))) {
     /*
@@ -898,6 +928,9 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
 
   thd->set_query(query_backup);
   thd->query_name_consts = 0;
+
+  /* Restore the original query start time */
+  if (thd->enable_slow_log) thd->set_time(time_info);
 
   return rc || thd->is_error();
 }

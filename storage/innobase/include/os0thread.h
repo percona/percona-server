@@ -36,8 +36,22 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <thread>
 
+#ifdef UNIV_LINUX
+#include <sys/types.h>
+#endif
+
+#include "my_compiler.h"
+
 /** Operating system thread native handle */
 using os_thread_id_t = std::thread::native_handle_type;
+
+#ifdef UNIV_LINUX
+/** An alias for pid_t on Linux, where setpriority() accepts thread id
+of this type and not pthread_t */
+using os_tid_t = pid_t;
+#else
+using os_tid_t = os_thread_id_t;
+#endif
 
 /** Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself.
@@ -71,5 +85,20 @@ return true if equal */
   do {                                                             \
     std::this_thread::sleep_for(std::chrono::microseconds(usecs)); \
   } while (false)
+
+/** Returns the system-specific thread identifier of current
+thread. On Linux, returns tid. On other systems currently returns
+os_thread_get_curr_id().
+@return current thread identifier */
+MY_NODISCARD os_tid_t os_thread_get_tid() noexcept;
+
+/** Set relative scheduling priority for a given thread on
+Linux. Currently a no-op on other systems.
+@param[in]	thread_id	thread id
+@param[in]	relative_priority	system-specific priority value
+@return An actual thread priority after the update  */
+MY_NODISCARD
+unsigned long int os_thread_set_priority(
+    os_tid_t thread_id, unsigned long int relative_priority) noexcept;
 
 #endif /* !os0thread_h */

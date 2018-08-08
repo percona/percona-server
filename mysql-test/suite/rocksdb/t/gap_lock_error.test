@@ -1,0 +1,5 @@
+--source include/have_rocksdb.inc
+
+let $engine=rocksdb;
+let $expect_gap_lock_errors=1;
+--source include/gap_lock_error_all.inc

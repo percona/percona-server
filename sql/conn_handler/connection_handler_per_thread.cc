@@ -51,9 +51,10 @@
 #include "sql/conn_handler/channel_info.h"  // Channel_info
 #include "sql/conn_handler/connection_handler_impl.h"
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
-#include "sql/log.h"                                      // Error_log_throttle
-#include "sql/mysqld.h"                                   // max_connections
-#include "sql/mysqld_thd_manager.h"                       // Global_THD_manager
+#include "sql/debug_sync.h"
+#include "sql/log.h"                 // Error_log_throttle
+#include "sql/mysqld.h"              // max_connections
+#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_connect.h"  // close_connection
@@ -259,20 +260,28 @@ static void *handle_connection(void *arg) {
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
     handler_manager->inc_aborted_connects();
-    Connection_handler_manager::dec_connection_count();
+    Connection_handler_manager ::dec_connection_count(
+        channel_info->is_on_extra_port());
     delete channel_info;
     my_thread_exit(0);
     return NULL;
   }
 
   for (;;) {
+    // Save this here as init_new_thd destroys channel_info
+    const bool extra_port_connection = channel_info->is_on_extra_port();
     THD *thd = init_new_thd(channel_info);
     if (thd == NULL) {
       connection_errors_internal++;
       handler_manager->inc_aborted_connects();
-      Connection_handler_manager::dec_connection_count();
+      Connection_handler_manager::dec_connection_count(extra_port_connection);
       break;  // We are out of resources, no sense in continuing.
     }
+
+    DBUG_EXECUTE_IF("after_thread_setup", {
+      const char act[] = "now signal thread_setup";
+      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    };);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (pthread_reused) {
@@ -301,7 +310,7 @@ static void *handle_connection(void *arg) {
 
     thd_manager->add_thd(thd);
 
-    if (thd_prepare_connection(thd))
+    if (thd_prepare_connection(thd, extra_port_connection))
       handler_manager->inc_aborted_connects();
     else {
       while (thd_connection_alive(thd)) {
@@ -321,7 +330,7 @@ static void *handle_connection(void *arg) {
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
     thd_manager->remove_thd(thd);
-    Connection_handler_manager::dec_connection_count();
+    Connection_handler_manager::dec_connection_count(extra_port_connection);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
@@ -414,7 +423,8 @@ handle_error:
       LogErr(ERROR_LEVEL, ER_CONN_PER_THREAD_NO_THREAD, error);
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD, error,
                                                true);
-    Connection_handler_manager::dec_connection_count();
+    Connection_handler_manager::dec_connection_count(
+        channel_info->is_on_extra_port());
     DBUG_RETURN(true);
   }
 

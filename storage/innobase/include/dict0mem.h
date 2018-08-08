@@ -1106,10 +1106,11 @@ struct dict_index_t {
   @param[in]	n		column number
   @param[in]	inc_prefix	true=consider column prefixes too
   @param[in]	is_virtual	true==virtual column
+  @param[out]	prefix_col_pos	column number if prefix
   @return position in internal representation of the index;
   ULINT_UNDEFINED if not contained */
-  ulint get_col_pos(ulint n, bool inc_prefix = false,
-                    bool is_virtual = false) const;
+  ulint get_col_pos(ulint n, bool inc_prefix = false, bool is_virtual = false,
+                    ulint *prefix_col_pos = nullptr) const;
 
   /** Sets srid and srid_is_valid values
   @param[in]	srid_value		value of SRID, may be garbage
@@ -1857,6 +1858,8 @@ detect this and will eventually quit sooner. */
   but just need a increased counter to track consistent view while
   proceeding SELECT as part of UPDATE. */
   ib_uint64_t sess_trx_id;
+
+  bool is_corrupt;
 
 #ifdef UNIV_DEBUG
 /** Value of 'magic_n'. */

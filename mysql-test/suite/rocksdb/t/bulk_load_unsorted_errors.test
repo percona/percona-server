@@ -1,0 +1,21 @@
+--source include/have_rocksdb.inc
+
+--let LOG=$MYSQLTEST_VARDIR/tmp/rocksdb.bulk_load_unsorted_errors.err
+--let $restart_parameters=restart:--log-error=$LOG
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+# Cannot change unsorted input preference during bulk load
+SET rocksdb_bulk_load=1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET rocksdb_bulk_load_allow_unsorted=1;
+SET rocksdb_bulk_load=0;
+
+--let SEARCH_FILE=$LOG
+--let SEARCH_PATTERN=RocksDB: Cannot change this setting while bulk load is enabled
+--source include/search_pattern_in_file.inc
+
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
+--remove_file $LOG

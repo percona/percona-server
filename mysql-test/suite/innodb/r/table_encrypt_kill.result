@@ -1,5 +1,4 @@
 # Starting server with keyring plugin
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 DROP DATABASE IF EXISTS tde_db;
 DROP TABLE IF EXISTS tde_db. t_encrypt;
 CREATE DATABASE tde_db;

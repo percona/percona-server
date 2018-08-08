@@ -475,6 +475,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
   DBUG_ENTER("Slave_worker::read_info");
 
   ulong temp_group_relay_log_pos = 0;
+  char temp_group_master_log_name[FN_REFLEN];
   ulong temp_group_master_log_pos = 0;
   ulong temp_checkpoint_relay_log_pos = 0;
   ulong temp_checkpoint_master_log_pos = 0;
@@ -489,8 +490,8 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
       from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
                      (char *)"") ||
       from->get_info(&temp_group_relay_log_pos, 0UL) ||
-      from->get_info(group_master_log_name, sizeof(group_master_log_name),
-                     (char *)"") ||
+      from->get_info(temp_group_master_log_name,
+                     sizeof(temp_group_master_log_name), (char *)"") ||
       from->get_info(&temp_group_master_log_pos, 0UL) ||
       from->get_info(checkpoint_relay_log_name,
                      sizeof(checkpoint_relay_log_name), (char *)"") ||
@@ -509,7 +510,8 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
 
   internal_id = (uint)temp_internal_id;
   group_relay_log_pos = temp_group_relay_log_pos;
-  group_master_log_pos = temp_group_master_log_pos;
+  set_group_master_log_name(temp_group_master_log_name);
+  set_group_master_log_pos(temp_group_master_log_pos);
   checkpoint_relay_log_pos = temp_checkpoint_relay_log_pos;
   checkpoint_master_log_pos = temp_checkpoint_master_log_pos;
   checkpoint_seqno = temp_checkpoint_seqno;
@@ -555,8 +557,8 @@ bool Slave_worker::write_info(Rpl_info_handler *to) {
   if (to->prepare_info_for_write() || to->set_info((int)internal_id) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong)group_relay_log_pos) ||
-      to->set_info(group_master_log_name) ||
-      to->set_info((ulong)group_master_log_pos) ||
+      to->set_info(get_group_master_log_name()) ||
+      to->set_info((ulong)get_group_master_log_pos()) ||
       to->set_info(checkpoint_relay_log_name) ||
       to->set_info((ulong)checkpoint_relay_log_pos) ||
       to->set_info(checkpoint_master_log_name) ||
@@ -609,11 +611,10 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
     after a rotation.
   */
   if (ptr_g->group_master_log_name != NULL) {
-    strmake(group_master_log_name, ptr_g->group_master_log_name,
-            sizeof(group_master_log_name) - 1);
+    set_group_master_log_name(ptr_g->group_master_log_name);
     my_free(ptr_g->group_master_log_name);
     ptr_g->group_master_log_name = NULL;
-    strmake(checkpoint_master_log_name, group_master_log_name,
+    strmake(checkpoint_master_log_name, get_group_master_log_name(),
             sizeof(checkpoint_master_log_name) - 1);
   }
   if (ptr_g->checkpoint_log_name != NULL) {
@@ -651,20 +652,19 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
   bitmap_set_bit(&group_executed, ptr_g->checkpoint_seqno);
   checkpoint_seqno = ptr_g->checkpoint_seqno;
   group_relay_log_pos = ev->future_event_relay_log_pos;
-  group_master_log_pos = ev->common_header->log_pos;
+  set_group_master_log_pos(ev->common_header->log_pos);
 
   /*
     Directly accessing c_rli->get_group_master_log_name() does not
     represent a concurrency issue because the current code places
     a synchronization point when master rotates.
   */
-  strmake(group_master_log_name, c_rli->get_group_master_log_name(),
-          sizeof(group_master_log_name) - 1);
+  set_group_master_log_name(c_rli->get_group_master_log_name());
 
   DBUG_PRINT("mts", ("Committing worker-id %lu group master log pos %llu "
                      "group master log name %s checkpoint sequence number %lu.",
-                     id, group_master_log_pos, group_master_log_name,
-                     checkpoint_seqno));
+                     id, get_group_master_log_pos(),
+                     get_group_master_log_name(), checkpoint_seqno));
 
   DBUG_EXECUTE_IF("mts_debug_concurrent_access",
                   { mts_debug_concurrent_access++; };);
@@ -1117,7 +1117,7 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
           flush_info(true); DBUG_SUICIDE(););
     }
 
-    ptr_g->group_master_log_pos = group_master_log_pos;
+    ptr_g->group_master_log_pos = get_group_master_log_pos();
     ptr_g->group_relay_log_pos = group_relay_log_pos;
     ptr_g->done.store(1);
     last_group_done_index = gaq_index;
@@ -1555,6 +1555,16 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
+void *Slave_worker::operator new(size_t request MY_ATTRIBUTE((unused))) {
+  void *ptr;
+  if (posix_memalign(&ptr, __alignof__(Slave_worker), sizeof(Slave_worker))) {
+    throw std::bad_alloc();
+  }
+  return ptr;
+}
+
+void Slave_worker::operator delete(void *ptr) { free(ptr); }
+
 #ifndef DBUG_OFF
 static bool may_have_timestamp(Log_event *ev) {
   bool res = false;
@@ -1830,6 +1840,25 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
       if (open_binlog_file(&relay_io, file_name, &errmsg) == -1) {
         LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_OPEN_RELAY_LOG, file_name, errmsg);
         goto end;
+      }
+      // Search for Start_encryption_event. When relay log is encrypted the
+      // second event (after Format_description_event) will be
+      // Start_encryption_event.
+      for (uint i = 0; i < 2; i++) {
+        ev = Log_event::read_log_event(&relay_io, nullptr,
+                                       rli->get_rli_description_event(),
+                                       opt_slave_sql_verify_checksum);
+
+        if (ev != nullptr) {
+          if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT &&
+              !rli->get_rli_description_event()->start_decryption(
+                  static_cast<Start_encryption_log_event *>(ev))) {
+            delete ev;
+            goto end;
+            error = true;
+          }
+          delete ev;
+        }
       }
       my_b_seek(&relay_io, start_relay_pos);
     }

@@ -58,7 +58,7 @@ CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGIN
 # 'DROP DATABASE' will fail but will delete table t1.
 #
 DROP DATABASE testing_1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
 DROP TABLE test.t1;
 # Now we can drop the database.
 DROP DATABASE testing_1;
@@ -76,7 +76,7 @@ CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
 engine=innodb;
 RESET MASTER;
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
 SHOW TABLES FROM db1;
 Tables_in_db1
 t1
@@ -144,7 +144,7 @@ CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGIN
 # 'DROP DATABASE' will fail but will delete table t1.
 #
 DROP DATABASE testing_1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
 DROP TABLE test.t1;
 # Now we can drop the database.
 DROP DATABASE testing_1;
@@ -162,7 +162,7 @@ CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
 engine=innodb;
 RESET MASTER;
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
 SHOW TABLES FROM db1;
 Tables_in_db1
 t1
@@ -232,7 +232,7 @@ CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGIN
 # 'DROP DATABASE' will fail but will delete table t1.
 #
 DROP DATABASE testing_1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
 DROP TABLE test.t1;
 # Now we can drop the database.
 DROP DATABASE testing_1;
@@ -250,7 +250,7 @@ CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
 engine=innodb;
 RESET MASTER;
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (test)
 SHOW TABLES FROM db1;
 Tables_in_db1
 t1

@@ -20,6 +20,8 @@ TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
 34	mysql/engine_cost	33	9	20	Barracuda	Dynamic	0	Single
 41	mysql/engine_cost	33	9	27	Dynamic	0	Single
 42	mysql/proxies_priv	33	10	28	Dynamic	0	Single
+16	SYS_ZIP_DICT	0	6	0	Antelope	Redundant	0	System
+17	SYS_ZIP_DICT_COLS	0	6	0	Antelope	Redundant	0	System
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME
@@ -37,38 +39,39 @@ table_id	pos	mtype	prtype	len	name
 15	0	6	0	8	TABLE_ID
 15	1	6	0	4	POS
 15	2	6	0	4	BASE_POS
-16	0	12	2162959	192	name
-16	1	12	2167055	384	dl
-17	0	13	2163198	192	Server_name
-17	1	13	2163198	192	Host
-17	2	13	2163198	192	Db
-17	3	13	2163198	192	Username
-17	4	13	2163198	192	Password
-17	5	6	1283	4	Port
-17	6	13	2163198	192	Socket
-17	7	13	2163198	192	Wrapper
-17	8	13	2163198	192	Owner
-18	0	6	1795	4	help_topic_id
-18	1	13	2163198	192	name
-18	2	6	1794	2	help_category_id
-18	3	5	2163196	10	description
-18	4	5	2163196	10	example
-18	5	5	2163196	10	url
-19	0	6	1794	2	help_category_id
-19	1	13	2163198	192	name
-19	2	6	1538	2	parent_category_id
-19	3	5	2163196	10	url
+16	0	6	768	4	ID
+16	1	1	524548	64	NAME
+16	2	5	4130048	0	DATA
+17	0	6	768	4	TABLE_ID
+17	1	6	768	4	COLUMN_POS
+17	2	6	768	4	DICT_ID
+18	0	12	2162959	192	name
+18	1	12	2167055	384	dl
+19	0	13	2163198	192	Server_name
+19	1	13	2163198	192	Host
+19	2	13	2163198	192	Db
+19	3	13	2163198	192	Username
+19	4	13	2163198	192	Password
+19	5	6	1283	4	Port
+19	6	13	2163198	192	Socket
+19	7	13	2163198	192	Wrapper
+19	8	13	2163198	192	Owner
 20	0	6	1795	4	help_topic_id
-20	1	6	1795	4	help_keyword_id
-21	0	6	1795	4	help_keyword_id
+20	1	13	2163198	192	name
+20	2	6	1794	2	help_category_id
+20	3	5	2163196	10	description
+20	4	5	2163196	10	example
+20	5	5	2163196	10	url
+21	0	6	1794	2	help_category_id
 21	1	13	2163198	192	name
-22	0	13	2163198	192	Name
-22	1	6	1795	4	Time_zone_id
-23	0	6	1795	4	Time_zone_id
-23	1	6	1022	1	Use_leap_seconds
-24	0	6	1795	4	Time_zone_id
-24	1	6	1288	8	Transition_time
-24	2	6	1795	4	Transition_type_id
+21	2	6	1538	2	parent_category_id
+21	3	5	2163196	10	url
+22	0	6	1795	4	help_topic_id
+22	1	6	1795	4	help_keyword_id
+23	0	6	1795	4	help_keyword_id
+23	1	13	2163198	192	name
+24	0	13	2163198	192	Name
+24	1	6	1795	4	Time_zone_id
 25	0	6	1795	4	Time_zone_id
 25	1	6	1795	4	Transition_type_id
 25	2	6	1283	4	Offset
@@ -126,6 +129,9 @@ index_id	table_id	type	n_fields	space	name
 39	34	3	3	20	PRIMARY
 50	42	3	4	28	PRIMARY
 51	42	0	1	28	Grantor
+18	16	3	1	0	SYS_ZIP_DICT_ID
+19	16	2	1	0	SYS_ZIP_DICT_NAME
+20	17	3	2	0	SYS_ZIP_DICT_COLS_COMPOSITE
 SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
 WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'id', 'host', 'port', 'variable')
 ORDER BY index_id, pos;
@@ -167,6 +173,9 @@ index_id	pos	name
 41	0	Grantor
 50	3	Proxied_user
 51	0	Grantor
+19	0	NAME
+20	0	TABLE_ID
+20	1	COLUMN_POS
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
@@ -198,7 +207,7 @@ DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name NOT LIKE 'sys/%';
 count(*)
-24
+26
 CREATE TABLE parent (id INT NOT NULL,
 PRIMARY KEY (id)) ENGINE=INNODB;
 CREATE TABLE child (id INT, parent_id INT,
@@ -227,6 +236,8 @@ SYS_FOREIGN_COLS	0	7
 SYS_TABLESPACES	0	6
 SYS_VIRTUAL	0	6
 mysql/default_roles	33	7
+SYS_ZIP_DICT	0	6
+SYS_ZIP_DICT_COLS	0	6
 mysql/engine_cost	33	9
 mysql/gtid_executed	33	6
 mysql/help_category	33	7

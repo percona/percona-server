@@ -46,6 +46,8 @@ typedef Vio Vio;
 class Channel_info {
   ulonglong prior_thr_create_utime;
 
+  bool m_on_extra_port;
+
  protected:
   /**
     Create and initialize a Vio object.
@@ -54,7 +56,8 @@ class Channel_info {
   */
   virtual Vio *create_and_init_vio() const = 0;
 
-  Channel_info() : prior_thr_create_utime(0) {}
+  Channel_info(bool on_extra_port = false)
+      : prior_thr_create_utime(0), m_on_extra_port(on_extra_port) {}
 
  public:
   virtual ~Channel_info() {}
@@ -88,6 +91,8 @@ class Channel_info {
   void set_prior_thr_create_utime() {
     prior_thr_create_utime = my_micro_time();
   }
+
+  bool is_on_extra_port() const { return m_on_extra_port; }
 };
 
 #endif  // SQL_CHANNEL_INFO_INCLUDED.

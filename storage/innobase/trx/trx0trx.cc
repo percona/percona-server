@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_thd_internal_api.h>
 
 #include "btr0sea.h"
+#include "btr0types.h"
 #include "dict0dd.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
@@ -117,7 +118,11 @@ static void trx_init(trx_t *trx) {
   trx_t::state here to NOT_STARTED. The FORCED_ROLLBACK
   status is required for asynchronous handling. */
 
+  trx->id_saved = trx->id;
+
   trx->id = 0;
+
+  trx->preallocated_id = 0;
 
   trx->no = TRX_ID_MAX;
 
@@ -138,6 +143,9 @@ static void trx_init(trx_t *trx) {
   trx->dict_operation = TRX_DICT_OP_NONE;
 
   trx->ddl_operation = false;
+
+  trx->idle_start = 0;
+  trx->last_stmt_start = 0;
 
   trx->error_state = DB_SUCCESS;
 
@@ -179,6 +187,15 @@ static void trx_init(trx_t *trx) {
   trx->lock.rec_cached = 0;
 
   trx->lock.table_cached = 0;
+
+  trx->io_reads = 0;
+  trx->io_read = 0;
+  trx->io_reads_wait_timer = 0;
+  trx->lock_que_wait_timer = 0;
+  trx->innodb_que_wait_timer = 0;
+  trx->distinct_page_access = 0;
+  trx->distinct_page_access_hash = NULL;
+  trx->take_stats = false;
 
   /* During asynchronous rollback, we should reset forced rollback flag
   only after rollback is complete to avoid race with the thread owning
@@ -300,6 +317,8 @@ struct TrxFactory {
     trx->lock.table_pool.~lock_pool_t();
 
     trx->lock.table_locks.~lock_pool_t();
+
+    ut_ad(!trx->distinct_page_access_hash);
 
     trx->hit_list.~hit_list_t();
   }
@@ -507,6 +526,11 @@ trx_t *trx_allocate_for_mysql(void) {
 
   trx_sys_mutex_exit();
 
+  if (UNIV_UNLIKELY(trx->take_stats)) {
+    trx->distinct_page_access_hash = static_cast<byte *>(
+        ut_zalloc(DPAH_SIZE, mem_key_trx_distinct_page_access_hash));
+  }
+
   return (trx);
 }
 
@@ -556,6 +580,11 @@ void trx_free_resurrected(trx_t *trx) {
 /** Free a transaction that was allocated by background or user threads.
 @param[in,out]	trx	transaction object to free */
 void trx_free_for_background(trx_t *trx) {
+  if (trx->distinct_page_access_hash) {
+    ut_free(trx->distinct_page_access_hash);
+    trx->distinct_page_access_hash = nullptr;
+  }
+
   trx_validate_state_before_free(trx);
 
   trx_free(trx);
@@ -598,6 +627,11 @@ finally freed.
 @param[in]	prepared	boolean value to specify whether trx is
                                 for recovery or not. */
 inline void trx_disconnect_from_mysql(trx_t *trx, bool prepared) {
+  if (trx->distinct_page_access_hash) {
+    ut_free(trx->distinct_page_access_hash);
+    trx->distinct_page_access_hash = nullptr;
+  }
+
   trx_sys_mutex_enter();
 
   ut_ad(trx->in_mysql_trx_list);
@@ -1143,6 +1177,26 @@ void trx_assign_rseg_durable(trx_t *trx) {
   trx->rsegs.m_redo.rseg = srv_read_only_mode ? nullptr : get_next_redo_rseg();
 }
 
+/** Assign an id for this RW transaction and insert it into trx_sys->rw_trx_ids
+@param trx	transaction to assign an id for */
+static void trx_assign_id_for_rw(trx_t *trx) {
+  ut_ad(mutex_own(&trx_sys->mutex));
+
+  trx->id =
+      trx->preallocated_id ? trx->preallocated_id : trx_sys_get_new_trx_id();
+
+  if (trx->preallocated_id) {
+    // Maintain ordering in rw_trx_ids
+    trx_sys->rw_trx_ids.insert(
+        std::upper_bound(trx_sys->rw_trx_ids.begin(), trx_sys->rw_trx_ids.end(),
+                         trx->id),
+        trx->id);
+  } else {
+    // The id is known to be greatest
+    trx_sys->rw_trx_ids.push_back(trx->id);
+  }
+}
+
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
 @param[in,out]	trx	transaction that involves write to temp-table. */
 void trx_assign_rseg_temp(trx_t *trx) {
@@ -1155,9 +1209,7 @@ void trx_assign_rseg_temp(trx_t *trx) {
   if (trx->id == 0) {
     mutex_enter(&trx_sys->mutex);
 
-    trx->id = trx_sys_get_new_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
+    trx_assign_id_for_rw(trx);
 
     trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
 
@@ -1251,9 +1303,7 @@ static void trx_start_low(
 
     trx_sys_mutex_enter();
 
-    trx->id = trx_sys_get_new_trx_id();
-
-    trx_sys->rw_trx_ids.push_back(trx->id);
+    trx_assign_id_for_rw(trx);
 
     trx_sys_rw_trx_add(trx);
 
@@ -1288,9 +1338,7 @@ static void trx_start_low(
 
         ut_ad(!srv_read_only_mode);
 
-        trx->id = trx_sys_get_new_trx_id();
-
-        trx_sys->rw_trx_ids.push_back(trx->id);
+        trx_assign_id_for_rw(trx);
 
         trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
 
@@ -1877,6 +1925,11 @@ written */
     trx->state = TRX_STATE_NOT_STARTED;
   }
 
+  if (UNIV_LIKELY_NULL(trx->distinct_page_access_hash)) {
+    ut_free(trx->distinct_page_access_hash);
+    trx->distinct_page_access_hash = nullptr;
+  }
+
   /* trx->in_mysql_trx_list would hold between
   trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
   hold for recovered transactions or system transactions. */
@@ -2056,6 +2109,42 @@ ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
   return (trx->read_view);
 }
 
+/** Clones the read view from another transaction. All consistent reads within
+the receiver transaction will get the same read view as the donor transaction
+@param[in]	trx		receiver transaction
+@param[in]	from_trx	donor transaction
+@return read view clone */
+ReadView *trx_clone_read_view(trx_t *trx, trx_t *from_trx) {
+  ut_ad(lock_mutex_own());
+  ut_ad(trx_sys_mutex_own());
+  ut_ad(trx_mutex_own(from_trx));
+
+  if (UNIV_UNLIKELY(srv_read_only_mode)) {
+    ut_ad(trx->read_view == nullptr);
+    trx_sys_mutex_exit();
+    trx_mutex_exit(from_trx);
+    return (nullptr);
+  }
+
+  if (from_trx->state != TRX_STATE_ACTIVE || from_trx->read_view == nullptr) {
+    trx_sys_mutex_exit();
+    trx_mutex_exit(from_trx);
+    return (nullptr);
+  }
+
+  const bool needs_adding = (trx->read_view == nullptr);
+
+  from_trx->read_view->clone(trx->read_view, from_trx);
+
+  trx_mutex_exit(from_trx);
+
+  if (needs_adding) trx_sys->mvcc->view_add(trx->read_view);
+
+  trx_sys_mutex_exit();
+
+  return (trx->read_view);
+}
+
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx) /*!< in/out: transaction */
 {
@@ -2078,9 +2167,20 @@ void trx_commit_or_rollback_prepare(trx_t *trx) /*!< in/out: transaction */
       query thread to the suspended state */
 
       if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+        ulint sec;
+        ulint ms;
+        ib_uint64_t now;
+
         ut_a(trx->lock.wait_thr != NULL);
         trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
         trx->lock.wait_thr = NULL;
+
+        if (UNIV_UNLIKELY(trx->take_stats)) {
+          ut_usectime(&sec, &ms);
+          now = (ib_uint64_t)sec * 1000000 + ms;
+          trx->lock_que_wait_timer +=
+              (ulint)(now - trx->lock_que_wait_ustarted);
+        }
 
         trx->lock.que_state = TRX_QUE_RUNNING;
       }
@@ -2861,15 +2961,12 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
 
   mutex_enter(&trx_sys->mutex);
 
-  ut_ad(trx->id == 0);
-  trx->id = trx_sys_get_new_trx_id();
-
-  trx_sys->rw_trx_ids.push_back(trx->id);
+  trx_assign_id_for_rw(trx);
 
   trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
 
-  /* So that we can see our own changes. */
-  if (MVCC::is_view_active(trx->read_view)) {
+  /* So that we can see our own changes unless our view is a clone */
+  if (MVCC::is_view_active(trx->read_view) && !trx->read_view->is_cloned()) {
     MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
   }
 

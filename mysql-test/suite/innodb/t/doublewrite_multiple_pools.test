@@ -1,0 +1,6 @@
+--source include/have_debug.inc
+# Marked as a big test because of a 1.2GB buffer pool
+--source include/big_test.inc
+--source include/have_multiple_buffer_pools.inc
+
+--source ../include/doublewrite.inc

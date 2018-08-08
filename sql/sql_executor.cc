@@ -2414,6 +2414,9 @@ static int join_read_always_key(QEP_TAB *tab) {
   if (cp_buffer_from_ref(tab->join()->thd, table, ref)) {
     table->set_no_row();
     return -1;
+    if ((error = table->file->prepare_index_key_scan_map(
+             tab->ref().key_buff, make_prev_keypart_map(tab->ref().key_parts))))
+      return report_handler_error(table, error);
   }
   if ((error = table->file->ha_index_read_map(
            table->record[0], tab->ref().key_buff,
@@ -2775,6 +2778,12 @@ int join_read_first(QEP_TAB *tab) {
   if (init_index_and_record_buffer(tab, table->file, tab->index(),
                                    tab->use_order()))
     return 1;
+
+  if ((error = table->file->prepare_index_scan())) {
+    report_handler_error(table, error);
+    return 1;
+  }
+
   if ((error = table->file->ha_index_first(tab->table()->record[0])))
     return report_handler_error(table, error);
 
@@ -2799,6 +2808,8 @@ int join_read_last(QEP_TAB *tab) {
   if (init_index_and_record_buffer(tab, table->file, tab->index(),
                                    tab->use_order()))
     return 1; /* purecov: inspected */
+  if ((error = table->file->prepare_index_scan()))
+    return report_handler_error(table, error);
   if ((error = table->file->ha_index_last(table->record[0])))
     return report_handler_error(table, error);
   return 0;

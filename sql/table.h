@@ -907,6 +907,13 @@ struct TABLE_SHARE {
   */
   dd::Table *tmp_table_def{nullptr};
 
+  /**
+    True in the case if tokudb read-free-replication is used for the table
+    without explicit pk and corresponding warning was issued to disable
+    repeated warning.
+  */
+  bool rfr_lookup_warning;
+
   /// For materialized derived tables; @see add_derived_key().
   SELECT_LEX *owner_of_possible_tmp_keys{nullptr};
 
@@ -1068,6 +1075,12 @@ struct TABLE_SHARE {
 
   /** Release resources and free memory occupied by the table share. */
   void destroy();
+
+  /**
+    Checks if TABLE_SHARE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
 };
 
 /**
@@ -1738,6 +1751,25 @@ struct TABLE {
 #ifndef DBUG_OFF
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
 #endif
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
+
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    zip_dict.
+  */
+  bool has_compressed_columns_with_dictionaries() const;
+
+  /**
+    Updates zip_dict_name in the TABLE's field definitions based on the
+    values from the supplied list of Create_field objects.
+  */
+  void update_compressed_columns_info(const List<Create_field> &fields);
+
   /**
     Update covering keys depending on max read key length.
 

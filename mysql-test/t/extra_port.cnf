@@ -1,0 +1,12 @@
+!include include/default_my.cnf
+
+[mysqld.1]
+max-connections= 2
+extra-port= @OPT.port
+extra-max-connections= 1
+
+[client]
+connect-timeout= 2
+
+[ENV]
+MASTER_EXTRA_PORT= @OPT.port

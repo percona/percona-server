@@ -78,7 +78,9 @@ const char *globerrs[GLOBERRS] = {
     "Can't change ownership of the file '%s' (OS errno %d - %s)",
     "Can't change permissions of the file '%s' (OS errno %d - %s)",
     "Can't seek in file '%s' (OS errno %d - %s)",
-    "Memory capacity exceeded (capacity %llu bytes)"};
+    "Memory capacity exceeded (capacity %llu bytes)",
+    "Can't create socket '%s' (Errcode: %d)",
+    "File name '%s' is too long (max: %d)"};
 
 /*
  We cannot call my_error/my_printf_error here in this function.

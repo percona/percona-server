@@ -1,0 +1,42 @@
+#
+# Bug 77591 (ALTER TABLE does not allow to change NULL/NOT NULL if foreign key exists)
+#
+CREATE TABLE t1(x VARCHAR(36) DEFAULT NULL, UNIQUE(x)) ENGINE=InnoDB;
+CREATE TABLE t2(y VARCHAR(36) DEFAULT NULL,
+FOREIGN KEY(y) REFERENCES t1(x)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ("foo"), (NULL), ("bar");
+INSERT INTO t2 VALUES ("foo"), (NULL), ("bar");
+SELECT * FROM t1 ORDER BY x ASC;
+x
+NULL
+bar
+foo
+SELECT * FROM t2 ORDER BY y ASC;
+y
+NULL
+bar
+foo
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+ALTER TABLE t1 CHANGE COLUMN x x VARCHAR(36) NOT NULL;
+Warnings:
+Warning	1265	Data truncated for column 'x' at row 2
+SELECT * FROM t1;
+x
+
+bar
+foo
+SELECT * FROM t2;
+y
+NULL
+bar
+foo
+DROP TABLE t2, t1;
+CREATE TABLE t1 (x INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (y INT PRIMARY KEY, z INT DEFAULT NULL,
+FOREIGN KEY(z) REFERENCES t1(x)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t2 VALUES (0, NULL);
+ALTER TABLE t2 CHANGE COLUMN z z INT NOT NULL;
+ERROR HY000: Cannot change column 'z': used in a foreign key constraint 't2_ibfk_1'
+DROP TABLE t2, t1;

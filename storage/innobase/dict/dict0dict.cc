@@ -5599,6 +5599,38 @@ void dict_set_merge_threshold_all_debug(uint merge_threshold_all) {
 }
 #endif /* UNIV_DEBUG */
 
+/** Set is_corrupt flag by space_id
+@param	space_id	space id
+@param	need_mutex	whether dict_sys->mutex needs to be locked
+*/
+void dict_table_set_corrupt_by_space(space_id_t space_id,
+                                     bool need_mutex) noexcept {
+  ut_a(space_id != 0);
+  ut_a(space_id < dict_sys_t::s_log_space_first_id);
+
+  if (need_mutex) mutex_enter(&(dict_sys->mutex));
+
+  dict_table_t *table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
+  bool found = false;
+
+  while (table) {
+    if (table->space == space_id) {
+      table->is_corrupt = true;
+      found = true;
+    }
+
+    table = UT_LIST_GET_NEXT(table_LRU, table);
+  }
+
+  if (need_mutex) mutex_exit(&(dict_sys->mutex));
+
+  if (!found) {
+    ib::warn() << "Space to be marked as crashed was not found "
+                  "for id "
+               << space_id << ".";
+  }
+}
+
 /** Inits dict_ind_redundant. */
 void dict_ind_init(void) {
   dict_table_t *table;
@@ -7319,3 +7351,183 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
   return (path);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+// Percona commented out until zip dictionary implementation in the new DD
+#if 0
+/** Insert a record into SYS_ZIP_DICT.
+@param[in]	name		zip_dict name
+@param[in]	name_len	zip_dict name length
+@param[in]	data		zip_dict data
+@param[in]	data_len	zip_dict data length
+@retval	DB_SUCCESS	if OK
+@retval	dberr_t		if the insert failed */
+dberr_t
+dict_create_zip_dict(const char *name, ulint name_len, const char *data,
+		     ulint data_len)
+{
+  ut_ad(name);
+  ut_ad(data);
+
+	rw_lock_x_lock(dict_operation_lock);
+	dict_mutex_enter_for_mysql();
+
+  trx_t * const trx = trx_allocate_for_background();
+	trx->op_info = "insert zip_dict";
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_if_not_started(trx, true);
+
+  dberr_t err = dict_create_add_zip_dict(name, name_len, data, data_len, trx);
+
+	if (err == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	}
+	else {
+		trx->op_info = "rollback of internal trx on zip_dict table";
+		trx_rollback_to_savepoint(trx, nullptr);
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+	trx->op_info = "";
+	trx->dict_operation_lock_mode = 0;
+	trx_free_for_background(trx);
+
+	dict_mutex_exit_for_mysql();
+	rw_lock_x_unlock(dict_operation_lock);
+
+	return err;
+}
+
+/** Get single compression dictionary id for the given
+(table id, column pos) pair.
+@param[in]	table_id	table id
+@param[in]	column_pos	column position
+@param[out]	dict_id		zip_dict id
+@param[in]	dict_locked	true if data dictionary locked
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found */
+dberr_t dict_get_dictionary_id_by_key(ulint table_id, ulint column_pos,
+				      ulint *dict_id, bool dict_locked) {
+	bool		dict_operation_locked = dict_locked;
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_callback",
+		dict_operation_locked = true; );
+
+	if (!dict_operation_locked) {
+		rw_lock_s_lock(dict_operation_lock);
+	}
+	if (!dict_locked) {
+		dict_mutex_enter_for_mysql();
+	}
+
+	trx_t * const trx = trx_allocate_for_background();
+	trx->op_info = "get zip dict id by composite key";
+	trx->dict_operation_lock_mode = RW_S_LATCH;
+	trx_start_if_not_started(trx, false);
+
+	const dberr_t err = dict_create_get_zip_dict_id_by_reference(table_id, column_pos,
+		dict_id, trx);
+
+	trx_commit_for_mysql(trx);
+	trx->dict_operation_lock_mode = 0;
+	trx_free_for_background(trx);
+
+	if (!dict_locked) {
+		dict_mutex_exit_for_mysql();
+	}
+	if (!dict_operation_locked) {
+		rw_lock_s_unlock(dict_operation_lock);
+	}
+
+	return err;
+}
+
+/** Get compression dictionary info (name and data) for the given id.
+Allocates memory in name->str and data->str on success.
+Must be freed with mem_free().
+@param[in]	dict_id		dictionary id
+@param[out]	name		dictionary name
+@param[out]	name_len	dictionary name length
+@param[out]	data		dictionary data
+@param[out]	data_len	dictionary data lenght
+@param[in]	dict_locked	true if data dictionary locked
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found */
+dberr_t
+dict_get_dictionary_info_by_id(ulint	dict_id,
+	char**	name,
+	ulint*	name_len,
+	char**	data,
+	ulint*	data_len,
+	bool	dict_locked)
+{
+	bool		dict_operation_locked = dict_locked;
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_callback",
+		dict_operation_locked = true; );
+
+	if (!dict_operation_locked) {
+		rw_lock_s_lock(dict_operation_lock);
+	}
+	if (!dict_locked) {
+		dict_mutex_enter_for_mysql();
+	}
+
+	trx_t * const trx = trx_allocate_for_background();
+	trx->op_info = "get zip dict name and data by id";
+	trx->dict_operation_lock_mode = RW_S_LATCH;
+	trx_start_if_not_started(trx, false);
+
+	const dberr_t err = dict_create_get_zip_dict_info_by_id(dict_id, name, name_len,
+		data, data_len, trx);
+
+	trx_commit_for_mysql(trx);
+	trx->dict_operation_lock_mode = 0;
+	trx_free_for_background(trx);
+
+	if (!dict_locked) {
+		dict_mutex_exit_for_mysql();
+	}
+	if (!dict_operation_locked) {
+		rw_lock_s_unlock(dict_operation_lock);
+	}
+
+	return err;
+}
+
+/** Delete a record in SYS_ZIP_DICT with the given name.
+@param[in]	name		zip_dict name
+@param[in]	name_len	zip_dict name length
+@retval	DB_SUCCESS		if OK
+@retval	DB_RECORD_NOT_FOUND	if not found
+@retval	DB_ROW_IS_REFERENCED	if in use */
+dberr_t
+dict_drop_zip_dict(const char*	name,
+	ulint		name_len)
+{
+	ut_ad(name);
+
+	rw_lock_x_lock(dict_operation_lock);
+	dict_mutex_enter_for_mysql();
+
+	const trx_t *trx = trx_allocate_for_background();
+	trx->op_info = "delete zip_dict";
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_if_not_started(trx, true);
+
+	const dberr_t err = dict_create_remove_zip_dict(name, name_len, trx);
+
+	if (err == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	}
+	else {
+		trx->op_info = "rollback of internal trx on zip_dict table";
+		trx_rollback_to_savepoint(trx, NULL);
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+	trx->op_info = "";
+	trx->dict_operation_lock_mode = 0;
+	trx_free_for_background(trx);
+
+	dict_mutex_exit_for_mysql();
+	rw_lock_x_unlock(dict_operation_lock);
+
+	return err;
+}
+#endif

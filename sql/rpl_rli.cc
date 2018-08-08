@@ -669,8 +669,12 @@ int Relay_log_info::init_relay_log_pos(const char *log, ulonglong pos,
         }
         break;
       } else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
+        Format_description_log_event *old = rli_description_event;
         DBUG_PRINT("info", ("found Format_description_log_event"));
-        set_rli_description_event((Format_description_log_event *)ev);
+        Format_description_log_event *new_fdev =
+            static_cast<Format_description_log_event *>(ev);
+        new_fdev->copy_crypto_data(*old);
+        set_rli_description_event(new_fdev);
         /*
           As ev was returned by read_log_event, it has passed is_valid(), so
           my_malloc() in ctor worked, no need to check again.
@@ -693,6 +697,14 @@ int Relay_log_info::init_relay_log_pos(const char *log, ulonglong pos,
           position (argument 'pos') or until you find an event other than
           Previous-GTIDs, Rotate or Format_desc.
         */
+      } else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
+        if (rli_description_event->start_decryption(
+                static_cast<Start_encryption_log_event *>(ev))) {
+          *errmsg = "Unable to set up decryption of binlog.";
+          delete ev;
+          goto err;
+        }
+        delete ev;
       } else {
         DBUG_PRINT("info",
                    ("found event of another type=%d", ev->get_type_code()));
@@ -1935,7 +1947,8 @@ int Relay_log_info::rli_init_info() {
     /* Init relay log with first entry in the relay index file */
     if (init_relay_log_pos(NullS, BIN_LOG_HEADER_SIZE,
                            false /*need_data_lock=false (lock should be held
-                                  prior to invoking this function)*/,
+                                  prior to invoking this function)*/
+                           ,
                            &msg, 0)) {
       error = 1;
       goto err;
@@ -1956,7 +1969,8 @@ int Relay_log_info::rli_init_info() {
 
     if (init_relay_log_pos(group_relay_log_name, group_relay_log_pos,
                            false /*need_data_lock=false (lock should be held
-                                  prior to invoking this function)*/,
+                                  prior to invoking this function)*/
+                           ,
                            &msg, 0)) {
       char llbuf[22];
       LogErr(ERROR_LEVEL, ER_RPL_MTS_RECOVERY_CANT_OPEN_RELAY_LOG,
@@ -2793,3 +2807,14 @@ void Relay_log_info::post_commit(bool on_rollback) {
     }
   }
 }
+
+void *Relay_log_info::operator new(size_t request MY_ATTRIBUTE((unused))) {
+  void *ptr;
+  if (posix_memalign(&ptr, __alignof__(Relay_log_info),
+                     sizeof(Relay_log_info))) {
+    throw std::bad_alloc();
+  }
+  return ptr;
+}
+
+void Relay_log_info::operator delete(void *ptr) { free(ptr); }

@@ -23,9 +23,10 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "sql/handler.h" /* handler */
-#include "sql/table.h"   /* TABLE_SHARE */
-#include "thr_lock.h"    /* THR_LOCK */
+#include "sql/handler.h"   /* handler */
+#include "sql/sql_const.h" /* MAX_KEY */
+#include "sql/table.h"     /* TABLE_SHARE */
+#include "thr_lock.h"      /* THR_LOCK */
 
 /*
   Shared structure for correct LOCK operation
@@ -69,9 +70,9 @@ class ha_blackhole : public handler {
                       HA_KEYREAD_ONLY);
   }
     /* The following defines can be increased if necessary */
-#define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
-#define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
-#define BLACKHOLE_MAX_KEY_LENGTH 1000
+#define BLACKHOLE_MAX_KEY MAX_KEY     /* Max allowed keys */
+#define BLACKHOLE_MAX_KEY_SEG 16      /* Max segments for key */
+#define BLACKHOLE_MAX_KEY_LENGTH 3500 /* Like in InnoDB */
   uint max_supported_keys() const { return BLACKHOLE_MAX_KEY; }
   uint max_supported_key_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
   uint max_supported_key_part_length() const {
@@ -101,6 +102,7 @@ class ha_blackhole : public handler {
              dd::Table *table_def);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
+  bool has_gap_locks() const noexcept { return true; }
 
  private:
   virtual int write_row(uchar *buf);

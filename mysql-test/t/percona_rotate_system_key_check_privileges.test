@@ -1,0 +1,14 @@
+# This test is to check that only SUPER users can rotate_system_key
+
+CREATE USER 'regular_user'@'localhost' IDENTIFIED BY 'pass';
+
+--source include/count_sessions.inc
+--connect (regular_user_con,localhost,regular_user,pass,test)
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT rotate_system_key("percona_binlog");
+
+--connection default
+--disconnect regular_user_con
+DROP USER regular_user@localhost;
+--source include/wait_until_count_sessions.inc

@@ -519,6 +519,12 @@ static void log_checkpoint(log_t &log) {
 
   log_files_write_checkpoint(log, checkpoint_lsn);
 
+  // Wake the redo log watching thread to parse the log up to this checkpoint.
+  if (srv_track_changed_pages) {
+    os_event_reset(srv_redo_log_tracked_event);
+    os_event_set(srv_checkpoint_completed_event);
+  }
+
   DBUG_PRINT("ib_log",
              ("checkpoint ended at " LSN_PF ", log flushed to " LSN_PF,
               log.last_checkpoint_lsn.load(), log.flushed_to_disk_lsn.load()));
@@ -576,6 +582,7 @@ void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
   log_files_write_checkpoint(log, lsn);
 
   /* Note, that checkpoint was responsible for fsync of all log files. */
+  log.tracked_lsn.store(lsn);
 }
 
 static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn) {
@@ -641,7 +648,8 @@ void log_request_checkpoint(log_t &log, bool sync) {
 bool log_make_latest_checkpoint(log_t &log) {
   const lsn_t lsn = log_get_lsn(log);
 
-  log_preflush_pool_modified_pages(log, lsn);
+  if (srv_shutdown_state != SRV_SHUTDOWN_FLUSH_PHASE)
+    log_preflush_pool_modified_pages(log, lsn);
 
   log_checkpointer_mutex_enter(log);
 
@@ -671,25 +679,15 @@ static void log_preflush_pool_modified_pages(const log_t &log,
   Note, that this could fire even if we did not run out
   of space in log files (users still may write to redo). */
 
-  if (new_oldest == LSN_MAX
-      /* Forced flush request is processed by page_cleaner, if
-      it's not active, then we must do flush ourselves. */
-      || !buf_page_cleaner_is_active
-      /* Reason unknown. */
-      || srv_is_being_started) {
-    buf_flush_sync_all_buf_pools();
+  new_oldest += log_buffer_flush_order_lag(log);
 
-  } else {
-    new_oldest += log_buffer_flush_order_lag(log);
-
-    /* better to wait for being flushed by page cleaner */
-    if (srv_flush_sync) {
-      /* wake page cleaner for IO burst */
-      buf_flush_request_force(new_oldest);
-    }
-
-    buf_flush_wait_flushed(new_oldest);
+  /* better to wait for being flushed by page cleaner */
+  if (srv_flush_sync) {
+    /* wake page cleaner for IO burst */
+    buf_flush_request_force(new_oldest);
   }
+
+  buf_flush_wait_flushed(new_oldest);
 }
 
 static bool log_consider_sync_flush(log_t &log) {

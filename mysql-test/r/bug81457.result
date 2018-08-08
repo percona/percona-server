@@ -1,0 +1,5 @@
+SET collation_connection = utf32_general_ci;
+CREATE TEMPORARY TABLE t1 AS SELECT 'This is temp. t' A;
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('b', 0);
+COUNT(*)
+0

@@ -27,6 +27,7 @@
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
 #include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/thread_utils.h"
 
 namespace segfault_unittest {
 
@@ -46,32 +47,30 @@ class FatalSignalDeathTest : public ::testing::Test {
 
 TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
-  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
-  EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got signal 6.*");
 #endif
 }
 
 TEST_F(FatalSignalDeathTest, Segfault) {
-#if defined(_WIN32)
   int *pint = NULL;
+#if defined(_WIN32)
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
-  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
+  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
 #elif defined(__SANITIZE_ADDRESS__)
-/* gcc 4.8.1 with '-fsanitize=address -O1' */
-/* Newer versions of ASAN give other error message, disable it */
-// EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+  /* AddressSanitizer */
+  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".*ASAN:(DEADLYSIGNAL|SIGSEGV).*");
 #else
-  int *pint = NULL;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
   */
-  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
+  MY_EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 

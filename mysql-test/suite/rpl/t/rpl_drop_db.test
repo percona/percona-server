@@ -39,7 +39,7 @@ CREATE TABLE test1.t4 (pk INT PRIMARY KEY);
 --source include/rpl_connection_master.inc
 CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
 
---error ER_ROW_IS_REFERENCED
+--error ER_ROW_IS_REFERENCED_2
 DROP DATABASE test1;
 USE test1;
 # No tables should be dropped after WL#9536.
@@ -50,16 +50,16 @@ USE test1;
 # Finally, case when we fail while dropping table and there are both InnoDB and MyISAM tables.
 CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
 
---error ER_ROW_IS_REFERENCED
+--error ER_ROW_IS_REFERENCED_2
 DROP DATABASE test1;
 
---let assert_text= MyISAM table t5 is dropped
---let assert_cond="[SHOW TABLES LIKE "t5"]"=""
---source include/assert.inc
+--let assert_text= Tables in test1 database are not dropped
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=5
 
---let assert_text= InnoDB tables in test1 database are not dropped
---let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
---source include/assert.inc
+# Disabling foreign key checks allows DROP DATABASE to proceed
+SET foreign_key_checks=0;
+DROP DATABASE test1;
+SET foreign_key_checks=1;
 
 # Ensuring that replication is successful
 USE test2;
@@ -76,7 +76,6 @@ DROP TABLE t2;
 #cleanup
 --source include/rpl_connection_master.inc
 
-DROP DATABASE test1;
 DROP DATABASE test2;
 
 --source include/rpl_end.inc

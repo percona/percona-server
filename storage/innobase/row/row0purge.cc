@@ -252,14 +252,16 @@ bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
 {
   bool can_delete;
   mtr_t mtr;
+  row_prebuilt_t *prebuilt =
+      static_cast<que_thr_t *>(node->common.parent)->prebuilt;
 
   ut_ad(!index->is_clustered());
   mtr_start(&mtr);
 
-  can_delete =
-      !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr) ||
-      !row_vers_old_has_index_entry(TRUE, btr_pcur_get_rec(&node->pcur), &mtr,
-                                    index, entry, node->roll_ptr, node->trx_id);
+  can_delete = !row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr) ||
+               !row_vers_old_has_index_entry(
+                   TRUE, btr_pcur_get_rec(&node->pcur), &mtr, index, entry,
+                   node->roll_ptr, node->trx_id, prebuilt);
 
   /* Persistent cursor is closed if reposition fails. */
   if (node->found_clust) {
@@ -517,8 +519,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
           success = false;
         }
       }
-      /* fall through (the index entry is still needed,
-      or the deletion succeeded) */
+      // fallthrough
+      // (the index entry is still needed, or the deletion succeeded)
     case ROW_NOT_DELETED_REF:
       /* The index entry is still needed. */
     case ROW_BUFFERED:
@@ -1174,6 +1176,9 @@ que_thr_t *row_purge_step(que_thr_t *thr) {
   } else {
     row_purge_end(thr);
   }
+
+  if (thr->prebuilt != nullptr && thr->prebuilt->compress_heap != nullptr)
+    mem_heap_empty(thr->prebuilt->compress_heap);
 
   return (thr);
 }

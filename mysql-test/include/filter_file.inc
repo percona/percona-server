@@ -15,6 +15,7 @@
 # [--let $select_columns= <LIST OF NUMBERS>]
 # [--let $pre_script= <PERL_SCRIPT>]
 # [--let $rpl_debug= 1]
+# [--let $skip_column_names= 0]
 # --source include/filter_file.inc
 #
 # Parameters:
@@ -49,6 +50,9 @@
 #     For convenience, if you set this to a comma-separated list of
 #     numbers, it will replace the numbered columns by '#'.
 #
+#   $skip_column_names
+#     If true then skip reading columns line. false by default.
+#
 #   $pre_script
 #     This script will be evaluated before starting to iterate over
 #     the lines of $input_file.  It can be useful if you need some
@@ -76,6 +80,10 @@ if ($rpl_debug)
 --let _FF_OUTPUT_FILE= $output_file
 --let _FF_SELECT_COLUMNS= $select_columns
 --let _FF_MASK_COLUMNS= $mask_columns
+if (!$skip_column_names) {
+  --let $skip_column_names= 0;
+}
+--let _FF_SKIP_COLUMN_NAMES= $skip_column_names
 --let _FF_DEBUG= $rpl_debug
 if (!$output_file)
 {
@@ -90,6 +98,7 @@ perl;
   my $output_file = $ENV{'_FF_OUTPUT_FILE'};
   my $select_columns = $ENV{'_FF_SELECT_COLUMNS'};
   my $mask_columns = $ENV{'_FF_MASK_COLUMNS'};
+  my $skip_column_names = $ENV{'_FF_SKIP_COLUMN_NAMES'};
   my $debug = $ENV{'_FF_DEBUG'};
   if ($select_columns)
   {
@@ -140,7 +149,7 @@ perl;
   {
     chomp;
     s/\015?\012?$//;
-    if (!%column_names)
+    if (!%column_names && $skip_column_names == 0)
     {
       my $n = 1;
       %column_names = map { $_ => $n++ } split(/\t/, $_);

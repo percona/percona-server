@@ -51,21 +51,19 @@ class ha_heap : public handler {
     return key_alg == HA_KEY_ALG_BTREE || key_alg == HA_KEY_ALG_HASH;
   }
   /* Rows also use a fixed-size format */
-  enum row_type get_real_row_type(const HA_CREATE_INFO *) const {
-    return ROW_TYPE_FIXED;
-  }
+  enum row_type get_real_row_type(const HA_CREATE_INFO *) const;
   ulonglong table_flags() const {
-    return (HA_FAST_KEY_READ | HA_NO_BLOBS | HA_NULL_IN_KEY |
-            HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
-            HA_NO_TRANSACTIONS | HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT);
+    return (HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_BINLOG_ROW_CAPABLE |
+            HA_BINLOG_STMT_CAPABLE | HA_NO_TRANSACTIONS | HA_HAS_RECORDS |
+            HA_STATS_RECORDS_IS_EXACT);
   }
   ulong index_flags(uint inx, uint, bool) const {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE)
                 ? HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_READ_RANGE
                 : HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
-  uint max_supported_keys() const { return MAX_KEY; }
-  uint max_supported_key_part_length() const { return MAX_KEY_LENGTH; }
+  uint max_supported_keys() const { return HP_MAX_KEY; }
+  uint max_supported_key_part_length() const { return HP_MAX_KEY_LENGTH; }
   double scan_time() {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }

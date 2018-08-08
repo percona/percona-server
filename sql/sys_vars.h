@@ -811,25 +811,44 @@ class Sys_var_charptr : public sys_var {
 };
 
 class Sys_var_version : public Sys_var_charptr {
+ private:
+  char withsuffix[SERVER_VERSION_LENGTH];
+  char *withsuffix_ptr;
+
  public:
   Sys_var_version(const char *name_arg, const char *comment, int flag_args,
                   ptrdiff_t off, size_t size, CMD_LINE getopt,
                   enum charset_enum is_os_charset_arg, const char *def_val)
       : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt,
-                        is_os_charset_arg, def_val) {}
+                        is_os_charset_arg, def_val),
+        withsuffix_ptr(withsuffix) {}
 
   ~Sys_var_version() {}
 
   virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
-    uchar *value = Sys_var_charptr::global_value_ptr(thd, base);
+    char **version_ptr =
+        reinterpret_cast<char **>(Sys_var_charptr::global_value_ptr(thd, base));
+    if (version_ptr == nullptr) return nullptr;
 
-    DBUG_EXECUTE_IF("alter_server_version_str", {
-      static const char *altered_value = "some-other-version";
-      uchar *altered_value_ptr = reinterpret_cast<uchar *>(&altered_value);
-      value = altered_value_ptr;
-    });
+    sys_var *suffix_var = find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
+    if (suffix_var == nullptr) return reinterpret_cast<uchar *>(version_ptr);
 
-    return value;
+    char **suffix_ptr = reinterpret_cast<char **>(
+        suffix_var->value_ptr(thd, OPT_GLOBAL, nullptr));
+    if (suffix_ptr == nullptr) return reinterpret_cast<uchar *>(version_ptr);
+
+    size_t suffix_ptr_len = strlen(*suffix_ptr);
+    size_t version_ptr_len = strlen(*version_ptr);
+
+    /* prepare concatenated @@version variable */
+    if (suffix_ptr_len + version_ptr_len + 1 > SERVER_VERSION_LENGTH)
+      suffix_ptr_len = SERVER_VERSION_LENGTH - version_ptr_len - 1;
+
+    memcpy(withsuffix, *version_ptr, version_ptr_len);
+    memcpy(withsuffix + version_ptr_len, *suffix_ptr, suffix_ptr_len);
+    withsuffix[suffix_ptr_len + version_ptr_len] = 0;
+
+    return reinterpret_cast<uchar *>(&withsuffix_ptr);
   }
 };
 
@@ -2348,5 +2367,9 @@ class Sys_var_enforce_gtid_consistency : public Sys_var_multi_enum {
 
   bool global_update(THD *thd, set_var *var);
 };
+
+extern void init_log_slow_verbosity() noexcept;
+extern void init_slow_query_log_use_global_control() noexcept;
+extern void init_log_slow_sp_statements() noexcept;
 
 #endif /* SYS_VARS_H_INCLUDED */

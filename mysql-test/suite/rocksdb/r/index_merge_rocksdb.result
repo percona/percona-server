@@ -1,0 +1,53 @@
+SET SESSION transaction_isolation='READ-COMMITTED';
+CREATE TABLE t1
+(
+/* fields/keys for row retrieval tests */
+key1 INT,
+key2 INT,
+key3 INT,
+key4 INT,
+/* make rows much bigger then keys */
+filler1 CHAR(200),
+KEY(key1),
+KEY(key2)
+) ENGINE=ROCKSDB;
+CREATE TABLE t0 AS SELECT * FROM t1;
+# Printing of many insert into t0 values (....) disabled.
+# Printing of many insert into t1 select .... from t0 disabled.
+# Printing of many insert into t1 (...) values (....) disabled.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+7201
+SET GLOBAL rocksdb_force_flush_memtable_now = 1;
+EXPLAIN UPDATE t1 SET filler1='to be deleted' WHERE key1=100 AND key2=100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	NULL	#	#	Using intersect(key1,key2); Using where
+UPDATE t1 SET filler1='to be deleted' WHERE key1=100 and key2=100;
+DROP TABLE t0, t1;
+create table t1 (key1 int, key2 int, key3 int, key (key1), key (key2), key(key3)) engine=rocksdb;
+insert into t1 values (1, 100, 100), (1, 200, 200), (1, 300, 300);
+set global rocksdb_force_flush_memtable_now=1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain select * from t1 where key1 = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	key1	key1	5	#	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3` from `test`.`t1` where (`test`.`t1`.`key1` = 1)
+explain select key1,key2 from t1 where key1 = 1 or key2 = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index_merge	key1,key2	key1,key2	5,5	#	2	100.00	Using union(key1,key2); Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2` from `test`.`t1` where ((`test`.`t1`.`key1` = 1) or (`test`.`t1`.`key2` = 1))
+select * from t1 where key1 = 1;
+key1	key2	key3
+1	100	100
+1	200	200
+1	300	300
+select key1,key2 from t1 where key1 = 1 or key2 = 1;
+key1	key2
+1	100
+1	200
+1	300
+drop table t1;

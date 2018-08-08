@@ -641,7 +641,7 @@ UNIV_INLINE
 buf_frame_t *buf_block_get_frame(
     const buf_block_t *block) /*!< in: pointer to the control block */
 {
-  ut_ad(block);
+  SRV_CORRUPT_TABLE_CHECK(block, return (0););
 
   switch (buf_block_get_state(block)) {
     case BUF_BLOCK_POOL_WATCH:
@@ -721,6 +721,7 @@ buf_page_t *buf_page_alloc_descriptor(void) {
   bpage = (buf_page_t *)ut_zalloc_nokey(sizeof *bpage);
   ut_ad(bpage);
   UNIV_MEM_ALLOC(bpage, sizeof *bpage);
+  UNIV_MEM_VALID(&bpage->buf_fix_count, sizeof bpage->buf_fix_count);
 
   return (bpage);
 }
@@ -783,21 +784,20 @@ lsn_t buf_page_get_newest_modification(
 
 /** Increment the modify clock.
 The caller must
-(1) block bufferfix count has to be zero,
+(1) own the buffer block mutex and block bufferfix count has to be zero,
 (2) own X or SX latch on the block->lock, or
 (3) operate on a thread-private temporary table
 @param[in,out]	block	buffer block */
 UNIV_INLINE
 void buf_block_modify_clock_inc(buf_block_t *block) {
 #ifdef UNIV_DEBUG
-  buf_pool_t *buf_pool = buf_pool_from_bpage(&block->page);
+  const auto bpage = &block->page;
 #endif /* UNIV_DEBUG */
   assert_block_ahi_valid(block);
 
   /* No block latch is acquired for internal temporary tables. */
   ut_ad(fsp_is_system_temporary(block->page.id.space()) ||
-        (block->page.buf_fix_count == 0 &&
-         mutex_own(&buf_pool->LRU_list_mutex)) ||
+        (bpage->buf_fix_count == 0 && buf_page_mutex_own(block)) ||
         rw_lock_own_flagged(&block->lock, RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
 
   block->modify_clock++;
@@ -863,9 +863,10 @@ void buf_block_buf_fix_inc_func(
 @return	the remaining buffer-fix count */
 UNIV_INLINE
 ulint buf_block_unfix(buf_page_t *bpage) {
-  ib_uint32_t count;
-  count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
-  ut_ad(count + 1 != 0);
+  ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
+  const auto count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
+  static_assert(std::is_unsigned<decltype(count)>::value, "Must be unsigned");
+  ut_ad(count != std::numeric_limits<decltype(count)>::max());
   return (count);
 }
 

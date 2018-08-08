@@ -1,0 +1,1 @@
+SELECT @@global.slow_query_log_use_global_control;

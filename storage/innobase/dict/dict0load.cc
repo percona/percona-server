@@ -54,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fts0fts.h"
 #include "fts0priv.h"
 #include "ha_prototypes.h"
+#include "lob0lob.h"
 #include "mach0data.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -67,9 +68,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Following are the InnoDB system tables. The positions in
 this array are referenced by enum dict_system_table_id. */
 const char *SYSTEM_TABLE_NAME[] = {
-    "SYS_TABLES",      "SYS_INDEXES",   "SYS_COLUMNS",
-    "SYS_FIELDS",      "SYS_FOREIGN",   "SYS_FOREIGN_COLS",
-    "SYS_TABLESPACES", "SYS_DATAFILES", "SYS_VIRTUAL"};
+    "SYS_TABLES",  "SYS_INDEXES",      "SYS_COLUMNS",      "SYS_FIELDS",
+    "SYS_FOREIGN", "SYS_FOREIGN_COLS", "SYS_TABLESPACES",  "SYS_DATAFILES",
+    "SYS_VIRTUAL", "SYS_ZIP_DICT",     "SYS_ZIP_DICT_COLS"};
 
 /** This variant is based on name comparision and is used because
 system table id array is not built yet.
@@ -966,6 +967,143 @@ const char *dict_process_sys_tablespaces(
 
   return (NULL);
 }
+
+// Percona commented out until zip dictionary reimplementation in the new DD
+#if 0
+
+/** This function parses a SYS_ZIP_DICT record, extracts necessary
+information from the record and returns to caller.
+@param[in,out]	heap		heap memory
+@param[in]	index		SYS_ZIP_DICT index definition
+@param[in]	rec		current SYS_ZIP_DICT record
+@param[out]	id		dict id
+@param[out]	name		dict name
+@param[out]	data		dict data
+@param[out]	data_len	dict data length
+@return error message, or NULL on success */
+const char* dict_process_sys_zip_dict(mem_heap_t *heap,
+				      const dict_index_t &index,
+				      const rec_t *rec, ulint *id,
+				      const char **name, const char **data,
+				      ulint *data_len) {
+
+  /* Initialize the output values */
+  *id = ULINT_UNDEFINED;
+  *name = nullptr;
+  *data = nullptr;
+  *data_len = 0;
+
+  if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0)))
+    return("delete-marked record in SYS_ZIP_DICT");
+
+  if (UNIV_UNLIKELY(rec_get_n_fields_old(rec) !=
+		    DICT_NUM_FIELDS__SYS_ZIP_DICT))
+    return("wrong number of columns in SYS_ZIP_DICT record");
+
+  const page_size_t page_size{dict_table_page_size(index.table)};
+  ulint	len;
+  const byte *field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__ID,
+					    &len);
+  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE))
+    goto err_len;
+  *id = mach_read_from_4(field);
+
+  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT__DB_TRX_ID, &len);
+  if (UNIV_UNLIKELY(len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL))
+    goto err_len;
+
+  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT__DB_ROLL_PTR, &len);
+  if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL))
+    goto err_len;
+
+  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__NAME, &len);
+  if (UNIV_UNLIKELY(len == 0 || len == UNIV_SQL_NULL))
+    goto err_len;
+  *name = mem_heap_strdupl(heap, (char*) field, len);
+
+  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT__DATA, &len);
+  if (UNIV_UNLIKELY(len == UNIV_SQL_NULL))
+    goto err_len;
+
+  if (rec_get_1byte_offs_flag(rec) == 0 &&
+      rec_2_is_field_extern(rec, DICT_FLD__SYS_ZIP_DICT__DATA)) {
+    ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+    if (UNIV_UNLIKELY(!memcmp(field + len - BTR_EXTERN_FIELD_REF_SIZE,
+			      field_ref_zero,
+			      BTR_EXTERN_FIELD_REF_SIZE)))
+      goto err_len;
+    *data = reinterpret_cast<char*>(
+      lob::btr_copy_externally_stored_field(&index, data_len, field, page_size,
+					    len, true, heap));
+  } else {
+    *data_len = len;
+    *data = static_cast<char*>(mem_heap_dup(heap, field, len));
+  }
+
+  return(nullptr);
+
+err_len:
+  return("incorrect column length in SYS_ZIP_DICT");
+}
+
+/** This function parses a SYS_ZIP_DICT_COLS record, extracts necessary
+information from the record and returns to caller.
+@param[in,out]	heap		heap memory
+@param[in]	rec		current SYS_ZIP_DICT record
+@param[out]	table_id	table id
+@param[out]	column_pos	column position
+@param[out]	dict_id		dict id
+@return error message, or NULL on success */
+const char* dict_process_sys_zip_dict_cols(mem_heap_t *heap, const rec_t *rec,
+					   ulint *table_id, ulint *column_pos,
+					   ulint *dict_id) noexcept {
+  /* Initialize the output values */
+  *table_id = ULINT_UNDEFINED;
+  *column_pos = ULINT_UNDEFINED;
+  *dict_id = ULINT_UNDEFINED;
+
+  if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0)))
+    return("delete-marked record in SYS_ZIP_DICT_COLS");
+
+  if (UNIV_UNLIKELY(rec_get_n_fields_old(rec) !=
+		    DICT_NUM_FIELDS__SYS_ZIP_DICT_COLS))
+    return("wrong number of columns in SYS_ZIP_DICT_COLS record");
+
+  ulint len;
+  const byte *field =
+    rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__TABLE_ID, &len);
+  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE)) {
+err_len:
+    return("incorrect column length in SYS_ZIP_DICT_COLS");
+  }
+  *table_id = mach_read_from_4(field);
+
+  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__COLUMN_POS,
+				&len);
+  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE))
+    goto err_len;
+  *column_pos = mach_read_from_4(field);
+
+  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__DB_TRX_ID, &len);
+  if (UNIV_UNLIKELY(len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL))
+    goto err_len;
+
+  rec_get_nth_field_offs_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__DB_ROLL_PTR,
+			     &len);
+  if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL))
+    goto err_len;
+
+  field = rec_get_nth_field_old(rec, DICT_FLD__SYS_ZIP_DICT_COLS__DICT_ID,
+				&len);
+  if (UNIV_UNLIKELY(len != DICT_FLD_LEN_SPACE))
+    goto err_len;
+  *dict_id = mach_read_from_4(field);
+
+  return(nullptr);
+}
+
+#endif
 
 /** Get the first filepath from SYS_DATAFILES for a given space_id.
 @param[in]	space_id	Tablespace ID

@@ -1,0 +1,51 @@
+drop table if exists t1, t2;
+set default_storage_engine=innodb;
+create table t1 (
+file_id bigint unsigned not null auto_increment primary key,
+file_number bigint not null);
+insert into t1 values (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8), (9,9), (10,10);
+insert into t1 select t1.file_id+10, t1.file_number+10 from t1;
+insert into t1 select t1.file_id+20, t1.file_number+20 from t1;
+insert into t1 select t1.file_id+40, t1.file_number+40 from t1;
+insert into t1 select t1.file_id+100, t1.file_number+100 from t1;
+insert into t1 select t1.file_id+200, t1.file_number+200 from t1;
+insert into t1 select t1.file_id+400, t1.file_number+400 from t1;
+create table t2 (
+file_id bigint unsigned not null,
+country char(2) not null,
+hits bigint not null,
+insert_ts date not null,
+primary key (file_id, insert_ts, country),
+key idx2 (insert_ts, country));
+insert into t2 select t1.file_id, 'US', 5, '1971-01-01' from t1;
+insert into t2 select t1.file_id, 'CA', 5, '1971-01-01' from t1;
+insert into t2 select t1.file_id, 'JP', 5, '1971-01-01' from t1;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 1 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 2 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 4 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 8 day) from t2;
+insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 16 day) from t2;
+explain
+select t1.file_id, 
+t1.file_number, 
+(select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = '1971-01-01') as d
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL;	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ref	PRIMARY,idx2	PRIMARY	11	test.t1.file_id,const	NULL;	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.file_id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`file_id` AS `file_id`,`test`.`t1`.`file_number` AS `file_number`,(/* select#2 */ select `test`.`t2`.`hits` from `test`.`t2` where ((`test`.`t2`.`insert_ts` = '1971-01-01') and (`test`.`t2`.`file_id` = `test`.`t1`.`file_id`))) AS `d` from `test`.`t1`
+alter table t2 engine=tokudb;
+explain
+select t1.file_id, 
+t1.file_number, 
+(select hits from t2 where t2.file_id = t1.file_id and t2.insert_ts = '1971-01-01') as d
+from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL;	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ref	PRIMARY,idx2	PRIMARY	11	test.t1.file_id,const	NULL;	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.file_id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`file_id` AS `file_id`,`test`.`t1`.`file_number` AS `file_number`,(/* select#2 */ select `test`.`t2`.`hits` from `test`.`t2` where ((`test`.`t2`.`insert_ts` = '1971-01-01') and (`test`.`t2`.`file_id` = `test`.`t1`.`file_id`))) AS `d` from `test`.`t1`
+drop table if exists t1, t2;

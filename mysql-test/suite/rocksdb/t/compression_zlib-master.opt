@@ -1,0 +1,1 @@
+--loose-rocksdb_default_cf_options=compression=kZlibCompression

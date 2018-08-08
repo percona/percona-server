@@ -1,0 +1,4 @@
+# restart:<hidden args>
+include/assert.inc [Binlog should be OFF]
+include/assert.inc [Binlog encryption should be ON]
+# restart

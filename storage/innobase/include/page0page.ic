@@ -257,6 +257,7 @@ ulint page_rec_get_heap_no(const rec_t *rec) /*!< in: the physical record */
 UNIV_INLINE
 bool page_is_leaf(const page_t *page) /*!< in: page */
 {
+  if (!page) return false;
   return (!*(const uint16 *)(page + (PAGE_HEADER + PAGE_LEVEL)));
 }
 

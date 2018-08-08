@@ -162,12 +162,16 @@ void thd_increment_bytes_sent(size_t length) {
   if (likely(thd != NULL)) { /* current_thd==NULL when close_connection() calls
                                 net_send_error() */
     thd->status_var.bytes_sent += length;
+    thd->bytes_sent += length;
   }
 }
 
 void thd_increment_bytes_received(size_t length) {
   THD *thd = current_thd;
-  if (likely(thd != NULL)) thd->status_var.bytes_received += length;
+  if (likely(thd != NULL)) {
+    thd->status_var.bytes_received += length;
+    thd->bytes_received += length;
+  }
 }
 
 partition_info *thd_get_work_part_info(THD *thd) { return thd->work_part_info; }
@@ -287,4 +291,44 @@ bool thd_is_dd_update_stmt(const THD *thd) {
     updating the data dictionary tables.
   */
   return (thd->variables.option_bits & OPTION_DD_UPDATE_CONTEXT);
+}
+
+/** Gets page fragmentation statistics. Assigns zeros to stats if thd is
+NULL.
+@param[in]  thd   the calling thread
+@param[out] stats a pointer to fragmentation statistics to fill */
+void thd_get_fragmentation_stats(const THD *thd,
+                                 fragmentation_stats_t *stats) noexcept {
+  DBUG_ASSERT(stats != nullptr);
+  if (likely(thd != nullptr)) {
+    stats->scan_pages_contiguous =
+        thd->status_var.fragmentation_stats.scan_pages_contiguous;
+    stats->scan_pages_disjointed =
+        thd->status_var.fragmentation_stats.scan_pages_disjointed;
+    stats->scan_pages_total_seek_distance =
+        thd->status_var.fragmentation_stats.scan_pages_total_seek_distance;
+    stats->scan_data_size = thd->status_var.fragmentation_stats.scan_data_size;
+    stats->scan_deleted_recs_size =
+        thd->status_var.fragmentation_stats.scan_deleted_recs_size;
+  } else {
+    memset(stats, 0, sizeof(*stats));
+  }
+}
+
+/** Adds page scan statistics. Does nothing if thd is NULL.
+@param[in] thd   the calling thread
+@param[in] stats a pointer to fragmentation statistics to add */
+void thd_add_fragmentation_stats(THD *thd,
+                                 const fragmentation_stats_t &stats) noexcept {
+  if (likely(thd != nullptr)) {
+    thd->status_var.fragmentation_stats.scan_pages_contiguous +=
+        stats.scan_pages_contiguous;
+    thd->status_var.fragmentation_stats.scan_pages_disjointed +=
+        stats.scan_pages_disjointed;
+    thd->status_var.fragmentation_stats.scan_pages_total_seek_distance +=
+        stats.scan_pages_total_seek_distance;
+    thd->status_var.fragmentation_stats.scan_data_size += stats.scan_data_size;
+    thd->status_var.fragmentation_stats.scan_deleted_recs_size +=
+        stats.scan_deleted_recs_size;
+  }
 }

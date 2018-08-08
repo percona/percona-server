@@ -1,0 +1,30 @@
+--source include/count_sessions.inc
+
+CREATE DATABASE dump;
+CREATE USER 'dumper'@'localhost';
+GRANT ALL ON dump.* TO 'dumper'@'localhost';
+
+CREATE TABLE dump.t(a int primary key auto_increment);
+INSERT INTO dump.t VALUES(NULL), (NULL), (NULL), (NULL);
+
+--connect (conn1,localhost,dumper,,dump)
+--connection conn1
+# this _must_ be 0 to correctly test the core of the issue. It means that even
+# though the p_s.session_variables table may be accessable, it still doesn't
+# show in I_S
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='performance_schema' AND TABLE_NAME='session_variables';
+--connection default
+--disconnect conn1
+
+--exec $MYSQL_DUMP dump t > $MYSQLTEST_VARDIR/tmp/percona_bug1686603_t.sql
+DROP TABLE dump.t;
+
+--exec $MYSQL -u dumper dump < $MYSQLTEST_VARDIR/tmp/percona_bug1686603_t.sql
+
+SELECT * FROM dump.t;
+
+--remove_file $MYSQLTEST_VARDIR/tmp/percona_bug1686603_t.sql
+DROP DATABASE dump;
+DROP USER 'dumper'@'localhost';
+
+--source include/wait_until_count_sessions.inc

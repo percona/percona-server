@@ -55,6 +55,7 @@ static s_object_type_map object_type_map[] = {
     {OBJECT_TYPE_BACKUP_LOCK, {C_STRING_WITH_LEN("BACKUP LOCK")}},
     {OBJECT_TYPE_RESOURCE_GROUPS, {C_STRING_WITH_LEN("RESOURCE_GROUPS")}},
     {OBJECT_TYPE_FOREIGN_KEY, {C_STRING_WITH_LEN("FOREIGN KEY")}},
+    {OBJECT_TYPE_BACKUP_TABLES, {C_STRING_WITH_LEN("BACKUP TABLES")}},
     {NO_OBJECT_TYPE, {C_STRING_WITH_LEN("")}}};
 
 void object_type_to_string(enum_object_type object_type, const char **string,

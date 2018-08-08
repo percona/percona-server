@@ -50,6 +50,16 @@ select event_name, operation,
   left(source, locate(":", source)) as short_source
   from performance_schema.events_waits_history_long;
 
+# test for bug 78292:
+# If server was started with --thread-handling=no-threads, no
+# foreground thread was created for a client connection. The
+# Performance Schema did not account for the possibility of no
+# foreground threads for queries on the session_connect_attrs table,
+# causing an assertion to be raised.
+--disable_result_log
+select * from performance_schema.session_connect_attrs;
+--enable_result_log
+
 # Cleanup
 
 update performance_schema.setup_instruments set enabled='YES';

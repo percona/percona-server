@@ -159,7 +159,8 @@ class Move_thread_to_default_group {
                                       applied_res_grp->name().length(),
                                       pfs_thread_id);
       if (!pfs_thread_attr.m_system_thread) {
-        Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
+        Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id,
+                                          false);
         THD *thd =
             Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
         if (thd != nullptr) {
@@ -581,7 +582,7 @@ static inline bool check_and_apply_resource_grp(
 
   // Set resource group context for non-system threads.
   if (!pfs_thread_attr.m_system_thread) {
-    Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id);
+    Find_thd_with_id find_thd_with_id(pfs_thread_attr.m_processlist_id, false);
     THD *cur_thd =
         Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
     if (cur_thd != nullptr) {

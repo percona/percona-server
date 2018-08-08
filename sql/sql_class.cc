@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, Percona Inc. All Rights Reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +90,11 @@
 using std::max;
 using std::min;
 using std::unique_ptr;
+
+bool opt_log_slow_admin_statements = false;
+ulong opt_log_slow_sp_statements = 0;
+
+ulong kill_idle_transaction_timeout = 0;
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -429,6 +435,7 @@ THD::THD(bool enable_plugins)
   thread_stack = 0;
   m_catalog.str = "std";
   m_catalog.length = 3;
+  event_scheduler.data = nullptr;
   m_security_ctx = &m_main_security_ctx;
   password = 0;
   query_start_usec_used = false;
@@ -483,6 +490,8 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_thd_protocol, &LOCK_thd_protocol,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_temporary_tables, &LOCK_temporary_tables,
+                   MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
@@ -589,6 +598,7 @@ void THD::push_internal_handler(Internal_error_handler *handler) {
 bool THD::handle_condition(uint sql_errno, const char *sqlstate,
                            Sql_condition::enum_severity_level *level,
                            const char *msg) {
+  last_errno = sql_errno;
   if (!m_internal_handler) return false;
 
   for (Internal_error_handler *error_handler = m_internal_handler;
@@ -754,6 +764,10 @@ void THD::init(void) {
     tmp = sql_rnd_with_mutex();
     randominit(&rand, tmp + (ulong)&rand,
                tmp + (ulong)::atomic_global_query_id);
+    randominit(&slog_rand, tmp + reinterpret_cast<ulong>(&slog_rand),
+               tmp + static_cast<ulong>(::atomic_global_query_id));
+    DBUG_EXECUTE_IF("seed_slow_log_random",
+                    randominit(&slog_rand, 0x11111111, 0x77777777););
   }
 
   server_status = SERVER_STATUS_AUTOCOMMIT;
@@ -782,6 +796,7 @@ void THD::init(void) {
     variables.option_bits |= OPTION_BIN_LOG;
   else
     variables.option_bits &= ~OPTION_BIN_LOG;
+  reset_stats();
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the Debug Sync Facility. See debug_sync.cc. */
@@ -795,6 +810,8 @@ void THD::init(void) {
   owned_gtid.clear();
   owned_sid.clear();
   owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
+
+  clear_slow_extended();
 
   // This will clear the writeset session history.
   rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
@@ -904,6 +921,9 @@ void THD::cleanup(void) {
   */
   mdl_context.release_transactional_locks();
 
+  /* Release table backup lock, if acquired */
+  if (backup_tables_lock.is_acquired()) backup_tables_lock.release(this);
+
   /* Release the global read lock, if acquired. */
   if (global_read_lock.is_acquired())
     global_read_lock.unlock_global_read_lock(this);
@@ -969,18 +989,6 @@ void THD::release_resources() {
 
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
-  mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, false);
-  /*
-    Status queries after this point should not aggregate THD::status_var
-    since the values has been added to global_status_var.
-    The status values are not reset so that they can still be read
-    by performance schema.
-  */
-  status_var_aggregated = true;
-
-  mysql_mutex_unlock(&LOCK_status);
-
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_lock(&LOCK_query_plan);
@@ -1028,6 +1036,18 @@ void THD::release_resources() {
 
   if (current_thd == this) restore_globals();
 
+  mysql_mutex_lock(&LOCK_status);
+  add_to_status(&global_status_var, &status_var, false);
+  /*
+    Status queries after this point should not aggregate THD::status_var
+    since the values has been added to global_status_var.
+    The status values are not reset so that they can still be read
+    by performance schema.
+  */
+  status_var_aggregated = true;
+
+  mysql_mutex_unlock(&LOCK_status);
+
   m_release_resources_done = true;
 }
 
@@ -1054,6 +1074,7 @@ THD::~THD() {
   mysql_mutex_destroy(&LOCK_query_plan);
   mysql_mutex_destroy(&LOCK_thd_data);
   mysql_mutex_destroy(&LOCK_thd_query);
+  mysql_mutex_destroy(&LOCK_temporary_tables);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_thd_protocol);
   mysql_mutex_destroy(&LOCK_current_cond);
@@ -1079,6 +1100,39 @@ THD::~THD() {
     my_free(m_token_array);
   }
   DBUG_VOID_RETURN;
+}
+
+extern "C" void increment_thd_innodb_stats(THD *thd, unsigned long long trx_id,
+                                           long io_reads, long long io_read,
+                                           long io_reads_wait_timer,
+                                           long lock_que_wait_timer,
+                                           long que_wait_timer,
+                                           long page_access) {
+  thd->innodb_was_used = true;
+  thd->innodb_trx_id = trx_id;
+  thd->innodb_io_reads += io_reads;
+  thd->innodb_io_read += io_read;
+  thd->innodb_io_reads_wait_timer += io_reads_wait_timer;
+  thd->innodb_lock_que_wait_timer += lock_que_wait_timer;
+  thd->innodb_innodb_que_wait_timer += que_wait_timer;
+  thd->innodb_page_access += page_access;
+}
+
+extern "C" unsigned long thd_log_slow_verbosity(const THD *thd) {
+  return (unsigned long)thd->variables.log_slow_verbosity;
+}
+
+extern "C" int thd_opt_slow_log() { return (int)opt_slow_log; }
+
+/**
+  Check whether given connection handle is associated with a background thread.
+
+  @param thd  connection handle
+  @retval non-zero  the connection handle belongs to a background thread
+  @retval 0   the connection handle belongs to a different thread type
+*/
+extern "C" int thd_is_background_thread(const THD *thd) {
+  return (thd->system_thread == SYSTEM_THREAD_BACKGROUND);
 }
 
 /**
@@ -1126,46 +1180,21 @@ void THD::awake(THD::killed_state state_to_set) {
     if (this != current_thd || kill_immunizer) {
       DBUG_ASSERT(!kill_immunizer || !kill_immunizer->is_active());
 
-      /*
-        Before sending a signal, let's close the socket of the thread
-        that is being killed ("this", which is not the current thread).
-        This is to make sure it does not block if the signal is lost.
-        This needs to be done only on platforms where signals are not
-        a reliable interruption mechanism.
-
-        Note that the downside of this mechanism is that we could close
-        the connection while "this" target thread is in the middle of
-        sending a result to the application, thus violating the client-
-        server protocol.
-
-        On the other hand, without closing the socket we have a race
-        condition. If "this" target thread passes the check of
-        thd->killed, and then the current thread runs through
-        THD::awake(), sets the 'killed' flag and completes the
-        signaling, and then the target thread runs into read(), it will
-        block on the socket. As a result of the discussions around
-        Bug#37780, it has been decided that we accept the race
-        condition. A second KILL awakes the target from read().
-
-        If we are killing ourselves, we know that we are not blocked.
-        We also know that we will check thd->killed before we go for
-        reading the next statement.
-      */
-
-      shutdown_active_vio();
+      if (active_vio) vio_cancel(active_vio, SHUT_RDWR);
     }
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)
-      MYSQL_CALLBACK(Connection_handler_manager::event_functions,
-                     post_kill_notification, (this));
+      MYSQL_CALLBACK(this->scheduler, post_kill_notification, (this));
   }
 
   /* Interrupt target waiting inside a storage engine. */
   if (state_to_set != THD::NOT_KILLED) ha_kill_connection(this);
 
-  if (state_to_set == THD::KILL_TIMEOUT)
+  if (state_to_set == THD::KILL_TIMEOUT) {
+    DBUG_ASSERT(!status_var_aggregated);
     status_var.max_execution_time_exceeded++;
+  }
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (is_killable) {
@@ -1207,6 +1236,33 @@ void THD::awake(THD::killed_state state_to_set) {
     mysql_mutex_unlock(&LOCK_current_cond);
   }
   DBUG_VOID_RETURN;
+}
+
+/* extend for kill session of idle transaction from engine */
+extern "C" int thd_command(const THD *thd) { return (int)thd->get_command(); }
+
+extern "C" long long thd_start_time(const THD *thd) {
+  return (long long)thd->start_time.tv_sec;
+}
+
+extern "C" void thd_kill(ulong id) {
+  Find_thd_with_id find_thd_with_id(id, false);
+  THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (!thd) return;
+
+  thd->awake(THD::KILL_CONNECTION);
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+}
+
+/**
+   Check whether ft_query_extra_word_chars server variable is enabled for the
+   current session
+
+   @return ft_query_extra_word_chars value
+*/
+extern "C" int thd_get_ft_query_extra_word_chars(void) {
+  const THD *thd = current_thd;
+  return thd ? thd->variables.ft_query_extra_word_chars : 0;
 }
 
 /**
@@ -1308,6 +1364,8 @@ bool THD::store_globals() {
 #endif
   real_id = my_thread_self();  // For debugging
 
+  vio_set_thread_id(net.vio, real_id);
+
   return false;
 }
 
@@ -1325,6 +1383,86 @@ void THD::restore_globals() {
   /* Undocking the thread specific data. */
   current_thd = nullptr;
   THR_MALLOC = nullptr;
+}
+
+// Resets stats in a THD.
+void THD::reset_stats(void) noexcept {
+  current_connect_time = time(nullptr);
+  last_global_update_time = current_connect_time;
+  reset_diff_stats();
+}
+
+// Resets the 'diff' stats, which are used to update global stats.
+void THD::reset_diff_stats(void) noexcept {
+  diff_total_busy_time = 0;
+  diff_total_cpu_time = 0;
+  diff_total_bytes_received = 0;
+  diff_total_bytes_sent = 0;
+  diff_total_binlog_bytes_written = 0;
+  diff_total_sent_rows = 0;
+  diff_total_updated_rows = 0;
+  diff_total_read_rows = 0;
+  diff_select_commands = 0;
+  diff_update_commands = 0;
+  diff_other_commands = 0;
+  diff_commit_trans = 0;
+  diff_rollback_trans = 0;
+  diff_denied_connections = 0;
+  diff_lost_connections = 0;
+  diff_access_denied_errors = 0;
+  diff_empty_queries = 0;
+}
+
+// Updates 'diff' stats of a THD.
+void THD::update_stats(bool ran_command) noexcept {
+  diff_total_busy_time += busy_time;
+  diff_total_cpu_time += cpu_time;
+  diff_total_bytes_received += bytes_received;
+  diff_total_bytes_sent += bytes_sent;
+  diff_total_binlog_bytes_written += binlog_bytes_written;
+  diff_total_sent_rows += sent_row_count_2;
+  diff_total_updated_rows += updated_row_count;
+  // diff_total_read_rows is updated in handler.cc.
+
+  if (ran_command) {
+    // The replication thread has the COM_CONNECT command.
+    DBUG_ASSERT(get_command() != COM_SLEEP);
+    if ((get_command() == COM_QUERY || get_command() == COM_CONNECT) &&
+        (lex->sql_command >= 0 && lex->sql_command < SQLCOM_END)) {
+      // A SQL query.
+      if (lex->sql_command == SQLCOM_SELECT) {
+        diff_select_commands++;
+        if (!sent_row_count_2) diff_empty_queries++;
+      } else if ((sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) !=
+                 0) {
+        // 'SHOW ' commands become SQLCOM_SELECT.
+        diff_other_commands++;
+        // 'SHOW ' commands shouldn't inflate total sent row count.
+        diff_total_sent_rows -= sent_row_count_2;
+      } else if (is_update_query(lex->sql_command)) {
+        diff_update_commands++;
+      } else {
+        diff_other_commands++;
+      }
+    }
+  }
+  // diff_commit_trans is updated in handler.cc.
+  // diff_rollback_trans is updated in handler.cc.
+  // diff_denied_connections is updated in sql_connect.cc.
+  // diff_lost_connections is updated in sql_parse.cc.
+  // diff_access_denied_errors is updated in sql_parse.cc.
+
+  /* reset counters to zero to avoid double-counting since values
+     are already store in diff_total_*.
+  */
+
+  busy_time = 0;
+  cpu_time = 0;
+  bytes_received = 0;
+  bytes_sent = 0;
+  binlog_bytes_written = 0;
+  updated_row_count = 0;
+  sent_row_count_2 = 0;
 }
 
 /*
@@ -1597,11 +1735,19 @@ void THD::shutdown_active_vio() {
   DBUG_ENTER("shutdown_active_vio");
   mysql_mutex_assert_owner(&LOCK_thd_data);
   if (active_vio) {
-    vio_shutdown(active_vio);
+    vio_shutdown(active_vio, SHUT_RDWR);
     active_vio = 0;
     m_SSL = NULL;
   }
   DBUG_VOID_RETURN;
+}
+
+const char *get_client_host(const THD &client) noexcept {
+  return client.security_context()->host_or_ip().length
+             ? client.security_context()->host_or_ip().str
+             : client.security_context()->host().length
+                   ? client.security_context()->host().str
+                   : "";
 }
 
 /*
@@ -1752,6 +1898,15 @@ err_max:
   if (statement->name().str) names_hash.erase(to_string(statement->name()));
   st_hash.erase(statement->id);
   return 1;
+}
+
+/**
+   Return the query id of a thread
+   @param thd user thread
+   @return query id
+*/
+extern "C" int64_t thd_get_query_id(const MYSQL_THD thd) {
+  return (thd->query_id);
 }
 
 Prepared_statement *Prepared_statement_map::find_by_name(
@@ -1942,6 +2097,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
       first_successful_insert_id_in_prev_stmt;
   backup->first_successful_insert_id_in_cur_stmt =
       first_successful_insert_id_in_cur_stmt;
+  reset_sub_statement_state_slow_extended(backup);
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !is_current_stmt_binlog_format_row()) {
@@ -1966,6 +2122,65 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   if (is_current_stmt_binlog_row_enabled_with_write_set_extraction()) {
     get_transaction()->get_transaction_write_set_ctx()->reset_savepoint_list();
   }
+}
+
+void THD::clear_slow_extended() noexcept {
+  DBUG_ENTER("THD::clear_slow_extended");
+  m_sent_row_count = 0;
+  m_examined_row_count = 0;
+  bytes_sent_old = status_var.bytes_sent;
+  tmp_tables_used = 0;
+  tmp_tables_disk_used = 0;
+  tmp_tables_size = 0;
+  innodb_was_used = false;
+  if (!(server_status & SERVER_STATUS_IN_TRANS)) innodb_trx_id = 0;
+  innodb_io_reads = 0;
+  innodb_io_read = 0;
+  innodb_io_reads_wait_timer = 0;
+  innodb_lock_que_wait_timer = 0;
+  innodb_innodb_que_wait_timer = 0;
+  innodb_page_access = 0;
+  query_plan_flags = QPLAN_NONE;
+  query_plan_fsort_passes = 0;
+  last_errno = 0;
+  DBUG_VOID_RETURN;
+}
+
+void THD::reset_sub_statement_state_slow_extended(
+    Sub_statement_state *backup) noexcept {
+  DBUG_ENTER("THD::reset_sub_statement_state_slow_extended");
+  backup->tmp_tables_used = tmp_tables_used;
+  backup->tmp_tables_disk_used = tmp_tables_disk_used;
+  backup->tmp_tables_size = tmp_tables_size;
+  backup->innodb_was_used = innodb_was_used;
+  backup->innodb_io_reads = innodb_io_reads;
+  backup->innodb_io_read = innodb_io_read;
+  backup->innodb_io_reads_wait_timer = innodb_io_reads_wait_timer;
+  backup->innodb_lock_que_wait_timer = innodb_lock_que_wait_timer;
+  backup->innodb_innodb_que_wait_timer = innodb_innodb_que_wait_timer;
+  backup->innodb_page_access = innodb_page_access;
+  backup->query_plan_flags = query_plan_flags;
+  backup->query_plan_fsort_passes = query_plan_fsort_passes;
+  clear_slow_extended();
+  DBUG_VOID_RETURN;
+}
+
+void THD::restore_sub_statement_state_slow_extended(
+    const Sub_statement_state &backup) noexcept {
+  DBUG_ENTER("THD::restore_sub_statement_state_slow_extended");
+  tmp_tables_used += backup.tmp_tables_used;
+  tmp_tables_disk_used += backup.tmp_tables_disk_used;
+  tmp_tables_size += backup.tmp_tables_size;
+  innodb_was_used = (innodb_was_used || backup.innodb_was_used);
+  innodb_io_reads += backup.innodb_io_reads;
+  innodb_io_read += backup.innodb_io_read;
+  innodb_io_reads_wait_timer += backup.innodb_io_reads_wait_timer;
+  innodb_lock_que_wait_timer += backup.innodb_lock_que_wait_timer;
+  innodb_innodb_que_wait_timer += backup.innodb_innodb_que_wait_timer;
+  innodb_page_access += backup.innodb_page_access;
+  query_plan_flags |= backup.query_plan_flags;
+  query_plan_fsort_passes += backup.query_plan_fsort_passes;
+  DBUG_VOID_RETURN;
 }
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup) {
@@ -2046,6 +2261,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup) {
         ->restore_savepoint_list();
   }
 
+  restore_sub_statement_state_slow_extended(*backup);
   DBUG_VOID_RETURN;
 }
 
@@ -2065,27 +2281,34 @@ void THD::inc_examined_row_count(ha_rows count) {
 }
 
 void THD::inc_status_created_tmp_disk_tables() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.created_tmp_disk_tables++;
+  query_plan_flags |= QPLAN_TMP_DISK;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
 }
 
 void THD::inc_status_created_tmp_tables() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.created_tmp_tables++;
+  query_plan_flags |= QPLAN_TMP_TABLE;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
 }
 
 void THD::inc_status_select_full_join() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.select_full_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
+  query_plan_flags |= QPLAN_FULL_JOIN;
 }
 
 void THD::inc_status_select_full_range_join() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.select_full_range_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
@@ -2093,6 +2316,7 @@ void THD::inc_status_select_full_range_join() {
 }
 
 void THD::inc_status_select_range() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.select_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
@@ -2100,6 +2324,7 @@ void THD::inc_status_select_range() {
 }
 
 void THD::inc_status_select_range_check() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.select_range_check_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
@@ -2107,13 +2332,16 @@ void THD::inc_status_select_range_check() {
 }
 
 void THD::inc_status_select_scan() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.select_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
+  query_plan_flags |= QPLAN_FULL_SCAN;
 }
 
 void THD::inc_status_sort_merge_passes() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.filesort_merge_passes++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
@@ -2121,6 +2349,7 @@ void THD::inc_status_sort_merge_passes() {
 }
 
 void THD::inc_status_sort_range() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.filesort_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
@@ -2128,6 +2357,7 @@ void THD::inc_status_sort_range() {
 }
 
 void THD::inc_status_sort_rows(ha_rows count) {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.filesort_rows += count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)
@@ -2136,6 +2366,7 @@ void THD::inc_status_sort_rows(ha_rows count) {
 }
 
 void THD::inc_status_sort_scan() {
+  DBUG_ASSERT(!status_var_aggregated);
   status_var.filesort_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
@@ -2196,6 +2427,10 @@ void THD::leave_locked_tables_mode() {
       when leaving LTM.
     */
     global_read_lock.set_explicit_lock_duration(this);
+
+    /* Make sure table backup lock are not released when leaving LTM */
+    DBUG_ASSERT(!backup_tables_lock.is_acquired());
+
     /*
       Also ensure that we don't release metadata locks for open HANDLERs
       and user-level locks.

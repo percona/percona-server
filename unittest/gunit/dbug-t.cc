@@ -38,7 +38,7 @@ TEST(DebugTest, NoSuicide) { DBUG_SUICIDE(); }
 #else
 TEST(DebugDeathTest, Suicide) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(DBUG_SUICIDE(), "");
+  MY_EXPECT_DEATH_IF_SUPPORTED(DBUG_SUICIDE(), "");
 }
 #endif
 

@@ -1,0 +1,4 @@
+creating inconsistent bitmap dir: start LSN of 3rd file < start LSN of 2nd file
+call mtr.add_suppression("inconsistent bitmap file directory");
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+ERROR HY000: Can't read record in system table

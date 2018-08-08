@@ -685,6 +685,42 @@ static struct st_VioSSLFd *new_VioSSLFd(
   wolfSSL_SetIOSend(ssl_fd->ssl_context, wolfssl_send);
 #endif
 
+#if !defined(HAVE_WOLFSSL)
+#if OPENSSL_VERSION_NUMBER < 0x10002000L
+  const auto ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+  if (!ecdh) {
+    *error = SSL_INITERR_DHFAIL;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(nullptr);
+  }
+
+  if (SSL_CTX_set_tmp_ecdh(ssl_fd->ssl_context, ecdh) != 1) {
+    *error = SSL_INITERR_DHFAIL;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
+    EC_KEY_free(ecdh);
+    SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(nullptr);
+  }
+  EC_KEY_free(ecdh);
+
+#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+
+  if (SSL_CTX_set_ecdh_auto(ssl_fd->ssl_context, 1) != 1) {
+    *error = SSL_INITERR_DHFAIL;
+    DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
+    report_errors();
+    SSL_CTX_free(ssl_fd->ssl_context);
+    my_free(ssl_fd);
+    DBUG_RETURN(nullptr);
+  }
+#endif /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+#endif /* !defined(HAVE_WOLFSSL) */
+
   DBUG_PRINT("exit", ("OK 1"));
 
   DBUG_RETURN(ssl_fd);

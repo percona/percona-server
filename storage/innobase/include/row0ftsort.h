@@ -92,6 +92,10 @@ struct fts_psort_t {
   /*!< buffer to write to file */
   row_merge_block_t *block_alloc[FTS_NUM_AUX_INDEX];
   /*!< buffer to allocated */
+  row_merge_block_t *crypt_block[FTS_NUM_AUX_INDEX];
+  /*!< buffer to crypt data */
+  row_merge_block_t *crypt_alloc[FTS_NUM_AUX_INDEX];
+  /*!< buffer to allocated */
   ulint child_status;               /*!< child thread status */
   ulint state;                      /*!< parent thread state */
   fts_doc_list_t fts_doc_list;      /*!< doc list to process */
@@ -125,6 +129,10 @@ struct fts_tokenize_ctx {
   dfield_t sort_field[FTS_NUM_FIELDS_SORT];
   /*!< in: sort field */
   fts_token_list_t fts_token_list;
+  bool ignore_stopwords;
+  /*!< in: true if token
+  stopwords checking should be
+  skipped */
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;

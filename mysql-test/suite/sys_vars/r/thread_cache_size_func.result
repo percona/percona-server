@@ -16,17 +16,13 @@ Variable_name	Value
 Threads_cached	0
 0 Expected
 ** Disconnecting conn1,conn2,conn3,conn4 **
-SHOW STATUS LIKE 'Threads_cached';
-Variable_name	Value
-Threads_cached	3
-3 Expected
+# Threads_cached must become 3
+# Active connections must become 1
 SET @@GLOBAL.thread_cache_size= 1;
 ** Connecting conn1 using username 'root' **
 ** Connecting conn2 using username 'root' **
 connection default;
 ** Disconnecting conn1,conn2 **
-SHOW STATUS LIKE 'Threads_cached';
-Variable_name	Value
-Threads_cached	1
-1 Expected
+# Threads_cached must become 1
+# Active connections must become 1
 SET @@GLOBAL.thread_cache_size = @global_thread_cache_size;

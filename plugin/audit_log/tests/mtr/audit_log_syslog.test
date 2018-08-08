@@ -1,0 +1,1 @@
+--source ../plugin/audit_log/tests/mtr/audit_log_events.inc

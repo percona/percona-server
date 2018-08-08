@@ -45,6 +45,8 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // Item_result
+#include "sql/binlog_crypt_data.h"
+#include "sql/rpl_constants.h"
 #include "sql/rpl_trx_tracking.h"
 #include "sql/tc_log.h"  // TC_LOG
 #include "thr_mutex.h"
@@ -402,6 +404,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   uint file_id;
   uint open_count;  // For replication
 
+  /* binlog encryption data */
+  Binlog_crypt_data crypto;
+
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
      sync_relay_log_period
@@ -427,6 +432,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int32 get_prep_xids() { return m_atomic_prep_xids; }
 
   inline uint get_sync_period() { return *sync_period_ptr; }
+
+  int write_to_file(Log_event *event);
 
  public:
   /*
@@ -631,6 +638,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   /* The previous gtid set in relay log. */
   Gtid_set *previous_gtid_set_relaylog;
 
+  bool snapshot_lock_acquired;
+
   int open(const char *opt_name) { return open_binlog(opt_name); }
   bool change_stage(THD *thd, Stage_manager::StageID stage, THD *queue,
                     mysql_mutex_t *leave, mysql_mutex_t *enter);
@@ -674,6 +683,18 @@ class MYSQL_BIN_LOG : public TC_LOG {
     bytes_written = 0;
     DBUG_VOID_RETURN;
   }
+
+#ifdef MYSQL_SERVER
+  void xlock(void);
+  void xunlock(void);
+  void slock(void) { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+#else
+  void xlock(void) {}
+  void xunlock(void) {}
+  void slock(void) {}
+  void sunlock(void) {}
+#endif /* MYSQL_SERVER */
   void set_max_size(ulong max_size_arg);
   void signal_update() {
     DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
@@ -777,7 +798,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void stop_union_events(THD *thd);
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
-  bool write_buffer(const char *buf, uint len, Master_info *mi);
+  bool write_buffer(uchar *buf, uint len, Master_info *mi);
   bool write_event(Log_event *ev, Master_info *mi);
 
  private:
@@ -808,6 +829,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int purge_logs(const char *to_log, bool included, bool need_lock_index,
                  bool need_update_threads, ulonglong *decrease_log_space,
                  bool auto_purge);
+  int purge_logs_maximum_number(ulong max_nr_files);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info *rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
@@ -880,6 +902,11 @@ class MYSQL_BIN_LOG : public TC_LOG {
   */
   bool is_rotating_caused_by_incident;
   static const int MAX_RETRIES_BY_OOM = 10;
+
+  Binlog_crypt_data *get_crypto_data() { return &crypto; }
+
+ private:
+  void publish_coordinates_for_global_status(void) const;
 };
 
 struct LOAD_FILE_INFO {
@@ -927,6 +954,10 @@ void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
+
+bool handle_gtid_consistency_violation(THD *thd, int error_code,
+                                       int log_error_code)
+    MY_ATTRIBUTE((warn_unused_result));
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;

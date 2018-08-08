@@ -1495,6 +1495,7 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
 
   lsn_t checkpoint_limited_lsn = LSN_MAX;
   lsn_t archiver_limited_lsn = LSN_MAX;
+  lsn_t tracker_limited_lsn = LSN_MAX;
   lsn_t min_next_lsn = last_write_lsn + OS_FILE_LOG_BLOCK_SIZE;
 
   while (true) {
@@ -1613,15 +1614,69 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
 
   LOG_SYNC_POINT("log_writer_after_archiver_check");
 
+  count = 0;
+
+  while (srv_track_changed_pages) {
+    lsn_t tracked_lsn = log_sys->tracked_lsn.load();
+    tracked_lsn = ut_uint64_align_down(tracked_lsn, OS_FILE_LOG_BLOCK_SIZE);
+
+    const lsn_t lsn_diff = min_next_lsn - tracked_lsn;
+
+    if (lsn_diff <= log.lsn_capacity) {
+      /* Between tracked_lsn and next_write_lsn there is less
+      bytes than capacity of all log files. Writing log up to
+      next_write_lsn will not overwrite data at tracked_lsn.
+      There is no need to wait for the redo log tracker. */
+
+      tracker_limited_lsn = tracked_lsn + log.lsn_capacity;
+      break;
+    }
+
+    if (count >= 10) {
+      ib::error(ER_IB_MSG_1236) << "Log writer overwriting data to"
+                                   " track - waited too long (1 second),"
+                                   " lag: "
+                                << lsn_diff
+                                << " bytes,"
+                                   " tracked LSN: "
+                                << tracked_lsn;
+      ib::error(ER_IB_MSG_1236) << "Stopping the log tracking thread";
+      srv_track_changed_pages = false;
+      tracker_limited_lsn = min_next_lsn;
+      break;
+    }
+
+    os_event_set(srv_checkpoint_completed_event);
+
+    log_writer_mutex_exit(log);
+
+    ib::warn(ER_IB_MSG_1237) << "Log writer is waiting for tracker to"
+                                " to catch up lag: "
+                             << lsn_diff
+                             << " bytes,"
+                                " tracked LSN: "
+                             << tracked_lsn;
+
+    count++;
+    os_thread_sleep(100000); /* 100ms */
+
+    log_writer_mutex_enter(log);
+
+    if (log.write_lsn.load() > last_write_lsn) {
+      return;
+    }
+  }
+
   ut_a(checkpoint_limited_lsn < LSN_MAX);
 
   ut_ad(log_writer_mutex_own(log));
 
   ut_a(archiver_limited_lsn < LSN_MAX || arch_log_sys == nullptr ||
        !arch_log_sys->is_active());
+  ut_ad(tracker_limited_lsn < LSN_MAX || !srv_track_changed_pages);
 
-  const lsn_t limit_for_next_write_lsn =
-      std::min(checkpoint_limited_lsn, archiver_limited_lsn);
+  const lsn_t limit_for_next_write_lsn = std::min(
+      {checkpoint_limited_lsn, archiver_limited_lsn, tracker_limited_lsn});
 
   if (limit_for_next_write_lsn < next_write_lsn) {
     end_offset -= next_write_lsn - limit_for_next_write_lsn;

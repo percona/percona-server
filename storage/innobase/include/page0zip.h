@@ -124,6 +124,7 @@ void page_zip_set_alloc(void *stream,      /*!< in/out: zlib stream */
 /** Compress a page.
  @return true on success, false on failure; page_zip will be left
  intact on failure. */
+MY_NODISCARD
 ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
                                                   n_blobs, m_start, m_end,
                                                   m_nonempty */
@@ -353,6 +354,7 @@ void page_zip_copy_recs(
 
 /** Parses a log record of compressing an index page.
  @return end of log record or NULL */
+MY_NODISCARD
 byte *page_zip_parse_compress(
     byte *ptr,                 /*!< in: buffer */
     byte *end_ptr,             /*!< in: buffer end */

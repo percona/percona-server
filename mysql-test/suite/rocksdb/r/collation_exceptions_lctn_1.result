@@ -1,0 +1,33 @@
+SET @old_rocksdb_strict_collation_exceptions = @@global.rocksdb_strict_collation_exceptions;
+CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+Warnings:
+Warning	122	Indexed column test.abc.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
+DROP TABLE abc;
+CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+Warnings:
+Warning	122	Indexed column test.abc.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
+DROP TABLE ABC;
+SET GLOBAL rocksdb_strict_collation_exceptions="abc";
+CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+DROP TABLE abc;
+CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+DROP TABLE ABC;
+CREATE TABLE bcd (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+Warnings:
+Warning	122	Indexed column test.bcd.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
+DROP TABLE bcd;
+SET GLOBAL rocksdb_strict_collation_exceptions="ABC";
+CREATE TABLE abc (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+DROP TABLE abc;
+CREATE TABLE ABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+DROP TABLE ABC;
+SET GLOBAL rocksdb_strict_collation_exceptions="^ABC";
+CREATE TABLE abcd (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+DROP TABLE abcd;
+CREATE TABLE ABCD (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+DROP TABLE ABCD;
+CREATE TABLE ZABC (id INT PRIMARY KEY, value varchar(50), index(value)) engine=rocksdb charset utf8;
+Warnings:
+Warning	122	Indexed column test.zabc.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
+DROP TABLE ZABC;
+SET GLOBAL rocksdb_strict_collation_exceptions=@old_rocksdb_strict_collation_exceptions;

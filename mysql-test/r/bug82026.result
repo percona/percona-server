@@ -1,0 +1,9 @@
+#
+# Bug 82026: Stack buffer overflow with --ssl-cipher=<more than 4K characters>
+#
+# restart:<hidden args>
+SELECT @ssl_cipher;
+@ssl_cipher
+NULL
+# restart
+Pattern "Failed to set up SSL because of the following SSL library error: Failed to set ciphers to use" found

@@ -77,6 +77,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0sync.h"
+#include "trx0trx.h"
 #include "ut0new.h"
 #endif /* !UNIV_HOTBACKUP */
 
@@ -116,159 +117,190 @@ struct set_numa_interleave_t {
 #define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE
 #endif /* HAVE_LIBNUMA */
 
-/*
-                IMPLEMENTATION OF THE BUFFER POOL
-                =================================
+#ifndef UNIV_INNOCHECKSUM
 
-                Buffer frames and blocks
-                ------------------------
-Following the terminology of Gray and Reuter, we call the memory
-blocks where file pages are loaded buffer frames. For each buffer
-frame there is a control block, or shortly, a block, in the buffer
-control array. The control info which does not need to be stored
-in the file along with the file page, resides in the control block.
+static inline void _increment_page_get_statistics(buf_block_t *block,
+                                                  trx_t *trx) {
+  ulint block_hash;
+  ulint block_hash_byte;
+  byte block_hash_offset;
 
-                Buffer pool struct
-                ------------------
-The buffer buf_pool contains several mutexes which protect all the
-control data structures of the buf_pool. The content of a buffer frame is
-protected by a separate read-write lock in its control block, though.
+  ut_ad(block);
+  ut_ad(trx && trx->take_stats);
 
-buf_pool->LRU_list_mutex protects the LRU_list;
-buf_pool->free_list_mutex protects the free_list and withdraw list;
-buf_pool->flush_state_mutex protects the flush state related data structures;
-buf_pool->zip_free mutex protects the zip_free arrays;
-buf_pool->zip_hash mutex protects the zip_hash hash and in_zip_hash flag.
+  if (!trx->distinct_page_access_hash) {
+    trx->distinct_page_access_hash = static_cast<byte *>(
+        ut_zalloc(DPAH_SIZE, mem_key_trx_distinct_page_access_hash));
+  }
 
-                Control blocks
-                --------------
+  block_hash = ut_hash_ulint(block->page.id.fold(), DPAH_SIZE << 3);
+  block_hash_byte = block_hash >> 3;
+  block_hash_offset = (byte)block_hash & 0x07;
+  ut_ad(block_hash_byte < DPAH_SIZE);
+  ut_ad(block_hash_offset <= 7);
+  if ((trx->distinct_page_access_hash[block_hash_byte] &
+       ((byte)0x01 << block_hash_offset)) == 0)
+    trx->distinct_page_access++;
+  trx->distinct_page_access_hash[block_hash_byte] |= (byte)0x01
+                                                     << block_hash_offset;
+  return;
+}
 
-The control block contains, for instance, the bufferfix count
-which is incremented when a thread wants a file page to be fixed
-in a buffer frame. The bufferfix operation does not lock the
-contents of the frame, however. For this purpose, the control
-block contains a read-write lock.
+#endif
 
-The buffer frames have to be aligned so that the start memory
-address of a frame is divisible by the universal page size, which
-is a power of two.
+  /*
+                  IMPLEMENTATION OF THE BUFFER POOL
+                  =================================
 
-The control blocks containing file pages are put to a hash table
-according to the file address of the page.
-We could speed up the access to an individual page by using
-"pointer swizzling": we could replace the page references on
-non-leaf index pages by direct pointers to the page, if it exists
-in the buf_pool. We could make a separate hash table where we could
-chain all the page references in non-leaf pages residing in the buf_pool,
-using the page reference as the hash key,
-and at the time of reading of a page update the pointers accordingly.
-Drawbacks of this solution are added complexity and,
-possibly, extra space required on non-leaf pages for memory pointers.
-A simpler solution is just to speed up the hash table mechanism
-in the database, using tables whose size is a power of 2.
+                  Buffer frames and blocks
+                  ------------------------
+  Following the terminology of Gray and Reuter, we call the memory
+  blocks where file pages are loaded buffer frames. For each buffer
+  frame there is a control block, or shortly, a block, in the buffer
+  control array. The control info which does not need to be stored
+  in the file along with the file page, resides in the control block.
 
-                Lists of blocks
-                ---------------
+                  Buffer pool struct
+                  ------------------
+  The buffer buf_pool contains several mutexes which protect all the
+  control data structures of the buf_pool. The content of a buffer frame is
+  protected by a separate read-write lock in its control block, though.
 
-There are several lists of control blocks.
+  buf_pool->LRU_list_mutex protects the LRU_list;
+  buf_pool->free_list_mutex protects the free_list and withdraw list;
+  buf_pool->flush_state_mutex protects the flush state related data structures;
+  buf_pool->zip_free mutex protects the zip_free arrays;
+  buf_pool->zip_hash mutex protects the zip_hash hash and in_zip_hash flag.
 
-The free list (buf_pool->free) contains blocks which are currently not
-used.
+                  Control blocks
+                  --------------
 
-The common LRU list contains all the blocks holding a file page
-except those for which the bufferfix count is non-zero.
-The pages are in the LRU list roughly in the order of the last
-access to the page, so that the oldest pages are at the end of the
-list. We also keep a pointer to near the end of the LRU list,
-which we can use when we want to artificially age a page in the
-buf_pool. This is used if we know that some page is not needed
-again for some time: we insert the block right after the pointer,
-causing it to be replaced sooner than would normally be the case.
-Currently this aging mechanism is used for read-ahead mechanism
-of pages, and it can also be used when there is a scan of a full
-table which cannot fit in the memory. Putting the pages near the
-end of the LRU list, we make sure that most of the buf_pool stays
-in the main memory, undisturbed.
+  The control block contains, for instance, the bufferfix count
+  which is incremented when a thread wants a file page to be fixed
+  in a buffer frame. The bufferfix operation does not lock the
+  contents of the frame, however. For this purpose, the control
+  block contains a read-write lock.
 
-The unzip_LRU list contains a subset of the common LRU list.  The
-blocks on the unzip_LRU list hold a compressed file page and the
-corresponding uncompressed page frame.  A block is in unzip_LRU if and
-only if the predicate buf_page_belongs_to_unzip_LRU(&block->page)
-holds.  The blocks in unzip_LRU will be in same order as they are in
-the common LRU list.  That is, each manipulation of the common LRU
-list will result in the same manipulation of the unzip_LRU list.
+  The buffer frames have to be aligned so that the start memory
+  address of a frame is divisible by the universal page size, which
+  is a power of two.
 
-The chain of modified blocks (buf_pool->flush_list) contains the blocks
-holding file pages that have been modified in the memory
-but not written to disk yet. The block with the oldest modification
-which has not yet been written to disk is at the end of the chain.
-The access to this list is protected by buf_pool->flush_list_mutex.
+  The control blocks containing file pages are put to a hash table
+  according to the file address of the page.
+  We could speed up the access to an individual page by using
+  "pointer swizzling": we could replace the page references on
+  non-leaf index pages by direct pointers to the page, if it exists
+  in the buf_pool. We could make a separate hash table where we could
+  chain all the page references in non-leaf pages residing in the buf_pool,
+  using the page reference as the hash key,
+  and at the time of reading of a page update the pointers accordingly.
+  Drawbacks of this solution are added complexity and,
+  possibly, extra space required on non-leaf pages for memory pointers.
+  A simpler solution is just to speed up the hash table mechanism
+  in the database, using tables whose size is a power of 2.
 
-The chain of unmodified compressed blocks (buf_pool->zip_clean)
-contains the control blocks (buf_page_t) of those compressed pages
-that are not in buf_pool->flush_list and for which no uncompressed
-page has been allocated in the buffer pool.  The control blocks for
-uncompressed pages are accessible via buf_block_t objects that are
-reachable via buf_pool->chunks[].
+                  Lists of blocks
+                  ---------------
 
-The chains of free memory blocks (buf_pool->zip_free[]) are used by
-the buddy allocator (buf0buddy.cc) to keep track of currently unused
-memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
-blocks are inside the UNIV_PAGE_SIZE-sized memory blocks of type
-BUF_BLOCK_MEMORY that the buddy allocator requests from the buffer
-pool.  The buddy allocator is solely used for allocating control
-blocks for compressed pages (buf_page_t) and compressed page frames.
+  There are several lists of control blocks.
 
-                Loading a file page
-                -------------------
+  The free list (buf_pool->free) contains blocks which are currently not
+  used.
 
-First, a victim block for replacement has to be found in the
-buf_pool. It is taken from the free list or searched for from the
-end of the LRU-list. An exclusive lock is reserved for the frame,
-the io_fix field is set in the block fixing the block in buf_pool,
-and the io-operation for loading the page is queued. The io-handler thread
-releases the X-lock on the frame and resets the io_fix field
-when the io operation completes.
+  The common LRU list contains all the blocks holding a file page
+  except those for which the bufferfix count is non-zero.
+  The pages are in the LRU list roughly in the order of the last
+  access to the page, so that the oldest pages are at the end of the
+  list. We also keep a pointer to near the end of the LRU list,
+  which we can use when we want to artificially age a page in the
+  buf_pool. This is used if we know that some page is not needed
+  again for some time: we insert the block right after the pointer,
+  causing it to be replaced sooner than would normally be the case.
+  Currently this aging mechanism is used for read-ahead mechanism
+  of pages, and it can also be used when there is a scan of a full
+  table which cannot fit in the memory. Putting the pages near the
+  end of the LRU list, we make sure that most of the buf_pool stays
+  in the main memory, undisturbed.
 
-A thread may request the above operation using the function
-buf_page_get(). It may then continue to request a lock on the frame.
-The lock is granted when the io-handler releases the x-lock.
+  The unzip_LRU list contains a subset of the common LRU list.  The
+  blocks on the unzip_LRU list hold a compressed file page and the
+  corresponding uncompressed page frame.  A block is in unzip_LRU if and
+  only if the predicate buf_page_belongs_to_unzip_LRU(&block->page)
+  holds.  The blocks in unzip_LRU will be in same order as they are in
+  the common LRU list.  That is, each manipulation of the common LRU
+  list will result in the same manipulation of the unzip_LRU list.
 
-                Read-ahead
-                ----------
+  The chain of modified blocks (buf_pool->flush_list) contains the blocks
+  holding file pages that have been modified in the memory
+  but not written to disk yet. The block with the oldest modification
+  which has not yet been written to disk is at the end of the chain.
+  The access to this list is protected by buf_pool->flush_list_mutex.
 
-The read-ahead mechanism is intended to be intelligent and
-isolated from the semantically higher levels of the database
-index management. From the higher level we only need the
-information if a file page has a natural successor or
-predecessor page. On the leaf level of a B-tree index,
-these are the next and previous pages in the natural
-order of the pages.
+  The chain of unmodified compressed blocks (buf_pool->zip_clean)
+  contains the control blocks (buf_page_t) of those compressed pages
+  that are not in buf_pool->flush_list and for which no uncompressed
+  page has been allocated in the buffer pool.  The control blocks for
+  uncompressed pages are accessible via buf_block_t objects that are
+  reachable via buf_pool->chunks[].
 
-Let us first explain the read-ahead mechanism when the leafs
-of a B-tree are scanned in an ascending or descending order.
-When a read page is the first time referenced in the buf_pool,
-the buffer manager checks if it is at the border of a so-called
-linear read-ahead area. The tablespace is divided into these
-areas of size 64 blocks, for example. So if the page is at the
-border of such an area, the read-ahead mechanism checks if
-all the other blocks in the area have been accessed in an
-ascending or descending order. If this is the case, the system
-looks at the natural successor or predecessor of the page,
-checks if that is at the border of another area, and in this case
-issues read-requests for all the pages in that area. Maybe
-we could relax the condition that all the pages in the area
-have to be accessed: if data is deleted from a table, there may
-appear holes of unused pages in the area.
+  The chains of free memory blocks (buf_pool->zip_free[]) are used by
+  the buddy allocator (buf0buddy.cc) to keep track of currently unused
+  memory blocks of size sizeof(buf_page_t)..UNIV_PAGE_SIZE / 2.  These
+  blocks are inside the UNIV_PAGE_SIZE-sized memory blocks of type
+  BUF_BLOCK_MEMORY that the buddy allocator requests from the buffer
+  pool.  The buddy allocator is solely used for allocating control
+  blocks for compressed pages (buf_page_t) and compressed page frames.
 
-A different read-ahead mechanism is used when there appears
-to be a random access pattern to a file.
-If a new page is referenced in the buf_pool, and several pages
-of its random access area (for instance, 32 consecutive pages
-in a tablespace) have recently been referenced, we may predict
-that the whole area may be needed in the near future, and issue
-the read requests for the whole area.
-*/
+                  Loading a file page
+                  -------------------
+
+  First, a victim block for replacement has to be found in the
+  buf_pool. It is taken from the free list or searched for from the
+  end of the LRU-list. An exclusive lock is reserved for the frame,
+  the io_fix field is set in the block fixing the block in buf_pool,
+  and the io-operation for loading the page is queued. The io-handler thread
+  releases the X-lock on the frame and resets the io_fix field
+  when the io operation completes.
+
+  A thread may request the above operation using the function
+  buf_page_get(). It may then continue to request a lock on the frame.
+  The lock is granted when the io-handler releases the x-lock.
+
+                  Read-ahead
+                  ----------
+
+  The read-ahead mechanism is intended to be intelligent and
+  isolated from the semantically higher levels of the database
+  index management. From the higher level we only need the
+  information if a file page has a natural successor or
+  predecessor page. On the leaf level of a B-tree index,
+  these are the next and previous pages in the natural
+  order of the pages.
+
+  Let us first explain the read-ahead mechanism when the leafs
+  of a B-tree are scanned in an ascending or descending order.
+  When a read page is the first time referenced in the buf_pool,
+  the buffer manager checks if it is at the border of a so-called
+  linear read-ahead area. The tablespace is divided into these
+  areas of size 64 blocks, for example. So if the page is at the
+  border of such an area, the read-ahead mechanism checks if
+  all the other blocks in the area have been accessed in an
+  ascending or descending order. If this is the case, the system
+  looks at the natural successor or predecessor of the page,
+  checks if that is at the border of another area, and in this case
+  issues read-requests for all the pages in that area. Maybe
+  we could relax the condition that all the pages in the area
+  have to be accessed: if data is deleted from a table, there may
+  appear holes of unused pages in the area.
+
+  A different read-ahead mechanism is used when there appears
+  to be a random access pattern to a file.
+  If a new page is referenced in the buf_pool, and several pages
+  of its random access area (for instance, 32 consecutive pages
+  in a tablespace) have recently been referenced, we may predict
+  that the whole area may be needed in the near future, and issue
+  the read requests for the whole area.
+  */
 
 #ifndef UNIV_HOTBACKUP
 /** Value in microseconds */
@@ -356,9 +388,6 @@ static void buf_pool_register_chunk(buf_chunk_t *chunk) {
 lsn_t buf_pool_get_oldest_modification_approx(void) {
   lsn_t lsn = 0;
   lsn_t oldest_lsn = 0;
-
-  /* When we traverse all the flush lists we don't care if previous
-  flush lists changed. We do not require consistent result. */
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
@@ -528,6 +557,11 @@ buf_block_t *buf_block_alloc(
 BUF_PAGE_PRINT_NO_FULL */
 void buf_page_print(const byte *read_buf, const page_size_t &page_size,
                     ulint flags) {
+  if (!read_buf) {
+    ib::info() << "Not dumping page as (in memory) pointer is NULL";
+    return;
+  }
+
   if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
     ib::info(ER_IB_MSG_51) << "Page dump in ascii and hex ("
                            << page_size.physical() << " bytes):";
@@ -798,15 +832,18 @@ static buf_chunk_t *buf_chunk_init(
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
     ulint mem_size,       /*!< in: requested size in bytes */
+    bool populate,        /*!< in: virtual page preallocation */
     std::mutex *mutex)    /*!< in,out: Mutex protecting chunk map. */
 {
   buf_block_t *block;
   byte *frame;
   ulint i;
+  ulint size_target;
 
   /* Round down to a multiple of page size,
   although it already should be. */
   mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
+  size_target = (mem_size / UNIV_PAGE_SIZE) - 1;
   /* Reserve space for the block descriptors. */
   mem_size += ut_2pow_round(
       (mem_size / UNIV_PAGE_SIZE) * (sizeof *block) + (UNIV_PAGE_SIZE - 1),
@@ -814,7 +851,8 @@ static buf_chunk_t *buf_chunk_init(
 
   DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return (NULL););
 
-  chunk->mem = buf_pool->allocator.allocate_large(mem_size, &chunk->mem_pfx);
+  chunk->mem =
+      buf_pool->allocator.allocate_large(mem_size, &chunk->mem_pfx, populate);
 
   if (chunk->mem == NULL) {
     return (NULL);
@@ -856,6 +894,10 @@ static buf_chunk_t *buf_chunk_init(
     }
 
     chunk->size = size;
+  }
+
+  if (chunk->size > size_target) {
+    chunk->size = size_target;
   }
 
   /* Init block structs and assign frames for them. Then we
@@ -973,6 +1015,12 @@ static const buf_block_t *buf_chunk_not_freed(
         ready = buf_flush_ready_for_replace(&block->page);
         buf_page_mutex_exit(block);
 
+        if (UNIV_UNLIKELY(block->page.is_corrupt)) {
+          /* corrupt page may remain, it can be
+          skipped */
+          break;
+        }
+
         if (!ready) {
           return (block);
         }
@@ -1009,12 +1057,14 @@ static void buf_pool_set_sizes(void) {
 /** Initialize a buffer pool instance.
 @param[in]	buf_pool	    buffer pool instance
 @param[in]	buf_pool_size size in bytes
+@param[in]	populate      virtual page preallocation
 @param[in]	instance_no   id of the instance
 @param[in,out]  mutex     Mutex to protect common data structures
-@param[out] err           DB_SUCCESS if all goes well */
+@param[out] err           DB_SUCCESS if all goes well
+@param[in]  populate      virtual page preallocation */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
-                            ulint instance_no, std::mutex *mutex,
-                            dberr_t &err) {
+                            ulint instance_no, std::mutex *mutex, dberr_t &err,
+                            bool populate) {
   ulint i;
   ulint chunk_size;
   buf_chunk_t *chunk;
@@ -1080,7 +1130,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     chunk = buf_pool->chunks;
 
     do {
-      if (!buf_chunk_init(buf_pool, chunk, chunk_size, mutex)) {
+      if (!buf_chunk_init(buf_pool, chunk, chunk_size, populate, mutex)) {
         while (--chunk >= buf_pool->chunks) {
           buf_block_t *block = chunk->blocks;
 
@@ -1244,9 +1294,10 @@ static void buf_pool_free() {
 
 /** Creates the buffer pool.
 @param[in]  total_size    Size of the total pool in bytes.
+@param[in]  populate	  Virtual page preallocation
 @param[in]  n_instances   Number of buffer pool instances to create.
 @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
+dberr_t buf_pool_init(ulint total_size, bool populate, ulint n_instances) {
   ulint i;
   const ulint size = total_size / n_instances;
 
@@ -1299,7 +1350,7 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 
     for (ulint id = i; id < n; ++id) {
       threads.emplace_back(std::thread(buf_pool_create, &buf_pool_ptr[id], size,
-                                       id, &m, std::ref(errs[id])));
+                                       id, &m, std::ref(errs[id]), populate));
     }
 
     for (ulint id = i; id < n; ++id) {
@@ -1347,6 +1398,7 @@ static bool buf_page_realloc(buf_pool_t *buf_pool, buf_block_t *block) {
 
   ut_ad(buf_pool_withdrawing);
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+  ut_ad(!btr_search_enabled);
 
   new_block = buf_LRU_get_free_only(buf_pool);
 
@@ -1845,12 +1897,12 @@ static void buf_pool_resize() {
 
   buf_resize_status("Disabling adaptive hash index.");
 
-  btr_search_s_lock_all();
+  rw_lock_s_lock(btr_search_latches[0]);
   if (btr_search_enabled) {
-    btr_search_s_unlock_all();
+    rw_lock_s_unlock(btr_search_latches[0]);
     btr_search_disabled = true;
   } else {
-    btr_search_s_unlock_all();
+    rw_lock_s_unlock(btr_search_latches[0]);
   }
 
   btr_search_disable(true);
@@ -2103,7 +2155,8 @@ withdraw_retry:
       while (chunk < echunk) {
         ulong unit = srv_buf_pool_chunk_unit;
 
-        if (!buf_chunk_init(buf_pool, chunk, unit, nullptr)) {
+        if (!buf_chunk_init(buf_pool, chunk, unit,
+                            static_cast<bool>(srv_numa_interleave), nullptr)) {
           ib::error(ER_IB_MSG_65) << "buffer pool " << i
                                   << " : failed to allocate"
                                      " new memory.";
@@ -2844,6 +2897,11 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
   rw_lock_t *hash_lock;
   ibool discard_attempted = FALSE;
   ibool must_read;
+  trx_t *trx = innobase_get_trx_for_slow_log();
+  ulint sec;
+  ulint ms;
+  ib_uint64_t start_time;
+  ib_uint64_t finish_time;
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
   buf_pool->stat.n_page_gets++;
@@ -2862,7 +2920,7 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
     /* Page not in buf_pool: needs to be read from file */
 
     ut_ad(!hash_lock);
-    buf_read_page(page_id, page_size);
+    buf_read_page(page_id, page_size, trx);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
     ut_a(++buf_dbg_counter % 5771 || buf_validate());
@@ -2874,6 +2932,12 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
   if (bpage->zip.data == NULL) {
     /* There is no compressed page. */
   err_exit:
+    rw_lock_s_unlock(hash_lock);
+
+    return (NULL);
+  }
+
+  if (UNIV_UNLIKELY(bpage->is_corrupt && srv_pass_corrupt_table <= 1)) {
     rw_lock_s_unlock(hash_lock);
 
     return (NULL);
@@ -2904,11 +2968,11 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
         goto lookup;
       }
 
+      buf_block_buf_fix_inc((buf_block_t *)bpage, __FILE__, __LINE__);
+
       block_mutex = &((buf_block_t *)bpage)->mutex;
 
       mutex_enter(block_mutex);
-
-      buf_block_buf_fix_inc((buf_block_t *)bpage, __FILE__, __LINE__);
 
       goto got_block;
   }
@@ -2939,6 +3003,13 @@ got_block:
     /* Let us wait until the read operation
     completes */
 
+    if (UNIV_LIKELY_NULL(trx)) {
+      ut_ad(trx->take_stats);
+      ut_usectime(&sec, &ms);
+      start_time = (ib_uint64_t)sec * 1000000 + ms;
+    } else {
+      start_time = 0;
+    }
     for (;;) {
       enum buf_io_fix io_fix;
 
@@ -2951,6 +3022,11 @@ got_block:
       } else {
         break;
       }
+    }
+    if (UNIV_UNLIKELY(start_time != 0)) {
+      ut_usectime(&sec, &ms);
+      finish_time = (ib_uint64_t)sec * 1000000 + ms;
+      trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
     }
   }
 
@@ -3145,8 +3221,10 @@ static bool buf_debug_execute_is_force_flush() {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** Wait for the block to be read in.
-@param[in]	block	The block to check */
-static void buf_wait_for_read(buf_block_t *block) {
+@param[in]	block	The block to check
+@param trx	Transaction to account the I/Os to */
+static void buf_wait_for_read(buf_block_t *block, trx_t *trx) {
+  ut_ad(!trx || trx->take_stats);
   /* Note:
 
   We are using the block->lock to check for IO state (and a dirty read).
@@ -3156,7 +3234,17 @@ static void buf_wait_for_read(buf_block_t *block) {
   added to the page hashtable. */
 
   if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
+    ib_uint64_t start_time;
+    ulint sec;
+    ulint ms;
     /* Wait until the read operation completes */
+    if (UNIV_LIKELY_NULL(trx)) {
+      ut_usectime(&sec, &ms);
+      start_time = (ib_uint64_t)sec * 1000000 + ms;
+    } else {
+      start_time = 0;
+    }
+
     for (;;) {
       if (buf_block_get_io_fix_unlocked(block) == BUF_IO_READ) {
         /* Wait by temporaly s-latch */
@@ -3165,6 +3253,12 @@ static void buf_wait_for_read(buf_block_t *block) {
       } else {
         break;
       }
+    }
+
+    if (UNIV_UNLIKELY(start_time != 0)) {
+      ut_usectime(&sec, &ms);
+      ib_uint64_t finish_time = (ib_uint64_t)sec * 1000000 + ms;
+      trx->io_reads_wait_timer += (ulint)(finish_time - start_time);
     }
   }
 }
@@ -3191,6 +3285,7 @@ buf_block_t *buf_page_get_gen(const page_id_t &page_id,
   buf_block_t *block;
   unsigned access_time;
   rw_lock_t *hash_lock;
+  trx_t *trx = innobase_get_trx_for_slow_log();
   buf_block_t *fix_block;
   ulint retries = 0;
   buf_pool_t *buf_pool = buf_pool_get(page_id);
@@ -3311,8 +3406,8 @@ loop:
       return (NULL);
     }
 
-    if (buf_read_page(page_id, page_size)) {
-      buf_read_ahead_random(page_id, page_size, ibuf_inside(mtr));
+    if (buf_read_page(page_id, page_size, trx)) {
+      buf_read_ahead_random(page_id, page_size, ibuf_inside(mtr), trx);
 
       retries = 0;
     } else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
@@ -3368,12 +3463,10 @@ got_block:
 
   if (mode == BUF_GET_IF_IN_POOL || mode == BUF_PEEK_IF_IN_POOL) {
     buf_page_t *fix_page = &fix_block->page;
-    BPageMutex *fix_mutex = buf_page_get_mutex(fix_page);
+    os_rmb;
 
-    mutex_enter(fix_mutex);
     const bool must_read =
         (buf_page_get_io_fix_unlocked(fix_page) == BUF_IO_READ);
-    mutex_exit(fix_mutex);
 
     if (must_read) {
       /* The page is being read to buffer pool,
@@ -3383,6 +3476,13 @@ got_block:
 
       return (NULL);
     }
+  }
+
+  if (UNIV_UNLIKELY(fix_block->page.is_corrupt &&
+                    srv_pass_corrupt_table <= 1)) {
+    buf_block_unfix(fix_block);
+
+    return (NULL);
   }
 
   switch (buf_block_get_state(fix_block)) {
@@ -3695,7 +3795,7 @@ got_block:
   /* We have to wait here because the IO_READ state was set
   under the protection of the hash_lock and not the block->mutex
   and block->lock. */
-  buf_wait_for_read(fix_block);
+  buf_wait_for_read(fix_block, trx);
 
   /* Mark block as dirty if requested by caller. If not requested (false)
   then we avoid updating the dirty state of the block and retain the
@@ -3742,7 +3842,7 @@ got_block:
     /* In the case of a first access, try to apply linear
     read-ahead */
 
-    buf_read_ahead_linear(page_id, page_size, ibuf_inside(mtr));
+    buf_read_ahead_linear(page_id, page_size, ibuf_inside(mtr), trx);
   }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3751,6 +3851,8 @@ got_block:
 
   ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
   ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
+
+  if (UNIV_LIKELY_NULL(trx)) _increment_page_get_statistics(fix_block, trx);
 
   return (fix_block);
 }
@@ -3767,8 +3869,8 @@ ibool buf_page_optimistic_get(
     mtr_t *mtr)               /*!< in: mini-transaction */
 {
   buf_pool_t *buf_pool;
-  unsigned access_time;
   ibool success;
+  trx_t *trx = NULL;
 
   ut_ad(block);
   ut_ad(mtr);
@@ -3777,7 +3879,8 @@ ibool buf_page_optimistic_get(
 
   buf_page_mutex_enter(block);
 
-  if (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE) {
+  if (UNIV_UNLIKELY(block->modify_clock != modify_clock ||
+                    (buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE))) {
     buf_page_mutex_exit(block);
 
     return (FALSE);
@@ -3785,13 +3888,7 @@ ibool buf_page_optimistic_get(
 
   buf_block_buf_fix_inc(block, file, line);
 
-  access_time = buf_page_is_accessed(&block->page);
-
-  buf_page_set_accessed(&block->page);
-
   buf_page_mutex_exit(block);
-
-  buf_page_make_young_if_needed(&block->page);
 
   ut_ad(!ibuf_inside(mtr) || ibuf_page(block->page.id, block->page.size, NULL));
 
@@ -3812,15 +3909,13 @@ ibool buf_page_optimistic_get(
       ut_error; /* RW_SX_LATCH is not implemented yet */
   }
 
-  if (!success) {
-    buf_page_mutex_enter(block);
+  if (UNIV_UNLIKELY(!success)) {
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (FALSE);
   }
 
-  if (modify_clock != block->modify_clock) {
+  if (UNIV_UNLIKELY(modify_clock != block->modify_clock)) {
     buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
     if (rw_latch == RW_S_LATCH) {
@@ -3829,12 +3924,22 @@ ibool buf_page_optimistic_get(
       rw_lock_x_unlock(&block->lock);
     }
 
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (FALSE);
   }
+
+  buf_page_mutex_enter(block);
+
+  const auto access_time = buf_page_is_accessed(&block->page);
+
+  buf_page_set_accessed(&block->page);
+
+  ut_ad(!block->page.file_page_was_freed);
+
+  buf_page_mutex_exit(block);
+
+  buf_page_make_young_if_needed(&block->page);
 
   mtr_memo_push(mtr, block, fix_type);
 
@@ -3845,14 +3950,12 @@ ibool buf_page_optimistic_get(
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-  ut_d(buf_page_mutex_enter(block));
-  ut_ad(!block->page.file_page_was_freed);
-  ut_d(buf_page_mutex_exit(block));
-
   if (!access_time) {
+    trx = innobase_get_trx_for_slow_log();
     /* In the case of a first access, try to apply linear
     read-ahead */
-    buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr));
+    buf_read_ahead_linear(block->page.id, block->page.size, ibuf_inside(mtr),
+                          trx);
   }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3861,6 +3964,8 @@ ibool buf_page_optimistic_get(
 
   buf_pool = buf_pool_from_block(block);
   buf_pool->stat.n_page_gets++;
+
+  if (UNIV_LIKELY_NULL(trx)) _increment_page_get_statistics(block, trx);
 
   return (TRUE);
 }
@@ -3931,9 +4036,7 @@ ibool buf_page_get_known_nowait(
   }
 
   if (!success) {
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (FALSE);
   }
@@ -3965,6 +4068,9 @@ ibool buf_page_get_known_nowait(
   ut_a((mode == BUF_KEEP_OLD) || ibuf_count_get(block->page.id) == 0);
 #endif
   buf_pool->stat.n_page_gets++;
+
+  trx_t *trx = innobase_get_trx_for_slow_log();
+  if (UNIV_LIKELY_NULL(trx)) _increment_page_get_statistics(block, trx);
 
   return (TRUE);
 }
@@ -3999,16 +4105,16 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 
   ut_ad(!buf_pool_watch_is_sentinel(buf_pool, &block->page));
 
-  buf_page_mutex_enter(block);
+  buf_block_buf_fix_inc(block, file, line);
+
   rw_lock_s_unlock(hash_lock);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+  buf_page_mutex_enter(block);
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
   ut_a(page_id.equals_to(block->page.id));
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-  buf_block_buf_fix_inc(block, file, line);
   buf_page_mutex_exit(block);
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
   mtr_memo_type_t fix_type = MTR_MEMO_PAGE_S_FIX;
   success = rw_lock_s_lock_nowait(&block->lock, file, line);
@@ -4023,9 +4129,7 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
   }
 
   if (!success) {
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (NULL);
   }
@@ -4060,12 +4164,13 @@ void buf_page_init_low(buf_page_t *bpage) /*!< in: block to init */
 {
   bpage->flush_type = BUF_FLUSH_LRU;
   bpage->io_fix = BUF_IO_NONE;
-  bpage->buf_fix_count = 0;
+  ut_a(bpage->buf_fix_count == 0);
   bpage->freed_page_clock = 0;
   bpage->access_time = 0;
   bpage->newest_modification = 0;
   bpage->oldest_modification = 0;
   HASH_INVALIDATE(bpage, hash);
+  bpage->is_corrupt = false;
 
   ut_d(bpage->file_page_was_freed = FALSE);
 }
@@ -4082,7 +4187,7 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
   ut_ad(buf_pool == buf_pool_get(page_id));
 
-  ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
+  ut_ad(!mutex_own(buf_page_get_mutex(&block->page)));
   ut_a(buf_block_get_state(block) != BUF_BLOCK_FILE_PAGE);
 
   ut_ad(rw_lock_own(buf_page_hash_lock_get(buf_pool, page_id), RW_LOCK_X));
@@ -4248,9 +4353,9 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
 
     ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-    buf_page_mutex_enter(block);
-
     buf_page_init(buf_pool, page_id, page_size, block);
+
+    buf_page_mutex_enter(block);
 
     /* Note: We are using the hash_lock for protection. This is
     safe because no other thread can lookup the block from the
@@ -4414,9 +4519,9 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   block = free_block;
 
-  buf_page_mutex_enter(block);
-
   buf_page_init(buf_pool, page_id, page_size, block);
+
+  buf_page_mutex_enter(block);
 
   rw_lock_x_unlock(hash_lock);
 
@@ -4718,72 +4823,89 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
                               << ", should be " << bpage->id;
     }
 
-    compressed_page = Compression::is_compressed_page(frame);
+    if (UNIV_LIKELY(!bpage->is_corrupt || !srv_pass_corrupt_table)) {
+      compressed_page = Compression::is_compressed_page(frame);
 
-    /* If the decompress failed then the most likely case is
-    that we are reading in a page for which this instance doesn't
-    support the compression algorithm. */
-    if (compressed_page) {
-      Compression::meta_t meta;
+      /* If the decompress failed then the most likely case is
+      that we are reading in a page for which this instance doesn't
+      support the compression algorithm. */
+      if (compressed_page) {
+        Compression::meta_t meta;
 
-      Compression::deserialize_header(frame, &meta);
+        Compression::deserialize_header(frame, &meta);
 
-      ib::error(ER_IB_MSG_80)
-          << "Page " << bpage->id << " "
-          << "compressed with " << Compression::to_string(meta) << " "
-          << "that is not supported by this instance";
-    }
-
-    /* From version 3.23.38 up we store the page checksum
-    to the 4 first bytes of the page end lsn field */
-    bool is_corrupted;
-    {
-      BlockReporter reporter =
-          BlockReporter(true, frame, bpage->size,
-                        fsp_is_checksum_disabled(bpage->id.space()));
-      is_corrupted = reporter.is_corrupted();
-    }
-
-    if (compressed_page || is_corrupted) {
-      /* Not a real corruption if it was triggered by
-      error injection */
-      DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
-                      goto page_not_corrupt;);
-
-    corrupt:
-      /* Compressed pages are basically gibberish avoid
-      printing the contents. */
-      if (!compressed_page) {
-        ib::error(ER_IB_MSG_81)
-            << "Database page corruption on disk"
-               " or a failed file read of page "
-            << bpage->id << ". You may have to recover from "
-            << "a backup.";
-
-        buf_page_print(frame, bpage->size, BUF_PAGE_PRINT_NO_CRASH);
-
-        ib::info(ER_IB_MSG_82) << "It is also possible that your"
-                                  " operating system has corrupted"
-                                  " its own file cache and rebooting"
-                                  " your computer removes the error."
-                                  " If the corrupt page is an index page."
-                                  " You can also try to fix the"
-                                  " corruption by dumping, dropping,"
-                                  " and reimporting the corrupt table."
-                                  " You can use CHECK TABLE to scan"
-                                  " your table for corruption. "
-                               << FORCE_RECOVERY_MSG;
+        ib::error(ER_IB_MSG_80)
+            << "Page " << bpage->id << " "
+            << "compressed with " << Compression::to_string(meta) << " "
+            << "that is not supported by this instance";
       }
 
-      if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
-        /* We do not have to mark any index as
-        corrupted here, since we only know the space
-        id but not the exact index id. There could
-        be multiple tables/indexes in the same space,
-        so we will mark it later in upper layer */
+      /* From version 3.23.38 up we store the page checksum
+      to the 4 first bytes of the page end lsn field */
+      bool is_corrupted;
+      {
+        BlockReporter reporter =
+            BlockReporter(true, frame, bpage->size,
+                          fsp_is_checksum_disabled(bpage->id.space()));
+        is_corrupted = reporter.is_corrupted();
+      }
 
-        buf_read_page_handle_error(bpage);
-        return (false);
+      if (compressed_page || is_corrupted) {
+        /* Not a real corruption if it was triggered by
+        error injection */
+        DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
+                        goto page_not_corrupt;);
+
+      corrupt:
+        /* Compressed pages are basically gibberish avoid
+        printing the contents. */
+        if (!compressed_page) {
+          ib::error(ER_IB_MSG_81)
+              << "Database page corruption on disk"
+                 " or a failed file read of page "
+              << bpage->id << ". You may have to recover from "
+              << "a backup.";
+
+          buf_page_print(frame, bpage->size, BUF_PAGE_PRINT_NO_CRASH);
+
+          ib::info(ER_IB_MSG_82) << "It is also possible that your"
+                                    " operating system has corrupted"
+                                    " its own file cache and rebooting"
+                                    " your computer removes the error."
+                                    " If the corrupt page is an index page."
+                                    " You can also try to fix the"
+                                    " corruption by dumping, dropping,"
+                                    " and reimporting the corrupt table."
+                                    " You can use CHECK TABLE to scan"
+                                    " your table for corruption. "
+                                 << FORCE_RECOVERY_MSG;
+        }
+
+        if (srv_pass_corrupt_table && bpage->id.space() != 0 &&
+            bpage->id.space() < dict_sys_t::s_log_space_first_id) {
+          trx_t *trx;
+
+          ib::warn() << "Space " << bpage->id.space()
+                     << " will be treated as corrupt.",
+              fil_space_set_corrupt(bpage->id.space());
+
+          trx = innobase_get_trx();
+          if (trx && trx->dict_operation_lock_mode == RW_X_LATCH) {
+            dict_table_set_corrupt_by_space(bpage->id.space(), false);
+          } else {
+            dict_table_set_corrupt_by_space(bpage->id.space(), true);
+          }
+          bpage->is_corrupt = true;
+        } else if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
+          /* We do not have to mark any index as
+          corrupted here, since we only know the space
+          id but not the exact index id. There could
+          be multiple tables/indexes in the same space,
+          so we will mark it later in upper layer */
+
+          buf_read_page_handle_error(bpage);
+          return (false);
+        }
       }
     }
 
@@ -4801,8 +4923,18 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
         fil_page_get_type(frame) == FIL_PAGE_INDEX && page_is_leaf(frame) &&
         !fsp_is_system_temporary(bpage->id.space()) &&
         !fsp_is_undo_tablespace(bpage->id.space())) {
-      ibuf_merge_or_delete_for_page((buf_block_t *)bpage, bpage->id,
-                                    &bpage->size, TRUE);
+      buf_block_t *block;
+      bool update_ibuf_bitmap;
+
+      if (UNIV_UNLIKELY(bpage->is_corrupt && srv_pass_corrupt_table)) {
+        block = nullptr;
+        update_ibuf_bitmap = false;
+      } else {
+        block = reinterpret_cast<buf_block_t *>(bpage);
+        update_ibuf_bitmap = true;
+      }
+      ibuf_merge_or_delete_for_page(block, bpage->id, &bpage->size,
+                                    update_ibuf_bitmap);
     }
   }
 
@@ -5474,6 +5606,7 @@ static void buf_stats_aggregate_pool_info(
   }
 
   total_info->pool_size += pool_info->pool_size;
+  total_info->pool_size_bytes += pool_info->pool_size_bytes;
   total_info->lru_len += pool_info->lru_len;
   total_info->old_lru_len += pool_info->old_lru_len;
   total_info->free_list_len += pool_info->free_list_len;
@@ -5528,6 +5661,8 @@ void buf_stats_get_pool_info(
   pool_info->pool_unique_id = pool_id;
 
   pool_info->pool_size = buf_pool->curr_size;
+
+  pool_info->pool_size_bytes = buf_pool->curr_pool_size;
 
   pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
@@ -5642,6 +5777,8 @@ static void buf_print_io_instance(
   fprintf(file,
           "Buffer pool size   " ULINTPF
           "\n"
+          "Buffer pool size, bytes " ULINTPF
+          "\n"
           "Free buffers       " ULINTPF
           "\n"
           "Database pages     " ULINTPF
@@ -5654,10 +5791,10 @@ static void buf_print_io_instance(
           "\n"
           "Pending writes: LRU " ULINTPF ", flush list " ULINTPF
           ", single page " ULINTPF "\n",
-          pool_info->pool_size, pool_info->free_list_len, pool_info->lru_len,
-          pool_info->old_lru_len, pool_info->flush_list_len,
-          pool_info->n_pend_reads, pool_info->n_pending_flush_lru,
-          pool_info->n_pending_flush_list,
+          pool_info->pool_size, pool_info->pool_size_bytes,
+          pool_info->free_list_len, pool_info->lru_len, pool_info->old_lru_len,
+          pool_info->flush_list_len, pool_info->n_pend_reads,
+          pool_info->n_pending_flush_lru, pool_info->n_pending_flush_list,
           pool_info->n_pending_flush_single_page);
 
   fprintf(file,

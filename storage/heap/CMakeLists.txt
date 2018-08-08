@@ -27,7 +27,8 @@ SET(HEAP_SOURCES  _check.cc _rectest.cc hp_block.cc hp_clear.cc hp_close.cc hp_c
 				ha_heap.cc
 				hp_delete.cc hp_extra.cc hp_hash.cc hp_info.cc hp_open.cc hp_panic.cc
 				hp_rename.cc hp_rfirst.cc hp_rkey.cc hp_rlast.cc hp_rnext.cc hp_rprev.cc
-				hp_rrnd.cc hp_rsame.cc hp_scan.cc hp_static.cc hp_update.cc hp_write.cc)
+                                hp_dspace.cc hp_record.cc
+                                hp_rrnd.cc hp_rsame.cc hp_scan.cc hp_static.cc hp_update.cc hp_write.cc)
 
 MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY)
 

@@ -37,8 +37,39 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "rem0cmp.h"
+#include "sql/current_thd.h"
+#include "sql/sql_thd_internal_api.h"
 #include "trx0trx.h"
 #include "ut0byte.h"
+
+/** Updates fragmentation statistics for a single page transition.
+@param[in]	page			the current page being processed
+@param[in]	page_no			page number to move to (next_page_no
+if forward_direction is true,
+prev_page_no otherwise.
+@param[in]	forward_direction	move direction: true means moving
+forward, false - backward. */
+static void btr_update_scan_stats(const page_t *page, ulint page_no,
+                                  bool forward_direction) {
+  fragmentation_stats_t stats;
+  memset(&stats, 0, sizeof(stats));
+  const ulint extracted_page_no = page_get_page_no(page);
+  const ulint delta = forward_direction ? page_no - extracted_page_no
+                                        : extracted_page_no - page_no;
+
+  if (delta == 1) {
+    ++stats.scan_pages_contiguous;
+  } else {
+    ++stats.scan_pages_disjointed;
+  }
+  stats.scan_pages_total_seek_distance += extracted_page_no > page_no
+                                              ? extracted_page_no - page_no
+                                              : page_no - extracted_page_no;
+
+  stats.scan_data_size += page_get_data_size(page);
+  stats.scan_deleted_recs_size += page_header_get_field(page, PAGE_GARBAGE);
+  thd_add_fragmentation_stats(current_thd, stats);
+}
 
 /** Allocates memory for a persistent cursor object and initializes the cursor.
  @return own: persistent cursor */
@@ -50,6 +81,7 @@ btr_pcur_t *btr_pcur_create_for_mysql(void) {
 
   pcur->btr_cur.index = NULL;
   btr_pcur_init(pcur);
+  pcur->btr_cur.tree_height = ULINT_UNDEFINED;
 
   DBUG_PRINT("btr_pcur_create_for_mysql", ("pcur: %p", pcur));
   DBUG_RETURN(pcur);
@@ -103,6 +135,9 @@ void btr_pcur_store_position(btr_pcur_t *cursor, /*!< in: persistent cursor */
   ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
   block = btr_pcur_get_block(cursor);
+
+  SRV_CORRUPT_TABLE_CHECK(block, return;);
+
   index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 
   page_cursor = btr_pcur_get_page_cur(cursor);
@@ -402,11 +437,22 @@ void btr_pcur_move_to_next_page(
 
   buf_block_t *block = btr_pcur_get_block(cursor);
 
+  btr_update_scan_stats(page, next_page_no, true /* forward */);
+
   next_block = btr_block_get(page_id_t(block->page.id.space(), next_page_no),
                              block->page.size, mode,
                              btr_pcur_get_btr_cur(cursor)->index, mtr);
 
   next_page = buf_block_get_frame(next_block);
+
+  SRV_CORRUPT_TABLE_CHECK(next_page, {
+    btr_leaf_page_release(btr_pcur_get_block(cursor), cursor->latch_mode, mtr);
+    btr_pcur_get_page_cur(cursor)->block = nullptr;
+    btr_pcur_get_page_cur(cursor)->rec = nullptr;
+
+    return;
+  });
+
 #ifdef UNIV_BTR_DEBUG
   ut_a(page_is_comp(next_page) == page_is_comp(page));
   ut_a(btr_page_get_prev(next_page, mtr) ==
@@ -470,6 +516,8 @@ static void btr_pcur_move_backward_from_page(
   /* For intrinsic table we don't do optimistic restore and so there is
   no left block that is pinned that needs to be released. */
   if (!btr_cur_get_index(btr_pcur_get_btr_cur(cursor))->table->is_intrinsic()) {
+    if (prev_page_no != FIL_NULL)
+      btr_update_scan_stats(page, prev_page_no, false /* backward */);
     if (prev_page_no == FIL_NULL) {
     } else if (btr_pcur_is_before_first_on_page(cursor)) {
       prev_block = btr_pcur_get_btr_cur(cursor)->left_block;

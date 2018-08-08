@@ -342,6 +342,9 @@ dberr_t ibuf_check_bitmap_on_import(
     space_id_t space_id) /*!< in: tablespace identifier */
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Function to pass ibuf status variables */
+void ibuf_export_ibuf_status(ulint *free_list, ulint *segment_size);
+
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
 @param[in]      reset   flag if reset free val */

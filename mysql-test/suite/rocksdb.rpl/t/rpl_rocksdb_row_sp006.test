@@ -1,0 +1,21 @@
+#################################
+# Wrapper for rpl_row_sp006.test#
+#################################
+########################################################
+# By JBM 2005-02-15 Wrapped to allow reuse of test code#
+# Added to skip if ndb is default                      #
+########################################################
+-- source include/not_ndb_default.inc
+-- source include/have_rocksdb.inc
+-- source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+let $engine_type=RocksDB;
+# needed for RocksDB as it does not support non-binary collations on indexed
+# character columns with rocksdb_strict_collation_check=on and collation
+# is not a part of this test, so it is more efficient to just adjust the
+# sessions collation than it is to turn off rocksdb_strict_collation_check
+# in the master and slave .opt files
+set session collation_server=utf8_bin;
+-- source extra/rpl_tests/rpl_row_sp006.test
+-- source include/rpl_end.inc

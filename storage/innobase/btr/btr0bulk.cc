@@ -67,6 +67,10 @@ dberr_t PageBulk::init() {
     the allocation order, and we will always generate redo log
     for page allocation, even when creating a new tablespace. */
     mtr_start(&alloc_mtr);
+    if (m_index->table->is_temporary()) {
+      // We are bulk loading a temporary table index. No need to redo-log it.
+      alloc_mtr.set_log_mode(MTR_LOG_NO_REDO);
+    }
 
     ulint n_reserved;
     bool success;
@@ -830,8 +834,6 @@ if no error occurs.
 dberr_t BtrBulk::finish(dberr_t err) {
   page_no_t last_page_no = FIL_NULL;
 
-  ut_ad(!m_index->table->is_temporary());
-
   if (m_page_bulks->size() == 0) {
     /* The table is empty. The root page of the index tree
     is already in a consistent state. No need to flush. */
@@ -869,6 +871,10 @@ dberr_t BtrBulk::finish(dberr_t err) {
                             m_flush_observer);
 
     mtr_start(&mtr);
+    if (m_index->table->is_temporary()) {
+      // We are bulk loading a temporary table index. No need to redo-log it.
+      mtr.set_log_mode(MTR_LOG_NO_REDO);
+    }
     mtr_x_lock(dict_index_get_lock(m_index), &mtr);
 
     ut_ad(last_page_no != FIL_NULL);

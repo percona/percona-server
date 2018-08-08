@@ -145,6 +145,14 @@ struct my_aligned_storage {
   };
 };
 
+#if __cpp_attributes && defined(__has_cpp_attribute)
+#if __has_cpp_attribute(nodiscard)
+#define MY_NODISCARD [[nodiscard]]
+#elif __has_cpp_attribute(gnu::warn_unused_result)
+#define MY_NODISCARD [[gnu::warn_unused_result]]
+#endif /* __has_cpp_attribute(gnu::warn_unused_result) */
+#endif /* __cpp_attributes && defined(__has_cpp_attribute) */
+
 #endif /* __cplusplus */
 
 /*
@@ -165,6 +173,10 @@ struct my_aligned_storage {
 #else
 #define ALWAYS_INLINE __attribute__((always_inline)) inline
 #endif
+
+#ifndef MY_NODISCARD
+#define MY_NODISCARD MY_ATTRIBUTE((warn_unused_result))
+#endif /* MY_NODISCARD */
 
 #ifndef __has_attribute
 #define __has_attribute(x) 0

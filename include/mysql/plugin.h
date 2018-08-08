@@ -74,7 +74,13 @@ typedef void *MYSQL_PLUGIN;
 
 #ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
-#endif
+#ifndef __WIN__
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS /* Enable C99 printf format macros */
+#endif                       /* !__STDC_FORMAT_MACROS */
+#include <inttypes.h>
+#endif /* !__WIN__ */
+#endif /* !MYSQL_ABI_CHECK */
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -796,6 +802,25 @@ int thd_allow_batch(MYSQL_THD thd);
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 
+void increment_thd_innodb_stats(MYSQL_THD thd, unsigned long long trx_id,
+                                long io_reads, long long io_read,
+                                long io_reads_wait_timer,
+                                long lock_que_wait_timer, long que_wait_timer,
+                                long page_access);
+
+unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
+
+int thd_opt_slow_log();
+
+/**
+  Check whether given connection handle is associated with a background thread.
+
+  @param thd  connection handle
+  @retval non-zero  the connection handle belongs to a background thread
+  @retval 0   the connection handle belongs to a different thread type
+*/
+int thd_is_background_thread(const MYSQL_THD thd);
+
 /**
   Create a temporary file.
 
@@ -856,6 +881,13 @@ void thd_binlog_pos(const MYSQL_THD thd, const char **file_var,
 unsigned long thd_get_thread_id(const MYSQL_THD thd);
 
 /**
+  Return the query id of a thread
+  @param thd user thread
+  @return query id
+*/
+int64_t thd_get_query_id(const MYSQL_THD thd);
+
+/**
   Get the XID for this connection's transaction
 
   @param thd  user thread connection handle
@@ -898,6 +930,19 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
 */
 
 void remove_ssl_err_thread_state();
+
+int thd_command(const MYSQL_THD thd);
+long long thd_start_time(const MYSQL_THD thd);
+void thd_kill(unsigned long id);
+
+/**
+  Check whether ft_query_extra_word_chars server variable is enabled for the
+  current session
+
+  @return ft_query_extra_word_chars value
+*/
+int thd_get_ft_query_extra_word_chars(void);
+
 #ifdef __cplusplus
 }
 #endif

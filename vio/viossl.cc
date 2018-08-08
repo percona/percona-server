@@ -128,9 +128,7 @@ static void report_errors(SSL *ssl) {
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
   }
 
-  if (ssl)
-    DBUG_PRINT("error",
-               ("error: %s", ERR_error_string(SSL_get_error(ssl, l), buf)));
+  if (ssl) DBUG_PRINT("error", ("SSL_get_error: %d", SSL_get_error(ssl, l)));
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
   DBUG_VOID_RETURN;
@@ -210,6 +208,8 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
   /* Retrieve the result for the SSL I/O operation. */
   ssl_error = SSL_get_error(ssl, ret);
 
+  *ssl_errno_holder = ERR_peek_error();
+
   /* Retrieve the result for the SSL I/O operation. */
   switch (ssl_error) {
     case SSL_ERROR_WANT_READ:
@@ -229,8 +229,6 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
       ssl_set_sys_error(ssl_error);
       break;
   }
-
-  *ssl_errno_holder = ssl_error;
 
   return should_retry;
 }
@@ -304,7 +302,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
   DBUG_RETURN(ret < 0 ? -1 : ret);
 }
 
-int vio_ssl_shutdown(Vio *vio) {
+int vio_ssl_shutdown(Vio *vio, int how) {
   int r = 0;
   SSL *ssl = (SSL *)vio->ssl_arg;
   DBUG_ENTER("vio_ssl_shutdown");
@@ -337,14 +335,14 @@ int vio_ssl_shutdown(Vio *vio) {
         break;
     }
   }
-  DBUG_RETURN(vio_shutdown(vio));
+  DBUG_RETURN(vio_shutdown(vio, how));
 }
 
 void vio_ssl_delete(Vio *vio) {
   if (!vio) return; /* It must be safe to delete null pointer */
 
   if (vio->inactive == false)
-    vio_ssl_shutdown(vio); /* Still open, close connection first */
+    vio_ssl_shutdown(vio, SHUT_RDWR); /* Still open, close connection first */
 
   if (vio->ssl_arg) {
     SSL_free((SSL *)vio->ssl_arg);

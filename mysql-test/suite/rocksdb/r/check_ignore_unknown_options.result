@@ -1,0 +1,8 @@
+select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";
+variable_name	variable_value
+rocksdb_ignore_unknown_options	ON
+# restart:--log-error=LOG_FILE --rocksdb_ignore_unknown_options=0
+# restart
+select variable_name, variable_value from performance_schema.global_variables where variable_name="rocksdb_ignore_unknown_options";
+variable_name	variable_value
+rocksdb_ignore_unknown_options	ON

@@ -23,6 +23,9 @@ use mtr;
 # with --transaction-read-only. And set autocommit mode for
 # the session irrespective of server --autocommit setting.
 set session transaction read write;
+# Allow super to write
+set @original_super_read_only = @@global.super_read_only;
+set global super_read_only = 0;
 
 # Due to the lack of WL#7828 / WL#8003 now, we might have a pending Data
 # Dictionary read-only transaction at this point. Even though
@@ -80,6 +83,10 @@ if ($mysql_errno)
 # Call check_warnings to filter out any warning in
 # the error_log table
 call mtr.check_warnings(@result);
+
+# Restore the original value
+set @@global.super_read_only = @original_super_read_only;
+
 if (`select @result = 0`){
   skip OK;
 }

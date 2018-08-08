@@ -16,10 +16,10 @@
 #  3) Server should throw error in all the cases.
 ###############################################################################
 
-# This test cannot be run in STATEMENT/MIXED mode until
+# This test cannot be run in STATEMENT mode until
 # "Bug #22134026: ON BINLOGLESS SERVER ENFORCE_GTID_CONSISTENCY DOESN'T CHECK
 # FOR ER1785,1786,1787" is fixed.
---source include/have_binlog_format_row.inc
+--source include/have_binlog_format_mixed_or_row.inc
 --source include/master-slave.inc
 # Initial Setup
 CREATE TABLE trans_table1 (i INT) ENGINE=INNODB;
@@ -42,35 +42,27 @@ INSERT INTO non_trans_table2 VALUES (1);
 --let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 
-# Case 3: Function/Trigger with just create non trans temp table
---let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM;
---source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
-
-# Case 4: Function/Trigger with just create trans temp table
---let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB;
---source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
-
-# Case 5: Function/Trigger with just drop temp table
+# Case 3: Function/Trigger with just drop temp table
 --let $func_or_trig_body=DROP TEMPORARY TABLE IF EXISTS tt1;
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 
-# Case 6: Function/Trigger with two create/drop temp tables
+# Case 4: Function/Trigger with two create/drop temp tables
 --let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; CREATE TEMPORARY TABLE tt2(i INT) ENGINE=Innodb; DROP TEMPORARY TABLE IF EXISTS tt1; DROP TEMPORARY TABLE IF EXISTS tt2;
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 
-# Case 7: Function/Trigger with DML operation on trans table followed by create/drop temp table
+# Case 5: Function/Trigger with DML operation on trans table followed by create/drop temp table
 --let $func_or_trig_body=INSERT INTO trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1;
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 
-# Case 8: Function/Trigger with DML operation on non trans table followed by create/drop temp table
+# Case 6: Function/Trigger with DML operation on non trans table followed by create/drop temp table
 --let $func_or_trig_body=INSERT INTO non_trans_table1 VALUES (12); CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1;
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 
-# Case 9: Function/Trigger with DML operation on trans table after create/drop temp table queries
+# Case 7: Function/Trigger with DML operation on trans table after create/drop temp table queries
 --let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=INNODB; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO non_trans_table1 VALUES (12);
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 
-# Case 10: Function/Trigger with DML operation on non trans table after create/drop temp table queries
+# Case 8: Function/Trigger with DML operation on non trans table after create/drop temp table queries
 --let $func_or_trig_body=CREATE TEMPORARY TABLE tt1(i INT) ENGINE=MyISAM; DROP TEMPORARY TABLE IF EXISTS tt1; INSERT INTO trans_table1 VALUES (12);
 --source extra/rpl_tests/rpl_gtid_temp_table_in_func_or_trigger.inc
 

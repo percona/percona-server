@@ -123,7 +123,7 @@ IF(NOT VERSION)
     STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
     SET(package_name "mysql-cluster${PRODUCT_TAG}-${NDBVERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ELSE()
-    SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
+    SET(package_name "percona-server${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ENDIF()
 
   MESSAGE(STATUS "Packaging as: ${package_name}")

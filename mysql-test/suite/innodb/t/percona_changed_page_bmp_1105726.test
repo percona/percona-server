@@ -1,0 +1,4 @@
+# Test that there is no conflict between the I_S plugin and the changed page bitmap option names (LP:1105726)
+
+# If the bug is not present, server starts
+SELECT 2+2;

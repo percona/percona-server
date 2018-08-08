@@ -208,10 +208,12 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
       break;
 
     case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
+      const bool extra_word_chars = thd_get_ft_query_extra_word_chars();
       /* Ngram parser cannot handle query in boolean mode, so we
       first parse query into words with boolean info, then we parse
       the words into ngram. */
-      while (fts_get_word(cs, start, end, &word, &bool_info)) {
+      while (
+          fts_get_word(cs, extra_word_chars, start, end, &word, &bool_info)) {
         if (bool_info.type == FT_TOKEN_WORD) {
           if (bool_info.quot != NULL) {
             /* Phrase search */

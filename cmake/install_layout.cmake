@@ -160,7 +160,7 @@ SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
-SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
+SET(INSTALL_PLUGINDIR_STANDALONE        "lib/mysql/plugin")
 #
 SET(INSTALL_INCLUDEDIR_STANDALONE       "include")
 #
@@ -382,7 +382,7 @@ SET(INSTALL_BINDIR_DEB                  "bin")
 SET(INSTALL_SBINDIR_DEB                 "bin")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
-SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
+SET(INSTALL_PLUGINDIR_DEB               "lib/mysql/plugin")
 #
 SET(INSTALL_INCLUDEDIR_DEB              "include")
 #

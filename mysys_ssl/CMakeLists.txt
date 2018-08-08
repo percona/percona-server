@@ -30,6 +30,8 @@ ELSE()
   SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
 ENDIF()
 
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
+
 SET(MYSYS_SSL_SOURCES
     crypt_genhash_impl.cc
     my_default.cc
@@ -39,6 +41,7 @@ SET(MYSYS_SSL_SOURCES
     my_sha2.cc
     my_md5.cc
     my_rnd.cc
+    my_crypt.cc
     ${MYSYS_AES_IMPLEMENTATION}
    )
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -124,8 +124,6 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_CONVENIENCE_LIBRARY(${target} STATIC ${SOURCES})
     SET_TARGET_PROPERTIES(${target}
       PROPERTIES COMPILE_DEFINITIONS "MYSQL_SERVER")
-    SET_TARGET_PROPERTIES(${target}
-      PROPERTIES COMPILE_FLAGS ${SSL_DEFINES})
 
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
     
@@ -264,9 +262,6 @@ MACRO(CONFIGURE_PLUGINS)
   FILE(GLOB dirs_storage ${CMAKE_SOURCE_DIR}/storage/*)
   IF(NOT DISABLE_SHARED)
     FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)
-    IF(WITH_RAPID)
-      FILE(GLOB dirs_rapid_plugin ${CMAKE_SOURCE_DIR}/rapid/plugin/*)
-    ENDIF(WITH_RAPID)
   ENDIF()
   
   # Move perfschema to the beginning of the storage list (as PerconaFT depends on WITH_PERFSCHEMA_STORAGE_ENGINE)
@@ -275,7 +270,7 @@ MACRO(CONFIGURE_PLUGINS)
     LIST(REMOVE_AT dirs_storage ${PERFSCHEMA_POS})
     LIST(INSERT dirs_storage 0 "${CMAKE_SOURCE_DIR}/storage/perfschema")
   ENDIF()
-  FOREACH(dir ${dirs_storage} ${dirs_plugin} ${dirs_rapid_plugin})
+  FOREACH(dir ${dirs_storage} ${dirs_plugin})
     IF (EXISTS ${dir}/CMakeLists.txt)
       ADD_SUBDIRECTORY(${dir})
     ENDIF()

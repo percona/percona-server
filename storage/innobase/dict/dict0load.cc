@@ -332,7 +332,7 @@ static const char *dict_load_index_low(
     return (dict_load_index_del);
   }
 
-  if (rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES) {
+  if (rec_get_n_fields_old_raw(rec) == DICT_NUM_FIELDS__SYS_INDEXES) {
     /* MERGE_THRESHOLD exists */
     field = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD,
                                   &len);
@@ -348,7 +348,8 @@ static const char *dict_load_index_low(
             "incorrect MERGE_THRESHOLD length"
             " in SYS_INDEXES");
     }
-  } else if (rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES - 1) {
+  } else if (rec_get_n_fields_old_raw(rec) ==
+             DICT_NUM_FIELDS__SYS_INDEXES - 1) {
     /* MERGE_THRESHOLD doesn't exist */
 
     merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
@@ -501,7 +502,7 @@ static const char *dict_load_column_low(
     return (dict_load_column_del);
   }
 
-  if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_COLUMNS) {
+  if (rec_get_n_fields_old_raw(rec) != DICT_NUM_FIELDS__SYS_COLUMNS) {
     return ("wrong number of columns in SYS_COLUMNS record");
   }
 
@@ -639,7 +640,7 @@ static const char *dict_load_virtual_low(dict_table_t *table, mem_heap_t *heap,
     return (dict_load_virtual_del);
   }
 
-  if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_VIRTUAL) {
+  if (rec_get_n_fields_old_raw(rec) != DICT_NUM_FIELDS__SYS_VIRTUAL) {
     return ("wrong number of columns in SYS_VIRTUAL record");
   }
 
@@ -829,7 +830,7 @@ static const char *dict_load_field_low(
     return (dict_load_field_del);
   }
 
-  if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_FIELDS) {
+  if (rec_get_n_fields_old_raw(rec) != DICT_NUM_FIELDS__SYS_FIELDS) {
     return ("wrong number of columns in SYS_FIELDS record");
   }
 
@@ -932,7 +933,7 @@ const char *dict_process_sys_tablespaces(
     return ("delete-marked record in SYS_TABLESPACES");
   }
 
-  if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_TABLESPACES) {
+  if (rec_get_n_fields_old_raw(rec) != DICT_NUM_FIELDS__SYS_TABLESPACES) {
     return ("wrong number of columns in SYS_TABLESPACES record");
   }
 
@@ -1279,7 +1280,7 @@ static const char *dict_sys_tables_rec_check(const rec_t *rec) {
     return ("delete-marked record in SYS_TABLES");
   }
 
-  if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_TABLES) {
+  if (rec_get_n_fields_old_raw(rec) != DICT_NUM_FIELDS__SYS_TABLES) {
     return ("wrong number of columns in SYS_TABLES record");
   }
 
@@ -1925,10 +1926,11 @@ loading the index definition */
     rec = btr_pcur_get_rec(&pcur);
 
     if ((ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK) &&
-        (rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES
+        (rec_get_n_fields_old_raw(rec) == DICT_NUM_FIELDS__SYS_INDEXES
          /* a record for older SYS_INDEXES table
          (missing merge_threshold column) is acceptable. */
-         || rec_get_n_fields_old(rec) == DICT_NUM_FIELDS__SYS_INDEXES - 1)) {
+         ||
+         rec_get_n_fields_old_raw(rec) == DICT_NUM_FIELDS__SYS_INDEXES - 1)) {
       const byte *field;
       ulint len;
       field = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__NAME, &len);

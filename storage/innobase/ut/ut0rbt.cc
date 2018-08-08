@@ -763,7 +763,7 @@ void rbt_add_preallocated_node(ib_rbt_t *tree, ib_rbt_bound_t *parent,
 
   ++tree->n_nodes;
 
-#if defined UNIV_DEBUG || defined IB_RBT_TESTING
+#if (defined IB_RBT_TESTING)
   ut_a(rbt_validate(tree));
 #endif
 }

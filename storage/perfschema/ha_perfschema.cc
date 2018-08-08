@@ -82,11 +82,15 @@ handlerton *pfs_hton = NULL;
 #define IS_NATIVE_TABLE(X) ((X)->m_st_table.open_table == NULL) ? true : false
 
 static void lock_pfs_external_table_shares() {
-  if (!opt_initialize) pfs_external_table_shares.lock_share_list();
+  if (!opt_initialize) {
+    pfs_external_table_shares.lock_share_list();
+  }
 }
 
 static void unlock_pfs_external_table_shares() {
-  if (!opt_initialize) pfs_external_table_shares.unlock_share_list();
+  if (!opt_initialize) {
+    pfs_external_table_shares.unlock_share_list();
+  }
 }
 
 static handler *pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
@@ -1600,7 +1604,9 @@ int ha_perfschema::rnd_end(void) {
 
 int ha_perfschema::rnd_next(uchar *buf) {
   DBUG_ENTER("ha_perfschema::rnd_next");
-  if (!PFS_ENABLED()) DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (!PFS_ENABLED()) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
@@ -1625,7 +1631,9 @@ void ha_perfschema::position(const uchar *) {
 
 int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
   DBUG_ENTER("ha_perfschema::rnd_pos");
-  if (!PFS_ENABLED()) DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (!PFS_ENABLED()) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
@@ -1816,7 +1824,9 @@ int ha_perfschema::index_end() {
 int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
                               enum ha_rkey_function find_flag) {
   DBUG_ENTER("ha_perfschema::index_read");
-  if (!PFS_ENABLED()) DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (!PFS_ENABLED()) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   DBUG_ASSERT(m_table_share);
   DBUG_ASSERT(m_table_share->m_open_table != NULL);
@@ -1850,7 +1860,9 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
 */
 int ha_perfschema::index_next(uchar *buf) {
   DBUG_ENTER("ha_perfschema::index_next");
-  if (!PFS_ENABLED()) DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (!PFS_ENABLED()) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
@@ -1869,7 +1881,9 @@ int ha_perfschema::index_next(uchar *buf) {
 */
 int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
   DBUG_ENTER("ha_perfschema::index_next_same");
-  if (!PFS_ENABLED()) DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (!PFS_ENABLED()) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 

@@ -71,7 +71,7 @@ typedef OSMutex ib_bpmutex_t;
 @param[in]	T		The resulting typedef alias */
 #define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P>> T;
 
-#ifndef UNIV_DEBUG
+typedef OSMutex EventMutex;
 
 #ifdef HAVE_IB_LINUX_FUTEX
 UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
@@ -86,24 +86,6 @@ UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex)
 
 UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex)
 UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
-
-#else /* !UNIV_DEBUG */
-
-#ifdef HAVE_IB_LINUX_FUTEX
-UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
-UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex)
-#endif /* HAVE_IB_LINUX_FUTEX */
-
-UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
-
-UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
-UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex)
-
-UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex)
-UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
-
-#endif /* !UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
 #ifdef MUTEX_FUTEX

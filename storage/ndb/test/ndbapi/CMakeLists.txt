@@ -114,7 +114,7 @@ ENDFOREACH()
 TARGET_LINK_LIBRARIES(testBitfield ndbNDBT ndbclient_static)
 SET(BINS ${BINS} testBitfield)
 
-TARGET_LINK_LIBRARIES(testUpgrade mysqlclient)
-TARGET_LINK_LIBRARIES(testSystemRestart mysqlclient)
+TARGET_LINK_LIBRARIES(testUpgrade perconaserverclient)
+TARGET_LINK_LIBRARIES(testSystemRestart perconaserverclient)
 
 INSTALL(TARGETS ${BINS} DESTINATION bin)

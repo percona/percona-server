@@ -63,7 +63,10 @@ class ha_heap : public handler {
                 : HA_ONLY_WHOLE_INDEX | HA_KEY_SCAN_NOT_ROR);
   }
   uint max_supported_keys() const { return HP_MAX_KEY; }
-  uint max_supported_key_part_length() const { return HP_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(
+      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+    return HP_MAX_KEY_LENGTH;
+  }
   double scan_time() {
     return (double)(stats.records + stats.deleted) / 20.0 + 10;
   }

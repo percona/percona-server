@@ -45,7 +45,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "hash0hash.h"
 #include "ibuf0ibuf.h"
-#include "lock0lock.h"
 #include "log0recv.h"
 #include "my_dbug.h"
 #include "os0event.h"
@@ -55,6 +54,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "sync0rw.h"
+#include "trx0trx.h"
 #include "ut0byte.h"
 #include "ut0rnd.h"
 
@@ -2324,7 +2324,6 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   }
 
   ut_error;
-  return (false);
 }
 
 /** Puts a file page whose has no hash index to the free list. */

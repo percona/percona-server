@@ -686,8 +686,6 @@ static void log_preflush_pool_modified_pages(const log_t &log,
     /* wake page cleaner for IO burst */
     buf_flush_request_force(new_oldest);
   }
-
-  buf_flush_wait_flushed(new_oldest);
 }
 
 static bool log_consider_sync_flush(log_t &log) {

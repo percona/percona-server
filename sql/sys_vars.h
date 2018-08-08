@@ -285,6 +285,12 @@ void session_save_default(THD *thd, set_var *var) {
 void global_save_default(THD *, set_var *var) {
   var->save_result.ulonglong_value = option.def_value;
 }
+void saved_value_to_string(THD *, set_var *var, char *def_val) {
+  if (SIGNED)
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, -10);
+  else
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+}
 
 private:
 T *max_var_ptr() {
@@ -403,6 +409,9 @@ class Sys_var_enum : public Sys_var_typelib {
   void global_save_default(THD *, set_var *var) {
     var->save_result.ulonglong_value = option.def_value;
   }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+  }
   uchar *session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
     return (uchar *)typelib.type_names[session_var(target_thd, ulong)];
   }
@@ -450,6 +459,9 @@ class Sys_var_bool : public Sys_var_typelib {
   }
   void global_save_default(THD *, set_var *var) {
     var->save_result.ulonglong_value = option.def_value;
+  }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
   }
 };
 
@@ -689,6 +701,9 @@ class Sys_var_multi_enum : public sys_var {
     var->save_result.ulonglong_value = value;
     DBUG_VOID_RETURN;
   }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+  }
 
   uchar *session_value_ptr(THD *, THD *, LEX_STRING *) {
     DBUG_ENTER("Sys_var_multi_enum::session_value_ptr");
@@ -806,7 +821,10 @@ class Sys_var_charptr : public sys_var {
     var->save_result.string_value.str = ptr;
     var->save_result.string_value.length = ptr ? strlen(ptr) : 0;
   }
-
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    memcpy(def_val, var->save_result.string_value.str,
+           var->save_result.string_value.length);
+  }
   bool check_update_type(Item_result type) { return type != STRING_RESULT; }
 };
 
@@ -877,6 +895,7 @@ class Sys_var_proxy_user : public sys_var {
   }
   void session_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
   void global_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   bool check_update_type(Item_result) { return true; }
 
  protected:
@@ -991,6 +1010,10 @@ class Sys_var_dbug : public sys_var {
   void global_save_default(THD *, set_var *var) {
     char *ptr = (char *)(intptr)option.def_value;
     var->save_result.string_value.str = ptr;
+  }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    memcpy(def_val, var->save_result.string_value.str,
+           var->save_result.string_value.length);
   }
   uchar *session_value_ptr(THD *running_thd, THD *, LEX_STRING *) {
     char buf[256];
@@ -1152,6 +1175,9 @@ class Sys_var_double : public sys_var {
   void global_save_default(THD *, set_var *var) {
     var->save_result.double_value = getopt_ulonglong2double(option.def_value);
   }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    my_fcvt(var->save_result.double_value, 6, def_val, NULL);
+  }
 };
 
 /**
@@ -1303,6 +1329,10 @@ class Sys_var_flagset : public Sys_var_typelib {
   void global_save_default(THD *, set_var *var) {
     var->save_result.ulonglong_value = option.def_value;
   }
+  void saved_value_to_string(THD *thd, set_var *var, char *def_val) {
+    strcpy(def_val, flagset_to_string(thd, 0, var->save_result.ulonglong_value,
+                                      typelib.type_names));
+  }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
     return (uchar *)flagset_to_string(
         running_thd, 0, session_var(target_thd, ulonglong), typelib.type_names);
@@ -1391,6 +1421,10 @@ class Sys_var_set : public Sys_var_typelib {
   }
   void global_save_default(THD *, set_var *var) {
     var->save_result.ulonglong_value = option.def_value;
+  }
+  void saved_value_to_string(THD *thd, set_var *var, char *def_val) {
+    strcpy(def_val, set_to_string(thd, 0, var->save_result.ulonglong_value,
+                                  typelib.type_names));
   }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
     return (uchar *)set_to_string(
@@ -1501,6 +1535,10 @@ class Sys_var_plugin : public sys_var {
 
     var->save_result.plugin = my_plugin_lock(thd, &plugin);
   }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    strncpy(def_val, plugin_name(var->save_result.plugin)->str,
+            plugin_name(var->save_result.plugin)->length);
+  }
   bool check_update_type(Item_result type) { return type != STRING_RESULT; }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
     plugin_ref plugin = session_var(target_thd, plugin_ref);
@@ -1559,6 +1597,7 @@ class Sys_var_debug_sync : public sys_var {
     var->save_result.string_value.length = 0;
   }
   void global_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   uchar *session_value_ptr(THD *running_thd, THD *, LEX_STRING *) {
     return debug_sync_value_ptr(running_thd);
   }
@@ -1631,6 +1670,9 @@ class Sys_var_bit : public Sys_var_typelib {
   void global_save_default(THD *, set_var *var) {
     var->save_result.ulonglong_value = option.def_value;
   }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+  }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
     running_thd->sys_var_tmp.bool_value = static_cast<bool>(
         reverse_semantics ^
@@ -1690,6 +1732,7 @@ class Sys_var_session_special : public Sys_var_ulonglong {
   }
   void session_save_default(THD *, set_var *var) { var->value = 0; }
   void global_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
     running_thd->sys_var_tmp.ulonglong_value = read_func(target_thd);
     return (uchar *)&running_thd->sys_var_tmp.ulonglong_value;
@@ -1734,6 +1777,7 @@ class Sys_var_session_special_double : public Sys_var_double {
   }
   void session_save_default(THD *, set_var *var) { var->value = 0; }
   void global_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
     running_thd->sys_var_tmp.double_value = read_func(target_thd);
     return (uchar *)&running_thd->sys_var_tmp.double_value;
@@ -1788,6 +1832,7 @@ class Sys_var_have : public sys_var {
   }
   void session_save_default(THD *, set_var *) {}
   void global_save_default(THD *, set_var *) {}
+  void saved_value_to_string(THD *, set_var *, char *) {}
   uchar *session_value_ptr(THD *, THD *, LEX_STRING *) {
     DBUG_ASSERT(false);
     return 0;
@@ -1855,6 +1900,10 @@ class Sys_var_struct : public sys_var {
     void **default_value = reinterpret_cast<void **>(option.def_value);
     var->save_result.ptr = *default_value;
   }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    const Struct_type *ptr = (Struct_type *)var->save_result.ptr;
+    if (ptr) strcpy(def_val, (char *)Name_getter(ptr).get_name());
+  }
   bool check_update_type(Item_result type) {
     return type != INT_RESULT && type != STRING_RESULT;
   }
@@ -1921,6 +1970,9 @@ class Sys_var_tz : public sys_var {
   }
   void global_save_default(THD *, set_var *var) {
     var->save_result.time_zone = *(Time_zone **)(intptr)option.def_value;
+  }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) {
+    strcpy(def_val, (char *)var->save_result.time_zone->get_name()->ptr());
   }
   uchar *session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
     /*
@@ -2031,6 +2083,7 @@ class Sys_var_gtid_next : public sys_var {
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   bool do_check(THD *, set_var *) { return false; }
   bool check_update_type(Item_result type) { return type != STRING_RESULT; }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *) {
@@ -2088,6 +2141,7 @@ class Sys_var_gtid_set : public sys_var {
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *thd, set_var *var) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   bool do_check(THD *thd, set_var *var) {
     DBUG_ENTER("Sys_var_gtid_set::do_check");
     String str;
@@ -2160,6 +2214,7 @@ class Sys_var_charptr_func : public sys_var {
   }
   void session_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
   void global_save_default(THD *, set_var *) { DBUG_ASSERT(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
   bool do_check(THD *, set_var *) {
     DBUG_ASSERT(false);
     return true;
@@ -2228,6 +2283,9 @@ class Sys_var_gtid_purged : public sys_var {
 
   void global_save_default(THD *, set_var *var) {
     /* gtid_purged does not have default value */
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+  }
+  void saved_value_to_string(THD *, set_var *var, char *) {
     my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
   }
 

@@ -40,9 +40,7 @@ EOF
 --exec $MYSQLXTEST --tls-version=TLSv1                 $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1.1               $XTESTPARAMS 2>&1
 
---let $expected_error_msg= TLS version is invalid \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv3                 $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3 $XTESTPARAMS 2>&1
 
 
 --let $restart_parameters = restart: --tls-version=TLSv1
@@ -53,21 +51,15 @@ EOF
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.2         $XTESTPARAMS 2>&1
 
---let $expected_error_extra= $ERROR1
---let $expected_error_msg= unsupported protocol \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv1.1,TLSv1.2       $XTESTPARAMS 2>&1
+--replace_regex $ERROR1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
 
---exec $MYSQLXTEST --tls-version=TLSv1                 $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --tls-version=TLSv1                               $XTESTPARAMS 2>&1
 
---let $expected_error_extra= $ERROR1
---let $expected_error_msg= unsupported protocol \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv1.1               $XTESTPARAMS 2>&1
+--replace_regex $ERROR1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1.1 $XTESTPARAMS 2>&1
 
---let $expected_error_msg= TLS version is invalid \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv3                 $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3   $XTESTPARAMS 2>&1
 
 
 --let $restart_parameters = restart: --tls-version=TLSv1.1
@@ -77,22 +69,16 @@ EOF
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1         $XTESTPARAMS 2>&1
 
---let $expected_error_extra= $ERROR5
---let $expected_error_msg= socket layer receive error \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.2         $XTESTPARAMS 2>&1
---exec $MYSQLXTEST --tls-version=TLSv1.1,TLSv1.2       $XTESTPARAMS 2>&1
+--replace_regex $ERROR5
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1,TLSv1.2 $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --tls-version=TLSv1.1,TLSv1.2                   $XTESTPARAMS 2>&1
 
---let $expected_error_extra= $ERROR5
---let $expected_error_msg= socket layer receive error \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv1                 $XTESTPARAMS 2>&1
+--replace_regex $ERROR5
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv1 $XTESTPARAMS 2>&1
 
---exec $MYSQLXTEST --tls-version=TLSv1.1               $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --tls-version=TLSv1.1                   $XTESTPARAMS 2>&1
 
---let $expected_error_msg= TLS version is invalid \(code 2026\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST --tls-version=TLSv3                 $XTESTPARAMS 2>&1
+--exec $MYSQLXTEST --expect-error CR_SSL_CONNECTION_ERROR --tls-version=TLSv3 $XTESTPARAMS 2>&1
 
 
 # Postamble

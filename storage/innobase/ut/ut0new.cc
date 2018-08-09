@@ -65,7 +65,6 @@ PSI_memory_key mem_key_log_online_sys;
 PSI_memory_key mem_key_log_online_read_buf;
 PSI_memory_key mem_key_log_online_iterator_files;
 PSI_memory_key mem_key_log_online_iterator_page;
-PSI_memory_key mem_key_trx_distinct_page_access_hash;
 PSI_memory_key mem_key_parallel_doublewrite;
 
 #ifdef UNIV_PFS_MEMORY
@@ -111,8 +110,6 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_merge_sort, "row_merge_sort", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_std, "std", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_trx_distinct_page_access_hash, "trx_distinct_page_access_hash", 0,
-     0, PSI_DOCUMENT_ME},
     {&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0, 0,
      PSI_DOCUMENT_ME},
     {&mem_key_undo_spaces, "undo::Tablespaces", 0, 0, PSI_DOCUMENT_ME},

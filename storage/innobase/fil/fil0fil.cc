@@ -6805,6 +6805,21 @@ static void fil_report_invalid_page_access_low(page_no_t block_offset,
 @param[in]	space		table space */
 void fil_io_set_encryption(IORequest &req_type, const page_id_t &page_id,
                            fil_space_t *space) {
+  /* Explicit request to disable encryption */
+  if (req_type.is_encryption_disabled()) {
+    req_type.clear_encrypted();
+    return;
+  }
+
+  /* Don't encrypt pages of system tablespace upto
+  TRX_SYS_PAGE(including). The doublewrite buffer
+  header is on TRX_SYS_PAGE */
+  if (fsp_is_system_tablespace(space->id) &&
+      page_id.page_no() <= FSP_TRX_SYS_PAGE_NO) {
+    req_type.clear_encrypted();
+    return;
+  }
+
   /* Don't encrypt page 0 of all tablespaces except redo log
   tablespace, all pages from the system tablespace. */
   if (space->encryption_type == Encryption::NONE ||
@@ -7042,7 +7057,6 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                          const page_id_t &page_id, const page_size_t &page_size,
                          ulint byte_offset, ulint len, void *buf, void *message,
                          trx_t *trx, bool should_buffer) {
-  ut_ad(!trx || trx->take_stats);
   IORequest req_type(type);
 
   ut_ad(req_type.validate());
@@ -7419,7 +7433,6 @@ void fil_aio_wait(ulint segment) {
 dberr_t _fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
                 const page_size_t &page_size, ulint byte_offset, ulint len,
                 void *buf, void *message, trx_t *trx, bool should_buffer) {
-  ut_ad(!trx || trx->take_stats);
   auto shard = fil_system->shard_by_id(page_id.space());
 
   return (shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
@@ -8343,8 +8356,6 @@ Compression::Type fil_get_compression(space_id_t space_id) {
 @return DB_SUCCESS or error code */
 dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
                            byte *key, byte *iv) {
-  ut_ad(space_id != TRX_SYS_SPACE);
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
@@ -8376,6 +8387,33 @@ dberr_t fil_set_encryption(space_id_t space_id, Encryption::Type algorithm,
   shard->mutex_release();
 
   return (DB_SUCCESS);
+}
+
+/** Enable encryption of temporary tablespace
+@param[in,out]	space	tablespace object
+@return DB_SUCCESS on success, DB_ERROR on failure */
+dberr_t fil_temp_update_encryption(fil_space_t *space) {
+  /* Make sure the keyring is loaded. */
+  if (!Encryption::check_keyring()) {
+    ib::error() << "Can't set temporary tablespace"
+                << " to be encrypted because"
+                << " keyring plugin is not"
+                << " available.";
+    return (DB_ERROR);
+  }
+
+  if (!fsp_enable_encryption(space)) {
+    ib::error() << "Can't set temporary tablespace"
+                << " to be encrypted.";
+    return (DB_ERROR);
+  }
+
+  const dberr_t err =
+      fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
+
+  ut_ad(err == DB_SUCCESS);
+
+  return (err);
 }
 
 #ifndef UNIV_HOTBACKUP

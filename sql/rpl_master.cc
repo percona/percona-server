@@ -1296,7 +1296,7 @@ bool show_binlogs(THD *thd) {
 
   cur_dir_len = dirname_length(cur.log_file_name);
 
-  reinit_io_cache(index_file, READ_CACHE, (my_off_t)0, 0, 0);
+  if (reinit_io_cache(index_file, READ_CACHE, (my_off_t)0, 0, 0)) goto err;
 
   /* The file ends with EOF or empty line */
   while ((length = my_b_gets(index_file, fname, sizeof(fname))) > 1) {

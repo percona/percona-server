@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <bitset>
 #include <memory>
 
 #include "m_ctype.h"
@@ -841,6 +842,64 @@ struct QUERY_START_TIME_INFO {
 };
 
 /**
+   A single-hash-function bloom filter for approximate accessed page
+   counter.
+*/
+class Bloom_filter final {
+ private:
+  /** Bloom filter size, and a prime number for the calculation below */
+  static const constexpr auto SIZE = 8191;
+
+  typedef std::bitset<SIZE> Bit_set;
+
+  /** The bit set, which is allocated in a MEM_ROOT */
+  Bit_set *bit_set;
+
+  // Non-copyable
+  Bloom_filter(const Bloom_filter &);
+  Bloom_filter &operator=(const Bloom_filter &);
+
+ public:
+  Bloom_filter() : bit_set(nullptr) {}
+
+  ~Bloom_filter() {
+    // Do not delete, just destruct, due to MEM_ROOT allocation
+    bit_set->~bitset();
+  }
+
+  void clear() noexcept {
+    // Do not delete, just force new MEM_ROOT allocation on the next use
+    bit_set = nullptr;
+  }
+
+  /**
+     Check whether key is maybe a member of a set
+
+     @param[in, out]    mem_root        MEM_ROOT to allocate the bit set in, if
+      not allocated already
+     @param[in]         key             key whose presence to check
+
+     @return if true, the key might be a member of the set. If false, the key
+     is definitely not a member of the set.
+  */
+  bool test_and_set(MEM_ROOT *mem_root, ulong key) {
+    if (!bit_set) {
+      void *bit_set_place = alloc_root(mem_root, sizeof(Bit_set));
+      // FIXME: memory allocation failure is eaten silently. Nonexact stats are
+      // the least of the concerns then.
+      if (!bit_set_place) return false;
+      bit_set = new (bit_set_place) Bit_set();
+    }
+    // Duplicating ut_hash_ulint calculation
+    const ulong pos = (key ^ 1653893711) % SIZE;
+    DBUG_ASSERT(pos < SIZE);
+    if (bit_set->test(pos)) return false;
+    bit_set->set(pos);
+    return true;
+  }
+};
+
+/**
   @class THD
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
@@ -1392,10 +1451,6 @@ class THD : public MDL_context_owner,
   ulong tmp_tables_disk_used;
   ulonglong tmp_tables_size;
   /*
-    Variable innodb_was_used shows used or not InnoDB engine in current query.
-  */
-  bool innodb_was_used;
-  /*
     Following Variables innodb_*** (is |should be) different from
     default values only if (innodb_was_used==true)
   */
@@ -1405,7 +1460,36 @@ class THD : public MDL_context_owner,
   ulong innodb_io_reads_wait_timer;
   ulong innodb_lock_que_wait_timer;
   ulong innodb_innodb_que_wait_timer;
+
+ private:
+  /*
+    Variable innodb_was_used shows used or not InnoDB engine in current query.
+  */
+  bool innodb_was_used;
+  Bloom_filter approx_distinct_pages;
+
+ public:
   ulong innodb_page_access;
+
+  void mark_innodb_used(ulonglong trx_id) noexcept {
+    DBUG_ASSERT(innodb_trx_id == 0 || innodb_trx_id == trx_id);
+    innodb_trx_id = trx_id;
+    innodb_was_used = true;
+  }
+
+  void access_distinct_page(ulong page_id) {
+    if (approx_distinct_pages.test_and_set(mem_root, page_id))
+      innodb_page_access++;
+  }
+
+  bool innodb_slow_log_enabled() const noexcept {
+    return variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB);
+  }
+
+  bool innodb_slow_log_data_logged() const noexcept {
+    DBUG_ASSERT(!innodb_was_used || innodb_slow_log_enabled());
+    return innodb_was_used;
+  }
 
   /*
     Variable query_plan_flags collects information about query plan entites

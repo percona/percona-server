@@ -2646,6 +2646,7 @@ static const char *parse_quoted_identifier(const char *str,
   considered indexed for such key specification.
 */
 static bool contains_autoinc_column(const char *autoinc_column,
+                                    ssize_t autoinc_column_len,
                                     const char *keydef,
                                     key_type_t type) noexcept {
   DBUG_ASSERT(type != key_type_t::NONE);
@@ -2669,6 +2670,7 @@ static bool contains_autoinc_column(const char *autoinc_column,
       secondary key.
     */
     if ((type == key_type_t::PRIMARY || idnum != 1) &&
+        to - from - 1 == autoinc_column_len &&
         !strncmp(autoinc_column, from + 1, to - from - 1))
       return true;
 
@@ -2707,6 +2709,7 @@ static void skip_secondary_keys(char *create_str, bool has_pk) noexcept {
   char *last_comma = nullptr;
   bool pk_processed = false;
   char *autoinc_column = nullptr;
+  ssize_t autoinc_column_len = 0;
   bool keys_processed = false;
 
   char *strend = create_str + strlen(create_str);
@@ -2739,7 +2742,8 @@ static void skip_secondary_keys(char *create_str, bool has_pk) noexcept {
 
     const bool has_autoinc =
         (type != key_type_t::NONE)
-            ? contains_autoinc_column(autoinc_column, ptr, type)
+            ? contains_autoinc_column(autoinc_column, autoinc_column_len, ptr,
+                                      type)
             : false;
 
     /* Is it a secondary index definition? */
@@ -2809,8 +2813,9 @@ static void skip_secondary_keys(char *create_str, bool has_pk) noexcept {
         if (*end == '`' && end > ptr + 1) {
           DBUG_ASSERT(autoinc_column == NULL);
 
+          autoinc_column_len = end - ptr - 1;
           autoinc_column = my_strndup(PSI_NOT_INSTRUMENTED, ptr + 1,
-                                      end - ptr - 1, MYF(MY_FAE));
+                                      autoinc_column_len, MYF(MY_FAE));
         }
       }
 

@@ -845,6 +845,7 @@ char *opt_keyring_migration_source = NULL;
 char *opt_keyring_migration_destination = NULL;
 ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = 0;
+uint test_flags = 0;
 #ifndef _WIN32
 bool opt_log_syslog_include_pid;
 char *opt_log_syslog_facility;
@@ -953,7 +954,7 @@ volatile sig_atomic_t calling_initgroups = 0; /**< Used in SIGSEGV handler. */
 #endif
 const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
-uint mysqld_port, test_flags, select_errors, ha_open_options;
+uint mysqld_port, select_errors, ha_open_options;
 uint mysqld_extra_port;
 uint mysqld_port_timeout;
 ulong delay_key_write_options;
@@ -1122,6 +1123,8 @@ char server_version[SERVER_VERSION_LENGTH];
 char server_version_suffix[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 bool encrypt_binlog;
+
+bool encrypt_tmp_files;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
@@ -1389,8 +1392,8 @@ ulong sql_rnd_with_mutex() {
   return tmp;
 }
 
-struct System_status_var *get_thd_status_var(THD *thd) {
-  return &thd->status_var;
+std::pair<struct System_status_var *, bool> get_thd_status_var(THD *thd) {
+  return std::make_pair(&thd->status_var, thd->status_var_aggregated);
 }
 
 static void option_error_reporter(enum loglevel level, const char *format, ...)
@@ -6349,6 +6352,8 @@ int mysqld_main(int argc, char **argv)
   if (init_ssl_communication()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (network_init()) unireg_abort(MYSQLD_ABORT_EXIT);
 
+  init_io_cache_encryption(encrypt_tmp_files);
+
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&
       !opt_use_ssl && !opt_initialize) {
@@ -7021,6 +7026,12 @@ static int handle_early_options() {
     remaining_argv--;
 
     if (opt_initialize_insecure) opt_initialize = true;
+
+    if (opt_debugging) {
+      /* Allow break with SIGINT, no core or stack trace */
+      test_flags |= TEST_SIGINT | TEST_NO_STACKTRACE;
+      test_flags &= ~TEST_CORE_ON_SIGNAL;
+    }
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -7190,6 +7201,13 @@ struct my_option my_long_early_options[] = {
      "is needed.",
      &opt_no_dd_upgrade, &opt_no_dd_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
      0},
+    {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
+     NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
+     "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
+     0, 0, 0, 0},
+    {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
+     &opt_debugging, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 /**
@@ -7258,8 +7276,6 @@ struct my_option my_long_options[] = {
      "Write error output on screen; don't remove the console window on "
      "windows.",
      &opt_console, &opt_console, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"core-file", OPT_WANT_CORE, "Write core on errors.", 0, 0, 0, GET_NO_ARG,
-     NO_ARG, 0, 0, 0, 0, 0, 0},
     /* default-storage-engine should have "MyISAM" as def_value. Instead
        of initializing it here it is done in init_common_variables() due
        to a compiler bug in Sun Studio compiler. */
@@ -7285,10 +7301,8 @@ struct my_option my_long_options[] = {
      "--skip-external-locking.",
      &opt_external_locking, &opt_external_locking, 0, GET_BOOL, NO_ARG, 0, 0, 0,
      0, 0, 0},
-    /* We must always support the next option to make scripts like mysqltest
-       easier to do */
-    {"gdb", 0, "Set up signals usable for debugging.", &opt_debugging,
-     &opt_debugging, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+/* We must always support the next option to make scripts like mysqltest
+   easier to do */
 #if defined(HAVE_LINUX_LARGE_PAGES) || defined(HAVE_SOLARIS_LARGE_PAGES)
     {"super-large-pages", 0, "Enable support for super large pages.",
      &opt_super_large_pages, &opt_super_large_pages, 0, GET_BOOL, OPT_ARG, 0, 0,
@@ -7445,9 +7459,6 @@ struct my_option my_long_options[] = {
     {"skip-slave-start", 0, "If set, slave is not autostarted.",
      &opt_skip_slave_start, &opt_skip_slave_start, 0, GET_BOOL, NO_ARG, 0, 0, 0,
      0, 0, 0},
-    {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-     "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-     0, 0, 0, 0},
 #if defined(_WIN32)
     {"slow-start-timeout", 0,
      "Maximum number of milliseconds that the service control manager should "
@@ -8657,7 +8668,7 @@ static int mysql_init_variables() {
   mqh_used = 0;
   cleanup_done = 0;
   server_id_supplied = false;
-  test_flags = select_errors = ha_open_options = 0;
+  select_errors = ha_open_options = 0;
   atomic_slave_open_temp_tables = 0;
   opt_endinfo = using_udf_functions = 0;
   opt_using_transactions = 0;
@@ -9539,11 +9550,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   if (!my_enable_symlinks) have_symlink = SHOW_OPTION_DISABLED;
 
-  if (opt_debugging) {
-    /* Allow break with SIGINT, no core or stack trace */
-    test_flags |= TEST_SIGINT | TEST_NO_STACKTRACE;
-    test_flags &= ~TEST_CORE_ON_SIGNAL;
-  }
   /* Set global MyISAM variables from delay_key_write_options */
   fix_delay_key_write(0, 0, OPT_GLOBAL);
 

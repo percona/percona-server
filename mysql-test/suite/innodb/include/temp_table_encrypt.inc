@@ -52,10 +52,9 @@ SET GLOBAL innodb_temp_tablespace_encrypt = ON;
 --let $wait_condition= SELECT SUM(VARIABLE_VALUE) > $innodb_master_loops + 2 FROM performance_schema.global_status WHERE VARIABLE_NAME LIKE 'innodb_master%loops'
 --source include/wait_condition.inc
 
---error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t02 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 
-CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='N';
+CREATE TEMPORARY TABLE t03 (a TEXT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 
 # wait until pages flushed
@@ -71,7 +70,9 @@ INSERT INTO t03 VALUES ('Curabitur laoreet, velit non interdum venenatis');
 
 # this table created in separate file per table tablespace, make sure it is
 # encrypted as well
+SET GLOBAL innodb_encrypt_tables=ON;
 CREATE TEMPORARY TABLE t04 (a TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED;
+SET GLOBAL innodb_encrypt_tables=OFF;
 INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
 
 # wait until pages flushed
@@ -87,17 +88,19 @@ INSERT INTO t04 VALUES ('Praesent tristique eros a tempus fringilla');
 --let $grep_output= boolean
 --source include/grep_pattern.inc
 
---error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t05 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='y';
+INSERT INTO t05 VALUES (1), (2), (3);
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TEMPORARY TABLE t06 (a INT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED ENCRYPTION='n';
-INSERT INTO t06 VALUES (1), (2), (3);
 
 # test that we can turn encryption OFF and ON
 
 SET GLOBAL innodb_temp_tablespace_encrypt = OFF;
 
-CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB;
+# Setting OFF after encryption doesn't make it decrypted. So temp tablespace
+# is still encrypted.
+CREATE TEMPORARY TABLE t07 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t07 VALUES (1), (2), (3);
 
 SET GLOBAL innodb_temp_tablespace_encrypt = ON;
@@ -131,7 +134,7 @@ let $restart_hide_args = 1;
 let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0;
 --source include/restart_mysqld.inc
 
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 
 # test crashing
@@ -139,7 +142,7 @@ let $restart_hide_args = 1;
 let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0;
 --source include/kill_and_restart_mysqld.inc
 
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 
 # and able to startup without keyring plugin
@@ -154,7 +157,7 @@ let $restart_hide_args = 1;
 let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt --innodb_max_dirty_pages_pct=0;
 --source include/restart_mysqld.inc
 
-CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t01 (a INT) ENGINE=InnoDB ENCRYPTION='Y';
 INSERT INTO t01 VALUES (1), (2), (3);
 
 DROP TABLE t10;
@@ -168,13 +171,13 @@ DROP TABLE t10;
 # when innodb_temp_tablespace_encrypt=ON but keyring isn't set up
 #
 
-let $restart_hide_args = 0;
-let $restart_parameters = restart: --innodb-temp-tablespace-encrypt;
+let $restart_hide_args = 1;
+let $restart_parameters = $KEYRING_RESTART_PARAM --innodb-temp-tablespace-encrypt;
 --source include/restart_mysqld.inc
 
 CREATE TABLE t1(a INT key) ENGINE = MEMORY;
 INSERT INTO t1 VALUES (11061);
 INSERT INTO t1 VALUES (3);
 SET big_tables=1;
---error ER_CANNOT_FIND_KEY_IN_KEYRING
 SELECT * FROM t1 WHERE a IN(SELECT MAX(a) FROM t1);
+DROP TABLE t1;

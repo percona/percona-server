@@ -24,9 +24,9 @@
 #include <vector>
 
 /* MySQL header files */
-#include "./log.h"
-#include "./my_stacktrace.h"
-#include "./sql_array.h"
+#include "log.h"
+#include "my_stacktrace.h"
+#include "sql_array.h"
 
 /* MyRocks header files */
 #include "./rdb_datadic.h"
@@ -169,7 +169,7 @@ void Rdb_tbl_prop_coll::CollectStatsForRow(const rocksdb::Slice &key,
     sql_print_error("RocksDB: Unexpected entry type found: %u. "
                     "This should not happen so aborting the system.",
                     type);
-    abort_with_stack_traces();
+    abort();
     break;
   }
 
@@ -362,7 +362,7 @@ int Rdb_index_stats::unmaterialize(const std::string &s,
     sql_print_error("Index stats version %d was outside of supported range. "
                     "This should not happen so aborting the system.",
                     version);
-    abort_with_stack_traces();
+    abort();
   }
 
   size_t needed = sizeof(stats.m_gl_index_id.cf_id) +
@@ -434,15 +434,8 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool &increment,
     m_entry_single_deletes += s.m_entry_single_deletes;
     m_entry_merges += s.m_entry_merges;
     m_entry_others += s.m_entry_others;
-    if (s.m_distinct_keys_per_prefix.size() > 0) {
-      for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
-        m_distinct_keys_per_prefix[i] += s.m_distinct_keys_per_prefix[i];
-      }
-    } else {
-      for (i = 0; i < m_distinct_keys_per_prefix.size(); i++) {
-        m_distinct_keys_per_prefix[i] +=
-            s.m_rows >> (m_distinct_keys_per_prefix.size() - i - 1);
-      }
+    for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
+      m_distinct_keys_per_prefix[i] += s.m_distinct_keys_per_prefix[i];
     }
   } else {
     m_rows -= s.m_rows;
@@ -453,15 +446,8 @@ void Rdb_index_stats::merge(const Rdb_index_stats &s, const bool &increment,
     m_entry_single_deletes -= s.m_entry_single_deletes;
     m_entry_merges -= s.m_entry_merges;
     m_entry_others -= s.m_entry_others;
-    if (s.m_distinct_keys_per_prefix.size() > 0) {
-      for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
-        m_distinct_keys_per_prefix[i] -= s.m_distinct_keys_per_prefix[i];
-      }
-    } else {
-      for (i = 0; i < m_distinct_keys_per_prefix.size(); i++) {
-        m_distinct_keys_per_prefix[i] -=
-            s.m_rows >> (m_distinct_keys_per_prefix.size() - i - 1);
-      }
+    for (i = 0; i < s.m_distinct_keys_per_prefix.size(); i++) {
+      m_distinct_keys_per_prefix[i] -= s.m_distinct_keys_per_prefix[i];
     }
   }
 }

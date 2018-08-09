@@ -20,6 +20,7 @@
 #include "plugin/keyring/common/i_keyring_key.h"
 #include "plugin/keyring/common/secure_string.h"
 #include "vault_credentials.h"
+#include "vault_key.h"
 
 namespace keyring {
 

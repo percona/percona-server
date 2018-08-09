@@ -20,7 +20,7 @@ ERROR HY000: InnoDB: Tablespace `innodb_system` cannot contain an ENCRYPTED tabl
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
 DROP TABLE t1;
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-ERROR HY000: InnoDB: Unsupported encryption option for temporary tables.
+ERROR HY000: InnoDB: Tablespace `innodb_temporary` cannot contain an ENCRYPTED table.
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 DROP TABLE t1;
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;

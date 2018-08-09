@@ -871,6 +871,12 @@ class create_table_info_t {
   static void normalize_table_name_low(char *norm_name, const char *name,
                                        ibool set_lower_case);
 
+  /** If encryption is requested, check for master key availability
+  and set the encryption flag in table flags
+  @param[in,out]	table	table object
+  @return on success DB_SUCCESS else DB_UNSPPORTED on failure */
+  dberr_t enable_encryption(dict_table_t *table);
+
  private:
   /** Parses the table name into normal name and either temp path or
   remote path if needed.*/

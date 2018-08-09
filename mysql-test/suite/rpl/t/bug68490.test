@@ -6,7 +6,7 @@ CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, payload MEDIUMBLOB NOT NULL);
 
 --let $rpl_server_number= 1
 --source include/rpl_restart_server.inc
---connection slave
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 --source include/start_slave.inc
 --connection master

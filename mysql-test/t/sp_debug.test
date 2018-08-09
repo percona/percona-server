@@ -1,5 +1,6 @@
 #
 --source include/have_debug.inc
+--source include/count_sessions.inc
 
 --echo #
 --echo # WL#7897 -- Use DD API for Stored Routines.
@@ -85,3 +86,5 @@ SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 DROP FUNCTION f1;
 disconnect con1;
+
+--source include/wait_until_count_sessions.inc

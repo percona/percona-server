@@ -22,10 +22,10 @@
 #include <vector>
 
 /* MySQL header files */
-#include "../sql/log.h"
-#include "./my_stacktrace.h"
-#include "./sql_regex.h"
-#include "./sql_string.h"
+#include "log.h"
+#include "my_stacktrace.h"
+#include "sql_regex.h"
+#include "sql_string.h"
 
 /* RocksDB header files */
 #include "rocksdb/slice.h"
@@ -78,16 +78,12 @@ namespace myrocks {
 
   Use the power of SHIP_ASSERT() wisely.
 */
-#ifndef abort_with_stack_traces
-#define abort_with_stack_traces abort
-#endif
-
 #ifndef SHIP_ASSERT
 #define SHIP_ASSERT(expr)                                                      \
   do {                                                                         \
     if (!(expr)) {                                                             \
       my_safe_printf_stderr("\nShip assert failure: \'%s\'\n", #expr);         \
-      abort_with_stack_traces();                                               \
+      abort();                                                                 \
     }                                                                          \
   } while (0)
 #endif  // SHIP_ASSERT
@@ -135,8 +131,8 @@ namespace myrocks {
   make sure that both failure and success paths are clearly identifiable. The
   definitions of FALSE and TRUE come from <my_global.h>.
 */
-#define HA_EXIT_SUCCESS FALSE
-#define HA_EXIT_FAILURE TRUE
+#define HA_EXIT_SUCCESS false
+#define HA_EXIT_FAILURE true
 
 /*
   Macros to better convey the intent behind checking the results from locking
@@ -240,7 +236,7 @@ inline void rdb_check_mutex_call_result(const char *function_name,
 
     // This will hopefully result in a meaningful stack trace which we can use
     // to efficiently debug the root cause.
-    abort_with_stack_traces();
+    abort();
   }
 }
 

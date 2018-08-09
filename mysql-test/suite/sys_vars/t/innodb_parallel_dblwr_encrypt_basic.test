@@ -1,0 +1,7 @@
+--echo #
+--echo # Basic test for innodb_parallel_dblwr_encrypt
+--echo #
+
+let $var_name = innodb_parallel_dblwr_encrypt;
+
+--source suite/sys_vars/inc/global_boolean_var_basic.inc

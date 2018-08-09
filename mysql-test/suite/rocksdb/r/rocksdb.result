@@ -899,6 +899,7 @@ rocksdb_block_restart_interval	16
 rocksdb_block_size	4096
 rocksdb_block_size_deviation	10
 rocksdb_bulk_load	OFF
+rocksdb_bulk_load_allow_sk	OFF
 rocksdb_bulk_load_allow_unsorted	OFF
 rocksdb_bulk_load_size	1000
 rocksdb_bytes_per_sync	0
@@ -906,6 +907,7 @@ rocksdb_cache_index_and_filter_blocks	ON
 rocksdb_checksums_pct	100
 rocksdb_collect_sst_properties	ON
 rocksdb_commit_in_the_middle	OFF
+rocksdb_commit_time_batch_for_recovery	OFF
 rocksdb_compact_cf	
 rocksdb_compaction_readahead_size	0
 rocksdb_compaction_sequential_deletes	0
@@ -934,6 +936,7 @@ rocksdb_enable_ttl	ON
 rocksdb_enable_ttl_read_filtering	ON
 rocksdb_enable_write_thread_adaptive_yield	OFF
 rocksdb_error_if_exists	OFF
+rocksdb_error_on_suboptimal_collation	OFF
 rocksdb_flush_log_at_trx_commit	1
 rocksdb_force_compute_memtable_stats	ON
 rocksdb_force_compute_memtable_stats_cachetime	0
@@ -984,6 +987,7 @@ rocksdb_skip_bloom_filter_on_read	OFF
 rocksdb_skip_fill_cache	OFF
 rocksdb_sst_mgr_rate_bytes_per_sec	0
 rocksdb_stats_dump_period_sec	600
+rocksdb_stats_recalc_rate	0
 rocksdb_store_row_debug_checksums	OFF
 rocksdb_strict_collation_check	OFF
 rocksdb_strict_collation_exceptions	
@@ -1009,6 +1013,7 @@ rocksdb_whole_key_filtering	ON
 rocksdb_write_batch_max_bytes	0
 rocksdb_write_disable_wal	OFF
 rocksdb_write_ignore_missing_column_families	OFF
+rocksdb_write_policy	write_committed
 create table t47 (pk int primary key, col1 varchar(12)) engine=rocksdb;
 insert into t47 values (1, 'row1');
 insert into t47 values (2, 'row2');
@@ -1393,7 +1398,7 @@ insert into t1 select (@a:=@a+1), 1234 from performance_schema.session_variables
 set @tmp1= @@rocksdb_max_row_locks;
 set rocksdb_max_row_locks= 20;
 update t1 set a=a+10;
-ERROR HY000: Status error 10 received from RocksDB: Operation aborted: Failed to acquire lock due to max_num_locks limit
+ERROR HY000: Got error 10 'Operation aborted: Failed to acquire lock due to max_num_locks limit' from ROCKSDB
 DROP TABLE t1;
 # 
 # Test AUTO_INCREMENT behavior problem,
@@ -1505,6 +1510,7 @@ rocksdb_rows_inserted	#
 rocksdb_rows_read	#
 rocksdb_rows_updated	#
 rocksdb_rows_expired	#
+rocksdb_rows_filtered	#
 rocksdb_system_rows_deleted	#
 rocksdb_system_rows_inserted	#
 rocksdb_system_rows_read	#
@@ -1536,6 +1542,8 @@ rocksdb_block_cache_index_bytes_insert	#
 rocksdb_block_cache_index_hit	#
 rocksdb_block_cache_index_miss	#
 rocksdb_block_cache_miss	#
+rocksdb_bloom_filter_full_positive	#
+rocksdb_bloom_filter_full_true_positive	#
 rocksdb_bloom_filter_prefix_checked	#
 rocksdb_bloom_filter_prefix_useful	#
 rocksdb_bloom_filter_useful	#
@@ -1579,11 +1587,9 @@ rocksdb_number_sst_entry_merge	#
 rocksdb_number_sst_entry_other	#
 rocksdb_number_sst_entry_put	#
 rocksdb_number_sst_entry_singledelete	#
-rocksdb_number_stat_computes	#
 rocksdb_number_superversion_acquires	#
 rocksdb_number_superversion_cleanups	#
 rocksdb_number_superversion_releases	#
-rocksdb_rate_limit_delay_millis	#
 rocksdb_row_lock_deadlocks	#
 rocksdb_row_lock_wait_timeouts	#
 rocksdb_snapshot_conflict_errors	#
@@ -1612,6 +1618,7 @@ rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
+rocksdb_rows_filtered
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1643,6 +1650,8 @@ rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
+rocksdb_bloom_filter_full_positive
+rocksdb_bloom_filter_full_true_positive
 rocksdb_bloom_filter_prefix_checked
 rocksdb_bloom_filter_prefix_useful
 rocksdb_bloom_filter_useful
@@ -1686,11 +1695,9 @@ rocksdb_number_sst_entry_merge
 rocksdb_number_sst_entry_other
 rocksdb_number_sst_entry_put
 rocksdb_number_sst_entry_singledelete
-rocksdb_number_stat_computes
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
-rocksdb_rate_limit_delay_millis
 rocksdb_row_lock_deadlocks
 rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors
@@ -1721,6 +1728,7 @@ rocksdb_rows_inserted
 rocksdb_rows_read
 rocksdb_rows_updated
 rocksdb_rows_expired
+rocksdb_rows_filtered
 rocksdb_system_rows_deleted
 rocksdb_system_rows_inserted
 rocksdb_system_rows_read
@@ -1752,6 +1760,8 @@ rocksdb_block_cache_index_bytes_insert
 rocksdb_block_cache_index_hit
 rocksdb_block_cache_index_miss
 rocksdb_block_cache_miss
+rocksdb_bloom_filter_full_positive
+rocksdb_bloom_filter_full_true_positive
 rocksdb_bloom_filter_prefix_checked
 rocksdb_bloom_filter_prefix_useful
 rocksdb_bloom_filter_useful
@@ -1795,11 +1805,9 @@ rocksdb_number_sst_entry_merge
 rocksdb_number_sst_entry_other
 rocksdb_number_sst_entry_put
 rocksdb_number_sst_entry_singledelete
-rocksdb_number_stat_computes
 rocksdb_number_superversion_acquires
 rocksdb_number_superversion_cleanups
 rocksdb_number_superversion_releases
-rocksdb_rate_limit_delay_millis
 rocksdb_row_lock_deadlocks
 rocksdb_row_lock_wait_timeouts
 rocksdb_snapshot_conflict_errors

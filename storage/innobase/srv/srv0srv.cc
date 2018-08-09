@@ -166,6 +166,13 @@ unsigned long long srv_max_undo_tablespace_size;
 /** Enable or disable encryption of temporary tablespace.*/
 bool srv_tmp_tablespace_encrypt;
 
+/** Option to enable encryption of system tablespace. */
+bool srv_sys_tablespace_encrypt;
+
+/** Enable or disable encryption of pages in parallel doublewrite buffer
+file */
+bool srv_parallel_dblwr_encrypt;
+
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
     ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
@@ -217,9 +224,6 @@ bool srv_master_thread_disabled_debug;
 /** Event used to inform that master thread is disabled. */
 static os_event_t srv_master_thread_disabled_event;
 #endif /* !UNIV_HOTBACKUP */
-/** Pause master thread in the middle of enabling of temporary tablespace
-encryption */
-ulint srv_master_encrypt_debug;
 /** Debug variable to find if any background threads are adding
 to purge during slow shutdown. */
 extern bool trx_commit_disallowed;
@@ -2573,54 +2577,37 @@ func_exit:
 }
 
 /** Set temporary tablespace to be encrypted if global variable
-innodb_temp_tablespace_encrypt is TRUE. In case of failure, changes
-value of innodb_temp_tablespace_encrypt back to FALSE and logs error
-message. */
-static void srv_enable_temp_encryption_if_set() {
+innodb_temp_tablespace_encrypt is TRUE
+@param[in]	enable	true to enable encryption, false to disable
+@return DB_SUCCESS on success, DB_ERROR on failure */
+dberr_t srv_temp_encryption_update(bool enable) {
   ut_ad(!srv_read_only_mode);
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) return;
-
-  if (!srv_tmp_tablespace_encrypt) return;
-
-  if (fsp_is_system_tablespace(srv_tmp_space.space_id())) {
-    /* there is no separate tablespace for temporary tables */
-    return;
-  }
-
   fil_space_t *const space = fil_space_get(srv_tmp_space.space_id());
+  bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
   ut_ad(fsp_is_system_temporary(space->id));
 
-  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    /* Make sure the keyring is loaded. */
-    if (!Encryption::check_keyring()) {
-      srv_tmp_tablespace_encrypt = false;
-      ib::error() << "Can't set temporary tablespace to be encrypted because "
-                     "keyring plugin is not available.";
-      return;
-    }
-
-    space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
-
-    dberr_t err =
-        fil_set_encryption(space->id, Encryption::AES, nullptr, nullptr);
-
-    ut_a(err == DB_SUCCESS);
-
-#ifdef UNIV_DEBUG
-    if (srv_master_encrypt_debug != 0) {
-      srv_master_encrypt_debug = 2;
-      while (srv_master_encrypt_debug != 0) {
-        os_thread_sleep(10000);
+  if (enable) {
+    if (is_encrypted) {
+      /* Encryption already enabled */
+      return (DB_SUCCESS);
+    } else {
+      /* Enable encryption now */
+      dberr_t err = fil_temp_update_encryption(space);
+      if (err == DB_SUCCESS) {
+        srv_tmp_space.set_flags(space->flags);
       }
+      return (err);
     }
-#endif
 
-    if (!fsp_enable_encryption(srv_tmp_space.space_id())) {
-      srv_tmp_tablespace_encrypt = false;
-      ib::error() << "Can't set temporary tablespace to be encrypted.";
-      return;
+  } else {
+    if (!is_encrypted) {
+      /* Encryption already disabled */
+      return (DB_SUCCESS);
+    } else {
+      // TODO: Disabling encryption is not allowed yet
+      return (DB_SUCCESS);
     }
   }
 }
@@ -2847,9 +2834,6 @@ loop:
     } else {
       srv_master_do_idle_tasks();
     }
-
-    /* Enable temporary tablespace encryption if set */
-    srv_enable_temp_encryption_if_set();
 
     /* Enable redo log encryption if it is set */
     log_enable_encryption_if_set();

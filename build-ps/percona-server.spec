@@ -974,13 +974,6 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest.1*
-%attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
-
 %if 0%{?tokudb}
 %files -n Percona-Server-tokudb%{product_suffix}
 %attr(-, root, root)

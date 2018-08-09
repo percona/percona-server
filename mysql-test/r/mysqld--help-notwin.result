@@ -267,6 +267,8 @@ The following options may be given as the first argument:
  is identified as name=library, where name is the plugin
  name and library is the plugin library in plugin_dir.
  --encrypt-binlog    Encrypt binary logs (including relay logs)
+ --encrypt-tmp-files Encrypt temporary files (created for filesort, binary log
+ cache, etc)
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -1449,6 +1451,7 @@ disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
 div-precision-increment 4
 encrypt-binlog FALSE
+encrypt-tmp-files FALSE
 end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200

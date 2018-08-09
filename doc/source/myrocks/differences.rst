@@ -21,8 +21,13 @@ and includes the following differences from the original implementation:
   | InnoDB           | Success            | Success                         |
   +------------------+--------------------+---------------------------------+
   | Facebook MyRocks | Fail               | Success                         |
+  |                  |                    | (MyRocks engine only; read-only,|
+  |                  |                    | as all MyRocks engine snapshots)|
   +------------------+--------------------+---------------------------------+
-  | Percona MyRocks  | Fail               | Success for read-only snapshots |
+  | Percona MyRocks  | Fail with any DML  | Success                         |
+  |                  | which would violate| (read-only snapshots independent|
+  |                  | the read-only      | of the engines in use)          |
+  |                  | snapshot constraint|                                 |
   +------------------+--------------------+---------------------------------+
 
 * Percona MyRocks includes the ``lz4`` and ``zstd``

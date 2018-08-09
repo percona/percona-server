@@ -5975,6 +5975,12 @@ static Sys_var_ulong Sys_sp_cache_size(
     GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(16, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
 
+static Sys_var_bool Sys_encrypt_tmp_files(
+    "encrypt_tmp_files",
+    "Encrypt temporary files "
+    "(created for filesort, binary log cache, etc)",
+    READ_ONLY GLOBAL_VAR(encrypt_tmp_files), CMD_LINE(OPT_ARG), DEFAULT(false));
+
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var) {
   if (check_outside_trx(self, thd, var)) return true;
   longlong previous_val = thd->variables.pseudo_slave_mode;

@@ -190,6 +190,39 @@ System Variables
 
 The variable turns on binary and relay logs encryption.
 
+Temporary file encryption
+=========================
+
+A new feature, implemented since |Percona Server| :rn:`5.7.22-22`, is
+encryption of temporary files, triggered by the :variable:`encrypt-tmp-files`
+option.
+
+Temporary files are currently used in |Percona Server| for the following
+purposes:
+
+* filesort (for example, ``SELECT`` statements with ``SQL_BIG_RESULT`` hints),
+
+* binary log transactional caches,
+
+* Group Replication caches.
+
+For each temporary file, an encryption key is generated locally, only kept
+in memory for the lifetime of the temporary file, and discarded afterwards.
+
+System Variables
+----------------
+
+.. variable:: encrypt-tmp-files
+
+  :version 5.7.22-22: Implemented
+  :cli: ``--encrypt-tmp-files``
+  :dyn: No
+  :scope: Global
+  :vartype: Boolean
+  :default: ``OFF``
+
+The option turns on encryption of temporary files created by |Percona Server|.
+
 .. _keyring_vault_plugin:
 
 Keyring Vault plugin

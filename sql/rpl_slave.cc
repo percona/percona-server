@@ -3319,22 +3319,13 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->get_user(), &my_charset_bin);
   protocol->store((uint32)mi->port);
   protocol->store((uint32)mi->connect_retry);
-  const char *const master_log_file = mi->get_master_log_name();
-  protocol->store(master_log_file, &my_charset_bin);
+  protocol->store(mi->get_master_log_name(), &my_charset_bin);
   protocol->store((ulonglong)mi->get_master_log_pos());
   protocol->store(mi->rli->get_group_relay_log_name() +
                       dirname_length(mi->rli->get_group_relay_log_name()),
                   &my_charset_bin);
   protocol->store((ulonglong)mi->rli->get_group_relay_log_pos());
-  const char *const relay_master_log_file =
-      mi->rli->get_group_master_log_name();
-#ifndef DBUG_OFF
-  const size_t master_log_file_len = strlen(master_log_file);
-  const size_t relay_master_log_file_len = strlen(relay_master_log_file);
-#endif
-  DBUG_ASSERT((relay_master_log_file_len == master_log_file_len) ||
-              !relay_master_log_file_len || !master_log_file_len);
-  protocol->store(relay_master_log_file, &my_charset_bin);
+  protocol->store(mi->rli->get_group_master_log_name(), &my_charset_bin);
   protocol->store(
       mi->slave_running == MYSQL_SLAVE_RUN_CONNECT
           ? "Yes"

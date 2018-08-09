@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <utility>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -123,7 +124,7 @@ void refresh_status();
 bool is_secure_file_path(const char *path);
 ulong sql_rnd_with_mutex();
 
-struct System_status_var *get_thd_status_var(THD *thd);
+std::pair<struct System_status_var *, bool> get_thd_status_var(THD *thd);
 
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
@@ -360,6 +361,7 @@ extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_filter_rules;
 extern char *opt_log_error_services;
 extern bool encrypt_binlog;
+extern bool encrypt_tmp_files;
 extern bool opt_log_syslog_enable;
 extern char *opt_log_syslog_tag;
 #ifndef _WIN32

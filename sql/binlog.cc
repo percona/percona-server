@@ -618,9 +618,11 @@ class binlog_cache_data {
 
     my_off_t oldpos = get_byte_position();
 
-    if (use_reinit)
-      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
-    else
+    if (use_reinit) {
+      MY_ATTRIBUTE((unused))
+      int reinit_res = reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+      DBUG_ASSERT(reinit_res == 0);
+    } else
       my_b_seek(&cache_log, pos);
 
     DBUG_RETURN(oldpos);
@@ -729,7 +731,10 @@ class binlog_cache_data {
       cache cannot be used without facing an assert.
       So, clear the cache if there is a flush error.
     */
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
+    MY_ATTRIBUTE((unused))
+    int reinit_res =
+        reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
+    DBUG_ASSERT(reinit_res == 0);
     cache_log.end_of_file = saved_max_binlog_cache_size;
   }
 
@@ -8178,7 +8183,11 @@ bool MYSQL_BIN_LOG::truncate_relaylog_file(Master_info *mi,
              relaylog_file_size, truncate_pos);
 
       // Re-init the I/O thread IO_CACHE
-      reinit_io_cache(&log_file, WRITE_CACHE, truncate_pos, 0, true);
+      if (reinit_io_cache(&log_file, WRITE_CACHE, truncate_pos, 0, true)) {
+        mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
+                   ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                   "unable to re-initialize I/O thread I/O cache");
+      }
 
       // Re-init the SQL thread IO_CACHE
       DBUG_ASSERT(strcmp(rli->get_event_relay_log_name(), log_file_name) ||

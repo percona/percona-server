@@ -1,4 +1,8 @@
+call mtr.add_suppression("Invalid pattern");
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT) ENGINE=ROCKSDB CHARSET UTF8;
+ALTER TABLE t1 ADD INDEX (value);
+Warnings:
+Warning	122	Indexed column test.t1.value uses a collation that does not allow index-only access in secondary key and has reduced disk space efficiency in primary key.
 DROP TABLE t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value)) ENGINE=ROCKSDB CHARSET UTF8;
 Warnings:
@@ -15,6 +19,7 @@ SET GLOBAL rocksdb_strict_collation_check=1;
 CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(50), value2 VARBINARY(50), value3 TEXT, INDEX(value2)) ENGINE=ROCKSDB CHARSET UTF8;
 DROP TABLE t1;
 CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET LATIN1 COLLATE LATIN1_BIN;
+ALTER TABLE t1 collate=latin1_general_ci;
 DROP TABLE t1;
 CREATE TABLE t1 (id VARCHAR(20), value VARCHAR(50), value2 VARCHAR(50), value3 TEXT, PRIMARY KEY (id), INDEX(value, value2)) ENGINE=ROCKSDB CHARSET UTF8 COLLATE UTF8_BIN;
 DROP TABLE t1;
@@ -78,4 +83,15 @@ Warning	122	Indexed column test.c.value uses a collation that does not allow ind
 DROP TABLE a, b, c;
 SET GLOBAL rocksdb_strict_collation_exceptions="abc\\";
 SET GLOBAL rocksdb_strict_collation_exceptions=null;
+# restart:--rocksdb_error_on_suboptimal_collation=1
+SET GLOBAL rocksdb_strict_collation_check=1;
+CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text, index(value)) engine=rocksdb charset utf8;
+ERROR HY000: Unsupported collation on string indexed column test.t1.value Use binary collation (binary, latin1_bin, utf8_bin).
+CREATE TABLE t1 (id INT primary key, value varchar(50), value2 varbinary(50), value3 text) engine=rocksdb charset utf8;
+ALTER TABLE t1 ADD INDEX (value);
+ERROR HY000: Unsupported collation on string indexed column test.t1.value Use binary collation (binary, latin1_bin, utf8_bin).
+DROP TABLE t1;
+CREATE TABLE t1 (id varchar(20), value varchar(50), value2 varchar(50), value3 text, primary key (id), index(value, value2)) engine=rocksdb charset latin1 collate latin1_bin;
+ALTER TABLE t1 collate=latin1_general_ci;
+DROP TABLE t1;
 # restart

@@ -6,7 +6,6 @@
 #              before and after querying information_schema.partitions
 ##############################################################################
 --source include/have_myisam.inc
---source include/have_partition.inc
 
 DROP TABLE IF EXISTS t1;
 

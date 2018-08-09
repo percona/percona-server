@@ -1,5 +1,3 @@
---source include/have_partition.inc
-
 #
 # Bug lp:1631954 "It is possible to create COMPRESSED columns in MyISAM tables via specifying partition engines"
 #

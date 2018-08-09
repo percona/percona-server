@@ -3492,6 +3492,7 @@ ibool buf_flush_validate(buf_pool_t *buf_pool) /*!< buffer pool instance */
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+#ifdef UNIV_DEBUG
 /** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
@@ -3499,7 +3500,6 @@ ulint buf_pool_get_dirty_pages_count(
     buf_pool_t *buf_pool,    /*!< in: buffer pool */
     space_id_t id,           /*!< in: space id to check */
     FlushObserver *observer) /*!< in: flush observer to check */
-
 {
   ulint count = 0;
 
@@ -3544,6 +3544,7 @@ static ulint buf_flush_get_dirty_pages_count(
 
   return (count);
 }
+#endif /* UNIV_DEBUG */
 
 /** FlushObserver constructor
 @param[in]	space_id	table space id
@@ -3553,7 +3554,12 @@ used by ALTER TABLE. It is passed to log_preflush_pool_modified_pages()
 for accounting. */
 FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
                              ut_stage_alter_t *stage)
-    : m_space_id(space_id), m_trx(trx), m_stage(stage), m_interrupted(false) {
+    : m_space_id(space_id),
+      m_trx(trx),
+      m_stage(stage),
+      m_interrupted(false),
+      m_estimate(),
+      m_lsn(log_get_lsn(*log_sys)) {
   m_flushed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
   m_removed = UT_NEW_NOKEY(std::vector<ulint>(srv_buf_pool_instances));
 
@@ -3635,4 +3641,13 @@ void FlushObserver::flush() {
     }
   }
 }
+
+/** Increase the estimate of dirty pages by this observer
+@param[in]	block		buffer pool block */
+void FlushObserver::inc_estimate(const buf_block_t &block) noexcept {
+  if (block.page.oldest_modification == 0 ||
+      block.page.newest_modification < m_lsn)
+    m_estimate.fetch_add(1, std::memory_order_relaxed);
+}
+
 #endif /* UNIV_HOTBACKUP */

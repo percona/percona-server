@@ -28,6 +28,7 @@
   Instrumentation helpers for idle waits.
 */
 
+#include "my_compiler.h"
 #include "mysql/psi/psi_idle.h"
 
 #include "pfs_idle_provider.h"

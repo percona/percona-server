@@ -22,7 +22,8 @@
 #include <vector>
 
 /* MySQL includes */
-#include <mysql/plugin.h>
+#include "my_global.h"
+#include "mysql/plugin.h"
 
 /* MyRocks includes */
 #include "./ha_rocksdb.h"
@@ -87,7 +88,7 @@ void Rdb_event_listener::OnBackgroundError(
   sql_print_error("RocksDB: BackgroundErrorReason: %d", (int)reason);
   if (status->IsCorruption()) {
     rdb_persist_corruption_marker();
-    abort_with_stack_traces();
+    abort();
   }
 }
 }  // namespace myrocks

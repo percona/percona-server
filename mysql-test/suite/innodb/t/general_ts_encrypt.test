@@ -1,7 +1,5 @@
 # InnoDB general tablespace encryption
 
---source include/have_partition.inc
-
 call mtr.add_suppression("Partition.*does not exist in the InnoDB internal data dictionary though");
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

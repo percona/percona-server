@@ -88,8 +88,6 @@ static ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
                                trx_t *trx, bool should_buffer) {
   buf_page_t *bpage;
 
-  ut_ad(!trx || trx->take_stats);
-
   *err = DB_SUCCESS;
 
   if (page_id.space() == TRX_SYS_SPACE &&
@@ -197,8 +195,6 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   dberr_t err;
   page_no_t i;
   const page_no_t buf_read_ahead_random_area = BUF_READ_AHEAD_AREA(buf_pool);
-
-  ut_ad(!trx || trx->take_stats);
 
   if (!srv_random_read_ahead) {
     /* Disabled by user */
@@ -335,8 +331,6 @@ ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size,
   ulint count;
   dberr_t err;
 
-  ut_ad(!trx || trx->take_stats);
-
   count = buf_read_page_low(&err, true, 0, BUF_READ_ANY_PAGE, page_id,
                             page_size, false, trx, false);
 
@@ -426,8 +420,6 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   page_no_t i;
   const page_no_t buf_read_ahead_linear_area = BUF_READ_AHEAD_AREA(buf_pool);
   page_no_t threshold;
-
-  ut_ad(!trx || trx->take_stats);
 
   /* check if readahead is disabled */
   if (!srv_read_ahead_threshold) {

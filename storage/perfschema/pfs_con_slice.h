@@ -226,8 +226,9 @@ struct PFS_connection_slice {
   PFS_error_stat *m_instr_class_errors_stats;
 
  public:
-  void aggregate_status_stats(const System_status_var *status_vars) {
-    m_status_stats.aggregate_from(status_vars);
+  void aggregate_status_stats(const System_status_var *status_vars,
+                              bool already_aggregated) {
+    m_status_stats.aggregate_from(status_vars, already_aggregated);
   }
 
   /**

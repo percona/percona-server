@@ -1,5 +1,7 @@
 /*
    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1440,11 +1442,6 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
     memset(&info->rec_cache, 0, sizeof(info->rec_cache));
     goto err;
   }
-  if (!rep_quick)
-    if (init_io_cache(&info->rec_cache, -1, (uint)param->write_buffer_length,
-                      WRITE_CACHE, new_header_length, 1,
-                      MYF(MY_WME | MY_WAIT_IF_FULL)))
-      goto err;
   info->opt_flag |= WRITE_CACHE_USED;
   if (!mi_alloc_rec_buff(info, -1, &sort_param.record) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff)) {
@@ -1467,11 +1464,14 @@ int mi_repair(MI_CHECK *param, MI_INFO *info, char *name, int rep_quick,
                                       new_header_length, "datafile-header"))
       goto err;
     info->s->state.dellink = HA_OFFSET_ERROR;
-    info->rec_cache.file = new_file;
     if (param->testflag & T_UNPACK) {
       share->options &= ~HA_OPTION_COMPRESS_RECORD;
       mi_int2store(share->state.header.options, share->options);
     }
+    if (init_io_cache(&info->rec_cache, new_file,
+                      (uint)param->write_buffer_length, WRITE_CACHE,
+                      new_header_length, 1, MYF(MY_WME | MY_WAIT_IF_FULL)))
+      goto err;
   }
   sort_info.info = info;
   sort_info.param = param;
@@ -2042,19 +2042,15 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
   memset(&sort_param, 0, sizeof(sort_param));
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
-                             share->base.max_key_block_length)) ||
-      init_io_cache(&param->read_cache, info->dfile,
+                             share->base.max_key_block_length)))
+    goto err;
+
+  if (init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME)) ||
-      (!rep_quick &&
-       init_io_cache(&info->rec_cache, info->dfile,
-                     (uint)param->write_buffer_length, WRITE_CACHE,
-                     new_header_length, 1,
-                     MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw)))
+                    share->pack.header_length, 1, MYF(MY_WME)))
     goto err;
   sort_info.key_block_end = sort_info.key_block + param->sort_key_blocks;
   info->opt_flag |= WRITE_CACHE_USED;
-  info->rec_cache.file = info->dfile; /* for sort_delete_record */
 
   if (!mi_alloc_rec_buff(info, -1, &sort_param.record) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff)) {
@@ -2080,7 +2076,11 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       mi_int2store(share->state.header.options, share->options);
     }
     share->state.dellink = HA_OFFSET_ERROR;
-    info->rec_cache.file = new_file;
+    if (init_io_cache(&info->rec_cache, new_file,
+                      (uint)param->write_buffer_length, WRITE_CACHE,
+                      new_header_length, 1,
+                      MYF((param->myf_rw & MY_WAIT_IF_FULL) | MY_WME)))
+      goto err;
   }
 
   info->update = (short)(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
@@ -2246,8 +2246,9 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info, const char *name,
       info->state->data_file_length = sort_param.max_pos;
 
     param->read_cache.file = info->dfile; /* re-init read cache */
-    reinit_io_cache(&param->read_cache, READ_CACHE, share->pack.header_length,
-                    1, 1);
+    if (reinit_io_cache(&param->read_cache, READ_CACHE,
+                        share->pack.header_length, 1, 1))
+      goto err;
   }
 
   if (param->testflag & T_WRITE_LOOP) {
@@ -2462,22 +2463,15 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
 
   if (!(sort_info.key_block =
             alloc_key_blocks(param, (uint)param->sort_key_blocks,
-                             share->base.max_key_block_length)) ||
-      init_io_cache(&param->read_cache, info->dfile,
+                             share->base.max_key_block_length)))
+    goto err;
+
+  if (init_io_cache(&param->read_cache, info->dfile,
                     (uint)param->read_buffer_length, READ_CACHE,
-                    share->pack.header_length, 1, MYF(MY_WME)) ||
-      (!rep_quick &&
-       (init_io_cache(&info->rec_cache, info->dfile,
-                      (uint)param->write_buffer_length, WRITE_CACHE,
-                      new_header_length, 1,
-                      MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw) ||
-        init_io_cache(&new_data_cache, -1, (uint)param->write_buffer_length,
-                      READ_CACHE, new_header_length, 1,
-                      MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))))
+                    share->pack.header_length, 1, MYF(MY_WME)))
     goto err;
   sort_info.key_block_end = sort_info.key_block + param->sort_key_blocks;
   info->opt_flag |= WRITE_CACHE_USED;
-  info->rec_cache.file = info->dfile; /* for sort_delete_record */
 
   if (!rep_quick) {
     /* Get real path for data file */
@@ -2498,7 +2492,16 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info, const char *name,
       mi_int2store(share->state.header.options, share->options);
     }
     share->state.dellink = HA_OFFSET_ERROR;
-    info->rec_cache.file = new_file;
+    if (init_io_cache(&info->rec_cache, new_file,
+                      (uint)param->write_buffer_length, WRITE_CACHE,
+                      new_header_length, 1,
+                      MYF(MY_WME | MY_WAIT_IF_FULL) & param->myf_rw))
+      goto err;
+
+    if (init_io_cache(&new_data_cache, -1, (uint)param->write_buffer_length,
+                      READ_CACHE, new_header_length, 1,
+                      MYF(MY_WME | MY_DONT_CHECK_FILESIZE)))
+      goto err;
   }
 
   info->update = (short)(HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);

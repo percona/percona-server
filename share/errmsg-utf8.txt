@@ -18125,6 +18125,9 @@ ER_COMPRESSION_DICTIONARY_DATA_TOO_LONG
 ER_COMPRESSION_DICTIONARY_IS_REFERENCED
   eng "Compression dictionary '%-.192s' is in use"
 
+ER_RPL_FAILED_TO_RECREATE_CACHE_FOR_INFO_FILE
+  eng "Failed to recreate a cache on info file (file '%s')"
+
 #
 # End of Percona Server error messages
 #
@@ -18176,12 +18179,6 @@ ER_SK_POPULATE_DURING_ALTER
 
 ER_CF_DIFFERENT
   eng "Column family ('%s') flag (%d) is different from an existing flag (%d). Assign a new CF flag, or do not change existing CF flag."
-
-ER_RDB_STATUS_GENERAL
-  eng "Status error %d received from RocksDB: %s"
-
-ER_RDB_STATUS_MSG
-  eng "%s, Status error %d received from RocksDB: %s"
 
 ER_RDB_TTL_UNSUPPORTED
   eng "TTL support is currently disabled when table has a hidden PK."

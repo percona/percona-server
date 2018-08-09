@@ -728,8 +728,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   thd->profiling->print_current(&log_file);
 #endif
 
-  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB)) &&
-      thd->innodb_trx_id) {
+  if (thd->innodb_slow_log_data_logged()) {
     char buf[20];
     snprintf(buf, 20, "%llX", thd->innodb_trx_id);
     if (my_b_printf(&log_file, "# InnoDB_trx_id: %s\n", buf) == (uint)-1)
@@ -751,25 +750,25 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
           thd->query_plan_fsort_passes) == (uint)-1)
     goto err;
 
-  if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB)) &&
-      thd->innodb_was_used) {
-    char buf[3][20];
-    snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
-    snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
-    snprintf(buf[2], 20, "%.6f", thd->innodb_innodb_que_wait_timer / 1000000.0);
-    if (my_b_printf(&log_file,
-                    "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %llu  "
-                    "InnoDB_IO_r_wait: %s\n"
-                    "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n"
-                    "#   InnoDB_pages_distinct: %lu\n",
-                    thd->innodb_io_reads, thd->innodb_io_read, buf[0], buf[1],
-                    buf[2], thd->innodb_page_access) == (uint)-1)
-      goto err;
-  } else {
-    if ((thd->variables.log_slow_verbosity & (1ULL << SLOG_V_INNODB)) &&
-        my_b_printf(&log_file,
-                    "# No InnoDB statistics available for this query\n") ==
-            (uint)-1)
+  if (thd->innodb_slow_log_enabled()) {
+    if (thd->innodb_slow_log_data_logged()) {
+      char buf[3][20];
+      snprintf(buf[0], 20, "%.6f", thd->innodb_io_reads_wait_timer / 1000000.0);
+      snprintf(buf[1], 20, "%.6f", thd->innodb_lock_que_wait_timer / 1000000.0);
+      snprintf(buf[2], 20, "%.6f",
+               thd->innodb_innodb_que_wait_timer / 1000000.0);
+      if (my_b_printf(&log_file,
+                      "#   InnoDB_IO_r_ops: %lu  InnoDB_IO_r_bytes: %llu  "
+                      "InnoDB_IO_r_wait: %s\n"
+                      "#   InnoDB_rec_lock_wait: %s  InnoDB_queue_wait: %s\n"
+                      "#   InnoDB_pages_distinct: %lu\n",
+                      thd->innodb_io_reads, thd->innodb_io_read, buf[0], buf[1],
+                      buf[2], thd->innodb_page_access) == (uint)-1)
+        goto err;
+    } else if (my_b_printf(
+                   &log_file,
+                   "# No InnoDB statistics available for this query\n") ==
+               (uint)-1)
       goto err;
   }
 

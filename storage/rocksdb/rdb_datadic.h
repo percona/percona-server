@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #pragma once
 
+#define ROCKSDB_INCLUDE_VALIDATE_TABLES 1
+
 /* C++ standard header files */
 #include <algorithm>
 #include <array>
@@ -231,12 +233,28 @@ class Rdb_key_def {
     *size = INDEX_NUMBER_SIZE;
   }
 
-  /* Get the first key that you need to position at to start iterating.
-     Returns a "supremum" or "infimum" for this index based on collation order
+  /*
+    Get the first key that you need to position at to start iterating.
+
+    Stores into *key a "supremum" or "infimum" key value for the index.
+
+    @return Number of bytes in the key that are usable for bloom filter use.
   */
-  inline void get_first_key(uchar *const key, uint *const size) const {
-    return m_is_reverse_cf ? get_supremum_key(key, size)
-                           : get_infimum_key(key, size);
+  inline int get_first_key(uchar *const key, uint *const size) const {
+    if (m_is_reverse_cf)
+      get_supremum_key(key, size);
+    else
+      get_infimum_key(key, size);
+
+    /* Find out how many bytes of infimum are the same as m_index_number */
+    uchar unmodified_key[INDEX_NUMBER_SIZE];
+    rdb_netbuf_store_index(unmodified_key, m_index_number);
+    int i;
+    for (i = 0; i < INDEX_NUMBER_SIZE; i++) {
+      if (key[i] != unmodified_key[i])
+        break;
+    }
+    return i;
   }
 
   /* Make a key that is right after the given key. */
@@ -278,6 +296,9 @@ class Rdb_key_def {
     return m_index_type == INDEX_TYPE_SECONDARY &&
            m_kv_format_version >= SECONDARY_FORMAT_VERSION_UPDATE3;
   }
+
+  /* Indicates that all key parts can be unpacked to cover a secondary lookup */
+  bool can_cover_lookup() const;
 
   /*
     Return true if the passed mem-comparable key
@@ -525,6 +546,71 @@ class Rdb_key_def {
   /* Check if index is at least pk_min if it is a PK,
     or at least sk_min if SK.*/
   bool index_format_min_check(const int &pk_min, const int &sk_min) const;
+
+  void pack_tiny(Rdb_field_packing *const fpi, Field *const field,
+                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                 Rdb_pack_field_context *const pack_ctx
+                     MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_short(Rdb_field_packing *const fpi, Field *const field,
+                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                  Rdb_pack_field_context *const pack_ctx
+                      MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_medium(Rdb_field_packing *const fpi, Field *const field,
+                   uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                   Rdb_pack_field_context *const pack_ctx
+                       MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_long(Rdb_field_packing *const fpi, Field *const field,
+                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                 Rdb_pack_field_context *const pack_ctx
+                     MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_longlong(Rdb_field_packing *const fpi, Field *const field,
+                     uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                     Rdb_pack_field_context *const pack_ctx
+                         MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_double(Rdb_field_packing *const fpi, Field *const field,
+                   uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                   Rdb_pack_field_context *const pack_ctx
+                       MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_float(Rdb_field_packing *const fpi, Field *const field,
+                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                  Rdb_pack_field_context *const pack_ctx
+                      MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_new_decimal(Rdb_field_packing *const fpi, Field *const field,
+                        uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                        Rdb_pack_field_context *const pack_ctx
+                            MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_datetime2(Rdb_field_packing *const fpi, Field *const field,
+                      uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                      Rdb_pack_field_context *const pack_ctx
+                          MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_timestamp2(Rdb_field_packing *const fpi, Field *const field,
+                       uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                       Rdb_pack_field_context *const pack_ctx
+                           MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_time2(Rdb_field_packing *const fpi, Field *const field,
+                  uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                  Rdb_pack_field_context *const pack_ctx
+                      MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_year(Rdb_field_packing *const fpi, Field *const field,
+                 uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                 Rdb_pack_field_context *const pack_ctx
+                     MY_ATTRIBUTE((__unused__))) const;
+
+  void pack_newdate(Rdb_field_packing *const fpi, Field *const field,
+                    uchar *buf MY_ATTRIBUTE((__unused__)), uchar **dst,
+                    Rdb_pack_field_context *const pack_ctx
+                        MY_ATTRIBUTE((__unused__))) const;
 
   void pack_with_make_sort_key(
       Rdb_field_packing *const fpi, Field *const field,
@@ -1053,7 +1139,8 @@ interface Rdb_tables_scanner {
 
 class Rdb_ddl_manager {
   Rdb_dict_manager *m_dict = nullptr;
-  my_core::HASH m_ddl_hash;  // Contains Rdb_tbl_def elements
+  // Contains Rdb_tbl_def elements
+  std::unordered_map<std::string, Rdb_tbl_def *> m_ddl_hash;
   // Maps index id to <table_name, index number>
   std::map<GL_INDEX_ID, std::pair<std::string, uint>> m_index_num_to_keydef;
 
@@ -1076,9 +1163,14 @@ class Rdb_ddl_manager {
   Rdb_ddl_manager &operator=(const Rdb_ddl_manager &) = delete;
   Rdb_ddl_manager() {}
 
-  /* Load the data dictionary from on-disk storage */
+    /* Load the data dictionary from on-disk storage */
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager,
             const uint32_t &validate_tables);
+#else
+  bool init(Rdb_dict_manager *const dict_arg, Rdb_cf_manager *const cf_manager);
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
 
   void cleanup();
 
@@ -1122,9 +1214,12 @@ class Rdb_ddl_manager {
                                    my_bool not_used MY_ATTRIBUTE((unused)));
   static void free_hash_elem(void *const data);
 
+#if defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) && ROCKSDB_INCLUDE_VALIDATE_TABLES
   bool validate_schemas();
 
   bool validate_auto_incr();
+#endif  // defined(ROCKSDB_INCLUDE_VALIDATE_TABLES) &&
+        // ROCKSDB_INCLUDE_VALIDATE_TABLES
 };
 
 /*
@@ -1188,7 +1283,7 @@ class Rdb_ddl_manager {
 class Rdb_dict_manager {
  private:
   mysql_mutex_t m_mutex;
-  rocksdb::DB *m_db = nullptr;
+  rocksdb::TransactionDB *m_db = nullptr;
   rocksdb::ColumnFamilyHandle *m_system_cfh = nullptr;
   /* Utility to put INDEX_INFO and CF_DEFINITION */
 
@@ -1214,7 +1309,8 @@ class Rdb_dict_manager {
   Rdb_dict_manager &operator=(const Rdb_dict_manager &) = delete;
   Rdb_dict_manager() = default;
 
-  bool init(rocksdb::DB *const rdb_dict, Rdb_cf_manager *const cf_manager);
+  bool init(rocksdb::TransactionDB *const rdb_dict,
+            Rdb_cf_manager *const cf_manager);
 
   inline void cleanup() { mysql_mutex_destroy(&m_mutex); }
 
@@ -1373,7 +1469,7 @@ class Rdb_system_merge_op : public rocksdb::AssociativeMergeOperator {
         value.size() !=
             RDB_SIZEOF_AUTO_INCREMENT_VERSION + ROCKSDB_SIZEOF_AUTOINC_VALUE ||
         GetVersion(value) > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-      abort_with_stack_traces();
+      abort();
     }
 
     uint64_t merged_value = Deserialize(value);
@@ -1382,7 +1478,7 @@ class Rdb_system_merge_op : public rocksdb::AssociativeMergeOperator {
       if (existing_value->size() != RDB_SIZEOF_AUTO_INCREMENT_VERSION +
                                         ROCKSDB_SIZEOF_AUTOINC_VALUE ||
           GetVersion(*existing_value) > Rdb_key_def::AUTO_INCREMENT_VERSION) {
-        abort_with_stack_traces();
+        abort();
       }
 
       merged_value = std::max(merged_value, Deserialize(*existing_value));

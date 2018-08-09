@@ -728,10 +728,10 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact);
 
 /** Enable encryption for already existing tablespace.
-@param[in]	space_id	tablespace id
-@return true if success */
-bool fsp_enable_encryption(space_id_t space_id)
-    MY_ATTRIBUTE((warn_unused_result));
+@param[in,out]	space	tablespace object
+@return true if success, else false */
+MY_NODISCARD
+bool fsp_enable_encryption(fil_space_t *space);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

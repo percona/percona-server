@@ -781,7 +781,7 @@ err:
   my_message_local(ERROR_LEVEL,
                    "Fatal error in defaults handling. Program aborted!");
   exit(1);
-  return 0; /* Keep compiler happy */
+  DBUG_RETURN(0); /* Keep compiler happy */
 }
 
 static int search_default_file(Process_option_func opt_handler,

@@ -4,7 +4,6 @@
 #
 --source include/have_myisam.inc
 --source include/have_debug.inc
---source include/have_partition.inc
 
 SET debug="+d,ha_partition_end_bulk_insert_fail";
 

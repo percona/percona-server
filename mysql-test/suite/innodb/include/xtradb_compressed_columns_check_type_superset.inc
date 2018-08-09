@@ -8,6 +8,10 @@
 # - COMPRESSED (row level compression)
 # - REDUNDANT (old format)
 # - COMPACT (default, primary format)
+# set $datatype_set to one of the following values:
+# - 1 (VARCHAR, NATIONAL VARCHAR, VARBINARY, JSON)
+# - 2 (TINYBLOB, TINYTEXT, BLOB, TEXT)
+# - 3 (MEDIUMBLOB, MEDIUMTEXT, LONGBLOB, LONGTEXT)
 
 # suppressing warnings caused by changing 'innodb-log-file-size'
 call mtr.add_suppression("InnoDB: Resizing redo log");
@@ -17,7 +21,7 @@ call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in 
 
 # restarting server with bigger 'innodb-log-file-size' and 'max-allowed-packet'
 # required for inserting long (~16MB) strings
---let $restart_parameters= restart:--innodb-log-file-size=256M --max-allowed-packet=48M
+--let $restart_parameters= restart:--innodb-log-file-size=192M
 --source include/restart_mysqld.inc
 
 if($row_format == 'COMPRESSED')
@@ -41,6 +45,7 @@ SET GLOBAL innodb_compressed_columns_zip_level = 0;
 # - VARCHAR
 # - NATIONAL VARCHAR
 # - VARBINARY
+# - JSON
 # - TINYBLOB
 # - TINYTEXT
 # - BLOB
@@ -49,48 +54,56 @@ SET GLOBAL innodb_compressed_columns_zip_level = 0;
 # - MEDIUMTEXT
 # - LONGBLOB
 # - LONGTEXT
-# - JSON
 
---let $base_field_type= VARCHAR
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+if($datatype_set == 1)
+{
+  --let $base_field_type= VARCHAR
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $base_field_type= NATIONAL VARCHAR
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $base_field_type= NATIONAL VARCHAR
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $base_field_type= VARBINARY
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $base_field_type= VARBINARY
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $type_length_limit= 255
---let $full_field_type= TINYTEXT
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $type_length_limit= 4294967295
+  --let $full_field_type= JSON
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+}
 
---let $full_field_type= TINYBLOB
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+if($datatype_set == 2)
+{
+  --let $type_length_limit= 255
+  --let $full_field_type= TINYTEXT
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $type_length_limit= 65535
---let $full_field_type= TEXT
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $full_field_type= TINYBLOB
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $full_field_type= BLOB
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $type_length_limit= 65535
+  --let $full_field_type= TEXT
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $type_length_limit= 16777215
---let $full_field_type= MEDIUMTEXT
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $full_field_type= BLOB
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+}
 
---let $full_field_type= MEDIUMBLOB
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+if($datatype_set == 3)
+{
+  --let $type_length_limit= 16777215
+  --let $full_field_type= MEDIUMTEXT
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $type_length_limit= 4294967295
---let $full_field_type= LONGTEXT
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $full_field_type= MEDIUMBLOB
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $full_field_type= LONGBLOB
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $type_length_limit= 4294967295
+  --let $full_field_type= LONGTEXT
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
 
---let $type_length_limit= 4294967295
---let $full_field_type= JSON
---source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+  --let $full_field_type= LONGBLOB
+  --source suite/innodb/include/xtradb_compressed_columns_check_type_set.inc
+}
 
 # restoring moddified global variables
 --disable_warnings

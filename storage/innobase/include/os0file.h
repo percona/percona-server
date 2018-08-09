@@ -55,6 +55,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include <locale>
 #include <string>
 #endif /* !_WIN32 */
+#include "page0types.h"
 
 #include <functional>
 #include <stack>
@@ -563,7 +564,10 @@ class IORequest {
     This can be used to force a read and write without any
     compression e.g., for redo log, merge sort temporary files
     and the truncate redo log. */
-    NO_COMPRESSION = 512
+    NO_COMPRESSION = 512,
+
+    /** Force write of decrypted pages in encrypted tablespace. */
+    NO_ENCRYPTION = 1024
   };
 
   /** Default constructor */
@@ -710,8 +714,16 @@ class IORequest {
     return ((m_type & NO_COMPRESSION) == 0);
   }
 
+  /** @return true if the page write should not be encrypted */
+  MY_NODISCARD bool is_encryption_disabled() const noexcept {
+    return ((m_type & NO_ENCRYPTION) != 0);
+  }
+
   /** Disable transformations. */
   void disable_compression() { m_type |= NO_COMPRESSION; }
+
+  /** Disable encryption of a page in encrypted tablespace */
+  void disable_encryption() noexcept { m_type |= NO_ENCRYPTION; }
 
   /** Set encryption algorithm
   @param[in] type		The encryption algorithm to use */
@@ -2093,6 +2105,28 @@ class Dir_Walker {
 
 /** Submit buffered AIO requests on the given segment to the kernel. */
 void os_aio_dispatch_read_array_submit();
+
+struct fil_space_t;
+
+/** Encrypt a doublewrite buffer page. The page is encrypted
+using the key of tablespace object provided.
+Caller should allocate buffer for encrypted page
+@param[in]	space			tablespace object
+@param[in]	in_page			unencrypted page
+@param[in,out]	encrypted_buf		buffer to hold the encrypted page
+@param[in]	encrypted_buf_len	length of the encrypted buffer
+@return true on success, false on failure */
+bool os_dblwr_encrypt_page(fil_space_t *space, page_t *in_page,
+                           page_t *encrypted_buf, ulint encrypted_buf_len);
+
+/** Decrypt a page from doublewrite buffer. Tablespace object
+(fil_space_t) must have encryption key, iv set properly.
+The decrpyted page will be written in the same buffer of input page.
+@param[in]	space	tablespace obejct
+@param[in,out]	page	in: encrypted page
+                        out: decrypted page
+@return DB_SUCCESS on success, others on failure */
+dberr_t os_dblwr_decrypt_page(fil_space_t *space, page_t *in_page);
 
 #include "os0file.ic"
 

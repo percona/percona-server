@@ -167,7 +167,8 @@ my $DEFAULT_SUITES =
   ."binlog_encryption,rpl_encryption,audit_log,keyring_vault"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
-  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars";
+  ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"
+  ."keyring_vault,audit_null";
 
 my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
@@ -218,6 +219,7 @@ our $opt_summary_report;
 our $opt_test_progress;
 our $opt_vardir;
 our $opt_xml_report;
+our $opt_gterm;
 
 our $opt_big_test        = 0;
 our $opt_check_testcases = 1;
@@ -1346,6 +1348,8 @@ sub command_line_setup {
     'debug-server'       => \$opt_debug_server,
     'debugger=s'         => \$opt_debugger,
     'gdb'                => \$opt_gdb,
+    # For using gnome-terminal when using --gdb option
+    'gterm'              => \$opt_gterm,
     'lldb'               => \$opt_lldb,
     'manual-boot-gdb'    => \$opt_manual_boot_gdb,
     'manual-dbx'         => \$opt_manual_dbx,
@@ -2514,6 +2518,7 @@ sub read_plugin_defs($) {
       if ($plug_names) {
         my $lib_name     = basename($plugin);
         my $load_var     = "--plugin_load=";
+	my $early_load_var = "--early-plugin_load=";
         my $load_add_var = "--plugin_load_add=";
 	my $load_var_with_path = "--plugin_load=";
 	my $load_add_var_with_path = "--plugin_load_add=";
@@ -2521,12 +2526,14 @@ sub read_plugin_defs($) {
 
         foreach my $plug_name (split(',', $plug_names)) {
           $load_var     .= $semi . "$plug_name=$lib_name";
+	  $early_load_var .= $semi . "$plug_name=$lib_name";
           $load_add_var .= $semi . "$plug_name=$lib_name";
 	  $load_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
 	  $load_add_var_with_path .= $semi . "$plug_name=$plug_dir/$lib_name";
           $semi = ';';
         }
 
+	$ENV{ $plug_var . '_EARLY_LOAD'} = $early_load_var;
         $ENV{ $plug_var . '_LOAD' }     = $load_var;
         $ENV{ $plug_var . '_LOAD_ADD' } = $load_add_var;
         $ENV{ $plug_var . '_LOAD_PATH'} = $load_var_with_path;
@@ -6398,9 +6405,16 @@ sub gdb_arguments {
   }
 
   $$args = [];
-  mtr_add_arg($$args, "-title");
-  mtr_add_arg($$args, "$type");
-  mtr_add_arg($$args, "-e");
+  if ($opt_gterm) {
+    mtr_add_arg($$args, "--title");
+    mtr_add_arg($$args, "$type");
+    mtr_add_arg($$args, "--wait");
+    mtr_add_arg($$args, "--");
+  } else {
+    mtr_add_arg($$args, "-title");
+    mtr_add_arg($$args, "$type");
+    mtr_add_arg($$args, "-e");
+  }
 
   if ($exe_libtool) {
     mtr_add_arg($$args, $exe_libtool);
@@ -6412,7 +6426,11 @@ sub gdb_arguments {
   mtr_add_arg($$args, "$gdb_init_file");
   mtr_add_arg($$args, "$$exe");
 
-  $$exe = "xterm";
+  if ($opt_gterm) {
+    $$exe = "gnome-terminal";
+  } else {
+    $$exe = "xterm";
+  }
 }
 
 # Modify the exe and args so that program is run in lldb

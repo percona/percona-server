@@ -1,5 +1,7 @@
 /*
    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1155,7 +1157,8 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
       DBUG_RETURN(1); /* purecov: inspected */
   }
 
-  if (my_b_write(chunk_file, &merge_chunk, sizeof(merge_chunk)))
+  if (my_b_write(chunk_file, reinterpret_cast<uchar *>(&merge_chunk),
+                 sizeof(merge_chunk)))
     DBUG_RETURN(1); /* purecov: inspected */
 
   DBUG_RETURN(0);
@@ -1902,8 +1905,8 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                ("read_to_buffer %p at file_pos %llu bytes %llu", merge_chunk,
                 static_cast<ulonglong>(merge_chunk->file_position()),
                 static_cast<ulonglong>(bytes_to_read)));
-    if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
-                         bytes_to_read, merge_chunk->file_position(), MYF_RW))
+    if (my_b_pread(fromfile, merge_chunk->buffer_start(), bytes_to_read,
+                   merge_chunk->file_position()))
       DBUG_RETURN((uint)-1); /* purecov: inspected */
 
     size_t num_bytes_read;

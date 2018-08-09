@@ -22,8 +22,9 @@
 #include <vector>
 
 /* MySQL header files */
-#include <sql_show.h>
-#include <sql_string.h>
+#include "sql_string.h" /* for now this must violate clang-format style as it */
+                        /* is needed before sql_show.h */
+#include "sql_show.h"
 
 /* RocksDB header files */
 #include "rocksdb/compaction_filter.h"
@@ -802,7 +803,7 @@ static int rdb_i_s_global_info_fill_table(
                       "from CF with id = %u. MyRocks data dictionary may "
                       "be corrupted.",
                       cf_handle->GetID());
-      abort_with_stack_traces();
+      abort();
     }
 
     snprintf(cf_id_buf, INT_BUF_LEN, "%u", cf_handle->GetID());

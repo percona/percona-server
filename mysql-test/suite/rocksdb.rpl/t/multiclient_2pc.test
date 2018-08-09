@@ -78,3 +78,4 @@ drop table t1;
 --let $search_file=
 --let $restart_parameters=
 --source include/restart_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/rocksdb.multiclient_2pc.err

@@ -47,6 +47,7 @@ namespace tokudb {
             ~mutex_t(void);
 
             void reinit(pfs_key_t key);
+            void deinit();
             void lock(
 #if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
                 const char* src_file,
@@ -64,6 +65,7 @@ namespace tokudb {
 #endif
            private:
             static pthread_t _null_owner;
+            bool initialized;
             mysql_mutex_t _mutex;
 #ifdef TOKUDB_DEBUG
             uint _owners;
@@ -194,7 +196,7 @@ namespace tokudb {
 
         inline uint my_tid(void) { return (uint)toku_os_gettid(); }
 
-        inline mutex_t::mutex_t(pfs_key_t key) {
+        inline mutex_t::mutex_t(pfs_key_t key) : initialized(false) {
 #ifdef TOKUDB_DEBUG
             _owners = 0;
             _owner = _null_owner;
@@ -202,23 +204,25 @@ namespace tokudb {
             int r MY_ATTRIBUTE((unused)) =
                 mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
             assert_debug(r == 0);
+            initialized = true;
         }
-        inline mutex_t::~mutex_t(void) {
+        inline mutex_t::~mutex_t(void) { deinit(); }
+        inline void mutex_t::reinit(pfs_key_t key) {
+            deinit();
+            int r MY_ATTRIBUTE((unused)) =
+                mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
+            assert_debug(r == 0);
+            initialized = true;
+        }
+        inline void mutex_t::deinit() {
 #ifdef TOKUDB_DEBUG
             assert_debug(_owners == 0);
 #endif
+            if (!initialized)
+                return;
             int r MY_ATTRIBUTE((unused)) = mysql_mutex_destroy(&_mutex);
             assert_debug(r == 0);
-        }
-        inline void mutex_t::reinit(pfs_key_t key) {
-#ifdef TOKUDB_DEBUG
-            assert_debug(_owners == 0);
-#endif
-            int r MY_ATTRIBUTE((unused));
-            r = mysql_mutex_destroy(&_mutex);
-            assert_debug(r == 0);
-            r = mysql_mutex_init(key, &_mutex, MY_MUTEX_INIT_FAST);
-            assert_debug(r == 0);
+            initialized = false;
         }
         inline void mutex_t::lock(
 #if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)

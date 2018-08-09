@@ -26,6 +26,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
     "Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved."
 
 #include "hatoku_hton.h"
+#include "src/ydb.h"
 
 #include <dlfcn.h>
 
@@ -622,6 +623,8 @@ static int tokudb_done_func(TOKUDB_UNUSED(void* p)) {
     toku_global_status_variables = NULL;
     tokudb::memory::free(toku_global_status_rows);
     toku_global_status_rows = NULL;
+    tokudb_map_mutex.deinit();
+    toku_ydb_destroy();
     TOKUDB_DBUG_RETURN(0);
 }
 

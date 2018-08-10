@@ -1104,7 +1104,7 @@ ha_tokudb::ha_tokudb(handlerton* hton, TABLE_SHARE* table_arg)
     : handler(hton, table_arg), ds_mrr(this) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     share = NULL;
-    int_table_flags = HA_REC_NOT_IN_SEQ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS |
+    int_table_flags = HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS |
                       HA_PRIMARY_KEY_IN_READ_INDEX |
                       HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | HA_FILE_BASED |
                       HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX |

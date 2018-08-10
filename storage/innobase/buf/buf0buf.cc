@@ -3396,7 +3396,6 @@ got_block:
 
   if (mode == BUF_GET_IF_IN_POOL || mode == BUF_PEEK_IF_IN_POOL) {
     buf_page_t *fix_page = &fix_block->page;
-    os_rmb;
 
     const bool must_read =
         (buf_page_get_io_fix_unlocked(fix_page) == BUF_IO_READ);

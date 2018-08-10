@@ -210,6 +210,9 @@ ssize_t vio_pending(MYSQL_VIO vio);
 #endif
 /* Set timeout for a network operation. */
 int vio_timeout(MYSQL_VIO vio, uint which, int timeout_sec);
+extern void vio_set_wait_callback(void (*before_wait)(void),
+                                  void (*after_wait)(void));
+
 /* Connect to a peer. */
 bool vio_socket_connect(MYSQL_VIO vio, struct sockaddr *addr, socklen_t len,
                         int timeout);

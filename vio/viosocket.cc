@@ -71,6 +71,10 @@
 
 #include "mysql/psi/mysql_socket.h"
 
+/* Network io wait callbacks  for threadpool */
+static void (*before_io_wait)(void) = nullptr;
+static void (*after_io_wait)(void) = nullptr;
+
 /* Wait callback macros (both performance schema and threadpool */
 #define START_SOCKET_WAIT(locker, state_ptr, sock, which, timeout) \
   do {                                                             \
@@ -83,6 +87,12 @@
     MYSQL_END_SOCKET_WAIT(locker, 0);              \
     if (timeout && after_io_wait) after_io_wait(); \
   } while (0)
+
+void vio_set_wait_callback(void (*before_wait)(void),
+                           void (*after_wait)(void)) {
+  before_io_wait = before_wait;
+  after_io_wait = after_wait;
+}
 
 /* Array of networks which have the proxy protocol activated */
 static struct st_vio_network *vio_pp_networks = nullptr;

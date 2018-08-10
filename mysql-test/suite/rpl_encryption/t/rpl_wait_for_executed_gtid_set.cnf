@@ -4,12 +4,10 @@
 [mysqld.1]
 gtid-mode=ON
 enforce-gtid-consistency=ON
-log-bin
 
 [mysqld.2]
 gtid-mode=ON
 enforce-gtid-consistency=ON
-log-bin
 
 [mysqld.3]
 gtid-mode=ON

@@ -1207,12 +1207,7 @@ bool ha_tokudb::inplace_alter_table(TABLE* altered_table,
         error = do_optimize(ha_thd());
     }
 
-#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     if (error == 0 && (altered_table->part_info == NULL)) {
-#else
-    if (error == 0) {
-#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) &&
-        // WITH_PARTITION_STORAGE_ENGINE
         error = write_frm_data(
             share->status_block, ctx->alter_txn, altered_table->s->path.str);
     }

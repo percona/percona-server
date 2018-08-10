@@ -832,12 +832,12 @@ static inline const uchar* unpack_fixed_field(uchar* to_mysql,
 static inline uchar* write_var_field(
     uchar* to_tokudb_offset_ptr,  // location where offset data is going to be
                                   // written
-    uchar* to_tokudb_data,  // location where data is going to be written
+    uchar* to_tokudb_data,        // location where data is going to be written
     uchar* to_tokudb_offset_start,  // location where offset starts, IS THIS A
                                     // BAD NAME????
-    const uchar* data,     // the data to write
-    uint32_t data_length,  // length of data to write
-    uint32_t offset_bytes  // number of offset bytes
+    const uchar* data,              // the data to write
+    uint32_t data_length,           // length of data to write
+    uint32_t offset_bytes           // number of offset bytes
 ) {
     memcpy(to_tokudb_data, data, data_length);
     //
@@ -880,10 +880,10 @@ static inline uchar* pack_var_field(
     uchar* to_tokudb_data,  // pointer to where tokudb data should be written
     uchar* to_tokudb_offset_start,  // location where data starts, IS THIS A BAD
                                     // NAME????
-    const uchar* from_mysql,      // mysql data
-    uint32_t mysql_length_bytes,  // number of bytes used to store length in
-                                  // from_mysql
-    uint32_t offset_bytes  // number of offset_bytes used in tokudb row
+    const uchar* from_mysql,        // mysql data
+    uint32_t mysql_length_bytes,    // number of bytes used to store length in
+                                    // from_mysql
+    uint32_t offset_bytes           // number of offset_bytes used in tokudb row
 ) {
     uint data_length = get_var_data_length(from_mysql, mysql_length_bytes);
     return write_var_field(to_tokudb_offset_ptr,
@@ -1548,7 +1548,6 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
     }
 
 #if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
-#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     // verify frm data for non-partitioned tables
     if (table->part_info == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
@@ -1560,12 +1559,6 @@ int ha_tokudb::initialize_share(const char* name, int mode) {
         if (error)
             goto exit;
     }
-#else
-    error = verify_frm_data(table->s->path.str, txn);
-    if (error)
-        goto exit;
-#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) &&
-        // WITH_PARTITION_STORAGE_ENGINE
 #endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
     error = initialize_key_and_col_info(
@@ -7220,20 +7213,12 @@ int ha_tokudb::create(const char* name,
     }
 
 #if defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
-#if defined(WITH_PARTITION_STORAGE_ENGINE) && WITH_PARTITION_STORAGE_ENGINE
     if (form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) {
             goto cleanup;
         }
     }
-#else
-    error = write_frm_data(status_block, txn, form->s->path.str);
-    if (error) {
-        goto cleanup;
-    }
-#endif  // defined(WITH_PARTITION_STORAGE_ENGINE) &&
-        // WITH_PARTITION_STORAGE_ENGINE
 #endif  // defined(TOKU_INCLUDE_WRITE_FRM_DATA) && TOKU_INCLUDE_WRITE_FRM_DATA
 
     error = allocate_key_and_col_info(form->s, &kc_info);

@@ -145,7 +145,7 @@ struct my_aligned_storage {
   };
 };
 
-#if __cpp_attributes && defined(__has_cpp_attribute)
+#if defined(__cpp_attributes) && defined(__has_cpp_attribute)
 #if __has_cpp_attribute(nodiscard)
 #define MY_NODISCARD [[nodiscard]]
 #elif __has_cpp_attribute(gnu::warn_unused_result)

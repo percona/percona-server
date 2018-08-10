@@ -263,7 +263,9 @@ int logger_rotate(LOGGER_HANDLE *log) {
   return result;
 }
 
+#ifndef __clang__
 MY_ATTRIBUTE((format(gnu_printf, 2, 3)))
+#endif
 int logger_printf(LOGGER_HANDLE *log, const char *fmt, ...) noexcept {
   va_list args;
   va_start(args, fmt);

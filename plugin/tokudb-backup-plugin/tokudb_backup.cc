@@ -3,7 +3,6 @@
 #ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
 #define MYSQL_SERVER
-#define HAVE_REPLICATION
 #include <log.h>
 #include <my_config.h>
 #include <my_dbug.h>

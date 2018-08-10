@@ -13,8 +13,6 @@ master-verify-checksum=1
 plugin_dir=@env.KEYRING_PLUGIN_DIR
 early-plugin-load=@env.KEYRING_PLUGIN
 keyring_file_data=../../tmp/keyring2
-log-slave-updates
-relay-log-info-repository=table
 gtid-mode=ON
 enforce-gtid-consistency=ON
 encrypt-binlog=1
@@ -24,8 +22,6 @@ master-verify-checksum=1
 plugin_dir=@env.KEYRING_PLUGIN_DIR
 early-plugin-load=@env.KEYRING_PLUGIN
 keyring_file_data=../../tmp/keyring3
-log-slave-updates
-relay-log-info-repository=table
 gtid-mode=ON
 enforce-gtid-consistency=ON
 encrypt-binlog=1

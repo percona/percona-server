@@ -4,12 +4,10 @@
 binlog-format='MIXED'
 gtid-mode=on
 enforce-gtid-consistency=on
-log-slave-updates=on
 
 [mysqld.2]
 gtid-mode=on
 enforce-gtid-consistency=on
-log-slave-updates=on
 sync_master_info=1
 relay-log-recovery=1
 slave-transaction-retries=0

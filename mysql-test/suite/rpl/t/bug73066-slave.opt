@@ -1,5 +1,4 @@
 --slave-parallel-workers=2
 --gtid-mode=ON
 --enforce-gtid-consistency=true
---log-slave-updates
 --slave-transaction-retries=0

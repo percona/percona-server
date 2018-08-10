@@ -10,7 +10,6 @@ log-bin
 gtid-mode=ON
 enforce-gtid-consistency=ON
 log-bin
-log-slave-updates
 
 [mysqld.3]
 gtid-mode=ON

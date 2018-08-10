@@ -4,19 +4,16 @@
 enforce-gtid-consistency=ON
 gtid-mode=ON
 binlog-rows-query-log-events= ON
-log-slave-updates
 
 [mysqld.2]
 enforce-gtid-consistency=ON
 gtid-mode=ON
 binlog-rows-query-log-events= ON
-log-slave-updates
 
 [mysqld.3]
 enforce-gtid-consistency=ON
 gtid-mode=ON
 binlog-rows-query-log-events= ON
-log-slave-updates
 
 [ENV]
 SERVER_MYPORT_3=               @mysqld.3.port

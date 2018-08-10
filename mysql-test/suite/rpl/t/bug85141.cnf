@@ -1,17 +1,14 @@
 !include ../my.cnf
 
 [mysqld.1]
-log-slave-updates
 gtid-mode=ON
 enforce-gtid-consistency
 
 [mysqld.2]
-log-slave-updates
 gtid-mode=ON
 enforce-gtid-consistency
 
 [mysqld.3]
-log-slave-updates
 gtid-mode=ON
 enforce-gtid-consistency
 

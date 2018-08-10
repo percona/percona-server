@@ -4,7 +4,6 @@
 plugin_dir=@env.KEYRING_PLUGIN_DIR
 early-plugin-load=@env.KEYRING_PLUGIN
 keyring_file_data=../../tmp/keyring2
-log-slave-updates
 log-bin=slave-bin
 relay-log=slave-relay-bin
 encrypt-binlog=1

@@ -3,17 +3,14 @@
 [mysqld.1]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
 
 [mysqld.2]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
 
 [mysqld.3]
 gtid-mode=on
 enforce-gtid-consistency
-log-slave-updates
 
 [ENV]
 SERVER_MYPORT_3=		@mysqld.3.port

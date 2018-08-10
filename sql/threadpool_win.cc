@@ -667,7 +667,8 @@ void tp_wait_begin(THD *thd, int type) {
   }
 }
 
-void tp_wait_end(THD *thd) { /* Do we need to do anything ? */ }
+void tp_wait_end(THD *thd) { /* Do we need to do anything ? */
+}
 
 /**
  Number of idle threads in pool.

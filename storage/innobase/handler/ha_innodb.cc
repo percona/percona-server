@@ -19415,7 +19415,7 @@ static void innodb_enable_monitor_at_startup(
   }
 }
 
-#if defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || (UNIV_PERF_DEBUG))
+#if defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || defined(UNIV_PERF_DEBUG))
 
 /** Update the innodb_sched_priority_purge variable and set the thread
 priorities accordingly.
@@ -19494,7 +19494,8 @@ static void innodb_sched_priority_master_update(THD *thd, SYS_VAR *var,
   }
 }
 
-#endif /* defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || (UNIV_PERF_DEBUG)) */
+#endif /* defined(UNIV_LINUX) && (defined(UNIV_DEBUG) || \
+          defined(UNIV_PERF_DEBUG)) */
 
 #ifdef UNIV_DEBUG
 /** Check if it is a valid value of innodb_track_changed_pages. Changed pages

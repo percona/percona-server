@@ -539,7 +539,7 @@ static uchar* pack_toku_varbinary_from_desc(
     const uchar* from_desc,
     uint32_t key_part_length,  // number of bytes to use to encode the length in
                                // to_tokudb
-    uint32_t field_length  // length of field
+    uint32_t field_length      // length of field
 ) {
     uint32_t length_bytes_in_tokudb =
         get_length_bytes_from_max(key_part_length);
@@ -673,8 +673,8 @@ static inline uchar* pack_toku_blob(
     uchar* from_mysql,
     uint32_t length_bytes_in_tokudb,  // number of bytes to use to encode the
                                       // length in to_tokudb
-    uint32_t length_bytes_in_mysql,  // number of bytes used to encode the
-                                     // length in from_mysql
+    uint32_t length_bytes_in_mysql,   // number of bytes used to encode the
+                                      // length in from_mysql
     uint32_t max_num_bytes,
     const CHARSET_INFO* charset) {
     uint32_t length = 0;
@@ -816,8 +816,8 @@ static inline uchar* pack_toku_varstring(
     uchar* from_mysql,
     uint32_t length_bytes_in_tokudb,  // number of bytes to use to encode the
                                       // length in to_tokudb
-    uint32_t length_bytes_in_mysql,  // number of bytes used to encode the
-                                     // length in from_mysql
+    uint32_t length_bytes_in_mysql,   // number of bytes used to encode the
+                                      // length in from_mysql
     uint32_t max_num_bytes,
     const CHARSET_INFO* charset) {
     uint32_t length = 0;
@@ -1217,13 +1217,14 @@ static inline int compare_toku_field(uchar* a_buf,
 // packs a field from a  MySQL buffer into a tokudb buffer.
 // Used for inserts/updates
 //
-static uchar* pack_toku_key_field(uchar* to_tokudb,
-                                  uchar* from_mysql,
-                                  Field* field,
-                                  uint32_t key_part_length  // I really hope
-                                                            // this is temporary
-                                                            // as I phase out the
-                                                            // pack_cmp stuff
+static uchar* pack_toku_key_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    uint32_t key_part_length  // I really hope
+                              // this is temporary
+                              // as I phase out the
+                              // pack_cmp stuff
 ) {
     uchar* new_pos = NULL;
     uint32_t num_bytes = 0;
@@ -1302,14 +1303,15 @@ exit:
 // use 2 bytes to encode the length, regardless of the field
 // So varchar(4) will still use 2 bytes to encode the field
 //
-static uchar* pack_key_toku_key_field(uchar* to_tokudb,
-                                      uchar* from_mysql,
-                                      Field* field,
-                                      uint32_t key_part_length  // I really hope
-                                                                // this is
-                                                                // temporary as I
-                                                                // phase out the
-                                                                // pack_cmp stuff
+static uchar* pack_key_toku_key_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    uint32_t key_part_length  // I really hope
+                              // this is
+                              // temporary as I
+                              // phase out the
+                              // pack_cmp stuff
 ) {
     uchar* new_pos = NULL;
     TOKU_TYPE toku_type = mysql_to_toku_type(field);

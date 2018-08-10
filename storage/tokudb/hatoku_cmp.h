@@ -97,7 +97,7 @@ typedef struct st_col_pack_info {
 typedef struct st_multi_col_pack_info {
     uint32_t fixed_field_size;  // where the fixed length stuff ends and the
                                 // offsets for var stuff begins
-    uint32_t len_of_offsets;  // length of the offset bytes in a packed row
+    uint32_t len_of_offsets;    // length of the offset bytes in a packed row
 } MULTI_COL_PACK_INFO;
 
 typedef struct st_key_and_col_info {
@@ -131,10 +131,10 @@ typedef struct st_key_and_col_info {
     uint8_t* field_types;
     uint16_t* field_lengths;  // stores the field lengths of fixed size fields
                               // (1<<16 - 1 max),
-    uint8_t* length_bytes;  // stores the length of lengths of varchars and
-                            // varbinaries
-    uint32_t* blob_fields;  // list of indexes of blob fields,
-    uint32_t num_blobs;     // number of blobs in the table
+    uint8_t* length_bytes;    // stores the length of lengths of varchars and
+                              // varbinaries
+    uint32_t* blob_fields;    // list of indexes of blob fields,
+    uint32_t num_blobs;       // number of blobs in the table
     //
     // val packing info for all dictionaries. i'th one represents info for i'th
     // dictionary
@@ -241,7 +241,7 @@ static uchar* pack_toku_varbinary_from_desc(
     const uchar* from_desc,
     uint32_t key_part_length,  // number of bytes to use to encode the length in
                                // to_tokudb
-    uint32_t field_length  // length of field
+    uint32_t field_length      // length of field
 );
 
 static uchar* pack_toku_varstring_from_desc(
@@ -253,23 +253,25 @@ static uchar* pack_toku_varstring_from_desc(
     uint32_t charset_num  // length of field
 );
 
-static uchar* pack_toku_key_field(uchar* to_tokudb,
-                                  uchar* from_mysql,
-                                  Field* field,
-                                  uint32_t key_part_length  // I really hope
-                                                            // this is temporary
-                                                            // as I phase out the
-                                                            // pack_cmp stuff
+static uchar* pack_toku_key_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    uint32_t key_part_length  // I really hope
+                              // this is temporary
+                              // as I phase out the
+                              // pack_cmp stuff
 );
 
-static uchar* pack_key_toku_key_field(uchar* to_tokudb,
-                                      uchar* from_mysql,
-                                      Field* field,
-                                      uint32_t key_part_length  // I really hope
-                                                                // this is
-                                                                // temporary as I
-                                                                // phase out the
-                                                                // pack_cmp stuff
+static uchar* pack_key_toku_key_field(
+    uchar* to_tokudb,
+    uchar* from_mysql,
+    Field* field,
+    uint32_t key_part_length  // I really hope
+                              // this is
+                              // temporary as I
+                              // phase out the
+                              // pack_cmp stuff
 );
 
 static uchar* unpack_toku_key_field(uchar* to_mysql,

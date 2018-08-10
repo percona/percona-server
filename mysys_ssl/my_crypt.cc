@@ -106,7 +106,8 @@ MyEncryptionCTX::~MyEncryptionCTX() {
 }
 
 int MyEncryptionCTX::init(const my_aes_mode mode, int encrypt, const uchar *key,
-                          size_t klen, const uchar *iv, size_t ivlen) noexcept {
+                          size_t klen, const uchar *iv,
+                          size_t ivlen MY_ATTRIBUTE((unused))) noexcept {
   if (unlikely(!ciphers[static_cast<int>(mode)](klen)))
     return MY_AES_BAD_KEYSIZE;
 

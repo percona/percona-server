@@ -12552,11 +12552,6 @@ dberr_t create_table_info_t::enable_encryption(dict_table_t *table) {
 
       err = DB_UNSUPPORTED;
       dict_mem_table_free(table);
-    } else if (m_create_info->encrypt_type.length > 0 &&
-               !Encryption::is_none(m_create_info->encrypt_type.str)) {
-      my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-      err = DB_UNSUPPORTED;
-      dict_mem_table_free(table);
     } else {
       /* Get a new table ID */
       dict_table_assign_new_id(table);

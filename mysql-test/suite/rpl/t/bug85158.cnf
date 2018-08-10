@@ -3,20 +3,14 @@
 [mysqld.1]
 gtid_mode=ON
 enforce-gtid-consistency
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 
 [mysqld.2]
 gtid_mode=ON
 enforce-gtid-consistency
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 
 [mysqld.3]
 gtid_mode=ON
 enforce-gtid-consistency
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 sync_master_info=0
 
 [ENV]

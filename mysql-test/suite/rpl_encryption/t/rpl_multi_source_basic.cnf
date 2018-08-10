@@ -7,8 +7,6 @@ log-slave-updates
 plugin_dir=@env.KEYRING_PLUGIN_DIR
 early-plugin-load=@env.KEYRING_PLUGIN
 loose-keyring_file_data=../../tmp/keyring2
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 log-slave-updates
 encrypt-binlog=1
 master-verify-checksum=1

@@ -3,24 +3,18 @@
 [mysqld.1]
 enforce-gtid-consistency=ON
 gtid-mode=ON
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 binlog-rows-query-log-events= ON
 log-slave-updates
 
 [mysqld.2]
 enforce-gtid-consistency=ON
 gtid-mode=ON
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 binlog-rows-query-log-events= ON
 log-slave-updates
 
 [mysqld.3]
 enforce-gtid-consistency=ON
 gtid-mode=ON
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 binlog-rows-query-log-events= ON
 log-slave-updates
 

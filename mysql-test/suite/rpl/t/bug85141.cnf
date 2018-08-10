@@ -6,15 +6,11 @@ gtid-mode=ON
 enforce-gtid-consistency
 
 [mysqld.2]
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 log-slave-updates
 gtid-mode=ON
 enforce-gtid-consistency
 
 [mysqld.3]
-master-info-repository=TABLE
-relay-log-info-repository=TABLE
 log-slave-updates
 gtid-mode=ON
 enforce-gtid-consistency

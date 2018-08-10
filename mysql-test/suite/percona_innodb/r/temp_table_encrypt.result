@@ -1,5 +1,16 @@
-call mtr.add_suppression("\\[Error\\] InnoDB: keyring error: please check that a keyring plugin is loaded");
-call mtr.add_suppression("\\[Error\\] InnoDB: Can't set temporary tablespace to be encrypted because keyring plugin is not available");
+call mtr.add_suppression("\\[InnoDB\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[InnoDB\\] Can't set temporary tablespace to be encrypted because keyring plugin is not available.");
+#
+# PS-4727: instrinsic temp table behaviour shouldn't depend on innodb_encrypt_tables
+#
+CREATE TABLE t1 (a INT, b BLOB);
+INSERT INTO t1 VALUES (1, 'hello'), (2, 'hi'), (3, 'satya');
+SET GLOBAL innodb_encrypt_tables=ON;
+SET big_tables=ON;
+INSERT INTO t1 SELECT * FROM t1;
+DROP TABLE t1;
+SET big_tables=default;
+SET GLOBAL innodb_encrypt_tables=default;
 # without keyring plugin, try to enable encryption of temporary
 # tablespace
 SELECT @@innodb_temp_tablespace_encrypt;

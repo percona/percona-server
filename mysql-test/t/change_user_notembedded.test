@@ -5,17 +5,16 @@
 connect (test,localhost,root,,);
 connection test;
 --enable_reconnect
-# # 2006=CR_SERVER_LOST, 2013=CR_SERVER_GONE_ERROR
---error ER_ACCESS_DENIED_ERROR,2006,2013
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 change_user foo,bar;
---error ER_ACCESS_DENIED_ERROR,2006,2013
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 change_user foo;
---error ER_ACCESS_DENIED_ERROR,2006,2013
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 change_user foo,bar;
 change_user;
---error ER_ACCESS_DENIED_ERROR,2006,2013
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 change_user foo,bar;
---error ER_ACCESS_DENIED_ERROR,2006,2013
+--error ER_ACCESS_DENIED_ERROR,CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 change_user foo,bar;
 change_user;
 disconnect test;

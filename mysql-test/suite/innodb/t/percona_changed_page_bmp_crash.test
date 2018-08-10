@@ -52,7 +52,7 @@ SET GLOBAL INNODB_FAST_SHUTDOWN=2;
 --let $restart_parameters=restart:-#d,crash_before_bitmap_write
 --source include/restart_mysqld.inc
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---error 2013
+--error CR_SERVER_LOST
 INSERT INTO t1 SELECT x FROM t1;
 --enable_reconnect
 --source include/wait_until_connected_again.inc

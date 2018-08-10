@@ -16,7 +16,7 @@ SET GLOBAL debug= '+d,simulate_resource_failure';
 
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 --replace_regex /system error: [0-9]+/system error: NUM/
---error 2013
+--error CR_SERVER_LOST
 connect (con1,localhost,root,,);
 
 connection default;
@@ -25,7 +25,7 @@ SET GLOBAL debug= '-d,simulate_resource_failure';
 SET GLOBAL debug= '+d,simulate_tp_alloc_connection_oom';
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 --replace_regex /system error: [0-9]+/system error: NUM/
---error 2013
+--error CR_SERVER_LOST
 connect (con1,localhost,root,,);
 
 connection default;

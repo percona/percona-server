@@ -15,7 +15,7 @@ CREATE TEMPORARY TABLE t1 (a INT, b INT, INDEX(a));
 call mtr.add_suppression("does not exist in the InnoDB internal");
 
 SET debug="+d,crash_innodb_add_index_after";
---error 2013
+--error CR_SERVER_LOST
 ALTER TABLE t1 ADD INDEX (b);
 
 --enable_reconnect

@@ -75,7 +75,7 @@ SHOW CREATE TABLE tde_db.t2;
 INSERT INTO tde_db.t2 VALUES(0, "aaaaa");
 INSERT INTO tde_db.t2 VALUES(1, "bbbbb");
 
---error 2013
+--error CR_SERVER_LOST
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -95,7 +95,7 @@ DROP TABLE tde_db.t2;
 --exec echo "$KEYRING_RESTART_PARAM" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 SET SESSION debug="+d,ib_crash_during_create_for_encryption";
 # Execute the statement that causes the crash
---error 2013
+--error CR_SERVER_LOST
 CREATE TABLE tde_db.t2(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -123,7 +123,7 @@ ALTER TABLE tde_db.t1 DISCARD TABLESPACE;
 --copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/tde_db/t1.ibd
 SET SESSION debug="+d,ib_crash_during_decrypt_page";
 # Execute the statement that causes the crash
---error 2013
+--error CR_SERVER_LOST
 eval ALTER TABLE tde_db.t1 IMPORT TABLESPACE;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -153,7 +153,7 @@ CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 
 # Crash the server while executing ALTER INSTANCE ROTATE
 SET SESSION debug="+d,keyring_file_backup_fail";
---error 2013
+--error CR_SERVER_LOST
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 --enable_reconnect
 --source include/wait_until_connected_again.inc

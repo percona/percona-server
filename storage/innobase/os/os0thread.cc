@@ -127,10 +127,8 @@ ulint os_thread_set_priority(os_tid_t thread_id,
 #ifdef UNIV_LINUX
   const lint thread_nice = 19 - relative_priority;
   if (setpriority(PRIO_PROCESS, thread_id, thread_nice) == -1) {
-    ib::warn() << "Setting thread " << os_thread_pf(thread_id) << " nice to "
-               << thread_nice
-               << " failed, current "
-                  "nice "
+    ib::warn() << "Setting thread " << thread_id << " nice to " << thread_nice
+               << " failed, current nice "
                << getpriority(PRIO_PROCESS, thread_id) << ", errno " << errno;
   }
   return (19 - getpriority(PRIO_PROCESS, thread_id));

@@ -23,6 +23,7 @@
 #ifndef SQL_THREAD_INCLUDED
 #define SQL_THREAD_INCLUDED
 
+#include <stdio.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 

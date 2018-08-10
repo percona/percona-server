@@ -3492,7 +3492,6 @@ ibool buf_flush_validate(buf_pool_t *buf_pool) /*!< buffer pool instance */
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-#ifdef UNIV_DEBUG
 /** Check if there are any dirty pages that belong to a space id in the flush
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
@@ -3544,7 +3543,6 @@ static ulint buf_flush_get_dirty_pages_count(
 
   return (count);
 }
-#endif /* UNIV_DEBUG */
 
 /** FlushObserver constructor
 @param[in]	space_id	table space id

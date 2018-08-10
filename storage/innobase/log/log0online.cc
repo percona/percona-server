@@ -100,7 +100,7 @@ static const constexpr char *bmp_file_name_stem = "ib_modified_log_";
 /** File name template for bitmap files.  The 1st format tag is a directory
 name, the 2nd tag is the stem, the 3rd tag is a file sequence number, the 4th
 tag is the start LSN for the file. */
-static const constexpr char *bmp_file_name_template = "%s%s%lu_%llu.xdb";
+static const constexpr char *bmp_file_name_template = "%s%s%lu_" LSN_PF ".xdb";
 
 /* On server startup with empty database srv_start_lsn == 0, in
 which case the first LSN of actual log records will be this. */
@@ -495,9 +495,8 @@ static bool log_online_is_bitmap_file(
   char stem[FN_REFLEN];
   return (MY_S_ISREG(file_info.mystat->st_mode) ||
           MY_S_ISLNK(file_info.mystat->st_mode)) &&
-         sscanf(
-             file_info.name, "%[a-z_]%lu_%llu.xdb", stem, bitmap_file_seq_num,
-             static_cast<unsigned long long *>(bitmap_file_start_lsn)) == 3 &&
+         sscanf(file_info.name, "%[a-z_]%lu_" LSN_PF ".xdb", stem,
+                bitmap_file_seq_num, bitmap_file_start_lsn) == 3 &&
          !strcmp(stem, bmp_file_name_stem);
 }
 

@@ -228,6 +228,7 @@ script:
       -DWITH_KEYRING_VAULT=ON
       -DWITHOUT_TOKUDB=ON
       -DWITH_ROCKSDB=OFF
+      -DWITH_ICU=system
     ";
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       CMAKE_OPT+="
@@ -261,6 +262,7 @@ script:
         -DWITH_FEDERATED_STORAGE_ENGINE=OFF
         -DWITHOUT_PARTITION_STORAGE_ENGINE=ON
         -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
+        -DWITH_ICU=bundled
       ";
     fi;
 

@@ -808,6 +808,8 @@ void buf_dblwr_process() {
 
   fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
 
+  if (srv_buf_pool_instances == 0) return;  // Support log unit tests
+
   buf_parallel_dblwr_finish_recovery();
 
   /* If parallel doublewrite buffer was used, now it's safe to delete and

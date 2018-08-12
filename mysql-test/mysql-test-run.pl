@@ -163,8 +163,8 @@ my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
 my $DEFAULT_SUITES =
 "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,"
   ."funcs_2,jp,stress,engines/iuds,engines/funcs,group_replication,audit_null,"
-  ."interactive_utilities,innodb_stress"
-  ."binlog_encryption,rpl_encryption,audit_log,keyring_vault"
+  ."interactive_utilities,innodb_stress,"
+  ."binlog_encryption,rpl_encryption,audit_log,keyring_vault,"
   ."tokudb.add_index,tokudb.alter_table,tokudb,tokudb.bugs,tokudb.parts,"
   ."tokudb.rpl,tokudb.perfschema,"
   ."rocksdb,rocksdb.rpl,rocksdb.sys_vars,"

@@ -415,7 +415,7 @@ static inline bool do_ignore_flag_optimization(THD* thd,
     bool do_opt = false;
     if (opt_eligible && (is_replace_into(thd) || is_insert_ignore(thd)) &&
         !table->triggers &&
-        !(mysql_bin_log.is_open() &&
+        !(thd->is_current_stmt_binlog_disabled() &&
           thd->variables.binlog_format != BINLOG_FORMAT_STMT)) {
         do_opt = true;
     }

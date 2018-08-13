@@ -679,12 +679,21 @@ static void log_preflush_pool_modified_pages(const log_t &log,
   Note, that this could fire even if we did not run out
   of space in log files (users still may write to redo). */
 
-  new_oldest += log_buffer_flush_order_lag(log);
+  if (new_oldest == LSN_MAX
+      /* Forced flush request is processed by page_cleaner, if
+      it's not active, then we must do flush ourselves. */
+      || !buf_page_cleaner_is_active
+      /* Reason unknown. */
+      || srv_is_being_started) {
+    buf_flush_sync_all_buf_pools();
+  } else {
+    new_oldest += log_buffer_flush_order_lag(log);
 
-  /* better to wait for being flushed by page cleaner */
-  if (srv_flush_sync) {
-    /* wake page cleaner for IO burst */
-    buf_flush_request_force(new_oldest);
+    /* better to wait for being flushed by page cleaner */
+    if (srv_flush_sync) {
+      /* wake page cleaner for IO burst */
+      buf_flush_request_force(new_oldest);
+    }
   }
 }
 

@@ -377,8 +377,23 @@ int ha_heap::info(uint flag) {
   return 0;
 }
 
-enum row_type ha_heap::get_real_row_type(const HA_CREATE_INFO *) const {
-  if (file->s->recordspace.is_variable_size) return ROW_TYPE_DYNAMIC;
+enum row_type ha_heap::get_real_row_type(
+    const HA_CREATE_INFO *create_info) const {
+  const auto reclength = table->s->reclength;
+  const auto max_chunk_size = create_info->key_block_size;
+  const auto is_dynamic = table->s->row_type == ROW_TYPE_DYNAMIC;
+  uint blobs = 0;
+  for (uint i = 0; i < table->s->fields; i++) {
+    const Field *const field = table->field[i];
+    if (field->flags & BLOB_FLAG) blobs++;
+  }
+  if (max_chunk_size) {
+    if (reclength > max_chunk_size + VARIABLE_REC_OVERHEAD || blobs > 0)
+      return ROW_TYPE_DYNAMIC;
+    return ROW_TYPE_FIXED;
+  } else if ((is_dynamic && reclength > 256 + VARIABLE_REC_OVERHEAD) ||
+             blobs > 0)
+    return ROW_TYPE_DYNAMIC;
   return ROW_TYPE_FIXED;
 }
 

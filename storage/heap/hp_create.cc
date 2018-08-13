@@ -36,7 +36,6 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
                        ulong max_records);
 
 #define FIXED_REC_OVERHEAD (sizeof(uchar))
-#define VARIABLE_REC_OVERHEAD (sizeof(uchar **) + sizeof(uchar))
 
 /* Minimum size that a chunk can take, 12 bytes on 32bit, 24 bytes on 64bit */
 #define VARIABLE_MIN_CHUNK_SIZE                                        \

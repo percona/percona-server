@@ -41,6 +41,9 @@
 #define HP_MIN_RECORDS_IN_BLOCK 16
 #define HP_MAX_RECORDS_IN_BLOCK 8192
 
+static const constexpr auto VARIABLE_REC_OVERHEAD =
+    sizeof(uchar **) + sizeof(uchar);
+
 /* this chunk has been deleted and can be reused */
 #define CHUNK_STATUS_DELETED 0
 /* this chunk represents the first part of a live record */

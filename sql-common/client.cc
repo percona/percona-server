@@ -2835,8 +2835,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       goto error;
     }
 
-    cn = reinterpret_cast<const char *>(
-        const_cast<const unsigned char *>(ASN1_STRING_data(cn_asn1)));
+    cn = reinterpret_cast<char *>(ASN1_STRING_data(cn_asn1));
     if (cn == nullptr) {
       *errptr = "Failed to get data from CN";
       goto error;

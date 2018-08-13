@@ -2060,7 +2060,7 @@ sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
   init_sql_alloc(key_memory_sp_head_main_root, &own_root, MEM_ROOT_BLOCK_SIZE,
                  MEM_ROOT_PREALLOC);
 
-  void *rawmem = alloc_root(&own_root, sizeof(sp_head));
+  void *rawmem = own_root.Alloc_aligned(sizeof(sp_head), alignof(sp_head));
   if (!rawmem) return NULL;
 
   sp_head *sp = new (rawmem) sp_head(std::move(own_root), sp_type);

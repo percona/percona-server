@@ -154,6 +154,15 @@ struct MEM_ROOT {
     return AllocSlow(length);
   }
 
+  void *Alloc_aligned(size_t length, size_t alignment) MY_ATTRIBUTE((malloc)) {
+    size_t length_with_alignment = length + alignment;
+    void *ptr = Alloc(length_with_alignment);
+    if (!ptr) return nullptr;
+    ptr = std::align(alignment, length, ptr, length_with_alignment);
+    DBUG_ASSERT(ptr);
+    return ptr;
+  }
+
   /**
    * Claim all the allocated memory for the current thread in the performance
    * schema. Use when transferring responsibility for a MEM_ROOT from one thread

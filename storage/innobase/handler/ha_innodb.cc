@@ -13894,9 +13894,6 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
   }
 
-  if (UNIV_UNLIKELY(m_share->ib_table && m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
-
   char norm_name[FN_REFLEN];
   THD *thd = ha_thd();
   dict_table_t *innodb_table = nullptr;
@@ -13923,13 +13920,12 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
     DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
 
+  if (UNIV_UNLIKELY(innodb_table->is_corrupt)) DBUG_RETURN(HA_ERR_CRASHED);
+
   trx_t *trx = check_trx_exists(thd);
   innobase_register_trx(ht, thd, trx);
 
   error = truncator.exec();
-
-  if (UNIV_UNLIKELY(m_share->ib_table && m_share->ib_table->is_corrupt))
-    DBUG_RETURN(HA_ERR_CRASHED);
 
   if (error == 0) {
     if (has_autoinc) {

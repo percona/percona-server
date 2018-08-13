@@ -12045,10 +12045,15 @@ ha_innobase::adjust_create_info_for_frm(
 	bool	is_intrinsic =
 		(create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE) != 0;
 
+	/* If table is intrinsic, it will use encryption for table based on
+	temporary tablespace encryption property. For non-intrinsic tables
+	without explicit encryption attribute, table will be forced to be
+	encrypted if innodb_encrypt_tables=ON/FORCE */
 	if (create_info->encrypt_type.length == 0
 	    && create_info->encrypt_type.str == NULL
-	    && (srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF
-		|| (srv_tmp_space.is_encrypted() && is_intrinsic))) {
+	    && ((is_intrinsic && srv_tmp_space.is_encrypted())
+		|| (!is_intrinsic
+		    && srv_encrypt_tables != SRV_ENCRYPT_TABLES_OFF))) {
 		create_info->encrypt_type = yes_string;
 	}
 }

@@ -205,7 +205,7 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
        brew update;
-       brew install ccache protobuf lz4 re2 xz;
+       brew install ccache protobuf lz4 re2;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi
 

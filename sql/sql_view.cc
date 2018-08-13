@@ -1535,8 +1535,9 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
       For suid views prepare a security context for checking underlying
       objects of the view.
     */
-    if (!(view_ref->view_sctx = (Security_context *)thd->stmt_arena->mem_calloc(
-              sizeof(Security_context)))) {
+    if (!(view_ref->view_sctx =
+              (Security_context *)thd->stmt_arena->mem_aligned_calloc(
+                  sizeof(Security_context), alignof(Security_context)))) {
       result = true;
       DBUG_RETURN(true);
     }

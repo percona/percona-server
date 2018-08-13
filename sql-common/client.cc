@@ -2599,7 +2599,7 @@ static bool ssl_cmp_san_dns_name(ASN1_STRING *dns_name, const char *host_name,
     DBUG_RETURN(true);
   }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-  const char *cn = static_cast<const char *>(
+  const char *cn = reinterpret_cast<const char *>(
       const_cast<const unsigned char *>(ASN1_STRING_data(dns_name)));
 #else
   const char *cn = static_cast<const char *>(ASN1_STRING_get0_data(dns_name));
@@ -2692,8 +2692,8 @@ static bool ssl_verify_server_cert_san(X509 *server_cert,
 
   DBUG_ENTER("ssl_verify_server_cert_san");
   *errptr = nullptr;
-  GENERAL_NAMES *const sans =
-      X509_get_ext_d2i(server_cert, NID_subject_alt_name, nullptr, nullptr);
+  GENERAL_NAMES *const sans = static_cast<GENERAL_NAMES *>(
+      X509_get_ext_d2i(server_cert, NID_subject_alt_name, nullptr, nullptr));
   if (sans == nullptr) DBUG_RETURN(ret_validation);
 
   const int number_of_sans = sk_GENERAL_NAME_num(sans);
@@ -2835,7 +2835,8 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
       goto error;
     }
 
-    cn = const_cast<const char *>(ASN1_STRING_data(cn_asn1));
+    cn = reinterpret_cast<const char *>(
+        const_cast<const unsigned char *>(ASN1_STRING_data(cn_asn1)));
     if (cn == nullptr) {
       *errptr = "Failed to get data from CN";
       goto error;

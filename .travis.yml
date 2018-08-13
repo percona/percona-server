@@ -204,11 +204,8 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
-       brew uninstall boost;
        brew update;
-       brew install ccache protobuf lz4 re2;
-       brew upgrade icu4c;
-       brew link ccache;
+       brew install ccache protobuf lz4 re2 xz;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi
 

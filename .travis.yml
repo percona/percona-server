@@ -35,7 +35,7 @@ matrix:
       env:              BUILD=Debug
       compiler: clang
       os: osx
-      osx_image: xcode9.3
+      osx_image: xcode9.4
     # 2
     - if: repo != percona/percona-server OR repo = percona/percona-server AND type IN (push, cron)
       env: VERSION=6.0  BUILD=RelWithDebInfo
@@ -204,8 +204,10 @@ script:
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
+       brew uninstall boost;
        brew update;
-       brew install ccache protobuf icu4c lz4 re2;
+       brew install ccache protobuf lz4 re2;
+       brew upgrade icu4c;
        brew link ccache;
        export PATH="/usr/local/opt/ccache/libexec:$PATH";
     fi

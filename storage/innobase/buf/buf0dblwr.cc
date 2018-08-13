@@ -892,7 +892,7 @@ void buf_dblwr_update(
 
       ut_ad(!os_event_is_set(dblwr_shard->batch_completed));
 
-      if (dblwr_shard->batch_size.fetch_sub(1, std::memory_order_relaxed) == 0)
+      if (dblwr_shard->batch_size.fetch_sub(1, std::memory_order_relaxed) == 1)
         /* The last page from the doublewrite batch. */
         os_event_set(dblwr_shard->batch_completed);
     } break;

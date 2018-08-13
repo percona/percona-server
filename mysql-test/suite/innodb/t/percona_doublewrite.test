@@ -9,6 +9,9 @@
 # Doublewrite must be enabled for the tests to work
 SELECT @@innodb_doublewrite;
 
+CALL mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
+CALL mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
+
 let $MYSQL_DATA_DIR= `select @@datadir`;
 let $MYSQL_BASE_DIR= `select @@basedir`;
 
@@ -61,21 +64,21 @@ file_exists $DOUBLEWRITE_FILE4;
 --error 1
 --exec $MYSQLD_CMD --innodb-parallel-doublewrite-path= $args
 let SEARCH_PATTERN= must point to a regular file;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo # Test that current directory arg is rejected
 --error 1
 --exec $MYSQLD_CMD --innodb-parallel-doublewrite-path=. $args
 let SEARCH_PATTERN= must point to a regular file;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo # Test that empty arg in combination with empty innodb_data_home_dir is treated correctly
 --error 1
 --exec $MYSQLD_CMD --innodb-data-home-dir= --innodb-parallel-doublewrite-path= $args
 let SEARCH_PATTERN= must point to a regular file;
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo # Test that maximum possible parallel doublewrite file is accepted
@@ -92,7 +95,7 @@ file_exists $DOUBLEWRITE_FILE;
 --error 1
 --exec $MYSQLD_CMD $args
 --let SEARCH_PATTERN= bytes is larger than the maximum size
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo # Test that doublewrite file whose last page is truncated is diagnosed
@@ -100,7 +103,7 @@ file_exists $DOUBLEWRITE_FILE;
 --error 1
 --exec $MYSQLD_CMD $args
 --let SEARCH_PATTERN= bytes is not a multiple of a page size
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --echo # Test that zero-sized doublewrite file is diagnosed and accepted
@@ -112,7 +115,7 @@ EOF
 --let $restart_parameters=restart:--log-error=$SEARCH_FILE
 --source include/start_mysqld.inc
 --let SEARCH_PATTERN= Parallel doublewrite buffer is zero-sized
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
 --let $restart_parameters=

@@ -1,9 +1,7 @@
 call mtr.add_suppression("Too many connections");
 CREATE USER nonprivuser@localhost;
-SELECT VARIABLE_VALUE INTO @cemc_1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT VARIABLE_VALUE INTO @cemc_1 FROM performance_schema.GLOBAL_STATUS
 WHERE VARIABLE_NAME='Connection_errors_max_connections';
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 SHOW GLOBAL STATUS LIKE 'Threads_connected';
 Variable_name	Value
 Threads_connected	1
@@ -19,16 +17,12 @@ SHOW GLOBAL STATUS LIKE 'Threads_connected';
 Variable_name	Value
 Threads_connected	3
 SELECT sleep(500000);
-SELECT VARIABLE_VALUE INTO @cemc_2 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT VARIABLE_VALUE INTO @cemc_2 FROM performance_schema.global_status
 WHERE VARIABLE_NAME='Connection_errors_max_connections';
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 # -- Success: only max_connections + 1 SUPER connections allowed on the main port
 # Wait until Connection_errors_max_connections is bumped
-SELECT VARIABLE_VALUE INTO @cemc_3 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+SELECT VARIABLE_VALUE INTO @cemc_3 FROM performance_schema.global_status
 WHERE VARIABLE_NAME='Connection_errors_max_connections';
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.global_status instead
 Regular user connected on extra_port
 SHOW GLOBAL STATUS LIKE 'Threads_connected';
 Variable_name	Value

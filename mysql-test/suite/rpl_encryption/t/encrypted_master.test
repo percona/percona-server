@@ -88,18 +88,18 @@ SET binlog_row_image= MINIMAL;
 --echo # Here we try to find several plain texts that would appear in not encrypted binlog files.
 --echo # The searches should fail as we expect the binlog files to be encrypted.
 
---let PRINT_SEARCH_RESULT=1
+--let SEARCH_ECHO=ALL
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= _to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= COMMIT
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= TIMESTAMP
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --disable_connect_log
 --source include/save_master_pos.inc
@@ -122,15 +122,15 @@ SET binlog_row_image= MINIMAL;
 
 --let SEARCH_FILE= $slave_datadir/slave-relay-bin.0*
 --let SEARCH_PATTERN= _to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_FILE= $slave_datadir/slave-relay-bin.0*
 --let SEARCH_PATTERN= COMMIT
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_FILE= $slave_datadir/slave-relay-bin.0*
 --let SEARCH_PATTERN= TIMESTAMP
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 
 # Re-enable SQL thread, let it catch up with IO thread
@@ -142,15 +142,15 @@ SET binlog_row_image= MINIMAL;
 
 --let SEARCH_FILE= $slave_datadir/slave-bin.0*
 --let SEARCH_PATTERN= _to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_FILE= $slave_datadir/slave-bin.0*
 --let SEARCH_PATTERN= COMMIT
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let SEARCH_FILE= $slave_datadir/slave-bin.0*
 --let SEARCH_PATTERN= TIMESTAMP
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo ##########
 --echo # Cleanup

@@ -59,10 +59,10 @@ INSERT INTO table1_to_encrypt SELECT NULL,NOW(),b FROM table1_to_encrypt;
 # table name is not present in the binary log
 
 --let $master_datadir= `SELECT @@datadir`
---let PRINT_SEARCH_RESULT=1
+--let SEARCH_ECHO=ALL
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= table1_to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo ################################################################
 --echo # Pre-test 2: restart master with a different keys' storage file
@@ -91,10 +91,10 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 --echo # Make sure that binary logs are encrypted by making sure that plain text
 --echo # table name is not present in the binary log
 
---let PRINT_SEARCH_RESULT=1
+--let SEARCH_ECHO=ALL
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= table2_to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 UNINSTALL PLUGIN keyring_file;
 

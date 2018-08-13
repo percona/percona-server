@@ -148,7 +148,6 @@ Database: information_schema
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| XTRADB_INTERNAL_HASH_TABLES           |
 | XTRADB_READ_VIEW                      |
 | INNODB_SYS_DATAFILES                  |
 | INNODB_TRX                            |
@@ -257,7 +256,6 @@ Database: INFORMATION_SCHEMA
 | USER_PRIVILEGES                       |
 | USER_STATISTICS                       |
 | VIEWS                                 |
-| XTRADB_INTERNAL_HASH_TABLES           |
 | XTRADB_READ_VIEW                      |
 | INNODB_SYS_DATAFILES                  |
 | INNODB_TRX                            |

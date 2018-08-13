@@ -36,9 +36,9 @@ FLUSH LOGS;
 --echo # Check that error messages related to encryption are present in error log
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/encrypted_slave_without_keyring_and_bin_off_relay_on.err
 --let SEARCH_PATTERN= Binary logging not possible. Message: Either disk is full or file system is read only or encryption failed while opening the relay_log. Aborting the server.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 --let SEARCH_PATTERN=Failed to fetch or create percona_binlog key from/in keyring and thus failed to initialize relay_log encryption. Have you enabled keyring plugin?
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let $rpl_server_number= 2
 --let $rpl_omit_print_server_parameters= 1

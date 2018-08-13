@@ -25,7 +25,7 @@ INSERT INTO t0 VALUES (rotate_system_key("percona_binlog"));
 # Find a warning in server's log
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/percona_binlog_rotate_key.err
 --let SEARCH_PATTERN= Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let $restart_parameters=
 --source include/restart_mysqld.inc

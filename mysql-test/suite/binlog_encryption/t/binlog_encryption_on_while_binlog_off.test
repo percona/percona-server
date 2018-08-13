@@ -20,7 +20,7 @@
 # Find a note in server's log
 --let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/binlog_encryption_on_while_binlog_off.err
 --let SEARCH_PATTERN= binlog and relay log encryption enabled without binary logging being enabled. If relay logs are in use, they will be encrypted.
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --let $restart_parameters=
 --source include/restart_mysqld.inc

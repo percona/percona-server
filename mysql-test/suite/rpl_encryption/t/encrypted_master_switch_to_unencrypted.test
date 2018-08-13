@@ -52,11 +52,11 @@ INSERT INTO table1_no_encryption SELECT NULL,NOW(),b FROM table1_no_encryption;
 
 --echo # Make sure that binary logs are not encrypted
 
---let PRINT_SEARCH_RESULT=1
+--let SEARCH_ECHO=ALL
 --let SEARCH_RANGE = 500000
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= table1_no_encryption
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 # We are storing the position now, because up to this point the slave
 # should be able to synchronize with master
@@ -88,7 +88,7 @@ INSERT INTO table2_to_encrypt SELECT NULL,NOW(),b FROM table2_to_encrypt;
 
 --let SEARCH_FILE= $master_datadir/master-bin.0*
 --let SEARCH_PATTERN= table2_to_encrypt
---source include/search_pattern_in_file.inc
+--source include/search_pattern.inc
 
 --echo #####################################################
 --echo # Part 3: restart master again without encryption

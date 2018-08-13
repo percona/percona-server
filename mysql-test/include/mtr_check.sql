@@ -84,7 +84,7 @@ BEGIN
   SELECT * FROM performance_schema.persisted_variables
     ORDER BY VARIABLE_NAME;
 
-  SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+  SELECT * FROM performance_schema.session_variables
     WHERE variable_name = 'debug_sync';
 
   -- Dump all databases, there should be none
@@ -140,11 +140,9 @@ BEGIN
   -- INSTALL/UNINSTALL command
   SELECT * FROM INFORMATION_SCHEMA.PLUGINS;
 
-  -- Dump all created compression dictionaries if InnoDB is enabled
-  IF ((SELECT COUNT(*) FROM information_schema.engines
-       WHERE engine = 'InnoDB' AND support IN ('YES', 'DEFAULT')) = 1) THEN
-    SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
-  END IF;
+  -- Percona disabled until zip dictionary reimplementation in the new DD
+  -- -- Dump all created compression dictionaries
+  -- SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 

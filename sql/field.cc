@@ -9582,7 +9582,7 @@ bool Create_field::init(
     DBUG_RETURN(true);
   }
 
-  zip_dict_name = *fld_zip_dict_name;
+  if (fld_zip_dict_name) zip_dict_name = *fld_zip_dict_name;
   /*
     After all checks were carried out we should be able guarantee that column
     can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at the

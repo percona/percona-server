@@ -12409,10 +12409,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
 #if 0
   error = innobase_check_zip_dicts(m_form, zip_dict_ids,
 				   m_trx, &err_zip_dict_name) ? 0 : -1;
-#endif
   if (trx_is_started(m_trx)) trx_commit(m_trx);
-    // Percona commented out until zip dict reimplementation in the new DD
-#if 0
   if (error) {
     my_error(ER_COMPRESSION_DICTIONARY_DOES_NOT_EXIST,
 	     MYF(0), err_zip_dict_name);

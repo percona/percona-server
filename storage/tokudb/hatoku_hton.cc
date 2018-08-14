@@ -1657,6 +1657,7 @@ mysql_declare_plugin(tokudb){
     "Percona TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_GPL,
     tokudb_init_func, /* plugin init */
+    nullptr,          /* plugin check uninstall */
     tokudb_done_func, /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,
     toku_global_status_variables_export, /* status variables */

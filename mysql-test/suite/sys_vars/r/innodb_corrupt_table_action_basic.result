@@ -8,44 +8,32 @@ SET GLOBAL innodb_corrupt_table_action='assert';
 SELECT @@GLOBAL.innodb_corrupt_table_action;
 @@GLOBAL.innodb_corrupt_table_action
 assert
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CORRUPT_TABLE_ACTION	assert
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+innodb_corrupt_table_action	assert
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CORRUPT_TABLE_ACTION	assert
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
+innodb_corrupt_table_action	assert
 SET GLOBAL innodb_corrupt_table_action='warn';
 SELECT @@GLOBAL.innodb_corrupt_table_action;
 @@GLOBAL.innodb_corrupt_table_action
 warn
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CORRUPT_TABLE_ACTION	warn
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+innodb_corrupt_table_action	warn
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CORRUPT_TABLE_ACTION	warn
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
+innodb_corrupt_table_action	warn
 SET GLOBAL innodb_corrupt_table_action='salvage';
 SELECT @@GLOBAL.innodb_corrupt_table_action;
 @@GLOBAL.innodb_corrupt_table_action
 salvage
-SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CORRUPT_TABLE_ACTION	salvage
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_corrupt_table_action';
+innodb_corrupt_table_action	salvage
+SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME='innodb_corrupt_table_action';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_CORRUPT_TABLE_ACTION	salvage
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
+innodb_corrupt_table_action	salvage
 SET SESSION innodb_corrupt_table_action='warn';
 ERROR HY000: Variable 'innodb_corrupt_table_action' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@session.innodb_corrupt_table_action='salvage';

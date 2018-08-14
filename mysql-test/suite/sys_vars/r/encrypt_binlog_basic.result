@@ -14,7 +14,7 @@ COUNT(@@GLOBAL.encrypt_binlog)
 1
 1 Expected
 SELECT @@GLOBAL.encrypt_binlog= VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='encrypt_binlog';
 @@GLOBAL.encrypt_binlog= VARIABLE_VALUE
 1
@@ -24,7 +24,7 @@ COUNT(@@GLOBAL.encrypt_binlog)
 1
 1 Expected
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='encrypt_binlog';
 COUNT(VARIABLE_VALUE)
 1

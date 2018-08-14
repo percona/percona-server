@@ -8,8 +8,8 @@
 --source include/restart_mysqld.inc
 
 SET GLOBAL max_connections=1;
-let $port=`SELECT Variable_value FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name LIKE 'port'`;
-let $socket=`SELECT Variable_value FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE Variable_name LIKE 'socket'`;
+let $port=`SELECT Variable_value FROM performance_schema.session_variables WHERE Variable_name LIKE 'port'`;
+let $socket=`SELECT Variable_value FROM performance_schema.session_variables WHERE Variable_name LIKE 'socket'`;
 
 CREATE USER nonprivuser@localhost;
 

@@ -1,3 +1,0 @@
-# MySQL bug #75940: Mutex issue in sql/sql_show.cc resulting in sig6. Source likely fill_variables
-select variable_name from information_schema.session_variables where variable_name=
-       (select variable_name from information_schema.session_variables where variable_name= 'BASEDIR');

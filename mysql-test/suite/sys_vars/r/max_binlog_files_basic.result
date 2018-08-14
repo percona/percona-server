@@ -89,19 +89,15 @@ SELECT @@session.max_binlog_files;
 ERROR HY000: Variable 'max_binlog_files' is a GLOBAL variable
 '#----------------------FN_DYNVARS_072_06------------------------#'
 SELECT @@global.max_binlog_files = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_binlog_files';
 @@global.max_binlog_files = VARIABLE_VALUE
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 SELECT @@max_binlog_files = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_binlog_files';
 @@max_binlog_files = VARIABLE_VALUE
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.session_variables instead
 '#---------------------FN_DYNVARS_072_07----------------------#'
 SET @@global.max_binlog_files = TRUE;
 SELECT @@global.max_binlog_files;

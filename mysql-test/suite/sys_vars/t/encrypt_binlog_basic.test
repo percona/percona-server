@@ -43,7 +43,7 @@ SELECT COUNT(@@GLOBAL.encrypt_binlog);
 
 --disable_warnings
 SELECT @@GLOBAL.encrypt_binlog= VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='encrypt_binlog';
 --enable_warnings
 --echo 1 Expected
@@ -53,7 +53,7 @@ SELECT COUNT(@@GLOBAL.encrypt_binlog);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='encrypt_binlog';
 --enable_warnings
 --echo 1 Expected

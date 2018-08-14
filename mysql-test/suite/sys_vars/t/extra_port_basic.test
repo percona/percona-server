@@ -8,8 +8,8 @@ select @@global.extra_port;
 select @@session.extra_port;
 show global variables like 'extra_port';
 show session variables like 'extra_port';
-select * from information_schema.global_variables where variable_name='extra_port';
-select * from information_schema.session_variables where variable_name='extra_port';
+select * from performance_schema.global_variables where variable_name='extra_port';
+select * from performance_schema.session_variables where variable_name='extra_port';
 
 #
 # show that it's read-only

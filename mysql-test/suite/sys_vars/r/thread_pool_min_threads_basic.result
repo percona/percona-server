@@ -10,10 +10,10 @@ thread_pool_min_threads	1
 show session variables like 'thread_pool_min_threads';
 Variable_name	Value
 thread_pool_min_threads	1
-select * from information_schema.global_variables where variable_name='thread_pool_min_threads';
+select * from performance_schema.global_variables where variable_name='thread_pool_min_threads';
 VARIABLE_NAME	VARIABLE_VALUE
 THREAD_POOL_MIN_THREADS	1
-select * from information_schema.session_variables where variable_name='thread_pool_min_threads';
+select * from performance_schema.session_variables where variable_name='thread_pool_min_threads';
 VARIABLE_NAME	VARIABLE_VALUE
 THREAD_POOL_MIN_THREADS	1
 set global thread_pool_min_threads=1;

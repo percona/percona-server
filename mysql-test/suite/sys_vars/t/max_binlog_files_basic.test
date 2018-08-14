@@ -85,11 +85,11 @@ SELECT @@session.max_binlog_files;
 ##############################################################################
 
 SELECT @@global.max_binlog_files = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_binlog_files';
 
 SELECT @@max_binlog_files = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_binlog_files';
 
 

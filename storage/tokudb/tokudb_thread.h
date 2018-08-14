@@ -55,10 +55,10 @@ namespace tokudb {
 #endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
             );
             void unlock(
-#if defined(SAFE_MUTEX)
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
                 const char* src_file,
                 uint src_line
-#endif  // SAFE_MUTEX
+#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
             );
 #ifdef TOKUDB_DEBUG
             bool is_owned_by_me(void) const;
@@ -245,10 +245,10 @@ namespace tokudb {
 #endif
         }
         inline void mutex_t::unlock(
-#if defined(SAFE_MUTEX)
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
             const char* src_file,
             uint src_line
-#endif  // SAFE_MUTEX
+#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
         ) {
 #ifdef TOKUDB_DEBUG
             assert_debug(_owners > 0);
@@ -257,11 +257,11 @@ namespace tokudb {
             _owner = _null_owner;
 #endif
             int r MY_ATTRIBUTE((unused)) = inline_mysql_mutex_unlock(&_mutex
-#if defined(SAFE_MUTEX)
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
                                                                      ,
                                                                      src_file,
                                                                      src_line
-#endif  // SAFE_MUTEX
+#endif  // defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
             );
             assert_debug(r == 0);
         }

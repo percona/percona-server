@@ -214,11 +214,11 @@ typedef unsigned int pfs_key_t;
 #define mutex_t_lock(M) M.lock()
 #endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
 
-#if defined(SAFE_MUTEX)
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_MUTEX_INTERFACE)
 #define mutex_t_unlock(M) M.unlock(__FILE__, __LINE__)
 #else  // SAFE_MUTEX
 #define mutex_t_unlock(M) M.unlock()
-#endif  // SAFE_MUTEX
+#endif  // SAFE_MUTEX || HAVE_PSI_MUTEX_INTERFACE
 
 #if defined(HAVE_PSI_RWLOCK_INTERFACE)
 #define rwlock_t_lock_read(M) M.lock_read(__FILE__, __LINE__)

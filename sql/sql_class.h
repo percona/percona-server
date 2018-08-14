@@ -1261,6 +1261,8 @@ class THD : public MDL_context_owner,
     return m_SSL;
   }
 
+  bool is_ssl() const noexcept { return m_SSL != nullptr; }
+
   /**
     Asserts that the protocol is of type text or binary and then
     returns the m_protocol casted to Protocol_classic. This method

@@ -331,10 +331,10 @@ extern struct System_variables max_system_variables;
 extern struct System_status_var global_status_var;
 extern struct rand_struct sql_rand;
 
-using user_stats_t = collation_unordered_map<const char *, USER_STATS>;
+using user_stats_t = collation_unordered_map<std::string, USER_STATS>;
 using thread_stats_t = malloc_unordered_map<my_thread_id, THREAD_STATS>;
-using table_stats_t = collation_unordered_map<const char *, TABLE_STATS>;
-using index_stats_t = collation_unordered_map<const char *, INDEX_STATS>;
+using table_stats_t = collation_unordered_map<std::string, TABLE_STATS>;
+using index_stats_t = collation_unordered_map<std::string, ulonglong>;
 
 extern user_stats_t *global_user_stats;
 extern user_stats_t *global_client_stats;

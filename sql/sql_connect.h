@@ -123,14 +123,12 @@ struct THREAD_STATS {
 };
 
 struct USER_STATS {
-  char user[MY_MAX(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
   // Account name the user is mapped to when this is a user from mapped_user.
   // Otherwise, the same value as user.
   char priv_user[MY_MAX(USERNAME_LENGTH, LIST_PROCESS_HOST_LEN) + 1];
   uint total_connections{1};
   uint total_ssl_connections;
   uint concurrent_connections{0};
-  const size_t user_len;
   const size_t priv_user_len;
   time_t connected_time{0};  // in seconds
   double busy_time{0.0};     // in seconds
@@ -145,8 +143,8 @@ struct USER_STATS {
   ulonglong access_denied_errors{0};
   ulonglong empty_queries{0};
 
-  USER_STATS(const char *user_, const char *priv_user_,
-             uint total_ssl_connections_, ulonglong denied_connections_)
+  USER_STATS(const char *priv_user_, uint total_ssl_connections_,
+             ulonglong denied_connections_)
   noexcept;
 };
 

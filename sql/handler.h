@@ -2118,35 +2118,18 @@ struct handlerton {
 #define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 16)
 
 struct TABLE_STATS {
-  char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'
-  const size_t table_len;
   ulonglong rows_read, rows_changed;
   ulonglong rows_changed_x_indexes;
   /* Stores enum db_type, but forward declarations cannot be done */
   const int engine_type;
 
-  TABLE_STATS(const char *table_, size_t table_len_, int engine_type_,
-              ulonglong rows_read_, ulonglong rows_changed_,
+  TABLE_STATS(int engine_type_, ulonglong rows_read_, ulonglong rows_changed_,
               ulonglong rows_changed_x_indexes_)
   noexcept
-      : table_len(table_len_),
-        rows_read(rows_read_),
+      : rows_read(rows_read_),
         rows_changed(rows_changed_),
         rows_changed_x_indexes(rows_changed_x_indexes_),
-        engine_type(engine_type_) {
-    strncpy(table, table_, sizeof(table));
-  }
-};
-
-struct INDEX_STATS {
-  char index[NAME_LEN * 3 + 3];  // [db] + '.' + [table] + '.' + [index] + '\0'
-  const size_t index_len;
-  ulonglong rows_read;
-
-  INDEX_STATS(const char *index_, size_t index_len_, ulonglong rows_read_)
-  noexcept : index_len(index_len_), rows_read(rows_read_) {
-    strncpy(index, index_, sizeof(index));
-  }
+        engine_type(engine_type_) {}
 };
 
 inline bool ddl_is_atomic(const handlerton *hton) {

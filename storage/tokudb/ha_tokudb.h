@@ -868,7 +868,7 @@ class ha_tokudb : public handler {
     int index_first(uchar* buf);
     int index_last(uchar* buf);
 
-    bool has_gap_locks() const { return true; }
+    bool has_gap_locks() const noexcept override { return true; }
 
     int rnd_init(bool scan);
     int rnd_end();

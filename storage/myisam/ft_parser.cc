@@ -49,7 +49,7 @@ static int FT_WORD_cmp(const void *a, const void *b, const void *c) {
                          w2->len, 0);
 }
 
-static int walk_and_copy(void *word_, unsigned int count, void *docstat_) {
+static int walk_and_copy(void *word_, element_count count, void *docstat_) {
   auto *const word = static_cast<FT_WORD *>(word_);
   auto *const docstat = static_cast<FT_DOCSTAT *>(docstat_);
   word->weight = LWS_IN_USE;

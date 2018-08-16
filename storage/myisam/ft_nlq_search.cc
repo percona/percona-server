@@ -70,7 +70,9 @@ static int FT_SUPERDOC_cmp(const void *cmp_arg MY_ATTRIBUTE((unused)),
   return 1;
 }
 
-static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio) {
+static int walk_and_match(void *word_, element_count count, void *aio_) {
+  auto *const word = static_cast<FT_WORD *>(word_);
+  auto *const aio = static_cast<ALL_IN_ONE *>(aio_);
   int subkeys = 0, r;
   uint keylen, doc_cnt;
   FT_SUPERDOC sdoc, *sptr;
@@ -245,9 +247,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
                &wtree.mem_root))
     goto err;
 
-  if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
-                left_root_right))
-    goto err;
+  if (tree_walk(&wtree, &walk_and_match, &aio, left_root_right)) goto err;
 
   if (flags & FT_EXPAND && ft_query_expansion_limit) {
     QUEUE best;
@@ -269,9 +269,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
     }
     delete_queue(&best);
     reset_tree(&aio.dtree);
-    if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
-                  left_root_right))
-      goto err;
+    if (tree_walk(&wtree, &walk_and_match, &aio, left_root_right)) goto err;
   }
 
   /*

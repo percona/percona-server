@@ -93,8 +93,8 @@ class Unique {
 
   friend int unique_write_to_file(uchar *key, element_count count,
                                   Unique *unique);
-  friend int unique_write_to_ptrs(uchar *key, element_count count,
-                                  Unique *unique);
+  friend int unique_write_to_ptrs(void *key_, element_count count,
+                                  void *unique_);
 };
 
 #endif  // UNIQUES_INCLUDED

@@ -245,9 +245,11 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
               hp_key_memory_HP_SHARE,
               (uint)sizeof(HP_SHARE) + keys * sizeof(HP_KEYDEF) +
                   (create_info->columns * sizeof(HP_COLUMNDEF)) +
-                  key_segs * sizeof(HA_KEYSEG),
+                  key_segs * sizeof(HA_KEYSEG) + alignof(HP_KEYDEF) - 1,
               MYF(MY_ZEROFILL))))
       goto err;
+    DBUG_ASSERT(reinterpret_cast<uintptr_t>(share) % alignof(decltype(share)) ==
+                0);
     /*
       Max_records is used for estimating block sizes and for enforcement.
       Calculate the very maximum number of rows (if everything was one chunk)
@@ -262,10 +264,21 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
                        : max_rows_for_stated_memory);
 
     share->column_defs = (HP_COLUMNDEF *)(share + 1);
+    DBUG_ASSERT(reinterpret_cast<uintptr_t>(share->column_defs) %
+                    alignof(decltype(share->column_defs)) ==
+                0);
     memcpy(share->column_defs, create_info->columndef,
            (size_t)(sizeof(create_info->columndef[0]) * create_info->columns));
 
     share->keydef = (HP_KEYDEF *)(share->column_defs + create_info->columns);
+    uintptr_t keydef_ptr = reinterpret_cast<uintptr_t>(share->keydef);
+    uintptr_t align_remainder = keydef_ptr % alignof(decltype(share->keydef));
+    if (align_remainder)
+      share->keydef = reinterpret_cast<HP_KEYDEF *>(
+          keydef_ptr + alignof(decltype(share->keydef)) - align_remainder);
+    DBUG_ASSERT(reinterpret_cast<uintptr_t>(share->keydef) %
+                    alignof(decltype(share->keydef)) ==
+                0);
     share->key_stat_version = 1;
     keyseg = (HA_KEYSEG *)(share->keydef + keys);
     init_block(&share->recordspace.block, chunk_length, min_records,

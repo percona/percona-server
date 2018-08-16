@@ -186,8 +186,11 @@ static int walk_and_match(void *word_, element_count count, void *aio_) {
   DBUG_RETURN(0);
 }
 
-static int walk_and_copy(FT_SUPERDOC *from, uint32 count MY_ATTRIBUTE((unused)),
-                         FT_DOC **to) {
+static int walk_and_copy(void *from_,
+                         element_count count MY_ATTRIBUTE((unused)),
+                         void *to_) {
+  auto *const from = static_cast<FT_SUPERDOC *>(from_);
+  auto *const to = static_cast<FT_DOC **>(to_);
   DBUG_ENTER("walk_and_copy");
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
   (*to)->dpos = from->doc.dpos;
@@ -289,8 +292,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   dlist->info = aio.info;
   dptr = dlist->doc;
 
-  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr,
-            left_root_right);
+  tree_walk(&aio.dtree, &walk_and_copy, &dptr, left_root_right);
 
   if (flags & FT_SORTED)
     std::sort(

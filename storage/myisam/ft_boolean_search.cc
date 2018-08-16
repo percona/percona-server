@@ -138,7 +138,10 @@ struct FTB : public FT_INFO {
   enum { UNINITIALIZED, READY, INDEX_SEARCH, INDEX_DONE } state;
 };
 
-static int FTB_WORD_cmp(my_off_t *v, FTB_WORD *a, FTB_WORD *b) {
+static int FTB_WORD_cmp(void *v_, uchar *a_, uchar *b_) {
+  auto *const v = static_cast<my_off_t *>(v_);
+  auto *const a = reinterpret_cast<FTB_WORD *>(a_);
+  auto *const b = reinterpret_cast<FTB_WORD *>(b_);
   int i;
 
   /* if a==curdoc, take it as  a < b */
@@ -556,7 +559,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
             &ftb->mem_root, (ftb->queue.max_elements + 1) * sizeof(void *))))
     goto err;
   reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
-               (int (*)(void *, uchar *, uchar *))FTB_WORD_cmp, 0);
+               FTB_WORD_cmp, 0);
   for (ftbw = ftb->last_word; ftbw; ftbw = ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
   ftb->list = (FTB_WORD **)alloc_root(&ftb->mem_root,

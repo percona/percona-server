@@ -321,7 +321,7 @@ static dberr_t buf_parallel_dblwr_make_path(void) noexcept {
   } else {
     /* A relative path to the parallel doublewrite file is based either on
     srv_data_home, either mysql data directory if the former is empty. */
-    dir = srv_data_home[0] ? srv_data_home : MySQL_datadir_path;
+    dir = srv_data_home[0] ? srv_data_home : MySQL_datadir_path();
     if (dir[strlen(dir) - 1] == OS_PATH_SEPARATOR)
       snprintf(path, sizeof(path), "%s%s", dir, srv_parallel_doublewrite_path);
     else

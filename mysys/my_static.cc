@@ -129,7 +129,7 @@ static void enter_stage_dummy(void *a MY_ATTRIBUTE((unused)),
 static void set_waiting_for_disk_space_dummy(void *a MY_ATTRIBUTE((unused)),
                                              bool b MY_ATTRIBUTE((unused))) {}
 
-static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused))) { return 0; }
+static int is_killed_dummy(const THD *a MY_ATTRIBUTE((unused))) { return 0; }
 
 /*
   Initialize these hooks to dummy implementations. The real server
@@ -149,7 +149,7 @@ void (*enter_stage_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
 void (*set_waiting_for_disk_space_hook)(void *, bool) =
     set_waiting_for_disk_space_dummy;
 
-int (*is_killed_hook)(const void *) = is_killed_dummy;
+int (*is_killed_hook)(const THD *) = is_killed_dummy;
 
 #if defined(ENABLED_DEBUG_SYNC)
 /**

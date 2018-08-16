@@ -259,7 +259,8 @@ extern void (*set_waiting_for_disk_space_hook)(void *opaque_thd, bool waiting);
 /*
   Hook for checking if the thread has been killed.
 */
-extern int (*is_killed_hook)(const void *opaque_thd);
+class THD;
+extern int (*is_killed_hook)(const THD *opaque_thd);
 
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048

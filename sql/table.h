@@ -1799,11 +1799,7 @@ struct TABLE_LIST
                              enum thr_lock_type lock_type_arg,
                              enum enum_mdl_type mdl_type_arg)
   {
-<<<<<<< HEAD
-    memset(static_cast<void*>(this), 0, sizeof(*this));
-=======
     new (this) TABLE_LIST;
->>>>>>> mysql-5.7.23
     m_map= 1;
     db= (char*) db_name_arg;
     db_length= db_length_arg;

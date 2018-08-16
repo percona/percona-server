@@ -67,12 +67,7 @@ int compare_ulonglong(const ulonglong *s, const ulonglong *t);
 int compare_ulonglong2(void* cmp_arg MY_ATTRIBUTE((unused)),
 		       const ulonglong *s, const ulonglong *t);
 int compare_decimal2(int* len, const char *s, const char *t);
-<<<<<<< HEAD
-void free_string(void* key, TREE_FREE action MY_ATTRIBUTE((unused)),
-                 const void *param MY_ATTRIBUTE((unused)));
-=======
 void free_string(void*, TREE_FREE, const void*);
->>>>>>> mysql-5.7.23
 class Query_result_analyse;
 
 class field_info :public Sql_alloc

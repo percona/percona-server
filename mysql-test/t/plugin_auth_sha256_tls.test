@@ -2,11 +2,7 @@
 --source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 SHOW STATUS LIKE 'Ssl_cipher';
 
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';

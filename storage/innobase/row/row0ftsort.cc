@@ -789,10 +789,6 @@ fts_parallel_tokenization(
 	merge_file = psort_info->merge_file;
 	blob_heap = mem_heap_create(512);
 	memset(&doc, 0, sizeof(doc));
-<<<<<<< HEAD
-	memset(static_cast<void*>(&t_ctx), 0, sizeof(t_ctx));
-=======
->>>>>>> mysql-5.7.23
 	memset(mycount, 0, FTS_NUM_AUX_INDEX * sizeof(int));
 
 	doc.charset = fts_index_get_charset(

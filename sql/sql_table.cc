@@ -4621,13 +4621,8 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
       if (key_part_length > file->max_key_part_length(create_info) &&
           key->type != KEYTYPE_FULLTEXT)
       {
-<<<<<<< HEAD
-        key_part_length= file->max_key_part_length();
-	if (key->type & KEYTYPE_MULTIPLE)
-=======
         key_part_length= file->max_key_part_length(create_info);
-	if (key->type == KEYTYPE_MULTIPLE)
->>>>>>> mysql-5.7.23
+	if (key->type & KEYTYPE_MULTIPLE)
 	{
 	  /* not a critical problem */
 	  push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -5119,7 +5114,7 @@ bool create_table_impl(THD *thd,
     DBUG_RETURN(TRUE);
   }
 
-  if (check_engine(thd, db, table_name, create_info))
+  if (check_engine(thd, db, table_name, create_info, alter_info))
     DBUG_RETURN(TRUE);
 
   // Check if new table creation is disallowed by the storage engine.
@@ -5135,10 +5130,6 @@ bool create_table_impl(THD *thd,
     if (is_engine_substitution_allowed(thd))
       new_engine= ha_default_handlerton(thd);
 
-<<<<<<< HEAD
-  if (check_engine(thd, db, table_name, create_info, alter_info))
-    DBUG_RETURN(TRUE);
-=======
     /*
       Proceed with the engine substitution only if,
       1. The disabled engine and the default engine are not the same.
@@ -5169,7 +5160,6 @@ bool create_table_impl(THD *thd,
       DBUG_RETURN(true);
     }
   }
->>>>>>> mysql-5.7.23
 
   set_table_default_charset(thd, create_info, (char*) db);
 
@@ -6084,10 +6074,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   }
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
-<<<<<<< HEAD
-  memset(static_cast<void*>(&local_create_info), 0, sizeof(local_create_info));
-=======
->>>>>>> mysql-5.7.23
   local_create_info.db_type= src_table->table->s->db_type();
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
@@ -10871,10 +10857,6 @@ copy_data_between_tables(PSI_stage_progress *psi,
       from->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                                 sizeof(IO_CACHE),
                                                 MYF(MY_FAE | MY_ZEROFILL));
-<<<<<<< HEAD
-      memset(static_cast<void*>(&tables), 0, sizeof(tables));
-=======
->>>>>>> mysql-5.7.23
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
@@ -11043,10 +11025,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
-<<<<<<< HEAD
-  memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
-=======
->>>>>>> mysql-5.7.23
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */
@@ -11266,8 +11244,7 @@ static bool check_engine(THD *thd, const char *db_name,
   handlerton *enf_engine= NULL;
 
   bool no_substitution=
-<<<<<<< HEAD
-        MY_TEST(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+        MY_TEST(!is_engine_substitution_allowed(thd));
 
   if (!opt_bootstrap && !opt_noacl)
   {
@@ -11284,9 +11261,6 @@ static bool check_engine(THD *thd, const char *db_name,
       enf_engine= ha_enforce_handlerton(thd);
   }
 
-=======
-        MY_TEST(!is_engine_substitution_allowed(thd));
->>>>>>> mysql-5.7.23
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
     DBUG_RETURN(true);
@@ -11327,12 +11301,7 @@ static bool check_engine(THD *thd, const char *db_name,
     Check, if the given table name is system table, and if the storage engine
     does supports it.
   */
-<<<<<<< HEAD
-  if (!ha_check_if_supported_system_table(*new_engine, db_name, table_name))
-=======
-  if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
-      !ha_is_valid_system_or_user_table(*new_engine, db_name, table_name))
->>>>>>> mysql-5.7.23
+  if (!ha_is_valid_system_or_user_table(*new_engine, db_name, table_name))
   {
     my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
              ha_resolve_storage_engine_name(*new_engine), db_name, table_name);

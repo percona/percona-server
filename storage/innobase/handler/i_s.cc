@@ -1467,11 +1467,7 @@ i_s_cmp_fill_low(
 		table->field[5]->store(zip_stat->decompressed_usec / 1000000, true);
 
 		if (reset) {
-<<<<<<< HEAD
-			memset(static_cast<void*>(zip_stat), 0, sizeof *zip_stat);
-=======
 			new (zip_stat) page_zip_stat_t;
->>>>>>> mysql-5.7.23
 		}
 
 		if (schema_table_store_record(thd, table)) {

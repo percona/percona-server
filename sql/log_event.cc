@@ -1014,17 +1014,13 @@ bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t
                   });
   if (need_checksum() && size != 0)
     crc= checksum_crc32(crc, buf, size);
-<<<<<<< HEAD
 
-  return event_encrypter.encrypt_and_write(file, buf, size);
-=======
-  bool ret = my_b_safe_write(file, buf, size);
+  bool ret = event_encrypter.encrypt_and_write(file, buf, size);
   DBUG_EXECUTE_IF("simulate_temp_file_write_error",
                   {
                     DBUG_SET("-d,simulate_file_write_error");
                   });
   return ret;
->>>>>>> mysql-5.7.23
 }
 
 bool Log_event::write_footer(IO_CACHE* file) 

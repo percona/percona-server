@@ -325,13 +325,8 @@ void ssl_wrapper_thread_cleanup()
 #if !defined(HAVE_YASSL)
   ERR_clear_error();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
-  ERR_remove_state(0);
-#endif
-=======
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
 #endif // !defined(HAVE_YASSL)
 }
 

@@ -663,10 +663,6 @@ rtr_adjust_upper_level(
 
 	/* Create a memory heap where the data tuple is stored */
 	heap = mem_heap_create(1024);
-<<<<<<< HEAD
-	memset(static_cast<void*>(&cursor), 0, sizeof(cursor));
-=======
->>>>>>> mysql-5.7.23
 
 	cursor.thr = sea_cur->thr;
 
@@ -1382,11 +1378,7 @@ rtr_ins_enlarge_mbr(
 		rtr_page_cal_mbr(index, block, &new_mbr, heap);
 
 		/* Get father block. */
-<<<<<<< HEAD
-		memset(static_cast<void*>(&cursor), 0, sizeof(cursor));
-=======
 		btr_cur_t cursor;
->>>>>>> mysql-5.7.23
 		offsets = rtr_page_get_father_block(
 			NULL, heap, index, block, mtr, btr_cur, &cursor);
 

@@ -1828,8 +1828,6 @@ drop database mysqldump_test_db;
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
 # take a backup of mysql.proc table
 --exec $MYSQL_DUMP mysql proc > $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
-# take a backup of mysql.gtid_executed table
---exec $MYSQL_DUMP mysql gtid_executed > $MYSQLTEST_VARDIR/tmp/mysql.gtid_executed.sql
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
 
@@ -2632,8 +2630,6 @@ DROP DATABASE dump_generated;
 --echo #               EVEN IF SKIPPING SCHEMA
 --echo #
 
-# restore mysql.gtid_executed table
---exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.gtid_executed.sql
 # restore mysql.proc table
 --exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 # take backup of sys schema

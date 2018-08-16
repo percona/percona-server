@@ -2117,10 +2117,6 @@ buf_LRU_free_page(
 	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 		b = buf_page_alloc_descriptor();
 		ut_a(b);
-<<<<<<< HEAD
-=======
-                new (b) buf_page_t(*bpage);
->>>>>>> mysql-5.7.23
 	}
 
 	ut_ad(buf_page_in_file(bpage));
@@ -2156,7 +2152,7 @@ not_freed:
 	}
 
 	if (b) {
-		memcpy(static_cast<void*>(b), bpage, sizeof *b);
+		new (b) buf_page_t(*bpage);
 	}
 
 	if (!buf_LRU_block_remove_hashed(bpage, zip)) {

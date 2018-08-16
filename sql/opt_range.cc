@@ -1606,11 +1606,7 @@ QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT(THD *thd_param,
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::QUICK_INDEX_MERGE_SELECT");
   index= MAX_KEY;
   head= table;
-<<<<<<< HEAD
-  memset(static_cast<void*>(&read_record), 0, sizeof(read_record));
-=======
 
->>>>>>> mysql-5.7.23
   init_sql_alloc(key_memory_quick_index_merge_root,
                  &alloc, thd->variables.range_alloc_block_size, 0);
   DBUG_VOID_RETURN;

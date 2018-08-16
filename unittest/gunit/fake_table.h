@@ -103,11 +103,6 @@ class Fake_TABLE: public TABLE
 
   void initialize()
   {
-<<<<<<< HEAD
-    TABLE *as_table= static_cast<TABLE*>(this);
-    memset(static_cast<void*>(as_table), 0, sizeof(*as_table));
-=======
->>>>>>> mysql-5.7.23
     s= &table_share;
     in_use= current_thd;
     null_row= '\0';

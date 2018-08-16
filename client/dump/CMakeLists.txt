@@ -41,14 +41,6 @@ IF(USING_LOCAL_BOOST)
   # Do not build library unless it is needed by some other target.
   SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
 
-<<<<<<< HEAD
-  ADD_COMPILE_FLAGS(
-    ${BOOST_LIB_SOURCES}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-    )
-
-=======
->>>>>>> mysql-5.7.23
   IF(HAVE_clock_gettime_IN_rt)
     TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
   ENDIF()
@@ -140,38 +132,6 @@ TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
 
 ADD_COMPILE_FLAGS(
-<<<<<<< HEAD
-  ${MYSQLPUMP_LIB_SOURCES}
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-  )
-
-# Files that use Boost sources that trigger compilation warnings
-SET(MYSQLPUMP_BOOST_SOURCES
-  abstract_crawler.cc
-  abstract_mysql_chain_element_extension.cc
-  abstract_progress_watcher.cc
-  mysql_chain_element_options.cc
-  mysql_object_reader.cc
-  mysqldump_tool_chain_maker.cc
-  mysqldump_tool_chain_maker_options.cc
-  object_filter.cc
-  object_queue.cc
-  program.cc
-  standard_progress_watcher.cc
-  sql_formatter.cc
-  table.cc
-)
-
-# Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-IF(HAVE_UNUSED_TYPEDEFS)
-  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-unused-local-typedefs")
-ENDIF()
-
-ADD_COMPILE_FLAGS(
-=======
->>>>>>> mysql-5.7.23
   compression_writer.cc
   mysqldump_tool_chain_maker.cc
   COMPILE_FLAGS -I${LZ4_INCLUDE_DIR}

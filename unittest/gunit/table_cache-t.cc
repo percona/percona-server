@@ -133,10 +133,6 @@ class Mock_share : public TABLE_SHARE
 public:
   Mock_share(const char *key)
   {
-<<<<<<< HEAD
-    memset(static_cast<void*>(this), 0, sizeof(TABLE_SHARE));
-=======
->>>>>>> mysql-5.7.23
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
@@ -165,11 +161,7 @@ public:
   {
     TABLE *result= (TABLE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(TABLE), MYF(0));
 
-<<<<<<< HEAD
-    memset(static_cast<void*>(result), 0, sizeof(TABLE));
-=======
     ::new(result) TABLE;
->>>>>>> mysql-5.7.23
     result->s= this;
     // We create TABLE which is already marked as used
     result->in_use= thd;

@@ -26,7 +26,10 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/strings
   ${MY_READLINE_INCLUDE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
-  SYSTEM ${BOOST_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
@@ -52,9 +55,6 @@ IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade
     upgrade/program.cc
   )
-ADD_COMPILE_FLAGS(
-  upgrade/program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-)
 TARGET_LINK_LIBRARIES(mysql_upgrade perconaserverclient client_base mysqlcheck_core)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
 ENDIF()

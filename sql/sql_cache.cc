@@ -2114,10 +2114,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       }
     }
 
-<<<<<<< HEAD
-    memset(static_cast<void*>(&table_list), 0, sizeof(table_list));
-=======
->>>>>>> mysql-5.7.23
     table_list.db = table->db();
     table_list.alias= table_list.table_name= table->table();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

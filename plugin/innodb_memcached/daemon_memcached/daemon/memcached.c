@@ -3583,18 +3583,13 @@ static size_t tokenize_command(char *command, token_t *tokens, const size_t max_
     return ntokens;
 }
 
-<<<<<<< HEAD
-static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes) {
-    int i;
-=======
 #ifdef INNODB_MEMCACHED
 static void detokenize(token_t *tokens, size_t ntokens, char **out, int *nbytes)
 #else
 static void detokenize(token_t *tokens, int ntokens, char **out, int *nbytes)
 #endif
 {
-    int i, nb;
->>>>>>> mysql-5.7.23
+    int i;
     char *buf, *p;
     size_t nb = ntokens; // account for spaces, which is ntokens-1, plus the null
 

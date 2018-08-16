@@ -6104,13 +6104,8 @@ err:
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
-  ERR_remove_state(0);
-#endif
-=======
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
   my_thread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -6341,13 +6336,8 @@ err:
 
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
-  ERR_remove_state(0);
-#endif
-=======
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
   my_thread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -7752,13 +7742,8 @@ extern "C" void *handle_slave_sql(void *arg)
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
-  ERR_remove_state(0);
-#endif
-=======
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
   my_thread_exit(0);
   return 0;                             // Avoid compiler warnings
 }

@@ -25,7 +25,10 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
   ${LZ4_INCLUDE_DIR}
-  SYSTEM ${BOOST_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -319,27 +322,6 @@ IF(WIN32)
 ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-<<<<<<< HEAD
-ADD_COMPILE_FLAGS(
-  debug_sync.cc
-  handler.cc
-  geometry_rtree.cc
-  item_geofunc.cc
-  item_geofunc_buffer.cc
-  item_geofunc_internal.cc
-  item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
-  item_json_func.cc
-  spatial.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-)
-=======
-INCLUDE_DIRECTORIES(SYSTEM
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
-  )
->>>>>>> mysql-5.7.23
 
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c

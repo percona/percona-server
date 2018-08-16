@@ -1015,14 +1015,9 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
     memmove(save_action, action, sizeof(st_debug_sync_action));
 
     /* Move actions down. */
-<<<<<<< HEAD
-    memmove(static_cast<void*>(ds_control->ds_action + dsp_idx),
-            ds_control->ds_action + dsp_idx + 1,
-=======
     void *dest= ds_control->ds_action + dsp_idx;
     const void *src= ds_control->ds_action + dsp_idx + 1;
     memmove(dest, src,
->>>>>>> mysql-5.7.23
             (ds_control->ds_active - dsp_idx) *
             sizeof(st_debug_sync_action));
 
@@ -1032,14 +1027,9 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
       produced by the shift. Again do not use an assignment operator to
       avoid string allocation/copy.
     */
-<<<<<<< HEAD
-    memmove(static_cast<void*>(ds_control->ds_action + ds_control->ds_active),
-            save_action, sizeof(st_debug_sync_action));
-=======
     dest= ds_control->ds_action + ds_control->ds_active;
     memmove(dest, save_action,
             sizeof(st_debug_sync_action));
->>>>>>> mysql-5.7.23
   }
 
   DBUG_VOID_RETURN;
@@ -1111,12 +1101,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
       ds_control->ds_action= (st_debug_sync_action*) new_action;
       ds_control->ds_allocated= new_alloc;
       /* Clear memory as we do not run string constructors here. */
-<<<<<<< HEAD
-      memset(static_cast<void*>(ds_control->ds_action + dsp_idx), 0,
-=======
       void *dest= (ds_control->ds_action + dsp_idx);
       memset(dest, 0,
->>>>>>> mysql-5.7.23
             (new_alloc - dsp_idx) * sizeof(st_debug_sync_action));
     }
     DBUG_PRINT("debug_sync", ("added action idx: %u", dsp_idx));

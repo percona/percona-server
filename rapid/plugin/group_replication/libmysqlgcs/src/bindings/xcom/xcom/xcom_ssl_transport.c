@@ -142,7 +142,6 @@ static DH *get_dh2048(void)
   {
     BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
     BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
-<<<<<<< HEAD
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p= p;
     dh->g= g;
@@ -153,21 +152,7 @@ static DH *get_dh2048(void)
     {
       DH_free(dh);
       dh= NULL;
-=======
-    if (!p || !g
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
-    ) {
-      /* DH_free() will free 'p' and 'g' at once. */
-      DH_free(dh);
-      return NULL;
->>>>>>> mysql-5.7.23
     }
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dh->p= p;
-    dh->g= g;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
   return(dh);
 }
@@ -589,13 +574,8 @@ void xcom_cleanup_ssl()
     return;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
-  ERR_remove_state(0);
-#endif
-=======
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
 }
 
 void xcom_destroy_ssl()
@@ -706,17 +686,10 @@ int ssl_verify_server_cert(SSL *ssl, const char* server_hostname)
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-<<<<<<< HEAD
-  cn= (const char *) ASN1_STRING_data(cn_asn1);
-#else
-  cn= (const char *) ASN1_STRING_get0_data(cn_asn1);
-#endif
-=======
   cn= (char *) ASN1_STRING_data(cn_asn1);
 #else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   cn= (char *) ASN1_STRING_get0_data(cn_asn1);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
 
   /* There should not be any NULL embedded in the CN */
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))

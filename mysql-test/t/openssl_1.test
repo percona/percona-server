@@ -16,22 +16,6 @@ drop table if exists t1;
 create table t1(f1 int);
 insert into t1 values (5);
 
-<<<<<<< HEAD
-let $cipher_val= "DHE-RSA-AES256-SHA";
-let $shavars= query_get_value("SHOW STATUS LIKE 'Rsa_public_key'", Variable_name, 1);
-if ($shavars == 'Rsa_public_key'){
-  let $cipher_val= "ECDHE-RSA-AES128-GCM-SHA256";
-}
-
-grant select on test.* to ssl_user1@localhost require SSL;
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
--- eval grant select on test.* to ssl_user2@localhost require cipher $cipher_val
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
--- eval grant select on test.* to ssl_user3@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
--- eval grant select on test.* to ssl_user4@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 connect (con0,localhost,root,,,,,SSL);
 connection con0;
 let $cipher= query_get_value("SHOW STATUS like 'Ssl_cipher'", Value, 1);
@@ -47,7 +31,6 @@ grant select on test.* to ssl_user1@localhost require SSL;
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 -- eval grant select on test.* to ssl_user4@localhost require cipher $cipher_val AND SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client" ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 -- eval grant select on test.* to ssl_user5@localhost require cipher $cipher_val AND SUBJECT "xxx"
 flush privileges;
 
@@ -61,11 +44,7 @@ connect (con5,localhost,ssl_user5,,,,,SSL);
 
 connection con1;
 # Check ssl turned on
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -73,11 +52,7 @@ delete from t1;
 
 connection con2;
 # Check ssl turned on
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -85,11 +60,7 @@ delete from t1;
 
 connection con3;
 # Check ssl turned on
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -97,11 +68,7 @@ delete from t1;
 
 connection con4;
 # Check ssl turned on
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 SHOW STATUS LIKE 'Ssl_cipher';
 select * from t1;
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -176,11 +143,7 @@ drop table t1;
 # verification of servers certificate by setting both ca certificate
 # and ca path to NULL
 #
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 --exec $MYSQL --ssl-mode=REQUIRED --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 --echo End of 5.0 tests
 
@@ -307,11 +270,7 @@ select 'is still running; no cipher request crashed the server' as result from d
 GRANT SELECT ON test.* TO bug42158@localhost REQUIRE X509;
 FLUSH PRIVILEGES;
 connect(con1,localhost,bug42158,,,,,SSL);
-<<<<<<< HEAD
---replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
-=======
 --replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
->>>>>>> mysql-5.7.23
 SHOW STATUS LIKE 'Ssl_cipher';
 disconnect con1;
 connection default;

@@ -32,7 +32,10 @@ INCLUDE_DIRECTORIES(
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
   ${LZ4_INCLUDE_DIR}
-  SYSTEM ${BOOST_INCLUDE_DIR}
+)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 # We should generate these separately for libmysqld to avoid
@@ -111,27 +114,6 @@ SET(SQL_EMBEDDED_SOURCES
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-<<<<<<< HEAD
-ADD_COMPILE_FLAGS(
-  ../sql/debug_sync.cc
-  ../sql/handler.cc
-  ../sql/geometry_rtree.cc
-  ../sql/item_geofunc.cc
-  ../sql/item_geofunc_buffer.cc
-  ../sql/item_geofunc_internal.cc
-  ../sql/item_geofunc_relchecks.cc
-  ../sql/item_geofunc_relchecks_bgwrap.cc
-  ../sql/item_geofunc_setops.cc
-  ../sql/item_json_func.cc
-  ../sql/spatial.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -isystem ${BOOST_INCLUDE_DIR}
-)
-=======
-INCLUDE_DIRECTORIES(SYSTEM
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
-  )
->>>>>>> mysql-5.7.23
 
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c

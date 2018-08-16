@@ -211,10 +211,6 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   size_t key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
-<<<<<<< HEAD
-
-  memcpy(static_cast<void*>(&decoy), view, sizeof (TABLE_LIST));
-=======
   decoy= *view;
   /*
     It's not clear what the above assignment actually wants to
@@ -222,7 +218,6 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
     request, so we overwrite it with an uninitialized request.
   */
   decoy.mdl_request = MDL_request();
->>>>>>> mysql-5.7.23
 
   key_length= get_table_def_key(view, &key);
 
@@ -2100,10 +2095,6 @@ mysql_rename_view(THD *thd,
       view definition parsing or use temporary 'view_def'
       object for it.
     */
-<<<<<<< HEAD
-    memset(static_cast<void*>(&view_def), 0, sizeof(view_def));
-=======
->>>>>>> mysql-5.7.23
     view_def.timestamp.str= view_def.timestamp_buffer;
     view_def.view_suid= TRUE;
 

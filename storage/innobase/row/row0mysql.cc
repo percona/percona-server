@@ -5899,17 +5899,6 @@ row_rename_table_for_mysql(
 		goto funct_exit;
 	}
 
-	/* Wait for background fts sync to finish */
-	for (retry = 1; dict_fts_index_syncing(table); ++retry) {
-		DICT_BG_YIELD(trx);
-		if (retry % 100 == 0) {
-			ib::info() << "Unable to rename table " << old_name
-				<< " to new name " << new_name
-				<< " because FTS sync is running on table."
-				<< " Retrying";
-		}
-	}
-
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data from system tables. */
 

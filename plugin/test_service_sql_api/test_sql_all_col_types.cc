@@ -248,12 +248,7 @@ static int sql_get_null(void *ctx)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-<<<<<<< HEAD
-  strncpy(pctx->sql_str_value[row][col], "[NULL]",
-          sizeof(pctx->sql_str_value[0][0]));
-=======
   strcpy(pctx->sql_str_value[row][col], "[NULL]");
->>>>>>> mysql-5.7.23
   pctx->sql_str_len[row][col]=  sizeof("[NULL]")-1;
 
   DBUG_RETURN(false);

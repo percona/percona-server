@@ -4,7 +4,7 @@
 # As YaSSL does not implement 'X509_get_ext_d2i()' function and always
 # returns NULL, '--ssl-mode=VERIFY_IDENTITY' can only check commonName ('CN')
 # entry in the certificate and therefore this test won't pass.
---source include/check_openssl.inc
+--source include/have_openssl_support.inc
 
 --source include/count_sessions.inc
 

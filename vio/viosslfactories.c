@@ -121,7 +121,6 @@ static DH *get_dh2048(void)
   DH *dh;
   if ((dh=DH_new()))
   {
-<<<<<<< HEAD
     BIGNUM* p= BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
     BIGNUM* g= BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -134,23 +133,7 @@ static DH *get_dh2048(void)
     {
       DH_free(dh);
       dh= NULL;
-=======
-    BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
-    if (!p || !g
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
-    ) {
-      /* DH_free() will free 'p' and 'g' at once. */
-      DH_free(dh);
-      return NULL;
->>>>>>> mysql-5.7.23
     }
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    dh->p= p;
-    dh->g= g;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
   return(dh);
 }
@@ -425,23 +408,12 @@ static void deinit_lock_callback_functions()
 
 void vio_ssl_end()
 {
-<<<<<<< HEAD
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  int i= 0;
-#endif
-
-  if (ssl_initialized) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_state(0);
-#endif
-=======
   if (ssl_initialized) {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     int i;
 
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
->>>>>>> mysql-5.7.23
     ERR_free_strings();
     EVP_cleanup();
 
@@ -453,7 +425,6 @@ void vio_ssl_end()
     for (i= 0; i < CRYPTO_num_locks(); ++i)
       mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
     OPENSSL_free(openssl_stdlocks);
-#endif
 
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
     ssl_initialized= FALSE;
@@ -472,12 +443,8 @@ void ssl_start()
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-=======
 #ifndef HAVE_YASSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
->>>>>>> mysql-5.7.23
     init_ssl_locks();
     init_lock_callback_functions();
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */

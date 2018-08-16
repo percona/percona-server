@@ -308,12 +308,8 @@ void vio_ssl_delete(Vio *vio)
     vio->ssl_arg= 0;
   }
 
-<<<<<<< HEAD
-#if !defined(HAVE_YASSL) && (OPENSSL_VERSION_NUMBER < 0x10100000L)
-=======
 #ifndef HAVE_YASSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
->>>>>>> mysql-5.7.23
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif

@@ -8290,7 +8290,7 @@ bool ha_rocksdb::is_pk(const uint index, const TABLE *const table_arg,
          is_hidden_pk(index, table_arg, tbl_def_arg);
 }
 
-uint ha_rocksdb::max_supported_key_part_length() const {
+uint ha_rocksdb::max_supported_key_part_length(HA_CREATE_INFO *) const {
   DBUG_ENTER_FUNC();
   DBUG_RETURN(rocksdb_large_prefix ? MAX_INDEX_COL_LEN_LARGE
                                    : MAX_INDEX_COL_LEN_SMALL);

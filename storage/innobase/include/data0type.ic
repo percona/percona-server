@@ -506,11 +506,7 @@ dtype_get_fixed_size_low(
 			return(0);
 		}
 #endif /* UNIV_DEBUG */
-<<<<<<< HEAD
-		// fallthrough
-=======
 	// Fall through.
->>>>>>> mysql-5.7.23
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
@@ -592,11 +588,7 @@ dtype_get_min_size_low(
 			return(0);
 		}
 #endif /* UNIV_DEBUG */
-<<<<<<< HEAD
-		// fallthrough
-=======
 	// Fall through.
->>>>>>> mysql-5.7.23
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:

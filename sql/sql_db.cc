@@ -378,11 +378,7 @@ bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
   bool error=1;
   uint nbytes;
 
-<<<<<<< HEAD
-  memset(static_cast<void*>(create), 0, sizeof(*create));
-=======
   new (create) HA_CREATE_INFO;
->>>>>>> mysql-5.7.23
   create->default_table_charset= thd->variables.collation_server;
 
   /* Check if options for this database are already in the hash */

@@ -447,13 +447,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                        MY_RETURN_REAL_PATH);
     }
 
-<<<<<<< HEAD
-    if ((thd->slave_thread & (SYSTEM_THREAD_SLAVE_SQL |
-                              SYSTEM_THREAD_SLAVE_WORKER))!=0)
-=======
     if ((thd->slave_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
->>>>>>> mysql-5.7.23
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
       Relay_log_info* rli= thd->rli_slave->get_c_rli();

@@ -631,12 +631,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;
-<<<<<<< HEAD
-    memset(static_cast<void*>(&result_table_list), 0,
-           sizeof(result_table_list));
-=======
     new (&result_table_list) TABLE_LIST;
->>>>>>> mysql-5.7.23
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;

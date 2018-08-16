@@ -83,12 +83,8 @@ public:
   Filesort_buffer() :
     m_next_rec_ptr(NULL), m_rawmem(NULL), m_record_pointers(NULL),
     m_sort_keys(NULL),
-<<<<<<< HEAD
-    m_num_records(0), m_record_length(0), m_sort_length(0),
-=======
     m_num_records(0), m_record_length(0),
     m_sort_length(0),
->>>>>>> mysql-5.7.23
     m_size_in_bytes(0), m_idx(0)
   {}
 

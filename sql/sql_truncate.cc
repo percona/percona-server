@@ -281,11 +281,6 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("recreate_temporary_table");
 
-<<<<<<< HEAD
-  memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
-
-=======
->>>>>>> mysql-5.7.23
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
   /*

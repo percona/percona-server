@@ -189,11 +189,7 @@ int ha_blackhole::info(uint flag)
 {
   DBUG_ENTER("ha_blackhole::info");
 
-<<<<<<< HEAD
-  memset(static_cast<void*>(&stats), 0, sizeof(stats));
-=======
   new (&stats) ha_statistics;
->>>>>>> mysql-5.7.23
   if (flag & HA_STATUS_AUTO)
     stats.auto_increment_value= 1;
   DBUG_RETURN(0);

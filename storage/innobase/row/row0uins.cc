@@ -200,10 +200,6 @@ row_undo_ins_remove_sec_low(
 	ibool			modify_leaf = false;
 
 	log_free_check();
-<<<<<<< HEAD
-	memset(static_cast<void*>(&pcur), 0, sizeof(pcur));
-=======
->>>>>>> mysql-5.7.23
 
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);

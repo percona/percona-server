@@ -392,11 +392,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
-<<<<<<< HEAD
-    memset(static_cast<void*>(share), 0, sizeof(*share));
-=======
     new (share) TABLE_SHARE;
->>>>>>> mysql-5.7.23
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -462,11 +458,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-<<<<<<< HEAD
-  memset(static_cast<void*>(share), 0, sizeof(*share));
-=======
   new (share) TABLE_SHARE;
->>>>>>> mysql-5.7.23
   init_sql_alloc(key_memory_table_share,
                  &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
@@ -3176,11 +3168,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, (long) outparam));
 
   error= 1;
-<<<<<<< HEAD
-  memset(static_cast<void*>(outparam), 0, sizeof(*outparam));
-=======
   new (outparam) TABLE;
->>>>>>> mysql-5.7.23
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -5018,11 +5006,6 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
     return NULL;
   new (join_nest) TABLE_LIST;
 
-<<<<<<< HEAD
-  memset(static_cast<void*>(join_nest), 0,
-         ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
-=======
->>>>>>> mysql-5.7.23
   join_nest->nested_join=
     (NESTED_JOIN*) alloc_root(allocator, sizeof(NESTED_JOIN));
   if (join_nest->nested_join == NULL)

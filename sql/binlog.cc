@@ -641,19 +641,15 @@ protected:
   {
     DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
     remove_pending_event();
-<<<<<<< HEAD
-    MY_ATTRIBUTE((unused)) int reinit_res=
-      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
-    DBUG_ASSERT(reinit_res == 0);
-=======
     /*
       Whenever there is an error while flushing cache to file,
       the local cache will not be in a normal state and the same
       cache cannot be used without facing an assert.
       So, clear the cache if there is a flush error.
     */
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
->>>>>>> mysql-5.7.23
+    MY_ATTRIBUTE((unused)) int reinit_res=
+      reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, get_flush_error());
+    DBUG_ASSERT(reinit_res == 0);
     cache_log.end_of_file= saved_max_binlog_cache_size;
   }
 
@@ -9700,14 +9696,8 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-<<<<<<< HEAD
-    static const char format_err[]= "%s Hence aborting the server.";
-    char err_buff[MYSQL_ERRMSG_SIZE + sizeof(format_err)];
-    snprintf(err_buff, sizeof(err_buff), format_err, errmsg);
-=======
     char err_buff[MYSQL_ERRMSG_SIZE + 27];
     sprintf(err_buff, "%s Hence aborting the server.", errmsg);
->>>>>>> mysql-5.7.23
     exec_binlog_error_action_abort(err_buff);
   }
   else

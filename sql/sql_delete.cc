@@ -664,10 +664,6 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
     List<Item>   fields;
     List<Item>   all_fields;
 
-<<<<<<< HEAD
-    memset(static_cast<void*>(&tables), 0, sizeof(tables));
-=======
->>>>>>> mysql-5.7.23
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 

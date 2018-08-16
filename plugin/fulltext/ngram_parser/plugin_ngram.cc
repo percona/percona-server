@@ -61,12 +61,8 @@ ngram_parse(
 		if (next + char_len > end || char_len == 0) {
 			break;
 		} else {
-			/* Skip SPACE or ","/"." etc as they are not words*/
-			int     ctype;
-			cs->cset->ctype(
-                        cs, &ctype, (uchar*) next, (uchar*) end);
-			if (char_len == 1 && (*next == ' '
-			   || !true_word_char(ctype, *next))) {
+			/* Skip SPACE */
+			if (char_len == 1 && *next == ' ') {
 				start = next + 1;
 				next = start;
 				n_chars = 0;

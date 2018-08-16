@@ -381,10 +381,6 @@ public:
        All users do init_read_record(), which does memset(),
        rather than invoking a constructor.
     */
-<<<<<<< HEAD
-    memset(static_cast<void*>(&read_record), 0, sizeof(read_record));
-=======
->>>>>>> mysql-5.7.23
   }
 
   /// Initializes the object from a JOIN_TAB

@@ -44,6 +44,7 @@
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
+#include "my_pointer_arithmetic.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_idle_bits.h"
@@ -350,8 +351,8 @@ class Query_arena {
     size_t unaligned_size = size + alignment;
     void *ptr = alloc_root(mem_root, unaligned_size);
     if (!ptr) return nullptr;
-    ptr = std::align(alignment, size, ptr, unaligned_size);
-    DBUG_ASSERT(ptr);
+    ptr = reinterpret_cast<void *>(
+        MY_ALIGN(reinterpret_cast<std::uintptr_t>(ptr), alignment));
     memset(ptr, 0, size);
     return ptr;
   }

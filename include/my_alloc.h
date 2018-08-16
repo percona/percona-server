@@ -155,11 +155,10 @@ struct MEM_ROOT {
   }
 
   void *Alloc_aligned(size_t length, size_t alignment) MY_ATTRIBUTE((malloc)) {
-    size_t length_with_alignment = length + alignment;
-    void *ptr = Alloc(length_with_alignment);
+    void *ptr = Alloc(length + alignment);
     if (!ptr) return nullptr;
-    ptr = std::align(alignment, length, ptr, length_with_alignment);
-    DBUG_ASSERT(ptr);
+    ptr = reinterpret_cast<void *>(
+        MY_ALIGN(reinterpret_cast<std::uintptr_t>(ptr), alignment));
     return ptr;
   }
 

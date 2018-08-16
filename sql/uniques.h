@@ -91,8 +91,8 @@ class Unique {
   uint get_size() const { return size; }
   ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
 
-  friend int unique_write_to_file(uchar *key, element_count count,
-                                  Unique *unique);
+  friend int unique_write_to_file(void *key_, element_count count,
+                                  void *unique_);
   friend int unique_write_to_ptrs(void *key_, element_count count,
                                   void *unique_);
 };

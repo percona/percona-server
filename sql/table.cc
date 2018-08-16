@@ -6621,7 +6621,9 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   See TABLE_LIST::generate_keys.
 */
 
-static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *) {
+static int Derived_key_comp(void *e1_, void *e2_, void *) {
+  auto *const e1 = static_cast<Derived_key *>(e1_);
+  auto *const e2 = static_cast<Derived_key *>(e2_);
   /* Move entries for tables with greater table bit to the end. */
   return ((e1->referenced_by < e2->referenced_by)
               ? -1
@@ -6678,7 +6680,7 @@ bool TABLE_LIST::generate_keys() {
       return true; /* purecov: inspected */
 
   /* Sort entries to make key numbers sequence deterministic. */
-  derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
+  derived_key_list.sort(Derived_key_comp, 0);
 
   List_iterator<Derived_key> it(derived_key_list);
   Derived_key *entry;

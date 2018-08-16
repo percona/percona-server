@@ -3049,7 +3049,8 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     /* We should never deliver column prefixes to MySQL,
     except for evaluating innobase_index_cond() or
     row_search_end_range_check(). */
-    ut_ad(index->get_field(field_no)->prefix_len == 0);
+    ut_ad(index->get_field(field_no)->prefix_len == 0 ||
+          templ->rec_field_is_prefix);
 
     if (clust_templ_for_sec) {
       std::vector<const dict_col_t *>::iterator it;

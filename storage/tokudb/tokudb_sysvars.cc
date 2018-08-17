@@ -788,34 +788,6 @@ namespace tokudb {
                                  false);
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
 
-        static const char* deprecated_tokudb_support_xa =
-            "Using tokudb_support_xa is deprecated and the "
-            "parameter may be removed in future releases.";
-        static const char* deprecated_tokudb_support_xa_off =
-            "Using tokudb_support_xa is deprecated and the "
-            "parameter may be removed in future releases. "
-            "Only tokudb_support_xa=ON is allowed.";
-
-        static void support_xa_update(THD* thd,
-                                      st_mysql_sys_var* var,
-                                      void* var_ptr,
-                                      const void* save) {
-            bool tokudb_support_xa = *static_cast<const bool*>(save);
-            push_warning(thd,
-                         Sql_condition::SL_WARNING,
-                         HA_ERR_WRONG_COMMAND,
-                         tokudb_support_xa ? deprecated_tokudb_support_xa
-                                           : deprecated_tokudb_support_xa_off);
-        }
-
-        static MYSQL_THDVAR_BOOL(
-            support_xa,
-            PLUGIN_VAR_OPCMDARG,
-            "Enable TokuDB support for the XA two-phase commit",
-            NULL,
-            support_xa_update,
-            true);
-
         static int dir_cmd_check(THD* thd,
                                  struct st_mysql_sys_var* var,
                                  void* save,
@@ -974,7 +946,6 @@ namespace tokudb {
             MYSQL_SYSVAR(enable_fast_update),
             MYSQL_SYSVAR(enable_fast_upsert),
 #endif  // defined(TOKU_INCLUDE_UPSERT) && TOKU_INCLUDE_UPSERT
-            MYSQL_SYSVAR(support_xa),
 
 #if defined(TOKUDB_DEBUG) && TOKUDB_DEBUG
             MYSQL_SYSVAR(debug_pause_background_job_manager),
@@ -1083,7 +1054,5 @@ namespace tokudb {
             return THDVAR(thd, rpl_unique_checks_delay);
         }
 #endif  // defined(TOKU_INCLUDE_RFR) && TOKU_INCLUDE_RFR
-        bool support_xa(THD* thd) { return (THDVAR(thd, support_xa) != 0); }
-        void set_support_xa(THD* thd, bool xa) { THDVAR(thd, support_xa) = xa; }
-    }  // namespace sysvars
+    }   // namespace sysvars
 }  // namespace tokudb

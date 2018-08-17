@@ -394,15 +394,6 @@ static int tokudb_init_func(void* p) {
     db_env->set_errcall(db_env, tokudb_print_error);
     db_env->set_errpfx(db_env, tokudb_hton_name);
 
-    // Handle deprecated options
-    if (!tokudb::sysvars::support_xa(NULL)) {
-        TOKUDB_TRACE(
-            "Using tokudb_support_xa is deprecated and the "
-            "parameter may be removed in future releases. "
-            "See documentation and release notes for details");
-        tokudb::sysvars::set_support_xa(NULL, true);
-    }
-
     //
     // set default comparison functions
     //
@@ -910,12 +901,6 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("%u", all);
     TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "enter");
     int r = 0;
-
-    // if tokudb_support_xa is disable, just return
-    if (!tokudb::sysvars::support_xa(thd)) {
-        TOKUDB_TRACE_FOR_FLAGS(TOKUDB_DEBUG_XA, "exit %d", r);
-        TOKUDB_DBUG_RETURN(r);
-    }
 
     DBUG_PRINT("trans", ("preparing transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data* trx = (tokudb_trx_data*)thd_get_ha_data(thd, hton);

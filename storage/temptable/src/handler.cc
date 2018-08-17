@@ -1137,7 +1137,8 @@ bool Handler::get_error_message(int, String *) {
 
 bool Handler::primary_key_is_clustered() const {
   DBUG_ENTER("temptable::Handler::primary_key_is_clustered");
-  DBUG_ABORT();
+  // This is actually getting called in Percona Server TokuDB due to covering
+  // key query optimizer patch.
   DBUG_RETURN(false);
 }
 

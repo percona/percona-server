@@ -199,8 +199,11 @@ static int walk_and_copy(void *from_,
   DBUG_RETURN(0);
 }
 
-static int walk_and_push(FT_SUPERDOC *from, uint32 count MY_ATTRIBUTE((unused)),
-                         QUEUE *best) {
+static int walk_and_push(void *from_,
+                         element_count count MY_ATTRIBUTE((unused)),
+                         void *best_) {
+  auto *const from = static_cast<FT_SUPERDOC *>(from_);
+  auto *const best = static_cast<QUEUE *>(best_);
   DBUG_ENTER("walk_and_copy");
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
   set_if_smaller(best->elements, ft_query_expansion_limit - 1);
@@ -208,8 +211,8 @@ static int walk_and_push(FT_SUPERDOC *from, uint32 count MY_ATTRIBUTE((unused)),
   DBUG_RETURN(0);
 }
 
-static int FT_DOC_cmp(const void *unused MY_ATTRIBUTE((unused)),
-                      const void *a_arg, const void *b_arg) {
+static int FT_DOC_cmp(void *unused MY_ATTRIBUTE((unused)), uchar *a_arg,
+                      uchar *b_arg) {
   FT_DOC *a = (FT_DOC *)a_arg;
   FT_DOC *b = (FT_DOC *)b_arg;
   double c = b->weight - a->weight;
@@ -255,9 +258,8 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   if (flags & FT_EXPAND && ft_query_expansion_limit) {
     QUEUE best;
     init_queue(&best, key_memory_QUEUE, ft_query_expansion_limit, 0, 0,
-               (queue_compare)&FT_DOC_cmp, 0);
-    tree_walk(&aio.dtree, (tree_walk_action)&walk_and_push, &best,
-              left_root_right);
+               &FT_DOC_cmp, 0);
+    tree_walk(&aio.dtree, &walk_and_push, &best, left_root_right);
     while (best.elements) {
       my_off_t docid = ((FT_DOC *)queue_remove(&best, 0))->dpos;
       if (!(*info->read_record)(info, docid, record)) {

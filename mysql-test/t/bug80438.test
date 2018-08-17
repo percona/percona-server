@@ -3,8 +3,6 @@
 # fixed in 5.6.32, 5.7.14
 # ST_Distance() could raise an assertion for NULL return values.
 #
---source include/have_geometry.inc
-
 CREATE TABLE t1(a CHAR);
 INSERT INTO t1 VALUES();
 --error ER_GIS_INVALID_DATA

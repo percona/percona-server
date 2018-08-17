@@ -80,9 +80,9 @@ DROP TABLE t1;
 # "LOAD DATA INFILE" from loading invalid data. For the following test we need to
 # disable it.
 SET @sql_mode_save = @@sql_mode;
-SET sql_mode = _latin1 'ONLY_FULL_GROUP_BY,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET sql_mode = _latin1 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 
-# Because of the Oralce Bug #79989, there is no guarantee that after
+# Because of the Oracle Bug #79989, there is no guarantee that after
 # including "ctype_common.inc" current value of the @@character_set_database
 # session variable will be 'latin1' and string literals without prefixes in the
 # following "SELECT" statement ('00' and '01') will have this charset.

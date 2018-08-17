@@ -498,7 +498,7 @@ SET collation_connection=ucs2_czech_ci;
 --echo # MDEV-7649 wrong result when comparing utf8 column with an invalid literal
 --echo #
 
-SET NAMES utf8 COLLATE utf8_unicode_ci;
+SET NAMES utf8mb3 COLLATE utf8mb3_unicode_ci;
 --let ENGINE=MyISAM
 --source include/ctype_utf8_ilseq.inc
 --let ENGINE=HEAP

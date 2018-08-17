@@ -12,11 +12,13 @@ SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	0	0
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0
 ###	root	###	test	Query	###	###	CREATE TABLE t1 (a INT)	0	0
 ###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	2	5
 SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined
+###	NULL	0	0
 ###	SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id	0	0
 ###	CREATE TABLE t1 (a INT)	0	0
 ###	SELECT a FROM t2 WHERE a > 15	2	5
@@ -34,11 +36,13 @@ SELECT a FROM t2 WHERE a > 15;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	0	0
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0
 ###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a < 15	1	0
 ###	root	###	test	Query	###	###	SELECT a FROM t2 WHERE a > 15	1	0
 SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined
+###	NULL	0	0
 ###	SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id	0	0
 ###	SELECT a FROM t2 WHERE a < 15	1	0
 ###	SELECT a FROM t2 WHERE a > 15	1	0
@@ -60,11 +64,13 @@ UPDATE t2 SET a = 15 WHERE a = 10;
 SET DEBUG_SYNC= 'now WAIT_FOR thread2_ready';
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info	Rows_sent	Rows_examined
+###	event_scheduler	###	NULL	Daemon	###	###	NULL	0	0
 ###	root	###	test	Query	###	###	SHOW PROCESSLIST	0	0
 ###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 20	0	5
 ###	root	###	test	Query	###	###	UPDATE t2 SET a = 15 WHERE a = 10	0	5
 SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id;
 id	info	rows_sent	rows_examined
+###	NULL	0	0
 ###	SELECT id, info, rows_sent, rows_examined FROM INFORMATION_SCHEMA.PROCESSLIST ORDER BY id	0	0
 ###	UPDATE t2 SET a = 15 WHERE a = 20	0	5
 ###	UPDATE t2 SET a = 15 WHERE a = 10	0	5

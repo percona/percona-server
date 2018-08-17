@@ -22,9 +22,9 @@ INSERT INTO t1 (ch) VALUES ('ab'),('a?b'),('a??b'),('a???b'),('a????b');
 INSERT INTO t1 (ch) VALUES ('az'),('a?z'),('a??z'),('a???z'),('a????z');
 INSERT INTO t1 (ch) VALUES ('z');
 # LATIN SMALL LETTER A + LATIN CAPITAL LETTER E WITH GRAVE
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D080);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D080);
 # LATIN SMALL LETTER A + ARMENIAN SMALL LETTER REH
-INSERT INTO t1 (ch) VALUES (_utf8 0x61D680);
+INSERT INTO t1 (ch) VALUES (_utf8mb3 0x61D680);
 
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆' ORDER BY ch;
 SELECT ch FROM t1 IGNORE KEY (ch) WHERE ch='a𝌆b' ORDER BY ch;

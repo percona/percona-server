@@ -7,4 +7,4 @@ WHERE TABLE_NAME IN ( 'ooooooooooooooooooooooooooooooooooooo' 'aaaaaaaaaaaaaaaaa
 'vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv' 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' ) AND TABLE_SCHEMA='AA_BBB' AND COLUMN_TYPE='PRI'
 ORDER BY 2;
-table_schema	table_name	column_name	column_type
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_TYPE

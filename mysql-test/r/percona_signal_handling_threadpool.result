@@ -21,3 +21,5 @@ SELECT 1;
 # Bug 1537554: SIGTERM kills server instead of shutdown w/ threadpool
 #
 # restart
+Pattern "Status information:" found
+Pattern "mysqld.*: Shutdown complete" found

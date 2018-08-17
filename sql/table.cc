@@ -514,7 +514,8 @@ void TABLE_SHARE::destroy() {
     Field *current_field;
     for (uint i = 0; i < fields; ++i) {
       current_field = field[i];
-      if (current_field->has_associated_compression_dictionary()) {
+      if (current_field &&
+          current_field->has_associated_compression_dictionary()) {
         my_free(const_cast<char *>(current_field->zip_dict_data.str));
         current_field->zip_dict_data = null_lex_cstr;
         my_free(const_cast<char *>(current_field->zip_dict_name.str));

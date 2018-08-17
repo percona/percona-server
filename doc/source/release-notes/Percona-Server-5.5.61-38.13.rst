@@ -19,16 +19,16 @@ Bugs Fixed
 
 * The ``--innodb-optimize-keys`` option of the ``mysqldump`` utility
   fails when a dumped table has two columns such that the name of one
-  of them contains the other as as a prefix and is defined with the
+  of them contains the other as a prefix and is defined with the
   AUTO_INCREMENT attribute. Bug fixed :psbug:`4524`.
 
 
 Other Bugs Fixed
 ================================================================================
 
-- :psbug:`4566` "stack-use-after-scope in reinit_io_cache()"
-- :psbug:`4581` "stack-use-after-scope in _db_enter_() / mysql_select_db()"
-- :psbug:`4600` "stack-use-after-scope in _db_enter_() / get_upgrade_info_file_name()"
+- :psbug:`4566` "stack-use-after-scope in reinit_io_cache()" (upstream :mysqlbug:`91603`)
+- :psbug:`4581` "stack-use-after-scope in _db_enter_() / mysql_select_db()" (upstream :mysqlbug:`91604`)
+- :psbug:`4600` "stack-use-after-scope in _db_enter_() / get_upgrade_info_file_name()" (upstream :mysqlbug:`91617`)
 - :psbug:`3976` "Errors in MTR tests main.variables-big,
   main.information_schema-big, innodb.innodb_bug14676111"
 

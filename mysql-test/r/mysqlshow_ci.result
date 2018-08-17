@@ -80,6 +80,7 @@ Database: information_schema
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLLATIONS                            |
 | COLUMN_PRIVILEGES                     |
@@ -88,10 +89,13 @@ Database: information_schema
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| GLOBAL_TEMPORARY_TABLES               |
+| INDEX_STATISTICS                      |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_CACHED_INDEXES                 |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_CMP                            |
 | INNODB_CMP_PER_INDEX                  |
 | INNODB_CMP_PER_INDEX_RESET            |
@@ -136,10 +140,14 @@ Database: information_schema
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
 | TABLES                                |
 | TABLESPACES                           |
+| TEMPORARY_TABLES                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
@@ -147,6 +155,7 @@ Database: INFORMATION_SCHEMA
 |                Tables                 |
 +---------------------------------------+
 | CHARACTER_SETS                        |
+| CLIENT_STATISTICS                     |
 | COLLATION_CHARACTER_SET_APPLICABILITY |
 | COLLATIONS                            |
 | COLUMN_PRIVILEGES                     |
@@ -155,10 +164,13 @@ Database: INFORMATION_SCHEMA
 | ENGINES                               |
 | EVENTS                                |
 | FILES                                 |
+| GLOBAL_TEMPORARY_TABLES               |
+| INDEX_STATISTICS                      |
 | INNODB_BUFFER_PAGE                    |
 | INNODB_BUFFER_PAGE_LRU                |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_CACHED_INDEXES                 |
+| INNODB_CHANGED_PAGES                  |
 | INNODB_CMP                            |
 | INNODB_CMP_PER_INDEX                  |
 | INNODB_CMP_PER_INDEX_RESET            |
@@ -203,10 +215,14 @@ Database: INFORMATION_SCHEMA
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
+| TABLE_STATISTICS                      |
 | TABLES                                |
 | TABLESPACES                           |
+| TEMPORARY_TABLES                      |
+| THREAD_STATISTICS                     |
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
+| USER_STATISTICS                       |
 | VIEWS                                 |
 +---------------------------------------+
 Wildcard: inf_rmation_schema

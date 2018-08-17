@@ -1493,7 +1493,8 @@ static FILE *open_sql_file_for_table(const char *table, int flags) {
     We need to reset processed compression dictionaries container
     each time a new SQL file is created (for --tab option).
   */
-  processed_compression_dictionaries->clear();
+  if (processed_compression_dictionaries)
+    processed_compression_dictionaries->clear();
   convert_dirname(tmp_path, path, NullS);
   res = my_fopen(fn_format(filename, table, tmp_path, ".sql", 4), flags,
                  MYF(MY_WME));

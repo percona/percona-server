@@ -332,6 +332,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
           info->write_buffer = info->buffer + cachesize;
         else
           info->write_buffer = info->buffer;
+        info->alloced_buffer = 1;
         break; /* Enough memory found */
       }
       if (cachesize == min_cache) DBUG_RETURN(2); /* Can't alloc cache */

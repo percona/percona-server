@@ -509,7 +509,7 @@ static inline void my_b_clear(IO_CACHE *info) { info->buffer = 0; }
 
 /* Test if buffer is inited */
 MY_NODISCARD
-static inline int my_b_inited(const IO_CACHE *info) noexcept {
+static inline bool my_b_inited(const IO_CACHE *info) noexcept {
   return MY_TEST(info->buffer);
 }
 #define my_b_EOF INT_MIN

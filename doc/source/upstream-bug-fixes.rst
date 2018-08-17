@@ -5,6 +5,36 @@
 =============================================================
 
 +-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90351` - GLOBAL STATUS variables drift after rollback                              |
+|:JIRA bug: :psbug:`3951`                                                                                     |
+|:Upstream state: Verified (checked on 2018-05-29)                                                            |
+|:Fix Released: :rn:`5.6.40-84.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90264` - Some file operations in mf_iocache2.c are not instrumented                |
+|:JIRA bug: :psbug:`3937`                                                                                     |
+|:Upstream state: Verified (checked on 2018-05-29)                                                            |
+|:Fix Released: :rn:`5.6.40-84.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90238` - Comparison of uninitailized memory in log_in_use                          |
+|:JIRA bug: :psbug:`3925`                                                                                     |
+|:Upstream state: No Feedback (checked on 2018-05-29)                                                         |
+|:Fix Released: :rn:`5.6.40-84.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`90111` - Incorrect enum comparisons                                                |
+|:JIRA bug: :psbug:`3893`                                                                                     |
+|:Upstream state: Verified (checked on 2018-05-29)                                                            |
+|:Fix Released: :rn:`5.6.40-84.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
+|:Upstream bug: :mysqlbug:`89766` - a typo in `cmake/plugin.cmake` prevents `MYSQL_SERVER` to be defined ...  |
+|:JIRA bug: :psbug:`3871`                                                                                     |
+|:Upstream state: Verified (checked on 2018-05-29)                                                            |
+|:Fix Released: :rn:`5.6.40-84.0`                                                                             |
+|:Upstream fix: N/A                                                                                           |
++-------------------------------------------------------------------------------------------------------------+
 |:Upstream bug: :mysqlbug:`53588` - Blackhole: Specified key was too long; max key length is 1000 bytes       |
 |:JIRA bug: :psbug:`1126`                                                                                     |
 |:Upstream state: Verified (checked on 2018-05-24)                                                            |

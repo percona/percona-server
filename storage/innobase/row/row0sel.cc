@@ -4775,6 +4775,7 @@ no_gap_lock:
 				prebuilt->new_rec_locks = 1;
 			}
 			err = DB_SUCCESS;
+			break;
 		case DB_SUCCESS:
 			break;
 		case DB_LOCK_WAIT:

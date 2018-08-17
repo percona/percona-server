@@ -1,9 +1,5 @@
 --source include/have_innodb.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
---enable_warnings
-
 --echo # Checking variables
 SHOW VARIABLES LIKE 'innodb_fake_changes';
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='innodb_fake_changes';
@@ -20,7 +16,9 @@ SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_N
 #
 --echo # Explicit COMMIT should fail when innodb_fake_changes is enabled
 --echo # DML should be fine
+SET @saved_userstat=@@GLOBAL.userstat;
 SET @@GLOBAL.userstat=TRUE;
+SET @saved_innodb_stats_transient_sample_pages=@@GLOBAL.innodb_stats_transient_sample_pages;
 SET @@GLOBAL.innodb_stats_transient_sample_pages=30000;
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
@@ -421,9 +419,6 @@ drop table t1;
 # Discard tablespace is DDL operation which is blocked in fake_change mode.
 # Scenario also test other variants of alter table.
 #
-let save_file_per_table = `select @@innodb_file_per_table`;
-set global innodb_file_per_table = 1;
-#
 use test;
 create table t1 (i int, key(i)) engine=innodb;
 set session innodb_fake_changes = 1;
@@ -438,8 +433,6 @@ alter table t1 add column b char, algorithm=copy;
 alter table t1 add column b char, algorithm=default;
 set session innodb_fake_changes = 0;
 drop table t1;
-#
-eval set global innodb_file_per_table = $save_file_per_table;
 
 #-------------------------------------------------------------------------------
 #
@@ -628,5 +621,5 @@ drop table t1;
 #
 # cleanup test bed
 #
-SET @@GLOBAL.userstat= default;
-SET @@GLOBAL.innodb_stats_transient_sample_pages=default;
+SET @@GLOBAL.userstat= @saved_userstat;
+SET @@GLOBAL.innodb_stats_transient_sample_pages= @saved_innodb_stats_transient_sample_pages;

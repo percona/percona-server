@@ -413,6 +413,7 @@ void refresh_concurrent_conn_stats() noexcept {
                               it.second->connections);
     mysql_mutex_unlock(&LOCK_global_user_client_stats);
   }
+  mysql_mutex_unlock(&LOCK_user_conn);
 }
 
 /*

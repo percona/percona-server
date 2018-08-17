@@ -3357,7 +3357,7 @@ static const char *thread_handling_names[] = {"one-thread-per-connection",
 static Sys_var_enum Sys_thread_handling(
     "thread_handling",
     "Define threads usage for handling queries, one of "
-    "one-thread-per-connection, no-threads, loaded-dynamically",
+    "one-thread-per-connection, no-threads, pool-of-threads",
     READ_ONLY GLOBAL_VAR(Connection_handler_manager::thread_handling),
     CMD_LINE(REQUIRED_ARG), thread_handling_names, DEFAULT(0));
 

@@ -31,14 +31,13 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 namespace tokudb {
 
-    struct dir_cmd_callbacks {
-        void (*set_error)(THD *thd, int error, const char *error_fmt, ...)
-            MY_ATTRIBUTE((format(printf, 3, 4)));
-    };
+struct dir_cmd_callbacks {
+  void (*set_error)(THD *thd, int error, const char *error_fmt, ...)
+      MY_ATTRIBUTE((format(printf, 3, 4)));
+};
 
-    void process_dir_cmd(THD *thd,
-                         const char *cmd_str,
-                         const dir_cmd_callbacks &cb);
+void process_dir_cmd(THD *thd, const char *cmd_str,
+                     const dir_cmd_callbacks &cb);
 
 };  // namespace tokudb
 

@@ -104,7 +104,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // 'DISCOVERY' may not be, thus the need for individual indicators.
 #define TOKU_USE_DB_TYPE_TOKUDB 1  // has DB_TYPE_TOKUDB patch
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION \
-    1  // has tokudb row format compression patch
+  1  // has tokudb row format compression patch
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
@@ -155,7 +155,7 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 
 #if defined(TOKUDB_VERSION_MAJOR) && defined(TOKUDB_VERSION_MINOR)
 #define TOKUDB_PLUGIN_VERSION \
-    ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)
+  ((TOKUDB_VERSION_MAJOR << 8) + TOKUDB_VERSION_MINOR)
 #else
 #define TOKUDB_PLUGIN_VERSION 0
 #endif
@@ -191,19 +191,19 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 // mysql 5.6.15 removed the test macro, so we define our own
 #define tokudb_test(e) ((e) ? 1 : 0)
 
-inline const char* tokudb_thd_get_proc_info(const THD* thd) {
-    return thd->proc_info;
+inline const char *tokudb_thd_get_proc_info(const THD *thd) {
+  return thd->proc_info;
 }
-inline void tokudb_thd_set_proc_info(THD* thd, const char* proc_info) {
-    thd_proc_info(thd, proc_info);
+inline void tokudb_thd_set_proc_info(THD *thd, const char *proc_info) {
+  thd_proc_info(thd, proc_info);
 }
 
 // uint3korr reads 4 bytes and valgrind reports an error, so we use this
 // function instead
-inline uint tokudb_uint3korr(const uchar* a) {
-    uchar b[4] = {};
-    memcpy(b, a, 3);
-    return uint3korr(b);
+inline uint tokudb_uint3korr(const uchar *a) {
+  uchar b[4] = {};
+  memcpy(b, a, 3);
+  return uint3korr(b);
 }
 
 typedef unsigned int pfs_key_t;

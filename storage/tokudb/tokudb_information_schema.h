@@ -31,17 +31,17 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "hatoku_defines.h"
 
 namespace tokudb {
-    namespace information_schema {
+namespace information_schema {
 
-        extern st_mysql_plugin trx;
-        extern st_mysql_plugin lock_waits;
-        extern st_mysql_plugin locks;
-        extern st_mysql_plugin file_map;
-        extern st_mysql_plugin fractal_tree_info;
-        extern st_mysql_plugin fractal_tree_block_map;
-        extern st_mysql_plugin background_job_status;
+extern st_mysql_plugin trx;
+extern st_mysql_plugin lock_waits;
+extern st_mysql_plugin locks;
+extern st_mysql_plugin file_map;
+extern st_mysql_plugin fractal_tree_info;
+extern st_mysql_plugin fractal_tree_block_map;
+extern st_mysql_plugin background_job_status;
 
-    }  // namespace information_schema
+}  // namespace information_schema
 }  // namespace tokudb
 
 #endif  // _TOKUDB_INFORMATION_SCHEMA_H

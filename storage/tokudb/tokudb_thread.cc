@@ -28,10 +28,10 @@ Copyright (c) 2006, 2015, Percona and/or its affiliates. All rights reserved.
 #include "tokudb_thread.h"
 
 namespace tokudb {
-    namespace thread {
+namespace thread {
 
-        const pfs_key_t pfs_not_instrumented = 0xFFFFFFFF;
-        pthread_t mutex_t::_null_owner = 0;
+const pfs_key_t pfs_not_instrumented = 0xFFFFFFFF;
+pthread_t mutex_t::_null_owner = 0;
 
-    }  // namespace thread
+}  // namespace thread
 }  // namespace tokudb

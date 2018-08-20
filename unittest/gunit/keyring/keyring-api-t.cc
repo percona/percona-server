@@ -314,7 +314,8 @@ namespace keyring__api_unittest
     key_type= NULL;
 
     // make sure that rotated key is different than the original one
-    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver0) + 2, reinterpret_cast<char*>(key_ver1) + 2, 16) != 0);
+    // + 2 to skip key version of retrieved latest percona_binlog key
+    ASSERT_TRUE(memcmp(reinterpret_cast<char*>(key_ver0), reinterpret_cast<char*>(key_ver1) + 2, 16) != 0);
 
     my_free(key_ver0);
     my_free(key_ver1);

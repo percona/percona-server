@@ -6,3 +6,6 @@ level_serializable : MyRocks does not yet support ISO serializable
 mysqlbinlog_gtid_skip_empty_trans_rocksdb : MYR-25 - Percona Server mysqlbinlog does not support filtering of empty transactions
 rpl_read_free : MYR-6 - Percona Server does not yet have uniform implementation of RFR between MyRocks and TokuDB
 slow_query_log : MYR-26 - Percona Server does not support --log-slow-extra
+
+# 8.0
+bloomfilter3 : PS-4618 - Port PS-4070 a.k.a. MYR-63 to 8.0

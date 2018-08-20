@@ -4,8 +4,6 @@
 Data at Rest Encryption
 =======================
 
-This feature is considered **BETA** quality.
-
 .. contents::
    :local:
 

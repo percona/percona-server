@@ -1727,9 +1727,17 @@ static Table::enum_row_format dd_get_new_row_format(row_type old_format) {
   switch (old_format) {
     case ROW_TYPE_FIXED:
       return Table::RF_FIXED;
+    case ROW_TYPE_TOKU_UNCOMPRESSED:
     case ROW_TYPE_DYNAMIC:
       return Table::RF_DYNAMIC;
     case ROW_TYPE_COMPRESSED:
+    case ROW_TYPE_TOKU_ZLIB:
+    case ROW_TYPE_TOKU_SNAPPY:
+    case ROW_TYPE_TOKU_QUICKLZ:
+    case ROW_TYPE_TOKU_LZMA:
+    case ROW_TYPE_TOKU_FAST:
+    case ROW_TYPE_TOKU_SMALL:
+    case ROW_TYPE_TOKU_DEFAULT:
       return Table::RF_COMPRESSED;
     case ROW_TYPE_REDUNDANT:
       return Table::RF_REDUNDANT;

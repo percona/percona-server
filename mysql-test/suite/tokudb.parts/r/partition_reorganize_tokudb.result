@@ -47,7 +47,7 @@ SUBPARTITION BY HASH (store_id)
  (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = TokuDB,
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = TokuDB)) */
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
+FROM information_schema.innodb_tables
 WHERE name LIKE 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/emp#p#northeast#sp#ne0	7	Antelope	Compact
@@ -55,14 +55,14 @@ test/emp#p#northeast#sp#ne1	7	Antelope	Compact
 test/emp#p#southwest#sp#sw2	7	Antelope	Compact
 test/emp#p#southwest#sp#sw3	7	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
+FROM information_schema.innodb_tablespaces
 WHERE name LIKE 'test%' ORDER BY name;
 name	file_format	row_format
 test/emp#p#northeast#sp#ne0	Antelope	Compact or Redundant
 test/emp#p#northeast#sp#ne1	Antelope	Compact or Redundant
 test/emp#p#southwest#sp#sw2	Antelope	Compact or Redundant
 test/emp#p#southwest#sp#sw3	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
+SELECT path FROM information_schema.innodb_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
@@ -132,7 +132,7 @@ SUBPARTITION BY HASH (store_id)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = TokuDB,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = TokuDB)) */
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables
+FROM information_schema.innodb_tables
 WHERE name LIKE 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/emp#p#east#sp#e0	7	Antelope	Compact
@@ -144,7 +144,7 @@ test/emp#p#south#sp#s1	7	Antelope	Compact
 test/emp#p#west#sp#w0	7	Antelope	Compact
 test/emp#p#west#sp#w1	7	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces
+FROM information_schema.innodb_tablespaces
 WHERE name LIKE 'test%' ORDER BY name;
 name	file_format	row_format
 test/emp#p#east#sp#e0	Antelope	Compact or Redundant
@@ -155,7 +155,7 @@ test/emp#p#south#sp#s0	Antelope	Compact or Redundant
 test/emp#p#south#sp#s1	Antelope	Compact or Redundant
 test/emp#p#west#sp#w0	Antelope	Compact or Redundant
 test/emp#p#west#sp#w1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles
+SELECT path FROM information_schema.innodb_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd

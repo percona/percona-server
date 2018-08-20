@@ -46,7 +46,7 @@ insert into t1 values(4, repeat('-',12));
 insert into t1 values(5, repeat('.',12));
 commit work;
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Wait for purge to complete
@@ -98,7 +98,7 @@ insert into t1 values(4, repeat('-',12));
 insert into t1 values(5, repeat('.',12));
 commit work;
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Wait for purge to complete

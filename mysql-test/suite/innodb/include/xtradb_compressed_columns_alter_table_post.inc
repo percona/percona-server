@@ -28,9 +28,9 @@ if ($need_check_for_original_dictionary_reference_cleared)
 
 if (!$storage_engine_changed)
 {
-  eval SELECT table_id INTO @modified_table_id FROM information_schema.innodb_sys_tables
+  eval SELECT table_id INTO @modified_table_id FROM information_schema.innodb_tables
     WHERE name=CONCAT(DATABASE(), '/', '$modified_table_name');
-  eval SELECT pos INTO @modified_column_pos FROM information_schema.innodb_sys_columns
+  eval SELECT pos INTO @modified_column_pos FROM information_schema.innodb_columns
     WHERE table_id = @modified_table_id AND name = '$modified_column_name';
 
   if ($modified_dict_name_defined)

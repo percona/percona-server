@@ -1,5 +1,3 @@
-# Check for mysqlbinlog ssl and compression options
--- source include/have_compress.inc
 -- source include/have_ssl.inc
 -- source include/have_binlog_format_statement.inc
 -- source include/have_log_bin.inc

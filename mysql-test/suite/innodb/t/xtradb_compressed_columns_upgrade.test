@@ -13,8 +13,8 @@
 
 CREATE TABLE dummy_t (id INT) ENGINE=InnoDB;
 CREATE INDEX dummy_idx ON dummy_t(id);
---let $initial_max_tablespace_id = `SELECT MAX(space) FROM information_schema.innodb_sys_tablespaces`
---let $initial_max_index_id = `SELECT MAX(index_id) FROM information_schema.innodb_sys_indexes`
+--let $initial_max_tablespace_id = `SELECT MAX(space) FROM information_schema.innodb_tablespaces`
+--let $initial_max_index_id = `SELECT MAX(index_id) FROM information_schema.innodb_indexes`
 
 if($initial_max_tablespace_id >= $desired_tablespace_id)
 {
@@ -37,7 +37,7 @@ while($i < $desired_tablespace_id)
 }
 
 # creating a bunch of dummy indexes to increase index id
---let $initial_max_index_id = `SELECT MAX(index_id) FROM information_schema.innodb_sys_indexes`
+--let $initial_max_index_id = `SELECT MAX(index_id) FROM information_schema.innodb_indexes`
 --let $i = $initial_max_index_id
 --inc $i
 --disable_warnings

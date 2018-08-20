@@ -5,9 +5,11 @@ CREATE TABLE gap2 like gap1;
 eval CREATE TABLE gap3 (id INT, value INT,
                       PRIMARY KEY (id),
                       UNIQUE KEY ui(value)) ENGINE=$engine;
-eval CREATE TABLE gap4 (id INT, value INT,
-                      PRIMARY KEY (id)) ENGINE=$engine
-                      PARTITION BY HASH(id) PARTITIONS 2;
+if (!$gap_lock_error_skip_partitioning) {
+  eval CREATE TABLE gap4 (id INT, value INT,
+                          PRIMARY KEY (id)) ENGINE=$engine
+                          PARTITION BY HASH(id) PARTITIONS 2;
+}
 --disable_query_log
 let $max = 1000;
 let $i = 1;
@@ -21,4 +23,6 @@ while ($i <= $max) {
 --enable_query_log
 
 insert into gap3 values (1,1), (2,2),(3,3),(4,4),(5,5);
-insert into gap4 values (1,1), (2,2),(3,3),(4,4),(5,5);
+if (!$gap_lock_error_skip_partitioning) {
+  insert into gap4 values (1,1), (2,2),(3,3),(4,4),(5,5);
+}

@@ -5,7 +5,7 @@ call mtr.add_suppression("does not exist in the InnoDB internal");
 SET debug="+d,crash_innodb_add_index_after";
 ALTER TABLE t1 ADD INDEX (b);
 ERROR HY000: Lost connection to MySQL server during query
-SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
+SELECT NAME, FLAG FROM INFORMATION_SCHEMA.INNODB_TABLES;
 NAME	FLAG
 SYS_DATAFILES	0
 SYS_FOREIGN	0

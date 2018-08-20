@@ -118,7 +118,7 @@ eval CREATE TABLE $table_name(
 eval SHOW CREATE TABLE $table_name;
 
 # getting table id for $table_name
-eval SELECT table_id INTO @table_id FROM information_schema.innodb_sys_tables
+eval SELECT table_id INTO @table_id FROM information_schema.innodb_tables
   WHERE name=CONCAT(DATABASE(), '/', '$table_name');
 
 # the number of column<->dict_id links for $table_name must be exactly one
@@ -188,7 +188,7 @@ eval CREATE TABLE $aux_database_name.$table_name(
 ) ENGINE=InnoDB;
 
 # getting table id for $aux_database_name.$table_name
-eval SELECT table_id INTO @table_id FROM information_schema.innodb_sys_tables
+eval SELECT table_id INTO @table_id FROM information_schema.innodb_tables
   WHERE name=CONCAT('$aux_database_name', '/', '$table_name');
 
 # the number of column<->dict_id links for $aux_database_name.$table_name must be exactly one

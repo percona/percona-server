@@ -38,7 +38,7 @@ commit work;
 --echo # Test Begin: Test if recovery works if first page of user
 --echo # tablespace is full of zeroes.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Wait for purge to complete
@@ -82,7 +82,7 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if first page of user
 --echo # tablespace is corrupted.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Ensure that dirty pages of table t1 is flushed.
@@ -120,7 +120,7 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if 2nd page of user
 --echo # tablespace is full of zeroes.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Ensure that dirty pages of table t1 is flushed.
@@ -159,7 +159,7 @@ select f1, f2 from t1;
 --echo # Test Begin: Test if recovery works if 2nd page of user
 --echo # tablespace is corrupted.
 
-select space from information_schema.innodb_sys_tables
+select space from information_schema.innodb_tables
 where name = 'test/t1' into @space_id;
 
 --echo # Ensure that dirty pages of table t1 is flushed.

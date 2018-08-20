@@ -260,8 +260,8 @@ eval SELECT COUNT(*) = POW(2, $number_of_steps) AS number_of_rows_for_dictionary
 --echo # Checking .ibd file sizes for filled tables.
 --let MYSQLD_DATADIR=`SELECT @@datadir`
 let FILES_TO_CHECK = `SELECT GROUP_CONCAT(REPLACE(path, './', ''))
-  FROM information_schema.innodb_sys_tablespaces
-  JOIN information_schema.innodb_sys_datafiles USING(space)
+  FROM information_schema.innodb_tablespaces
+  JOIN information_schema.innodb_datafiles USING(space)
   WHERE name LIKE CONCAT(DATABASE(), '/$uncompressed_table_name%')
      OR name LIKE CONCAT(DATABASE(), '/$compressed_table_name%')
      OR name LIKE CONCAT(DATABASE(), '/$dictionary_compressed_table_name%')

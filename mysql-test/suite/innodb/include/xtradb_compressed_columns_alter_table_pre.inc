@@ -49,9 +49,9 @@ eval SELECT MD5($original_column_name) INTO @original_long_value_checksum FROM $
 eval SELECT MD5($original_column_name) INTO @original_short_value_checksum FROM $original_table_name
   WHERE id = 2;
 
-eval SELECT table_id INTO @original_table_id FROM information_schema.innodb_sys_tables
+eval SELECT table_id INTO @original_table_id FROM information_schema.innodb_tables
   WHERE name=CONCAT(DATABASE(), '/', '$original_table_name');
-eval SELECT pos INTO @original_column_pos FROM information_schema.innodb_sys_columns
+eval SELECT pos INTO @original_column_pos FROM information_schema.innodb_columns
   WHERE table_id = @original_table_id AND name = '$original_column_name';
 
 if ($original_dict_name_defined)

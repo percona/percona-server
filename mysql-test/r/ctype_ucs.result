@@ -198,7 +198,7 @@ DROP TABLE t1;
 #   and reverse() function
 #
 SET @sql_mode_save = @@sql_mode;
-SET sql_mode = _latin1 'ONLY_FULL_GROUP_BY,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET sql_mode = _latin1 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
 # Problem # 1 (original report): wrong parsing of ucs2 data
 SELECT _latin1 '00' UNION SELECT _latin1 '10' INTO OUTFILE 'tmpp.txt';
 CREATE TABLE t1(a INT);

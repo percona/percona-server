@@ -2,8 +2,6 @@ CREATE USER event_runner1@localhost;
 GRANT ALL ON *.* TO event_runner1@localhost;
 CREATE USER event_runner2@localhost;
 GRANT ALL ON *.* TO event_runner2@localhost;
-SET @saved_event_scheduler = @@GLOBAL.event_scheduler;
-SET GLOBAL event_scheduler = ON;
 CREATE DEFINER=event_runner1@localhost EVENT query_temp_tables ON SCHEDULE AT CURRENT_TIMESTAMP
 ON COMPLETION PRESERVE
 DO
@@ -23,7 +21,6 @@ COUNT(*)
 # Dropping the temp tables
 KILL CONNECTION $ev_thread1_id
 KILL CONNECTION $ev_thread2_id
-SET GLOBAL event_scheduler = @saved_event_scheduler;
 DROP EVENT query_temp_tables;
 DROP EVENT query_tables;
 DROP USER event_runner1@localhost;

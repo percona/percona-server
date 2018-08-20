@@ -2747,8 +2747,8 @@ int send_thread_stats(THD *thd, const thread_stats_t &all_thread_stats,
   1 - error
 */
 
-int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
-                           Item *cond MY_ATTRIBUTE((unused))) noexcept {
+static int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
+                                  Item *cond MY_ATTRIBUTE((unused))) noexcept {
   DBUG_ENTER("fill_schema_user_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -2780,8 +2780,8 @@ int fill_schema_user_stats(THD *thd, TABLE_LIST *tables,
   1 - error
 */
 
-int fill_schema_client_stats(THD *thd, TABLE_LIST *tables,
-                             Item *cond MY_ATTRIBUTE((unused))) noexcept {
+static int fill_schema_client_stats(
+    THD *thd, TABLE_LIST *tables, Item *cond MY_ATTRIBUTE((unused))) noexcept {
   DBUG_ENTER("fill_schema_client_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -2799,8 +2799,8 @@ int fill_schema_client_stats(THD *thd, TABLE_LIST *tables,
   DBUG_RETURN(result);
 }
 
-int fill_schema_thread_stats(THD *thd, TABLE_LIST *tables,
-                             Item *cond MY_ATTRIBUTE((unused))) noexcept {
+static int fill_schema_thread_stats(
+    THD *thd, TABLE_LIST *tables, Item *cond MY_ATTRIBUTE((unused))) noexcept {
   DBUG_ENTER("fill_schema_thread_stats");
 
   if (check_global_access(thd, SUPER_ACL | PROCESS_ACL)) DBUG_RETURN(1);
@@ -2818,8 +2818,8 @@ int fill_schema_thread_stats(THD *thd, TABLE_LIST *tables,
 }
 
 // Sends the global table stats back to the client.
-int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
-                            Item *cond MY_ATTRIBUTE((unused))) {
+static int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
+                                   Item *cond MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("fill_schema_table_stats");
 
   TABLE *const table = tables->table;
@@ -2860,8 +2860,8 @@ int fill_schema_table_stats(THD *thd, TABLE_LIST *tables,
 }
 
 // Sends the global index stats back to the client.
-int fill_schema_index_stats(THD *thd, TABLE_LIST *tables,
-                            Item *cond MY_ATTRIBUTE((unused))) {
+static int fill_schema_index_stats(THD *thd, TABLE_LIST *tables,
+                                   Item *cond MY_ATTRIBUTE((unused))) {
   TABLE *const table = tables->table;
   DBUG_ENTER("fill_schema_index_stats");
 

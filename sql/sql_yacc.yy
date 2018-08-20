@@ -14639,7 +14639,7 @@ lock_variant:
           }
           table_lock_list
           {}
-        | LOCK_SYM INSTANCE_SYM FOR_SYM BACKUP_SYM
+        | INSTANCE_SYM FOR_SYM BACKUP_SYM
           {
             Lex->sql_command= SQLCOM_LOCK_INSTANCE;
             Lex->m_sql_cmd= NEW_PTN Sql_cmd_lock_instance();

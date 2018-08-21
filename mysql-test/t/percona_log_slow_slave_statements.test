@@ -1,12 +1,22 @@
 #
 # Test log_slow_slave_statements
 #
---source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t;
 --enable_warnings
+
+--connection slave
+SET @old_binlog_format=@@binlog_format;
+
+SET GLOBAL binlog_format='STATEMENT';
+
+--connection master
+SET @old_binlog_format=@@binlog_format;
+
+SET GLOBAL binlog_format='STATEMENT';
+SET SESSION binlog_format='STATEMENT';
 
 CREATE TABLE t(id INT);
 sync_slave_with_master;
@@ -58,7 +68,9 @@ sync_slave_with_master;
 
 connection master;
 DROP TABLE t;
+SET GLOBAL binlog_format = @old_binlog_format;
 sync_slave_with_master;
+SET GLOBAL binlog_format = @old_binlog_format;
 
 SET GLOBAL log_slow_slave_statements=default;
 SET GLOBAL long_query_time=default;

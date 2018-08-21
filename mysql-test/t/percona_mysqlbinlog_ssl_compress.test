@@ -1,6 +1,10 @@
 -- source include/have_ssl.inc
--- source include/have_binlog_format_statement.inc
 -- source include/have_log_bin.inc
+
+SET @old_binlog_format=@@binlog_format;
+
+SET GLOBAL binlog_format='STATEMENT';
+SET SESSION binlog_format='STATEMENT';
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -31,3 +35,5 @@ select "--- --start-position --" as "";
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --start-position=$binlog_start_pos --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --compress master-bin.000001
 
 drop table t1;
+
+SET GLOBAL binlog_format = @old_binlog_format;

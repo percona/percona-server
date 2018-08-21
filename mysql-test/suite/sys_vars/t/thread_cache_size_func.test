@@ -83,8 +83,8 @@ let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 --let $status_var_value= 3
 --source include/wait_for_status_var.inc
 
---echo # Active connections must become 1
---let $count= 1
+--echo # Active connections must become 2
+--let $count= 2
 --let $table= INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_until_rows_count.inc
 
@@ -118,8 +118,8 @@ let $wait_condition= SELECT COUNT(*)= 2 FROM INFORMATION_SCHEMA.PROCESSLIST;
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
 
---echo # Active connections must become 1
---let $count= 1
+--echo # Active connections must become 2
+--let $count= 2
 --let $table= INFORMATION_SCHEMA.PROCESSLIST
 --source include/wait_until_rows_count.inc
 

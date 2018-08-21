@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 /** Token representation:
     token type, string repr, length of token */
 struct token {
-  enum class type { id, comma, eq, eof } type;
+  enum class ctype { id, comma, eq, eof } type;
   const char *token;
   size_t token_len;
 };
@@ -52,16 +52,16 @@ static const char *get_token(struct token *token, const char *buf) {
   token->token = ptr;
   switch (*ptr) {
     case '\0':
-      token->type = token::type::eof;
+      token->type = token::ctype::eof;
       break;
     case ',':
       token->token_len = 1;
-      token->type = token::type::comma;
+      token->type = token::ctype::comma;
       ++ptr;
       break;
     case '=':
       token->token_len = 1;
-      token->type = token::type::eq;
+      token->type = token::ctype::eq;
       ++ptr;
       break;
     case '"':
@@ -72,7 +72,7 @@ static const char *get_token(struct token *token, const char *buf) {
         ++token->token_len;
         ++ptr;
       }
-      token->type = token::type::id;
+      token->type = token::ctype::id;
       if (*ptr) ++ptr;
       break;
     default:
@@ -81,7 +81,7 @@ static const char *get_token(struct token *token, const char *buf) {
         ++token->token_len;
         ++ptr;
       }
-      token->type = token::type::id;
+      token->type = token::ctype::id;
   }
 
   return ptr;
@@ -107,7 +107,7 @@ struct mapping_iter *mapping_iter_new(const char *mapping_string) {
     On success pointer to key position in string returned,
     otherwise NULL */
 const char *mapping_iter_next(struct mapping_iter *it) {
-  struct token token[4] = {{token::type::id, 0, 0}};
+  struct token token[4] = {{token::ctype::id, 0, 0}};
 
   /* read next 4 tokens */
   it->ptr = get_token(
@@ -115,10 +115,10 @@ const char *mapping_iter_next(struct mapping_iter *it) {
       get_token(token + 2, get_token(token + 1, get_token(token, it->ptr))));
 
   /* was it ", id = id"? */
-  if (!((token[0].type == token::type::comma) &&
-        (token[1].type == token::type::id) &&
-        (token[2].type == token::type::eq) &&
-        (token[3].type == token::type::id))) {
+  if (!((token[0].type == token::ctype::comma) &&
+        (token[1].type == token::ctype::id) &&
+        (token[2].type == token::ctype::eq) &&
+        (token[3].type == token::ctype::id))) {
     /* we got something inconsistent */
     return nullptr;
   }
@@ -217,7 +217,7 @@ char *mapping_get_service_name(char *buf, size_t buf_len,
   struct token token;
 
   get_token(&token, mapping_string);
-  if (token.type == token::type::id) {
+  if (token.type == token::ctype::id) {
     memcpy(buf, token.token, std::min(buf_len, token.token_len));
     buf[std::min(buf_len, token.token_len)] = '\0';
     return buf;

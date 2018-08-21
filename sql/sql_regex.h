@@ -19,8 +19,8 @@
 #include <algorithm>
 #include <string>
 
-#include "my_regex.h"
-#include "my_thread.h"
+#include "extra/regex/my_regex.h"
+#include "mysql/psi/mysql_rwlock.h"
 
 /*
   Wrapper class around my_regex that manages concurrent access and the lifetime

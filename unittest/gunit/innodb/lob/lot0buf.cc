@@ -31,6 +31,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0buf.h"
 #include "mach0data.h"
+#include "my_compiler.h"
 #include "ut0byte.h"
 #include "ut0ut.h"
 
@@ -103,7 +104,7 @@ class buf_pool_t {
     buf_block_t *block = new (std::nothrow) buf_block_t;
     assert(block != nullptr);
     /* Ensure that the page_no is not already allocated. */
-    auto it = m_buf_pool.find(page_no);
+    auto it MY_ATTRIBUTE((unused)) = m_buf_pool.find(page_no);
     assert(it == m_buf_pool.end());
     /* Allocate the new page. */
     block->m_frame = alloc_frame();

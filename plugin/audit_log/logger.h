@@ -66,6 +66,9 @@ LOGGER_HANDLE *logger_open(const char *path, unsigned long long size_limit,
                            unsigned int rotations, bool thread_safe,
                            logger_prolog_func_t header) noexcept;
 int logger_close(LOGGER_HANDLE *log, logger_epilog_func_t footer) noexcept;
+#ifndef __clang__
+MY_ATTRIBUTE((format(gnu_printf, 2, 0)))
+#endif
 int logger_vprintf(LOGGER_HANDLE *log, const char *fmt,
                    va_list argptr) noexcept;
 #ifndef __clang__

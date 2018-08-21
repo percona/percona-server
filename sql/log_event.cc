@@ -1700,11 +1700,10 @@ Log_event *Log_event::read_log_event(
     error = "Error applying filter while reading event";
     goto err;
   }
-#else
+#endif
   if ((res =
            read_log_event(buf, data_len, &error, description_event, crc_check)))
     res->register_temp_buf(buf);
-#endif
 
 err:
   UNLOCK_MUTEX;

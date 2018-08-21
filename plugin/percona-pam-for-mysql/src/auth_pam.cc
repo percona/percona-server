@@ -55,22 +55,24 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include "config.h"
 #endif
 
-#include <my_sys.h>
 #include <stdlib.h>
 #include <string.h>
 #include "auth_pam_common.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_memory.h"
 
 MYSQL_PLUGIN auth_pam_plugin_info;
 
 /** The maximum length of buffered PAM messages, i.e. any messages up to the
     next PAM reply-requiring message. 10K should be more than enough by order
     of magnitude. */
-enum { max_pam_buffered_msg_len = 10240 };
+static const constexpr auto max_pam_buffered_msg_len = 10240;
 
 static PSI_memory_key key_memory_pam_msg_buf;
 
 static PSI_memory_info pam_auth_memory[] = {
-    {&key_memory_pam_msg_buf, "auth_pam_msg_buf", 0},
+    {&key_memory_pam_msg_buf, "auth_pam_msg_buf", PSI_FLAG_SINGLETON,
+     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
 };
 
 struct pam_msg_buf {
@@ -85,10 +87,10 @@ static char pam_msg_style_to_char(int pam_msg_style) {
 }
 
 int auth_pam_client_talk_init(void **talk_data) {
-  struct pam_msg_buf *msg_buf = my_malloc(
-      key_memory_pam_msg_buf, sizeof(struct pam_msg_buf), MY_ZEROFILL);
+  struct pam_msg_buf *msg_buf = static_cast<pam_msg_buf *>(my_malloc(
+      key_memory_pam_msg_buf, sizeof(struct pam_msg_buf), MY_ZEROFILL));
   *talk_data = (void *)msg_buf;
-  if (msg_buf != NULL) {
+  if (msg_buf != nullptr) {
     msg_buf->ptr = msg_buf->buf + 1;
     return PAM_SUCCESS;
   }
@@ -131,8 +133,8 @@ int auth_pam_talk_perform(const struct pam_message *msg,
     if ((pkt_len = data->vio->read_packet(data->vio, &pkt)) < 0)
       return PAM_CONV_ERR;
 
-    resp->resp = malloc(pkt_len + 1);
-    if (resp->resp == NULL) return PAM_BUF_ERR;
+    resp->resp = static_cast<char *>(malloc(pkt_len + 1));
+    if (resp->resp == nullptr) return PAM_BUF_ERR;
 
     strncpy(resp->resp, (char *)pkt, pkt_len);
     resp->resp[pkt_len] = '\0';
@@ -162,12 +164,13 @@ static struct st_mysql_auth pam_auth_handler = {
     &auth_pam_generate_auth_string_hash,
     &auth_pam_validate_auth_string_hash,
     &auth_pam_set_salt,
-    0UL};
+    0UL,
+    nullptr};
 
 mysql_declare_plugin(auth_pam) {
   MYSQL_AUTHENTICATION_PLUGIN, &pam_auth_handler, "auth_pam", "Percona, Inc.",
-      "PAM authentication plugin", PLUGIN_LICENSE_GPL, auth_pam_init, NULL,
-      0x0001, NULL, NULL, NULL
+      "PAM authentication plugin", PLUGIN_LICENSE_GPL, auth_pam_init, nullptr,
+      nullptr, 0x0001, nullptr, nullptr, nullptr
 #if MYSQL_PLUGIN_INTERFACE_VERSION >= 0x103
       ,
       0

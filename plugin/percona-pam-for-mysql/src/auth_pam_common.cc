@@ -20,13 +20,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include "config.h"
 #endif
 
-#include <my_sys.h>
-#include <mysql/psi/mysql_memory.h>
-#include <mysql/psi/psi.h>
 #include <string.h>
 #include "auth_mapping.h"
 #include "auth_pam_common.h"
 #include "groups.h"
+#include "my_sys.h"
+#include "mysql/psi/mysql_memory.h"
 
 /* The server plugin */
 
@@ -34,8 +33,10 @@ PSI_memory_key key_memory_pam_mapping_iter;
 PSI_memory_key key_memory_pam_group_iter;
 
 static PSI_memory_info common_pam_memory[] = {
-    {&key_memory_pam_mapping_iter, "auth_pam_mapping_iterator", 0},
-    {&key_memory_pam_group_iter, "auth_pam_group_iterator", 0},
+    {&key_memory_pam_mapping_iter, "auth_pam_mapping_iterator",
+     PSI_FLAG_SINGLETON, PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
+    {&key_memory_pam_group_iter, "auth_pam_group_iterator", PSI_FLAG_SINGLETON,
+     PSI_VOLATILITY_UNKNOWN, PSI_DOCUMENT_ME},
 };
 
 /** The MySQL service name for PAM configuration */
@@ -46,53 +47,50 @@ void auth_pam_common_init(const char *psi_category) {
   mysql_memory_register(psi_category, common_pam_memory, count);
 }
 
-static int valid_pam_msg_style(int pam_msg_style) {
+static bool valid_pam_msg_style(int pam_msg_style) {
   switch (pam_msg_style) {
     case PAM_PROMPT_ECHO_OFF:
     case PAM_PROMPT_ECHO_ON:
     case PAM_ERROR_MSG:
     case PAM_TEXT_INFO:
-      return 1;
+      return true;
     default:
-      return 0;
+      return false;
   }
 }
 
 /** The maximum length of service name. It shouldn't be too long as it's
     filename in pam.d directory also */
-enum { max_pam_service_name_len = 64 };
+static const constexpr auto max_pam_service_name_len = 64;
 
 static void free_pam_response(struct pam_response **resp, int n) {
-  int i;
-  for (i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) {
     free((*resp)[i].resp);
   }
   free(*resp);
-  *resp = NULL;
+  *resp = nullptr;
 }
 
 static int vio_server_conv(int num_msg, const struct pam_message **msg,
                            struct pam_response **resp, void *appdata_ptr) {
-  int i;
-  int error;
-  void *talk_data;
   struct pam_conv_data *data = (struct pam_conv_data *)appdata_ptr;
 
-  if (data == NULL) {
+  if (data == nullptr) {
     MY_ASSERT_UNREACHABLE();
     return PAM_CONV_ERR;
   }
 
   *resp = (struct pam_response *)calloc(sizeof(struct pam_response), num_msg);
-  if (*resp == NULL) return PAM_BUF_ERR;
+  if (*resp == nullptr) return PAM_BUF_ERR;
 
-  error = auth_pam_client_talk_init(&talk_data);
+  void *talk_data;
+  int error = auth_pam_client_talk_init(&talk_data);
   if (error != PAM_SUCCESS) {
     free_pam_response(resp, 0);
     return error;
   }
 
-  for (i = 0; i < num_msg; i++) {
+  for (int i = 0; i < num_msg; i++) {
     if (!valid_pam_msg_style(msg[i]->msg_style)) {
       auth_pam_client_talk_finalize(talk_data);
       free_pam_response(resp, i);
@@ -112,15 +110,9 @@ static int vio_server_conv(int num_msg, const struct pam_message **msg,
 
 int authenticate_user_with_pam_server(MYSQL_PLUGIN_VIO *vio,
                                       MYSQL_SERVER_AUTH_INFO *info) {
-  pam_handle_t *pam_handle;
-  struct pam_conv_data data = {vio, info};
-  struct pam_conv conv_func_info = {&vio_server_conv, &data};
-  int error;
-  char *pam_mapped_user_name;
-  char service_name[max_pam_service_name_len];
-
   /* Set service name as specified in auth_string. If no auth_string
   provided or parsing error occurs, then keep default value */
+  char service_name[max_pam_service_name_len];
   strcpy(service_name, service_name_default);
   if (info->auth_string)
     mapping_get_service_name(service_name, sizeof(service_name),
@@ -128,7 +120,10 @@ int authenticate_user_with_pam_server(MYSQL_PLUGIN_VIO *vio,
 
   info->password_used = PASSWORD_USED_NO_MENTION;
 
-  error =
+  pam_handle_t *pam_handle;
+  struct pam_conv_data data = {vio, info};
+  struct pam_conv conv_func_info = {&vio_server_conv, &data};
+  int error =
       pam_start(service_name, info->user_name, &conv_func_info, &pam_handle);
   if (error != PAM_SUCCESS) return CR_ERROR;
 
@@ -157,7 +152,10 @@ int authenticate_user_with_pam_server(MYSQL_PLUGIN_VIO *vio,
   }
 
   /* Get the authenticated user name from PAM */
-  error = pam_get_item(pam_handle, PAM_USER, (void *)&pam_mapped_user_name);
+  char *pam_mapped_user_name;
+  error = pam_get_item(pam_handle, PAM_USER,
+                       const_cast<const void **>(
+                           reinterpret_cast<void **>(&pam_mapped_user_name)));
   if (error != PAM_SUCCESS) {
     pam_end(pam_handle, error);
     return CR_ERROR;

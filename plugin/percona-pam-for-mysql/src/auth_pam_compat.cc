@@ -52,17 +52,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 #include "config.h"
 #endif
 
-#include <my_sys.h>
 #include <stdlib.h>
 #include <string.h>
 #include "auth_pam_common.h"
+#include "my_sys.h"
 
 MYSQL_PLUGIN auth_pam_plugin_info;
 
 int auth_pam_client_talk_init(void **talk_data) {
-  int *num_talks = my_malloc(PSI_NOT_INSTRUMENTED, sizeof(int), MY_ZEROFILL);
+  int *num_talks = static_cast<int *>(
+      my_malloc(PSI_NOT_INSTRUMENTED, sizeof(int), MY_ZEROFILL));
   *talk_data = (void *)num_talks;
-  return (num_talks != NULL) ? PAM_SUCCESS : PAM_BUF_ERR;
+  return (num_talks != nullptr) ? PAM_SUCCESS : PAM_BUF_ERR;
 }
 
 void auth_pam_client_talk_finalize(void *talk_data) { my_free(talk_data); }
@@ -70,21 +71,19 @@ void auth_pam_client_talk_finalize(void *talk_data) { my_free(talk_data); }
 int auth_pam_talk_perform(const struct pam_message *msg,
                           struct pam_response *resp, struct pam_conv_data *data,
                           void *talk_data) {
-  int pkt_len;
-  unsigned char *pkt;
-  int *num_talks = (int *)talk_data;
-
   if (msg->msg_style == PAM_PROMPT_ECHO_OFF ||
       msg->msg_style == PAM_PROMPT_ECHO_ON) {
     /* mysql_clear_password plugin has support for only single phrase */
+    int *num_talks = (int *)talk_data;
     if (*num_talks > 1) return PAM_CONV_ERR;
 
     /* Read the answer */
-    if ((pkt_len = data->vio->read_packet(data->vio, &pkt)) < 0)
-      return PAM_CONV_ERR;
+    unsigned char *pkt;
+    int pkt_len = data->vio->read_packet(data->vio, &pkt);
+    if (pkt_len < 0) return PAM_CONV_ERR;
 
-    resp->resp = malloc(pkt_len + 1);
-    if (resp->resp == NULL) return PAM_BUF_ERR;
+    resp->resp = static_cast<char *>(malloc(pkt_len + 1));
+    if (resp->resp == nullptr) return PAM_BUF_ERR;
 
     strncpy(resp->resp, (char *)pkt, pkt_len);
     resp->resp[pkt_len] = '\0';
@@ -115,12 +114,13 @@ static struct st_mysql_auth pam_auth_handler = {
     &auth_pam_generate_auth_string_hash,
     &auth_pam_validate_auth_string_hash,
     &auth_pam_set_salt,
-    0UL};
+    0UL,
+    nullptr};
 
 mysql_declare_plugin(auth_pam) {
   MYSQL_AUTHENTICATION_PLUGIN, &pam_auth_handler, "auth_pam_compat",
       "Percona, Inc.", "PAM authentication plugin", PLUGIN_LICENSE_GPL,
-      auth_pam_compat_init, NULL, 0x0001, NULL, NULL, NULL
+      auth_pam_compat_init, nullptr, nullptr, 0x0001, nullptr, nullptr, nullptr
 #if MYSQL_PLUGIN_INTERFACE_VERSION >= 0x103
       ,
       0

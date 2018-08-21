@@ -23,12 +23,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
 
 #include "auth_pam_common.h"
 
-#define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
-
 /** Token representation:
     token type, string repr, length of token */
 struct token {
-  enum { tok_id, tok_comma, tok_eq, tok_eof } token_type;
+  enum class type { id, comma, eq, eof } type;
   const char *token;
   size_t token_len;
 };
@@ -54,16 +52,16 @@ static const char *get_token(struct token *token, const char *buf) {
   token->token = ptr;
   switch (*ptr) {
     case '\0':
-      token->token_type = tok_eof;
+      token->type = token::type::eof;
       break;
     case ',':
       token->token_len = 1;
-      token->token_type = tok_comma;
+      token->type = token::type::comma;
       ++ptr;
       break;
     case '=':
       token->token_len = 1;
-      token->token_type = tok_eq;
+      token->type = token::type::eq;
       ++ptr;
       break;
     case '"':
@@ -74,7 +72,7 @@ static const char *get_token(struct token *token, const char *buf) {
         ++token->token_len;
         ++ptr;
       }
-      token->token_type = tok_id;
+      token->type = token::type::id;
       if (*ptr) ++ptr;
       break;
     default:
@@ -83,7 +81,7 @@ static const char *get_token(struct token *token, const char *buf) {
         ++token->token_len;
         ++ptr;
       }
-      token->token_type = tok_id;
+      token->type = token::type::id;
   }
 
   return ptr;
@@ -93,13 +91,13 @@ static const char *get_token(struct token *token, const char *buf) {
     Initially iterator set to position before first
     key-value pair. On success non-NULL pointer returned, otherwise NULL */
 struct mapping_iter *mapping_iter_new(const char *mapping_string) {
-  struct mapping_iter *it =
-      my_malloc(key_memory_pam_mapping_iter, sizeof(struct mapping_iter), 0);
-  struct token token;
-  if (it != NULL) {
-    it->key = NULL;
-    it->value = NULL;
+  struct mapping_iter *it = static_cast<mapping_iter *>(
+      my_malloc(key_memory_pam_mapping_iter, sizeof(struct mapping_iter), 0));
+  if (it != nullptr) {
+    it->key = nullptr;
+    it->value = nullptr;
     /* eat up service name and move to (, key = value)* part */
+    struct token token;
     it->ptr = get_token(&token, mapping_string);
   }
   return it;
@@ -109,7 +107,7 @@ struct mapping_iter *mapping_iter_new(const char *mapping_string) {
     On success pointer to key position in string returned,
     otherwise NULL */
 const char *mapping_iter_next(struct mapping_iter *it) {
-  struct token token[4] = {{0, 0, 0}};
+  struct token token[4] = {{token::type::id, 0, 0}};
 
   /* read next 4 tokens */
   it->ptr = get_token(
@@ -117,10 +115,12 @@ const char *mapping_iter_next(struct mapping_iter *it) {
       get_token(token + 2, get_token(token + 1, get_token(token, it->ptr))));
 
   /* was it ", id = id"? */
-  if (!((token[0].token_type == tok_comma) && (token[1].token_type == tok_id) &&
-        (token[2].token_type == tok_eq) && (token[3].token_type == tok_id))) {
+  if (!((token[0].type == token::type::comma) &&
+        (token[1].type == token::type::id) &&
+        (token[2].type == token::type::eq) &&
+        (token[3].type == token::type::id))) {
     /* we got something inconsistent */
-    return NULL;
+    return nullptr;
   }
 
   /* set key */
@@ -158,28 +158,25 @@ char *mapping_lookup_user(const char *user_name, char *value_buf,
   find key (which is interpreted as group name) in the list of groups
   for specified user. If match is found, store appropriate value in
   the authenticated_as field. */
-  struct groups_iter *group_it;
-  struct mapping_iter *keyval_it;
-  const char *key;
-  const char *group;
+  struct mapping_iter *keyval_it = mapping_iter_new(mapping_string);
+  if (keyval_it == nullptr) return nullptr;
 
-  keyval_it = mapping_iter_new(mapping_string);
-  if (keyval_it == NULL) return NULL;
-
-  group_it = groups_iter_new(user_name);
-  if (group_it == NULL) {
+  struct groups_iter *group_it = groups_iter_new(user_name);
+  if (group_it == nullptr) {
     mapping_iter_free(keyval_it);
-    return NULL;
+    return nullptr;
   }
 
-  while ((key = mapping_iter_next(keyval_it)) != NULL) {
-    while ((group = groups_iter_next(group_it)) != NULL) {
+  const char *key;
+  const char *group;
+  while ((key = mapping_iter_next(keyval_it)) != nullptr) {
+    while ((group = groups_iter_next(group_it)) != nullptr) {
       if (keyval_it->key_len == strlen(group) &&
           strncmp(key, group, keyval_it->key_len) == 0) {
         /* match is found */
         memcpy(value_buf, keyval_it->value,
-               MIN(value_buf_len, keyval_it->value_len));
-        value_buf[MIN(value_buf_len, keyval_it->value_len)] = '\0';
+               std::min(value_buf_len, keyval_it->value_len));
+        value_buf[std::min(value_buf_len, keyval_it->value_len)] = '\0';
         groups_iter_free(group_it);
         mapping_iter_free(keyval_it);
         return value_buf;
@@ -191,15 +188,15 @@ char *mapping_lookup_user(const char *user_name, char *value_buf,
   groups_iter_free(group_it);
   mapping_iter_free(keyval_it);
 
-  return NULL;
+  return nullptr;
 }
 
 /** Get key in current iterator pos. On success buf returned,
     otherwise NULL */
 char *mapping_iter_get_key(struct mapping_iter *it, char *buf, size_t buf_len) {
-  if (it->key == NULL) return NULL;
-  memcpy(buf, it->key, MIN(buf_len, it->key_len));
-  buf[MIN(buf_len, it->key_len)] = '\0';
+  if (it->key == nullptr) return nullptr;
+  memcpy(buf, it->key, std::min(buf_len, it->key_len));
+  buf[std::min(buf_len, it->key_len)] = '\0';
   return buf;
 }
 
@@ -207,9 +204,9 @@ char *mapping_iter_get_key(struct mapping_iter *it, char *buf, size_t buf_len) {
     otherwise NULL */
 char *mapping_iter_get_value(struct mapping_iter *it, char *buf,
                              size_t buf_len) {
-  if (it->value == NULL) return NULL;
-  memcpy(buf, it->value, MIN(buf_len, it->value_len));
-  buf[MIN(buf_len, it->value_len)] = '\0';
+  if (it->value == nullptr) return nullptr;
+  memcpy(buf, it->value, std::min(buf_len, it->value_len));
+  buf[std::min(buf_len, it->value_len)] = '\0';
   return buf;
 }
 
@@ -220,11 +217,11 @@ char *mapping_get_service_name(char *buf, size_t buf_len,
   struct token token;
 
   get_token(&token, mapping_string);
-  if (token.token_type == tok_id) {
-    memcpy(buf, token.token, MIN(buf_len, token.token_len));
-    buf[MIN(buf_len, token.token_len)] = '\0';
+  if (token.type == token::type::id) {
+    memcpy(buf, token.token, std::min(buf_len, token.token_len));
+    buf[std::min(buf_len, token.token_len)] = '\0';
     return buf;
   }
 
-  return NULL;
+  return nullptr;
 }

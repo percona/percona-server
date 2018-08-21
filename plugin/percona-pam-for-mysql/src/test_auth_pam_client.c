@@ -28,8 +28,8 @@
 
 #define STDCALL
 
-#include <mysql/client_plugin.h>
-#include <mysql/plugin_auth.h>
+#include "mysql/client_plugin.h"
+#include "mysql/plugin_auth.h"
 
 #include "lib_auth_pam_client.h"
 

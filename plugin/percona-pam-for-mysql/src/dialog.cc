@@ -38,13 +38,13 @@
 #define RTLD_DEFAULT GetModuleHandle(NULL)
 #endif
 
-#include <mysql.h>
-#include <mysql/client_plugin.h>
-#include <mysql/get_password.h>
-#include <mysql/plugin_auth.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "mysql.h"
+#include "mysql/client_plugin.h"
+#include "mysql/get_password.h"
+#include "mysql/plugin_auth.h"
 
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
@@ -70,9 +70,6 @@
   dialog demo with two questions, one password and one, the last, ordinary.
 */
 static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
-  unsigned char *pkt;
-  int pkt_len;
-
   /* send a password question */
   if (vio->write_packet(
           vio,
@@ -80,7 +77,9 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
     return CR_ERROR;
 
   /* read the answer */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) return CR_ERROR;
+  unsigned char *pkt;
+  int pkt_len = vio->read_packet(vio, &pkt);
+  if (pkt_len < 0) return CR_ERROR;
 
   info->password_used = PASSWORD_USED_YES;
 
@@ -103,17 +102,15 @@ static struct st_mysql_auth two_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
     "dialog", /* requires dialog client plugin */
     two_questions,
-    NULL,
-    NULL,
-    NULL,
-    0UL};
+    nullptr,
+    nullptr,
+    nullptr,
+    0UL,
+    nullptr};
 
 /* dialog demo where the number of questions is not known in advance */
 static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
-  unsigned char *pkt;
-  int pkt_len, i;
-
-  for (i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++) {
     /* send the prompt */
     if (vio->write_packet(
             vio,
@@ -121,7 +118,9 @@ static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info) {
       return CR_ERROR;
 
     /* read the password */
-    if ((pkt_len = vio->read_packet(vio, &pkt)) < 0) return CR_ERROR;
+    unsigned char *pkt;
+    int pkt_len = vio->read_packet(vio, &pkt);
+    if (pkt_len < 0) return CR_ERROR;
 
     info->password_used = PASSWORD_USED_YES;
 
@@ -139,10 +138,11 @@ static struct st_mysql_auth three_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
     "dialog", /* requires dialog client plugin */
     three_attempts,
-    NULL,
-    NULL,
-    NULL,
-    0UL};
+    nullptr,
+    nullptr,
+    nullptr,
+    0UL,
+    nullptr};
 
 mysql_declare_plugin(dialog){
     MYSQL_AUTHENTICATION_PLUGIN,
@@ -151,12 +151,13 @@ mysql_declare_plugin(dialog){
     "Sergei Golubchik",
     "Dialog plugin demo 1",
     PLUGIN_LICENSE_GPL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0x0100,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
     0,
 },
     {
@@ -166,12 +167,13 @@ mysql_declare_plugin(dialog){
         "Sergei Golubchik",
         "Dialog plugin demo 2",
         PLUGIN_LICENSE_GPL,
-        NULL,
-        NULL,
+        nullptr,
+        nullptr,
+        nullptr,
         0x0100,
-        NULL,
-        NULL,
-        NULL,
+        nullptr,
+        nullptr,
+        nullptr,
         0,
     } mysql_declare_plugin_end;
 
@@ -204,23 +206,22 @@ mysql_declare_plugin(dialog){
                         In all other cases it is assumed to be an allocated
                         string, and the "dialog" plugin will free() it.
 */
-typedef char *(*mysql_authentication_dialog_ask_t)(struct st_mysql *mysql,
-                                                   int type, const char *prompt,
+typedef char *(*mysql_authentication_dialog_ask_t)(MYSQL *mysql, int type,
+                                                   const char *prompt,
                                                    char *buf, int buf_len);
 
 static mysql_authentication_dialog_ask_t ask;
 
-static char *strdup_func(const char *str, myf flags __attribute__((unused))) {
+static char *strdup_func(const char *str, myf flags MY_ATTRIBUTE((unused))) {
   return strdup(str);
 }
 
-static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
-                         int type __attribute__((unused)), const char *prompt,
+static char *builtin_ask(MYSQL *mysql MY_ATTRIBUTE((unused)),
+                         int type MY_ATTRIBUTE((unused)), const char *prompt,
                          char *buf, int buf_len) {
   if (type == 2) /* password */
   {
-    char *password;
-    password = get_tty_password_ext(prompt, strdup_func);
+    char *const password = get_tty_password_ext(prompt, strdup_func);
     strncpy(buf, password, buf_len - 1);
     buf[buf_len - 1] = 0;
     free(password);
@@ -228,7 +229,7 @@ static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
     if (!fgets(buf, buf_len - 1, stdin))
       buf[0] = 0;
     else {
-      int len = strlen(buf);
+      const int len = strlen(buf);
       if (len && buf[len - 1] == '\n') buf[len - 1] = 0;
     }
   }
@@ -253,17 +254,18 @@ static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
    3. the prompt is expected to be sent zero-terminated
 */
 static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  unsigned char *pkt, cmd = 0;
-  int pkt_len, res;
-  char reply_buf[1024], *reply;
-  int first = 1;
+  unsigned char cmd = 0;
+  char reply_buf[1024];
+  bool first = true;
 
   do {
     /* read the prompt */
-    pkt_len = vio->read_packet(vio, &pkt);
+    unsigned char *pkt;
+    int pkt_len = vio->read_packet(vio, &pkt);
     if (pkt_len < 0) return CR_ERROR;
 
-    if (pkt == 0 && first) {
+    char *reply;
+    if (pkt == nullptr && first) {
       /*
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
@@ -293,7 +295,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       if (!reply) return CR_ERROR;
     }
     /* send the reply to the server */
-    res =
+    const int res =
         vio->write_packet(vio, (const unsigned char *)reply, strlen(reply) + 1);
 
     if (reply != mysql->passwd && reply != reply_buf) free(reply);
@@ -301,7 +303,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     if (res) return CR_ERROR;
 
     /* repeat unless it was the last question */
-    first = 0;
+    first = false;
   } while ((cmd & 1) != 1);
 
   /* the job of reading the ok/error packet is left to the server */
@@ -315,15 +317,16 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   or fall back to the default implementation.
 */
 
-static int init_dialog(char *unused1 __attribute__((unused)),
-                       size_t unused2 __attribute__((unused)),
-                       int unused3 __attribute__((unused)),
-                       va_list unused4 __attribute__((unused))) {
+static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
+                       size_t unused2 MY_ATTRIBUTE((unused)),
+                       int unused3 MY_ATTRIBUTE((unused)),
+                       va_list unused4 MY_ATTRIBUTE((unused))) {
   void *sym = dlsym(RTLD_DEFAULT, "mysql_authentication_dialog_ask");
   ask = sym ? (mysql_authentication_dialog_ask_t)sym : builtin_ask;
   return 0;
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "dialog", "Sergei Golubchik",
-    "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL", NULL,
-    init_dialog, NULL, NULL, perform_dialog mysql_end_client_plugin;
+    "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL",
+    nullptr, init_dialog, nullptr,
+    nullptr, perform_dialog mysql_end_client_plugin;

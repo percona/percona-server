@@ -27,7 +27,7 @@
 
 #define STDCALL
 
-#include <mysql/client_plugin.h>
+#include "mysql/client_plugin.h"
 
 /**
  Callback type for functions that prompt the user for (echoed or silent) input

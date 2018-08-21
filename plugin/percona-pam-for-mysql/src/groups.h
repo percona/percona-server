@@ -24,10 +24,6 @@
 
 */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct groups_iter;
 
 /** Create iterator through user groups.
@@ -45,9 +41,5 @@ void groups_iter_reset(struct groups_iter *it);
 
 /** Finish iteration and release iterator */
 void groups_iter_free(struct groups_iter *it);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

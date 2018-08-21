@@ -236,6 +236,7 @@ script:
       -DWITH_KEYRING_VAULT=ON
       -DWITHOUT_TOKUDB=ON
       -DWITH_ROCKSDB=OFF
+      -DWITH_PAM=ON
     ";
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
       CMAKE_OPT+="

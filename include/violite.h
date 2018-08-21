@@ -62,7 +62,7 @@ struct Vio;
 #include <atomic>
 #endif
 
-#if defined(HAVE_IPV6) && defined(__APPLE__)
+#if defined(__APPLE__)
 #define s6_addr32 __u6_addr.__u6_addr32
 #endif
 
@@ -169,15 +169,11 @@ size_t vio_write(MYSQL_VIO vio, const uchar *buf, size_t size);
 struct st_vio_network {
   union {
     struct in_addr in;
-#ifdef HAVE_IPV6
     struct in6_addr in6;
-#endif
   } addr;
   union {
     struct in_addr in;
-#ifdef HAVE_IPV6
     struct in6_addr in6;
-#endif
   } mask;
   sa_family_t family;
 };

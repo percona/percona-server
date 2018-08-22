@@ -1,5 +1,4 @@
 --source include/have_tokudb_backup.inc
---source include/not_gtid_enabled.inc
 
 
 --let $SLAVE_INFO_FILE=tokubackup_slave_info

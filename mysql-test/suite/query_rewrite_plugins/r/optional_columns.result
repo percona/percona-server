@@ -21,7 +21,7 @@ id	pattern	pattern_database	replacement	enabled	message	pattern_digest	normalize
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
-1	SELECT ?	NULL	SELECT "literal"	YES	NULL	0afcdaec06e14772c27df8d9c72c1ab5	select ?
+1	SELECT ?	NULL	SELECT "literal"	YES	NULL	d1b44b0c19af710b5a679907e284acd2ddc285201794bc69a2389d77baedddae	select ?
 SELECT NULL;
 literal
 literal

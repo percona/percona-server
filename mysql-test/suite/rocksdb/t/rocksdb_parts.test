@@ -1,7 +1,5 @@
 --source include/have_rocksdb.inc
 
---source include/have_partition.inc
-
 --echo # Tests for MyRocks + partitioning
 
 --echo #

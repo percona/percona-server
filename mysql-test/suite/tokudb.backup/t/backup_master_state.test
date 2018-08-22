@@ -1,5 +1,4 @@
 --source include/have_tokudb_backup.inc
---source include/not_gtid_enabled.inc
 
 --let $MASTER_STATE_FILE=tokubackup_binlog_info
 --let $BACKUP_DIR_MASTER=$MYSQL_TMP_DIR/tokudb_backup_master

@@ -1,7 +1,5 @@
 # test that tokudb discover on partitioned tokudb tables works when there is an frm mismatch
 
---source include/have_partition.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS foo, bar;
 --enable_warnings

@@ -26,7 +26,6 @@ call mtr.add_suppression("Error reading GTIDs from binary log");
 call mtr.add_suppression('Found invalid event in binary log');
 
 --source include/have_binlog_format_mixed.inc
---source include/not_gtid_enabled.inc
 
 --echo #################
 --echo # Initialization

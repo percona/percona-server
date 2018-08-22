@@ -10,7 +10,6 @@
 #
 
 --source include/have_myisam.inc
---source include/not_gtid_enabled.inc
 
 --echo #################
 --echo # Initialization

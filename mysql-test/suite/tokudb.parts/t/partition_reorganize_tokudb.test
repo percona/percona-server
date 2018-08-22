@@ -6,7 +6,6 @@
 # See tokudb.tokudb-restart for tablespace migration tests.
 #
 --source include/have_tokudb.inc
---source include/have_partition.inc
 SET default_storage_engine=TokuDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 

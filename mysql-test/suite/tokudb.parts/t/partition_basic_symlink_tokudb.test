@@ -29,15 +29,8 @@
 --echo # Verify that the DATA/INDEX DIR is stored and used if ALTER to MyISAM.
 --echo #
 --source include/have_tokudb.inc
-# The server must support partitioning.
---source include/have_partition.inc
-# The server must support symlink for DATA/INDEX DIRECTORY.
---source include/have_symlink.inc
 # windows does not support symlink for DATA/INDEX DIRECTORY.
 --source include/not_windows.inc
-
-# Does not work with --embedded
---source include/not_embedded.inc
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;

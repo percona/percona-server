@@ -1,5 +1,4 @@
 --source include/have_tokudb.inc
---source include/have_partition.inc
 SET DEFAULT_STORAGE_ENGINE='TokuDB';
 --disable_warnings
 DROP TABLE IF EXISTS foo;

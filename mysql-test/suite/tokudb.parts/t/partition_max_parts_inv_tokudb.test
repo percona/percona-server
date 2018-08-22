@@ -12,7 +12,6 @@
 # General not engine specific settings and requirements
 
 # The server must support partitioning.
---source include/have_partition.inc
 --source include/have_tokudb.inc
 
 #------------------------------------------------------------------------------#

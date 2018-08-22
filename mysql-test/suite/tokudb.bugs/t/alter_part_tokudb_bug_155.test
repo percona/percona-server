@@ -1,7 +1,6 @@
 # test case https://github.com/Tokutek/ft-engine/issues/155
 
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 
 disable_warnings;
 DROP TABLE IF EXISTS `test`;

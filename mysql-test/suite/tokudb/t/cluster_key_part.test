@@ -1,7 +1,6 @@
 # Test that clustering keys can be created on partitioned tokudb tables
 
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 set default_storage_engine='tokudb';
 
 disable_warnings;

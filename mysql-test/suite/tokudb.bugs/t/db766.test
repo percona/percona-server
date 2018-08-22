@@ -1,6 +1,5 @@
 # reproducer for DB-766
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 set default_storage_engine=TokuDB;
 disable_warnings;
 drop table if exists t1;

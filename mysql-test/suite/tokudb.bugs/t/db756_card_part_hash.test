@@ -1,6 +1,5 @@
 # DB-756 verify that cardinality is picked from SOME partition
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 set default_storage_engine='tokudb';
 disable_warnings;
 drop table if exists t;

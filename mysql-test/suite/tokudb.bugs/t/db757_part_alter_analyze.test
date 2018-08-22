@@ -1,5 +1,4 @@
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 set default_storage_engine='tokudb';
 disable_warnings;
 drop table if exists t;

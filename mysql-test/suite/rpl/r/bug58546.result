@@ -28,6 +28,8 @@ UPDATE t1 SET c2 = 2 WHERE c1 = 1;
 BEGIN;
 INSERT INTO t1 VALUES(2, 2);
 INSERT INTO t2 VALUES(1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 UPDATE t1 SET c2 = 3 WHERE c1 = 1;
 COMMIT;
 [connection slave1]

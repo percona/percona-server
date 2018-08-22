@@ -1,6 +1,5 @@
 # test for the DB-801 bug on mysql-5.5.41
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 set default_storage_engine=tokudb;
 
 disable_warnings;

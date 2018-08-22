@@ -1,1 +1,1 @@
---source suite/rpl/t/rpl_loaddatalocal.test
+--source suite/rpl_nogtid/t/rpl_loaddatalocal.test

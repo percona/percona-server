@@ -17,7 +17,6 @@
 #
 
 --source include/have_myisam.inc
---source include/not_gtid_enabled.inc
 # This test fails for binlog-format='row' due to Bug#1735185:
 # Assert fail in field.cc. The below check should be removed once
 # this bug gets fixed.

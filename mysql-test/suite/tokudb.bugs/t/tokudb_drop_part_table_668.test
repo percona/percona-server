@@ -1,7 +1,6 @@
 # verify that we can drop partitioned tokudb tables created in tokudb 6.6.8
 
 source include/have_tokudb.inc;
-source include/have_partition.inc;
 set default_storage_engine='tokudb';
 
 # capture the datadir

@@ -26,6 +26,8 @@ gtid-mode=ON
 enforce-gtid-consistency=ON
 encrypt-binlog=1
 master-verify-checksum=1
+loose-innodb_write_io_threads=    2
+loose-innodb_read_io_threads=     2
 
 [ENV]
 SERVER_MYPORT_1= @mysqld.1.port

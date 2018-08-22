@@ -2,7 +2,6 @@
 # with encrypted binary log/relaylog. In both cases server will look for previous gtids in previous
 # binary logs/relaylogs - even when server cannot decrypt previous binary logs/relaylogs.
 
---source include/not_gtid_enabled.inc
 # Different binlog formats can generate different number of binlog files. When we try to decrypt an encrypted binlog file
 # with invalid key we check if we got expected warning, expected number of times. For each binlog file we get a warning,
 # so the number of binlog files must be constant and thus we limit the test to mix format only.

@@ -4628,6 +4628,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     mysql_bin_log.purge_logs_maximum_number(max_binlog_files);
   }
+  if (opt_bin_log && binlog_space_limit)
+  {
+    mysql_bin_log.purge_logs_by_size(true);
+  }
 #endif
 
   if (opt_myisam_log)

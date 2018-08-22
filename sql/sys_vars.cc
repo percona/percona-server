@@ -1678,13 +1678,22 @@ static Sys_var_ulong Sys_expire_logs_days(
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 99), DEFAULT(0), BLOCK_SIZE(1));
 
+static Sys_var_ulonglong Sys_binlog_space_limit(
+       "binlog_space_limit", "Maximum space to use for all binary logs. "
+       "Default is 0, this feature is disabled.",
+       READ_ONLY GLOBAL_VAR(binlog_space_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_max_binlog_files(
        "max_binlog_files",
        "Maximum number of binlog files. Used with --max-binlog-size this can "
        "be used to limit the total amount of disk space used for the binlog. "
-       "Default is 0, don't limit.",
+       "Default is 0, don't limit. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(max_binlog_files),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0), BLOCK_SIZE(1));
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 102400), DEFAULT(0),
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_slowlog_size(
        "max_slowlog_size",

@@ -205,7 +205,10 @@ script:
        CC=$CC-$VERSION;
        CXX=$CXX-$VERSION;
        sudo -E apt-get -yq update >> ~/apt-get-update.log 2>&1;
-       sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libssl-dev libevent-dev libmecab-dev libprotobuf-dev protobuf-compiler liblz4-dev libnuma-dev || travis_terminate 1;
+       sudo -E apt-get -yq --no-install-suggests --no-install-recommends install $CXX $PACKAGES cmake cmake-curses-gui bison libncurses5-dev libaio-dev libmecab-dev libnuma-dev || travis_terminate 1;
+       if [[ "$INVERTED" == "ON" ]]; then
+         sudo -E apt-get -yq --no-install-suggests --no-install-recommends install libssl-dev libevent-dev liblz4-dev liblzma-dev || travis_terminate 1;
+       fi;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CC;
        sudo ln -s $(which ccache) /usr/lib/ccache/$CXX || echo;
     else
@@ -261,14 +264,13 @@ script:
           -DWITH_EDITLINE=bundled
           -DWITH_LIBEVENT=system
           -DWITH_LZ4=system
-          -DWITH_PROTOBUF=system
+          -DWITH_LZMA=system
           -DWITH_SSL=system
           -DWITH_ZLIB=bundled
           -DWITH_ARCHIVE_STORAGE_ENGINE=OFF
           -DWITH_BLACKHOLE_STORAGE_ENGINE=OFF
           -DWITH_EXAMPLE_STORAGE_ENGINE=ON
           -DWITH_FEDERATED_STORAGE_ENGINE=OFF
-          -DWITHOUT_PARTITION_STORAGE_ENGINE=ON
           -DWITHOUT_PERFSCHEMA_STORAGE_ENGINE=ON
           -DWITH_INNODB_MEMCACHED=ON
         ";

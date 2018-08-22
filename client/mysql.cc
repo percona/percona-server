@@ -92,7 +92,7 @@
 #include <readline.h>
 #include <syslog.h>
 
-#if HAVE_READLINE_HISTORY_H
+#if defined(HAVE_READLINE_HISTORY_H)
 #include <history.h>
 #endif
 #define HAVE_READLINE

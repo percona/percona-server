@@ -12,8 +12,9 @@ RESET MASTER;
 --echo # big files through LOAD DATA INFILE
 --echo #
 
-SET @saved_sync_binlog = @@sync_binlog;
-SET GLOBAL sync_binlog = 1;
+--let assert_text= @@sync_binlog must be enabled
+--let assert_cond= @@sync_binlog = 1
+--source include/assert.inc
 
 CREATE TABLE t1 (a INT);
 
@@ -34,7 +35,7 @@ send COMMIT;
 
 SET DEBUG_SYNC="now WAIT_FOR commit_ready";
 
---replace_result 569 POSITION 590 POSITION
+--replace_result 627 POSITION 606 POSITION
 SHOW STATUS LIKE 'binlog_snapshot_%';
 
 SET DEBUG_SYNC="now SIGNAL finish_commit";
@@ -48,8 +49,6 @@ reap;
 --echo # connection default
 
 DROP TABLE t1;
-
-SET GLOBAL sync_binlog = @saved_sync_binlog;
 
 --echo #
 --echo # Bug 1657128: Deadlock by concurrent SHOW BINLOGS,
@@ -97,7 +96,7 @@ reap;
 
 --connection con2
 --echo # connection con2
---replace_result 154 POSITION
+--replace_result 155 POSITION
 reap;
 --disconnect con2
 

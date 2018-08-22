@@ -6,8 +6,7 @@ RESET MASTER;
 # Bug 1646100: Server becomes unresponsive during flushing after loading
 # big files through LOAD DATA INFILE
 #
-SET @saved_sync_binlog = @@sync_binlog;
-SET GLOBAL sync_binlog = 1;
+include/assert.inc [@@sync_binlog must be enabled]
 CREATE TABLE t1 (a INT);
 # connection con1
 BEGIN;
@@ -18,13 +17,12 @@ COMMIT;
 SET DEBUG_SYNC="now WAIT_FOR commit_ready";
 SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-Binlog_snapshot_file	master-bin.000001
+Binlog_snapshot_file	binlog.000001
 Binlog_snapshot_position	POSITION
 SET DEBUG_SYNC="now SIGNAL finish_commit";
 # connection con1
 # connection default
 DROP TABLE t1;
-SET GLOBAL sync_binlog = @saved_sync_binlog;
 #
 # Bug 1657128: Deadlock by concurrent SHOW BINLOGS,
 # performance_schema.global_status query, and binlog purge
@@ -48,10 +46,10 @@ SET DEBUG_SYNC="now SIGNAL finish_pfs";
 SET DEBUG_SYNC="now SIGNAL finish_show";
 # connection con1
 Warnings:
-Warning	1868	file ./master-bin.000002 was not purged because it is the active log file.
+Warning	1868	file ./binlog.000002 was not purged because it is the active log file.
 # connection con2
 VARIABLE_NAME	VARIABLE_VALUE
-Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_file	binlog.000002
 Binlog_snapshot_position	POSITION
 # connection con3
 # connection default

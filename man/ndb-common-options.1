@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.102.\ \& This table describes command\-line options common to all MySQL NDB Cluster programs
+.B Table\ \&21.340.\ \&Command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -114,7 +114,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -175,7 +175,7 @@ T{
 --debug=options
 T}:T{
 Enable output from debug calls. Can be used only for versions compiled
-          with debugging enabled
+              with debugging enabled
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -238,8 +238,9 @@ T{
 -c
 T}:T{
 Set connection string for connecting to ndb_mgmd. Syntax:
-          [nodeid=<id>;][host=]<hostname>[:<port>].
-          Overrides entries specified in NDB_CONNECTSTRING or my.cnf.
+              [nodeid=<id>;][host=]<hostname>[:<port>].
+              Overrides entries specified in NDB_CONNECTSTRING or
+              my.cnf.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -307,7 +308,7 @@ For options specific to individual NDB Cluster programs, see
 Section\ \&21.4, \(lqNDB Cluster Programs\(rq\&.
 .PP
 See
-Section\ \&21.3.3.8.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
+Section\ \&21.3.3.9.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
 \fBmysqld\fR
 options relating to NDB Cluster\&.
 .sp
@@ -343,7 +344,7 @@ T}:T{
 directory name
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 T}
 .TE
@@ -385,17 +386,17 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 12
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -465,32 +466,32 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR (>= 5.7.10-ndb-7.5.0)
+\fBDefault Value\fR (>= 5.7.10-ndb-7.5.0)
 T}:T{
 5
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 5
 T}
 T{
-\fBMinimum\fR (>= 5.7.10-ndb-7.5.0)
+\fBMinimum Value\fR (>= 5.7.10-ndb-7.5.0)
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.10-ndb-7.5.0)
+\fBMaximum Value\fR (>= 5.7.10-ndb-7.5.0)
 T}:T{
 4294967295
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 4294967295
 T}
@@ -532,7 +533,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 FALSE
 T}
@@ -585,7 +586,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 d:t:O,/tmp/ndb_restore.trace
 T}
@@ -628,7 +629,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -669,7 +670,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -710,7 +711,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -785,7 +786,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
@@ -831,7 +832,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost:1186
 T}
@@ -885,7 +886,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 localhost:1186
 T}
@@ -928,7 +929,7 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 0
 T}
@@ -971,7 +972,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -1012,7 +1013,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}
@@ -1053,7 +1054,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 TRUE
 T}

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -177,25 +177,6 @@ Progress indicator (the values are estimates)
 For dump file reloading, faster secondary index creation for
 InnoDB
 tables by adding indexes after rows are inserted
-.RE
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-\fBmysqlpump\fR
-was added in MySQL 5\&.7\&.8\&. It uses recent MySQL features and thus assumes use with a server at least as recent as
-\fBmysqlpump\fR
-itself\&.
-.sp .5v
 .RE
 .PP
 \fBmysqlpump\fR
@@ -1002,6 +983,35 @@ statement per table row\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-get\-server\-public\-key\fR
+.sp
+Request from the server the public key required for RSA key pair\-based password exchange\&. This option applies to clients that that authenticate with the
+caching_sha2_password
+authentication plugin\&. For that plugin, the server does not send the public key unless requested\&. This option is ignored for accounts that do not authenticate with that plugin\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For information about the
+caching_sha2_password
+plugin, see
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-get\-server\-public\-key\fR
+option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-hex\-blob\fR
 .sp
 Dump binary columns using hexadecimal notation (for example,
@@ -1474,6 +1484,43 @@ This option is deprecated and will be removed in a future MySQL release\&. It is
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+.sp
+The path name to a file containing a client\-side copy of the public key required by the server for RSA key pair\-based password exchange\&. The file must be in PEM format\&. This option applies to clients that authenticate with the
+sha256_password
+or
+caching_sha2_password
+authentication plugin\&. This option is ignored for accounts that do not authenticate with one of those plugins\&. It is also ignored if RSA\-based password exchange is not used, as is the case when the client connects to the server using a secure connection\&.
+.sp
+If
+\fB\-\-server\-public\-key\-path=\fR\fB\fIfile_name\fR\fR
+is given and specifies a valid public key file, it takes precedence over
+\fB\-\-get\-server\-public\-key\fR\&.
+.sp
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+.sp
+For information about the
+sha256_password
+and
+caching_sha2_password
+plugins, see
+Section\ \&6.5.1.4, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.5.1.5, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+.sp
+The
+\fB\-\-server\-public\-key\-path\fR
+option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-set\-charset\fR
 .sp
 Write
@@ -1517,19 +1564,19 @@ l l.
 T{
 OFF
 T}:T{
-Add no SET statement to the output\&.
+Add no SET statement to the output.
 T}
 T{
 ON
 T}:T{
-Add a SET statement to the output\&. An error occurs if
-                    GTIDs are not enabled on the server\&.
+Add a SET statement to the output. An error occurs if
+                  GTIDs are not enabled on the server.
 T}
 T{
 AUTO
 T}:T{
 Add a SET statement to the output if GTIDs are
-                    enabled on the server\&.
+                  enabled on the server.
 T}
 .TE
 .sp 1
@@ -1851,8 +1898,6 @@ shell> \fBmysqlpump \-\-exclude\-databases=% \-\-users\fR
 \fB\-V\fR
 .sp
 Display version information and exit\&.
-.sp
-This option was added in MySQL 5\&.7\&.9\&.
 .RE
 .sp
 .RS 4

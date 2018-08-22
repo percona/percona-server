@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1155,6 +1155,9 @@ struct handlerton
 */
 #define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 14)
 
+// Engine supports packed keys.
+#define HTON_SUPPORTS_PACKED_KEYS    (1 << 12)
+
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
@@ -1198,6 +1201,8 @@ enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
 
 typedef struct st_ha_create_information
 {
+  st_ha_create_information() { memset(this, 0, sizeof(*this)); }
+
   const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;
@@ -1462,6 +1467,14 @@ public:
 
   // New/changed virtual generated column require validation
   static const HA_ALTER_FLAGS VALIDATE_VIRTUAL_COLUMN    = 1ULL << 41;
+
+  /**
+    Change in index length such that it does not require index rebuild.
+    For example, change in index length due to column expansion like
+    varchar(X) changed to varchar(X + N).
+  */
+  static const HA_ALTER_FLAGS ALTER_COLUMN_INDEX_LENGTH = 1ULL << 42;
+
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -3296,16 +3309,18 @@ public:
   {
     return std::min(MAX_KEY_LENGTH, max_supported_key_length());
   }
-  uint max_key_part_length() const
+  uint max_key_part_length(HA_CREATE_INFO *create_info) const
   {
-    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length(create_info));
   }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
   virtual uint max_supported_keys() const { return 0; }
   virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
-  virtual uint max_supported_key_part_length() const { return 255; }
+  virtual uint max_supported_key_part_length(HA_CREATE_INFO
+                            *create_info MY_ATTRIBUTE((unused))) const
+  { return 255; }
   virtual uint min_record_length(uint options) const { return 1; }
 
   virtual bool low_byte_first() const { return 1; }
@@ -4380,8 +4395,10 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
-bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
-                                        const char* table_name);
+bool ha_is_supported_system_table(handlerton *hton, const char *db,
+                                  const char *table_name);
+bool ha_is_valid_system_or_user_table(handlerton *hton, const char *db,
+                                      const char *table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

@@ -2,4 +2,6 @@ SET big_tables = 1;
 CREATE TABLE t1(a BINARY (1)) ROW_FORMAT=DYNAMIC ENGINE=InnoDB;
 SELECT NOT EXISTS(SELECT 1) FROM t1 JOIN t1 a USING(a) GROUP BY 1 DESC WITH ROLLUP;
 NOT EXISTS(SELECT 1)
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;

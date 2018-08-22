@@ -469,7 +469,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   db_plugin= ha_lock_engine(0, heap_hton);
   handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, heap_hton);
   HEAP_MAX_KEY_LENGTH= handler->max_key_length();
-  HEAP_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  HEAP_MAX_KEY_PART_LENGTH= handler->max_key_part_length(0);
   HEAP_MAX_KEY_PARTS= handler->max_key_parts();
   delete handler;
   plugin_unlock(0, db_plugin);
@@ -477,7 +477,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   db_plugin= ha_lock_engine(0, myisam_hton);
   handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, myisam_hton);
   MYISAM_MAX_KEY_LENGTH= handler->max_key_length();
-  MYISAM_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
+  MYISAM_MAX_KEY_PART_LENGTH= handler->max_key_part_length(0);
   MYISAM_MAX_KEY_PARTS= handler->max_key_parts();
   delete handler;
   plugin_unlock(0, db_plugin);
@@ -811,7 +811,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   my_stpcpy(tmpname,path);
   /* make table according to fields */
 
-  memset(static_cast<void*>(table), 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*)*(field_count + 2));
   memset(default_field, 0, sizeof(Field*) * (field_count + 1));
   memset(from_field, 0, sizeof(Field*)*(field_count + 1));
@@ -1650,7 +1650,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   my_stpcpy(tmpname,path);
 
   /* STEP 4: Create TABLE description */
-  memset(static_cast<void*>(table), 0, sizeof(*table));
+  new (table) TABLE;
   memset(reg_field, 0, sizeof(Field*) * 3);
 
   table->mem_root= own_root;
@@ -1969,8 +1969,8 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         NullS))
     return 0;
 
-  memset(static_cast<void*>(table), 0, sizeof(*table));
-  memset(static_cast<void*>(share), 0, sizeof(*share));
+  new (table) TABLE;
+  new (share) TABLE_SHARE;
   table->field= field;
   table->s= share;
   table->temp_pool_slot= MY_BIT_NONE;
@@ -2249,8 +2249,6 @@ bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
   DBUG_ENTER("create_innodb_tmp_table");
 
   HA_CREATE_INFO create_info;
-
-  memset(static_cast<void*>(&create_info), 0, sizeof(create_info));
 
   create_info.db_type= table->s->db_type();
   create_info.row_type= table->s->row_type;

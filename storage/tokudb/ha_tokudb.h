@@ -755,7 +755,7 @@ public:
     //
     // Returns limit on key part length imposed by tokudb.
     //
-    uint max_supported_key_part_length() const {
+    uint max_supported_key_part_length(HA_CREATE_INFO *) const {
         return UINT_MAX32;
     } 
     const key_map *keys_to_use_for_scanning() {

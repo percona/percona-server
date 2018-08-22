@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_index_stat\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_INDEX_STAT\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_INDEX_STAT\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -176,7 +176,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.90.\ \& This table describes command\-line options for the ndb_index_stat program
+.B Table\ \&21.326.\ \&Command\-line options for the ndb_index_stat program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -185,7 +185,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -218,7 +218,7 @@ T{
 --delete
 T}:T{
 Delete index statistics for the given table, stopping any auto-update
-          previously configured.
+              previously configured.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -228,7 +228,7 @@ T{
 --update
 T}:T{
 Update index statistics for the given table, restarting any auto-update
-          previously configured.
+              previously configured.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -247,7 +247,7 @@ T{
 --query=#
 T}:T{
 Perform a number of random range queries on first key attr (must be int
-          unsigned).
+              unsigned).
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -257,7 +257,7 @@ T{
 --sys-drop
 T}:T{
 Drop any statistics tables and events in NDB kernel (all statistics are
-          lost)
+              lost)
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -267,7 +267,7 @@ T{
 --sys-create
 T}:T{
 Create all statistics tables and events in NDB kernel, if none of them
-          already exist
+              already exist
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -277,7 +277,7 @@ T{
 --sys-create-if-not-exist
 T}:T{
 Create any statistics tables and events in NDB kernel that do not
-          already exist.
+              already exist.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -287,7 +287,7 @@ T{
 --sys-create-if-not-valid
 T}:T{
 Create any statistics tables or events that do not already exist in the
-          NDB kernel. after dropping any that are invalid.
+              NDB kernel. after dropping any that are invalid.
 T}:T{
 .PP
 All MySQL 5.7 based releases
@@ -380,16 +380,16 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 [none]
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -431,16 +431,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -482,16 +482,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -533,16 +533,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -584,17 +584,17 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 MAX_INT
 T}
@@ -640,16 +640,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -692,16 +692,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -743,16 +743,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -794,16 +794,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -845,16 +845,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -896,16 +896,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -949,16 +949,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -1002,16 +1002,16 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 false
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 T}
 .TE
@@ -1053,17 +1053,17 @@ T}:T{
 numeric
 T}
 T{
-\fBDefault\fR
+\fBDefault Value\fR
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR
+\fBMinimum Value\fR
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR
+\fBMaximum Value\fR
 T}:T{
 MAX_INT
 T}

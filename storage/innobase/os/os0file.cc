@@ -213,6 +213,8 @@ mysql_pfs_key_t  innodb_parallel_dblwrite_file_key;
 
 /** The asynchronous I/O context */
 struct Slot {
+	Slot() { memset(this, 0, sizeof(*this)); }
+
 	/** index of the slot in the aio array */
 	uint16_t		pos;
 
@@ -3241,20 +3243,8 @@ os_file_fsync_posix(
 
 		case EIO:
 
-			++failures;
-			ut_a(failures < 1000);
-
-			if (!(failures % 100)) {
-
-				ib::warn()
-					<< "fsync(): "
-					<< "An error occurred during "
-					<< "synchronization,"
-					<< " retrying";
-			}
-
-			/* 0.2 sec */
-			os_thread_sleep(200000);
+                        ib::fatal()
+				<< "fsync() returned EIO, aborting.";
 			break;
 
 		case EINTR:
@@ -3294,7 +3284,8 @@ os_file_status_posix(
 	if (!ret) {
 		/* file exists, everything OK */
 
-	} else if (errno == ENOENT || errno == ENOTDIR) {
+	} else if (errno == ENOENT || errno == ENOTDIR
+		   || errno == ENAMETOOLONG) {
 		/* file does not exist */
 		return(true);
 
@@ -4402,7 +4393,8 @@ os_file_status_win32(
 	if (!ret) {
 		/* file exists, everything OK */
 
-	} else if (errno == ENOENT || errno == ENOTDIR) {
+	} else if (errno == ENOENT || errno == ENOTDIR
+		  || errno == ENAMETOOLONG) {
 		/* file does not exist */
 		return(true);
 
@@ -6570,8 +6562,7 @@ AIO::AIO(
 	m_not_full = os_event_create("aio_not_full");
 	m_is_empty = os_event_create("aio_is_empty");
 
-	memset(static_cast<void*>(&m_slots[0]), 0x0,
-	       sizeof(m_slots[0]) * m_slots.size());
+	std::uninitialized_fill(m_slots.begin(), m_slots.end(), Slot());
 #ifdef LINUX_NATIVE_AIO
 	memset(&m_events[0], 0x0, sizeof(m_events[0]) * m_events.size());
 #endif /* LINUX_NATIVE_AIO */

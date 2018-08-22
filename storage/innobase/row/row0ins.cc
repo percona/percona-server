@@ -1621,7 +1621,8 @@ row_ins_check_foreign_constraint(
 
 	if (check_table == NULL
 	    || check_table->ibd_file_missing
-	    || check_index == NULL) {
+	    || check_index == NULL
+	    || fil_space_is_being_truncated(check_table->space)) {
 
 		if (!srv_read_only_mode && check_ref) {
 			FILE*	ef = dict_foreign_err_file;
@@ -1643,7 +1644,8 @@ row_ins_check_foreign_constraint(
 			ut_print_name(ef, trx,
 				      foreign->referenced_table_name);
 			fputs("\nor its .ibd file does"
-			      " not currently exist!\n", ef);
+			      " not currently exist!, or"
+			      " is undergoing truncate!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			err = DB_NO_REFERENCED_ROW;
@@ -1883,6 +1885,7 @@ exit_func:
 		mem_heap_free(heap);
 	}
 
+	DEBUG_SYNC_C("finished_scanning_index");
 	DBUG_RETURN(err);
 }
 

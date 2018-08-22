@@ -24,11 +24,13 @@ CHECK_IF_CURL_DEPENDS_ON_RTMP("keyring_vault unit tests")
 
 message(STATUS "Building keyring_vault unittests")
 
+INCLUDE_DIRECTORIES(SYSTEM
+  ${GMOCK_INCLUDE_DIRS}
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  ${CURL_INCLUDE_DIRS}
+)
 INCLUDE_DIRECTORIES(
-        SYSTEM ${GMOCK_INCLUDE_DIRS}
-        SYSTEM ${BOOST_INCLUDE_DIR}
-        SYSTEM ${CURL_INCLUDE_DIRS}
-        ${BOOST_PATCHES_DIR}
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/sql
         ${CMAKE_SOURCE_DIR}/plugin/keyring/common

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/03/2018
+.\"      Date: 06/07/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "03/03/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -182,7 +182,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.89.\ \& This table describes command\-line options for the ndb_import program
+.B Table\ \&21.325.\ \&Command\-line options for the ndb_import program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -191,7 +191,7 @@ Format
 T}:T{
 Description
 T}:T{
-Added or Removed
+Added, Deprecated, or Removed
 T}
 .T&
 l l l
@@ -264,7 +264,7 @@ T{
 --ai-prefetch-sz=#
 T}:T{
 For table with hidden PK, specify number of autoincrement values that
-          are prefetched. See mysqld
+              are prefetched. See mysqld
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -301,7 +301,7 @@ T{
 --errins-type=name
 T}:T{
 Error insert type, for testing purposes; use "list" to obtain all
-          possible values
+              possible values
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -320,7 +320,8 @@ T{
 --fields-enclosed-by=char
 T}:T{
 Same as FIELDS ENCLOSED BY option for LOAD DATA statements. For CSV
-          input this is same as using --fields-optionally-enclosed-by
+              input this is same as using
+              --fields-optionally-enclosed-by
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -393,7 +394,7 @@ T{
 --input-workers=#
 T}:T{
 Number of threads processing input. Must be 2 or more if --input-type is
-          csv.
+              csv.
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -412,7 +413,7 @@ T{
 --max-rows=#
 T}:T{
 Import only this number of input data rows; default is 0, which imports
-          all rows
+              all rows
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -422,9 +423,10 @@ T{
 --monitor=#
 T}:T{
 Periodically print status of running job if something has changed
-          (status, rejected rows, temporary errors). Value 0 disables.
-          Value 1 prints any change seen. Higher values reduce status
-          printing exponentially up to some pre-defined limit.
+              (status, rejected rows, temporary errors). Value 0
+              disables. Value 1 prints any change seen. Higher values
+              reduce status printing exponentially up to some
+              pre-defined limit.
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -452,9 +454,9 @@ T{
 --opbatch=#
 T}:T{
 A db execution batch is a set of transactions and operations sent to NDB
-          kernel. This option limits NDB operations (including blob
-          operations) in a db execution batch. Therefore it also limits
-          number of asynch transactions. Value 0 is not valid
+              kernel. This option limits NDB operations (including blob
+              operations) in a db execution batch. Therefore it also
+              limits number of asynch transactions. Value 0 is not valid
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -500,7 +502,7 @@ T{
 --pagecnt=#
 T}:T{
 Size of I/O buffers as multiple of page size. CSV input worker allocates
-          a double-sized buffer
+              a double-sized buffer
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -510,7 +512,7 @@ T{
 --polltimeout=#
 T}:T{
 Timeout per poll for completed asynchonous transactions; polling
-          continues until all polls are completed, or error occurs
+              continues until all polls are completed, or error occurs
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -520,8 +522,9 @@ T{
 --rejects=#
 T}:T{
 Limit number of rejected rows (rows with permanent error) in data load.
-          Default is 0 which means that any rejected row causes a fatal
-          error. The row exceeding the limit is also added to *.rej
+              Default is 0 which means that any rejected row causes a
+              fatal error. The row exceeding the limit is also added to
+              *.rej
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -531,7 +534,7 @@ T{
 --resume
 T}:T{
 If job aborted (temporary error, user interrupt), resume with rows not
-          yet processed
+              yet processed
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -541,7 +544,7 @@ T{
 --rowbatch=#
 T}:T{
 Limit rows in row queues (default 0 = no limit); must be 1 or more if
-          --input-type is random
+              --input-type is random
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -578,8 +581,9 @@ T{
 --temperrors=#
 T}:T{
 Number of times a transaction can fail due to a temporary error, per
-          execution batch; 0 means any temporary error is fatal. Such
-          errors do not cause any rows to be written to .rej file
+              execution batch; 0 means any temporary error is fatal.
+              Such errors do not cause any rows to be written to .rej
+              file
 T}:T{
 .PP
 ADDED: NDB 7.6.2
@@ -636,7 +640,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 FALSE
 T}
@@ -685,17 +689,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -746,17 +750,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -807,17 +811,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1024
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -868,17 +872,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -925,7 +929,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 FALSE
 T}
@@ -974,17 +978,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1032,7 +1036,7 @@ T}:T{
 enumeration
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 [none]
 T}
@@ -1099,17 +1103,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1000
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1156,7 +1160,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 [none]
 T}
@@ -1208,7 +1212,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 \
 T}
@@ -1259,7 +1263,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 [none]
 T}
@@ -1311,7 +1315,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 \t
 T}
@@ -1364,17 +1368,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1423,17 +1427,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1482,17 +1486,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1542,7 +1546,7 @@ T}:T{
 enumeration
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 csv
 T}
@@ -1602,17 +1606,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 2
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1659,7 +1663,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 \n
 T}
@@ -1712,17 +1716,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1771,17 +1775,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 2
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1828,7 +1832,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 FALSE
 T}
@@ -1875,7 +1879,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 FALSE
 T}
@@ -1924,17 +1928,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 256
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -1983,17 +1987,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2041,7 +2045,7 @@ T}:T{
 enumeration
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 ndb
 T}
@@ -2099,17 +2103,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 2
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2158,17 +2162,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4096
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2217,17 +2221,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 64
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2276,17 +2280,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1000
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 1
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2335,17 +2339,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2394,7 +2398,7 @@ T}:T{
 boolean
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 FALSE
 T}
@@ -2443,17 +2447,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2502,17 +2506,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 262144
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2559,7 +2563,7 @@ T}:T{
 string
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 .
 T}
@@ -2611,17 +2615,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 10
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2670,17 +2674,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 4294967295
 T}
@@ -2732,17 +2736,17 @@ T}:T{
 integer
 T}
 T{
-\fBDefault\fR (>= 5.7.18-ndb-7.6.2)
+\fBDefault Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMinimum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMinimum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 0
 T}
 T{
-\fBMaximum\fR (>= 5.7.18-ndb-7.6.2)
+\fBMaximum Value\fR (>= 5.7.18-ndb-7.6.2)
 T}:T{
 2
 T}

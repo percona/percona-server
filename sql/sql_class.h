@@ -5973,55 +5973,6 @@ inline void add_order_to_list(THD *thd, ORDER *order)
   thd->lex->select_lex->add_order_to_list(order);
 }
 
-/*************************************************************************/
-
-/** RAII class for temporarily turning off @@autocommit in the connection. */
-
-class Disable_autocommit_guard
-{
-public:
-
-  /**
-    @param thd  non-NULL - pointer to the context of connection in which
-                           @@autocommit mode needs to be disabled.
-                NULL     - if @@autocommit mode needs to be left as is.
-  */
-  Disable_autocommit_guard(THD *thd)
-    : m_thd(thd), m_save_option_bits(thd ? thd->variables.option_bits : 0)
-  {
-    if (m_thd)
-    {
-      /*
-        We can't disable auto-commit if there is ongoing transaction as this
-        might easily break statement/session transaction invariants.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-
-      m_thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-      m_thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
-    }
-  }
-
-  ~Disable_autocommit_guard()
-  {
-    if (m_thd)
-    {
-      /*
-        Both session and statement transactions need to be finished by the
-        time when we enable auto-commit mode back.
-      */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
-      m_thd->variables.option_bits= m_save_option_bits;
-    }
-  }
-
-private:
-  THD *m_thd;
-  ulonglong m_save_option_bits;
-};
-
 inline void add_group_to_list(THD *thd, ORDER *order)
 {
   thd->lex->select_lex->add_group_to_list(order);

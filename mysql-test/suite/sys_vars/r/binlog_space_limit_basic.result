@@ -1,0 +1,21 @@
+select @@global.binlog_space_limit;
+@@global.binlog_space_limit
+0
+select @@session.binlog_space_limit;
+ERROR HY000: Variable 'binlog_space_limit' is a GLOBAL variable
+show global variables like 'binlog_space_limit';
+Variable_name	Value
+binlog_space_limit	0
+show session variables like 'binlog_space_limit';
+Variable_name	Value
+binlog_space_limit	0
+select * from performance_schema.global_variables where variable_name='binlog_space_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_space_limit	0
+select * from performance_schema.session_variables where variable_name='binlog_space_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_space_limit	0
+set global binlog_space_limit=1;
+ERROR HY000: Variable 'binlog_space_limit' is a read only variable
+set session binlog_space_limit=1;
+ERROR HY000: Variable 'binlog_space_limit' is a read only variable

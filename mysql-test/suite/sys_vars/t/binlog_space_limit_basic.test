@@ -1,0 +1,18 @@
+#
+# only global
+#
+select @@global.binlog_space_limit;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.binlog_space_limit;
+show global variables like 'binlog_space_limit';
+show session variables like 'binlog_space_limit';
+select * from performance_schema.global_variables where variable_name='binlog_space_limit';
+select * from performance_schema.session_variables where variable_name='binlog_space_limit';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global binlog_space_limit=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session binlog_space_limit=1;

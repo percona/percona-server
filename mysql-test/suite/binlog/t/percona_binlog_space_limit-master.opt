@@ -1,0 +1,2 @@
+--log-bin=binary
+--binlog-space-limit=1024

@@ -1740,13 +1740,12 @@ static Sys_var_ulong Sys_expire_logs_days(
     NOT_IN_BINLOG, ON_CHECK(check_expire_logs_days), ON_UPDATE(NULL),
     DEPRECATED("binlog_expire_logs_seconds"));
 
-static Sys_var_ulong Sys_max_binlog_files(
-    "max_binlog_files",
-    "Maximum number of binlog files. Used with --max-binlog-size this can "
-    "be used to limit the total amount of disk space used for the binlog. "
-    "Default is 0, don't limit.",
-    GLOBAL_VAR(max_binlog_files), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 102400), DEFAULT(0), BLOCK_SIZE(1));
+static Sys_var_ulonglong Sys_binlog_space_limit(
+    "binlog_space_limit",
+    "Maximum space to use for all binary logs. "
+    "Default is 0, this feature is disabled.",
+    READ_ONLY GLOBAL_VAR(binlog_space_limit), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     "binlog_expire_logs_seconds",

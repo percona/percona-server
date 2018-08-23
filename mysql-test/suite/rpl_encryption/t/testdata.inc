@@ -21,7 +21,7 @@ USE database_name_to_encrypt;
 
 CREATE USER user_name_to_encrypt;
 GRANT ALL ON database_name_to_encrypt.* TO user_name_to_encrypt;
-SET PASSWORD FOR user_name_to_encrypt = PASSWORD('password_to_encrypt');
+SET PASSWORD FOR user_name_to_encrypt = 'password_to_encrypt';
 
 CREATE TABLE innodb_table_name_to_encrypt (
   int_column_name_to_encrypt INT PRIMARY KEY,

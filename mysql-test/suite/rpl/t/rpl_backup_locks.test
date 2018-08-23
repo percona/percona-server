@@ -18,10 +18,18 @@ STOP SLAVE;
 
 INSERT INTO t_innodb VALUES (0);
 
-sync_slave_with_master;
-
 --connection slave
 --echo # connection slave
+
+LOCK TABLES FOR BACKUP;
+
+START SLAVE;
+
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+UNLOCK TABLES;
+
 STOP SLAVE;
 
 --connection master
@@ -40,7 +48,7 @@ START SLAVE;
 
 let $wait_condition=
     SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE STATE = "Waiting for backup lock" AND
+    WHERE STATE = "Waiting for table backup lock" AND
     (INFO = "INSERT INTO t_myisam VALUES (0)" OR INFO IS NULL);
 --source include/wait_condition.inc
 

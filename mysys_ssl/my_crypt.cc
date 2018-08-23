@@ -145,8 +145,12 @@ class MyEncryptionCTX_nopad final : public MyEncryptionCTX {
     this->key = key;
     this->klen = klen;
     this->buf_len = 0;
-    memcpy(oiv, iv, ivlen);
-    DBUG_ASSERT(ivlen == 0 || ivlen == sizeof(oiv));
+    if (iv) {
+      memcpy(oiv, iv, ivlen);
+      DBUG_ASSERT(ivlen == sizeof(oiv));
+    } else {
+      DBUG_ASSERT(ivlen == 0);
+    }
 
     int res = MyEncryptionCTX::init(mode, encrypt, key, klen, iv, ivlen);
     if (res == MY_AES_OK) EVP_CIPHER_CTX_set_padding(ctx, 0);
@@ -176,7 +180,7 @@ class MyEncryptionCTX_nopad final : public MyEncryptionCTX {
 
       int result = my_aes_crypt(
           my_aes_mode::ECB, ENCRYPTION_FLAG_ENCRYPT | ENCRYPTION_FLAG_NOPAD,
-          oiv, sizeof(mask), mask, &mlen, key, klen, 0, 0);
+          oiv, sizeof(mask), mask, &mlen, key, klen, nullptr, 0);
       if (result != MY_AES_OK) return result;
       DBUG_ASSERT(mlen == sizeof(mask));
 

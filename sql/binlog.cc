@@ -301,6 +301,8 @@ static int binlog_start_consistent_snapshot(handlerton *hton, THD *thd);
 static int binlog_clone_consistent_snapshot(handlerton *hton, THD *thd,
                                             THD *from_thd);
 
+ulonglong binlog_space_limit;
+
 // The last published global binlog position
 static char binlog_global_snapshot_file[FN_REFLEN];
 static ulonglong binlog_global_snapshot_position;
@@ -3760,6 +3762,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period, bool relay_log)
       m_binlog_file(new Binlog_ofile()),
       m_key_LOCK_log(key_LOG_LOCK_log),
       bytes_written(0),
+      binlog_space_total(0),
       file_id(1),
       sync_period_ptr(sync_period),
       sync_counter(0),
@@ -6013,6 +6016,7 @@ err:
   if (name == nullptr)
     name = const_cast<char *>(save_name);  // restore old file-name
   tsid_lock->unlock();
+  count_binlog_space(false);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
   return error;
@@ -6287,6 +6291,7 @@ err:
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index",
                   DBUG_SUICIDE(););
 
+  count_binlog_space(false);
   if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
 
   /*
@@ -6528,62 +6533,161 @@ err:
 }
 
 /**
-  Purge old logs so that we have a maximum of max_nr_files logs.
+  Count a total size of binary logs (except the active one) to the variable
+  binlog_space_total.
 
-  @param max_nr_files	Maximum number of logfiles to have
-
-  @note
-  If any of the logs before the deleted one is in use,
-  only purge logs up to this one.
+  @param need_lock_index  If true, this function acquires LOCK_index;
+                          otherwise the caller should already have acquired it.
 
   @retval
-  0				ok
+    0			ok
   @retval
-  LOG_INFO_PURGE_NO_ROTATE	Binary file that can't be rotated
-  LOG_INFO_FATAL              if any other than ENOENT error from
-  mysql_file_stat() or mysql_file_delete()
+    LOG_INFO_FATAL      if any other than ENOENT error from
+                        mysql_file_stat() or mysql_file_delete()
+    LOG_INFO_EOF        End of log-index-file found
+    LOG_INFO_IO         Got IO error while reading log-index-file
 */
 
-int MYSQL_BIN_LOG::purge_logs_maximum_number(ulong max_nr_files) {
+int MYSQL_BIN_LOG::count_binlog_space(bool need_lock_index) {
+  DBUG_ENTER("count_binlog_space");
+  if (is_relay_log) DBUG_RETURN(0);
+
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+
   int error;
-  char to_log[FN_REFLEN];
   LOG_INFO log_info;
-  ulong current_number_of_logs = 1;
+  binlog_space_total = 0;
+  if ((error = find_log_pos(&log_info, NullS, false /*need_lock_index=false*/)))
+    goto done;
 
-  DBUG_ENTER("purge_logs_maximum_number");
-
-  mysql_mutex_lock(&LOCK_index);
-  to_log[0] = 0;
-
-  if ((error = find_log_pos(&log_info, NullS, 0 /*no mutex*/))) goto err;
-
-  while (!find_next_log(&log_info, 0)) current_number_of_logs++;
-
-  if (current_number_of_logs <= max_nr_files) {
-    error = 0;
-    goto err; /* No logs to expire */
-  }
-
-  if ((error = find_log_pos(&log_info, NullS, 0 /*no mutex*/))) goto err;
-
-  while (strcmp(log_file_name, log_info.log_file_name) &&
-         !is_active(log_info.log_file_name) &&
-         !log_in_use(log_info.log_file_name) &&
-         current_number_of_logs > max_nr_files) {
-    current_number_of_logs--;
-    strmake(to_log, log_info.log_file_name, sizeof(log_info.log_file_name) - 1);
-
-    if (find_next_log(&log_info, 0)) {
-      break;
+  MY_STAT stat_area;
+  while (!(is_active(log_info.log_file_name))) {
+    if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &stat_area,
+                         MYF(0))) {
+      if (my_errno() == ENOENT) {
+        /*
+          It's not fatal if we can't stat a log file that does not exist.
+        */
+        set_my_errno(0);
+      } else {
+        error = LOG_INFO_FATAL;
+        goto done;
+      }
+    } else {
+      binlog_space_total += stat_area.st_size;
     }
+    if (find_next_log(&log_info, false /*need_lock_index=false*/)) break;
   }
 
-  error =
-      (to_log[0] ? purge_logs(to_log, true, false, true, (ulonglong *)0, true)
-                 : 0);
+  error = 0;
 
-err:
-  mysql_mutex_unlock(&LOCK_index);
+done:
+  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
+  DBUG_RETURN(error);
+}
+
+/**
+  Purge old logs so that we have a total size lower than binlog_space_limit.
+
+  @param need_lock_index  If true, this function acquires LOCK_index;
+                          otherwise the caller should already have acquired it.
+
+  @note
+    If any of the logs before the deleted one is in use,
+    only purge logs up to this one.
+
+  @retval
+    0				ok
+  @retval
+    LOG_INFO_FATAL      if any other than ENOENT error from
+                        mysql_file_stat() or mysql_file_delete()
+    LOG_INFO_EOF        End of log-index-file found
+    LOG_INFO_IO         Got IO error while reading log-index-file
+*/
+
+int MYSQL_BIN_LOG::purge_logs_by_size(bool need_lock_index) {
+  DBUG_ENTER("purge_logs_by_size");
+
+  if (is_relay_log || !binlog_space_limit) DBUG_RETURN(0);
+
+  if (need_lock_index)
+    mysql_mutex_lock(&LOCK_index);
+  else
+    mysql_mutex_assert_owner(&LOCK_index);
+
+  int error = 0;
+  LOG_INFO log_info;
+  const auto binlog_pos = m_binlog_file->position();
+  count_binlog_space(false);
+
+  if (!binlog_space_total ||
+      binlog_space_total + binlog_pos <= binlog_space_limit)
+    goto done;
+
+  if ((error = find_log_pos(&log_info, NullS, false /*need_lock_index=false*/)))
+    goto done;
+
+  MY_STAT stat_area;
+  char to_log[FN_REFLEN];
+  to_log[0] = 0;
+  while (!is_active(log_info.log_file_name)) {
+    if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &stat_area,
+                         MYF(0))) {
+      if (my_errno() == ENOENT) {
+        /*
+          It's not fatal if we can't stat a log file that does not exist.
+        */
+        set_my_errno(0);
+      } else {
+        /*
+          Other than ENOENT are fatal
+        */
+        THD *thd = current_thd;
+        if (thd) {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_BINLOG_PURGE_FATAL_ERR,
+                              "a problem with getting info on being purged %s; "
+                              "consider examining correspondence "
+                              "of your binlog index file "
+                              "to the actual binlog files",
+                              log_info.log_file_name);
+        } else {
+          LogErr(INFORMATION_LEVEL, ER_CANT_STAT_FILE, log_info.log_file_name);
+        }
+        error = LOG_INFO_FATAL;
+        goto done;
+      }
+    }
+    /* check if a total size of binary logs is bigger than binlog_space_limit
+       if yes check if it is in use, if not in use then add
+       it in the list of binary log files to be purged.
+    */
+    else if (binlog_space_total + binlog_pos > binlog_space_limit) {
+      if ((log_in_use(log_info.log_file_name))) break;
+      DBUG_PRINT("info", ("purge_logs_by_size binlog_space_total=%llu "
+                          "binlog_pos=%llu sum=%llu\n",
+                          binlog_space_total, binlog_pos,
+                          binlog_space_total + binlog_pos));
+      if (binlog_space_total >= (ulonglong)stat_area.st_size)
+        binlog_space_total -= stat_area.st_size;
+      else
+        break;
+      strmake(to_log, log_info.log_file_name,
+              sizeof(log_info.log_file_name) - 1);
+    } else
+      break;
+    if (find_next_log(&log_info, false /*need_lock_index=false*/)) break;
+  }
+
+  error = (to_log[0] ? purge_logs(to_log, true, false /*need_lock_index=false*/,
+                                  true /*need_update_threads=true*/, NULL, true)
+                     : 0);
+
+done:
+  if (need_lock_index) mysql_mutex_unlock(&LOCK_index);
   DBUG_RETURN(error);
 }
 
@@ -7561,6 +7665,8 @@ void MYSQL_BIN_LOG::auto_purge() {
   */
   ha_flush_logs();
   purge_logs_before_date(purge_time, auto_purge);
+
+  if (binlog_space_limit) purge_logs_by_size(true);
 }
 
 /**
@@ -9384,6 +9490,11 @@ commit_stage:
     else if (check_purge)
       auto_purge();
   }
+
+  if (binlog_space_limit && binlog_space_total &&
+      binlog_space_total + m_binlog_file->position() > binlog_space_limit)
+    purge_logs_by_size(true);
+
   /*
     flush or sync errors are handled above (using binlog_error_action).
     Hence treat only COMMIT_ERRORs as errors.

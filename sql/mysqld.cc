@@ -8854,6 +8854,8 @@ static int init_server_components() {
   if (!opt_bin_log) {
     if (binlog_expire_logs_seconds_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
+    if (binlog_space_limit)
+      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-space-limit");
   }
 
   if (opt_myisam_log) (void)mi_log(1);
@@ -9941,6 +9943,8 @@ int mysqld_main(int argc, char **argv)
       mysql_bin_log.auto_purge_at_server_startup();
     else if (binlog_expire_logs_seconds > 0)
       mysql_bin_log.purge_logs_before_date(time(nullptr), true);
+
+    if (binlog_space_limit) mysql_bin_log.purge_logs_by_size(true);
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
   }

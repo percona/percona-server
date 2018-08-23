@@ -221,6 +221,9 @@ The following options may be given as the first argument:
  of big documents may need significantly less space.
  --binlog-rows-query-log-events 
  Allow writing of Rows_query_log events into binary log.
+ --binlog-space-limit=# 
+ Maximum space to use for all binary logs. Default is 0,
+ this feature is disabled.
  --binlog-stmt-cache-size=# 
  The size of the statement cache for updates to
  non-transactional engines for the binary log. If you
@@ -1724,6 +1727,7 @@ binlog-row-image FULL
 binlog-row-metadata MINIMAL
 binlog-row-value-options 
 binlog-rows-query-log-events FALSE
+binlog-space-limit 0
 binlog-stmt-cache-size 32768
 binlog-transaction-compression FALSE
 binlog-transaction-compression-level-zstd 3

@@ -1,0 +1,93 @@
+select @@global.binlog_space_limit;
+@@global.binlog_space_limit
+1024
+FLUSH LOGS;
+FLUSH LOGS;
+FLUSH LOGS;
+FLUSH LOGS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000001	#	#
+binary.000002	#	#
+binary.000003	#	#
+binary.000004	#	#
+binary.000005	#	#
+FLUSH LOGS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000002	#	#
+binary.000003	#	#
+binary.000004	#	#
+binary.000005	#	#
+binary.000006	#	#
+CREATE TABLE `t1` (
+`v1` int DEFAULT NULL,
+`v2` int DEFAULT NULL,
+KEY `v1` (`v1`)
+);
+INSERT INTO t1 VALUES (0,0);
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000005	#	#
+binary.000006	#	#
+INSERT INTO t1 VALUES (1,1);
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000006	#	#
+FLUSH LOGS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000007	#	#
+FLUSH LOGS;
+FLUSH LOGS;
+FLUSH LOGS;
+FLUSH LOGS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000007	#	#
+binary.000008	#	#
+binary.000009	#	#
+binary.000010	#	#
+binary.000011	#	#
+PURGE BINARY LOGS TO 'binary.000008';
+FLUSH LOGS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000008	#	#
+binary.000009	#	#
+binary.000010	#	#
+binary.000011	#	#
+binary.000012	#	#
+INSERT INTO t1 VALUES (2,2);
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000010	#	#
+binary.000011	#	#
+binary.000012	#	#
+INSERT INTO t1 VALUES (3,3);
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000011	#	#
+binary.000012	#	#
+RESET BINARY LOGS AND GTIDS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000001	#	#
+INSERT INTO t1 VALUES (4,4);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (5,5);
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000001	#	#
+binary.000002	#	#
+INSERT INTO t1 VALUES (6,6);
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000002	#	#
+FLUSH LOGS;
+FLUSH LOGS;
+show binary logs;
+Log_name	File_size	Encrypted
+binary.000003	#	#
+binary.000004	#	#
+DROP TABLE t1;

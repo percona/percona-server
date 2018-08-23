@@ -2174,6 +2174,13 @@ static Sys_var_bool Sys_expand_fast_index_creation(
     "the fast-index-creation option",
     SESSION_VAR(expand_fast_index_creation), CMD_LINE(OPT_ARG), DEFAULT(false));
 
+static Sys_var_ulonglong Sys_binlog_space_limit(
+    "binlog_space_limit",
+    "Maximum space to use for all binary logs. "
+    "Default is 0, this feature is disabled.",
+    READ_ONLY GLOBAL_VAR(binlog_space_limit), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
     "binlog_expire_logs_seconds",
     "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"

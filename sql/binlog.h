@@ -174,6 +174,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 
   std::atomic<my_off_t> atomic_binlog_end_pos;
   ulonglong bytes_written;
+  ulonglong binlog_space_total;
 
   /** Concurrent access to binlog index file */
   Binlog_index_monitor m_binlog_index_monitor;
@@ -884,7 +885,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
   int purge_logs(const char *to_log, bool included, bool need_lock_index,
                  bool need_update_threads, ulonglong *decrease_log_space,
                  bool auto_purge);
-  int purge_logs_maximum_number(ulong max_nr_files);
+  int count_binlog_space(bool need_lock_index);
+  int purge_logs_by_size(bool need_lock_index);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                         bool need_lock_index);

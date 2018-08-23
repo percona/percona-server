@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 IF(WITH_INNODB_MEMCACHED AND UNIX)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-discarded-qualifiers")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-fallthrough")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-missing-field-initializers")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-sign-compare")
@@ -29,6 +28,12 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-parameter")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-vla")
+
+  MY_CHECK_C_COMPILER_FLAG("-Wno-discarded-qualifiers"
+    HAVE_NO_DISCARDED_QUALIFIERS)
+  IF(HAVE_NO_DISCARDED_QUALIFIERS)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-discarded-qualifiers")
+  ENDIF()
 
   MY_CHECK_C_COMPILER_FLAG("-Wduplicate-decl-specifier"
     HAVE_DUPLICATE_DECL_SPECIFIER)
@@ -67,6 +72,12 @@ IF(WITH_INNODB_MEMCACHED AND UNIX)
     HAVE_UNUSED_BUT_SET_VARIABLE)
   IF(HAVE_UNUSED_BUT_SET_VARIABLE)
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-but-set-variable")
+  ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-but-set-variable"
+    CXX_HAVE_NO_UNUSED_BUT_SET_VARIABLE)
+  IF(CXX_HAVE_NO_UNUSED_BUT_SET_VARIABLE)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-variable")
   ENDIF()
 
   ADD_SUBDIRECTORY(daemon_memcached)

@@ -90,3 +90,4 @@ DROP TABLE t1;
 --source mount_point_service.inc
 --echo
 --echo #End:
+--remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

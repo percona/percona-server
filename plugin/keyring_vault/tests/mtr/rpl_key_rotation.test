@@ -143,3 +143,4 @@ UNINSTALL PLUGIN keyring_vault;
 --let $restart_parameters="restart:$KEYRING_VAULT_PLUGIN_LOAD $KEYRING_VAULT_PLUGIN_OPT"
 --source include/restart_mysqld.inc
 # End:
+--remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

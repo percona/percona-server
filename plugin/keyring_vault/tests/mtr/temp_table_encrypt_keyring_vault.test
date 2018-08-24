@@ -22,3 +22,4 @@ call mtr.add_suppression("Plugin keyring_vault reported");
 --let MOUNT_POINT_SERVICE_OP=DELETE
 --let $KEYRING_CONF_FILE=$KEYRING_CONF_FILE
 --source mount_point_service.inc
+--remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

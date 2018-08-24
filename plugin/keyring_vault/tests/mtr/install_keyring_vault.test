@@ -20,3 +20,4 @@ eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_2';
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config='$KEYRING_CONF_FILE_1';
 UNINSTALL PLUGIN keyring_vault;
+--remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

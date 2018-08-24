@@ -26,3 +26,4 @@ SELECT @@global.keyring_vault_config;
 # cleanup
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SET @@global.keyring_vault_config= '$KEYRING_CONF_FILE_1';
+--remove_file $KEYRING_INVALID_TOKEN_CONF_FILE

@@ -9,7 +9,7 @@ REPLACE INTO t1 VALUES (4);
 DROP TABLE t1;
 FLUSH LOGS;
 
-let filename= master-bin.000001;
+let filename= binlog.000001;
 let local=$datadir/$filename;
 let remote=--read-from-remote-server --protocol=tcp --host=127.0.0.1 --port=$MASTER_MYPORT -uroot $filename;
 let outfile=$MYSQLTEST_VARDIR/tmp/binlog_enc.sql;

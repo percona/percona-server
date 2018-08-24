@@ -5554,15 +5554,14 @@ static int init_server_components() {
                           expire_logs_days * 24 * 60 * 60;
       mysql_bin_log.purge_logs_before_date(purge_time, true);
     }
-    if (max_binlog_files)
-      mysql_bin_log.purge_logs_maximum_number(max_binlog_files);
+    if (binlog_space_limit) mysql_bin_log.purge_logs_by_size(true);
   } else {
     if (binlog_expire_logs_seconds_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
     if (expire_logs_days_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--expire_logs_days");
-    if (max_binlog_files)
-      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--max-binlog-files");
+    if (binlog_space_limit)
+      LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-space-limit");
   }
 
   if (opt_myisam_log) (void)mi_log(1);
